@@ -136,15 +136,16 @@ IdentityWatches::IdentityWatches(QFileSystemWatcher& watcher, Leaf leaf, Categor
 {
 }
 
-QStringList IdentityWatches::refresh(const QStringList& paths, const HeldByOwner& heldByOwner)
+QStringList IdentityWatches::refresh(const QStringList& paths, const HeldByOwner& heldByOwner,
+                                     const QStringList& entryPaths)
 {
     QHash<QString, IdentityChain> chains;
-    chains.reserve(paths.size());
+    chains.reserve(paths.size() + entryPaths.size());
     QHash<QString, NodeIdentity> desired;
     QSet<QString> resolved;
     QSet<QString> holders;
     QStringList moved;
-    for (const QString& path : paths) {
+    const auto walk = [&](const QString& path, bool watchEntry) {
         IdentityChain chain = resolveIdentityChain(path);
         const auto previous = m_chains.constFind(path);
         if (previous != m_chains.constEnd() && previous.value() != chain) {
@@ -160,11 +161,17 @@ QStringList IdentityWatches::refresh(const QStringList& paths, const HeldByOwner
         }
         if (!chain.resolved.isEmpty()) {
             resolved.insert(chain.resolved);
-            if (m_leaf == Leaf::Watch) {
+            if (watchEntry) {
                 desired.insert(chain.resolved, chain.resolvedIdentity);
             }
         }
         chains.insert(path, std::move(chain));
+    };
+    for (const QString& path : paths) {
+        walk(path, m_leaf == Leaf::Watch);
+    }
+    for (const QString& path : entryPaths) {
+        walk(path, true);
     }
     m_chains = std::move(chains);
     m_resolved = std::move(resolved);
