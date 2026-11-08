@@ -15,6 +15,7 @@
 #include <QByteArray>
 #include <QEventLoop>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QLatin1Char>
@@ -178,6 +179,23 @@ void spinNestedLoop(int ms)
     loop.exec();
 }
 
+// Everything that arrives on `socket` until the router closes it.
+QByteArray readUntilClosed(QLocalSocket& socket, int timeoutMs = 5000)
+{
+    QByteArray bytes = socket.readAll();
+    if (socket.state() != QLocalSocket::UnconnectedState) {
+        QEventLoop loop;
+        QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
+        QObject::connect(&socket, &QLocalSocket::readyRead, &loop, [&] {
+            bytes += socket.readAll();
+        });
+        QObject::connect(&socket, &QLocalSocket::disconnected, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+    bytes += socket.readAll();
+    return bytes;
+}
+
 // The router's own end of its only client connection.
 QPointer<QLocalSocket> serverSocketOf(IpcRouter& router)
 {
@@ -220,6 +238,10 @@ private Q_SLOTS:
     void nestedLoop_laterRequestsWait();
     void nestedLoop_oversizeLineStillCloses();
     void stopInsideCall();
+    void stopFlush_deliversWhatWasWritten();
+    void stopFlush_outlivesTheRouter();
+    void stopFlush_clientNotReading_boundedByTimeout();
+    void stopFlush_insideCall_socketOutlivesDispatch();
 };
 
 void TestPhosphorIpcDeferred::deferredReply_finishedAfterEventLoop()
@@ -1208,6 +1230,178 @@ void TestPhosphorIpcDeferred::stopInsideCall()
     QVERIFY(jobs.jobs.front().isValid());
     QVERIFY(!jobs.jobs.front().finish(1));
     QVERIFY(readLines(client, 1, 100).isEmpty());
+}
+
+void TestPhosphorIpcDeferred::stopFlush_deliversWhatWasWritten()
+{
+    // What a router's owner does before it closes the socket: it fails
+    // the calls that wait with the reason, then stops. Abort drops those
+    // answers, Flush delivers them.
+    const auto run = [](IpcRouter::StopMode mode, QByteArray* received, int* closes) {
+        RouterFixture fx;
+        QVERIFY(fx.valid());
+        JobTarget jobs;
+        QVERIFY(fx.router.registerTarget(QStringLiteral("jobs"), &jobs));
+        QVERIFY(fx.router.start(fx.sockPath));
+        QSignalSpy closed(&fx.router, &IpcRouter::connectionClosed);
+
+        QLocalSocket client;
+        QVERIFY(connectClient(client, fx.sockPath));
+        send(client, makeCallReq(1, QStringLiteral("jobs"), QStringLiteral("start"), QJsonArray{QStringLiteral("a")}));
+        send(client, makeCallReq(2, QStringLiteral("jobs"), QStringLiteral("start"), QJsonArray{QStringLiteral("b")}));
+        QTRY_COMPARE(jobs.jobs.size(), std::size_t(2));
+        QVERIFY(framesWithin(client).isEmpty());
+        const quint64 id = jobs.lastConnection;
+        QVERIFY(jobs.jobs.at(0).fail(QStringLiteral("the session closed")));
+        QVERIFY(jobs.jobs.at(1).fail(QStringLiteral("the session closed")));
+        QVERIFY(fx.router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"),
+                                    QJsonArray{QStringLiteral("bye")}));
+
+        fx.router.stop(mode);
+        // Forgotten at once, in both modes.
+        QVERIFY(!fx.router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"), QJsonArray()));
+        QCOMPARE(fx.router.connectionCount(), 0);
+        QVERIFY(fx.router.socketPath().isEmpty());
+        QCOMPARE(closed.count(), 0); // from the event loop
+        *received = readUntilClosed(client);
+        QCOMPARE(client.state(), QLocalSocket::UnconnectedState);
+        QTRY_COMPARE(closed.count(), 1);
+        QTest::qWait(50);
+        *closes = static_cast<int>(closed.count());
+        QCOMPARE(closed.first().first().value<quint64>(), id);
+    };
+
+    QByteArray received;
+    int closes = 0;
+    run(IpcRouter::StopMode::Flush, &received, &closes);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    QCOMPARE(closes, 1);
+    const QList<QByteArray> lines = received.split('\n');
+    QCOMPARE(lines.size(), 4); // three lines and what follows the last
+    QVERIFY(lines.last().isEmpty());
+    for (int i = 0; i < 2; ++i) {
+        const QJsonObject error = QJsonDocument::fromJson(lines.at(i)).object();
+        QCOMPARE(typeOf(error), QStringLiteral("error"));
+        QCOMPARE(error.value(QStringLiteral("id")).toInt(), i + 1);
+        QCOMPARE(error.value(QStringLiteral("message")).toString(), QStringLiteral("the session closed"));
+    }
+    const QJsonObject event = QJsonDocument::fromJson(lines.at(2)).object();
+    QCOMPARE(typeOf(event), QStringLiteral("event"));
+    QCOMPARE(event.value(QStringLiteral("args")).toArray(), QJsonArray{QStringLiteral("bye")});
+
+    // stop() is stop(StopMode::Abort), as before: the answers are lost.
+    run(IpcRouter::StopMode::Abort, &received, &closes);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    QCOMPARE(closes, 1);
+    QVERIFY(received.isEmpty());
+}
+
+void TestPhosphorIpcDeferred::stopFlush_outlivesTheRouter()
+{
+    // More than the kernel takes at once, so the delivery spans many turns
+    // of the event loop, after the router is gone.
+    JobTarget jobs;
+    auto fx = std::make_unique<RouterFixture>();
+    QVERIFY(fx->valid());
+    QVERIFY(fx->router.registerTarget(QStringLiteral("jobs"), &jobs));
+    QVERIFY(fx->router.start(fx->sockPath));
+    QLocalSocket client;
+    QVERIFY(connectClient(client, fx->sockPath));
+    const quint64 id = connectionIdOf(client, 1);
+    QVERIFY(id != 0);
+    const QPointer<QLocalSocket> serverSide = serverSocketOf(fx->router);
+    QVERIFY(serverSide);
+
+    constexpr int Events = 8;
+    const QJsonArray big{QString(512 * 1024, QLatin1Char('x'))};
+    for (int i = 0; i < Events; ++i) {
+        QVERIFY(fx->router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"), big));
+    }
+    QVERIFY(serverSide->bytesToWrite() > 4 * 1024 * 1024);
+    fx->router.stop(IpcRouter::StopMode::Flush);
+    fx.reset();
+    QVERIFY(serverSide);
+
+    const QByteArray received = readUntilClosed(client, 10000);
+    QCOMPARE(client.state(), QLocalSocket::UnconnectedState);
+    QCOMPARE(received.count('\n'), Events);
+    QVERIFY(received.endsWith('\n'));
+    QTRY_VERIFY(serverSide.isNull());
+}
+
+void TestPhosphorIpcDeferred::stopFlush_clientNotReading_boundedByTimeout()
+{
+    RouterFixture fx;
+    QVERIFY(fx.valid());
+    JobTarget jobs;
+    QVERIFY(fx.router.registerTarget(QStringLiteral("jobs"), &jobs));
+    QVERIFY(fx.router.start(fx.sockPath));
+    QLocalSocket client;
+    QVERIFY(connectClient(client, fx.sockPath));
+    const quint64 id = connectionIdOf(client, 1);
+    QVERIFY(id != 0);
+    const QPointer<QLocalSocket> serverSide = serverSocketOf(fx.router);
+    QVERIFY(serverSide);
+
+    // The client takes 64 KiB and then stops reading, so 8 MiB cannot
+    // drain: the timeout aborts the socket and deletes it.
+    client.setReadBufferSize(64 * 1024);
+    constexpr qint64 Sent = 8LL * 1024 * 1024;
+    const QJsonArray big{QString(1024 * 1024, QLatin1Char('x'))};
+    for (qint64 queued = 0; queued < Sent; queued += 1024 * 1024) {
+        QVERIFY(fx.router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"), big));
+    }
+    fx.router.stop(IpcRouter::StopMode::Flush, 200);
+    QTRY_VERIFY_WITH_TIMEOUT(serverSide.isNull(), 3000);
+
+    client.setReadBufferSize(0);
+    const QByteArray received = readUntilClosed(client);
+    QCOMPARE(client.state(), QLocalSocket::UnconnectedState);
+    QVERIFY(received.size() < Sent);
+}
+
+void TestPhosphorIpcDeferred::stopFlush_insideCall_socketOutlivesDispatch()
+{
+    RouterFixture fx;
+    QVERIFY(fx.valid());
+    JobTarget jobs;
+    QVERIFY(fx.router.registerTarget(QStringLiteral("jobs"), &jobs));
+    QVERIFY(fx.router.start(fx.sockPath));
+    QSignalSpy closed(&fx.router, &IpcRouter::connectionClosed);
+    QLocalSocket client;
+    QVERIFY(connectClient(client, fx.sockPath));
+    const quint64 id = connectionIdOf(client, 1);
+    QVERIFY(id != 0);
+    const QPointer<QLocalSocket> serverSide = serverSocketOf(fx.router);
+    QVERIFY(serverSide);
+
+    // The method writes its last event and stops the router, and a nested
+    // event loop then delivers the event and closes the socket while the
+    // dispatch on it is still on the stack. The socket lives until the
+    // dispatch unwinds, and the method's return value goes nowhere.
+    bool aliveAfterLoop = false;
+    jobs.hook = [&] {
+        fx.router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"), QJsonArray{QStringLiteral("last")});
+        fx.router.stop(IpcRouter::StopMode::Flush);
+        spinNestedLoop(200);
+        aliveAfterLoop = !serverSide.isNull();
+    };
+    send(client, makeCallReq(2, QStringLiteral("jobs"), QStringLiteral("runHook")));
+    const QByteArray received = readUntilClosed(client);
+    QCOMPARE(client.state(), QLocalSocket::UnconnectedState);
+    const QList<QByteArray> lines = received.split('\n');
+    QCOMPARE(lines.size(), 2);
+    const QJsonObject event = QJsonDocument::fromJson(lines.first()).object();
+    QCOMPARE(typeOf(event), QStringLiteral("event"));
+    QCOMPARE(event.value(QStringLiteral("args")).toArray(), QJsonArray{QStringLiteral("last")});
+    QTRY_VERIFY(serverSide.isNull());
+    QVERIFY(aliveAfterLoop);
+    QTRY_COMPARE(closed.count(), 1);
+    QCOMPARE(closed.first().first().value<quint64>(), id);
 }
 
 QTEST_GUILESS_MAIN(TestPhosphorIpcDeferred)

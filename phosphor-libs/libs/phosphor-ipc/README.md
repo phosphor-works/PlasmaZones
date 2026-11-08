@@ -366,6 +366,15 @@ unread. It gets no id, `connectionOpened` and `connectionClosed` do not
 come for it, and `connectionRefused()` does. Lowering the cap closes no
 open connection. The default, 0, sets no limit.
 
+`stop()` closes each connection at once and drops what is still
+unwritten to it, so answers written just before it never arrive.
+`stop(IpcRouter::StopMode::Flush)` delivers them first: the router stops
+listening and forgets its connections at once, as `stop()` does, and each
+connection closes when the client has taken what was written to it. A
+client that does not read within the timeout (`DefaultFlushTimeoutMs`,
+5 seconds, or the second argument) loses the rest. The delivery does not
+need the router, which may be destroyed right after the call.
+
 ### CLI side
 
 ```

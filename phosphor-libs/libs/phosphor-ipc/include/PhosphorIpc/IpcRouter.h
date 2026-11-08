@@ -105,8 +105,32 @@ public:
     // Close the listening socket and every client connection, each of
     // which then gets its connectionClosed. Idempotent. A target method
     // may call it: the connection whose call runs is closed too, and the
-    // method's return value goes nowhere.
+    // method's return value goes nowhere. What is still unwritten to a
+    // connection is dropped: stop() is stop(StopMode::Abort).
     void stop();
+
+    // How stop() ends the client connections.
+    enum class StopMode {
+        // Close each one at once and drop what is still unwritten to it.
+        Abort,
+        // Deliver what was written to each one (replies, errors, events)
+        // first, then close it.
+        Flush,
+    };
+    // The default bound on the delivery of StopMode::Flush.
+    static constexpr int DefaultFlushTimeoutMs = 5000;
+
+    // stop() in `mode`. The router stops listening and forgets every
+    // connection at once, as stop() does: connectionClosed follows for
+    // each, from the event loop, and sendEvent() and pending replies find
+    // them closed. With StopMode::Flush, a connection that still has bytes
+    // to write closes once the client has taken them, or is aborted when
+    // `flushTimeoutMs` pass first (a client that stopped reading). The
+    // output limit bounds what is waiting, and the router reads nothing
+    // more from the connection meanwhile. The delivery goes on from the
+    // event loop and does not need the router: it is fine to destroy the
+    // router right after this call.
+    void stop(StopMode mode, int flushTimeoutMs = DefaultFlushTimeoutMs);
 
     // The resolved socket path (after XDG fallback). Empty if
     // start() has not been called or failed.
@@ -314,6 +338,10 @@ private:
     // Deletes a closed socket from the event loop, once no dispatch on
     // it is on the stack.
     void retireSocket(QLocalSocket* socket);
+    // stop(StopMode::Flush) for one open socket, whose router handlers
+    // are gone: closes it once its write buffer has drained, or aborts it
+    // after `flushTimeoutMs`, and then deletes it.
+    void flushAndClose(QLocalSocket* socket, int flushTimeoutMs);
     // Ends every subscription to the target `name`: each subscriber gets
     // a NO_SUCH_TARGET error under its subscription id.
     void endSubscriptionsTo(const QString& name);

@@ -25,6 +25,7 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QThread>
+#include <QTimer>
 #include <QVariant>
 
 #include <algorithm>
@@ -199,6 +200,11 @@ bool IpcRouter::start(const QString& socketPath)
 
 void IpcRouter::stop()
 {
+    stop(StopMode::Abort);
+}
+
+void IpcRouter::stop(StopMode mode, int flushTimeoutMs)
+{
     Q_ASSERT(thread() == QThread::currentThread());
     // Forget every connection first, then close the sockets. The closes
     // are booked here, once, after the sockets are closed.
@@ -220,6 +226,10 @@ void IpcRouter::stop()
         const QList<QLocalSocket*> sockets = m_server->findChildren<QLocalSocket*>(Qt::FindDirectChildrenOnly);
         for (QLocalSocket* socket : sockets) {
             QObject::disconnect(socket, nullptr, this, nullptr);
+            if (mode == StopMode::Flush && socket->state() == QLocalSocket::ConnectedState) {
+                flushAndClose(socket, flushTimeoutMs);
+                continue;
+            }
             socket->setParent(this);
             socket->abort();
             retireSocket(socket);
@@ -730,6 +740,37 @@ void IpcRouter::retireSocket(QLocalSocket* socket)
         return;
     }
     socket->deleteLater();
+}
+
+void IpcRouter::flushAndClose(QLocalSocket* socket, int flushTimeoutMs)
+{
+    // The socket writes on without the router, which may be destroyed
+    // before the client has taken the bytes, so it has no parent. Once it
+    // is closed it is deleted through retireSocket while the router lives:
+    // stop() inside a target method may run this for the socket whose
+    // dispatch is on the stack, and a nested event loop that the method
+    // spins may see the close.
+    socket->setParent(nullptr);
+    const QPointer<IpcRouter> router(this);
+    const auto retire = [router, socket]() {
+        if (router) {
+            router->retireSocket(socket);
+        } else {
+            socket->deleteLater();
+        }
+    };
+    QObject::connect(socket, &QLocalSocket::disconnected, socket, retire);
+    // A client that stopped reading would hold the socket open: the bound
+    // drops what it has not taken. The abort may emit disconnected, which
+    // retires the socket too: a second deleteLater() and a second insert
+    // into m_socketsToDelete change nothing.
+    QTimer::singleShot(std::max(0, flushTimeoutMs), socket, [socket, retire]() {
+        socket->abort();
+        retire();
+    });
+    // Closes at once (with disconnected) when nothing waits, and otherwise
+    // once the write buffer has drained.
+    socket->disconnectFromServer();
 }
 
 void IpcRouter::closeWithMalformedDiagnostic(QLocalSocket* socket, const QString& message)
