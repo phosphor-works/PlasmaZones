@@ -4,6 +4,7 @@
 #include <PhosphorFsLoader/IScanStrategy.h>
 #include <PhosphorFsLoader/WatchedDirectorySet.h>
 
+#include "identitychain_p.h"
 #include "nearestexistingancestor_p.h"
 
 #include <QDir>
@@ -13,6 +14,7 @@
 #include <QStandardPaths>
 #include <QThread>
 
+#include <algorithm>
 #include <optional>
 
 namespace PhosphorFsLoader {
@@ -164,6 +166,9 @@ WatchedDirectorySet::WatchedDirectorySet(IScanStrategy& strategy, QObject* paren
     m_debounceTimer.setSingleShot(true);
     m_debounceTimer.setInterval(50);
     connect(&m_debounceTimer, &QTimer::timeout, this, &WatchedDirectorySet::rescanAll);
+    m_identityTimer.setSingleShot(true);
+    m_identityTimer.setInterval(50);
+    connect(&m_identityTimer, &QTimer::timeout, this, &WatchedDirectorySet::onIdentityCheckElapsed);
 }
 
 WatchedDirectorySet::~WatchedDirectorySet() = default;
@@ -322,8 +327,11 @@ int WatchedDirectorySet::setDirectories(const QStringList& directories, LiveRelo
             // is shared between the two roles, so it must stay armed until
             // `releaseAncestorWatchFor`'s refcount sweep drops the last
             // dependent target — removing it here would strand the proxy
-            // bookkeeping and kill hot-reload for the surviving target.
-            if (m_watcher->directories().contains(dir) && !m_watchedParents.contains(dir)) {
+            // bookkeeping and kill hot-reload for the surviving target. The
+            // same holds for a directory on another target's identity chain,
+            // which the chain refresh in `rescanAll` releases once no chain
+            // needs it.
+            if (m_watcher->directories().contains(dir) && !m_watchedParents.contains(dir) && !m_identity->holds(dir)) {
                 m_watcher->removePath(dir);
             }
             // Ancestor back-reference cleanup. Same refcount-by-iteration
@@ -425,6 +433,7 @@ void WatchedDirectorySet::setDebounceIntervalForTest(int ms)
     Q_ASSERT_X(thread() == QThread::currentThread(), "WatchedDirectorySet::setDebounceIntervalForTest",
                "GUI-thread only — see class docs");
     m_debounceTimer.setInterval(ms);
+    m_identityTimer.setInterval(ms);
 }
 
 QString WatchedDirectorySet::watchedAncestorForTest(const QString& target) const
@@ -474,7 +483,12 @@ void WatchedDirectorySet::rescanAll()
     // "live-reload on" predicate — `installWatcherIfNeeded` only ever
     // runs from the `LiveReload::On` branch in `registerDirectories`,
     // and the watcher is never torn down for the set's lifetime.
+    //
+    // The identity chains go first: a directory whose chain moved since the
+    // last walk has its content watches dropped there, so the attach below
+    // and the file sync after the scan re-arm them on the new inodes.
     if (m_watcher) {
+        refreshIdentityChains();
         for (const QString& dir : std::as_const(m_directories)) {
             attachWatcherForDir(dir);
         }
@@ -621,11 +635,20 @@ void WatchedDirectorySet::installWatcherIfNeeded()
         return;
     }
     m_watcher = new QFileSystemWatcher(this);
-    // Both signals route through the debounce timer. We don't
-    // differentiate file-changed vs directory-changed — the rescan
-    // sees the full filesystem state regardless.
-    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString&) {
-        onWatchedPathChanged();
+    m_identity = std::make_unique<detail::IdentityWatches>(*m_watcher, detail::IdentityWatches::Leaf::Skip, &lcWatcher);
+    // A file event and an event in a directory the strategy scans route
+    // through the rescan debounce, without telling them apart: the rescan
+    // sees the full filesystem state regardless. An event in a directory
+    // that only an identity chain needs costs a walk of the chains, which
+    // asks for a rescan only when one of them moved. Its window opens on the
+    // first such event and is not extended by later ones, so steady churn
+    // in `$HOME` cannot postpone the walk that notices a switch.
+    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString& path) {
+        if (isContentWatch(path)) {
+            onWatchedPathChanged();
+        } else if (!m_identityTimer.isActive()) {
+            m_identityTimer.start();
+        }
     });
     connect(m_watcher, &QFileSystemWatcher::fileChanged, this, [this](const QString&) {
         onWatchedPathChanged();
@@ -791,9 +814,83 @@ void WatchedDirectorySet::releaseAncestorWatchFor(const QString& targetKey)
     // the two roles, so drop only the proxy bookkeeping here and leave the
     // watch armed for the direct role — removing it would silence every
     // event under A with nothing left to re-arm it.
+    // The same goes for an ancestor that an identity chain also needs, which
+    // is the usual case after a promotion: the proxy was the target's parent.
     m_watchedParents.remove(watchedAncestor);
-    if (!m_directories.contains(watchedAncestor)) {
+    if (!m_directories.contains(watchedAncestor) && !m_identity->holds(watchedAncestor)) {
         m_watcher->removePath(watchedAncestor);
+    }
+}
+
+bool WatchedDirectorySet::refreshIdentityChains()
+{
+    const QStringList moved = m_identity->refresh(m_directories, [this](const QString& path) {
+        return isContentWatch(path);
+    });
+    if (moved.isEmpty()) {
+        return false;
+    }
+    qCDebug(lcWatcher) << "identity chain moved for" << moved << "— re-arming its watches";
+    dropWatchesOfMovedDirectories(moved);
+    return true;
+}
+
+void WatchedDirectorySet::dropWatchesOfMovedDirectories(const QStringList& moved)
+{
+    // Qt keeps one watch per path string and skips an add of a path it
+    // already holds, so a watch whose path now names another inode has to be
+    // removed before the attach and the file sync can arm the new one. A path
+    // the identity chains also hold is left alone: their refresh has just
+    // re-armed it if its inode changed.
+    //
+    // Proxies first. A proxy is the nearest existing ancestor of a missing
+    // target, so it is on that target's chain, and a proxy that moved moved
+    // every target that depends on it: the refcount sweep releases it once
+    // the last of them is released here.
+    for (const QString& dir : moved) {
+        releaseAncestorWatchFor(dir);
+    }
+    const QStringList watchedDirectories = m_watcher->directories();
+    QStringList stale;
+    for (const QString& dir : moved) {
+        if (watchedDirectories.contains(dir) && !m_watchedParents.contains(dir) && !m_identity->holds(dir)) {
+            stale.append(dir);
+        }
+    }
+    // The strategy's files below a moved directory are watched on the old
+    // inodes too. `syncFileWatches` re-adds them after the rescan.
+    for (auto it = m_watchedFiles.begin(); it != m_watchedFiles.end();) {
+        const bool below = std::any_of(moved.cbegin(), moved.cend(), [&it](const QString& dir) {
+            return *it == dir || it->startsWith(dir + QLatin1Char('/'));
+        });
+        if (!below) {
+            ++it;
+            continue;
+        }
+        if (!m_identity->holds(*it)) {
+            stale.append(*it);
+        }
+        it = m_watchedFiles.erase(it);
+    }
+    if (!stale.isEmpty()) {
+        m_watcher->removePaths(stale);
+    }
+}
+
+bool WatchedDirectorySet::isContentWatch(const QString& path) const
+{
+    // Qt reports an event on an inode watched under two spellings under one
+    // of them only. A registered directory reached through a symlink can
+    // also sit on another registered directory's chain under its physical
+    // spelling, and an event there is still content.
+    return m_directories.contains(path) || m_watchedParents.contains(path) || m_watchedFiles.contains(path)
+        || m_identity->isResolvedPath(path);
+}
+
+void WatchedDirectorySet::onIdentityCheckElapsed()
+{
+    if (refreshIdentityChains()) {
+        requestRescan();
     }
 }
 
