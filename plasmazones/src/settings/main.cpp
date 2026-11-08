@@ -121,9 +121,9 @@ int main(int argc, char* argv[])
     app.setApplicationName(QStringLiteral("plasmazones-settings"));
     app.setApplicationVersion(PlasmaZones::VERSION_STRING);
     app.setOrganizationName(QStringLiteral("plasmazones"));
-    app.setOrganizationDomain(QStringLiteral("org.plasmazones"));
-    app.setDesktopFileName(QStringLiteral("org.plasmazones.settings"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("plasmazones-settings")));
+    app.setOrganizationDomain(QStringLiteral("phosphor-works.org"));
+    app.setDesktopFileName(QStringLiteral("org.phosphor_works.Facet"));
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.phosphor_works.Facet")));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(PhosphorI18n::tr("PlasmaZones Settings"));

@@ -38,23 +38,23 @@ endif()
 # dbus/*.xml on disk, third-party clients (and qdbus-qt6 introspection)
 # resolve interfaces against these files post-install.
 install(FILES
-    dbus/org.plasmazones.Autotile.xml
-    dbus/org.plasmazones.CompositorBridge.xml
-    dbus/org.plasmazones.Control.xml
-    dbus/org.plasmazones.EditorApp.xml
-    dbus/org.plasmazones.LayoutRegistry.xml
-    dbus/org.plasmazones.Overlay.xml
-    dbus/org.plasmazones.Rules.xml
-    dbus/org.plasmazones.Screen.xml
-    dbus/org.plasmazones.Scrolling.xml
-    dbus/org.plasmazones.Settings.xml
-    dbus/org.plasmazones.SettingsApp.xml
-    dbus/org.plasmazones.Shader.xml
-    dbus/org.plasmazones.Snap.xml
-    dbus/org.plasmazones.Tiling.xml
-    dbus/org.plasmazones.WindowDrag.xml
-    dbus/org.plasmazones.WindowTracking.xml
-    dbus/org.plasmazones.ZoneDetection.xml
+    dbus/org.phosphor_works.Placement.Autotile.xml
+    dbus/org.phosphor_works.Placement.CompositorBridge.xml
+    dbus/org.phosphor_works.Placement.Control.xml
+    dbus/org.phosphor_works.PlasmaZones.Editor.xml
+    dbus/org.phosphor_works.Placement.LayoutRegistry.xml
+    dbus/org.phosphor_works.Placement.Overlay.xml
+    dbus/org.phosphor_works.Placement.Rules.xml
+    dbus/org.phosphor_works.Placement.Screen.xml
+    dbus/org.phosphor_works.Placement.Scrolling.xml
+    dbus/org.phosphor_works.Placement.Settings.xml
+    dbus/org.phosphor_works.Facet.xml
+    dbus/org.phosphor_works.Placement.Shader.xml
+    dbus/org.phosphor_works.Placement.Snap.xml
+    dbus/org.phosphor_works.Placement.Tiling.xml
+    dbus/org.phosphor_works.Placement.WindowDrag.xml
+    dbus/org.phosphor_works.Placement.WindowTracking.xml
+    dbus/org.phosphor_works.Placement.ZoneDetection.xml
     DESTINATION ${KDE_INSTALL_DBUSINTERFACEDIR}
 )
 
@@ -214,25 +214,16 @@ install(PROGRAMS scripts/plasmazones-report.sh
     RENAME plasmazones-report
 )
 
-# Install icons (hicolor for dark themes, hicolor-light for light themes).
-# The phosphor-shell.svg icons moved to phosphor-shell/CMakeLists.txt with
-# the rest of that tier, where the whole file is already gated on
-# BUILD_PHOSPHOR_SHELL, so nothing here is conditional.
-set(_plasmazones_dark_icons
-    icons/hicolor/scalable/apps/plasmazones.svg
-    icons/hicolor/scalable/apps/plasmazones-editor.svg
-    icons/hicolor/scalable/apps/plasmazones-settings.svg
-)
-set(_plasmazones_light_icons
-    icons/hicolor-light/scalable/apps/plasmazones.svg
-    icons/hicolor-light/scalable/apps/plasmazones-editor.svg
-    icons/hicolor-light/scalable/apps/plasmazones-settings.svg
-)
-install(FILES ${_plasmazones_dark_icons}
-    DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps
-)
-install(FILES ${_plasmazones_light_icons}
-    DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor-light/scalable/apps
+# Icons come from the pinned branding release (cmake/PhosphorDependencies.cmake):
+# scalable and 16 to 512 px, in hicolor for dark themes and hicolor-light for
+# light ones. Each installs under its app's ID, which is also its .desktop and
+# AppStream id. The shell's icon is installed by phosphor-shell/CMakeLists.txt.
+phosphor_fetch_dependency(branding)
+include(${branding_SOURCE_DIR}/cmake/PhosphorBranding.cmake)
+phosphor_install_brand_icons(
+    org.phosphor_works.PlasmaZones plasmazones
+    org.phosphor_works.PlasmaZones.Editor plasmazones-editor
+    org.phosphor_works.Facet plasmazones-settings
 )
 
 # Aggregate target for the moon workspace: `cmake --build build --target plasmazones-tier`.

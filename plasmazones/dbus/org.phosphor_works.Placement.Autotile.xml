@@ -1,0 +1,147 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+    "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<!--
+SPDX-FileCopyrightText: 2026 fuddlesworth
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<node>
+    <!-- Autotile-engine-specific interface, sibling to org.phosphor_works.Placement.Scrolling.
+         Window lifecycle and tile-request traffic rides the shared
+         org.phosphor_works.Placement.Tiling transport. -->
+    <interface name="org.phosphor_works.Placement.Autotile">
+        <annotation name="org.gtk.GDBus.DocString" value="Autotile-engine control: algorithm selection, master-area operations, focus cycling, and autotile configuration. Window lifecycle and tile requests ride org.phosphor_works.Placement.Tiling."/>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             Properties
+             ═══════════════════════════════════════════════════════════════════════════ -->
+
+        <property name="algorithm" type="s" access="readwrite">
+            <annotation name="org.gtk.GDBus.DocString" value="Current tiling algorithm ID (e.g., master-stack, bsp, columns)."/>
+        </property>
+        <property name="masterRatio" type="d" access="readwrite">
+            <annotation name="org.gtk.GDBus.DocString" value="Ratio of screen width for master area (0.1 to 0.9)."/>
+        </property>
+        <property name="masterCount" type="i" access="readwrite">
+            <annotation name="org.gtk.GDBus.DocString" value="Number of windows in master area (1 to 5)."/>
+        </property>
+        <property name="innerGap" type="i" access="read">
+            <annotation name="org.gtk.GDBus.DocString" value="Gap between tiled windows in pixels. Read-only: gaps are rule-backed, set them via org.phosphor_works.Placement.Rules."/>
+        </property>
+        <property name="outerGap" type="i" access="read">
+            <annotation name="org.gtk.GDBus.DocString" value="Gap from screen edges in pixels. Read-only: gaps are rule-backed, set them via org.phosphor_works.Placement.Rules."/>
+        </property>
+        <property name="smartGaps" type="b" access="readwrite">
+            <annotation name="org.gtk.GDBus.DocString" value="Hide gaps when only one window is tiled."/>
+        </property>
+        <property name="focusNewWindows" type="b" access="readwrite">
+            <annotation name="org.gtk.GDBus.DocString" value="Automatically focus newly opened windows."/>
+        </property>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             Tiling Operations
+             ═══════════════════════════════════════════════════════════════════════════ -->
+
+        <method name="swapWindows">
+            <annotation name="org.gtk.GDBus.DocString" value="Swap positions of two tiled windows."/>
+            <arg name="windowId1" type="s" direction="in">
+                <annotation name="org.gtk.GDBus.DocString" value="First window ID."/>
+            </arg>
+            <arg name="windowId2" type="s" direction="in">
+                <annotation name="org.gtk.GDBus.DocString" value="Second window ID."/>
+            </arg>
+        </method>
+
+        <method name="promoteToMaster">
+            <annotation name="org.gtk.GDBus.DocString" value="Promote a window to the master area."/>
+            <arg name="windowId" type="s" direction="in">
+                <annotation name="org.gtk.GDBus.DocString" value="Window ID to promote."/>
+            </arg>
+        </method>
+
+        <method name="demoteFromMaster">
+            <annotation name="org.gtk.GDBus.DocString" value="Demote a window from master to stack area."/>
+            <arg name="windowId" type="s" direction="in">
+                <annotation name="org.gtk.GDBus.DocString" value="Window ID to demote."/>
+            </arg>
+        </method>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             Focus Operations
+             ═══════════════════════════════════════════════════════════════════════════ -->
+
+        <method name="focusMaster">
+            <annotation name="org.gtk.GDBus.DocString" value="Focus the master window on the current screen."/>
+        </method>
+
+        <method name="focusNext">
+            <annotation name="org.gtk.GDBus.DocString" value="Cycle focus to the next tiled window."/>
+        </method>
+
+        <method name="focusPrevious">
+            <annotation name="org.gtk.GDBus.DocString" value="Cycle focus to the previous tiled window."/>
+        </method>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             Ratio/Count Adjustment
+             ═══════════════════════════════════════════════════════════════════════════ -->
+
+        <method name="increaseMasterRatio">
+            <annotation name="org.gtk.GDBus.DocString" value="Increase the master area ratio by delta (default 5%)."/>
+            <arg name="delta" type="d" direction="in">
+                <annotation name="org.gtk.GDBus.DocString" value="Amount to increase (e.g., 0.05 for 5%)."/>
+            </arg>
+        </method>
+
+        <method name="decreaseMasterRatio">
+            <annotation name="org.gtk.GDBus.DocString" value="Decrease the master area ratio by delta (default 5%)."/>
+            <arg name="delta" type="d" direction="in">
+                <annotation name="org.gtk.GDBus.DocString" value="Amount to decrease (e.g., 0.05 for 5%)."/>
+            </arg>
+        </method>
+
+        <method name="increaseMasterCount">
+            <annotation name="org.gtk.GDBus.DocString" value="Increase the number of master windows by one."/>
+        </method>
+
+        <method name="decreaseMasterCount">
+            <annotation name="org.gtk.GDBus.DocString" value="Decrease the number of master windows by one."/>
+        </method>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             Algorithm Query
+             ═══════════════════════════════════════════════════════════════════════════ -->
+
+        <method name="availableAlgorithms">
+            <annotation name="org.gtk.GDBus.DocString" value="Get list of available tiling algorithm IDs."/>
+            <arg name="algorithms" type="as" direction="out">
+                <annotation name="org.gtk.GDBus.DocString" value="List of algorithm IDs (e.g., master-stack, bsp, columns)."/>
+            </arg>
+        </method>
+
+        <method name="algorithmInfo">
+            <annotation name="org.gtk.GDBus.DocString" value="Get information about a specific algorithm. An unknown ID returns a default-constructed struct rather than an error; the returned id echoes the queried ID only on a successful lookup, so an empty id means the query missed."/>
+            <arg name="algorithmId" type="s" direction="in">
+                <annotation name="org.gtk.GDBus.DocString" value="Algorithm ID to query."/>
+            </arg>
+            <arg name="info" type="(sssbbbbdibsbbb)" direction="out">
+                <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="PhosphorProtocol::AlgorithmInfoEntry"/>
+                <annotation name="org.gtk.GDBus.DocString" value="Struct: (id, name, description, supportsMasterCount, supportsSplitRatio, centerLayout, producesOverlappingZones, defaultSplitRatio, defaultMaxWindows, isScripted, zoneNumberDisplay, isUserScript, supportsMemory, supportsSingleWindow)."/>
+            </arg>
+        </method>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             Signals
+             ═══════════════════════════════════════════════════════════════════════════ -->
+
+        <signal name="algorithmChanged">
+            <annotation name="org.gtk.GDBus.DocString" value="Emitted when the tiling algorithm changes."/>
+            <arg name="algorithmId" type="s">
+                <annotation name="org.gtk.GDBus.DocString" value="New algorithm ID."/>
+            </arg>
+        </signal>
+
+        <signal name="configChanged">
+            <annotation name="org.gtk.GDBus.DocString" value="Emitted when any autotile configuration property changes."/>
+        </signal>
+    </interface>
+</node>

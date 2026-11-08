@@ -2,14 +2,14 @@
 
 # PlasmaZones
 
-<img src="plasmazones/icons/hicolor/scalable/apps/plasmazones.svg" alt="PlasmaZones" width="96">
+<img src="https://raw.githubusercontent.com/phosphor-works/branding/v0.1.0/svg/square/dark/plasmazones.svg" alt="PlasmaZones" width="96">
 
 **Window snapping, tiling and scrolling for KDE Plasma**
 
 Three placement modes in one daemon. Snap windows into zones you drew, let an algorithm tile them for you, or scroll them along an endless strip. Every monitor picks its own.
 
-[![CI](https://github.com/fuddlesworth/PlasmaZones/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fuddlesworth/PlasmaZones/actions/workflows/ci.yml)
-[![GitHub release](https://img.shields.io/github/v/release/fuddlesworth/PlasmaZones)](https://github.com/fuddlesworth/PlasmaZones/releases/latest)
+[![CI](https://github.com/phosphor-works/PlasmaZones/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/phosphor-works/PlasmaZones/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/phosphor-works/PlasmaZones)](https://github.com/phosphor-works/PlasmaZones/releases/latest)
 [![AUR](https://img.shields.io/aur/version/plasmazones-bin)](https://aur.archlinux.org/packages/plasmazones-bin)
 [![COPR](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dfuddlesworth%26projectname%3DPlasmaZones%26packagename%3Dplasmazones%26with_latest_succeeded_build%3Dtrue&query=%24.builds.latest_succeeded.source_package.version&label=COPR&color=blue)](https://copr.fedorainfracloud.org/coprs/fuddlesworth/PlasmaZones/package/plasmazones/)
 <br>
@@ -83,7 +83,7 @@ A shortcut family on `Meta+Alt` covers the whole vocabulary: [Keyboard shortcuts
 - **Appearance** — GLSL shader overlays for zones (audio-reactive, procedural, distro-themed) with up to 4 image textures each, window decoration packs, and animation packs for open, close, minimize, and desktop switching — [Shader gallery →](https://phosphor-works.github.io/plasmazones/shaders/) · [authoring guide →](https://phosphor-works.github.io/plasmazones/guides/shaders/)
 - **Per-monitor, per-desktop, per-activity** — layouts, algorithms, templates, and mode assignments are all scoped, and virtual screens subdivide a physical monitor into independent logical workspaces with their own everything
 - **Window rules** — match on class, title, active layout, screen orientation, and more, then act on placement, floating, opacity, borders, animations, scroll speed, and per-app behavior in every mode
-- **Scriptable** — a D-Bus API on `org.plasmazones` covering every mode — [scripting guide →](https://phosphor-works.github.io/plasmazones/dbus/)
+- **Scriptable** — a D-Bus API on `org.phosphor_works.Placement` covering every mode — [scripting guide →](https://phosphor-works.github.io/plasmazones/dbus/)
 
 ---
 
@@ -138,7 +138,7 @@ Requirements: KDE Plasma 6.7+ on Wayland — the integration runs as a KWin effe
 Add to your flake inputs:
 
 ```nix
-plasmazones.url = "github:fuddlesworth/PlasmaZones";
+plasmazones.url = "github:phosphor-works/PlasmaZones";
 ```
 
 Import the module and enable it in your NixOS configuration:
@@ -162,7 +162,7 @@ Then log out and back in.
 #### Nix profile (without NixOS)
 
 ```bash
-nix profile install github:fuddlesworth/PlasmaZones
+nix profile install github:phosphor-works/PlasmaZones
 ```
 
 > **Note:** This pins the package to the flake's nixpkgs. If your system's KWin
@@ -245,13 +245,13 @@ The archive lands in `/tmp` by default with home paths redacted, so it's safe to
 
 ## D-Bus API
 
-The daemon exposes its whole surface on `org.plasmazones` for scripting and integration. Interface inventory, scripting recipes, and signal watching: **[D-Bus scripting guide →](https://phosphor-works.github.io/plasmazones/dbus/)**.
+The daemon exposes its whole surface on `org.phosphor_works.Placement` for scripting and integration. Interface inventory, scripting recipes, and signal watching: **[D-Bus scripting guide →](https://phosphor-works.github.io/plasmazones/dbus/)**.
 
 ---
 
 ## Project Structure
 
-Directory tree and data locations: [Project Structure](https://github.com/fuddlesworth/PlasmaZones/wiki/Project-Structure) on the wiki.
+Directory tree and data locations: [Project Structure](https://github.com/phosphor-works/PlasmaZones/wiki/Project-Structure) on the wiki.
 
 ---
 
@@ -268,7 +268,7 @@ If PlasmaZones is useful to you, consider supporting development:
 - [Ko-fi](https://ko-fi.com/fuddlesworth)
 - [GitHub Sponsors](https://github.com/sponsors/fuddlesworth)
 
-Bug reports and feature requests: [GitHub Issues](https://github.com/fuddlesworth/PlasmaZones/issues)
+Bug reports and feature requests: [GitHub Issues](https://github.com/phosphor-works/PlasmaZones/issues)
 
 ---
 

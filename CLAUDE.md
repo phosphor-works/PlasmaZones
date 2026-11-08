@@ -97,7 +97,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
 - Extract: `cmake --build build --target update-ts`
 
 ## User-Facing Text (Plain Prose)
-User-facing strings MUST read like plain, human-written prose with no LLM tics. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). SVG `<desc>` elements in `plasmazones/icons/**` count too, since screen readers announce them.
+User-facing strings MUST read like plain, human-written prose with no LLM tics. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
 
 `README.md` is deliberately OUT of scope, along with the other developer-facing repo docs (`CLAUDE.md`, `AGENTS.md`, `docs/**`, `plasmazones/tools/**/README.md`). The README uses em-dashes structurally throughout and pulling it under this rule would need a full punctuation rewrite first. Do not "fix" README em-dashes to satisfy the bullets below.
 
@@ -167,7 +167,7 @@ In-repo skills under `.claude/skills/` (symlinked into `.agents/skills/`). Invok
 
 Agents under `.claude/agents/`: the `review/pz-*-reviewer` domain reviewers the audit dispatches, the `shader-theme/` art and critique agents, `triage/pz-crash-triage` (core or hang to mechanism) and `triage/pz-kwin-scout` (what a KWin or Qt API actually does, from the installed version's source), and `experts/pz-perf-expert`.
 
-A PreToolUse hook (`.claude/hooks/guard.py`, cases in `test_guard.py`) blocks the commands these rules forbid: `sudo`, installs outside a `/tmp` stage, `pkill`/`killall`, D-Bus calls to `org.plasmazones` on the user's own session bus, restarting the user's KWin, plasmashell or daemon, force pushes, pushes to `main`, broad `git add`, and edits inside build trees. Run `python3 .claude/hooks/test_guard.py` after changing it.
+A PreToolUse hook (`.claude/hooks/guard.py`, cases in `test_guard.py`) blocks the commands these rules forbid: `sudo`, installs outside a `/tmp` stage, `pkill`/`killall`, D-Bus calls to PlasmaZones' names (`org.phosphor_works.*`) on the user's own session bus, restarting the user's KWin, plasmashell or daemon, force pushes, pushes to `main`, broad `git add`, and edits inside build trees. Run `python3 .claude/hooks/test_guard.py` after changing it.
 
 ## Build & Test
 
@@ -265,7 +265,7 @@ ctest --test-dir build --output-on-failure
 # dramatic "Label: payload" colon; the rule-of-three triad and "not just X, but
 # Y", none of which it tests; and a clause-splicing semicolon built from
 # PAST-tense prose, because the verb list its semicolon arm matches on carries no
-# past-tense lexical verbs. Nor does it reach icon SVG <desc>.
+# past-tense lexical verbs.
 # Also runs on pre-commit (staged files) and in CI (whole tree).
 python3 scripts/check-conventions.py
 python3 scripts/check-conventions.py --list-rules
@@ -344,7 +344,7 @@ cmake/                   — Shared CMake modules, including the third-party pin
 scripts/                 — Repo-level checks and dev harnesses
 .moon/                   — moon workspace config (see Build & Test)
 ```
-Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/`, `plasmazones/icons/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. `phosphor-shell/` also carries its own `icons/` and `scripts/`.
+Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. `phosphor-shell/` also carries its own `scripts/`. App icons are not in the tree: they install from the pinned branding release (`cmake/PhosphorDependencies.cmake`).
 
 ## Testing
 - Qt Test: `QTEST_MAIN`, `QCOMPARE`, `QVERIFY`
@@ -394,5 +394,5 @@ Cross-cutting traps that each cost audit passes or a whole session. A trap owned
 
 ## Support
 - Documentation: https://phosphor-works.github.io/plasmazones/
-- Repository: https://github.com/fuddlesworth/PlasmaZones
-- Issues: https://github.com/fuddlesworth/PlasmaZones/issues
+- Repository: https://github.com/phosphor-works/PlasmaZones
+- Issues: https://github.com/phosphor-works/PlasmaZones/issues
