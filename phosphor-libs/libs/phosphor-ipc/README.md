@@ -341,7 +341,10 @@ or signal name, for an id that names no open connection of the router, and
 off the router's thread (an assert in debug builds, a warning in release
 builds; `broadcastEvent` drops its event the same way). The output limit of broadcasts
 applies: a connection more than 16 MiB behind is closed with a warning,
-and `sendEvent` returns false.
+and `sendEvent` returns false. A fifth argument, `qint64* lineBytes`,
+receives the size of the line that the event took, its newline included,
+for a target that counts the bytes its client has read. It is 0 when
+`sendEvent` returns false.
 
 `IpcRouter::connectionClosed(id)` follows the close of every connection,
 once: the client went away, the router closed it, or `stop()` ran. It is

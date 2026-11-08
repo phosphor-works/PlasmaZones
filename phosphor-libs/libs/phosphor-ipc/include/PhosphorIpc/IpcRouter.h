@@ -250,6 +250,12 @@ public:
     // connection more than 16 MiB behind is closed (with a warning) and
     // the call returns false.
     bool sendEvent(quint64 connectionId, const QString& target, const QString& signalName, const QJsonArray& args);
+    // sendEvent(), which also sets `*lineBytes` (when not null) to the
+    // size of the line it wrote, its '\n' included: the bytes the client
+    // reads for this event, for a target that counts what its client has
+    // taken. 0 when it returns false.
+    bool sendEvent(quint64 connectionId, const QString& target, const QString& signalName, const QJsonArray& args,
+                   qint64* lineBytes);
 
 Q_SIGNALS:
     void targetRegistered(const QString& name);

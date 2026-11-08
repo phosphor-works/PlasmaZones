@@ -224,6 +224,7 @@ private Q_SLOTS:
     void sendEvent_reachesOnlyThatConnection_beforeReply();
     void sendEvent_unknownOrClosedConnection();
     void sendEvent_overLimit_closesConnection();
+    void sendEvent_reportsTheLineBytes();
     void connectionClosed_onceWithId_idsNotReused();
     void connectionClosed_onStopAndDestruction();
     void connectionClosed_slotDropsPendingReplies();
@@ -693,6 +694,50 @@ void TestPhosphorIpcDeferred::sendEvent_overLimit_closesConnection()
     QTRY_COMPARE(closed.count(), 1);
     QCOMPARE(closed.first().first().value<quint64>(), id);
     QVERIFY(!fx.router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"), QJsonArray()));
+}
+
+void TestPhosphorIpcDeferred::sendEvent_reportsTheLineBytes()
+{
+    RouterFixture fx;
+    QVERIFY(fx.valid());
+    JobTarget jobs;
+    QVERIFY(fx.router.registerTarget(QStringLiteral("jobs"), &jobs));
+    QVERIFY(fx.router.start(fx.sockPath));
+    QLocalSocket client;
+    QVERIFY(connectClient(client, fx.sockPath));
+    const quint64 id = connectionIdOf(client, 1);
+    QVERIFY(id != 0);
+
+    // What JSON escapes or encodes in more than one byte: quotes,
+    // backslashes, control characters, non-ASCII text and a surrogate pair.
+    const QList<QJsonArray> cases{
+        QJsonArray{},
+        QJsonArray{QStringLiteral("plain")},
+        QJsonArray{QStringLiteral("quote \" backslash \\ newline \n tab \t")},
+        QJsonArray{QStringLiteral("\x01\x1f\x7f")},
+        QJsonArray{QStringLiteral("caf\u00e9 \u2603 \U0001F600"), 42, 0.5, true, QJsonValue::Null},
+        QJsonArray{QJsonObject{{QStringLiteral("k"), QJsonArray{1, 2}}}},
+    };
+    for (const QJsonArray& args : cases) {
+        qint64 bytes = -1;
+        QVERIFY(fx.router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"), args, &bytes));
+        QTRY_VERIFY(client.canReadLine());
+        const QByteArray line = client.readLine();
+        QVERIFY(line.endsWith('\n'));
+        QCOMPARE(bytes, qint64(line.size()));
+    }
+    // Without the out-parameter, as before.
+    QVERIFY(fx.router.sendEvent(id, QStringLiteral("jobs"), QStringLiteral("output"), QJsonArray(), nullptr));
+    QCOMPARE(readLines(client, 1).size(), 1);
+
+    // Nothing written: 0.
+    qint64 bytes = -1;
+    QVERIFY(!fx.router.sendEvent(id, QString(), QStringLiteral("output"), QJsonArray(), &bytes));
+    QCOMPARE(bytes, 0);
+    bytes = -1;
+    QVERIFY(!fx.router.sendEvent(~quint64(0), QStringLiteral("jobs"), QStringLiteral("output"), QJsonArray(), &bytes));
+    QCOMPARE(bytes, 0);
+    QVERIFY(framesWithin(client).isEmpty());
 }
 
 void TestPhosphorIpcDeferred::connectionClosed_onceWithId_idsNotReused()
