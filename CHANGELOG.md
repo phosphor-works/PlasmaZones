@@ -12,7 +12,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **New D-Bus names**: the PlasmaZones service moved from `org.plasmazones` on `/PlasmaZones` to `org.phosphor_works.Placement` on `/org/phosphor_works/Placement`. Each interface keeps its own name after the new prefix, so `org.plasmazones.Snap` is now `org.phosphor_works.Placement.Snap`, and the error names moved the same way. The Settings app answers on `org.phosphor_works.Facet` and the layout editor on `org.phosphor_works.PlasmaZones.Editor`. Scripts that call PlasmaZones over D-Bus need the new names. Log out and back in after updating so KWin loads the updated effect.
+- **New app IDs**: the desktop entries and AppStream ids follow the same names. The service is `org.phosphor_works.PlasmaZones`, the Settings app is `org.phosphor_works.Facet` and the layout editor is `org.phosphor_works.PlasmaZones.Editor`. A launcher or panel entry pinned to the Settings app or the editor needs pinning again. Global shortcuts set in System Settings keep working. On a desktop that binds global shortcuts through the XDG portal, bind them again once.
+- **The PlasmaZones service only starts under KWin**: started anywhere KWin is not running, it now says so in its log and exits instead of running without a compositor to talk to.
 - **Updated app icons, now at every size**: PlasmaZones, its editor and its settings take their icons from the suite's shared branding, which has the current artwork. Besides the scalable icons, each now comes drawn at sizes from 16 to 512 pixels, so menus and panels that prefer a fixed size get a crisp one. Screen readers announce each icon's name and a short description of it.
+
+### Fixed
+
+- **An empty config file no longer blocks saving**: a config.json that held nothing, for example after `touch`, counted as unreadable, so every save was refused until it was deleted. An empty file now reads as one with no settings, the same as a missing file.
+- **Autotiling and the KWin effect work on NixOS**: nixpkgs renames KWin's `kwin_wayland_wrapper` to `.kwin_wayland_wrapper-wrapped` and puts a script in its place. PlasmaZones only trusted the KWin effect when the compositor ran under the original name, so on NixOS it refused the effect. Windows then opened untiled and every feature that needs the effect did nothing. The renamed wrapper is now trusted as well. ([#1209](https://github.com/phosphor-works/PlasmaZones/issues/1209))
+- **Live reload follows a switched directory**: when a directory above the window rules, shader packs, animation curves or tiling algorithms was a symlink that Home Manager, stow or chezmoi pointed somewhere new, or was replaced by a copy, PlasmaZones kept watching the old directory. The switch went unnoticed, and so did every edit after it until a restart. PlasmaZones now notices the switch, reloads, and watches the directory that the path names after it.
+- **A curve with a typo in its values is reported**: a curve such as `spring:22` or `bezier:junk` named a known curve type with values that could not be read. It was accepted and drew the library's default curve of that type, with no warning. Such a curve is now refused, the same as an unknown curve name.
 
 ## [3.5.5] - 2026-11-04
 
