@@ -23,15 +23,20 @@
 #include <QMetaObject>
 #include <QMetaType>
 #include <QProcessEnvironment>
+#include <QScopeGuard>
 #include <QString>
 #include <QThread>
+#include <QTimer>
 #include <QVariant>
 
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
+#include <cstdlib> // mkdtemp
+#include <system_error>
 
-#include <sys/stat.h> // umask, lstat
-#include <unistd.h> // getuid
+#include <sys/stat.h> // chmod, lstat
+#include <unistd.h> // getuid, link, unlink, rmdir
 
 namespace PhosphorIpc {
 
@@ -59,32 +64,66 @@ bool isStaleSocket(const QString& path)
     return probe.error() == QLocalSocket::ConnectionRefusedError;
 }
 
-// RAII scope for the ::umask process-global. We use ::umask to
-// force a 0600 mode on the socket file at create time (atomic, no
-// chmod-after-listen window). The umask is process-global and not
-// thread-local, so a leak would taint any concurrent file
-// creation; this guard ensures the restore happens even if a
-// future change inserts a throwing call between the bind and the
-// existing manual restore.
-class UmaskScope
+// Where QLocalServer::listen(name) puts the socket of `name`: a path as
+// it is, and any other name in the temporary directory.
+QString socketFilePath(const QString& name)
 {
-public:
-    explicit UmaskScope(mode_t mask)
-        : m_prev(::umask(mask))
-    {
+    if (name.startsWith(QLatin1Char('/'))) {
+        return name;
     }
-    ~UmaskScope()
-    {
-        ::umask(m_prev);
-    }
-    UmaskScope(const UmaskScope&) = delete;
-    UmaskScope& operator=(const UmaskScope&) = delete;
-    UmaskScope(UmaskScope&&) = delete;
-    UmaskScope& operator=(UmaskScope&&) = delete;
+    return QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/') + name;
+}
 
-private:
-    mode_t m_prev;
-};
+QString errnoMessage(int error)
+{
+    return QString::fromStdString(std::generic_category().message(error));
+}
+
+// Listens on `path` with a socket file of mode 0600, without the umask:
+// the umask is one for the whole process, and every file that another
+// thread made while it was changed would get it. The socket is bound in
+// a new directory beside `path`, which mkdtemp() makes 0700, so nobody
+// else can reach it while it has the umask's mode. It is made 0600 there
+// and then linked to `path`, which keeps its inode. link() never replaces
+// a file, so a live listener keeps its path, and only a stale socket
+// (isStaleSocket) is removed for this one. On success `*bound` describes
+// the socket file, so that stop() removes it and nothing that took the
+// path since.
+bool listenPrivately(QLocalServer& server, const QString& path, struct stat* bound, QString* error)
+{
+    const QByteArray target = QFile::encodeName(path);
+    QByteArray directory = QFile::encodeName(QFileInfo(path).absolutePath()) + "/.ipc-XXXXXX";
+    if (!::mkdtemp(directory.data())) {
+        *error = errnoMessage(errno);
+        return false;
+    }
+    const QByteArray privateSocket = directory + "/s";
+    // Linked or not, the private name and its directory go.
+    const auto removePrivate = qScopeGuard([&directory, &privateSocket] {
+        ::unlink(privateSocket.constData());
+        ::rmdir(directory.constData());
+    });
+    if (!server.listen(QFile::decodeName(privateSocket))) {
+        *error = server.errorString();
+        return false;
+    }
+    int failure = 0;
+    if (::chmod(privateSocket.constData(), 0600) != 0 || ::lstat(privateSocket.constData(), bound) != 0) {
+        failure = errno;
+    } else if (::link(privateSocket.constData(), target.constData()) != 0) {
+        failure = errno;
+        if (failure == EEXIST && isStaleSocket(path)) {
+            ::unlink(target.constData());
+            failure = ::link(privateSocket.constData(), target.constData()) == 0 ? 0 : errno;
+        }
+    }
+    if (failure != 0) {
+        server.close();
+        *error = failure == EEXIST ? QStringLiteral("the path is in use") : errnoMessage(failure);
+        return false;
+    }
+    return true;
+}
 
 // Resolve the default socket path. $XDG_RUNTIME_DIR/phosphor.sock
 // when XDG_RUNTIME_DIR is set, otherwise empty (caller logs and
@@ -136,68 +175,36 @@ bool IpcRouter::start(const QString& socketPath)
         qWarning("PhosphorIpc::IpcRouter::start: no socket path (XDG_RUNTIME_DIR unset and no explicit path)");
         return false;
     }
-    // Try to bind first. If listen() fails because a stale socket
-    // file from a crashed previous run is sitting there, remove it
-    // and retry. A path is stale only when isStaleSocket() says so:
-    // a live listener, also a busy one, and a file that is not a
-    // socket keep the path, and start() fails. This avoids the
-    // "clobber a live listener on the same path" bug a blind unlink
-    // would cause.
+    // We do NOT use setSocketOptions(UserAccessOption): with it
+    // QLocalServer renames its socket over whatever is at the path, also
+    // over another live listener's. listenPrivately gives the 0600 mode
+    // and keeps a live listener's path. $XDG_RUNTIME_DIR is 0700 on
+    // systemd systems; the mode protects the socket where it is not, for
+    // a runtime directory such as /tmp.
     m_server = std::make_unique<QLocalServer>(this);
-    // We do NOT use setSocketOptions(UserAccessOption) here: that
-    // option makes QLocalServer auto-unlink any existing socket
-    // file before binding, which would silently clobber another
-    // live listener on the same path. Instead we listen() against
-    // the bare path with an umask scope that forces the
-    // newly-created socket file to be mode 0600 atomically, no
-    // chmod-after-listen window where the socket exists at the
-    // umask-default mode. ::umask() is process-global (NOT
-    // thread-local), so any other thread creating files during the
-    // narrow scope below inherits the 0177 mask. The router
-    // contract (owning thread only, Q_ASSERT'd above) plus the
-    // microsecond-scale scope makes the race window negligible in
-    // practice; a future move to fchmod(socketDescriptor(), 0600)
-    // after listen would remove the global mutation entirely.
-    bool initialBound = false;
-    {
-        UmaskScope guard(0177);
-        initialBound = m_server->listen(resolved);
+    const QString file = socketFilePath(resolved);
+    struct stat bound{};
+    QString error;
+    if (!listenPrivately(*m_server, file, &bound, &error)) {
+        qWarning("PhosphorIpc::IpcRouter::start: listen() failed for '%s': %s", qPrintable(resolved),
+                 qPrintable(error));
+        m_server.reset();
+        return false;
     }
-    if (!initialBound) {
-        const QString initialError = m_server->errorString();
-        bool removedStale = false;
-        if (isStaleSocket(resolved)) {
-            QFile::remove(resolved);
-            removedStale = true;
-        }
-        bool retryBound = false;
-        if (removedStale) {
-            // Same umask scope as the initial listen so the
-            // post-unlink retry also creates the socket file at
-            // mode 0600 atomically.
-            UmaskScope guard(0177);
-            retryBound = m_server->listen(resolved);
-        }
-        if (!retryBound) {
-            qWarning("PhosphorIpc::IpcRouter::start: listen() failed for '%s': %s", qPrintable(resolved),
-                     qPrintable(removedStale ? m_server->errorString() : initialError));
-            m_server.reset();
-            return false;
-        }
-    }
-    // Socket file is at mode 0600 by construction (the umask
-    // scope above forced the create-time permissions); no
-    // post-listen chmod needed. $XDG_RUNTIME_DIR is conventionally
-    // 0700 on systemd systems (per the systemd-logind spec); a
-    // non-systemd setup that points XDG_RUNTIME_DIR at /tmp would
-    // not get that directory-level protection, which is why the
-    // 0600 socket file mode is independent defense-in-depth.
+    m_socketFile = QFile::encodeName(file);
+    m_socketDevice = static_cast<quint64>(bound.st_dev);
+    m_socketInode = static_cast<quint64>(bound.st_ino);
     m_socketPath = resolved;
     QObject::connect(m_server.get(), &QLocalServer::newConnection, this, &IpcRouter::handleNewConnection);
     return true;
 }
 
 void IpcRouter::stop()
+{
+    stop(StopMode::Abort);
+}
+
+void IpcRouter::stop(StopMode mode, int flushTimeoutMs)
 {
     Q_ASSERT(thread() == QThread::currentThread());
     // Forget every connection first, then close the sockets. The closes
@@ -220,12 +227,25 @@ void IpcRouter::stop()
         const QList<QLocalSocket*> sockets = m_server->findChildren<QLocalSocket*>(Qt::FindDirectChildrenOnly);
         for (QLocalSocket* socket : sockets) {
             QObject::disconnect(socket, nullptr, this, nullptr);
+            if (mode == StopMode::Flush && socket->state() == QLocalSocket::ConnectedState) {
+                flushAndClose(socket, flushTimeoutMs);
+                continue;
+            }
             socket->setParent(this);
             socket->abort();
             retireSocket(socket);
         }
         m_server->close();
         m_server.reset();
+        // QLocalServer removes the name it listened on, the private one,
+        // which is gone already. The public name goes here, unless another
+        // file took the path meanwhile.
+        struct stat info{};
+        if (::lstat(m_socketFile.constData(), &info) == 0 && static_cast<quint64>(info.st_dev) == m_socketDevice
+            && static_cast<quint64>(info.st_ino) == m_socketInode) {
+            ::unlink(m_socketFile.constData());
+        }
+        m_socketFile.clear();
     }
     m_socketPath.clear();
     for (const quint64 id : std::as_const(closed)) {
@@ -236,6 +256,22 @@ void IpcRouter::stop()
 QString IpcRouter::socketPath() const
 {
     return m_socketPath;
+}
+
+void IpcRouter::setMaxConnections(int max)
+{
+    Q_ASSERT(thread() == QThread::currentThread());
+    m_maxConnections = std::max(0, max);
+}
+
+int IpcRouter::maxConnections() const
+{
+    return m_maxConnections;
+}
+
+int IpcRouter::connectionCount() const
+{
+    return static_cast<int>(m_connectionIdBySocket.size());
 }
 
 bool IpcRouter::registerTarget(const QString& name, QObject* object)
@@ -540,6 +576,15 @@ void IpcRouter::handleNewConnection()
         if (!socket) {
             continue;
         }
+        // A connection leaves m_connectionIdBySocket as it closes (stop()
+        // clears it), so its size is the count of open ones. A refused
+        // socket has no handlers yet and nothing to clean up but itself.
+        if (m_maxConnections > 0 && m_connectionIdBySocket.size() >= m_maxConnections) {
+            socket->abort();
+            socket->deleteLater();
+            Q_EMIT connectionRefused();
+            continue;
+        }
         // Cap the per-socket kernel-side read buffer. Without this,
         // a client that opens the socket and never sends a newline
         // can pin arbitrary amounts of memory in the receive buffer
@@ -566,6 +611,9 @@ void IpcRouter::handleNewConnection()
                 handleClientDisconnected(socket);
             },
             Qt::DirectConnection);
+        // Last, so that a slot finds the connection open. A slot that stops
+        // the router ends the loop: m_server is gone.
+        Q_EMIT connectionOpened(connectionId);
     }
 }
 
@@ -702,6 +750,37 @@ void IpcRouter::retireSocket(QLocalSocket* socket)
         return;
     }
     socket->deleteLater();
+}
+
+void IpcRouter::flushAndClose(QLocalSocket* socket, int flushTimeoutMs)
+{
+    // The socket writes on without the router, which may be destroyed
+    // before the client has taken the bytes, so it has no parent. Once it
+    // is closed it is deleted through retireSocket while the router lives:
+    // stop() inside a target method may run this for the socket whose
+    // dispatch is on the stack, and a nested event loop that the method
+    // spins may see the close.
+    socket->setParent(nullptr);
+    const QPointer<IpcRouter> router(this);
+    const auto retire = [router, socket]() {
+        if (router) {
+            router->retireSocket(socket);
+        } else {
+            socket->deleteLater();
+        }
+    };
+    QObject::connect(socket, &QLocalSocket::disconnected, socket, retire);
+    // A client that stopped reading would hold the socket open: the bound
+    // drops what it has not taken. The abort may emit disconnected, which
+    // retires the socket too: a second deleteLater() and a second insert
+    // into m_socketsToDelete change nothing.
+    QTimer::singleShot(std::max(0, flushTimeoutMs), socket, [socket, retire]() {
+        socket->abort();
+        retire();
+    });
+    // Closes at once (with disconnected) when nothing waits, and otherwise
+    // once the write buffer has drained.
+    socket->disconnectFromServer();
 }
 
 void IpcRouter::closeWithMalformedDiagnostic(QLocalSocket* socket, const QString& message)
