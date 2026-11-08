@@ -211,6 +211,7 @@ private Q_SLOTS:
     void connectionClosed_slotDropsPendingReplies();
     void connectionClosed_onMalformedClose();
     void connectionClosed_slotDestroysRouter();
+    void maxConnections_refusesPastTheCap();
     void deferredReply_answersOwnConnection();
     void deferredReply_capPerConnection();
     void deferredReply_undefinedResultIsNull();
@@ -867,6 +868,76 @@ void TestPhosphorIpcDeferred::connectionClosed_slotDestroysRouter()
     QTRY_VERIFY(!fx);
     QTest::qWait(50);
     QCOMPARE(slotRuns, 2);
+}
+
+void TestPhosphorIpcDeferred::maxConnections_refusesPastTheCap()
+{
+    RouterFixture fx;
+    QVERIFY(fx.valid());
+    JobTarget jobs;
+    QVERIFY(fx.router.registerTarget(QStringLiteral("jobs"), &jobs));
+    QCOMPARE(fx.router.maxConnections(), 0);
+    fx.router.setMaxConnections(2);
+    QCOMPARE(fx.router.maxConnections(), 2);
+    QVERIFY(fx.router.start(fx.sockPath));
+    QSignalSpy opened(&fx.router, &IpcRouter::connectionOpened);
+    QSignalSpy refused(&fx.router, &IpcRouter::connectionRefused);
+    QSignalSpy closed(&fx.router, &IpcRouter::connectionClosed);
+
+    QLocalSocket a;
+    QVERIFY(connectClient(a, fx.sockPath));
+    const quint64 idA = connectionIdOf(a, 1);
+    QLocalSocket b;
+    QVERIFY(connectClient(b, fx.sockPath));
+    const quint64 idB = connectionIdOf(b, 1);
+    QVERIFY(idA != 0);
+    QVERIFY(idB != 0);
+    QCOMPARE(fx.router.connectionCount(), 2);
+    QCOMPARE(opened.count(), 2);
+    QCOMPARE(opened.at(0).first().value<quint64>(), idA);
+    QCOMPARE(opened.at(1).first().value<quint64>(), idB);
+
+    // The kernel completes the third connect, and the router closes it
+    // without reading the call.
+    QLocalSocket c;
+    QVERIFY(connectClient(c, fx.sockPath));
+    send(c, makeCallReq(1, QStringLiteral("jobs"), QStringLiteral("whoAmI")));
+    QTRY_COMPARE(c.state(), QLocalSocket::UnconnectedState);
+    QCOMPARE(refused.count(), 1);
+    QVERIFY(c.readAll().isEmpty());
+    QCOMPARE(opened.count(), 2);
+    QCOMPARE(fx.router.connectionCount(), 2);
+    // A refused connection was never open, so it does not close.
+    QTest::qWait(50);
+    QCOMPARE(closed.count(), 0);
+    // The open ones are served as before.
+    QCOMPARE(connectionIdOf(a, 2), idA);
+
+    // A close makes room.
+    a.disconnectFromServer();
+    QTRY_COMPARE(closed.count(), 1);
+    QCOMPARE(fx.router.connectionCount(), 1);
+    QLocalSocket d;
+    QVERIFY(connectClient(d, fx.sockPath));
+    const quint64 idD = connectionIdOf(d, 1);
+    QVERIFY(idD != 0);
+    QCOMPARE(opened.count(), 3);
+    QCOMPARE(opened.last().first().value<quint64>(), idD);
+    QCOMPARE(refused.count(), 1);
+
+    // Lowering the cap closes no open connection, and 0 lifts it.
+    fx.router.setMaxConnections(1);
+    QCOMPARE(connectionIdOf(b, 2), idB);
+    QCOMPARE(fx.router.connectionCount(), 2);
+    fx.router.setMaxConnections(0);
+    QLocalSocket e;
+    QVERIFY(connectClient(e, fx.sockPath));
+    QVERIFY(connectionIdOf(e, 1) != 0);
+    QCOMPARE(fx.router.connectionCount(), 3);
+    QCOMPARE(refused.count(), 1);
+
+    fx.router.stop();
+    QCOMPARE(fx.router.connectionCount(), 0);
 }
 
 void TestPhosphorIpcDeferred::deferredReply_answersOwnConnection()

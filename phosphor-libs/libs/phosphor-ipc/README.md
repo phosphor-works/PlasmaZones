@@ -357,6 +357,15 @@ subscribe to is free to skip it. `phosphorctl call` prints the events sent
 to its call on stderr, and `phosphorctl subscribe` prints every event it
 receives.
 
+`IpcRouter::connectionOpened(id)` comes when the router accepts a
+connection, before it reads anything from it, and `connectionCount()`
+returns the connections open now. `setMaxConnections(max)` caps them, for
+a socket that other processes can reach, such as one forwarded to another
+host. A connection accepted while `max` are open is closed at once and
+unread. It gets no id, `connectionOpened` and `connectionClosed` do not
+come for it, and `connectionRefused()` does. Lowering the cap closes no
+open connection. The default, 0, sets no limit.
+
 ### CLI side
 
 ```

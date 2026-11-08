@@ -49,7 +49,10 @@ namespace PhosphorIpc {
 //     the replies to later calls on the same connection.
 //   - sendEvent() writes an event to one connection. Everything written
 //     to a connection (replies, errors, events) arrives in write order.
-//   - connectionClosed(id) follows the close of every connection.
+//   - connectionOpened(id) follows the accept of every connection, and
+//     connectionClosed(id) its close. With setMaxConnections, a
+//     connection past the cap is closed at accept instead: it gets no
+//     id, and connectionRefused() follows.
 //   - The router reads one request of a connection at a time. A method
 //     that spins a nested event loop holds back every later request of
 //     its own connection (calls, subscribes, list) until it returns, so
@@ -108,6 +111,18 @@ public:
     // The resolved socket path (after XDG fallback). Empty if
     // start() has not been called or failed.
     [[nodiscard]] QString socketPath() const;
+
+    // The most client connections open at once. Each holds a descriptor
+    // and router state, so a socket that other processes can reach (one
+    // forwarded to another host, for example) caps them. A connection
+    // accepted while `max` are open is closed at once, before it is read:
+    // it gets no id and no connectionOpened or connectionClosed, and
+    // connectionRefused() follows. Lowering the cap closes no open
+    // connection. 0 (the default) and below: no limit.
+    void setMaxConnections(int max);
+    [[nodiscard]] int maxConnections() const;
+    // The client connections open now: accepted, and not closed yet.
+    [[nodiscard]] int connectionCount() const;
 
     // Register a target QObject under a name. Returns true if the
     // registry now binds `name` to `object` (a fresh registration,
@@ -215,6 +230,15 @@ public:
 Q_SIGNALS:
     void targetRegistered(const QString& name);
     void targetUnregistered(const QString& name);
+    // The router accepted the client connection `connectionId`, the id
+    // that IpcCallContext::connectionId() and connectionClosed() name
+    // later. Sent from the event loop, when the router accepts, before it
+    // reads anything the client sent. sendEvent() to the id works from
+    // the slot on.
+    void connectionOpened(quint64 connectionId);
+    // The router closed a connection at accept because maxConnections()
+    // were open. Sent once per refused connection, from the event loop.
+    void connectionRefused();
     // The client connection `connectionId` has closed: the client went
     // away, the router closed it (malformed input, output limit) or
     // stop() ran. Sent once per connection, from the event loop and
@@ -319,6 +343,8 @@ private:
     // connection closes, so a lookup by id finds only open connections.
     QHash<QLocalSocket*, quint64> m_connectionIdBySocket;
     QHash<quint64, QPointer<QLocalSocket>> m_socketByConnectionId;
+    // setMaxConnections; 0: no limit.
+    int m_maxConnections = 0;
     // Deferred calls that wait for their answer, by pending-reply token,
     // and the tokens of each connection's calls. A connection's entries go
     // when it closes.

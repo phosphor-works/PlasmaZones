@@ -238,6 +238,22 @@ QString IpcRouter::socketPath() const
     return m_socketPath;
 }
 
+void IpcRouter::setMaxConnections(int max)
+{
+    Q_ASSERT(thread() == QThread::currentThread());
+    m_maxConnections = std::max(0, max);
+}
+
+int IpcRouter::maxConnections() const
+{
+    return m_maxConnections;
+}
+
+int IpcRouter::connectionCount() const
+{
+    return static_cast<int>(m_connectionIdBySocket.size());
+}
+
 bool IpcRouter::registerTarget(const QString& name, QObject* object)
 {
     Q_ASSERT(thread() == QThread::currentThread());
@@ -540,6 +556,15 @@ void IpcRouter::handleNewConnection()
         if (!socket) {
             continue;
         }
+        // A connection leaves m_connectionIdBySocket as it closes (stop()
+        // clears it), so its size is the count of open ones. A refused
+        // socket has no handlers yet and nothing to clean up but itself.
+        if (m_maxConnections > 0 && m_connectionIdBySocket.size() >= m_maxConnections) {
+            socket->abort();
+            socket->deleteLater();
+            Q_EMIT connectionRefused();
+            continue;
+        }
         // Cap the per-socket kernel-side read buffer. Without this,
         // a client that opens the socket and never sends a newline
         // can pin arbitrary amounts of memory in the receive buffer
@@ -566,6 +591,9 @@ void IpcRouter::handleNewConnection()
                 handleClientDisconnected(socket);
             },
             Qt::DirectConnection);
+        // Last, so that a slot finds the connection open. A slot that stops
+        // the router ends the loop: m_server is gone.
+        Q_EMIT connectionOpened(connectionId);
     }
 }
 
