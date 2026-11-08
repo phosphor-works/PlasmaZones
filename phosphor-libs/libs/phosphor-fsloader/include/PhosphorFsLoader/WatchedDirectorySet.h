@@ -12,6 +12,8 @@
 #include <QtCore/QStringList>
 #include <QtCore/QTimer>
 
+#include <memory>
+
 QT_BEGIN_NAMESPACE
 class QFileSystemWatcher;
 QT_END_NAMESPACE
@@ -19,6 +21,10 @@ QT_END_NAMESPACE
 namespace PhosphorFsLoader {
 
 class IScanStrategy;
+
+namespace detail {
+class IdentityWatches;
+}
 
 /**
  * @brief Opt-in policy for directory watching.
@@ -85,6 +91,18 @@ enum class RegistrationOrder : quint8 {
  *   • Re-arming individual file watches after every rescan, so editors
  *     that save via atomic rename (the new inode is a different watch
  *     candidate) still fire on the next edit.
+ *   • **Identity chains** for the registered directories. A watch stays on
+ *     the inode its path named when it was added, so a symlinked directory
+ *     above a registered one that is retargeted (Home Manager, stow,
+ *     chezmoi, a NixOS generation switch) or a parent replaced by rename
+ *     would leave the set watching the old tree. Every directory from `/`
+ *     down to each registered directory is watched too, and an event in one
+ *     of them only walks the chains again: a few `lstat()` and `readlink()`
+ *     calls. Only when a directory on the way, a symlink's text or the
+ *     registered directory's own inode changed are the watches below it
+ *     re-armed and a rescan run. These watches are exempt from the rule
+ *     that refuses to watch `$HOME`, `/` and the XDG roots, since
+ *     unrelated churn there costs no rescan.
  *   • A rescan-during-rescan race guard that ensures a watcher event
  *     delivered while the scan is in progress is replayed afterwards
  *     instead of being silently dropped.
@@ -258,7 +276,8 @@ public:
     /// has to be filtered upstream).
     static QStringList filterNewSearchPaths(const QStringList& candidates, const QStringList& alreadyRegistered);
 
-    /// Test-only: override the debounce interval (default 50 ms).
+    /// Test-only: override the debounce interval (default 50 ms), for
+    /// rescans and for identity checks alike.
     ///
     /// Production code MUST NOT call this — the 50 ms debounce is a hard
     /// requirement for collapsing the 2-3 event save-temp-rename dance
@@ -294,6 +313,17 @@ private:
     void releaseAncestorWatchFor(const QString& targetKey);
     void onWatchedPathChanged();
     void syncFileWatches(const QStringList& desiredPaths);
+    /// Walk the identity chains of the registered directories again, re-arm
+    /// the chain watches, and drop the content watches of every directory
+    /// whose chain moved so the next attach and file sync re-arm them on the
+    /// new inodes. Returns true when a chain moved.
+    bool refreshIdentityChains();
+    void dropWatchesOfMovedDirectories(const QStringList& moved);
+    /// Whether @p path is watched for what the strategy scans (a registered
+    /// directory, an ancestor proxy or a reported file) rather than only for
+    /// an identity chain.
+    bool isContentWatch(const QString& path) const;
+    void onIdentityCheckElapsed();
 
     IScanStrategy* m_strategy = nullptr;
     QStringList m_directories; ///< registration order
@@ -302,6 +332,9 @@ private:
     /// `m_watcher != nullptr` is the single source of truth, no
     /// parallel `m_liveReloadEnabled` flag.
     QFileSystemWatcher* m_watcher = nullptr;
+    /// The identity chains of the registered directories and the ancestor
+    /// watches they need, on `m_watcher`. Created with the watcher.
+    std::unique_ptr<detail::IdentityWatches> m_identity;
     QSet<QString> m_watchedParents; ///< parents watched for dir-creation
     /// Back-reference from a configured target directory whose own path
     /// does not yet exist to the specific ancestor we climbed to and
@@ -325,6 +358,10 @@ private:
     /// recovered-then-refailed path warns again.
     QSet<QString> m_warnedFailedWatchPaths;
     QTimer m_debounceTimer;
+    /// Debounce for events that only an identity chain watches. Separate from
+    /// `m_debounceTimer` so that churn in `$HOME` cannot postpone a pending
+    /// rescan.
+    QTimer m_identityTimer;
     /// Reentry depth — incremented at the top of every `rescanAll`, decremented
     /// at the bottom. A bool would clobber on nested invocations (a slot wired
     /// to `rescanCompleted` calling `registerDirectories` runs `rescanAll`
