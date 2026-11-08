@@ -8,6 +8,7 @@
 #include "nearestexistingancestor_p.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QLoggingCategory>
@@ -16,6 +17,8 @@
 
 #include <algorithm>
 #include <optional>
+
+#include <sys/stat.h>
 
 namespace PhosphorFsLoader {
 
@@ -149,6 +152,46 @@ bool isForbiddenWatchRoot(const QString& path)
     };
     for (const auto loc : kForbidden) {
         if (matches(QSP::writableLocation(loc))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Whether @p path goes through a symlink below the deepest of the
+/// registered @p directories that holds it, or anywhere when none does. The
+/// identity chain of that directory already follows every link above it, so
+/// only the components below it are looked at, one `lstat()` each. A
+/// component that does not exist ends the walk: nothing below it can be
+/// watched under any spelling.
+bool crossesSymlinkBelowRegistered(const QStringList& directories, const QString& path)
+{
+    const QString clean = QDir::cleanPath(path);
+    if (!clean.startsWith(QLatin1Char('/'))) {
+        return false;
+    }
+    QString base = QStringLiteral("/");
+    for (const QString& directory : directories) {
+        if (clean == directory) {
+            return false;
+        }
+        if (directory.size() > base.size() && clean.startsWith(directory)
+            && clean.at(directory.size()) == QLatin1Char('/')) {
+            base = directory;
+        }
+    }
+    QString current = base;
+    const QStringList below = clean.mid(base.size()).split(QLatin1Char('/'), Qt::SkipEmptyParts);
+    for (const QString& name : below) {
+        if (!current.endsWith(QLatin1Char('/'))) {
+            current += QLatin1Char('/');
+        }
+        current += name;
+        struct stat st{};
+        if (::lstat(QFile::encodeName(current).constData(), &st) != 0) {
+            return false;
+        }
+        if (S_ISLNK(st.st_mode)) {
             return true;
         }
     }
@@ -538,17 +581,38 @@ void WatchedDirectorySet::syncFileWatches(const QStringList& desiredPaths)
         return;
     }
 
+    // A reported path that goes through a symlink below its registered
+    // directory (a linked script, a linked package folder, a file inside
+    // one) cannot be watched under its own spelling. inotify follows the link
+    // once, when the watch is added, and Qt keeps one watch per path string,
+    // so the watch stays on the old target after the link is pointed
+    // elsewhere, and there is none at all while the link dangles. Those paths
+    // go to the identity chains, which watch every directory the link leads
+    // through and the target under its physical path. Every other path keeps
+    // its plain watch here: the chain of its registered directory already
+    // covers everything above it, so a set without links costs what it did.
     QSet<QString> desired;
     desired.reserve(desiredPaths.size());
+    QStringList linked;
+    QSet<QString> linkedSet;
     for (const QString& path : desiredPaths) {
-        desired.insert(path);
+        if (!crossesSymlinkBelowRegistered(m_directories, path)) {
+            desired.insert(path);
+        } else if (!linkedSet.contains(path)) {
+            linkedSet.insert(path);
+            linked.append(path);
+        }
     }
 
     // Drop watches for paths no longer relevant (deleted between rescans,
-    // or no longer reported by the strategy).
+    // no longer reported by the strategy, or now reached through a link). A
+    // path that an identity chain also holds stays armed for it, and the
+    // chain refresh releases it once no chain needs it.
     for (auto it = m_watchedFiles.begin(); it != m_watchedFiles.end();) {
         if (!desired.contains(*it)) {
-            m_watcher->removePath(*it);
+            if (!m_identity->holds(*it)) {
+                m_watcher->removePath(*it);
+            }
             it = m_watchedFiles.erase(it);
         } else {
             ++it;
@@ -584,6 +648,13 @@ void WatchedDirectorySet::syncFileWatches(const QStringList& desiredPaths)
             // failure of the same path warns again.
             m_warnedFailedWatchPaths.remove(path);
         } else if (!m_watchedFiles.contains(path)) {
+            // An identity chain holds the watch (the path is also the target
+            // of a link, or a directory a link leads through). Share it, so
+            // that neither side drops it while the other still needs it.
+            if (m_identity->holds(path)) {
+                m_watchedFiles.insert(path);
+                continue;
+            }
             // addPath returned false AND we didn't already have it in
             // OUR file-watch set. Three cases:
             //
@@ -625,6 +696,17 @@ void WatchedDirectorySet::syncFileWatches(const QStringList& desiredPaths)
                                      << "— check permissions or filesystem-watcher quota (inotify on Linux, "
                                         "kqueue/FSEvents on macOS, ReadDirectoryChangesW on Windows)";
             }
+        }
+    }
+
+    // The refresh at the top of the rescan walked the links of the previous
+    // scan and re-armed whatever of theirs moved. Only a changed list needs a
+    // walk here: it arms the chains of new links and releases the watches of
+    // links gone. A chain that moved during the scan asks for another one.
+    if (linked != m_linkedEntries) {
+        m_linkedEntries = std::move(linked);
+        if (refreshIdentityChains()) {
+            requestRescan();
         }
     }
 }
@@ -824,14 +906,28 @@ void WatchedDirectorySet::releaseAncestorWatchFor(const QString& targetKey)
 
 bool WatchedDirectorySet::refreshIdentityChains()
 {
-    const QStringList moved = m_identity->refresh(m_directories, [this](const QString& path) {
-        return isContentWatch(path);
-    });
+    const QStringList moved = m_identity->refresh(
+        m_directories,
+        [this](const QString& path) {
+            return isContentWatch(path);
+        },
+        m_linkedEntries);
     if (moved.isEmpty()) {
         return false;
     }
     qCDebug(lcWatcher) << "identity chain moved for" << moved << "— re-arming its watches";
-    dropWatchesOfMovedDirectories(moved);
+    // Every watch of a linked entry belongs to its chain, which the refresh
+    // has just re-armed. Only a registered directory has content watches of
+    // its own to drop.
+    QStringList movedDirectories;
+    for (const QString& path : moved) {
+        if (m_directories.contains(path)) {
+            movedDirectories.append(path);
+        }
+    }
+    if (!movedDirectories.isEmpty()) {
+        dropWatchesOfMovedDirectories(movedDirectories);
+    }
     return true;
 }
 
@@ -882,7 +978,8 @@ bool WatchedDirectorySet::isContentWatch(const QString& path) const
     // Qt reports an event on an inode watched under two spellings under one
     // of them only. A registered directory reached through a symlink can
     // also sit on another registered directory's chain under its physical
-    // spelling, and an event there is still content.
+    // spelling, and an event there is still content. So is an event in the
+    // target of a linked folder, which only its chain watches.
     return m_directories.contains(path) || m_watchedParents.contains(path) || m_watchedFiles.contains(path)
         || m_identity->isResolvedPath(path);
 }

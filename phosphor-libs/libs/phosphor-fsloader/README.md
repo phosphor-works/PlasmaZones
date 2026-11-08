@@ -193,6 +193,15 @@ parse(mesh->bytes);
   component. An event in an ancestor costs a walk of the chains, a few
   `lstat()` calls. Only a chain that moved re-arms its watches, and in
   `WatchedDirectorySet` only a chain that moved runs a rescan.
+  `WatchedDirectorySet` chains its registered directories, and also each
+  path its strategy reports that goes through a symlink below its
+  registered directory: a linked file, a linked folder, a file inside one.
+  A watch under the link's own spelling would stay on the old target when
+  the link is pointed elsewhere, and see nothing while it dangles, so such a
+  path is watched through its chain, its target under its physical path.
+  Reported paths that go through no link keep their plain watch, because
+  the chain of their registered directory already covers everything above
+  them.
 - **Containment of what was opened, not what was named.**
   `readFileWithinDirectory` runs `resolveWithinDirectory` first, then opens
   with `O_NONBLOCK`, `fstat()`s the descriptor and checks its

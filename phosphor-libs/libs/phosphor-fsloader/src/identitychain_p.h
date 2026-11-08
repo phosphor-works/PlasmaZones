@@ -106,11 +106,17 @@ public:
 
     IdentityWatches(QFileSystemWatcher& watcher, Leaf leaf, Category category);
 
-    /// Resolve every path in @p paths again and make the watcher hold what
-    /// their chains need, on the inodes the chains name now. Returns the paths
-    /// whose chain differs from the previous call. A path new to the set is
-    /// not in the result, and a path no longer listed is forgotten.
-    QStringList refresh(const QStringList& paths, const HeldByOwner& heldByOwner = {});
+    /// Resolve every path in @p paths and @p entryPaths again and make the
+    /// watcher hold what their chains need, on the inodes the chains name
+    /// now. The resolved entry of a path in @p paths is watched as the leaf
+    /// rule says, and that of a path in @p entryPaths always: an owner that
+    /// skips its own leaves still hands over the ones it cannot watch under
+    /// their own spelling (a symlink, whose watch would stay on the old
+    /// target). Returns the paths of both lists whose chain differs from the
+    /// previous call. A path new to the set is not in the result, and a path
+    /// no longer listed is forgotten.
+    QStringList refresh(const QStringList& paths, const HeldByOwner& heldByOwner = {},
+                        const QStringList& entryPaths = {});
 
     /// Whether @p path is watched for a chain.
     bool holds(const QString& path) const;
