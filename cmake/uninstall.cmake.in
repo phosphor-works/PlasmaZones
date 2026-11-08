@@ -132,6 +132,7 @@ endforeach()
 set(PZ_SHARED_LIB_NAMES
     "libPhosphorAnimation"
     "libPhosphorAudio"
+    "libPhosphorChannel"
     "libPhosphorCompositor"
     "libPhosphorConfig"
     "libPhosphorContextResolver"
