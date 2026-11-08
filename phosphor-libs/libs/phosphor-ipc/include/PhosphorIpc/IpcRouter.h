@@ -5,6 +5,7 @@
 #include <PhosphorIpc/IpcCallContext.h>
 #include <PhosphorIpc/phosphoripc_export.h>
 
+#include <QByteArray>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -98,7 +99,10 @@ public:
     static constexpr int MaxPendingCallsPerConnection = 256;
 
     // Bind the listening socket. Defaults to
-    // $XDG_RUNTIME_DIR/phosphor.sock when socketPath is empty.
+    // $XDG_RUNTIME_DIR/phosphor.sock when socketPath is empty. The socket
+    // file has mode 0600, and the process umask stays as it is (it is one
+    // for every thread). A stale socket at the path (one that refuses a
+    // connection) is replaced; anything else there makes start() fail.
     // Returns false on bind failure; safe to retry after stop().
     bool start(const QString& socketPath = QString());
 
@@ -364,6 +368,11 @@ private:
 
     std::unique_ptr<QLocalServer> m_server;
     QString m_socketPath;
+    // The socket file that start() made, and its identity, so that stop()
+    // removes that file and not one that took the path since.
+    QByteArray m_socketFile;
+    quint64 m_socketDevice = 0;
+    quint64 m_socketInode = 0;
     QHash<QString, QPointer<QObject>> m_targets;
     // Per-socket subscription list; lets disconnect cleanup walk one
     // socket's subscriptions without scanning the whole router.

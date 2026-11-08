@@ -445,11 +445,16 @@ phosphorctl subscribe count.countChanged   # optional: same events on stdout
 - **Disconnect prunes subscriptions.** When a subscriber socket
   disconnects, all its subscriptions are dropped automatically, and so
   are the connection's deferred calls. `connectionClosed(id)` follows.
-- **Stale socket file recovery.** On `start`, if `listen()` fails
-  and the socket path is occupied, the router probes with a quick
-  connect. If no live listener answers, the stale path is unlinked
-  and `listen()` retries. A live listener is left alone (start
-  fails cleanly rather than clobbering).
+- **Stale socket file recovery.** On `start`, if the socket path is
+  occupied, the router probes with a quick connect. If the connect is
+  refused, the stale path is unlinked and taken. A live listener, also a
+  busy one, and a file that is not a socket are left alone (start fails
+  cleanly rather than clobbering).
+- **Socket mode without the umask.** The socket file has mode 0600. The
+  router binds it in a new 0700 directory beside the path, sets the mode
+  there and links it into place, so it never changes the umask, which
+  every thread of the process shares. `stop()` removes the socket file,
+  unless another file has taken the path since.
 - **No subscribe auto-broadcast from Qt signals.** Plugin authors
   call `IpcTarget.emitEvent("name", args)` explicitly. Firing the
   QML signal (e.g. `modeChanged(...)`) only notifies in-QML
