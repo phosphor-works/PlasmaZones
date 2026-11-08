@@ -393,7 +393,7 @@ echo ""
 # hicolor-light is a PlasmaZones-specific theme variant that no other
 # package ships, so own its whole tree — otherwise the OBS
 # "directories not owned by a package" check fails.
-%{_datadir}/icons/hicolor/*/apps/plasmazones*
+%{_datadir}/icons/hicolor/*/apps/org.phosphor_works.*
 %{_datadir}/icons/hicolor-light/
 
 # Systemd user service

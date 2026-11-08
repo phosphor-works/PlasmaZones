@@ -6,6 +6,6 @@ Type=Service
 X-KDE-System-Settings-Category=plasmazones
 X-KDE-System-Settings-Parent-Category=applications
 X-KDE-Weight=70
-Icon=plasmazones
+Icon=org.phosphor_works.PlasmaZones
 Name=PlasmaZones
 Comment=Window snapping, tiling and scrolling

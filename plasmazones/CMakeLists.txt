@@ -216,14 +216,14 @@ install(PROGRAMS scripts/plasmazones-report.sh
 
 # Icons come from the pinned branding release (cmake/PhosphorDependencies.cmake):
 # scalable and 16 to 512 px, in hicolor for dark themes and hicolor-light for
-# light ones. Installed under the names the .desktop files use. The shell's
-# icon is installed by phosphor-shell/CMakeLists.txt.
+# light ones. Each installs under its app's ID, which is also its .desktop and
+# AppStream id. The shell's icon is installed by phosphor-shell/CMakeLists.txt.
 phosphor_fetch_dependency(branding)
 include(${branding_SOURCE_DIR}/cmake/PhosphorBranding.cmake)
 phosphor_install_brand_icons(
-    plasmazones plasmazones
-    plasmazones-editor plasmazones-editor
-    plasmazones-settings plasmazones-settings
+    org.phosphor_works.PlasmaZones plasmazones
+    org.phosphor_works.PlasmaZones.Editor plasmazones-editor
+    org.phosphor_works.Facet plasmazones-settings
 )
 
 # Aggregate target for the moon workspace: `cmake --build build --target plasmazones-tier`.
