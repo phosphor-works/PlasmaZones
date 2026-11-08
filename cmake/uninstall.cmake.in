@@ -91,13 +91,13 @@ set(KNOWN_FILES
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_DBUSSERVICEDIR@/org.phosphor_works.Placement.service"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_METAINFODIR@/org.phosphor_works.PlasmaZones.Editor.metainfo.xml"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_METAINFODIR@/org.phosphor_works.Facet.metainfo.xml"
-    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor/scalable/apps/plasmazones.svg"
-    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor/scalable/apps/plasmazones-editor.svg"
-    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor/scalable/apps/plasmazones-settings.svg"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor/scalable/apps/org.phosphor_works.PlasmaZones.svg"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor/scalable/apps/org.phosphor_works.PlasmaZones.Editor.svg"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor/scalable/apps/org.phosphor_works.Facet.svg"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor/scalable/apps/phosphor-shell.svg"
-    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor-light/scalable/apps/plasmazones.svg"
-    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor-light/scalable/apps/plasmazones-editor.svg"
-    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor-light/scalable/apps/plasmazones-settings.svg"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor-light/scalable/apps/org.phosphor_works.PlasmaZones.svg"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor-light/scalable/apps/org.phosphor_works.PlasmaZones.Editor.svg"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor-light/scalable/apps/org.phosphor_works.Facet.svg"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/hicolor-light/scalable/apps/phosphor-shell.svg"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_PLUGINDIR@/kwin/effects/plugins/kwin_effect_plasmazones.so"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_PLUGINDIR@/plasma/kcms/systemsettings/kcm_plasmazones_about.so"
@@ -105,6 +105,15 @@ set(KNOWN_FILES
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/systemsettings/categories/settings-windowmanagement-plasmazones.desktop"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_SYSTEMDUSERUNITDIR@/plasmazones.service"
 )
+
+# The rendered icon sizes the branding release ships next to the scalable ones.
+foreach(theme hicolor hicolor-light)
+    foreach(size 16 22 24 32 48 64 128 256 512)
+        foreach(icon org.phosphor_works.PlasmaZones org.phosphor_works.PlasmaZones.Editor org.phosphor_works.Facet phosphor-shell)
+            list(APPEND KNOWN_FILES "$ENV{DESTDIR}@KDE_INSTALL_FULL_ICONDIR@/${theme}/${size}x${size}/apps/${icon}.png")
+        endforeach()
+    endforeach()
+endforeach()
 
 foreach(f ${KNOWN_FILES})
     if(EXISTS "${f}" OR IS_SYMLINK "${f}")
