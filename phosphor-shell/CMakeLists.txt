@@ -203,7 +203,7 @@ target_link_libraries(phosphor-shell
         # so the binary works without the optional DATADIR install.
         phosphor_shell_exampleplugin
         # The pane rule is built with the rules library's own types
-        # and seeded over org.plasmazones.Rules.
+        # and seeded over org.phosphor_works.Placement.Rules.
         PhosphorRules::PhosphorRules
         PhosphorProtocol::PhosphorProtocol
         Qt6::Core
@@ -227,12 +227,10 @@ endif()
 
 install(TARGETS phosphor-shell DESTINATION ${KDE_INSTALL_BINDIR})
 
-install(FILES icons/hicolor/scalable/apps/phosphor-shell.svg
-    DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps
-)
-install(FILES icons/hicolor-light/scalable/apps/phosphor-shell.svg
-    DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor-light/scalable/apps
-)
+# The shell's icon, from the pinned branding release (cmake/PhosphorDependencies.cmake).
+phosphor_fetch_dependency(branding)
+include(${branding_SOURCE_DIR}/cmake/PhosphorBranding.cmake)
+phosphor_install_brand_icons(phosphor-shell phosphor-shell)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

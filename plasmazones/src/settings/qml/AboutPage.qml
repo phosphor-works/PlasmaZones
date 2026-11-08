@@ -14,7 +14,7 @@ PhosphorUi.AboutPageShell {
     id: root
 
     appName: i18n("PlasmaZones")
-    appIcon: "plasmazones"
+    appIcon: "org.phosphor_works.PlasmaZones"
     appVersion: Qt.application.version.length > 0 ? i18n("Version %1", Qt.application.version) : i18n("Version unknown")
     description: i18n("Window snapping, tiling and scrolling for Wayland compositors. Snap windows into zones you draw, let an algorithm tile them for you, or scroll them along an endless strip. Every monitor picks its own mode.")
     // Not translated: a copyright notice is a legal attribution, not UI prose.

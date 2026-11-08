@@ -24,6 +24,9 @@
  *     setCompositorResolverForTesting, since the test runs on no Wayland
  *     display. The bus daemon's pid lookup, the PPid read and the trust
  *     cache all run for real.
+ *  3. The compositor that trusts its children is recognised by executable
+ *     name, under Plasma's own name and the one nixpkgs' wrapProgram gives
+ *     it, and under no other.
  */
 
 #include <QCoreApplication>
@@ -59,8 +62,8 @@ using PlasmaZones::TestHelpers::isBusError;
 // Named, not anonymous: the test class's Fixture holds these by value.
 namespace BusContextTestSupport {
 
-const QString OverlayInterface = QStringLiteral("org.plasmazones.Overlay");
-const QString ProbeInterface = QStringLiteral("org.plasmazones.test.Probe");
+const QString OverlayInterface = QStringLiteral("org.phosphor_works.Placement.Overlay");
+const QString ProbeInterface = QStringLiteral("org.phosphor_works.Test.Probe");
 
 /// Records the thumbnails that got past the adaptor, and stores every one.
 class RecordingOverlay : public TestHelpers::StubOverlayService
@@ -86,7 +89,7 @@ public:
 class ProbeAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.test.Probe")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Test.Probe")
 
 public:
     explicit ProbeAdaptor(QObject* parent)
@@ -252,6 +255,36 @@ private Q_SLOTS:
         QCOMPARE(reply.type(), QDBusMessage::ReplyMessage);
         QCOMPARE(reply.arguments().value(0).toBool(), true);
         QCOMPARE(f.overlay.pixelHandles.size(), 1);
+    }
+
+    // Plasma's wrapper trusts its children under its own name and under the
+    // name nixpkgs' wrapProgram moves it to (#1209). kwin_wayland itself,
+    // another Nix-wrapped binary, a near miss on either spelling, and a
+    // second wrap's script name are not the wrapper.
+    void kwinWaylandWrapperIsRecognisedByName_data()
+    {
+        QTest::addColumn<QString>("executable");
+        QTest::addColumn<bool>("isWrapper");
+        QTest::newRow("plasma") << QStringLiteral("kwin_wayland_wrapper") << true;
+        QTest::newRow("nix wrapProgram") << QStringLiteral(".kwin_wayland_wrapper-wrapped") << true;
+        QTest::newRow("kwin itself") << QStringLiteral("kwin_wayland") << false;
+        QTest::newRow("kwin itself, nix") << QStringLiteral(".kwin_wayland-wrapped") << false;
+        QTest::newRow("second wrap script") << QStringLiteral(".kwin_wayland_wrapper-wrapped_") << false;
+        QTest::newRow("no dot") << QStringLiteral("kwin_wayland_wrapper-wrapped") << false;
+        QTest::newRow("no suffix") << QStringLiteral(".kwin_wayland_wrapper") << false;
+        QTest::newRow("prefixed") << QStringLiteral("evil-kwin_wayland_wrapper") << false;
+        QTest::newRow("suffixed") << QStringLiteral("kwin_wayland_wrapper2") << false;
+        QTest::newRow("nix suffixed") << QStringLiteral(".kwin_wayland_wrapper2-wrapped") << false;
+        QTest::newRow("only nix decoration") << QStringLiteral(".-wrapped") << false;
+        QTest::newRow("unreadable exe") << QString() << false;
+    }
+
+    void kwinWaylandWrapperIsRecognisedByName()
+    {
+        QFETCH(QString, executable);
+        QFETCH(bool, isWrapper);
+
+        QCOMPARE(OverlayAdaptor::isKwinWaylandWrapper(executable), isWrapper);
     }
 
     // A compositor that is not the wrapper lends its children nothing: kwin

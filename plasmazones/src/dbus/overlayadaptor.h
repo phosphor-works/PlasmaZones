@@ -33,7 +33,7 @@ class ISettings;
 /**
  * @brief D-Bus adaptor for overlay control operations
  *
- * Provides D-Bus interface: org.plasmazones.Overlay
+ * Provides D-Bus interface: org.phosphor_works.Placement.Overlay
  *  PhosphorZones::Zone overlay visibility and highlighting only
  *
  * Note: PhosphorZones::Zone detection and window tracking are handled by separate adaptors
@@ -53,7 +53,7 @@ class ISettings;
 class PLASMAZONES_EXPORT OverlayAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.Overlay")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Overlay")
 
 public:
     explicit OverlayAdaptor(IOverlayService* overlay, PhosphorZones::IZoneDetector* detector,
@@ -74,6 +74,14 @@ public:
     /// Everything else in the check runs as it does in the daemon.
     using CompositorResolver = std::function<Compositor()>;
     void setCompositorResolverForTesting(CompositorResolver resolver);
+
+    /// Whether @p executable, the file name of a process's executable, is
+    /// Plasma's @c kwin_wayland_wrapper, the one compositor that trusts its
+    /// children (@ref compositor). Nix's @c wrapProgram, which nixpkgs wraps
+    /// Plasma's binaries with, moves the binary to
+    /// @c .kwin_wayland_wrapper-wrapped beside a script that execs it, so
+    /// that name passes too (#1209). Nothing else does.
+    static bool isKwinWaylandWrapper(QStringView executable);
 
     /// Whether @p uniqueName, a unique name on the session bus, is the
     /// compositor's own connection (@ref trustIfCompositor). A name not
@@ -234,8 +242,8 @@ private:
      *
      * The process at the other end of this daemon's own Wayland socket, from
      * @c SO_PEERCRED, and whether it trusts its children: only when its
-     * executable is @c kwin_wayland_wrapper (the wrapper carries no file
-     * capability, so its executable reads). Read once per Wayland
+     * executable is @c kwin_wayland_wrapper (@ref isKwinWaylandWrapper; the
+     * wrapper carries no file capability, so its executable reads). Read once per Wayland
      * connection: before the platform is up there is none and nothing is
      * trusted, and when Qt reconnects to a restarted compositor
      * (@c QT_WAYLAND_RECONNECT, which Plasma sets) the new connection is read
