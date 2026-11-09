@@ -61,7 +61,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
 - Only emit signals when value actually changes
 - Parent-based ownership for QObjects; `std::unique_ptr`/`QPointer` otherwise; never manual delete
 - Forward declare in headers; group includes: own header → project → KDE → Qt
-- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering` and `plasmazones_shaderpreview` each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT` (56 distinct macros: 38 under `phosphor-libs/libs/`, 18 under `phosphor-shell-libs/libs/`). Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
+- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering` and `plasmazones_shaderpreview` each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT`. Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
 - Input validation at system boundaries
 
 ### Qt6 String Literals (CRITICAL)
