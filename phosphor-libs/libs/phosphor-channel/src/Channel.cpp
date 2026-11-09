@@ -7,9 +7,11 @@ namespace PhosphorChannel {
 
 bool validCodec(std::string_view codec)
 {
-    if (codec.empty() || codec.size() > MaxCodecBytes) return false;
+    if (codec.empty() || codec.size() > MaxCodecBytes)
+        return false;
     for (const char c : codec) {
-        if (c <= ' ' || c > '~') return false;
+        if (c <= ' ' || c > '~')
+            return false;
     }
     return true;
 }

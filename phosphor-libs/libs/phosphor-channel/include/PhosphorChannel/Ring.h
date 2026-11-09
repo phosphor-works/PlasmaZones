@@ -12,23 +12,38 @@
 #include <string>
 #include <string_view>
 
+#include <sys/types.h>
+
 // The shared-memory ring: a memfd that both processes map, sealed so that its
 // size can never change (F_SEAL_SHRINK, F_SEAL_GROW, F_SEAL_SEAL). It cannot
 // be sealed against writes, because both ends write their positions. The
-// header keeps the write and the read position on separate cache lines. The
-// writer writes whole frames, and a skip record pads the wrap.
+// write position, the read position and each end's wake request sit on cache
+// lines of their own, and the two closed flags share one. The writer writes
+// whole frames, and a skip record pads the wrap.
 //
-// Two eventfds wake the ends: the data fd wakes the reader after a write, and
-// the space fd wakes the writer after a read freed space. An end signals only
-// when the other one said that it sleeps, so a busy ring makes no system call.
+// A connected pair of Unix sockets wakes the ends, one socket in each
+// process: the writer sends a byte when it wrote to a reader that waits, and
+// the reader sends one when it freed the space that a waiting writer asked
+// for. While frames wait, neither end makes a system call. Each process holds
+// only its own socket, so neither can change how the other's blocks. When
+// the other process exits, its socket closes: the wake fd becomes readable.
+// Once an end drains it (clearSpaceSignal(), clearDataSignal(), or the wait
+// in write()) or fails to signal, its writes say Closed, and its reads say
+// Closed after the last frame.
 //
 // The other process can change the shared memory at any time. The reader
 // checks each position and length that it reads, copies each frame out
 // before it returns it, and reports ReadResult::Corrupt for a ring that
-// breaks the layout. A crash of the other process sets no flag in the ring:
-// the owner of the channel learns it from its control connection.
+// breaks the layout.
+//
+// A ring belongs to the process that made or accepted it. After fork() the
+// child must exec or _exit: its copy of the object leaves the ring alone
+// when it is destroyed, but it must not read or write.
 
 namespace PhosphorChannel {
+
+class RingWriter;
+PHOSPHORCHANNEL_EXPORT bool offerRing(int socket, RingWriter& ring, int timeoutMs, std::string* error);
 
 class PHOSPHORCHANNEL_EXPORT RingWriter
 {
@@ -44,76 +59,122 @@ public:
     RingWriter(const RingWriter&) = delete;
     RingWriter& operator=(const RingWriter&) = delete;
 
-    /// Writes one frame without waiting.
+    /// Writes one frame without waiting. Closed once the reader closed the
+    /// ring, or once this end saw it go away (see spaceFd()).
     WriteResult tryWrite(std::string_view frame);
     /// Waits up to @p timeoutMs (-1: no limit) for space. WouldBlock after
-    /// the timeout.
+    /// the timeout. A reader that exits ends the wait with Closed.
     WriteResult write(std::string_view frame, int timeoutMs);
     /// The largest frame that the ring takes.
     std::size_t maxFrame() const;
-    const std::string& codec() const { return m_codec; }
+    std::size_t capacity() const
+    {
+        return m_capacity;
+    }
+    const std::string& codec() const
+    {
+        return m_codec;
+    }
 
-    /// Readable when the reader freed space after a WouldBlock. Read it with
-    /// clearSpaceSignal().
-    int spaceFd() const { return m_spaceFd; }
+    /// Readable when the reader freed the space that a WouldBlock asked for,
+    /// closed the ring, or went away. Call clearSpaceSignal() before the
+    /// tryWrite() that it wakes: a signal cleared after that retry can be the
+    /// one that its WouldBlock asked for, and then nothing wakes the writer.
+    int spaceFd() const
+    {
+        return m_wakeFd;
+    }
     void clearSpaceSignal();
 
     /// Tells the reader that no frame follows. Frames written before still
     /// reach it.
     void close();
 
-    /// For offerRing: the memfd and the two eventfds.
-    int memoryFd() const { return m_memoryFd; }
-    int dataFd() const { return m_dataFd; }
+    /// The memfd of the ring. The ring owns it: never close it. A mapping of
+    /// a dup() of it sees the ring, which the tests use to break the layout.
+    int memoryFd() const
+    {
+        return m_memoryFd;
+    }
 
 private:
+    friend bool offerRing(int socket, RingWriter& ring, int timeoutMs, std::string* error);
     RingWriter() = default;
+    bool fits(std::uint64_t readPos, std::size_t bytes) const;
+    /// Gives up the reader's socket once the offer of it went out.
+    void handedOver();
 
     int m_memoryFd = -1;
-    int m_dataFd = -1;
-    int m_spaceFd = -1;
+    int m_wakeFd = -1; ///< this end's socket of the wake pair
+    int m_peerWakeFd = -1; ///< the reader's socket, until offerRing() hands it over
     void* m_map = nullptr;
     std::size_t m_mapSize = 0;
     std::size_t m_capacity = 0;
     std::uint64_t m_writePos = 0;
+    std::uint64_t m_readPosSeen = 0; ///< the last read position loaded from the ring
+    pid_t m_owner = 0;
     bool m_closed = false;
+    bool m_broken = false; ///< the reader broke the layout or went away
+    bool m_offered = false;
     std::string m_codec;
 };
 
 class PHOSPHORCHANNEL_EXPORT RingReader
 {
 public:
-    /// Maps the ring of a writer. Takes the three fds, also on a failure.
-    /// Refuses a memfd without the size seals or with a size that the header
-    /// does not state. @p codec is what the handshake said.
-    static std::unique_ptr<RingReader> attach(int memoryFd, int dataFd, int spaceFd, std::string codec, std::string* error);
+    /// Maps the ring of a writer. Takes both fds, also on a failure. Refuses
+    /// a memfd that is not plain shared memory, lacks the size seals, is
+    /// larger than @p maxCapacity, or does not match its header, and a wake
+    /// fd that is not a Unix stream socket. @p codec is what the handshake
+    /// said.
+    static std::unique_ptr<RingReader> attach(int memoryFd, int wakeFd, std::string codec, std::size_t maxCapacity,
+                                              std::string* error);
     ~RingReader();
     RingReader(const RingReader&) = delete;
     RingReader& operator=(const RingReader&) = delete;
 
-    /// The next frame in @p frame, without waiting.
+    /// The next frame in @p frame, without waiting. Closed once the writer
+    /// closed the ring, or this end saw it go away (see dataFd()), and every
+    /// frame was read, and after close().
     ReadResult read(std::string& frame);
-    const std::string& codec() const { return m_codec; }
+    const std::string& codec() const
+    {
+        return m_codec;
+    }
+    std::size_t capacity() const
+    {
+        return m_capacity;
+    }
 
-    /// Readable after the writer wrote. Read it with clearDataSignal()
+    /// Readable when the writer wrote after a read() returned Empty, closed
+    /// the ring, or went away. Only Empty asks the writer for a signal: a
+    /// reader that stops before Empty while frames wait gets no signal for
+    /// them, so it reads until Empty before it waits. Call clearDataSignal()
     /// before the reads that drain the ring.
-    int dataFd() const { return m_dataFd; }
+    int dataFd() const
+    {
+        return m_wakeFd;
+    }
     void clearDataSignal();
 
-    /// Tells the writer that nothing reads any more: its writes return Closed.
+    /// Tells the writer that nothing reads any more: its writes return
+    /// Closed. Later reads return Closed too.
     void close();
 
 private:
     RingReader() = default;
 
     int m_memoryFd = -1;
-    int m_dataFd = -1;
-    int m_spaceFd = -1;
+    int m_wakeFd = -1;
     void* m_map = nullptr;
     std::size_t m_mapSize = 0;
     std::size_t m_capacity = 0;
     std::uint64_t m_readPos = 0;
+    std::uint64_t m_writePosSeen = 0; ///< the last write position loaded from the ring
+    pid_t m_owner = 0;
     bool m_corrupt = false;
+    bool m_closed = false;
+    bool m_writerGone = false;
     std::string m_codec;
 };
 

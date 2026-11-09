@@ -447,6 +447,52 @@ jobs:
             echo "ok: ${tier}-tier"
           done
 
+  # ─── phosphor-channel on its own. A headless daemon builds it outside the
+  # tree, with no Qt, while the `build` job compiles it only inside the tree
+  # with the tree's flags. So a Qt include, a sibling link or a dependency on
+  # the tree's settings would pass there and break the standalone build. This
+  # builds it alone and runs its tests, then builds it once more with Qt
+  # hidden, which leaves the tests out.
+  channel-standalone:
+    name: phosphor-channel standalone
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: ${{ needs.changes.outputs.image }}
+    steps:
+      - name: Bootstrap git
+        run: command -v git >/dev/null || pacman -Syu --noconfirm --needed git
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Sync packages
+        run: bash .github/ci/sync-packages.sh
+
+      - name: Build and test with Qt Test
+        run: |
+          cmake -S phosphor-libs/libs/phosphor-channel -B build-channel -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-channel
+          ctest --test-dir build-channel --output-on-failure --no-tests=error
+
+      - name: Build without Qt
+        run: |
+          cmake -S phosphor-libs/libs/phosphor-channel -B build-channel-noqt -G Ninja -DCMAKE_DISABLE_FIND_PACKAGE_Qt6=ON
+          cmake --build build-channel-noqt
+
+      # The library reads untrusted memory and packets, and some of its tests
+      # see a use after free only through the sanitizers.
+      - name: Build and test with AddressSanitizer and UBSan
+        run: |
+          cmake -S phosphor-libs/libs/phosphor-channel -B build-channel-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined"
+          cmake --build build-channel-asan
+          ctest --test-dir build-channel-asan --output-on-failure --no-tests=error
+
   # ─── Lint: clang-format + qmlformat mirror the lefthook hooks so a
   # contributor who skipped them can't merge unformatted code. Only
   # lints files changed in the PR (or HEAD~1..HEAD for direct pushes)

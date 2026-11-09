@@ -16,13 +16,15 @@
 // payload; the library stores the tag and never reads the payload.
 //
 // Two transports:
-//  - the shared-memory ring (Ring.h, handed over by Handshake.h): one copy
-//    per byte, between two processes on one computer;
+//  - the shared-memory ring (Ring.h, handed over by Handshake.h), between two
+//    processes on one computer, with no system call per frame while the
+//    reader keeps up;
 //  - the stream (Stream.h): several channels over any connected byte stream,
 //    such as a Unix socket or the standard input and output of an ssh
 //    process, each channel with its own flow control.
 //
 // No Qt and no other Phosphor library: a headless daemon links it alone.
+// Linux only.
 
 namespace PhosphorChannel {
 
@@ -41,21 +43,25 @@ PHOSPHORCHANNEL_EXPORT bool validCodec(std::string_view codec);
 enum class WriteResult {
     Written,
     /// The channel is full. Nothing was written: the writer keeps the frame,
-    /// or merges it with the next one, and waits for the writer's fd.
+    /// or merges it with the next one, and waits until the transport says
+    /// that it may write again.
     WouldBlock,
     /// The frame can never fit this channel.
     TooLarge,
-    /// The reader closed the channel, or the transport failed.
+    /// No frame can go any more: the reader closed the channel, the other
+    /// process went away, or the transport failed.
     Closed,
 };
 
 enum class ReadResult {
     Frame,
-    /// No frame waits now: wait for the reader's fd.
+    /// No frame waits now. Wait until the transport says that one came.
     Empty,
-    /// The writer closed the channel and every frame was read.
+    /// The writer closed the channel, or went away, and every frame that it
+    /// wrote was read.
     Closed,
-    /// The other process broke the protocol. Close the channel.
+    /// The other process broke the protocol, so nothing after it can be
+    /// trusted. Close the channel.
     Corrupt,
 };
 

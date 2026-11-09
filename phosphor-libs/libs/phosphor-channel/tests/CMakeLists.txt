@@ -18,7 +18,7 @@ endif()
 
 find_package(Threads REQUIRED)
 
-function(pch_add_test _name)
+function(phosphorchannel_add_test _name)
     add_executable(${_name} ${ARGN})
     set_target_properties(${_name} PROPERTIES AUTOMOC ON)
     target_compile_features(${_name} PRIVATE cxx_std_20)
@@ -31,9 +31,19 @@ function(pch_add_test _name)
     )
     add_test(NAME ${_name} COMMAND ${_name})
     phosphor_apply_test_isolation(${_name})
-    set_tests_properties(${_name} PROPERTIES LABELS "phosphorchannel")
+    # The timeout again, because the stand-in above sets none, and these
+    # tests block on sockets and pipes.
+    set_tests_properties(${_name} PROPERTIES LABELS "phosphorchannel" TIMEOUT 120)
 endfunction()
 
-pch_add_test(pch_test_ring test_ring.cpp)
-pch_add_test(pch_test_handshake test_handshake.cpp)
-pch_add_test(pch_test_stream test_stream.cpp)
+phosphorchannel_add_test(phosphorchannel_test_ring test_ring.cpp)
+phosphorchannel_add_test(phosphorchannel_test_handshake test_handshake.cpp)
+phosphorchannel_add_test(phosphorchannel_test_stream test_stream.cpp)
+
+# The stream test throws from a callback, which the library supports, so it
+# needs exceptions, which the tree's KDECompilerSettings turn off. The tree's
+# shared test PCH is built without them and would not fit, so this target
+# compiles without it.
+target_compile_options(phosphorchannel_test_stream PRIVATE
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-fexceptions>)
+set_target_properties(phosphorchannel_test_stream PROPERTIES DISABLE_PRECOMPILE_HEADERS ON)
