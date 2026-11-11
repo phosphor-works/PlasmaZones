@@ -31,14 +31,12 @@ else()
 endif()
 function(phosphorcontrol_add_test name)
     add_executable(${name} ${name}.cpp)
-    # Qt6::Gui is still pulled in transitively by Qt6::Test (which
-    # links Qt6::Gui in its INTERFACE) AND by Qt6::Quick via the
-    # lib's QML target chain, so we don't need it explicitly. The
-    # tests run under QT_QPA_PLATFORM=offscreen so the platform
-    # plugin loads without a display. QTEST_MAIN builds a QGuiApplication
-    # here (Gui is linked, so it is the QT_GUI_LIB variant), which is
-    # exactly why a platform plugin is needed; no test creates its own
-    # application object or touches widgets.
+    # Qt6::Gui is pulled in transitively by Qt6::Test (which links
+    # Qt6::Gui in its INTERFACE), so we don't need it explicitly. A test
+    # using QTEST_MAIN gets a QGuiApplication (the QT_GUI_LIB variant),
+    # which needs a platform plugin, hence QT_QPA_PLATFORM=offscreen
+    # below. The Facet tests use QTEST_GUILESS_MAIN and need none. No
+    # test creates its own application object or touches widgets.
     target_link_libraries(${name}
         PRIVATE
             PhosphorControl::PhosphorControl
@@ -67,3 +65,165 @@ phosphorcontrol_add_test(test_dbus_bridge)
 phosphorcontrol_add_test(test_search_ranker)
 phosphorcontrol_add_test(test_search_controller)
 phosphorcontrol_add_test(test_sidebar_rows)
+
+# ─── Facet module fixtures ─────────────────────────────────────────────────────
+#
+# Every test Facet module is fake_module/fakemodule.cpp built once per variant.
+# A variant differs only in its generated fake_module_config.h (FAKE_MODE, see
+# the source) and metadata.json, both in a per-variant directory on the
+# target's include path, where moc finds the metadata file. Each library lands
+# at ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
+set(PHOSPHOR_CONTROL_FIXTURE_DIR ${CMAKE_CURRENT_BINARY_DIR}/fixtures)
+# The tests copy fixtures here before loading them, not under /tmp, which may
+# be mounted noexec.
+set(PHOSPHOR_CONTROL_STAGING_DIR ${CMAKE_CURRENT_BINARY_DIR}/facet-staging)
+file(MAKE_DIRECTORY ${PHOSPHOR_CONTROL_STAGING_DIR})
+set(phosphorcontrol_fixture_targets "")
+
+# phosphorcontrol_add_fake_module(<variant> MODE <n> METADATA <json> [SOURCE <file>])
+#
+# SOURCE replaces fake_module/fakemodule.cpp, for a fixture that is not a
+# FakeFacetModule at all.
+#
+# METADATA must not contain ';': cmake_parse_arguments splits a
+# one-value argument on it, and the variant would silently get only the part
+# before the first one.
+function(phosphorcontrol_add_fake_module variant)
+    cmake_parse_arguments(ARG "" "MODE;METADATA;SOURCE" "" ${ARGN})
+    if(NOT DEFINED ARG_SOURCE)
+        set(ARG_SOURCE fake_module/fakemodule.cpp)
+    endif()
+    if(NOT DEFINED ARG_MODE OR NOT ARG_MODE MATCHES "^[0-9]+$")
+        message(FATAL_ERROR "phosphorcontrol_add_fake_module(${variant}): MODE must be a number, see fakemodule.cpp")
+    endif()
+    if(NOT DEFINED ARG_METADATA)
+        message(FATAL_ERROR "phosphorcontrol_add_fake_module(${variant}): METADATA is required")
+    endif()
+    set(target phosphor_control_fixture_${variant})
+    set(configDir ${CMAKE_CURRENT_BINARY_DIR}/fixture-config/${variant})
+    set(FAKE_MODE ${ARG_MODE})
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/fake_module/fake_module_config.h.in
+                   ${configDir}/fake_module_config.h @ONLY)
+    file(WRITE ${configDir}/metadata.json.tmp "${ARG_METADATA}\n")
+    configure_file(${configDir}/metadata.json.tmp ${configDir}/metadata.json COPYONLY)
+    add_library(${target} MODULE ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_SOURCE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/fake.qrc)
+    target_include_directories(${target} PRIVATE ${configDir})
+    target_link_libraries(${target} PRIVATE PhosphorControl::PhosphorControl Qt6::Core)
+    set_target_properties(${target} PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME ${variant}
+        LIBRARY_OUTPUT_DIRECTORY ${PHOSPHOR_CONTROL_FIXTURE_DIR}
+        AUTOMOC ON
+        AUTORCC ON
+        UNITY_BUILD OFF
+    )
+    set(phosphorcontrol_fixture_targets ${phosphorcontrol_fixture_targets} ${target} PARENT_SCOPE)
+endfunction()
+
+# Declared parent-first except for one child, so the parse's parents-first
+# order and its keeping of sibling order are both exercised.
+set(_good_pages [=[
+    "Pages": [
+        { "Id": "general/advanced", "Name": "Advanced", "Parent": "general" },
+        { "Id": "general", "Name": "General", "Name[de]": "Allgemein", "Keywords": ["basic"] },
+        { "Id": "about", "Name": "About" }
+    ]]=])
+macro(_fake_with_good_pages variant mode name)
+    phosphorcontrol_add_fake_module(${variant} MODE ${mode} METADATA
+        "{ \"Id\": \"${variant}\", \"ApiVersion\": 1, \"Name\": \"${name}\",${_good_pages} }")
+endmacro()
+
+phosphorcontrol_add_fake_module(good MODE 0 METADATA
+    "{ \"Id\": \"good\", \"ApiVersion\": 1, \"Name\": \"Good\", \"Category\": \"input\", \"Icon\": \"good-icon\", \"Order\": 20,${_good_pages} }")
+# Same category as good, sorted ahead of it by Order. Its page "pinned" goes
+# into the appearance category directly, with a divider and a tier.
+phosphorcontrol_add_fake_module(early MODE 0 METADATA [=[{
+    "Id": "early", "ApiVersion": 1, "Name": "Early", "Category": "input", "Order": 10,
+    "Pages": [ { "Id": "main", "Name": "Main", "Counterpart": "simple" },
+               { "Id": "simple", "Name": "Simple", "Visibility": "SimpleOnly", "Counterpart": "main",
+                 "DividerAfter": true },
+               { "Id": "pinned", "Name": "Pinned", "Category": "appearance", "Visibility": "AdvancedOnly" } ] }]=])
+phosphorcontrol_add_fake_module(child MODE 0 METADATA [=[{
+    "Id": "child", "ApiVersion": 1, "Name": "Child", "Parent": "good",
+    "Pages": [ { "Id": "extra", "Name": "Extra", "Parent": "good:general" } ] }]=])
+# A page under another module's page that is itself placed outside its
+# module: "aaa" sorts first by id, so it is found and placed before "zzz".
+phosphorcontrol_add_fake_module(aaa MODE 0 METADATA [=[{
+    "Id": "aaa", "ApiVersion": 1, "Name": "Aaa",
+    "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "zzz:hub" } ] }]=])
+phosphorcontrol_add_fake_module(zzz MODE 0 METADATA [=[{
+    "Id": "zzz", "ApiVersion": 1, "Name": "Zzz",
+    "Pages": [ { "Id": "hub", "Name": "Hub", "Category": "system" } ] }]=])
+# Two modules nested under each other, and one nested under a member of that
+# cycle: only the cycle is broken.
+phosphorcontrol_add_fake_module(loopa MODE 0 METADATA [=[{
+    "Id": "loopa", "ApiVersion": 1, "Name": "Loop A", "Parent": "loopb", "Category": "desktop", "Order": 1,
+    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+phosphorcontrol_add_fake_module(loopb MODE 0 METADATA [=[{
+    "Id": "loopb", "ApiVersion": 1, "Name": "Loop B", "Parent": "loopa", "Category": "desktop", "Order": 2,
+    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+phosphorcontrol_add_fake_module(looptail MODE 0 METADATA [=[{
+    "Id": "looptail", "ApiVersion": 1, "Name": "Loop Tail", "Parent": "loopa",
+    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+# An absent parent module, with a known category: the node goes to that
+# category, and its page under the absent module's page stays under its own
+# module.
+phosphorcontrol_add_fake_module(orphan MODE 0 METADATA [=[{
+    "Id": "orphan", "ApiVersion": 1, "Name": "Orphan", "Parent": "absent", "Category": "system",
+    "Pages": [ { "Id": "page", "Name": "Page", "Parent": "absent:somewhere" } ] }]=])
+# Nested under orphan, whose page fell back under it: that page stays ahead of
+# this module, with the module's own pages.
+phosphorcontrol_add_fake_module(orphankid MODE 0 METADATA [=[{
+    "Id": "orphankid", "ApiVersion": 1, "Name": "Orphan Kid", "Parent": "orphan",
+    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+# An unknown category: the node goes to apps.
+phosphorcontrol_add_fake_module(stray MODE 0 METADATA [=[{
+    "Id": "stray", "ApiVersion": 1, "Name": "Stray", "Category": "no-such-category",
+    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+# A module that defines a category of its own.
+phosphorcontrol_add_fake_module(owncat MODE 0 METADATA [=[{
+    "Id": "owncat", "ApiVersion": 1, "Name": "Own Category", "Category": "games",
+    "Categories": [ { "Id": "games", "Name": "Games", "Icon": "games-icon", "Order": 55 } ],
+    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+_fake_with_good_pages(missingpage 1 "Missing Page")
+_fake_with_good_pages(extrapage 2 "Extra Page")
+_fake_with_good_pages(wrongid 3 "Wrong Id")
+_fake_with_good_pages(doubleresult 4 "Double Result")
+_fake_with_good_pages(twicepage 5 "Twice Page")
+_fake_with_good_pages(nullcontroller 6 "Null Controller")
+_fake_with_good_pages(twicedomain 7 "Twice Domain")
+_fake_with_good_pages(nulldomain 8 "Null Domain")
+_fake_with_good_pages(doublediscard 9 "Double Discard")
+_fake_with_good_pages(selfdelete 10 "Self Delete")
+_fake_with_good_pages(recorder 12 "Recorder")
+_fake_with_good_pages(lateresult 13 "Late Result")
+_fake_with_good_pages(failingapply 14 "Failing Apply")
+phosphorcontrol_add_fake_module(notamodule MODE 0 SOURCE fake_module/notamodule.cpp METADATA [=[{
+    "Id": "notamodule", "ApiVersion": 1, "Name": "Not A Module", "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+_fake_with_good_pages(noqml 16 "No QML")
+_fake_with_good_pages(dirtyatload 17 "Dirty At Load")
+_fake_with_good_pages(silent 18 "Silent")
+_fake_with_good_pages(missingqml 19 "Missing QML")
+_fake_with_good_pages(slowresult 20 "Slow Result")
+_fake_with_good_pages(relativeqml 21 "Relative QML")
+# The same module id as "good" with different metadata: a module that changed
+# on disk between start() and its first load.
+phosphorcontrol_add_fake_module(goodv2 MODE 0 METADATA
+    "{ \"Id\": \"good\", \"ApiVersion\": 1, \"Name\": \"Good Two\", \"Category\": \"input\",${_good_pages} }")
+phosphorcontrol_add_fake_module(wrongapi MODE 0 METADATA [=[{
+    "Id": "wrongapi", "ApiVersion": 2, "Name": "Wrong Api", "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+phosphorcontrol_add_fake_module(badmetadata MODE 0 METADATA [=[{
+    "Id": "badmetadata", "ApiVersion": 1,
+    "Pages": [ { "Id": "a:b", "Name": "Colon" } ] }]=])
+
+phosphorcontrol_add_test(test_facet_module_metadata)
+phosphorcontrol_add_test(test_facet_host)
+phosphorcontrol_add_test(test_facet_test_host)
+target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
+foreach(test test_facet_host test_facet_test_host)
+    target_compile_definitions(${test} PRIVATE
+        PHOSPHOR_CONTROL_FIXTURE_DIR="${PHOSPHOR_CONTROL_FIXTURE_DIR}"
+        PHOSPHOR_CONTROL_STAGING_DIR="${PHOSPHOR_CONTROL_STAGING_DIR}")
+    add_dependencies(${test} ${phosphorcontrol_fixture_targets})
+endforeach()

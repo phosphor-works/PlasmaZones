@@ -18,7 +18,73 @@ PageRegistry::PageRegistry(QObject* parent)
 
 PageRegistry::~PageRegistry() = default;
 
+bool PageRegistry::isLiveRegisteredController(PageController* controller) const
+{
+    // The set never drops the address of a controller that is destroyed while
+    // registered, so a hit can be a GHOST: a dead controller whose address the
+    // allocator handed to a new one. Every Entry
+    // guards its pointer with QPointer, so confirm against a live entry before
+    // answering yes. Only a set hit pays the scan.
+    if (!m_controllerSet.contains(controller)) {
+        return false;
+    }
+    return std::any_of(m_pages.cbegin(), m_pages.cend(), [controller](const Entry& e) {
+        return e.controller.data() == controller;
+    });
+}
+
+bool PageRegistry::bindPage(const QString& id, PageController* controller, const QUrl& qmlSource)
+{
+    const auto index = m_indexById.constFind(id);
+    if (index == m_indexById.cend()) {
+        qWarning() << "PageRegistry::bindPage: unknown page" << id;
+        return false;
+    }
+    if (!controller) {
+        qWarning() << "PageRegistry::bindPage: page" << id << "given a null controller";
+        return false;
+    }
+    // registerPage takes the entry's id from the controller, so every entry's
+    // controller reports its own page id. Hold bindPage to the same invariant.
+    if (controller->id() != id) {
+        qWarning() << "PageRegistry::bindPage: page" << id << "given a controller whose id is" << controller->id();
+        return false;
+    }
+    Entry& entry = m_pages[*index];
+    const bool wasNavigable = !entry.qmlSource.isEmpty();
+    if (entry.controller.data() == controller) {
+        if (entry.qmlSource == qmlSource) {
+            return true;
+        }
+        entry.qmlSource = qmlSource;
+    } else {
+        if (isLiveRegisteredController(controller)) {
+            qWarning() << "PageRegistry::bindPage: controller already registered for another page, refusing to "
+                          "bind it to"
+                       << id;
+            return false;
+        }
+        m_controllerSet.remove(entry.controller.data());
+        m_controllerSet.insert(controller);
+        entry.controller = controller;
+        entry.qmlSource = qmlSource;
+    }
+    Q_EMIT pageBound(id);
+    // A page with QML of its own is navigable, and a virtual node is visible
+    // only through its descendants, so gaining or losing a qmlSource changes
+    // the visible set for this entry and its ancestors.
+    if (wasNavigable != !qmlSource.isEmpty()) {
+        Q_EMIT visibleSetChanged();
+    }
+    return true;
+}
+
 bool PageRegistry::registerPage(Entry entry)
+{
+    return registerPage(std::move(entry), -1);
+}
+
+bool PageRegistry::registerPage(Entry entry, qsizetype siblingPosition)
 {
     if (entry.id.isEmpty()) {
         qWarning() << "PageRegistry::registerPage: refusing to register page with empty id";
@@ -48,22 +114,11 @@ bool PageRegistry::registerPage(Entry entry)
     // coherently. Always a caller bug. O(1) via m_controllerSet so
     // registration stays linear in K (vs. the prior O(K²) walk).
     PageController* const ctrl = entry.controller.data();
-    if (m_controllerSet.contains(ctrl)) {
-        // The set stores bare addresses and has no removal path, so a hit may
-        // be a GHOST: a controller that has since been destroyed, whose address
-        // the allocator handed back for this new one. Every Entry guards its
-        // pointer with QPointer, so confirm against a live entry before
-        // refusing — otherwise a legitimate registration is rejected with a
-        // misleading "already registered". Only the error path pays the scan.
-        const bool liveDuplicate = std::any_of(m_pages.cbegin(), m_pages.cend(), [ctrl](const Entry& e) {
-            return e.controller.data() == ctrl;
-        });
-        if (liveDuplicate) {
-            qWarning() << "PageRegistry::registerPage: controller already registered — refusing duplicate registration "
-                          "under id"
-                       << entry.id;
-            return false;
-        }
+    if (isLiveRegisteredController(ctrl)) {
+        qWarning() << "PageRegistry::registerPage: controller already registered — refusing duplicate registration "
+                      "under id"
+                   << entry.id;
+        return false;
     }
 
     const QString id = entry.id;
@@ -71,9 +126,16 @@ bool PageRegistry::registerPage(Entry entry)
     const qsizetype index = m_pages.size();
     m_indexById.insert(id, index);
     m_controllerSet.insert(ctrl);
-    // Registration order within a parent is the order the sidebar renders, so
-    // appending here preserves it for every accessor that reads the index.
-    m_childrenByParent[parentId].append(index);
+    // A parent's child list is the order the sidebar renders. Appending keeps
+    // registration order. A caller that registers late (a plugin host adding a
+    // module while the app runs) can name the slot instead, so the new entry
+    // lands among its siblings where a full restart would have put it.
+    QList<qsizetype>& siblings = m_childrenByParent[parentId];
+    if (siblingPosition < 0 || siblingPosition > siblings.size()) {
+        siblings.append(index);
+    } else {
+        siblings.insert(siblingPosition, index);
+    }
     m_pages.append(std::move(entry));
     Q_EMIT pageRegistered(id);
     return true;
@@ -191,14 +253,20 @@ bool PageRegistry::allowedInMode(const QString& id, bool advanced) const
     // registerPage() rejects an entry whose parent is not already registered,
     // so the parent graph is a DAG and this terminates; the hop cap is a
     // belt-and-braces guard matching parentChainFor's.
+    // The cap counts parent hops, the same unit parentChainFor uses: a page
+    // with MaxParentChainHops ancestors is checked in full, one level deeper
+    // is not.
     int hops = 0;
-    while (it != m_indexById.constEnd() && hops < MaxParentChainHops) {
+    while (it != m_indexById.constEnd()) {
         const Entry& e = m_pages.at(it.value());
         if (!modeAllowsIn(e.visibility, advanced)) {
             return false;
         }
         if (e.parentId.isEmpty()) {
             return true;
+        }
+        if (hops == MaxParentChainHops) {
+            break;
         }
         it = m_indexById.constFind(e.parentId);
         ++hops;
@@ -373,7 +441,7 @@ QString PageRegistry::parentIdOf(const QString& id) const
 QList<PageRegistry::Entry> PageRegistry::topLevelPages() const
 {
     // Top-level entries are the empty-key bucket of the child index, in
-    // registration order — the same list childPages() reads for any other
+    // sibling order — the same list childPages() reads for any other
     // parent, so this is childPages(QString()) with the id spelled out.
     return childPages(QString());
 }
@@ -411,6 +479,33 @@ QList<PageRegistry::Entry> PageRegistry::visibleChildPages(const QString& parent
         if (isEntryVisible(e)) {
             out.append(e);
         }
+    }
+    return out;
+}
+
+QList<const PageRegistry::Entry*> PageRegistry::pagesInTreeOrder() const
+{
+    // Pre-order over the child index: each entry, then its children in the
+    // order the sidebar renders them. registerPage refuses an unknown parent,
+    // so every entry hangs off the root bucket and the walk reaches all of
+    // them. An explicit stack keeps deep nesting off the call stack.
+    QList<const Entry*> out;
+    out.reserve(m_pages.size());
+    QList<qsizetype> stack;
+    const auto pushChildren = [this, &stack](const QString& parentId) {
+        const auto it = m_childrenByParent.constFind(parentId);
+        if (it == m_childrenByParent.constEnd()) {
+            return;
+        }
+        for (auto child = it.value().crbegin(); child != it.value().crend(); ++child) {
+            stack.append(*child);
+        }
+    };
+    pushChildren(QString());
+    while (!stack.isEmpty()) {
+        const Entry& e = m_pages.at(stack.takeLast());
+        out.append(&e);
+        pushChildren(e.id);
     }
     return out;
 }
@@ -471,7 +566,7 @@ QVariantMap entryToVariant(const PageRegistry::Entry& e)
 QVariantList PageRegistry::topLevelPagesData() const
 {
     // The empty key holds the top-level entries, so this is the childPagesData
-    // of the root — same index bucket, same registration order.
+    // of the root — same index bucket, same sibling order.
     return childPagesData(QString());
 }
 

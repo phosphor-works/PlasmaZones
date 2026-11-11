@@ -38,6 +38,10 @@ override_dh_auto_install:
 	rm -rf debian/plasmazones/usr/lib/*/cmake/Phosphor*
 	rm -f  debian/plasmazones/usr/lib/*/libPhosphor*.so
 	rm -f  debian/plasmazones/usr/lib/*/libplasmazones*.so
+	# PhosphorControlTest is FacetTestHost, which a Facet module's CI links
+	# through the headers and CMake config removed above. Nothing in the
+	# package uses it.
+	rm -f  debian/plasmazones/usr/lib/*/libPhosphorControlTest.so.*
 
 override_dh_auto_test:
 	# Skip tests during package build

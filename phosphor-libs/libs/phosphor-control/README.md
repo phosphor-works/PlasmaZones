@@ -35,7 +35,8 @@ library provides:
   typo-tolerant scorer behind it.
 - **The QML chrome.** `org.phosphor.control` ships `SettingsAppWindow`,
   `Sidebar`, `Breadcrumbs`, `UnsavedChangesFooter`, `PageHost`,
-  `DiscardChangesDialog`, and `AboutPageShell`, wired to the controllers above.
+  `DiscardChangesDialog`, `AboutPageShell` and `FacetModulePage`, wired to the
+  controllers above.
 - **Glue.** `DBusBridge` for talking to a daemon, and `LocalizedContext` for
   bare-word `i18n()` in QML on Qt-only (non-KF6) builds.
 
@@ -43,16 +44,21 @@ library provides:
 
 | Type | Purpose |
 |------|---------|
-| `PhosphorControl::ApplicationController` | Top-level orchestrator: owns the registry + domains, global dirty flag, batched `applyAllAsync` / `discardAllAsync`, current-page selection, deep-link anchor latch |
+| `PhosphorControl::ApplicationController` | Top-level orchestrator: owns the registry + domains, global dirty flag, batched `applyAllAsync` / `discardAllAsync`, current-page selection, deep-link anchor latch, `bindPage` for pages whose controller arrives late, and a single owned navigation hook (`setNavigationHook`) a plugin host loads pages through |
 | `PhosphorControl::StagingDomain`         | Abstract unit of staged changes: `isDirty()`, `apply()`, `discard()`, `resetToDefaults()`, with `applyResult` / `discardResult` async signals |
 | `PhosphorControl::PageController`         | A `StagingDomain` that also has a QML page and a sidebar row, with a stable, globally-unique page id |
-| `PhosphorControl::PageRegistry`           | Catalogue of registered pages as a tree (`Entry` per page); read-only after startup, supports dynamic add but not removal |
+| `PhosphorControl::PageRegistry`           | Catalogue of registered pages as a tree (`Entry` per page). It grows at runtime and never shrinks: `registerPage` adds (optionally at a sibling slot), `bindPage` swaps a page's controller and QML in place, `setPageVisibility` restamps a tier |
 | `PhosphorControl::SearchController`       | Global settings search: ranked results from page registry, authored anchors, and registered providers |
 | `PhosphorControl::SearchRanker`           | Pure, stateless, typo-tolerant scoring + ranking; headless and Qt-free beyond `QString` |
 | `PhosphorControl::ISearchProvider`        | App-implemented source of dynamic search entries (rules, shaders, layouts, …) |
 | `PhosphorControl::SearchEntry`            | One searchable item (Page / Section / Setting / Entity), addressed as `"pageId"` or `"pageId#anchor"` |
 | `PhosphorControl::DBusBridge`             | Configured endpoint(s) for daemon calls: sync `call()` / async `asyncCall()`, with explicit-interface variants |
 | `PhosphorControl::LocalizedContext`       | QML i18n context routing `i18n()`/`i18nc()`/`i18np()` through Qt translation, for Qt-only consumers without KF6 |
+| `PhosphorControl::IFacetModule`           | The interface a Facet module's root object implements (`registerInto(FacetContext&)`), IID `org.phosphor_works.Facet.Module/1` |
+| `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, pages), parsed and validated per locale |
+| `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, and its headless staging domains |
+| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, and loads a module the first time one of its pages is opened |
+| `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
 
 ## Typical use
 
@@ -70,18 +76,25 @@ using namespace PhosphorControl;
 // Each page stages its own edits.
 class GeneralPage : public PageController
 {
+    Q_OBJECT
 public:
     explicit GeneralPage(QObject* parent = nullptr)
         : PageController(QStringLiteral("general"), parent) {}
 
     bool isDirty() const override { return m_dirty; }
-    void apply() override   { /* persist */ Q_EMIT applyResult(true, {}); }
-    void discard() override { /* reload  */ Q_EMIT discardResult(true, {}); }
+    void apply() override   { /* persist */ m_dirty = false; Q_EMIT dirtyChanged(); Q_EMIT applyResult(true, {}); }
+    void discard() override { /* reload  */ m_dirty = false; Q_EMIT dirtyChanged(); Q_EMIT discardResult(true, {}); }
+
+private:
+    bool m_dirty = false;
 };
 
 // The app wires its pages up at construction.
 class MySettings : public ApplicationController
 {
+    // Q_OBJECT gives MySettings its own tr() context, which is the one
+    // lupdate extracts the string below under.
+    Q_OBJECT
 public:
     explicit MySettings(QObject* parent = nullptr)
         : ApplicationController(parent)
@@ -109,6 +122,38 @@ The shell drives the dirty/Apply lifecycle from the domains' signals:
 "Save" → "Saving…" automatically.
 
 See `examples/minimal/` for a complete two-page app (General + About).
+
+## Facet modules
+
+Facet is the suite's one settings app, and every app adds its settings as a
+module: a Qt plugin in the `facet` seam whose root object implements
+`IFacetModule` and whose metadata (`FacetModuleMetadata`) lists its pages.
+`FacetHost` reads every module's metadata without loading it and fills the
+page registry before anything loads:
+
+- a node per category in use (`@category/<id>`), a node per module
+  (`<module>`), and a page per module page (`<module>:<page>`), ordered by
+  `Order` and then name, with a module's own pages in declaration order;
+- each module page shows `FacetModulePage.qml` until its module loads, so it
+  is an ordinary page in the sidebar, search and keyboard navigation;
+- a page can sit under one of its module's pages, under another module's page
+  (`<module>:<page>`), or directly in a category, and carries its tier,
+  divider and counterpart from the metadata.
+
+Opening one of a module's pages loads the module through
+`ApplicationController`'s navigation hook, before the page change is
+announced. Its `registerInto` registers into a `FacetContext`, which only
+records. Facet then checks the whole registration and binds every page
+(`ApplicationController::bindPage`) and domain at once, or, when anything is
+wrong (a page the metadata does not declare, a skipped page, a controller with
+the wrong id, a page without QML), keeps none of it and fails the module with
+the reason. A module that did not load keeps its placeholder page, which says
+why, and offers a retry when loading again can help.
+
+A module that was loading when the process died is disabled, at the next start
+and every start after, until `retryModule` (or the placeholder page's retry
+button) loads it. `FacetTestHost` runs a module through the same host
+headless, for the module's own CI.
 
 ## Design notes
 
@@ -141,7 +186,10 @@ See `examples/minimal/` for a complete two-page app (General + About).
 - `QtCore`, `QtDBus`, `QtGui` (private), `QtQml`. The QML module adds `QtQuick`
 - [`phosphor-animation`](../phosphor-animation/README.md) — the QML chrome
   imports `org.phosphor.animation` for the spring-physics motion profiles
-  (panel fade, accordion expand/collapse, tint, pulse)
+  (panel fade and slide, accordion expand/collapse, widget fade, hover and
+  tint)
+- [`phosphor-registry`](../phosphor-registry/README.md) — `PluginCatalog`, the
+  plugin loader `FacetHost` finds and loads Facet modules through
 
 ## See also
 

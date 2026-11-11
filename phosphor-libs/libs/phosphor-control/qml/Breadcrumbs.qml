@@ -48,7 +48,7 @@ RowLayout {
     //  the cap cannot leave this walk truncating chains the C++ side accepts.
     readonly property int _maxParentChainHops: root.controller.registry.maxParentChainHops
     // Bumped whenever the registry emits pageRegistered or visibleSetChanged
-    // — gives the
+    // (a bind that changes whether a page has QML emits the latter). Gives the
     // `segments` binding below a dependency to track so a late-registered
     // page whose id matches `currentPageId` (or any ancestor on the
     // chain) refreshes the rendered crumb trail, and so a per-entry
@@ -88,9 +88,12 @@ RowLayout {
         // "hasOwnProperty") don't spuriously short-circuit on inherited
         // truthy values.
         const seen = Object.create(null);
+        // `hops` counts parent links followed, the unit the C++ cap counts
+        // in, so a page with the full number of ancestors keeps its root
+        // crumb.
         let id = root.controller.currentPageId;
         let hops = 0;
-        while (id && hops < root._maxParentChainHops) {
+        while (id && hops <= root._maxParentChainHops) {
             if (seen[id])
                 break;
 

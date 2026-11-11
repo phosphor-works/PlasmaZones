@@ -32,10 +32,14 @@ class PageController;
  * controller(id) return nullptr if the controller has been destroyed
  * out-of-order. The catalogue only ever GROWS: entries are never removed
  * at runtime, but dynamic page registration (post-startup `registerPage`
- * calls) is supported and fires `pageRegistered`, and an entry's
- * simple/advanced tier can be restamped via setPageVisibility. Dynamic
- * removal is intentionally NOT supported — apps that need plugin-style
- * hot-unload should rebuild the controller.
+ * calls) is supported and fires `pageRegistered`. Two in-place changes are
+ * also supported: an entry's simple/advanced tier can be restamped via
+ * setPageVisibility (visibleSetChanged), and bindPage replaces an entry's
+ * controller and QML source while keeping its place, title and icon
+ * (pageBound, plus visibleSetChanged when the entry gains or loses its
+ * QML). Neither fires pageRegistered. Dynamic removal is intentionally NOT
+ * supported — apps that need plugin-style hot-unload should rebuild the
+ * controller.
  */
 class PHOSPHORCONTROL_EXPORT PageRegistry : public QObject
 {
@@ -74,10 +78,11 @@ public:
     Q_ENUM(PageVisibility)
 
     /// Depth bound for upward parent walks, shared by this class and
-    /// ApplicationController::parentChainFor. registerPage rejects an entry
-    /// whose parent is not already registered, so the graph is a DAG and a
-    /// walk always terminates — this only bounds pathological nesting (real
-    /// sidebars nest 3-4 deep). Declared here rather than duplicated per
+    /// ApplicationController::parentChainFor: both walks follow at most this
+    /// many parent links, so a page with this many ancestors resolves in full.
+    /// registerPage rejects an entry whose parent is not already registered,
+    /// so the graph is a DAG and a walk always terminates — this only bounds
+    /// pathological nesting (real sidebars nest 3-4 deep). Declared here rather than duplicated per
     /// translation unit: the two walks have to agree, and a comment asking a
     /// human to keep two constants in step is not a mechanism.
     static constexpr int MaxParentChainHops = 32;
@@ -99,14 +104,14 @@ public:
      * convention — the registry is the only writer. allPagesRef() hands
      * out the live list by const reference instead of a copy, for
      * read-only whole-list walks; see its invalidation note (the
-     * reference does not survive the next registerPage).
+     * reference does not survive the next registry mutation).
      *
-     * Out-of-tree code that needs to act on the controller should
-     * prefer the explicit `controller(id)` accessor (which performs
-     * the live-pointer null-check) over Entry.controller; the field
-     * is exposed here only because Sidebar.qml drives Repeaters off
-     * `topLevelPagesData()` / `childPagesData()` which serialize the
-     * Entry's struct directly into QVariantMap.
+     * Code that needs to act on the controller should prefer the
+     * explicit `controller(id)` accessor (which performs the live-pointer
+     * null-check) over Entry.controller. The field is public because
+     * Entry is a plain value type, and C++ walks such as
+     * ApplicationController::dirtyPageIds read it directly to avoid a
+     * second lookup.
      */
     struct Entry
     {
@@ -174,6 +179,22 @@ public:
      *  rejected page leaks into half-registered state where downstream
      *  systems mutate it but the UI cannot see it. */
     bool registerPage(Entry entry);
+    /** registerPage, placing the entry at @p siblingPosition among its
+     *  parent's children instead of after them. A negative or out-of-range
+     *  position appends. For a host that registers late but wants the entry
+     *  where a registration at startup would have put it. */
+    bool registerPage(Entry entry, qsizetype siblingPosition);
+
+    /// Replace the controller and QML source of the registered page @p id,
+    /// keeping its place in the tree, title, icon, tier and counterpart. This
+    /// is how a page registered with a placeholder controller (a Facet module
+    /// that has not loaded yet) gets its real one. Refuses an unknown id, a
+    /// null controller, a controller whose id() is not @p id, or a controller
+    /// already registered for another page. Emits pageBound when the
+    /// controller or QML source changes, and visibleSetChanged as well when
+    /// the page gains or loses its QML source. Rebinding the same controller
+    /// and source is accepted silently.
+    bool bindPage(const QString& id, PageController* controller, const QUrl& qmlSource);
 
     /// Stamp a page's simple/advanced tier after it has been registered.
     /// No-op (with a warning) for an unknown id, and a no-op when the tier is
@@ -194,8 +215,8 @@ public:
      *  a navigable destination. False for an unknown id AND for a registered
      *  virtual CATEGORY (empty qmlSource), which has no page body to land on.
      *  Folds the "registered and navigable" test into one index lookup so a
-     *  caller filtering by reachability need not copy a whole Entry (four
-     *  QStrings, a QUrl and a QPointer) to read two isEmpty() bits. */
+     *  caller filtering by reachability need not copy a whole Entry to read
+     *  two isEmpty() bits. */
     bool hasNavigablePage(const QString& id) const;
     /** True iff the page is reachable under the current showAdvanced mode:
      *  its own visibility tier passes AND so does every ancestor's. The
@@ -244,7 +265,7 @@ public:
      *  after registration completes. Returns true when every counterpart
      *  resolves. */
     bool validateCounterparts() const;
-    /** Depth-first search (registration order) below `parentId` for the
+    /** Depth-first search (sibling order) below `parentId` for the
      *  first navigable page visible under the current mode; empty string
      *  when nothing below the parent survives filtering. Pass an empty
      *  parentId to search from the root. This is the mode-aware
@@ -262,8 +283,7 @@ public:
     /** The parentId of @p id, or an empty string when the id is unknown or the
      *  entry is top-level. Exists so an upward parent walk
      *  (ApplicationController::parentChainFor) can read one field per hop
-     *  instead of copying a whole Entry (four QStrings, a QUrl and a QPointer)
-     *  to throw all but one of them away. */
+     *  instead of copying a whole Entry to throw all but one field away. */
     QString parentIdOf(const QString& id) const;
 
     QList<Entry> topLevelPages() const;
@@ -279,9 +299,18 @@ public:
      *  allPages() deep-copies every Entry, which the hot walks
      *  (ApplicationController's dirtyPageIds and its keyboard next/prev
      *  navigable collection) paid on every invocation for a list they only
-     *  iterate. The reference stays valid until the next registerPage, which
-     *  may reallocate m_pages — do not hold it across a registration. */
+     *  iterate. The list is in REGISTRATION order, not the order the sidebar
+     *  draws; use pagesInTreeOrder() for anything the user sees in sequence.
+     *  The reference stays valid until the next registry mutation
+     *  (registerPage, bindPage, setPageVisibility), any of which may
+     *  reallocate the list — do not hold it across one. */
     const QList<Entry>& allPagesRef() const;
+    /** Every entry in the order the sidebar draws the tree: each page, then
+     *  its children in their sibling order, depth first. This is the order
+     *  keyboard next/previous and search walk, so they agree with the rail
+     *  however the pages were registered. The pointers stay valid until the
+     *  next registry mutation, like allPagesRef(). */
+    QList<const Entry*> pagesInTreeOrder() const;
 
     // QML-facing accessors. Return dicts whose canonical key set lives in
     // entryToVariant() (pageregistry.cpp): id, parentId, title, iconSource,
@@ -290,24 +319,17 @@ public:
     // here, inside the tree accessors, so QML never needs to re-derive it, and
     // the counterpart is navigation policy the app owns.
     //
-    // topLevelPagesData / childPagesData (and the Entry-returning
-    // topLevelPages()) have no in-tree consumer other than their own
-    // root-delegating twins — topLevelPagesData is childPagesData(QString())
-    // and topLevelPages is childPages(QString()). The rail
-    // moved to SidebarRows and Breadcrumbs uses pageData / firstVisibleLeafId.
-    // Retained as exported API for out-of-tree consumers, and covered by tests
-    // so the serialization contract cannot rot. Same standing as
-    // setPageVisibility, and as allPagesData — which likewise has no in-tree
-    // consumer now that the apply-on-close dirty toast is built from
-    // ApplicationController::dirtyPageIds() + pageData() rather than a QML walk
-    // over allPagesData(). Only pageData() is live in-tree (PageHost.qml,
-    // Sidebar.qml, Breadcrumbs.qml, settings Main.qml).
+    // The rail moved to SidebarRows and Breadcrumbs uses pageData /
+    // firstVisibleLeafId, so the list accessors here serve the app's own QML
+    // (the settings app's drill restore asks childPagesData whether a page
+    // has visible children) and out-of-tree consumers. Callers are QML, which
+    // no build checks, so grep before treating one as unused. Covered by tests
+    // so the serialization contract cannot rot.
     Q_INVOKABLE QVariantList topLevelPagesData() const;
     Q_INVOKABLE QVariantList childPagesData(const QString& parentId) const;
     Q_INVOKABLE QVariantMap pageData(const QString& id) const;
-    /** Full flat list of every registered page, used by QML that needs
-     *  to walk the whole catalogue (e.g. for an apply-on-close failure
-     *  toast that names every page still dirty after applyAll()). */
+    /** Full flat list of every registered page, in registration order,
+     *  unfiltered. */
     Q_INVOKABLE QVariantList allPagesData() const;
 
     /// Key under which the page-data dicts above carry the title. Exposed so
@@ -321,6 +343,8 @@ public:
 
 Q_SIGNALS:
     void pageRegistered(const QString& id);
+    /// A registered page got a new controller and QML source (bindPage).
+    void pageBound(const QString& id);
     void showAdvancedChanged();
     /// The set of entries visible under the current mode may have changed —
     /// either the mode flipped or an entry was restamped. Consumers that
@@ -350,6 +374,10 @@ private:
     /// Descends via m_childrenByParent, so the cost is the size of the
     /// subtree below @p entry rather than a full m_pages rescan per level.
     bool isEntryVisible(const Entry& entry) const;
+    /// True iff @p controller is the live controller of some entry. The
+    /// m_controllerSet lookup first, then a scan only on a hit, because the
+    /// set can hold the address of a destroyed controller.
+    bool isLiveRegisteredController(PageController* controller) const;
 
     QList<Entry> m_pages;
     /// Simple/advanced master mode. Defaults true so an app that never
@@ -360,7 +388,8 @@ private:
     // anywhere near 2^31 pages, but the narrowing is unnecessary.
     QHash<QString, qsizetype> m_indexById;
     // Child indices grouped by parentId (the empty key holds the top-level
-    // entries), in registration order. Every tree accessor here descends
+    // entries), in sibling order: registration order, unless registerPage was
+    // given a sibling position. Every tree accessor here descends
     // through this rather than rescanning m_pages: isEntryVisible used to walk
     // the whole catalogue per level to find one node's children, which made a
     // single visibleChildPages call O(N²). It is now bounded by the subtree
@@ -369,8 +398,8 @@ private:
     // per-node walk stays superlinear in the catalogue's depth. The rescan is
     // gone; the per-node descent is inherent to the empty-category rule. Built
     // in registerPage and never
-    // invalidated — the catalogue only ever grows, and setPageVisibility
-    // restamps a tier without moving an entry.
+    // invalidated — the catalogue only ever grows, and neither
+    // setPageVisibility nor bindPage moves an entry.
     QHash<QString, QList<qsizetype>> m_childrenByParent;
     // Controller-pointer dedup set — registerPage previously did an
     // O(N) linear scan of m_pages per registration to reject a

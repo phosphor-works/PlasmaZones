@@ -282,35 +282,47 @@ Item {
         icon.name: "settings-configure"
     }
 
-    // If a page is re-registered (dynamic registration after startup) with
-    // a different controller, its already-built cached Loader keeps the
-    // stale pointer. Re-inject into whichever cached Loader matches.
+    // A page registered after startup, or bound to a new controller and QML
+    // source (PageRegistry::bindPage, a plugin page whose module loaded),
+    // changes what pageData() returns. Its already-built cached Loader keeps
+    // the stale pointer. Re-inject into whichever cached Loader matches.
     Connections {
         function onPageRegistered(id) {
-            // pageData() is a non-notifying invokable, so a page registering
-            // after becoming current needs an explicit refresh: bump the
-            // revision currentEntry depends on, and cache the page if it is
-            // the current one (the earlier cachePage call on navigation
-            // found no registration and bailed).
-            root._registryRevision++;
-            if (id === root.controller.currentPageId)
-                root.cachePage(id);
-            const pageController = root.controller.registry.controller(id);
-            // A registration that explicitly passes a null controller
-            // ("detach" path) leaves the previously injected pointer in
-            // place rather than clobbering it with null — a stale
-            // controller beats a runtime null-deref in the page body.
-            if (!pageController)
-                return;
-            for (let i = 0; i < pageRepeater.count; ++i) {
-                const ld = pageRepeater.itemAt(i);
-                if (ld && ld.pageId === id && ld.item) {
-                    PhosphorLoaderHelpers.injectIfAssignable(ld.item, "controller", pageController);
-                    return;
-                }
-            }
+            root._refreshPage(id);
+        }
+
+        function onPageBound(id) {
+            // The revision bump re-evaluates the Loader's source, so a page
+            // whose QML changed reloads and onLoaded injects the new
+            // controller. A page whose QML did not change keeps its item and
+            // gets the new controller below.
+            root._refreshPage(id);
         }
 
         target: root.controller.registry
+    }
+
+    function _refreshPage(id) {
+        // pageData() is a non-notifying invokable, so a page registering
+        // after becoming current needs an explicit refresh: bump the
+        // revision currentEntry depends on, and cache the page if it is
+        // the current one (the earlier cachePage call on navigation
+        // found no registration and bailed).
+        root._registryRevision++;
+        if (id === root.controller.currentPageId)
+            root.cachePage(id);
+        const pageController = root.controller.registry.controller(id);
+        // A controller destroyed since leaves the previously injected
+        // pointer in place rather than clobbering it with null — a
+        // stale controller beats a runtime null-deref in the page body.
+        if (!pageController)
+            return;
+        for (let i = 0; i < pageRepeater.count; ++i) {
+            const ld = pageRepeater.itemAt(i);
+            if (ld && ld.pageId === id && ld.item) {
+                PhosphorLoaderHelpers.injectIfAssignable(ld.item, "controller", pageController);
+                return;
+            }
+        }
     }
 }
