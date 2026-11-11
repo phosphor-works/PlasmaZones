@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2026 fuddlesworth
 # SPDX-License-Identifier: LGPL-2.1-or-later
 #
-# PhosphorRegistry: generic factory-by-name registry + plugin loader
-# for the phosphor-shell UI extension seams (bar widgets, control-center
-# tiles, launcher providers, OSDs, desktop widgets).
+# PhosphorRegistry: generic factory-by-name registry for the phosphor-shell
+# UI extension seams (bar widgets, control-center tiles, launcher providers,
+# OSDs, desktop widgets), the PluginCatalog every plugin seam shares, and the
+# bar-widget PluginLoader built on it.
 #
 # Phase 1.3 deliverable per docs/phosphor-shell-design/04-implementation-plan.md.
 
@@ -40,8 +41,8 @@ include(GenerateExportHeader)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 find_package(Qt6 ${PHOSPHORREGISTRY_QT_MIN} REQUIRED COMPONENTS Core Qml)
-# WatchedDirectorySet + IScanStrategy live in phosphor-fsloader. The
-# plugin loader hot-reload path consumes both directly. REQUIRED is
+# WatchedDirectorySet + IScanStrategy live in phosphor-fsloader.
+# PluginCatalog's live reload consumes both directly. REQUIRED is
 # load-bearing: target_link_libraries below names the imported target
 # unconditionally, so a missing dependency MUST fail configure rather
 # than fail link with a confusing "target not found" error. The
@@ -56,12 +57,12 @@ endif()
 # feature_summary (mirrors the WrapVulkanHeaders pattern in the project
 # root CMakeLists.txt). Guarded so a standalone configure of this
 # subproject (which does not include(FeatureSummary)) stays valid.
-# PhosphorFsLoader is REQUIRED here because the plugin-loader hot-reload
-# path consumes WatchedDirectorySet + IScanStrategy unconditionally.
+# PhosphorFsLoader is REQUIRED here because PluginCatalog consumes
+# WatchedDirectorySet + IScanStrategy unconditionally.
 if(COMMAND set_package_properties)
     set_package_properties(PhosphorFsLoader PROPERTIES
         TYPE REQUIRED
-        PURPOSE "WatchedDirectorySet + IScanStrategy for phosphor-registry's plugin hot-reload path")
+        PURPOSE "WatchedDirectorySet + IScanStrategy for phosphor-registry's plugin catalog live reload")
 endif()
 if(COMMAND add_feature_info)
     set(_phosphor_registry_fsloader_found FALSE)
@@ -70,7 +71,7 @@ if(COMMAND add_feature_info)
     endif()
     add_feature_info("PhosphorFsLoader"
                      _phosphor_registry_fsloader_found
-                     "Filesystem watcher backing phosphor-registry's plugin hot-reload")
+                     "Filesystem watcher backing phosphor-registry's plugin catalog live reload")
     unset(_phosphor_registry_fsloader_found)
 endif()
 
@@ -140,7 +141,7 @@ target_link_libraries(PhosphorRegistry
         # template (consumed by the unified domain registries) includes
         # MetadataPackScanStrategy.h + WatchedDirectorySet.h in its public
         # interface, so consumers need fsloader's include dirs + link.
-        # PluginLoader.cpp's use is satisfied by the same public link.
+        # plugincatalog.cpp's use is satisfied by the same public link.
         PhosphorFsLoader::PhosphorFsLoader
 )
 

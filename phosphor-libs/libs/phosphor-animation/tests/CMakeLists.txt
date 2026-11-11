@@ -137,10 +137,13 @@ function(pas_add_test _name)
     add_test(NAME ${_name} COMMAND ${_name})
     phosphor_apply_test_isolation(${_name})
     # APPEND, never PROPERTIES ENVIRONMENT: a plain set would replace the
-    # XDG sandbox phosphor_apply_test_isolation just installed.
+    # XDG sandbox phosphor_apply_test_isolation just installed. One logging
+    # rule, because ctest splits an ENVIRONMENT value on ';'. The trailing
+    # wildcard covers the phosphoranimationshaders and phosphoranimationlayer
+    # categories as well.
     phosphor_append_test_environment(${_name}
         "QT_QPA_PLATFORM=offscreen"
-        "QT_LOGGING_RULES=phosphoranimation.*.debug=false;phosphoranimationshaders.*.debug=false")
+        "QT_LOGGING_RULES=phosphoranimation*.debug=false")
     set_tests_properties(${_name} PROPERTIES LABELS "phosphoranimation;phosphoranimationshaders")
 endfunction()
 

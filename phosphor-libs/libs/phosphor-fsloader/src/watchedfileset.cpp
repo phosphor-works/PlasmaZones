@@ -3,7 +3,7 @@
 
 #include <PhosphorFsLoader/WatchedFileSet.h>
 
-#include "nearestexistingancestor_p.h"
+#include "identitychain_p.h"
 
 #include <QDir>
 #include <QFile>
@@ -23,18 +23,30 @@ Q_LOGGING_CATEGORY(lcFileSet, "phosphorfsloader.watchedfileset")
 WatchedFileSet::WatchedFileSet(QObject* parent)
     : QObject(parent)
     , m_watcher(new QFileSystemWatcher(this))
+    , m_watches(std::make_unique<detail::IdentityWatches>(*m_watcher, detail::IdentityWatches::Leaf::Watch, &lcFileSet))
 {
     m_debounceTimer.setSingleShot(true);
     m_debounceTimer.setInterval(DefaultDebounceMs);
     connect(&m_debounceTimer, &QTimer::timeout, this, &WatchedFileSet::onDebounceElapsed);
-    // Neither signal's path argument is used: a directory event says only that
-    // SOMETHING beside a watched path moved, and the fingerprint pass is what
-    // decides whether it was one of ours.
+    m_identityTimer.setSingleShot(true);
+    m_identityTimer.setInterval(DefaultDebounceMs);
+    connect(&m_identityTimer, &QTimer::timeout, this, &WatchedFileSet::onIdentityWindowElapsed);
+    // An event says only that SOMETHING in a directory on the way to a
+    // watched path moved, and the chain walk and the fingerprint pass decide
+    // whether it was one of ours. Events that can change a file in place
+    // restart the debounce, so an editor's save lands in one report. Events
+    // further up, where unrelated churn is the norm, only open an identity
+    // window: restarting the debounce on them let a busy `/tmp` postpone a
+    // report for as long as the churn lasted.
     connect(m_watcher, &QFileSystemWatcher::fileChanged, this, [this] {
         m_debounceTimer.start();
     });
-    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, [this] {
-        m_debounceTimer.start();
+    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString& path) {
+        if (m_watches->isHolderDirectory(path)) {
+            m_debounceTimer.start();
+        } else if (!m_identityTimer.isActive()) {
+            m_identityTimer.start();
+        }
     });
 }
 
@@ -68,7 +80,7 @@ void WatchedFileSet::setPaths(const QStringList& paths)
     // armed raises an event and is caught by the next debounce; one landing
     // before it is already in the baseline. The reverse order leaves a window
     // in which a change is neither.
-    reconcileWatches();
+    m_watches->refresh(m_paths);
 
     QHash<QString, Fingerprint> fingerprints;
     fingerprints.reserve(m_paths.size());
@@ -87,6 +99,7 @@ QStringList WatchedFileSet::paths() const
 void WatchedFileSet::setDebounceInterval(int ms)
 {
     m_debounceTimer.setInterval(qMax(0, ms));
+    m_identityTimer.setInterval(qMax(0, ms));
 }
 
 int WatchedFileSet::debounceInterval() const
@@ -120,88 +133,37 @@ WatchedFileSet::Fingerprint WatchedFileSet::fingerprintOf(const QString& path)
     return fp;
 }
 
-void WatchedFileSet::reconcileWatches()
-{
-    // Every path is watched itself when it exists (an in-place edit only shows
-    // on the file's own watch) and through its nearest existing ancestor
-    // always (creation, deletion and rename-replacement only show on the
-    // directory). Recomputed from scratch each time, because both halves go
-    // stale on their own: the kernel drops a file watch when an editor's
-    // rename retires the inode, and a missing directory may have appeared
-    // since the ancestor was chosen.
-    QSet<QString> desired;
-    desired.reserve(m_paths.size() * 2);
-    for (const QString& path : std::as_const(m_paths)) {
-        if (QFileInfo::exists(path)) {
-            desired.insert(path);
-        }
-        const QString ancestor = detail::nearestExistingAncestor(path);
-        if (!ancestor.isEmpty()) {
-            desired.insert(ancestor);
-        }
-    }
-
-    // Diff against the watcher's REAL state rather than a mirror of what was
-    // added: Qt removes a path from files()/directories() when the kernel drops
-    // its watch, and that is exactly the case that has to be re-armed.
-    const QStringList watchedFiles = m_watcher->files();
-    const QStringList watchedDirectories = m_watcher->directories();
-    QSet<QString> current(watchedFiles.cbegin(), watchedFiles.cend());
-    current.unite(QSet<QString>(watchedDirectories.cbegin(), watchedDirectories.cend()));
-
-    const QSet<QString> stale = current - desired;
-    if (!stale.isEmpty()) {
-        m_watcher->removePaths(stale.values());
-    }
-    const QSet<QString> missing = desired - current;
-    if (missing.isEmpty()) {
-        return;
-    }
-    const QStringList failed = m_watcher->addPaths(missing.values());
-    for (const QString& path : missing) {
-        if (!failed.contains(path)) {
-            m_warnedFailedWatchPaths.remove(path);
-            continue;
-        }
-        // A path that vanished between the exists() above and addPaths() is a
-        // race the next event resolves; only a path still present is a real
-        // failure (permissions, inotify quota) worth a warning.
-        if (QFileInfo::exists(path) && !m_warnedFailedWatchPaths.contains(path)) {
-            m_warnedFailedWatchPaths.insert(path);
-            qCWarning(lcFileSet) << "failed to watch" << path
-                                 << "— check permissions or the filesystem-watcher quota (inotify on Linux)";
-        }
-    }
-}
-
 void WatchedFileSet::onDebounceElapsed()
 {
-    // Same order as setPaths: re-arm first, then fingerprint, so nothing that
-    // lands in between is lost.
-    reconcileWatches();
+    // Same order as setPaths: walk the chains and re-arm first, then
+    // fingerprint, so nothing that lands in between is lost. A file replaced
+    // by rename is a new inode at the end of its chain, so its watch is
+    // re-armed there. That matters even though Qt drops a watch whose inode is
+    // freed: the kernel frees it only once every open descriptor on it is
+    // closed, so the watch can still be pinned to the retired inode here.
+    m_watches->refresh(m_paths);
 
     QStringList changed;
     for (const QString& path : std::as_const(m_paths)) {
-        Fingerprint now = fingerprintOf(path);
+        const Fingerprint now = fingerprintOf(path);
         Fingerprint& previous = m_fingerprints[path];
         if (now == previous) {
             continue;
-        }
-        // A new inode under the same name is a rename-replacement. Qt drops
-        // the old watch only once the kernel frees the old inode, which waits
-        // for every open descriptor on it to close, so the file watch can
-        // still be pinned to the retired inode here. Re-target it, then take
-        // the baseline AFTER the re-arm so an edit in between is not lost.
-        if (now.exists && previous.exists && (now.device != previous.device || now.inode != previous.inode)) {
-            m_watcher->removePath(path);
-            m_watcher->addPath(path);
-            now = fingerprintOf(path);
         }
         previous = now;
         changed.append(path);
     }
     if (!changed.isEmpty()) {
         Q_EMIT filesChanged(changed);
+    }
+}
+
+void WatchedFileSet::onIdentityWindowElapsed()
+{
+    // A chain that did not move leaves every fingerprint as it was, and a
+    // pass here could cut into the debounce of an edit in progress.
+    if (!m_watches->refresh(m_paths).isEmpty()) {
+        onDebounceElapsed();
     }
 }
 

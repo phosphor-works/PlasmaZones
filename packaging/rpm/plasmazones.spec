@@ -33,7 +33,7 @@ Summary:        Window snapping, tiling and scrolling for KDE Plasma
 # compatible, and the DEP-5 file agrees, so the tag follows the identifier. 0BSD is
 # absent because packaging/arch/LICENSE is not installed.
 License:        GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT AND BSD-2-Clause AND CC0-1.0
-URL:            https://github.com/fuddlesworth/PlasmaZones
+URL:            https://github.com/phosphor-works/PlasmaZones
 Source0:        %{url}/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
 
 # Luau and valijson: the release archives pinned (version, URL and SHA-256) in
@@ -54,6 +54,10 @@ Source0:        %{url}/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
 Source1:        https://github.com/luau-lang/luau/archive/refs/tags/0.745.tar.gz#/luau-0.745.tar.gz
 # valijson-1.1.3.tar.gz sha256 887b53b1a924f6fe0b35fa3bbc9bbbe5ae8c72097b7f0f7c17b45f4cfa646029
 Source2:        https://github.com/tristanpenman/valijson/archive/refs/tags/v1.1.3.tar.gz#/valijson-1.1.3.tar.gz
+# The suite's branding release, whose icons the build installs. Not code, so no
+# bundled() provide.
+# phosphor-branding-0.1.0.tar.gz sha256 53c7247e7e2c304a4d2e75a7bdd1a87164c63c1defa4159f3cef8da23d8244b3
+Source3:        https://github.com/phosphor-works/branding/releases/download/v0.1.0/phosphor-branding-0.1.0.tar.gz#/phosphor-branding-0.1.0.tar.gz
 Provides:       bundled(luau) = 0.745
 Provides:       bundled(valijson) = 1.1.3
 
@@ -389,7 +393,7 @@ echo ""
 # hicolor-light is a PlasmaZones-specific theme variant that no other
 # package ships, so own its whole tree — otherwise the OBS
 # "directories not owned by a package" check fails.
-%{_datadir}/icons/hicolor/scalable/apps/*.svg
+%{_datadir}/icons/hicolor/*/apps/org.phosphor_works.*
 %{_datadir}/icons/hicolor-light/
 
 # Systemd user service
