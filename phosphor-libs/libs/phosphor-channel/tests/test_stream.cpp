@@ -1091,22 +1091,25 @@ void TestStream::write_drainsReadersThroughOnReadable()
         while (reader.read(frame) == ReadResult::Frame)
             ++atB;
     };
-    std::atomic<bool> aWrote{true};
-    std::thread other([&] {
+    // Each end goes on reading after its own writes until it has every frame
+    // of the other. An end that stopped as soon as it had written would leave
+    // the other waiting in write() for a window that never comes back.
+    const auto writeThenDrain = [](Stream& stream, StreamWriter* writer, const std::atomic<int>& received) {
+        bool wrote = true;
         for (int i = 0; i < 10; ++i)
-            aWrote = aWrote && toB->write(frameOf(40 * 1024, i), 5000) == WriteResult::Written;
-        a.flush(5000);
+            wrote = wrote && writer->write(frameOf(40 * 1024, i), 5000) == WriteResult::Written;
+        stream.flush(5000);
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (received < 10 && std::chrono::steady_clock::now() < deadline)
+            stream.pump(5);
+        return wrote;
+    };
+    std::atomic<bool> aWrote{false};
+    std::thread other([&] {
+        aWrote = writeThenDrain(a, toB, atA);
     });
-    bool bWrote = true;
-    for (int i = 0; i < 10; ++i)
-        bWrote = bWrote && toA->write(frameOf(40 * 1024, i), 5000) == WriteResult::Written;
-    b.flush(5000);
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    while (atB < 10 && std::chrono::steady_clock::now() < deadline)
-        b.pump(5);
+    const bool bWrote = writeThenDrain(b, toA, atB);
     other.join();
-    while (atA < 10 && std::chrono::steady_clock::now() < deadline)
-        a.pump(5);
     QVERIFY(aWrote);
     QVERIFY(bWrote);
     QCOMPARE(atA.load(), 10);
