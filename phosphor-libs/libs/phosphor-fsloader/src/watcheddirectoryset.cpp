@@ -246,7 +246,7 @@ int WatchedDirectorySet::registerDirectories(const QStringList& directories, Liv
 {
     // Asserted AND guarded, for the same reason as `rescanNow` below and more
     // so: this is public API (MetadataPackLoader::addSearchPaths,
-    // ScriptedAlgorithmLoader::scanAndRegister, PluginLoader::scanAndLoad all
+    // ScriptedAlgorithmLoader::scanAndRegister, PluginCatalog::scan all
     // reach it), and it mutates m_directories, installs kernel watches, and then
     // rescans — so a debug-only check would leave a release build corrupting
     // m_entries from a worker thread. Refuses rather than crashing, because

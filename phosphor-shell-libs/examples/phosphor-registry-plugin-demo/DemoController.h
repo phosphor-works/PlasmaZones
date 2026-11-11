@@ -17,17 +17,20 @@
 
 namespace PhosphorRegistryPluginDemo {
 
-// Mirrors the in-process demo's controller but adds a PluginLoader
-// pointed at a configurable plugin root. The same Registry receives
-// both built-in factories (registered explicitly) and plugin-loaded
-// factories (registered by the loader on each rescan).
+// Mirrors the in-process demo's controller but adds a PluginLoader that
+// searches a plugin root ahead of the standard plugin paths. The same
+// Registry receives both built-in factories (registered explicitly) and
+// plugin factories (registered by the loader when a plugin comes on offer).
 class DemoController : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QStringList factoryIds READ factoryIds NOTIFY factoryIdsChanged)
-    Q_PROPERTY(QString pluginRoot READ pluginRoot CONSTANT)
+    Q_PROPERTY(QStringList searchedDirectories READ searchedDirectories CONSTANT)
+    Q_PROPERTY(QStringList refusedPlugins READ refusedPlugins NOTIFY refusedPluginsChanged)
 public:
-    explicit DemoController(QString pluginRoot, QObject* parent = nullptr);
+    // @p pluginRoot holds a bar-widget directory searched first. Empty
+    // means the standard plugin paths alone.
+    explicit DemoController(const QString& pluginRoot, QObject* parent = nullptr);
     ~DemoController() override;
     Q_DISABLE_COPY_MOVE(DemoController)
 
@@ -43,22 +46,28 @@ public:
     // factoryIds.
     Q_INVOKABLE QQuickItem* createWidgetFor(const QString& id, QQuickItem* parent);
 
-    // QML "Reload" button hook. Forces a synchronous rescan of the
-    // plugin root — useful when iterating on a plugin without
-    // waiting for the watcher's debounce.
+    // QML "Reload" button hook. Rescans now instead of waiting for the
+    // watcher's debounce, which picks up plugins added or removed since
+    // the last scan. A rebuilt plugin that is already loaded keeps its old
+    // code until the demo restarts.
     Q_INVOKABLE void reloadPlugins();
 
     [[nodiscard]] QStringList factoryIds() const;
-    [[nodiscard]] QString pluginRoot() const;
+    [[nodiscard]] QStringList searchedDirectories() const;
+    // Each plugin file the catalog refused, with the reason.
+    [[nodiscard]] QStringList refusedPlugins() const;
 
 Q_SIGNALS:
     void factoryIdsChanged();
+    void refusedPluginsChanged();
 
 private:
     void registerBuiltins();
+    void updateRefusedPlugins();
 
     QPointer<QQmlEngine> m_engine;
-    QString m_pluginRoot;
+    QStringList m_searchedDirectories;
+    QStringList m_refusedPlugins;
     std::unique_ptr<PhosphorRegistry::Registry<PhosphorRegistry::IBarWidgetFactory>> m_registry;
     std::unique_ptr<PhosphorRegistry::PluginLoader> m_loader;
 };
