@@ -47,9 +47,11 @@ struct PHOSPHORCONTROL_EXPORT FacetPageMetadata
     /// The page's other-mode counterpart: a local page id or
     /// `<module>:<page>`. Empty for none. See PageRegistry::Entry.
     QString counterpart;
-    /// The page's section anchors, used by search and deep links. Every anchor
-    /// is also a place other modules can add a section: `before:<anchor>` and
-    /// `after:<anchor>`.
+    /// The page's section anchors: the names its QML reveals for a deep link
+    /// (`<page>#<anchor>`, ApplicationController::setPendingAnchor). Facet reads
+    /// them only for slots: every anchor is also a place other modules can add
+    /// a section, `before:<anchor>` and `after:<anchor>`, which the page's QML
+    /// places with a FacetSlot next to the anchored section.
     QStringList anchors;
 };
 
@@ -70,16 +72,23 @@ struct PHOSPHORCONTROL_EXPORT FacetExtensionPointMetadata
 /// A section this module adds to another module's page.
 struct PHOSPHORCONTROL_EXPORT FacetExtensionMetadata
 {
-    /// Local to the module. Facet knows it as `<module>:<id>`.
+    /// Local to the module. Facet knows it as `<module>:<id>`, the same form
+    /// as a scoped page id, so an extension and a page of one module may share
+    /// an id. The two never meet: extension ids name sections only
+    /// (FacetHost::refusedExtensions, extensionsOn), never sidebar pages.
     QString id;
     /// The target page, `<module>:<page>`.
     QString target;
     /// `top`, `bottom`, `before:<anchor>`, `after:<anchor>`, or the id of one
-    /// of the target page's extension points.
+    /// of the target page's extension points. parse() only requires one;
+    /// FacetHost refuses the extension, with the reason, when the target page
+    /// does not offer it.
     QString slot;
     /// The version of the slot the extension was built for.
     int targetVersion = 1;
     QString name;
+    /// Search terms for the section. Like FacetPageMetadata::keywords, FacetHost
+    /// does not feed them to a SearchController itself.
     QStringList keywords;
     int order = 0;
 };
@@ -103,17 +112,19 @@ struct PHOSPHORCONTROL_EXPORT FacetExtensionMetadata
 ///                       "Name": "KWin snap assist", "Keywords": ["assist"], "Order": 10}]
 ///     }
 ///
-/// Every `Name`, `Description` and `Keywords`, at module, category, page and
-/// extension level, may carry `[<locale>]` variants (`Name[de]`, `Name[pt_BR]`). The
-/// module writes them into its metadata, usually from its translations when
-/// it is built. parse() picks the best one for the locale, following the
+/// The localizable keys may carry `[<locale>]` variants (`Name[de]`,
+/// `Name[pt_BR]`): `Name`, `Description` and `Keywords` on the module, `Name`
+/// on a category, and `Name` and `Keywords` on a page and on an extension.
+/// The module writes them into its metadata, usually from its translations
+/// when it is built. parse() picks the best one for the locale, following the
 /// locale's UI languages, and skips a variant that is empty or not of the
 /// key's type.
 ///
 /// `Visibility` is `Always` (the default), `AdvancedOnly` or `SimpleOnly`.
-/// A module must declare at least one page. Keys parse() does not know are
-/// reported as warnings, not errors, so metadata written for a newer Facet
-/// still loads.
+/// A module must declare at least one page, even one that only adds sections
+/// to other modules' pages: its own page is where Facet says why it did not
+/// load and offers to load it again. Keys parse() does not know are reported
+/// as warnings, not errors, so metadata written for a newer Facet still loads.
 struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
 {
     QString id;
@@ -152,6 +163,8 @@ struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
     /// `before:<a>` and `after:<a>` exist for each of the page's anchors, and
     /// all of them carry the version of the page's `anchors` extension point
     /// (1 when it declares none). A named slot carries its own version.
+    /// PageHost places `top` and `bottom` around every page. The page's own
+    /// QML places the anchor and named slots, each with a FacetSlot.
     [[nodiscard]] int slotVersion(const QString& pageId, const QString& slot) const;
 };
 

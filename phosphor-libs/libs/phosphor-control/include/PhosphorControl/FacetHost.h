@@ -61,17 +61,28 @@ class StagingDomain;
 /// application's own pages fails instead of being placed.
 ///
 /// Extensions: a module's metadata can add sections to another module's
-/// page. start() resolves each against its target page's slots and their
-/// versions, and lists the ones that do not fit in refusedExtensions(). An
-/// extension aimed at a module that is not installed is skipped quietly.
-/// Opening a page also loads every module that extends it, and the host
-/// answers ApplicationController::extensionsFor() for the page's FacetSlots.
+/// page. start(), and every module added or removed while Facet runs,
+/// resolves each against its target page's slots and their versions, and
+/// lists the ones that do not fit in refusedExtensions(). An extension aimed
+/// at a module that is not installed is skipped quietly. Opening a page also
+/// loads every module that extends it, once the page's own module has
+/// loaded, and an extension that becomes active while its page is open loads
+/// its module then. Both need the navigation hook (start() says when another
+/// component holds it). The host answers
+/// ApplicationController::extensionsFor() for the page's FacetSlots. A
+/// section is shown once its extension is active and its page's own module
+/// has loaded, and only then does its staging domain join Apply and the
+/// page's dirty mark and reset. Neither condition is ever undone, so a section
+/// that joins stays shown.
 ///
 /// A crash while a module loads is remembered. The module's id is written to
 /// the load record (setSentinelPath) before its library is loaded, and
 /// removed once its registerInto has returned. A load record left behind at
 /// the next start disables that module (DisabledAfterCrash), and it stays
-/// disabled across starts until retryModule().
+/// disabled across starts until retryModule(). A crash later, in a page's
+/// or a section's QML or in a domain, is not remembered. Since opening a
+/// page loads every module that extends it, a module whose section crashes
+/// takes that page down each time it opens, until the module is removed.
 ///
 /// GUI thread only. The ApplicationController must outlive the host.
 class PHOSPHORCONTROL_EXPORT FacetHost : public QObject
@@ -159,24 +170,38 @@ public:
     /// Module files the catalog refused, with the reason.
     [[nodiscard]] QList<PhosphorRegistry::RefusedPlugin> refusedModules() const;
 
-    /// An extension that will not be shown, and why: its target page does not
-    /// exist, has no such slot, or offers the slot at another version. An
-    /// extension whose target module is not installed is not refused, only
-    /// inactive.
+    /// An extension that will not be shown, and why: its target module is
+    /// installed but could not be placed, its target page does not exist or
+    /// has no place in the sidebar, the page has no such slot, or offers the
+    /// slot at another version. An extension whose target module is not
+    /// installed is not refused, only inactive.
     struct RefusedExtension
     {
         /// `<module>:<extension>`.
         QString id;
         QString reason;
     };
+    /// Sorted by id. Changes as modules come and go
+    /// (refusedExtensionsChanged).
     [[nodiscard]] QList<RefusedExtension> refusedExtensions() const;
-    /// The scoped ids of the extensions that will be shown on @p pageId, in
-    /// slot order.
+    /// The scoped ids of the active extensions on @p pageId, across all its
+    /// slots, sorted by `Order`, then module id, then extension id.
     [[nodiscard]] QStringList extensionsOn(const QString& pageId) const;
 
-    /// The domains @p moduleId registered while loading: headless ones and its
-    /// extensions'.
+    /// A section a module registered while loading (FacetContext::
+    /// registerExtension).
+    struct ModuleExtension
+    {
+        /// The local extension id.
+        QString id;
+        QUrl qmlSource;
+        StagingDomain* domain = nullptr;
+    };
+    /// The headless domains @p moduleId registered while loading.
     [[nodiscard]] QList<StagingDomain*> moduleDomains(const QString& moduleId) const;
+    /// The sections @p moduleId registered while loading, in its metadata's
+    /// order, whether or not they are active. A deleted domain reads null.
+    [[nodiscard]] QList<ModuleExtension> moduleExtensions(const QString& moduleId) const;
     /// The page ids the module of @p moduleId registered while loading.
     [[nodiscard]] QStringList boundPages(const QString& moduleId) const;
 
@@ -187,10 +212,21 @@ Q_SIGNALS:
     /// start() finds (invalid metadata, disabled after a crash), which are
     /// announced once start() has finished building the sidebar.
     void moduleStateChanged(const QString& moduleId, PhosphorControl::FacetHost::ModuleState state);
+    /// refusedExtensions() changed.
+    void refusedExtensionsChanged();
 
 private:
     struct Module;
     struct LoadRecord;
+    /// An extension resolved onto its target page.
+    struct ActiveExtension
+    {
+        QString moduleId;
+        QString localId;
+        QString slot;
+        QString name;
+        int order = 0;
+    };
 
     std::shared_ptr<Module> parseModule(const QString& moduleId);
     void mergeCategories(const Module& module);
@@ -207,17 +243,45 @@ private:
     [[nodiscard]] bool moduleSortsBefore(const Module& a, const Module& b) const;
     [[nodiscard]] bool categorySortsBefore(const FacetCategoryMetadata& a, const FacetCategoryMetadata& b) const;
     void onNavigation(const QString& pageId);
+    /// Load the modules that extend @p pageId, once its own module is loaded.
+    /// Stops when a newer navigation, which a slot reacting to a load can
+    /// start, took the current page anywhere but @p pageId: away from
+    /// @p landing, or through another page and back (m_navigations moved on
+    /// from @p navigations).
+    void loadExtenders(const QString& pageId, const QString& landing, quint64 navigations);
+    /// Whether a navigation newer than the one that saw @p landing and
+    /// @p navigations left the current page on one other than @p pageId.
+    [[nodiscard]] bool navigatedElsewhere(const QString& landing, quint64 navigations, const QString& pageId) const;
+    /// @p owner just loaded: join the loaded modules' sections to its pages,
+    /// tell those pages' FacetSlots, and load what extends the open page.
+    void showSectionsOn(const Module& owner);
     [[nodiscard]] QString owningModule(const QString& pageId) const;
+    /// Whether @p moduleId may be loaded now. False, with the reason in
+    /// @p errorString, while another load runs or off the controller's thread.
+    bool canLoadNow(const QString& moduleId, QString* errorString) const;
     void transition(Module& module, ModuleState state, const QString& reason, bool retryable = true);
     void disableAfterCrash(Module& module);
     [[nodiscard]] LoadRecord readLoadRecord() const;
     bool writeLoadRecord(const LoadRecord& record) const;
+    /// Write @p moduleId into the load record as loading. False when it was
+    /// not written (no record, or the write failed).
     bool recordLoading(const QString& moduleId);
-    void clearLoading();
+    /// Take the loading module back out of the record, when recordLoading
+    /// put it there (@p recorded).
+    void clearLoading(bool recorded);
     bool persistDisabled();
     void resolveExtensions();
-    void attachExtensions(const Module& module);
+    /// Resolve again after a module came or went: attach what became active,
+    /// tell the pages whose sections changed, announce a changed refused
+    /// list, and load what now extends the open page.
+    void updateExtensions();
+    /// Register and attach the domains of @p module's sections that are shown:
+    /// active, on a page whose own module is loaded.
+    void attachExtensions(Module& module);
     void notifyExtendedPages(const QString& moduleId);
+    [[nodiscard]] QHash<QString, QStringList> extensionIdsByPage() const;
+    /// The first of @p module's pages that is in the sidebar, or empty.
+    [[nodiscard]] QString firstPlacedPage(const Module& module) const;
     [[nodiscard]] QVariantList extensionsFor(const QString& pageId, const QString& slot) const;
 
     QPointer<ApplicationController> m_controller;
@@ -230,16 +294,25 @@ private:
     /// True while start() builds the sidebar: transitions are recorded but
     /// announced only once it has finished.
     bool m_starting = false;
-    /// The module whose library or registerInto is running, so a nested
-    /// load (navigation from inside registerInto) is refused instead of
-    /// running registerInto twice or overwriting the load record.
+    /// Whether start() got the navigation hook, so the host loads modules as
+    /// their pages open.
+    bool m_holdsNavigationHook = false;
+    /// The page a navigation is opening, while onNavigation runs.
+    QString m_openingPage;
+    /// Counts the navigations the hook saw, so one that went somewhere and
+    /// back is still told apart from none.
+    quint64 m_navigations = 0;
+    /// The module being loaded, from before its library loads until just
+    /// before its outcome is announced, so a nested load (a navigation from
+    /// inside registerInto or a pageBound slot) is refused instead of running
+    /// registerInto twice or overwriting the load record.
     QString m_loadingModule;
     QSet<QString> m_disabled;
     QHash<QString, std::shared_ptr<Module>> m_modules;
     QHash<QString, FacetCategoryMetadata> m_categories;
     QSet<QString> m_registeredCategoryNodes;
-    struct ActiveExtension;
-    QHash<QString, QList<std::shared_ptr<ActiveExtension>>> m_extensionsByPage;
+    /// Target page id → its active extensions, sorted as extensionsOn() says.
+    QHash<QString, QList<ActiveExtension>> m_extensionsByPage;
     QList<RefusedExtension> m_refusedExtensions;
     QSet<QString> m_warnedExtensions;
 };

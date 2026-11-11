@@ -56,14 +56,17 @@ private Q_SLOTS:
         QTest::newRow("not a module") << QByteArray("notamodule") << QStringLiteral("IFacetModule");
         QTest::newRow("skips an extension")
             << QByteArray("missingextension") << QStringLiteral("did not register extension second");
-    }
-
-    void anExtenderPassesWithoutItsTargets()
-    {
-        // Its extension domains go through Apply and Discard like any other.
-        FacetTestHost host = hostFor("extender");
-        const QStringList problems = host.run();
-        QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
+        QTest::newRow("missing extension QML file")
+            << QByteArray("extensionmissingqml")
+            << QStringLiteral(
+                   "extension extensionmissingqml:first's QML source qrc:/fake/MissingSection.qml does not "
+                   "exist");
+        QTest::newRow("page controller deleted while loading")
+            << QByteArray("deletesduringload")
+            << QStringLiteral("page deletesduringload:general was not bound, so Facet keeps its placeholder");
+        QTest::newRow("section domain deleted while loading")
+            << QByteArray("deletesduringload")
+            << QStringLiteral("extension deletesduringload:first's domain was deleted while the module loaded");
     }
 
     void reportsAContractBreach()
@@ -73,6 +76,30 @@ private Q_SLOTS:
         FacetTestHost host = hostFor(variant.constData());
         const QString problems = joined(host.run());
         QVERIFY2(problems.contains(expected), qPrintable(problems));
+    }
+
+    void anExtenderPassesWithoutItsTargets()
+    {
+        // None of its targets is installed here, and its sections' QML and
+        // domains are checked all the same.
+        FacetTestHost host = hostFor("extender");
+        const QStringList problems = host.run();
+        QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
+    }
+
+    void checksExtensionDomainsLikeAnyOther()
+    {
+        // One page, the headless domain and two sections, each answering
+        // apply() twice, each named so its author can find it.
+        FacetTestHost host = hostFor("extensiondouble");
+        const QStringList problems = host.run();
+        QCOMPARE(problems.size(), 4);
+        const QString all = joined(problems);
+        QVERIFY2(all.contains(QStringLiteral("extension extensiondouble:first's domain emitted applyResult 2 times")),
+                 qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("extension extensiondouble:second's domain emitted applyResult 2 times")),
+                 qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("FakeDomain emitted applyResult 2 times")), qPrintable(all));
     }
 
     void reportsADomainThatAnswersApplyTwice()

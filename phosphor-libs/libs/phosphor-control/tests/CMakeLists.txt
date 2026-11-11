@@ -35,8 +35,9 @@ function(phosphorcontrol_add_test name)
     # Qt6::Gui in its INTERFACE), so we don't need it explicitly. A test
     # using QTEST_MAIN gets a QGuiApplication (the QT_GUI_LIB variant),
     # which needs a platform plugin, hence QT_QPA_PLATFORM=offscreen
-    # below. The Facet tests use QTEST_GUILESS_MAIN and need none. No
-    # test creates its own application object or touches widgets.
+    # below. test_facet_slot, which builds QML items, is one of those; the
+    # other Facet tests use QTEST_GUILESS_MAIN and need none. No test
+    # creates its own application object or touches widgets.
     target_link_libraries(${name}
         PRIVATE
             PhosphorControl::PhosphorControl
@@ -65,8 +66,22 @@ phosphorcontrol_add_test(test_dbus_bridge)
 phosphorcontrol_add_test(test_search_ranker)
 phosphorcontrol_add_test(test_search_controller)
 phosphorcontrol_add_test(test_sidebar_rows)
+# Parses metadata only, so it needs no fixture module.
+phosphorcontrol_add_test(test_facet_module_metadata)
 
 # ─── Facet module fixtures ─────────────────────────────────────────────────────
+#
+# A STATIC build cannot host Facet modules (see PHOSPHOR_CONTROL_BUILD_SHARED):
+# each fixture would carry its own copy of the library, so the host and the
+# module would not even share StagingDomain's metaobject. The fixtures and the
+# tests that load them need the shared library. test_facet_slot below is left
+# out of a static build too: it links the library together with the static
+# QML module, which compiles the same sources, and two static archives of one
+# set of objects in one executable is not a combination this build supports.
+if(NOT PHOSPHOR_CONTROL_BUILD_SHARED)
+    message(STATUS "phosphor-control: static build, so the Facet module tests are not built")
+    return()
+endif()
 #
 # Every test Facet module is fake_module/fakemodule.cpp built once per variant.
 # A variant differs only in its generated fake_module_config.h (FAKE_MODE, see
@@ -138,8 +153,9 @@ endmacro()
 
 phosphorcontrol_add_fake_module(good MODE 0 METADATA
     "{ \"Id\": \"good\", \"ApiVersion\": 1, \"Name\": \"Good\", \"Category\": \"input\", \"Icon\": \"good-icon\", \"Order\": 20,${_good_pages} }")
-# Same category as good, sorted ahead of it by Order. Its page "pinned" goes
-# into the appearance category directly, with a divider and a tier.
+# Same category as good, sorted ahead of it by Order. Its page "simple" has a
+# divider and a tier, and its page "pinned" goes into the appearance category
+# directly, with a tier.
 phosphorcontrol_add_fake_module(early MODE 0 METADATA [=[{
     "Id": "early", "ApiVersion": 1, "Name": "Early", "Category": "input", "Order": 10,
     "Pages": [ { "Id": "main", "Name": "Main", "Counterpart": "simple" },
@@ -219,19 +235,31 @@ phosphorcontrol_add_fake_module(badmetadata MODE 0 METADATA [=[{
     "Id": "badmetadata", "ApiVersion": 1,
     "Pages": [ { "Id": "a:b", "Name": "Colon" } ] }]=])
 
-# Modules that add sections to good's pages. extender's land: two at the top
-# (ordered by Order, then id), one after the speed anchor, one at the panel
-# point, and one aimed at a module that is not installed. badextender's are
-# all refused.
+# Modules that add sections to good's pages. extender's first four land on
+# good:general: two at the top, one after the speed anchor, one at the panel
+# point. Its "ghost", aimed at a module that is not installed, stays inactive.
+# Its top two sort by Order against their id order, and extender2's, at Order
+# 0 with an id that sorts first, lands after extender's Order 0 ones, so both
+# sort keys are pinned. badextender's are all refused.
 phosphorcontrol_add_fake_module(extender MODE 0 METADATA [=[{
     "Id": "extender", "ApiVersion": 1, "Name": "Extender",
     "Pages": [ { "Id": "own", "Name": "Own" } ],
     "Extensions": [
-        { "Id": "top-late", "Target": "good:general", "Slot": "top", "Name": "Top late", "Order": 10 },
-        { "Id": "top-early", "Target": "good:general", "Slot": "top", "Name": "Top early" },
+        { "Id": "top-a", "Target": "good:general", "Slot": "top", "Name": "Top A", "Order": 10 },
+        { "Id": "top-b", "Target": "good:general", "Slot": "top", "Name": "Top B" },
         { "Id": "after-speed", "Target": "good:general", "Slot": "after:speed", "Name": "After speed" },
         { "Id": "panel", "Target": "good:general", "Slot": "panel", "TargetVersion": 2, "Name": "Panel" },
         { "Id": "ghost", "Target": "absent:page", "Slot": "top", "Name": "Ghost" } ] }]=])
+phosphorcontrol_add_fake_module(extender2 MODE 0 METADATA [=[{
+    "Id": "extender2", "ApiVersion": 1, "Name": "Extender Two",
+    "Pages": [ { "Id": "own", "Name": "Own" } ],
+    "Extensions": [ { "Id": "aaa", "Target": "good:general", "Slot": "top", "Name": "Aaa" } ] }]=])
+# Its id is taken by an application page in the test, so it is never placed,
+# and its extension must not reach good:general.
+phosphorcontrol_add_fake_module(clashext MODE 0 METADATA [=[{
+    "Id": "clashext", "ApiVersion": 1, "Name": "Clash Extender",
+    "Pages": [ { "Id": "own", "Name": "Own" } ],
+    "Extensions": [ { "Id": "top", "Target": "good:general", "Slot": "top", "Name": "Top" } ] }]=])
 phosphorcontrol_add_fake_module(badextender MODE 0 METADATA [=[{
     "Id": "badextender", "ApiVersion": 1, "Name": "Bad Extender",
     "Pages": [ { "Id": "own", "Name": "Own" } ],
@@ -252,16 +280,33 @@ phosphorcontrol_add_fake_module(missingextension MODE 22 METADATA
     "{ \"Id\": \"missingextension\", \"ApiVersion\": 1, \"Name\": \"Missing Extension\",${_two_extensions} }")
 phosphorcontrol_add_fake_module(extraextension MODE 23 METADATA
     "{ \"Id\": \"extraextension\", \"ApiVersion\": 1, \"Name\": \"Extra Extension\",${_two_extensions} }")
+macro(_fake_with_two_extensions variant mode name)
+    phosphorcontrol_add_fake_module(${variant} MODE ${mode} METADATA
+        "{ \"Id\": \"${variant}\", \"ApiVersion\": 1, \"Name\": \"${name}\",${_two_extensions} }")
+endmacro()
+_fake_with_two_extensions(extensiondouble 4 "Extension Double")
+_fake_with_two_extensions(extensionnodomain 24 "Extension No Domain")
+_fake_with_two_extensions(extensionshared 25 "Extension Shared")
+_fake_with_two_extensions(extensionrelative 26 "Extension Relative")
+_fake_with_two_extensions(extensionmissingqml 27 "Extension Missing QML")
+_fake_with_two_extensions(extensionthread 28 "Extension Thread")
+_fake_with_two_extensions(deletesduringload 29 "Deletes During Load")
 
-phosphorcontrol_add_test(test_facet_module_metadata)
 phosphorcontrol_add_test(test_facet_host)
 phosphorcontrol_add_test(test_facet_test_host)
 target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
 
 # FacetSlot and FacetExtensionFrame, through the static org.phosphor.control
-# module the in-tree apps link.
-phosphorcontrol_add_test(test_facet_slot)
-target_link_libraries(test_facet_slot PRIVATE PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin Qt6::Quick)
+# module the in-tree apps link. They import org.kde.kirigami, so the test
+# needs Kirigami's QML module at run time and is left out without it.
+find_package(KF6Kirigami QUIET)
+if(KF6Kirigami_FOUND)
+    phosphorcontrol_add_test(test_facet_slot)
+    target_link_libraries(test_facet_slot PRIVATE PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin
+                                                  Qt6::Quick)
+else()
+    message(STATUS "phosphor-control: KF6 Kirigami not found, so test_facet_slot is not built")
+endif()
 foreach(test test_facet_host test_facet_test_host)
     target_compile_definitions(${test} PRIVATE
         PHOSPHOR_CONTROL_FIXTURE_DIR="${PHOSPHOR_CONTROL_FIXTURE_DIR}"

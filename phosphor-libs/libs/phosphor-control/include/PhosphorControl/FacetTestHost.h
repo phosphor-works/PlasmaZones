@@ -19,7 +19,10 @@ namespace PhosphorControl {
 ///   - it loads, and registerInto registers exactly the pages and extensions
 ///     its metadata declares, each page with a controller of the matching id
 ///     and an absolute QML source (the rules FacetContext enforces)
-///   - each page's QML source exists, for a `qrc:` or `file:` URL
+///   - every page was bound and every extension kept its domain, which code
+///     the module runs while it loads could delete
+///   - each page's and each extension's QML source exists, for a `qrc:` or
+///     `file:` URL
 ///   - no page controller, headless domain or extension domain is dirty
 ///     right after loading
 ///   - every page controller, headless domain and extension domain answers
