@@ -35,8 +35,8 @@ library provides:
   typo-tolerant scorer behind it.
 - **The QML chrome.** `org.phosphor.control` ships `SettingsAppWindow`,
   `Sidebar`, `Breadcrumbs`, `UnsavedChangesFooter`, `PageHost`,
-  `DiscardChangesDialog`, `AboutPageShell` and `FacetModulePage`, wired to the
-  controllers above.
+  `DiscardChangesDialog`, `AboutPageShell`, `FacetModulePage`, `FacetSlot` and
+  `FacetExtensionFrame`, wired to the controllers above.
 - **Glue.** `DBusBridge` for talking to a daemon, and `LocalizedContext` for
   bare-word `i18n()` in QML on Qt-only (non-KF6) builds.
 
@@ -44,7 +44,7 @@ library provides:
 
 | Type | Purpose |
 |------|---------|
-| `PhosphorControl::ApplicationController` | Top-level orchestrator: owns the registry + domains, global dirty flag, batched `applyAllAsync` / `discardAllAsync`, current-page selection, deep-link anchor latch, `bindPage` for pages whose controller arrives late, and a single owned navigation hook (`setNavigationHook`) a plugin host loads pages through |
+| `PhosphorControl::ApplicationController` | Top-level orchestrator: owns the registry + domains, global dirty flag, batched `applyAllAsync` / `discardAllAsync`, current-page selection, deep-link anchor latch, `bindPage` for pages whose controller arrives late, a single owned navigation hook (`setNavigationHook`) a plugin host loads pages through, and the sections other modules add to a page: a single owned extension provider (`setExtensionProvider`) behind `extensionsFor` / `extensionsChanged`, and `attachDomainToPage` to count a section's domain toward its page's dirty mark and reset |
 | `PhosphorControl::StagingDomain`         | Abstract unit of staged changes: `isDirty()`, `apply()`, `discard()`, `resetToDefaults()`, with `applyResult` / `discardResult` async signals |
 | `PhosphorControl::PageController`         | A `StagingDomain` that also has a QML page and a sidebar row, with a stable, globally-unique page id |
 | `PhosphorControl::PageRegistry`           | Catalogue of registered pages as a tree (`Entry` per page). It grows at runtime and never shrinks: `registerPage` adds (optionally at a sibling slot), `bindPage` swaps a page's controller and QML in place, `setPageVisibility` restamps a tier |
@@ -55,9 +55,10 @@ library provides:
 | `PhosphorControl::DBusBridge`             | Configured endpoint(s) for daemon calls: sync `call()` / async `asyncCall()`, with explicit-interface variants |
 | `PhosphorControl::LocalizedContext`       | QML i18n context routing `i18n()`/`i18nc()`/`i18np()` through Qt translation, for Qt-only consumers without KF6 |
 | `PhosphorControl::IFacetModule`           | The interface a Facet module's root object implements (`registerInto(FacetContext&)`), IID `org.phosphor_works.Facet.Module/1` |
-| `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, pages), parsed and validated per locale |
-| `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, and its headless staging domains |
-| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, and loads a module the first time one of its pages is opened |
+| `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, pages and their anchors, extension points, extensions), parsed and validated per locale |
+| `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, and the domain and QML of each section it adds to another module's page |
+| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened |
+| `PhosphorControl::FacetSlotModel`         | The sections in one slot of one page, for `FacetSlot`: reads `extensionsFor` again on `extensionsChanged` and keeps the row of a section that stays |
 | `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
 
 ## Typical use
@@ -133,7 +134,8 @@ page registry before anything loads:
 
 - a node per category in use (`@category/<id>`), a node per module
   (`<module>`), and a page per module page (`<module>:<page>`), ordered by
-  `Order` and then name, with a module's own pages in declaration order;
+  `Order` and then name, with a module's own pages parents first and
+  siblings in declaration order;
 - each module page shows `FacetModulePage.qml` until its module loads, so it
   is an ordinary page in the sidebar, search and keyboard navigation;
 - a page can sit under one of its module's pages, under another module's page
@@ -145,15 +147,55 @@ Opening one of a module's pages loads the module through
 announced. Its `registerInto` registers into a `FacetContext`, which only
 records. Facet then checks the whole registration and binds every page
 (`ApplicationController::bindPage`) and domain at once, or, when anything is
-wrong (a page the metadata does not declare, a skipped page, a controller with
-the wrong id, a page without QML), keeps none of it and fails the module with
-the reason. A module that did not load keeps its placeholder page, which says
+wrong (a page or extension the metadata does not declare, a skipped page or
+extension, one registered twice, a controller with the wrong id, a page or
+section without QML), keeps none of it and fails the module with the
+reason. A module that did not load keeps its placeholder page, which says
 why, and offers a retry when loading again can help.
 
 A module that was loading when the process died is disabled, at the next start
 and every start after, until `retryModule` (or the placeholder page's retry
 button) loads it. `FacetTestHost` runs a module through the same host
 headless, for the module's own CI.
+
+A module can also add sections to another module's page. Its metadata lists
+each one under `Extensions` with a `Target` (`<module>:<page>`), a `Slot`,
+the `TargetVersion` of the slot it was built for (1 by default) and a `Name`.
+Every page offers `top`, `bottom`, and `before:<anchor>` / `after:<anchor>`
+for each entry of its `Anchors` list, all at the version of the page's
+reserved `anchors` extension point (1 when it declares none). A module adds
+named slots with its top-level `ExtensionPoints` list, each entry a `Page`, an
+`Id` and a `Version` (1 by default). `FacetHost` shows an extension only when
+its target page offers that slot at that version. One aimed at a module that
+is not installed stays inactive, and one whose target module could not be
+placed, or whose page, slot or version does not match, is listed in
+`refusedExtensions()` with the reason (`refusedExtensionsChanged` says when
+that list changes). Opening a page loads every module that extends it once the
+page's own module has loaded, and so does a section that becomes active while
+its page is open, or the page's module loading while it is open (a retry). A
+section is shown once its extension is active and its page's module has
+loaded. From then on its staging domain joins Apply and counts toward that
+page's dirty mark and reset, and neither condition is ever undone. Before
+that, nothing shows it, so it joins nothing.
+
+`PageHost` places the `top` and `bottom` slots around every page, outside the
+page's own scrolling content. The page places the others itself with
+`FacetSlot`, which lists them through `FacetSlotModel` and wraps each in a
+`FacetExtensionFrame`. The frame names the module the section comes from,
+creates the section's QML with its `domain` already set, which the section
+must declare (it may make it `required`), and shows a card in the section's
+place when the module did not load, the section's domain was deleted or its
+QML failed, with a button to the module's own page when the module is what
+failed:
+
+```qml
+FacetSlot {
+    Layout.fillWidth: true
+    settingsApp: page.settingsApp
+    pageId: "placement:snapping/behavior"
+    slot: "after:drag-modifier"
+}
+```
 
 ## Design notes
 
@@ -183,7 +225,9 @@ headless, for the module's own CI.
 
 ## Dependencies
 
-- `QtCore`, `QtDBus`, `QtGui` (private), `QtQml`. The QML module adds `QtQuick`
+- `QtCore`, `QtDBus`, `QtGui` (private), `QtQml`. The QML module adds `QtQuick`,
+  and its QML imports `QtQuick.Controls`, `QtQuick.Layouts` and KF6 Kirigami
+  (`org.kde.kirigami`) at run time
 - [`phosphor-animation`](../phosphor-animation/README.md) — the QML chrome
   imports `org.phosphor.animation` for the spring-physics motion profiles
   (panel fade and slide, accordion expand/collapse, widget fade, hover and

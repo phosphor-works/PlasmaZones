@@ -16,14 +16,19 @@ namespace PhosphorControl {
 /// FacetHost over a fresh ApplicationController, loads it, and checks that:
 ///   - the catalog accepts it (IID, ApiVersion, a valid "Id")
 ///   - its metadata is valid
-///   - it loads, and registerInto registers exactly the pages its metadata
-///     declares, each with a controller of the matching id and an absolute
-///     QML source (the rules FacetContext enforces)
-///   - each page's QML source exists, for a `qrc:` or `file:` URL
-///   - no page controller or headless domain is dirty right after loading
-///   - every page controller and headless domain answers apply() with one
-///     applyResult and discard() with one discardResult, both reporting
-///     success, and sends no second one within a short grace period
+///   - it loads, and registerInto registers exactly the pages and extensions
+///     its metadata declares, each page with a controller of the matching id
+///     and an absolute QML source (the rules FacetContext enforces)
+///   - every page was bound and every extension kept its domain, which code
+///     the module runs while it loads could delete
+///   - each page's and each extension's QML source exists, for a `qrc:` or
+///     `file:` URL
+///   - no page controller, headless domain or extension domain is dirty
+///     right after loading
+///   - every page controller, headless domain and extension domain answers
+///     apply() with one applyResult and discard() with one discardResult,
+///     both reporting success, and sends no second one within a short grace
+///     period
 ///
 /// When the module is refused, its metadata is invalid or it does not load,
 /// run() reports that and stops, since the later checks need a loaded

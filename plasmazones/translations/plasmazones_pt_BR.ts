@@ -53,6 +53,39 @@
     </message>
 </context>
 <context>
+    <name>FacetExtensionFrame</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="86"/>
+        <source>From %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="114"/>
+        <source>This section is turned off, because Facet closed unexpectedly the last time it loaded the module it comes from.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="116"/>
+        <source>This section could not be shown, because the module it comes from did not load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="118"/>
+        <source>This section could not be shown, because its QML did not load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="119"/>
+        <source>This section could not be shown.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="126"/>
+        <source>Open Module Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>FacetModulePage</name>
     <message>
         <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="39"/>
@@ -88,7 +121,7 @@
 <context>
     <name>PageHost</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageHost.qml" line="281"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageHost.qml" line="313"/>
         <source>Select a page from the sidebar</source>
         <translation>Selecione uma página na barra lateral</translation>
     </message>
@@ -135,22 +168,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="322"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="321"/>
         <source>Discarding failed for an unknown reason</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="331"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="330"/>
         <source>A settings section was closed before it finished discarding</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="468"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="467"/>
         <source>Saving was stopped before it finished</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="475"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="474"/>
         <source>Discarding was stopped before it finished</source>
         <translation type="unfinished"></translation>
     </message>
@@ -158,32 +191,32 @@
 <context>
     <name>PhosphorControl::FacetHost</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="53"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="60"/>
         <source>Window Management</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="55"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="62"/>
         <source>Appearance</source>
         <translation type="unfinished">Aparência</translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="57"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="64"/>
         <source>Desktop</source>
         <translation type="unfinished">Área de trabalho</translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="58"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="65"/>
         <source>Input</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="59"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="66"/>
         <source>Apps</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="60"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="67"/>
         <source>System</source>
         <translation type="unfinished">Sistema</translation>
     </message>

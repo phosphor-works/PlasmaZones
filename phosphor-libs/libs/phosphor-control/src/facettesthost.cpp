@@ -158,8 +158,16 @@ QStringList FacetTestHost::run()
     };
     QList<Checked> domains;
     const std::optional<FacetModuleMetadata> metadata = host.metadata(moduleId);
+    const QStringList bound = host.boundPages(moduleId);
     for (const FacetPageMetadata& page : metadata->pages) {
         const QString scoped = FacetHost::pageId(moduleId, page.id);
+        if (!bound.contains(scoped)) {
+            // Its controller went while the module loaded, or the registry
+            // refused it, and Facet keeps the placeholder, which cannot load
+            // the module again.
+            problems.append(QStringLiteral("page %1 was not bound, so Facet keeps its placeholder").arg(scoped));
+            continue;
+        }
         const PageRegistry::Entry entry = controller.registry()->entry(scoped);
         if (qmlSourceExists(entry.qmlSource) == false) {
             problems.append(
@@ -167,6 +175,8 @@ QStringList FacetTestHost::run()
         }
         if (entry.controller) {
             domains.append(Checked{scoped, entry.controller.data()});
+        } else {
+            problems.append(QStringLiteral("page %1's controller was deleted after it was bound").arg(scoped));
         }
     }
     const QList<StagingDomain*> headless = host.moduleDomains(moduleId);
@@ -177,6 +187,20 @@ QStringList FacetTestHost::run()
                   .arg(QString::fromLatin1(domain->metaObject()->className()), QString::number(i + 1))
             : domain->objectName();
         domains.append(Checked{name, domain});
+    }
+    // Every extension registered, whether or not its target is installed
+    // here: a target is usually another module, which this run never loads.
+    for (const FacetHost::ModuleExtension& extension : host.moduleExtensions(moduleId)) {
+        const QString scoped = FacetHost::pageId(moduleId, extension.id);
+        if (qmlSourceExists(extension.qmlSource) == false) {
+            problems.append(QStringLiteral("extension %1's QML source %2 does not exist")
+                                .arg(scoped, extension.qmlSource.toString()));
+        }
+        if (extension.domain) {
+            domains.append(Checked{QStringLiteral("extension %1's domain").arg(scoped), extension.domain});
+        } else {
+            problems.append(QStringLiteral("extension %1's domain was deleted while the module loaded").arg(scoped));
+        }
     }
 
     for (const Checked& checked : std::as_const(domains)) {

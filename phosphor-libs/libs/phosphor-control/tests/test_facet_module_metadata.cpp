@@ -84,8 +84,10 @@ private Q_SLOTS:
         // English name, which would make the whole module invalid in that
         // locale only.
         QTest::newRow("empty translation") << QStringLiteral("de_DE") << QStringLiteral("English");
-        // So is one of the wrong type.
+        // So is one of the wrong type, which would otherwise read as no name
+        // and refuse the module in that locale only.
         QTest::newRow("translation not a string") << QStringLiteral("es_ES") << QStringLiteral("English");
+        QTest::newRow("translation is a list") << QStringLiteral("it_IT") << QStringLiteral("English");
     }
 
     void picksTheBestTranslation()
@@ -94,7 +96,8 @@ private Q_SLOTS:
         QFETCH(QString, expected);
         QJsonObject object;
         QVERIFY(json(R"({ "Id": "m", "Name": "English", "Name[pt]": "Portugal", "Name[pt_BR]": "Brasil",
-                          "Name[de]": "", "Name[es]": 7, "Pages": [ { "Id": "p", "Name": "P" } ] })",
+                          "Name[de]": "", "Name[es]": 7, "Name[it]": ["Italia"],
+                          "Pages": [ { "Id": "p", "Name": "P" } ] })",
                      &object));
         QStringList errors;
         const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale(locale), &errors);
@@ -117,6 +120,20 @@ private Q_SLOTS:
         QCOMPARE(metadata.name, QStringLiteral("Français"));
         QCOMPARE(metadata.pages.first().name, QStringLiteral("Page"));
         QCOMPARE(metadata.pages.first().keywords, QStringList{QStringLiteral("clé")});
+    }
+
+    void keepsKeywordsWhoseTranslationIsNotAList()
+    {
+        QJsonObject object;
+        QVERIFY(json(R"({ "Id": "m", "Name": "M", "Keywords": ["base"], "Keywords[de]": "einzeln",
+                          "Keywords[fr]": [""], "Pages": [ { "Id": "p", "Name": "P" } ] })",
+                     &object));
+        for (const QString& locale : {QStringLiteral("de_DE"), QStringLiteral("fr_FR")}) {
+            QStringList errors;
+            const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale(locale), &errors);
+            QVERIFY(errors.isEmpty());
+            QCOMPARE(metadata.keywords, QStringList{QStringLiteral("base")});
+        }
     }
 
     void ordersParentsFirstAndKeepsSiblingOrder()
@@ -173,7 +190,7 @@ private Q_SLOTS:
     void warnsAboutUnknownKeys()
     {
         QJsonObject object;
-        QVERIFY(json(R"({ "Id": "m", "Name": "M", "Name[de]": "M", "Extensions": [],
+        QVERIFY(json(R"({ "Id": "m", "Name": "M", "Name[de]": "M", "Plugins": [],
             "Categories": [ { "Id": "c", "Name": "C", "Colour": "red" } ],
             "Pages": [ { "Id": "p", "Name": "P", "Parnet": "q" } ] })",
                      &object));
@@ -183,9 +200,155 @@ private Q_SLOTS:
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         const QString all = warnings.join(QLatin1Char('\n'));
         QCOMPARE(warnings.size(), 3);
-        QVERIFY2(all.contains(QStringLiteral("\"Extensions\"")), qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("\"Plugins\"")), qPrintable(all));
         QVERIFY2(all.contains(QStringLiteral("\"Colour\"")), qPrintable(all));
         QVERIFY2(all.contains(QStringLiteral("\"Parnet\"")), qPrintable(all));
+    }
+
+    void parsesExtensionPointsAndExtensions()
+    {
+        QJsonObject object;
+        QVERIFY(json(R"({
+            "Id": "m", "Name": "M",
+            "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["speed", "size"] } ],
+            "ExtensionPoints": [ { "Page": "p", "Id": "panel", "Version": 3 } ],
+            "Extensions": [ { "Id": "e", "Target": "other:page", "Slot": "after:x", "TargetVersion": 2,
+                              "Name": "E", "Name[de]": "Ee", "Keywords": ["k"], "Order": 5 } ] })",
+                     &object));
+        QStringList errors;
+        QStringList warnings;
+        const FacetModuleMetadata metadata =
+            FacetModuleMetadata::parse(object, QLocale(QStringLiteral("de_DE")), &errors, &warnings);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
+        QCOMPARE(metadata.page(QStringLiteral("p"))->anchors,
+                 (QStringList{QStringLiteral("speed"), QStringLiteral("size")}));
+        QCOMPARE(metadata.extensionPoints.size(), 1);
+        QCOMPARE(metadata.extensionPoints.first().page, QStringLiteral("p"));
+        QCOMPARE(metadata.extensionPoints.first().id, QStringLiteral("panel"));
+        QCOMPARE(metadata.extensionPoints.first().version, 3);
+        const FacetExtensionMetadata* const extension = metadata.extension(QStringLiteral("e"));
+        QVERIFY(extension);
+        QCOMPARE(extension->target, QStringLiteral("other:page"));
+        QCOMPARE(extension->slot, QStringLiteral("after:x"));
+        QCOMPARE(extension->targetVersion, 2);
+        QCOMPARE(extension->name, QStringLiteral("Ee"));
+        QCOMPARE(extension->keywords, QStringList{QStringLiteral("k")});
+        QCOMPARE(extension->order, 5);
+        QVERIFY(!metadata.extension(QStringLiteral("nope")));
+    }
+
+    void acceptsSlotsItDoesNotKnow()
+    {
+        // Whether a page offers a slot is the host's call, per extension. A
+        // slot form a newer Facet adds must not cost the module its pages.
+        QJsonObject object;
+        QVERIFY(json(R"({
+            "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+            "Extensions": [ { "Id": "a", "Target": "o:p", "Slot": "replace:x", "Name": "A" },
+                            { "Id": "b", "Target": "o:p", "Slot": "after:", "Name": "B" },
+                            { "Id": "c", "Target": "o:p", "Slot": "anchors", "Name": "C" } ] })",
+                     &object));
+        QStringList errors;
+        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QCOMPARE(metadata.extensions.size(), 3);
+    }
+
+    void aPointIdIsPerPage()
+    {
+        QJsonObject object;
+        QVERIFY(json(R"({
+            "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" }, { "Id": "q", "Name": "Q" } ],
+            "ExtensionPoints": [ { "Page": "p", "Id": "panel", "Version": 2 },
+                                 { "Page": "q", "Id": "panel", "Version": 3 } ] })",
+                     &object));
+        QStringList errors;
+        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QCOMPARE(metadata.extensionPoints.size(), 2);
+        QCOMPARE(metadata.slotVersion(QStringLiteral("p"), QStringLiteral("panel")), 2);
+        QCOMPARE(metadata.slotVersion(QStringLiteral("q"), QStringLiteral("panel")), 3);
+    }
+
+    void reportsANameOfTheWrongTypeAsSuch()
+    {
+        // The key is there, so "missing" would mislead.
+        QJsonObject object;
+        QVERIFY(json(R"({ "Id": "m", "Name": 5, "Pages": [ { "Id": "p", "Name": ["P"] } ] })", &object));
+        QStringList errors;
+        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        QCOMPARE(errors,
+                 (QStringList{QStringLiteral("\"Name\" must be a string"),
+                              QStringLiteral("page p: \"Name\" must be a string")}));
+    }
+
+    void reportsAKeyOfTheWrongTypeOnce()
+    {
+        QJsonObject object;
+        QVERIFY(json(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                          "Extensions": [ { "Id": "e", "Target": 3, "Slot": "top", "Name": "E" } ] })",
+                     &object));
+        QStringList errors;
+        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        QCOMPARE(errors, QStringList{QStringLiteral("extension e: \"Target\" must be a string")});
+    }
+
+    void warnsAboutUnknownKeysInPointsAndExtensions()
+    {
+        QJsonObject object;
+        QVERIFY(json(R"({
+            "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+            "ExtensionPoints": [ { "Page": "p", "Id": "panel", "Versoin": 2 } ],
+            "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E", "Slto": "x",
+                              "Target[de]": "o:q" } ] })",
+                     &object));
+        QStringList errors;
+        QStringList warnings;
+        FacetModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        const QString all = warnings.join(QLatin1Char('\n'));
+        QCOMPARE(warnings.size(), 3);
+        QVERIFY2(all.contains(QStringLiteral("extension point panel on page p: unknown key \"Versoin\"")),
+                 qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("extension e: unknown key \"Slto\"")), qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("extension e: unknown key \"Target[de]\"")), qPrintable(all));
+    }
+
+    void offersSlotsAtTheirVersion_data()
+    {
+        QTest::addColumn<QString>("page");
+        QTest::addColumn<QString>("slot");
+        QTest::addColumn<int>("version");
+        QTest::newRow("top") << QStringLiteral("p") << QStringLiteral("top") << 4;
+        QTest::newRow("bottom") << QStringLiteral("p") << QStringLiteral("bottom") << 4;
+        QTest::newRow("before an anchor") << QStringLiteral("p") << QStringLiteral("before:speed") << 4;
+        QTest::newRow("after an anchor") << QStringLiteral("p") << QStringLiteral("after:speed") << 4;
+        QTest::newRow("unknown anchor") << QStringLiteral("p") << QStringLiteral("after:size") << 0;
+        QTest::newRow("named point") << QStringLiteral("p") << QStringLiteral("panel") << 2;
+        QTest::newRow("anchors is not a slot") << QStringLiteral("p") << QStringLiteral("anchors") << 0;
+        QTest::newRow("unknown point") << QStringLiteral("p") << QStringLiteral("other") << 0;
+        QTest::newRow("default anchors version") << QStringLiteral("q") << QStringLiteral("top") << 1;
+        QTest::newRow("point on another page") << QStringLiteral("q") << QStringLiteral("panel") << 0;
+        QTest::newRow("unknown page") << QStringLiteral("z") << QStringLiteral("top") << 0;
+    }
+
+    void offersSlotsAtTheirVersion()
+    {
+        QFETCH(QString, page);
+        QFETCH(QString, slot);
+        QFETCH(int, version);
+        QJsonObject object;
+        QVERIFY(json(R"({
+            "Id": "m", "Name": "M",
+            "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["speed"] }, { "Id": "q", "Name": "Q" } ],
+            "ExtensionPoints": [ { "Page": "p", "Id": "anchors", "Version": 4 },
+                                 { "Page": "p", "Id": "panel", "Version": 2 } ] })",
+                     &object));
+        QStringList errors;
+        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QCOMPARE(metadata.slotVersion(page, slot), version);
     }
 
     void reportsEveryProblem_data()
@@ -285,6 +448,123 @@ private Q_SLOTS:
             R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": "c", "Name": "C" }, { "Id": "c", "Name": "D" } ],
                  "Pages": [ { "Id": "p", "Name": "P" } ] })",
             QStringLiteral("category c is defined twice"));
+        row("point on an undeclared page",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "ExtensionPoints": [ { "Page": "x", "Id": "e" } ] })",
+            QStringLiteral("extension point e is on page x, which the module does not declare"));
+        row("point named top",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a", "Id": "top" } ] })",
+            QStringLiteral("extension point id top must match"));
+        row("point named bottom",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a", "Id": "bottom" } ] })",
+            QStringLiteral("extension point id bottom must match"));
+        row("point without id",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a" } ] })",
+            QStringLiteral("extension point id  must match"));
+        row("point without page",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Id": "e" } ] })",
+            QStringLiteral("extension point e is on page , which the module does not declare"));
+        row("points not a list",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": { "Page": "a", "Id": "e" } })",
+            QStringLiteral("\"ExtensionPoints\" must be a list"));
+        row("name not a string", R"({ "Id": "m", "Name": 5, "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Name\" must be a string"));
+        row("page keywords not a list",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Keywords": "k" } ] })",
+            QStringLiteral("page p: \"Keywords\" must be a list"));
+        row("extension name not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": ["E"] } ] })",
+            QStringLiteral("extension e: \"Name\" must be a string"));
+        row("categories not a list",
+            R"({ "Id": "m", "Name": "M", "Categories": { "Id": "c", "Name": "C" },
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Categories\" must be a list"));
+        row("anchors not a list",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A", "Anchors": "speed" } ] })",
+            QStringLiteral("page a: \"Anchors\" must be a list"));
+        row("anchor not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A", "Anchors": ["speed", 3] } ] })",
+            QStringLiteral("page a: every \"Anchors\" entry must be a non-empty string"));
+        row("point version zero",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a", "Id": "p", "Version": 0 } ] })",
+            QStringLiteral("extension point p has version 0, which is below 1"));
+        row("point version not a whole number",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a", "Id": "p", "Version": "2" } ] })",
+            QStringLiteral("\"Version\" must be a whole number"));
+        row("point declared twice",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a", "Id": "p" }, { "Page": "a", "Id": "p" } ] })",
+            QStringLiteral("extension point p is declared twice"));
+        row("extension without id",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Target": "o:p", "Slot": "top", "Name": "E" } ] })",
+            QStringLiteral("extension id  must match"));
+        row("extension declared twice",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E" },
+                                 { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E" } ] })",
+            QStringLiteral("extension e is declared twice"));
+        row("extension with a local target",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "p", "Slot": "top", "Name": "E" } ] })",
+            QStringLiteral("which is not <module>:<page>"));
+        row("extension target with a trailing newline",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p\n", "Slot": "top", "Name": "E" } ] })",
+            QStringLiteral("which is not <module>:<page>"));
+        row("extension on its own module",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "m:p", "Slot": "top", "Name": "E" } ] })",
+            QStringLiteral("targets its own module"));
+        row("extensions not a list",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E" } })",
+            QStringLiteral("\"Extensions\" must be a list"));
+        row("extension without slot",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Name": "E" } ] })",
+            QStringLiteral("extension e has no \"Slot\""));
+        row("extension slot not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": 3, "Name": "E" } ] })",
+            QStringLiteral("extension e: \"Slot\" must be a string"));
+        row("extension target version zero",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "TargetVersion": 0, "Name": "E" } ] })",
+            QStringLiteral("TargetVersion 0"));
+        row("extension target version negative",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "TargetVersion": -1, "Name": "E" } ] })",
+            QStringLiteral("TargetVersion -1"));
+        row("extension target version out of range",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "TargetVersion": 3000000000,
+                                   "Name": "E" } ] })",
+            QStringLiteral("extension e: \"TargetVersion\" must be a whole number"));
+        row("extension target version not a number",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "TargetVersion": "2", "Name": "E" } ] })",
+            QStringLiteral("extension e: \"TargetVersion\" must be a whole number"));
+        row("extension order not a whole number",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Order": 1.5, "Name": "E" } ] })",
+            QStringLiteral("extension e: \"Order\" must be a whole number"));
+        row("extension target not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": 3, "Slot": "top", "Name": "E" } ] })",
+            QStringLiteral("extension e: \"Target\" must be a string"));
+        row("extension without name",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top" } ] })",
+            QStringLiteral("extension e has no \"Name\""));
     }
 
     void reportsEveryProblem()

@@ -47,6 +47,50 @@ struct PHOSPHORCONTROL_EXPORT FacetPageMetadata
     /// The page's other-mode counterpart: a local page id or
     /// `<module>:<page>`. Empty for none. See PageRegistry::Entry.
     QString counterpart;
+    /// The page's section anchors: the names its QML reveals for a deep link
+    /// (`<page>#<anchor>`, ApplicationController::setPendingAnchor). Facet reads
+    /// them only for slots: every anchor is also a place other modules can add
+    /// a section, `before:<anchor>` and `after:<anchor>`, which the page's QML
+    /// places with a FacetSlot next to the anchored section.
+    QStringList anchors;
+};
+
+/// A named place on one of the module's pages that other modules may add a
+/// section to, beyond the implicit `top`, `bottom`, `before:<anchor>` and
+/// `after:<anchor>` slots every page has. The reserved id `anchors` declares
+/// the version of a page's implicit slots instead.
+struct PHOSPHORCONTROL_EXPORT FacetExtensionPointMetadata
+{
+    /// The module's local page id.
+    QString page;
+    QString id;
+    /// Bumped whenever the slot moves or its meaning changes, so extensions
+    /// built for the old one are skipped rather than shown in the wrong place.
+    int version = 1;
+};
+
+/// A section this module adds to another module's page.
+struct PHOSPHORCONTROL_EXPORT FacetExtensionMetadata
+{
+    /// Local to the module. Facet knows it as `<module>:<id>`, the same form
+    /// as a scoped page id, so an extension and a page of one module may share
+    /// an id. The two never meet: extension ids name sections only
+    /// (FacetHost::refusedExtensions, extensionsOn), never sidebar pages.
+    QString id;
+    /// The target page, `<module>:<page>`.
+    QString target;
+    /// `top`, `bottom`, `before:<anchor>`, `after:<anchor>`, or the id of one
+    /// of the target page's extension points. parse() only requires one;
+    /// FacetHost refuses the extension, with the reason, when the target page
+    /// does not offer it.
+    QString slot;
+    /// The version of the slot the extension was built for.
+    int targetVersion = 1;
+    QString name;
+    /// Search terms for the section. Like FacetPageMetadata::keywords, FacetHost
+    /// does not feed them to a SearchController itself.
+    QStringList keywords;
+    int order = 0;
 };
 
 /// The metadata a Facet module embeds with Q_PLUGIN_METADATA:
@@ -61,20 +105,26 @@ struct PHOSPHORCONTROL_EXPORT FacetPageMetadata
 ///       "Pages": [{"Id": "effect", "Name": "KWin Effect", "Icon": "...",
 ///                  "Parent": "", "Category": "", "Keywords": ["blur"],
 ///                  "Visibility": "AdvancedOnly", "DividerAfter": false,
-///                  "Counterpart": ""}]
+///                  "Counterpart": "", "Anchors": ["blur"]}],
+///       "ExtensionPoints": [{"Page": "effect", "Id": "outline", "Version": 1}],
+///       "Extensions": [{"Id": "snap-assist", "Target": "placement:snapping/behavior",
+///                       "Slot": "after:drag-modifier", "TargetVersion": 1,
+///                       "Name": "KWin snap assist", "Keywords": ["assist"], "Order": 10}]
 ///     }
 ///
-/// Every `Name`, `Description` and `Keywords`, at module, category and page
-/// level, may carry `[<locale>]` variants (`Name[de]`, `Name[pt_BR]`). The
-/// module writes them into its metadata, usually from its translations when
-/// it is built. parse() picks the best one for the locale, following the
+/// The localizable keys may carry `[<locale>]` variants (`Name[de]`,
+/// `Name[pt_BR]`): `Name`, `Description` and `Keywords` on the module, `Name`
+/// on a category, and `Name` and `Keywords` on a page and on an extension.
+/// The module writes them into its metadata, usually from its translations
+/// when it is built. parse() picks the best one for the locale, following the
 /// locale's UI languages, and skips a variant that is empty or not of the
 /// key's type.
 ///
 /// `Visibility` is `Always` (the default), `AdvancedOnly` or `SimpleOnly`.
-/// A module must declare at least one page. Keys parse() does not know are
-/// reported as warnings, not errors, so metadata written for a newer Facet
-/// still loads.
+/// A module must declare at least one page, even one that only adds sections
+/// to other modules' pages: its own page is where Facet says why it did not
+/// load and offers to load it again. Keys parse() does not know are reported
+/// as warnings, not errors, so metadata written for a newer Facet still loads.
 struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
 {
     QString id;
@@ -94,6 +144,8 @@ struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
     /// siblings keep their declaration order, which is the order the sidebar
     /// shows them in.
     QList<FacetPageMetadata> pages;
+    QList<FacetExtensionPointMetadata> extensionPoints;
+    QList<FacetExtensionMetadata> extensions;
 
     /// Parse @p json for @p locale. Every problem is appended to @p errors,
     /// and the metadata is usable only when none was added. Unknown keys are
@@ -103,6 +155,17 @@ struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
 
     /// The page with local id @p id, or nullptr.
     [[nodiscard]] const FacetPageMetadata* page(const QString& id) const;
+    /// The extension with local id @p id, or nullptr.
+    [[nodiscard]] const FacetExtensionMetadata* extension(const QString& id) const;
+
+    /// The version slot @p slot of the local page @p pageId offers, or 0
+    /// when the page has no such slot. `top` and `bottom` always exist,
+    /// `before:<a>` and `after:<a>` exist for each of the page's anchors, and
+    /// all of them carry the version of the page's `anchors` extension point
+    /// (1 when it declares none). A named slot carries its own version.
+    /// PageHost places `top` and `bottom` around every page. The page's own
+    /// QML places the anchor and named slots, each with a FacetSlot.
+    [[nodiscard]] int slotVersion(const QString& pageId, const QString& slot) const;
 };
 
 } // namespace PhosphorControl

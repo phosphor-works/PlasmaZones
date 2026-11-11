@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
+#include "PhosphorControl/PageRegistry.h"
+#include "phosphorcontrol_export.h"
+
+#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QPointer>
@@ -9,12 +13,10 @@
 #include <QString>
 #include <QStringList>
 #include <QUrl>
+#include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
 #include <functional>
-
-#include "PhosphorControl/PageRegistry.h"
-#include "phosphorcontrol_export.h"
 
 namespace PhosphorControl {
 
@@ -29,7 +31,8 @@ class StagingDomain;
  *
  * Recomputes a global dirty flag whenever any domain's dirtyChanged()
  * fires, drives applyAll() / discardAll() across all domains, and dispatches
- * a per-page resetToDefaults() to the current page only.
+ * a per-page resetToDefaults() to the current page only: its controller and
+ * the domains attached to it (attachDomainToPage).
  *
  * Apps typically subclass this to declare their pages in the constructor.
  * Note that titles passed to registerPage must already be translated by
@@ -181,6 +184,34 @@ public:
     /// Remove the hook if @p owner installed it. A no-op otherwise.
     void clearNavigationHook(const QObject* owner);
 
+    /// Count @p domain as part of page @p pageId: dirtyPageIds() lists the
+    /// page while the domain is dirty, and resetCurrentPage() on the page
+    /// resets the domain too. Used for a section another module adds to the
+    /// page (a Facet extension). Refused, with a warning, for a domain that is
+    /// not tracked (registerDomain) or a page that is not registered. The
+    /// attachment lasts while the domain is tracked.
+    void attachDomainToPage(StagingDomain* domain, const QString& pageId);
+
+    /// The sections other modules add to slot @p slot of page @p pageId, for
+    /// the QML FacetSlot. Each entry is a map with id, moduleId, moduleName,
+    /// name and modulePageId (a page of the section's module, empty when it
+    /// has none in the sidebar), plus either qmlSource and domain for a
+    /// section that can be shown, or error for one that cannot, with
+    /// moduleFailed set when the reason is that its module did not load and
+    /// disabledAfterCrash when that module is turned off after a crash.
+    /// Empty without an extension provider.
+    Q_INVOKABLE QVariantList extensionsFor(const QString& pageId, const QString& slot) const;
+    using ExtensionProvider = std::function<QVariantList(const QString& pageId, const QString& slot)>;
+    /// Install @p provider on behalf of @p owner. There is one provider: while
+    /// another live owner holds it, this warns and returns false. The
+    /// provider is never called once @p owner is destroyed.
+    bool setExtensionProvider(QObject* owner, ExtensionProvider provider);
+    /// Remove the provider if @p owner installed it. A no-op otherwise. It
+    /// does not notify, since only the owner knows which pages had sections.
+    void clearExtensionProvider(const QObject* owner);
+    /// Tell FacetSlots on page @p pageId to read extensionsFor again.
+    void notifyExtensionsChanged(const QString& pageId);
+
     /** Navigate to the previous / next navigable page (one with a
      *  qmlSource) in the order the sidebar draws the tree
      *  (PageRegistry::pagesInTreeOrder). The current page is skipped;
@@ -212,7 +243,9 @@ public:
     /// titlePathFor and SearchController's result breadcrumbs.
     static QString titlePathSeparator();
 
-    /** Ids of every registered page whose controller is still dirty.
+    /** Ids of every registered page whose controller, or a domain attached
+     *  to it (attachDomainToPage), is still dirty. Read on demand: nothing
+     *  notifies when one page's dirty state changes.
      *
      *  Lives here rather than as a QML walk over allPagesData() +
      *  controller(id): `isDirty()` is NOT Q_INVOKABLE (StagingDomain exposes it
@@ -247,12 +280,11 @@ public Q_SLOTS:
     void forceResetAsyncState();
 
 public:
-    /// Async-batch timeout in milliseconds. Default 60 000 ms is
-    /// generous for typical D-Bus chains (~500 ms replies) but tight
-    /// enough to surface a wedged backend instead of pinning the
-    /// chrome's "Saving…" state indefinitely. Consumers with shorter
-    /// SLOs (interactive feedback within 5 s) or longer migrations
-    /// can adjust before the first applyAllAsync. Must be > 0.
+    /// Async-batch timeout in milliseconds, DefaultAsyncBatchTimeoutMs by
+    /// default: generous for D-Bus round trips but tight enough to surface
+    /// a wedged backend instead of pinning the chrome's "Saving…" state
+    /// indefinitely. Consumers that want faster feedback, or run longer
+    /// migrations, can adjust it before the first applyAllAsync. Must be > 0.
     int asyncBatchTimeoutMs() const;
     void setAsyncBatchTimeoutMs(int ms);
 
@@ -282,6 +314,8 @@ Q_SIGNALS:
     void applyAllComplete(bool ok, const QStringList& errors);
     /// Symmetric to applyAllComplete for discardAllAsync.
     void discardAllComplete(bool ok, const QStringList& errors);
+    /// The sections added to page @p pageId changed (notifyExtensionsChanged).
+    void extensionsChanged(const QString& pageId);
 
 private Q_SLOTS:
     void onDomainDirtyChanged();
@@ -290,6 +324,8 @@ private Q_SLOTS:
 private:
     void trackDomain(StagingDomain* domain);
     void untrackDomain(StagingDomain* domain);
+    /// Drop attachments whose domain is gone, and pages left with none.
+    void pruneAttachments();
     void recomputeDirty();
     /// The body of recomputeDirty without the NOTIFY: compacts m_domains,
     /// folds every domain's isDirty() into m_dirty and returns whether
@@ -316,6 +352,12 @@ private:
     quint64 m_navigationSerial = 0;
     NavigationHook m_navigationHook;
     QPointer<QObject> m_navigationHookOwner;
+    /// Answers extensionsFor() while m_extensionProviderOwner is alive.
+    ExtensionProvider m_extensionProvider;
+    QPointer<QObject> m_extensionProviderOwner;
+    /// Page id → the domains attached to it (attachDomainToPage), which count
+    /// toward its dirty mark and reset with it.
+    QHash<QString, QList<QPointer<StagingDomain>>> m_pageAttachments;
     // Back/forward navigation history (see canGoBack/goBack). The back
     // stack's last entry is the page goBack() lands on; symmetric for
     // the forward stack. m_navigatingHistory suppresses recording while
@@ -404,8 +446,8 @@ private:
     QList<QMetaObject::Connection> m_discardConnections;
     /// Hard-cap on how long an async batch waits for terminal result
     /// signals before synthesising a failure entry per still-pending
-    /// domain. Default 60 seconds (see asyncBatchTimeoutMs() /
-    /// setAsyncBatchTimeoutMs() for consumer-facing tuning).
+    /// domain. See asyncBatchTimeoutMs() / setAsyncBatchTimeoutMs() for
+    /// consumer-facing tuning.
     static constexpr int DefaultAsyncBatchTimeoutMs = 60'000;
     int m_asyncBatchTimeoutMs = DefaultAsyncBatchTimeoutMs;
 };

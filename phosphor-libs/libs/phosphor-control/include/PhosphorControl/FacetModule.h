@@ -19,15 +19,17 @@ inline constexpr int FacetModuleApiVersion = 1;
 /// `Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "metadata.json")`.
 /// The metadata describes the module and its pages (FacetModuleMetadata), so
 /// Facet can put them in the sidebar before the module loads. The module
-/// loads the first time one of its pages is opened.
+/// loads the first time one of its pages is opened, or a page it adds a
+/// section to (its metadata's `Extensions`).
 class IFacetModule
 {
 public:
     virtual ~IFacetModule() = default;
 
-    /// Register this module's page controllers and headless staging domains.
-    /// Every page in the metadata must be registered, and nothing else. Runs
-    /// on the GUI thread when the module loads. Must not throw.
+    /// Register this module's page controllers, headless staging domains and
+    /// extension sections. Every page and every extension the metadata
+    /// declares must be registered, and nothing it does not declare. Runs on
+    /// the GUI thread when the module loads. Must not throw.
     ///
     /// Nothing registered here takes effect until registerInto returns and
     /// the whole registration checks out. When it does not, the module fails

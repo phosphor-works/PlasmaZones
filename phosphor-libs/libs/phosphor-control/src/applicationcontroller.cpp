@@ -220,18 +220,22 @@ bool ApplicationController::bindPage(const QString& id, PageController* controll
         qWarning() << "ApplicationController::bindPage: cross-thread controller refused for" << id;
         return false;
     }
-    PageController* const previous = m_registry->controller(id);
+    // Guarded: the bind announces pageBound, and the untrack below recomputes
+    // dirty through every domain's isDirty(), both of which run code that
+    // could delete either controller.
+    const QPointer<PageController> previous = m_registry->controller(id);
+    const QPointer<PageController> bound = controller;
     if (!m_registry->bindPage(id, controller, qmlSource)) {
         return false;
     }
-    if (previous && previous != controller) {
+    if (previous && previous != bound) {
         // It no longer has a page. Left tracked, a dirty one would keep the
         // global flag set with no page to show for it, and applyAll would
         // still apply it.
-        untrackDomain(previous);
+        untrackDomain(previous.data());
     }
-    if (!m_domains.contains(QPointer<StagingDomain>(controller))) {
-        registerDomain(controller);
+    if (bound && !m_domains.contains(QPointer<StagingDomain>(bound.data()))) {
+        registerDomain(bound.data());
     }
     return true;
 }
@@ -250,6 +254,60 @@ bool ApplicationController::setNavigationHook(QObject* owner, NavigationHook hoo
     m_navigationHookOwner = owner;
     m_navigationHook = std::move(hook);
     return true;
+}
+
+void ApplicationController::attachDomainToPage(StagingDomain* domain, const QString& pageId)
+{
+    if (!domain || !m_registry->hasPage(pageId)) {
+        qWarning() << "ApplicationController::attachDomainToPage: null domain or unknown page" << pageId;
+        return;
+    }
+    // An untracked domain is never applied or discarded, so a page dirty
+    // through it could never be cleaned. untrackDomain also drops the
+    // attachment, which keeps the two in step.
+    if (!isTrackedDomain(domain)) {
+        qWarning() << "ApplicationController::attachDomainToPage: domain is not registered, page" << pageId;
+        return;
+    }
+    QList<QPointer<StagingDomain>>& attached = m_pageAttachments[pageId];
+    if (!attached.contains(QPointer<StagingDomain>(domain))) {
+        attached.append(domain);
+    }
+}
+
+QVariantList ApplicationController::extensionsFor(const QString& pageId, const QString& slot) const
+{
+    return m_extensionProvider && m_extensionProviderOwner ? m_extensionProvider(pageId, slot) : QVariantList();
+}
+
+bool ApplicationController::setExtensionProvider(QObject* owner, ExtensionProvider provider)
+{
+    if (!owner) {
+        qWarning() << "ApplicationController::setExtensionProvider: refused a provider with no owner";
+        return false;
+    }
+    if (m_extensionProviderOwner && m_extensionProviderOwner != owner) {
+        qWarning() << "ApplicationController::setExtensionProvider: refused, the provider is already held by"
+                   << m_extensionProviderOwner.data();
+        return false;
+    }
+    m_extensionProviderOwner = owner;
+    m_extensionProvider = std::move(provider);
+    return true;
+}
+
+void ApplicationController::clearExtensionProvider(const QObject* owner)
+{
+    if (!owner || m_extensionProviderOwner.data() != owner) {
+        return;
+    }
+    m_extensionProviderOwner.clear();
+    m_extensionProvider = nullptr;
+}
+
+void ApplicationController::notifyExtensionsChanged(const QString& pageId)
+{
+    Q_EMIT extensionsChanged(pageId);
 }
 
 void ApplicationController::clearNavigationHook(const QObject* owner)
@@ -289,14 +347,16 @@ bool ApplicationController::registerDomain(StagingDomain* domain)
     // tracking actually accepted the domain (i.e. it wasn't already
     // in m_domains). Pre-trackDomain check mirrors trackDomain's
     // duplicate guard exactly.
-    const bool alreadyTracked = m_domains.contains(QPointer<StagingDomain>(domain));
-    trackDomain(domain);
-    if (alreadyTracked) {
+    if (m_domains.contains(QPointer<StagingDomain>(domain))) {
+        trackDomain(domain); // warns about the duplicate
         return false;
     }
+    // Adopted before tracking: trackDomain recomputes dirty through every
+    // other domain's isDirty(), code that could delete this one.
     if (!domain->parent()) {
         domain->setParent(this);
     }
+    trackDomain(domain);
     return true;
 }
 
@@ -412,11 +472,21 @@ void ApplicationController::resetCurrentPage()
     // for the first consumer that needs to observe completion;
     // current callers (chrome footer button) treat reset as best-effort
     // and rely on dirtyChanged to reflect the eventual outcome.
-    if (m_currentPageId.isEmpty()) {
+    // Read once: the page's reset emits dirtyChanged, and a handler of that
+    // could navigate before the attached domains below are reached.
+    const QString pageId = m_currentPageId;
+    if (pageId.isEmpty()) {
         return;
     }
-    if (auto* page = m_registry->controller(m_currentPageId)) {
+    if (auto* page = m_registry->controller(pageId)) {
         page->resetToDefaults();
+    }
+    // Sections other modules add to the page reset with it.
+    const QList<QPointer<StagingDomain>> attached = m_pageAttachments.value(pageId);
+    for (const QPointer<StagingDomain>& domain : attached) {
+        if (domain) {
+            domain->resetToDefaults();
+        }
     }
 }
 
@@ -612,7 +682,17 @@ QStringList ApplicationController::dirtyPageIds() const
     // the null check below is unchanged.
     for (const PageRegistry::Entry& entry : m_registry->allPagesRef()) {
         const PageController* ctrl = entry.controller.data();
-        if (ctrl != nullptr && ctrl->isDirty()) {
+        bool dirty = ctrl != nullptr && ctrl->isDirty();
+        if (!dirty) {
+            // A section another module adds to the page makes it dirty too.
+            const auto attached = m_pageAttachments.constFind(entry.id);
+            if (attached != m_pageAttachments.cend()) {
+                dirty = std::any_of(attached->cbegin(), attached->cend(), [](const QPointer<StagingDomain>& d) {
+                    return d && d->isDirty();
+                });
+            }
+        }
+        if (dirty) {
             ids.append(entry.id);
         }
     }
@@ -622,8 +702,8 @@ QStringList ApplicationController::dirtyPageIds() const
 QStringList ApplicationController::parentChainFor(const QString& id) const
 {
     // Nesting-depth cap, shared with PageRegistry's reachability walk so the
-    // two cannot drift. 32 hops is well above any realistic sidebar nesting
-    // (typical settings apps cap at 3-4 levels). PageRegistry::registerPage
+    // two cannot drift. MaxParentChainHops is well above any realistic
+    // sidebar nesting. PageRegistry::registerPage
     // refuses an entry whose parentId isn't already registered, which makes
     // registry-internal cycles structurally impossible — so this cap is purely
     // a nesting-depth limit.
@@ -706,8 +786,8 @@ void ApplicationController::trackDomain(StagingDomain* domain)
     connect(domain, &QObject::destroyed, this, &ApplicationController::onTrackedDomainDestroyed, Qt::UniqueConnection);
     // Run recomputeDirty unconditionally — even when the new domain
     // is clean, the walk compacts any null QPointer entries that
-    // accumulated from previously-destroyed domains. Cost is O(N)
-    // for a settings app's typical N (~20 domains), negligible.
+    // accumulated from previously-destroyed domains. The walk is O(N)
+    // over a settings app's domains, which is negligible.
     recomputeDirty();
 }
 
@@ -720,15 +800,41 @@ void ApplicationController::untrackDomain(StagingDomain* domain)
     disconnect(domain, &StagingDomain::dirtyChanged, this, &ApplicationController::onDomainDirtyChanged);
     disconnect(domain, &QObject::destroyed, this, &ApplicationController::onTrackedDomainDestroyed);
     m_domains.removeAll(tracked);
+    // An attachment holds only tracked domains (attachDomainToPage).
+    for (auto it = m_pageAttachments.begin(); it != m_pageAttachments.end(); ++it) {
+        it->removeAll(tracked);
+    }
+    pruneAttachments();
     recomputeDirty();
+}
+
+void ApplicationController::pruneAttachments()
+{
+    for (auto it = m_pageAttachments.begin(); it != m_pageAttachments.end();) {
+        it->removeIf([](const QPointer<StagingDomain>& domain) {
+            return domain.isNull();
+        });
+        if (it->isEmpty()) {
+            it = m_pageAttachments.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void ApplicationController::onTrackedDomainDestroyed()
 {
     // Queued: destroyed() runs inside the dying object's destructor, and the
     // recompute calls isDirty() on every other domain. By the time the queued
-    // call runs, the dead entry's QPointer reads null and is compacted away.
-    QMetaObject::invokeMethod(this, &ApplicationController::recomputeDirty, Qt::QueuedConnection);
+    // call runs, the dead entry's QPointer reads null and is compacted away,
+    // from m_domains and from the page attachments.
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            pruneAttachments();
+            recomputeDirty();
+        },
+        Qt::QueuedConnection);
 }
 
 void ApplicationController::onDomainDirtyChanged()
