@@ -103,6 +103,17 @@ enum class RegistrationOrder : quint8 {
  *     re-armed and a rescan run. These watches are exempt from the rule
  *     that refuses to watch `$HOME`, `/` and the XDG roots, since
  *     unrelated churn there costs no rescan.
+ *   • **Linked entries.** A path the strategy reports that goes through a
+ *     symlink below its registered directory (a linked file, a linked
+ *     folder, a file inside one) gets an identity chain of its own instead
+ *     of a watch under its own spelling, which would stay on the old target
+ *     when the link is pointed elsewhere and see nothing while it dangles.
+ *     The target is watched under its physical path, and so is every
+ *     directory the link leads through, with the same rules as above: an
+ *     edit of the target rescans, and an event in a directory on the way
+ *     rescans only when the chain moved (the link was retargeted, or a
+ *     missing target appeared). Paths that go through no link keep their
+ *     plain watch and cost nothing extra.
  *   • A rescan-during-rescan race guard that ensures a watcher event
  *     delivered while the scan is in progress is replayed afterwards
  *     instead of being silently dropped.
@@ -313,10 +324,10 @@ private:
     void releaseAncestorWatchFor(const QString& targetKey);
     void onWatchedPathChanged();
     void syncFileWatches(const QStringList& desiredPaths);
-    /// Walk the identity chains of the registered directories again, re-arm
-    /// the chain watches, and drop the content watches of every directory
-    /// whose chain moved so the next attach and file sync re-arm them on the
-    /// new inodes. Returns true when a chain moved.
+    /// Walk the identity chains of the registered directories and the linked
+    /// entries again, re-arm the chain watches, and drop the content watches
+    /// of every directory whose chain moved so the next attach and file sync
+    /// re-arm them on the new inodes. Returns true when a chain moved.
     bool refreshIdentityChains();
     void dropWatchesOfMovedDirectories(const QStringList& moved);
     /// Whether @p path is watched for what the strategy scans (a registered
@@ -332,8 +343,9 @@ private:
     /// `m_watcher != nullptr` is the single source of truth, no
     /// parallel `m_liveReloadEnabled` flag.
     QFileSystemWatcher* m_watcher = nullptr;
-    /// The identity chains of the registered directories and the ancestor
-    /// watches they need, on `m_watcher`. Created with the watcher.
+    /// The identity chains of the registered directories and of the linked
+    /// entries, and the watches they need, on `m_watcher`. Created with the
+    /// watcher.
     std::unique_ptr<detail::IdentityWatches> m_identity;
     QSet<QString> m_watchedParents; ///< parents watched for dir-creation
     /// Back-reference from a configured target directory whose own path
@@ -350,6 +362,10 @@ private:
     /// Individual files currently in the watcher's file set. Re-armed
     /// every rescan from the strategy's returned path list.
     QSet<QString> m_watchedFiles;
+    /// The reported paths of the last scan that go through a symlink below
+    /// their registered directory, in report order. `m_identity` keeps their
+    /// chains and watches. None of them is watched under its own spelling.
+    QStringList m_linkedEntries;
     /// Warn-once latch for per-file watch failures in `syncFileWatches`.
     /// The causes (inotify quota exhaustion, permissions) are persistent and
     /// hit many paths at once while rescans keep firing at the debounce

@@ -116,6 +116,14 @@ let
         hash = "sha256-iHtTsakk9v4LNfo7vJu75a6Mcgl7fw98F7RfTPpkYCk=";
       };
     }
+    {
+      name = "phosphor-branding-0.1.0.tar.gz";
+      path = fetchurl {
+        url = "https://github.com/phosphor-works/branding/releases/download/v0.1.0/phosphor-branding-0.1.0.tar.gz";
+        # sha256 53c7247e7e2c304a4d2e75a7bdd1a87164c63c1defa4159f3cef8da23d8244b3
+        hash = "sha256-U8ckfn4sMEpNLnWnvdGocWTGPB3vpBWfPO+Noj2CRLM=";
+      };
+    }
   ];
 in
 
@@ -297,7 +305,7 @@ stdenv.mkDerivation (finalAttrs: {
       over D-Bus. The settings app (plasmazones-settings) and layout editor are
       standalone Qt applications.
     '';
-    homepage = "https://github.com/fuddlesworth/PlasmaZones";
+    homepage = "https://github.com/phosphor-works/PlasmaZones";
     # GPL-3.0-or-later for the app, daemon, editor, settings and KCM;
     # LGPL-2.1-or-later for the bundled Phosphor component libraries.
     # MIT and BSD-2-Clause for the bundled Luau runtime and valijson headers, which

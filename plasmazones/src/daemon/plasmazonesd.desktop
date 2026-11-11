@@ -8,7 +8,7 @@
 [Desktop Entry]
 Type=Application
 Name=PlasmaZones
-Icon=plasmazones
+Icon=org.phosphor_works.PlasmaZones
 # The daemon is a background service, not a launchable app. NoDisplay keeps it
 # out of application launchers and files it under "System Services" (not
 # "Applications") in System Settings > Shortcuts. KGlobalAccel still reads the
