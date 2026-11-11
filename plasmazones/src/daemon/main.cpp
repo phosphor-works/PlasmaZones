@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
     app.setOrganizationName(QStringLiteral("plasmazones"));
     app.setOrganizationDomain(QStringLiteral("phosphor-works.org"));
     app.setDesktopFileName(QStringLiteral("org.phosphor_works.PlasmaZones"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("plasmazones")));
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.phosphor_works.PlasmaZones")));
 
     // Command line options. Same table the early help/version path at the top
     // of main() registers — see configureParser().

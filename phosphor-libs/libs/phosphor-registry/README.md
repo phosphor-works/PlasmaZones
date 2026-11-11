@@ -3,18 +3,19 @@
 
 # phosphor-registry
 
-> Generic factory-by-name registry plus a plugin loader for the five
-> UI extension seams the phosphor-shell exposes: bar widgets, control
-> center tiles, launcher providers, OSDs, and desktop widgets.
+> Generic factory-by-name registry for the five UI extension seams the
+> phosphor-shell exposes (bar widgets, control center tiles, launcher
+> providers, OSDs and desktop widgets), the plugin catalog every plugin
+> seam of the suite shares, and the bar-widget plugin loader built on it.
 
 ## Responsibility
 
-Phosphor already ships several hand-rolled registries
+Phosphor used to ship several hand-rolled registries
 (`phosphor-layout-api/ILayoutSourceFactory`, `phosphor-tiles/AlgorithmRegistry`,
-`phosphor-shaders/ShaderRegistry`, `phosphor-animation/AnimationShaderRegistry`).
-Each one was designed independently for its own domain. `phosphor-registry`
-generalises the pattern into a single template that the shell instantiates
-once per UI seam.
+`phosphor-shaders/ShaderRegistry`, `phosphor-animation/AnimationShaderRegistry`),
+each designed on its own for its domain. `phosphor-registry` generalises the
+pattern into a single template. All four now store their entries in a
+`Registry<T>`, and the shell instantiates the same template once per UI seam.
 
 - **One `Registry<T>` template, five interface specialisations.** The shell
   owns one `Registry<IBarWidgetFactory>`, one `Registry<IControlCenterTileFactory>`,
@@ -25,7 +26,7 @@ once per UI seam.
   no global pending list. Same pattern for plugins (the `PluginLoader`
   calls the same `registerFactory`).
 - **One plugin mechanism for the suite.** `PluginCatalog` finds the
-  plugins of one seam (a kind of plugin: Facet modules, bar widgets),
+  plugins of one seam (a kind of plugin, such as bar widgets),
   reads each one's metadata without loading it, and loads one only when
   asked. A plugin is a Qt plugin (`qt_add_plugin` + `Q_PLUGIN_METADATA`)
   whose IID is the seam's and whose metadata carries `"Id"` and
@@ -33,16 +34,26 @@ once per UI seam.
 - **Search order.** Highest priority first: each directory in
   `PHOSPHOR_WORKS_PLUGIN_PATH` (development, a build tree's plugin
   output) plus `/<seam>`, then `$XDG_DATA_HOME/phosphor-works/plugins/<seam>`,
-  then each Qt library path plus `/phosphor-works/<seam>` (where packages
-  install). An earlier plugin overrides a later one with the same id, and
+  then each Qt plugin directory (`QT_PLUGIN_PATH`, then Qt's own) plus
+  `/phosphor-works/<seam>` (where packages install). Relative entries are
+  skipped. An earlier plugin overrides a later one with the same id, and
   the override is logged.
-- **Hot-reload on disk change.** A `WatchedDirectorySet` (from
-  phosphor-fsloader) watches every search path with a debounced rescan.
-  A new plugin is offered and a removed one is withdrawn. Nothing is ever
-  unloaded: a removed plugin's library stays mapped so objects it created
-  keep working, and a loaded plugin whose file changes runs the old code
-  until the process restarts, because the dynamic linker keeps one mapping
-  per path.
+- **Live reload on disk change.** A `WatchedDirectorySet` (from
+  phosphor-fsloader) watches the search paths with a debounced rescan.
+  A new plugin is offered and a removed one is withdrawn. A search path
+  that does not exist yet is picked up when it appears, unless its
+  nearest existing ancestor is a directory the watcher refuses to watch,
+  such as `~/.local/share` on a fresh account or `/tmp`. Then the next
+  rescan picks it up.
+- **Nothing is unloaded.** A withdrawn plugin's library stays mapped so
+  objects it created keep working. A loaded plugin keeps running the code
+  it was loaded from until the process restarts, and Qt keeps reporting
+  that code's metadata for its path. Replace a loaded plugin by rename
+  (`install`, `mv`), never by writing over it in place, which changes the
+  code the process is running.
+- **A failed load is retried when the file changes.** A plugin whose
+  library failed to load stays on offer and is offered again once its
+  file changes, so rebuilding it is enough.
 - **Capabilities are advisory for now.** Each factory declares a
   `capabilities()` list. An enforcement layer is a future addition.
 
@@ -61,7 +72,7 @@ once per UI seam.
 | `PhosphorRegistry::IDesktopWidgetFactory` | Factory for a desktop card / widget. Adds `createWidget(QQmlEngine*, QObject*)`. **No consumer yet**, reserved for a future desktop-widget surface. |
 | `PhosphorRegistry::PluginCatalog` | Finds the plugins of one `PluginSeam` across the search paths, offers their `PluginMetadata` without loading them, records `RefusedPlugin`s with the reason, and loads one on `load(id)`. Hot-reloads on filesystem change. |
 | `PhosphorRegistry::IBarWidgetPlugin` | The interface a bar-widget plugin's root object implements: `createFactory() -> std::unique_ptr<IBarWidgetFactory>`. |
-| `PhosphorRegistry::PluginLoader` | The bar-widget seam (`barWidgetSeam()`): loads every bar-widget plugin as soon as it is found and registers its factory in a `Registry<IBarWidgetFactory>`, unregistering it when the plugin's file goes away. |
+| `PhosphorRegistry::PluginLoader` | The bar-widget seam (`barWidgetSeam()`): loads every bar-widget plugin as soon as it is found and registers its factory in a `Registry<IBarWidgetFactory>`, unregistering it when the catalog withdraws the plugin. |
 
 ## Typical use
 
@@ -80,12 +91,13 @@ barRegistry.registerFactory(std::make_shared<ClockFactory>());
 barRegistry.registerFactory(std::make_shared<WorkspacesFactory>());
 barRegistry.registerFactory(std::make_shared<MediaFactory>());
 
-// Plugins (loaded asynchronously into the same registry):
-PluginLoader loader(&barRegistry);  // searches PluginCatalog::defaultSearchPaths("bar-widget")
-loader.scanAndLoad();
-
+// Connect first: the first scan loads every plugin before it returns.
 QObject::connect(barRegistry.notifier(), &RegistryNotifier::factoryRegistered,
                  [&](const QString& id) { qDebug() << "registered" << id; });
+
+// Plugins, into the same registry:
+PluginLoader loader(&barRegistry);  // searches PluginCatalog::defaultSearchPaths("bar-widget")
+loader.scanAndLoad();
 ```
 
 **Glue layer**: the shell wraps the registry in a `QObject` controller
@@ -187,6 +199,8 @@ search path.
 // myplugin.cpp
 #include <PhosphorRegistry/IBarWidgetPlugin.h>
 
+#include <new>
+
 class MyFactory : public PhosphorRegistry::IBarWidgetFactory { /* id() returns "my-plugin" */ };
 
 class MyPlugin : public QObject, public PhosphorRegistry::IBarWidgetPlugin
@@ -197,9 +211,13 @@ class MyPlugin : public QObject, public PhosphorRegistry::IBarWidgetPlugin
 public:
     std::unique_ptr<PhosphorRegistry::IBarWidgetFactory> createFactory() override
     {
-        return std::make_unique<MyFactory>();
+        // createFactory must not throw, so allocate without throwing and
+        // return nullptr when that fails.
+        return std::unique_ptr<PhosphorRegistry::IBarWidgetFactory>(new (std::nothrow) MyFactory);
     }
 };
+
+#include "myplugin.moc"
 ```
 
 ```json
@@ -209,37 +227,58 @@ public:
 }
 ```
 
-Build it with `qt_add_plugin(my-plugin MODULE ...)` and install the library
-into `${KDE_INSTALL_PLUGINDIR}/phosphor-works/bar-widget/`.
+```cmake
+qt_add_plugin(my-plugin SHARED myplugin.cpp)
+target_link_libraries(my-plugin PRIVATE PhosphorRegistry::PhosphorRegistry Qt6::Core Qt6::Quick)
+install(TARGETS my-plugin LIBRARY DESTINATION ${KDE_INSTALL_PLUGINDIR}/phosphor-works/bar-widget)
+```
+
+The library and its directory must be writable by their owner alone. A
+umask of 002, the default for user-private groups on several distributions,
+leaves both group-writable, and the catalog then refuses the plugin. Run
+`chmod go-w` on both, in a build tree too when it is on
+`PHOSPHOR_WORKS_PLUGIN_PATH`. The linker writes a new file on every relink,
+so a build tree needs that after each build.
 
 ## Arbitration / lifecycle
 
 - **Duplicate id rejected.** `registerFactory` of an id already in the
   registry is a no-op + qWarning (the first registration wins). The
-  plugin loader hits the same path for any plugin whose id collides
-  with an existing one.
+  plugin loader asks the registry first and does not load a plugin whose
+  id is already registered.
 - **Factory id must match the metadata's `"Id"`.** The loader
   cross-checks the factory's `id()` against the plugin's metadata, and a
-  mismatch is a refused load with a clear log message. This prevents a
-  renamed plugin from quietly taking over another's slot.
-- **Symlinks are not followed.** Plugin files are enumerated with
-  `QDir::NoSymLinks`, so a symlink in a search path cannot point the
-  loader at code outside it.
-- **Group/world-writable plugins refused.** Before reading a plugin, the
-  catalog refuses any plugin file (or its directory) that is group- or
-  world-writable, the same StrictModes discipline OpenSSH and sudo
-  apply to files they trust. A permissive mode would let another local
-  process overwrite the code the shell is about to run. Signature /
-  origin verification is reserved for a future sandbox.
+  mismatch is logged and the factory dropped. This prevents a renamed
+  plugin from quietly taking over another's slot. It is not listed in
+  `PluginCatalog::refused()`, which holds what the catalog found wrong with
+  the file itself.
+- **Symlinked plugin files refused.** A plugin file that is a symlink is
+  refused with a reason, never followed, so a link in a search path cannot
+  point the loader at code outside it. A searched directory that is itself
+  a symlink, or sits below one, is followed.
+- **Untrusted files refused.** The catalog refuses a plugin file, or one in
+  a directory, that someone other than this user or root owns or that is
+  group- or world-writable: the StrictModes discipline OpenSSH and sudo
+  apply to files they trust. Either would let another local user swap the
+  code the shell is about to run. It also refuses a plugin with a
+  `<file>.avx2` file beside it, which Qt loads in its place on a CPU with
+  the Haswell feature set. The file is vetted again right before it is
+  mapped, and every symbol must resolve at load time. Only the plugin file
+  and its directory are vetted. Libraries it links (through its RUNPATH
+  too) or opens are its own trust decision. Signature / origin
+  verification is reserved for a future sandbox.
 - **Wrong seam or version refused before loading.** A plugin whose IID is
-  not the seam's, whose metadata has no valid `"Id"`, or whose
-  `"ApiVersion"` is not the seam's is refused from its metadata alone,
-  logged once and listed in `PluginCatalog::refused()` with the reason. Its
-  library is never mapped. Bump a seam's `apiVersion` (and its IID's
-  `/N`) for any change to its interface or metadata a plugin relies on.
-- **Unload is registry-drop only.** Removing a plugin from disk
-  unregisters its factory from the registry. The library stays mapped for
-  the process lifetime, so widgets the now-gone plugin produced keep
+  not the seam's, which is built against a Qt this process cannot load,
+  whose metadata has no valid `"Id"`, or whose integer `"ApiVersion"` is
+  not the seam's is refused from its metadata alone, logged once and
+  listed in `PluginCatalog::refused()` with the reason. Its library is
+  never mapped. Bump a seam's `apiVersion` and its IID's `/N` together for
+  any change to its interface or metadata a plugin relies on. A plugin
+  built for the old version then fails the IID check first.
+- **Unload is registry-drop only.** When the catalog withdraws a plugin
+  (its file is removed or now refused) the loader unregisters its factory,
+  unless another owner has since replaced it. The library stays mapped for
+  the process lifetime, so widgets the withdrawn plugin produced keep
   working until they destruct naturally. A future sandbox revisits this
   with refcounted safe-unload.
 - **Capabilities are advisory.** The `capabilities()` list ships in
@@ -251,7 +290,7 @@ into `${KDE_INSTALL_PLUGINDIR}/phosphor-works/bar-widget/`.
 - `QtCore`, `QtQml`. The library does not link `QtGui` or `QtQuick`.
   Consumers that build widgets do.
 - `phosphor-fsloader` (PUBLIC link): `WatchedDirectorySet` + `IScanStrategy`
-  back both the plugin loader's hot-reload path and the header-only
+  back both the plugin catalog's live reload and the header-only
   `MetadataPackLoader<T>` template, which exposes fsloader types in its public
   interface, so the dependency is transitive (PUBLIC) for consumers.
 
@@ -260,7 +299,7 @@ into `${KDE_INSTALL_PLUGINDIR}/phosphor-works/bar-widget/`.
 - `phosphor-shell-libs/examples/phosphor-registry-demo/`: toy bar with two built-in widgets
   registered explicitly. Proves the registry seam.
 - `phosphor-shell-libs/examples/phosphor-registry-plugin-demo/`: same toy bar plus a third
-  widget loaded from a separate plugin. Proves the plugin seam and
-  hot-reload.
+  widget loaded from a separate plugin. Proves the plugin seam and the
+  live reload of plugins added or removed while it runs.
 - `phosphor-layout-api/ILayoutSourceFactory`: the pre-existing
   registry pattern this library generalises.

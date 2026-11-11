@@ -24,6 +24,12 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * Each loaded item gets two injections if it declares them:
  *   - controller: the registered PageController for that page id
  *   - settingsApp: the ApplicationController, for cross-page access
+ *
+ * Above and below the current page sit its `top` and `bottom` FacetSlots,
+ * where other modules' sections appear. They are outside the page's own
+ * scrolling content, take no space while the page has no such section, and
+ * follow the current page, so unlike the pages they are built again on each
+ * visit. What a section stages lives in its domain and survives that.
  */
 Item {
     id: root
@@ -119,146 +125,172 @@ Item {
         target: root.controller
     }
 
-    Repeater {
-        id: pageRepeater
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: root.contentMargins
+        spacing: Kirigami.Units.largeSpacing
 
-        model: cacheModel
+        FacetSlot {
+            Layout.fillWidth: true
+            settingsApp: root.controller
+            pageId: root.controller.currentPageId
+            slot: "top"
+        }
 
-        delegate: Loader {
-            id: pageLoader
+        Item {
+            id: pageArea
 
-            required property string pageId
-            readonly property bool isCurrent: root.controller.currentPageId === pageLoader.pageId
-            // Lazy-build latch: a page incubates the first time it becomes
-            // current and stays built (cached) thereafter. Without it, `active:
-            // true` built ALL pages at once on startup — an async-incubation
-            // storm that overlapped the daemon's initial D-Bus broadcasts
-            // (model resets / layout reloads re-entering mid-incubation), an
-            // observed source of incubation-time crashes. Building one page at
-            // a time, on navigation, keeps the async no-hitch behaviour while
-            // removing the storm.
-            property bool _everCurrent: false
+            Layout.fillWidth: true
+            Layout.fillHeight: true
 
-            // True while this page is the one being shown but its item is
-            // still incubating — the window where the viewport would
-            // otherwise be blank (the item does not exist yet and the fade
-            // keeps opacity at 0 until it does). Reported up to the host,
-            // which shows one shared loading indicator over the viewport.
-            readonly property bool isIncubating: pageLoader.isCurrent && pageLoader.status === Loader.Loading
-            onIsIncubatingChanged: root._reportIncubating(pageLoader.pageId, pageLoader.isIncubating)
+            Repeater {
+                id: pageRepeater
 
-            // Deep-link reveal latch: when this page is built + current,
-            // consume any pending anchor targeting it and invoke the page's
-            // duck-typed revealAnchor() contract. Covers first build
-            // (onLoaded), cached re-show (onIsCurrentChanged), and same-page
-            // deep links (the pendingAnchorChanged Connections below).
-            function _maybeReveal() {
-                if (!pageLoader.item || !pageLoader.isCurrent || pageLoader.status !== Loader.Ready)
-                    return;
-                const anchor = root.controller.takePendingAnchor(pageLoader.pageId);
-                if (anchor.length > 0 && typeof pageLoader.item.revealAnchor === "function")
-                    pageLoader.item.revealAnchor(anchor);
-            }
+                model: cacheModel
 
-            anchors.fill: parent
-            anchors.margins: root.contentMargins
-            // Built once when this page first becomes current; the compiled
-            // unit is already warm, so construction is the only cost. Async
-            // so even a heavy first build never hitches the UI thread.
-            asynchronous: true
-            active: pageLoader.isCurrent || pageLoader._everCurrent
-            // Latch the initial current page so navigating away from it doesn't
-            // unload it (onIsCurrentChanged never fires for the initial value).
-            // Same initial-value rule for isIncubating: a delegate created
-            // already-current starts loading during construction, so report
-            // the initial state explicitly.
-            Component.onCompleted: {
-                if (pageLoader.isCurrent)
-                    pageLoader._everCurrent = true;
-                if (pageLoader.isIncubating)
-                    root._reportIncubating(pageLoader.pageId, true);
-            }
-            source: {
-                // Depend on _registryRevision (same idiom as currentEntry):
-                // pageData() is non-notifying, so a re-registration that
-                // changes a page's qmlSource must force re-evaluation here.
-                void (root._registryRevision);
-                const data = root.controller.registry.pageData(pageLoader.pageId);
-                return (data && data.id) ? data.qmlSource : "";
-            }
-            // Only the current page is shown + interactive. Hidden cached
-            // pages stay built but are not painted and take no input.
-            visible: pageLoader.isCurrent
-            enabled: pageLoader.isCurrent
-            z: pageLoader.isCurrent ? 1 : 0
+                delegate: Loader {
+                    id: pageLoader
 
-            // Fade the page up when it becomes the current one. Pinned to 0
-            // and driven imperatively (not `opacity: isCurrent ? 1 : 0` with
-            // a `Behavior`): a Behavior never animates the INITIAL value, so
-            // the first build — whose Loader is created already-current —
-            // would snap to 1 with no fade; and on a cached re-show the
-            // unspecified eval order of the opacity binding vs the Behavior's
-            // `enabled` would drop the animation. Restarting the animation
-            // from the state transition covers first load (onLoaded), cached
-            // re-show (onIsCurrentChanged while already Ready), and resets to
-            // 0 on hide so the next show fades again.
-            opacity: 0
-            onIsCurrentChanged: {
-                if (pageLoader.isCurrent) {
-                    // Latch so this page stays built/cached once visited.
-                    pageLoader._everCurrent = true;
-                    if (pageLoader.status === Loader.Ready) {
-                        pageFadeIn.restart();
-                        pageLoader._maybeReveal();
+                    required property string pageId
+                    readonly property bool isCurrent: root.controller.currentPageId === pageLoader.pageId
+                    // Lazy-build latch: a page incubates the first time it becomes
+                    // current and stays built (cached) thereafter. Without it, `active:
+                    // true` built ALL pages at once on startup — an async-incubation
+                    // storm that overlapped the daemon's initial D-Bus broadcasts
+                    // (model resets / layout reloads re-entering mid-incubation), an
+                    // observed source of incubation-time crashes. Building one page at
+                    // a time, on navigation, keeps the async no-hitch behaviour while
+                    // removing the storm.
+                    property bool _everCurrent: false
+
+                    // True while this page is the one being shown but its item is
+                    // still incubating — the window where the viewport would
+                    // otherwise be blank (the item does not exist yet and the fade
+                    // keeps opacity at 0 until it does). Reported up to the host,
+                    // which shows one shared loading indicator over the viewport.
+                    readonly property bool isIncubating: pageLoader.isCurrent && pageLoader.status === Loader.Loading
+                    onIsIncubatingChanged: root._reportIncubating(pageLoader.pageId, pageLoader.isIncubating)
+
+                    // Deep-link reveal latch: when this page is built + current,
+                    // consume any pending anchor targeting it and invoke the page's
+                    // duck-typed revealAnchor() contract. Covers first build
+                    // (onLoaded), cached re-show (onIsCurrentChanged), and same-page
+                    // deep links (the pendingAnchorChanged Connections below).
+                    function _maybeReveal() {
+                        if (!pageLoader.item || !pageLoader.isCurrent || pageLoader.status !== Loader.Ready)
+                            return;
+                        const anchor = root.controller.takePendingAnchor(pageLoader.pageId);
+                        if (anchor.length > 0 && typeof pageLoader.item.revealAnchor === "function")
+                            pageLoader.item.revealAnchor(anchor);
                     }
-                } else {
-                    pageFadeIn.stop();
-                    pageLoader.opacity = 0;
+
+                    anchors.fill: parent
+                    // Built once when this page first becomes current; the compiled
+                    // unit is already warm, so construction is the only cost. Async
+                    // so even a heavy first build never hitches the UI thread.
+                    asynchronous: true
+                    active: pageLoader.isCurrent || pageLoader._everCurrent
+                    // Latch the initial current page so navigating away from it doesn't
+                    // unload it (onIsCurrentChanged never fires for the initial value).
+                    // Same initial-value rule for isIncubating: a delegate created
+                    // already-current starts loading during construction, so report
+                    // the initial state explicitly.
+                    Component.onCompleted: {
+                        if (pageLoader.isCurrent)
+                            pageLoader._everCurrent = true;
+                        if (pageLoader.isIncubating)
+                            root._reportIncubating(pageLoader.pageId, true);
+                    }
+                    source: {
+                        // Depend on _registryRevision (same idiom as currentEntry):
+                        // pageData() is non-notifying, so a re-registration that
+                        // changes a page's qmlSource must force re-evaluation here.
+                        void (root._registryRevision);
+                        const data = root.controller.registry.pageData(pageLoader.pageId);
+                        return (data && data.id) ? data.qmlSource : "";
+                    }
+                    // Only the current page is shown + interactive. Hidden cached
+                    // pages stay built but are not painted and take no input.
+                    visible: pageLoader.isCurrent
+                    enabled: pageLoader.isCurrent
+                    z: pageLoader.isCurrent ? 1 : 0
+
+                    // Fade the page up when it becomes the current one. Pinned to 0
+                    // and driven imperatively (not `opacity: isCurrent ? 1 : 0` with
+                    // a `Behavior`): a Behavior never animates the INITIAL value, so
+                    // the first build — whose Loader is created already-current —
+                    // would snap to 1 with no fade; and on a cached re-show the
+                    // unspecified eval order of the opacity binding vs the Behavior's
+                    // `enabled` would drop the animation. Restarting the animation
+                    // from the state transition covers first load (onLoaded), cached
+                    // re-show (onIsCurrentChanged while already Ready), and resets to
+                    // 0 on hide so the next show fades again.
+                    opacity: 0
+                    onIsCurrentChanged: {
+                        if (pageLoader.isCurrent) {
+                            // Latch so this page stays built/cached once visited.
+                            pageLoader._everCurrent = true;
+                            if (pageLoader.status === Loader.Ready) {
+                                pageFadeIn.restart();
+                                pageLoader._maybeReveal();
+                            }
+                        } else {
+                            pageFadeIn.stop();
+                            pageLoader.opacity = 0;
+                        }
+                    }
+
+                    PhosphorMotionAnimation {
+                        id: pageFadeIn
+
+                        target: pageLoader
+                        properties: "opacity"
+                        from: 0
+                        to: 1
+                        profile: "widget.fadeIn"
+                        durationOverride: Kirigami.Units.shortDuration * 1.8
+                    }
+
+                    onLoaded: {
+                        if (!pageLoader.item)
+                            return;
+
+                        const pageController = root.controller.registry.controller(pageLoader.pageId);
+                        // Pages that bind their own readonly `controller` /
+                        // `settingsApp` Q_PROPERTY reject the assignment under
+                        // Qt 6.11; the helper's try/catch swallows that so the page
+                        // still mounts. PageHost's injection is authoritative for
+                        // the rest.
+                        PhosphorLoaderHelpers.injectIfAssignable(pageLoader.item, "controller", pageController);
+                        PhosphorLoaderHelpers.injectIfAssignable(pageLoader.item, "settingsApp", root.controller);
+
+                        // Fade in if this page is the one being shown (covers the
+                        // common first-visit case: built async while current).
+                        if (pageLoader.isCurrent) {
+                            pageFadeIn.restart();
+                            pageLoader._maybeReveal();
+                        }
+                    }
+
+                    Connections {
+                        // Same-page deep link: the page is already built + current, so
+                        // neither onLoaded nor onIsCurrentChanged fires — react to the
+                        // pending-anchor signal directly.
+                        function onPendingAnchorChanged() {
+                            pageLoader._maybeReveal();
+                        }
+
+                        target: root.controller
+                    }
                 }
             }
+        }
 
-            PhosphorMotionAnimation {
-                id: pageFadeIn
-
-                target: pageLoader
-                properties: "opacity"
-                from: 0
-                to: 1
-                profile: "widget.fadeIn"
-                durationOverride: Kirigami.Units.shortDuration * 1.8
-            }
-
-            onLoaded: {
-                if (!pageLoader.item)
-                    return;
-
-                const pageController = root.controller.registry.controller(pageLoader.pageId);
-                // Pages that bind their own readonly `controller` /
-                // `settingsApp` Q_PROPERTY reject the assignment under
-                // Qt 6.11; the helper's try/catch swallows that so the page
-                // still mounts. PageHost's injection is authoritative for
-                // the rest.
-                PhosphorLoaderHelpers.injectIfAssignable(pageLoader.item, "controller", pageController);
-                PhosphorLoaderHelpers.injectIfAssignable(pageLoader.item, "settingsApp", root.controller);
-
-                // Fade in if this page is the one being shown (covers the
-                // common first-visit case: built async while current).
-                if (pageLoader.isCurrent) {
-                    pageFadeIn.restart();
-                    pageLoader._maybeReveal();
-                }
-            }
-
-            Connections {
-                // Same-page deep link: the page is already built + current, so
-                // neither onLoaded nor onIsCurrentChanged fires — react to the
-                // pending-anchor signal directly.
-                function onPendingAnchorChanged() {
-                    pageLoader._maybeReveal();
-                }
-
-                target: root.controller
-            }
+        FacetSlot {
+            Layout.fillWidth: true
+            settingsApp: root.controller
+            pageId: root.controller.currentPageId
+            slot: "bottom"
         }
     }
 
@@ -282,35 +314,47 @@ Item {
         icon.name: "settings-configure"
     }
 
-    // If a page is re-registered (dynamic registration after startup) with
-    // a different controller, its already-built cached Loader keeps the
-    // stale pointer. Re-inject into whichever cached Loader matches.
+    // A page registered after startup, or bound to a new controller and QML
+    // source (PageRegistry::bindPage, a plugin page whose module loaded),
+    // changes what pageData() returns. Its already-built cached Loader keeps
+    // the stale pointer. Re-inject into whichever cached Loader matches.
     Connections {
         function onPageRegistered(id) {
-            // pageData() is a non-notifying invokable, so a page registering
-            // after becoming current needs an explicit refresh: bump the
-            // revision currentEntry depends on, and cache the page if it is
-            // the current one (the earlier cachePage call on navigation
-            // found no registration and bailed).
-            root._registryRevision++;
-            if (id === root.controller.currentPageId)
-                root.cachePage(id);
-            const pageController = root.controller.registry.controller(id);
-            // A registration that explicitly passes a null controller
-            // ("detach" path) leaves the previously injected pointer in
-            // place rather than clobbering it with null — a stale
-            // controller beats a runtime null-deref in the page body.
-            if (!pageController)
-                return;
-            for (let i = 0; i < pageRepeater.count; ++i) {
-                const ld = pageRepeater.itemAt(i);
-                if (ld && ld.pageId === id && ld.item) {
-                    PhosphorLoaderHelpers.injectIfAssignable(ld.item, "controller", pageController);
-                    return;
-                }
-            }
+            root._refreshPage(id);
+        }
+
+        function onPageBound(id) {
+            // The revision bump re-evaluates the Loader's source, so a page
+            // whose QML changed reloads and onLoaded injects the new
+            // controller. A page whose QML did not change keeps its item and
+            // gets the new controller below.
+            root._refreshPage(id);
         }
 
         target: root.controller.registry
+    }
+
+    function _refreshPage(id) {
+        // pageData() is a non-notifying invokable, so a page registering
+        // after becoming current needs an explicit refresh: bump the
+        // revision currentEntry depends on, and cache the page if it is
+        // the current one (the earlier cachePage call on navigation
+        // found no registration and bailed).
+        root._registryRevision++;
+        if (id === root.controller.currentPageId)
+            root.cachePage(id);
+        const pageController = root.controller.registry.controller(id);
+        // A controller destroyed since leaves the previously injected
+        // pointer in place rather than clobbering it with null — a
+        // stale controller beats a runtime null-deref in the page body.
+        if (!pageController)
+            return;
+        for (let i = 0; i < pageRepeater.count; ++i) {
+            const ld = pageRepeater.itemAt(i);
+            if (ld && ld.pageId === id && ld.item) {
+                PhosphorLoaderHelpers.injectIfAssignable(ld.item, "controller", pageController);
+                return;
+            }
+        }
     }
 }

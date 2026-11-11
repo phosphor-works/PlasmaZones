@@ -11,7 +11,6 @@
 
 #include <QCoreApplication>
 #include <QDir>
-#include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
@@ -19,34 +18,68 @@
 #include <QTemporaryDir>
 #include <QTimer>
 
+#include <optional>
+#include <utility>
+
 namespace PhosphorControl {
 
 namespace {
 
-// Call @p trigger on @p domain and count how often @p signal fires within the
-// timeout, plus a short grace period to catch a second emission.
-template<typename Signal>
-int countResults(StagingDomain* domain, Signal signal, void (StagingDomain::*trigger)(), int timeoutMs)
+// How long to keep listening after the first result, for a second one.
+constexpr int SecondResultGraceMs = 50;
+
+struct ResultCount
 {
     int count = 0;
+    /// The error text of every result that reported failure.
+    QStringList failures;
+};
+
+// Call @p trigger on @p domain and collect every @p signal it sends within
+// the timeout, plus a short grace period to catch a second one.
+template<typename Signal>
+ResultCount countResults(StagingDomain* domain, Signal signal, void (StagingDomain::*trigger)(), int timeoutMs)
+{
+    ResultCount result;
     QEventLoop loop;
-    const QMetaObject::Connection connection = QObject::connect(domain, signal, &loop, [&count, &loop] {
-        ++count;
-        loop.quit();
-    });
+    const QMetaObject::Connection connection =
+        QObject::connect(domain, signal, &loop, [&result, &loop](bool ok, const QString& error) {
+            ++result.count;
+            if (!ok) {
+                result.failures.append(error.isEmpty() ? QStringLiteral("no error text") : error);
+            }
+            loop.quit();
+        });
     (domain->*trigger)();
-    if (count == 0) {
+    if (result.count == 0) {
         QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
         loop.exec();
     }
     // A second result for the same call is the bug this check exists for.
-    QElapsedTimer grace;
-    grace.start();
-    while (grace.elapsed() < 50) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
-    }
+    // Wait for it in an event loop, so a result sent through a queued
+    // connection or a timer arrives.
+    QEventLoop grace;
+    QTimer::singleShot(SecondResultGraceMs, &grace, &QEventLoop::quit);
+    grace.exec();
+    // Deliver a deleteLater() the call posted, so a domain that deleted
+    // itself is seen as gone.
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     QObject::disconnect(connection);
-    return count;
+    return result;
+}
+
+// Whether the QML file @p source names exists, for the schemes that can be
+// checked without a QML engine. The module's library is loaded by now, so
+// its compiled-in resources are registered.
+std::optional<bool> qmlSourceExists(const QUrl& source)
+{
+    if (source.scheme() == QLatin1String("qrc")) {
+        return QFile::exists(QLatin1Char(':') + source.path());
+    }
+    if (source.isLocalFile()) {
+        return QFile::exists(source.toLocalFile());
+    }
+    return std::nullopt;
 }
 
 } // namespace
@@ -58,7 +91,12 @@ FacetTestHost::FacetTestHost(QString modulePath)
 
 void FacetTestHost::setResultTimeoutMs(int ms)
 {
-    m_resultTimeoutMs = ms > 0 ? ms : 2000;
+    m_resultTimeoutMs = ms > 0 ? ms : DefaultResultTimeoutMs;
+}
+
+void FacetTestHost::setStagingDirectory(const QString& directory)
+{
+    m_stagingDirectory = directory;
 }
 
 QStringList FacetTestHost::run()
@@ -68,12 +106,15 @@ QStringList FacetTestHost::run()
         return {QStringLiteral("no module file at %1").arg(m_modulePath)};
     }
 
-    QTemporaryDir root;
+    const QString stagingRoot = m_stagingDirectory.isEmpty() ? QDir::tempPath() : m_stagingDirectory;
+    QDir().mkpath(stagingRoot);
+    QTemporaryDir root(stagingRoot + QStringLiteral("/facet-test-XXXXXX"));
     if (!root.isValid()) {
-        return {QStringLiteral("cannot create a temporary directory")};
+        return {QStringLiteral("cannot create a temporary directory under %1").arg(stagingRoot)};
     }
     const QString searchPath = root.filePath(QStringLiteral("facet"));
     QDir().mkpath(searchPath);
+    // PluginCatalog refuses a plugin, or a directory, that others can write.
     const QFileDevice::Permissions mode = QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner
         | QFileDevice::ReadGroup | QFileDevice::ExeGroup | QFileDevice::ReadOther | QFileDevice::ExeOther;
     QFile::setPermissions(searchPath, mode);
@@ -100,6 +141,8 @@ QStringList FacetTestHost::run()
         }
         return problems;
     }
+    // One staged file is one plugin, so the catalog offers one module at
+    // most.
     const QString moduleId = modules.first();
 
     QString error;
@@ -108,40 +151,93 @@ QStringList FacetTestHost::run()
         return problems;
     }
 
+    struct Checked
+    {
+        QString name;
+        QPointer<StagingDomain> domain;
+    };
+    QList<Checked> domains;
     const std::optional<FacetModuleMetadata> metadata = host.metadata(moduleId);
-    QList<QPointer<StagingDomain>> domains;
+    const QStringList bound = host.boundPages(moduleId);
     for (const FacetPageMetadata& page : metadata->pages) {
-        PageController* const pageController = controller.registry()->controller(FacetHost::pageId(moduleId, page.id));
-        if (pageController) {
-            domains.append(pageController);
+        const QString scoped = FacetHost::pageId(moduleId, page.id);
+        if (!bound.contains(scoped)) {
+            // Its controller went while the module loaded, or the registry
+            // refused it, and Facet keeps the placeholder, which cannot load
+            // the module again.
+            problems.append(QStringLiteral("page %1 was not bound, so Facet keeps its placeholder").arg(scoped));
+            continue;
+        }
+        const PageRegistry::Entry entry = controller.registry()->entry(scoped);
+        if (qmlSourceExists(entry.qmlSource) == false) {
+            problems.append(
+                QStringLiteral("page %1's QML source %2 does not exist").arg(scoped, entry.qmlSource.toString()));
+        }
+        if (entry.controller) {
+            domains.append(Checked{scoped, entry.controller.data()});
+        } else {
+            problems.append(QStringLiteral("page %1's controller was deleted after it was bound").arg(scoped));
         }
     }
-    for (StagingDomain* domain : host.moduleDomains(moduleId)) {
-        domains.append(domain);
+    const QList<StagingDomain*> headless = host.moduleDomains(moduleId);
+    for (qsizetype i = 0; i < headless.size(); ++i) {
+        StagingDomain* const domain = headless.at(i);
+        const QString name = domain->objectName().isEmpty()
+            ? QStringLiteral("%1 (headless domain %2)")
+                  .arg(QString::fromLatin1(domain->metaObject()->className()), QString::number(i + 1))
+            : domain->objectName();
+        domains.append(Checked{name, domain});
+    }
+    // Every extension registered, whether or not its target is installed
+    // here: a target is usually another module, which this run never loads.
+    for (const FacetHost::ModuleExtension& extension : host.moduleExtensions(moduleId)) {
+        const QString scoped = FacetHost::pageId(moduleId, extension.id);
+        if (qmlSourceExists(extension.qmlSource) == false) {
+            problems.append(QStringLiteral("extension %1's QML source %2 does not exist")
+                                .arg(scoped, extension.qmlSource.toString()));
+        }
+        if (extension.domain) {
+            domains.append(Checked{QStringLiteral("extension %1's domain").arg(scoped), extension.domain});
+        } else {
+            problems.append(QStringLiteral("extension %1's domain was deleted while the module loaded").arg(scoped));
+        }
     }
 
-    for (const QPointer<StagingDomain>& domain : std::as_const(domains)) {
-        if (!domain) {
+    for (const Checked& checked : std::as_const(domains)) {
+        if (checked.domain && checked.domain->isDirty()) {
+            // Facet would show unsaved changes the moment the page opens.
+            problems.append(QStringLiteral("%1 is dirty right after loading").arg(checked.name));
+        }
+    }
+
+    for (const Checked& checked : std::as_const(domains)) {
+        if (!checked.domain) {
             continue;
         }
-        const QString name = qobject_cast<PageController*>(domain.data())
-            ? qobject_cast<PageController*>(domain.data())->id()
-            : QString::fromLatin1(domain->metaObject()->className());
-        const int applied =
-            countResults(domain.data(), &StagingDomain::applyResult, &StagingDomain::apply, m_resultTimeoutMs);
-        if (applied != 1) {
-            problems.append(
-                QStringLiteral("%1 emitted applyResult %2 times for one apply()").arg(name, QString::number(applied)));
+        const ResultCount applied =
+            countResults(checked.domain.data(), &StagingDomain::applyResult, &StagingDomain::apply, m_resultTimeoutMs);
+        if (applied.count != 1) {
+            problems.append(QStringLiteral("%1 emitted applyResult %2 times for one apply()")
+                                .arg(checked.name, QString::number(applied.count)));
         }
-        if (!domain) {
-            problems.append(QStringLiteral("%1 was deleted by apply()").arg(name));
+        for (const QString& failure : applied.failures) {
+            problems.append(QStringLiteral("%1 reported a failed apply(): %2").arg(checked.name, failure));
+        }
+        if (!checked.domain) {
+            problems.append(QStringLiteral("%1 was deleted by apply()").arg(checked.name));
             continue;
         }
-        const int discarded =
-            countResults(domain.data(), &StagingDomain::discardResult, &StagingDomain::discard, m_resultTimeoutMs);
-        if (discarded != 1) {
+        const ResultCount discarded = countResults(checked.domain.data(), &StagingDomain::discardResult,
+                                                   &StagingDomain::discard, m_resultTimeoutMs);
+        if (discarded.count != 1) {
             problems.append(QStringLiteral("%1 emitted discardResult %2 times for one discard()")
-                                .arg(name, QString::number(discarded)));
+                                .arg(checked.name, QString::number(discarded.count)));
+        }
+        for (const QString& failure : discarded.failures) {
+            problems.append(QStringLiteral("%1 reported a failed discard(): %2").arg(checked.name, failure));
+        }
+        if (!checked.domain) {
+            problems.append(QStringLiteral("%1 was deleted by discard()").arg(checked.name));
         }
     }
     return problems;

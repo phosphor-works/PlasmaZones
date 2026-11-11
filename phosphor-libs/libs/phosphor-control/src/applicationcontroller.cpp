@@ -60,8 +60,12 @@ QString ApplicationController::currentPageId() const
     return m_currentPageId;
 }
 
-void ApplicationController::setCurrentPageId(const QString& id)
+void ApplicationController::setCurrentPageId(const QString& requestedId)
 {
+    // A copy, not the caller's reference: callers pass their own members
+    // (the settings app passes its active-page field), and the navigation
+    // hook below runs arbitrary code that may change them.
+    const QString id = requestedId;
     if (m_currentPageId == id) {
         return;
     }
@@ -69,8 +73,16 @@ void ApplicationController::setCurrentPageId(const QString& id)
         qWarning() << "ApplicationController::setCurrentPageId: unknown page" << id;
         return;
     }
-    if (m_navigationHook && !id.isEmpty()) {
+    if (!id.isEmpty() && m_navigationHook && m_navigationHookOwner) {
+        const quint64 serial = m_navigationSerial;
         m_navigationHook(id);
+        // The hook, or a slot it reached (a module-failed handler routing to
+        // an error page), navigated on its own. That navigation is the newer
+        // intent and has already recorded its history; finishing this one
+        // would overwrite it and push a stale page onto the back stack.
+        if (m_navigationSerial != serial) {
+            return;
+        }
     }
     // Record ordinary navigation in the back/forward history: push the
     // page being left and drop the forward trail (browser model). Moves
@@ -97,6 +109,7 @@ void ApplicationController::setCurrentPageId(const QString& id)
         m_forwardHistory.clear();
     }
     m_currentPageId = id;
+    ++m_navigationSerial;
     // Suppressed during a history step: stepHistory brackets the whole move
     // with its own before/after diff, and canGoBack now depends on
     // m_currentPageId, so letting this one fire too would double-emit.
@@ -207,24 +220,53 @@ bool ApplicationController::bindPage(const QString& id, PageController* controll
         qWarning() << "ApplicationController::bindPage: cross-thread controller refused for" << id;
         return false;
     }
+    // Guarded: the bind announces pageBound, and the untrack below recomputes
+    // dirty through every domain's isDirty(), both of which run code that
+    // could delete either controller.
+    const QPointer<PageController> previous = m_registry->controller(id);
+    const QPointer<PageController> bound = controller;
     if (!m_registry->bindPage(id, controller, qmlSource)) {
         return false;
     }
-    if (!m_domains.contains(QPointer<StagingDomain>(controller))) {
-        registerDomain(controller);
+    if (previous && previous != bound) {
+        // It no longer has a page. Left tracked, a dirty one would keep the
+        // global flag set with no page to show for it, and applyAll would
+        // still apply it.
+        untrackDomain(previous.data());
+    }
+    if (bound && !m_domains.contains(QPointer<StagingDomain>(bound.data()))) {
+        registerDomain(bound.data());
     }
     return true;
 }
 
-void ApplicationController::setNavigationHook(NavigationHook hook)
+bool ApplicationController::setNavigationHook(QObject* owner, NavigationHook hook)
 {
+    if (!owner) {
+        qWarning() << "ApplicationController::setNavigationHook: refused a hook with no owner";
+        return false;
+    }
+    if (m_navigationHookOwner && m_navigationHookOwner != owner) {
+        qWarning() << "ApplicationController::setNavigationHook: refused, the hook is already held by"
+                   << m_navigationHookOwner.data();
+        return false;
+    }
+    m_navigationHookOwner = owner;
     m_navigationHook = std::move(hook);
+    return true;
 }
 
 void ApplicationController::attachDomainToPage(StagingDomain* domain, const QString& pageId)
 {
     if (!domain || !m_registry->hasPage(pageId)) {
         qWarning() << "ApplicationController::attachDomainToPage: null domain or unknown page" << pageId;
+        return;
+    }
+    // An untracked domain is never applied or discarded, so a page dirty
+    // through it could never be cleaned. untrackDomain also drops the
+    // attachment, which keeps the two in step.
+    if (!isTrackedDomain(domain)) {
+        qWarning() << "ApplicationController::attachDomainToPage: domain is not registered, page" << pageId;
         return;
     }
     QList<QPointer<StagingDomain>>& attached = m_pageAttachments[pageId];
@@ -235,12 +277,32 @@ void ApplicationController::attachDomainToPage(StagingDomain* domain, const QStr
 
 QVariantList ApplicationController::extensionsFor(const QString& pageId, const QString& slot) const
 {
-    return m_extensionProvider ? m_extensionProvider(pageId, slot) : QVariantList();
+    return m_extensionProvider && m_extensionProviderOwner ? m_extensionProvider(pageId, slot) : QVariantList();
 }
 
-void ApplicationController::setExtensionProvider(ExtensionProvider provider)
+bool ApplicationController::setExtensionProvider(QObject* owner, ExtensionProvider provider)
 {
+    if (!owner) {
+        qWarning() << "ApplicationController::setExtensionProvider: refused a provider with no owner";
+        return false;
+    }
+    if (m_extensionProviderOwner && m_extensionProviderOwner != owner) {
+        qWarning() << "ApplicationController::setExtensionProvider: refused, the provider is already held by"
+                   << m_extensionProviderOwner.data();
+        return false;
+    }
+    m_extensionProviderOwner = owner;
     m_extensionProvider = std::move(provider);
+    return true;
+}
+
+void ApplicationController::clearExtensionProvider(const QObject* owner)
+{
+    if (!owner || m_extensionProviderOwner.data() != owner) {
+        return;
+    }
+    m_extensionProviderOwner.clear();
+    m_extensionProvider = nullptr;
 }
 
 void ApplicationController::notifyExtensionsChanged(const QString& pageId)
@@ -248,11 +310,27 @@ void ApplicationController::notifyExtensionsChanged(const QString& pageId)
     Q_EMIT extensionsChanged(pageId);
 }
 
-void ApplicationController::registerDomain(StagingDomain* domain)
+void ApplicationController::clearNavigationHook(const QObject* owner)
+{
+    if (!owner || m_navigationHookOwner.data() != owner) {
+        return;
+    }
+    m_navigationHookOwner.clear();
+    m_navigationHook = nullptr;
+}
+
+bool ApplicationController::isTrackedDomain(const StagingDomain* domain) const
+{
+    return domain && std::any_of(m_domains.cbegin(), m_domains.cend(), [domain](const QPointer<StagingDomain>& d) {
+               return d.data() == domain;
+           });
+}
+
+bool ApplicationController::registerDomain(StagingDomain* domain)
 {
     if (!domain) {
         qWarning() << "ApplicationController::registerDomain: null domain";
-        return;
+        return false;
     }
     // Probe thread affinity BEFORE setParent / trackDomain — same
     // rationale as registerPage above. trackDomain would refuse the
@@ -262,18 +340,24 @@ void ApplicationController::registerDomain(StagingDomain* domain)
     if (domain->thread() != this->thread()) {
         qWarning() << "ApplicationController::registerDomain: cross-thread domain refused (controller in thread"
                    << this->thread() << ", domain in thread" << domain->thread() << ")";
-        return;
+        return false;
     }
     // No PageRegistry-side validation gate for headless domains — but
     // trackDomain refuses duplicates with a warning. Only reparent if
     // tracking actually accepted the domain (i.e. it wasn't already
     // in m_domains). Pre-trackDomain check mirrors trackDomain's
     // duplicate guard exactly.
-    const bool alreadyTracked = m_domains.contains(QPointer<StagingDomain>(domain));
-    trackDomain(domain);
-    if (!alreadyTracked && !domain->parent()) {
+    if (m_domains.contains(QPointer<StagingDomain>(domain))) {
+        trackDomain(domain); // warns about the duplicate
+        return false;
+    }
+    // Adopted before tracking: trackDomain recomputes dirty through every
+    // other domain's isDirty(), code that could delete this one.
+    if (!domain->parent()) {
         domain->setParent(this);
     }
+    trackDomain(domain);
+    return true;
 }
 
 // NOTE: applyAll is the LEGACY sync slot. It drives each dirty domain's
@@ -323,12 +407,19 @@ void ApplicationController::applyAll()
     // single net dirtyChanged for the whole batch.
     const QList<QPointer<StagingDomain>> snapshot = m_domains;
     m_inTransaction = true;
-    for (const auto& domain : snapshot) {
-        if (domain && domain->isDirty()) {
-            domain->apply();
+    {
+        // Scope-guarded: a throwing apply() would otherwise leave the flag
+        // set for this object's lifetime, and onDomainDirtyChanged would
+        // swallow every later dirty edge.
+        const auto transaction = qScopeGuard([this]() {
+            m_inTransaction = false;
+        });
+        for (const auto& domain : snapshot) {
+            if (domain && domain->isDirty()) {
+                domain->apply();
+            }
         }
     }
-    m_inTransaction = false;
     recomputeDirty();
 }
 
@@ -351,12 +442,17 @@ void ApplicationController::discardAll()
     // m_inTransaction batching to avoid O(N²) dirty recomputation.
     const QList<QPointer<StagingDomain>> snapshot = m_domains;
     m_inTransaction = true;
-    for (const auto& domain : snapshot) {
-        if (domain && domain->isDirty()) {
-            domain->discard();
+    {
+        // Scope-guarded for the same reason as applyAll.
+        const auto transaction = qScopeGuard([this]() {
+            m_inTransaction = false;
+        });
+        for (const auto& domain : snapshot) {
+            if (domain && domain->isDirty()) {
+                domain->discard();
+            }
         }
     }
-    m_inTransaction = false;
     recomputeDirty();
 }
 
@@ -376,14 +472,17 @@ void ApplicationController::resetCurrentPage()
     // for the first consumer that needs to observe completion;
     // current callers (chrome footer button) treat reset as best-effort
     // and rely on dirtyChanged to reflect the eventual outcome.
-    if (m_currentPageId.isEmpty()) {
+    // Read once: the page's reset emits dirtyChanged, and a handler of that
+    // could navigate before the attached domains below are reached.
+    const QString pageId = m_currentPageId;
+    if (pageId.isEmpty()) {
         return;
     }
-    if (auto* page = m_registry->controller(m_currentPageId)) {
+    if (auto* page = m_registry->controller(pageId)) {
         page->resetToDefaults();
     }
     // Sections other modules add to the page reset with it.
-    const QList<QPointer<StagingDomain>> attached = m_pageAttachments.value(m_currentPageId);
+    const QList<QPointer<StagingDomain>> attached = m_pageAttachments.value(pageId);
     for (const QPointer<StagingDomain>& domain : attached) {
         if (domain) {
             domain->resetToDefaults();
@@ -392,8 +491,11 @@ void ApplicationController::resetCurrentPage()
 }
 
 namespace {
-// Collects the registry's in-order list of navigable (qmlSource set)
-// page ids and locates the current page's index inside it. Returns
+// Collects the navigable (qmlSource set) page ids in the order the sidebar
+// draws the tree and locates the current page's index inside it. Tree order,
+// not registration order: a host that registers pages out of tree order
+// (FacetHost places a module after the modules it depends on) would
+// otherwise send next/previous somewhere other than the next row. Returns
 // `currentIdx = -1` when the current page id is empty / not in the
 // navigable set — the caller decides how to wrap.
 struct NavigableState
@@ -408,9 +510,10 @@ struct NavigableState
 NavigableState collectNavigable(const PageRegistry* registry, const QString& currentPageId)
 {
     NavigableState out;
-    // By reference: this runs on every gotoNextPage / gotoPreviousPage and only
-    // reads, so allPages()'s deep copy of the whole catalogue was pure waste.
-    for (const auto& e : registry->allPagesRef()) {
+    // Pointers into the registry, so no Entry is copied; this runs on every
+    // gotoNextPage / gotoPreviousPage and only reads.
+    for (const PageRegistry::Entry* entry : registry->pagesInTreeOrder()) {
+        const PageRegistry::Entry& e = *entry;
         if (e.qmlSource.isEmpty()) {
             continue;
         }
@@ -433,7 +536,7 @@ NavigableState collectNavigable(const PageRegistry* registry, const QString& cur
 QString ApplicationController::gotoPreviousPage()
 {
     const auto state = collectNavigable(m_registry, m_currentPageId);
-    if (state.ids.isEmpty()) {
+    if (state.ids.isEmpty() || (state.ids.size() == 1 && state.currentIdx == 0)) {
         return QString();
     }
     const qsizetype next = state.currentIdx <= 0 ? state.ids.size() - 1 : state.currentIdx - 1;
@@ -450,7 +553,7 @@ QString ApplicationController::gotoPreviousPage()
 QString ApplicationController::gotoNextPage()
 {
     const auto state = collectNavigable(m_registry, m_currentPageId);
-    if (state.ids.isEmpty()) {
+    if (state.ids.isEmpty() || (state.ids.size() == 1 && state.currentIdx == 0)) {
         return QString();
     }
     const qsizetype next = state.currentIdx < 0 || state.currentIdx == state.ids.size() - 1 ? 0 : state.currentIdx + 1;
@@ -479,8 +582,8 @@ bool ApplicationController::isUsableHistoryEntry(const QString& id) const
 bool ApplicationController::canGoBack() const
 {
     // Answers "will goBack() actually move", not "is the stack non-empty".
-    // stepHistory skips entries that are unregistered or hidden by the current
-    // tier, so a bare emptiness check disagrees with it whenever EVERY entry is
+    // stepHistory skips entries that are the current page or hidden by the
+    // current tier, so a bare emptiness check disagrees with it whenever EVERY entry is
     // hidden — reachable by visiting only advanced pages, then entering simple
     // mode. Two things break on that divergence, both in the chrome: the Back
     // button renders enabled and does nothing when clicked, and
@@ -513,11 +616,11 @@ QString ApplicationController::stepHistory(QStringList& from, QStringList& to)
     QString landed;
     while (!from.isEmpty()) {
         const QString target = from.takeLast();
-        // Drop stale entries: the page was unregistered after being
-        // visited, the entry duplicates the current page (defensive —
-        // setCurrentPageId's same-id early-return means recording never
-        // produces one, but a subclass override could), or the entry is
-        // hidden by the current simple/advanced tier.
+        // Drop stale entries: the entry is the current page (an ordinary
+        // revisit A → B → A leaves A on the back stack), or the entry is
+        // hidden by the current simple/advanced tier. Pages are never
+        // unregistered, so the hasPage clause in isUsableHistoryEntry only
+        // guards against a recorded id the registry never knew.
         //
         // The tier check is about landing somewhere honest, NOT about
         // stack integrity: an app mode gate reacting to
@@ -599,14 +702,16 @@ QStringList ApplicationController::dirtyPageIds() const
 QStringList ApplicationController::parentChainFor(const QString& id) const
 {
     // Nesting-depth cap, shared with PageRegistry's reachability walk so the
-    // two cannot drift. 32 hops is well above any realistic sidebar nesting
-    // (typical settings apps cap at 3-4 levels). PageRegistry::registerPage
+    // two cannot drift. MaxParentChainHops is well above any realistic
+    // sidebar nesting. PageRegistry::registerPage
     // refuses an entry whose parentId isn't already registered, which makes
     // registry-internal cycles structurally impossible — so this cap is purely
     // a nesting-depth limit.
     QStringList chain;
     QString cursor = id;
-    // Walk parent links upward; cap at PageRegistry::MaxParentChainHops.
+    // Walk parent links upward, following at most
+    // PageRegistry::MaxParentChainHops of them (the same unit
+    // PageRegistry::allowedInMode counts).
     for (int i = 0; i < PageRegistry::MaxParentChainHops; ++i) {
         if (!m_registry->hasPage(cursor)) {
             // Unknown id is a legitimate query path (QML probing during
@@ -616,8 +721,7 @@ QStringList ApplicationController::parentChainFor(const QString& id) const
             return chain;
         }
         // parentIdOf, not entry(): the walk needs one field per hop, and
-        // entry() returns a full Entry copy (four QStrings, a QUrl and a
-        // QPointer) to be discarded immediately.
+        // entry() returns a full Entry copy to be discarded immediately.
         const QString parent = m_registry->parentIdOf(cursor);
         if (parent.isEmpty()) {
             return chain;
@@ -625,10 +729,12 @@ QStringList ApplicationController::parentChainFor(const QString& id) const
         chain.prepend(parent);
         cursor = parent;
     }
-    // Reached the hop cap on a known starting id without hitting a root —
-    // indicates the parent chain is nested deeper than the cap allows.
-    // Warn so the bug surfaces instead of silently producing a truncated
-    // chain.
+    // Followed the full number of hops. The chain is complete when the last
+    // ancestor reached is a root; otherwise it is nested deeper than the cap
+    // allows, so warn rather than silently return a truncated chain.
+    if (m_registry->parentIdOf(cursor).isEmpty()) {
+        return chain;
+    }
     qWarning() << "ApplicationController::parentChainFor: page nested deeper than" << PageRegistry::MaxParentChainHops
                << "levels walking up from id" << id;
     return chain;
@@ -645,24 +751,20 @@ QString ApplicationController::titlePathFor(const QString& id) const
             crumbs.append(title);
         }
     }
-    // U+203A (›), matching SearchController's breadcrumb separator. A
-    // QStringLiteral, not QLatin1String: the separator is multibyte UTF-8.
-    return crumbs.join(QStringLiteral(" › "));
+    return crumbs.join(titlePathSeparator());
+}
+
+QString ApplicationController::titlePathSeparator()
+{
+    // U+203A (›). A QStringLiteral, not QLatin1String: the separator is
+    // multibyte UTF-8, which QLatin1String would read byte by byte.
+    return QStringLiteral(" › ");
 }
 
 void ApplicationController::trackDomain(StagingDomain* domain)
 {
-    if (domain->thread() != this->thread()) {
-        // Cross-thread registration would route dirtyChanged via
-        // queued connection (slow + reorderable) AND fail at the
-        // subsequent setParent call in registerPage / registerDomain
-        // ("QObject::moveToThread: Cannot move objects with a
-        // parent"). Refuse loudly so the caller surfaces the bug
-        // instead of producing half-wired state.
-        qWarning() << "ApplicationController::trackDomain: cross-thread domain refused (controller in thread"
-                   << this->thread() << ", domain in thread" << domain->thread() << ")";
-        return;
-    }
+    // Every caller (registerPage, registerDomain) refuses a cross-thread
+    // domain before it gets here.
     const QPointer<StagingDomain> tracked(domain);
     if (m_domains.contains(tracked)) {
         // Same domain registered twice (e.g. once via registerPage and
@@ -678,11 +780,61 @@ void ApplicationController::trackDomain(StagingDomain* domain)
     // pointee — defence-in-depth so double-tracking can never double-fire.
     connect(domain, &StagingDomain::dirtyChanged, this, &ApplicationController::onDomainDirtyChanged,
             Qt::UniqueConnection);
+    // A domain destroyed while dirty emits no dirtyChanged on its way out, so
+    // without this the global flag would stay set until some other domain
+    // toggled.
+    connect(domain, &QObject::destroyed, this, &ApplicationController::onTrackedDomainDestroyed, Qt::UniqueConnection);
     // Run recomputeDirty unconditionally — even when the new domain
     // is clean, the walk compacts any null QPointer entries that
-    // accumulated from previously-destroyed domains. Cost is O(N)
-    // for a settings app's typical N (~20 domains), negligible.
+    // accumulated from previously-destroyed domains. The walk is O(N)
+    // over a settings app's domains, which is negligible.
     recomputeDirty();
+}
+
+void ApplicationController::untrackDomain(StagingDomain* domain)
+{
+    const QPointer<StagingDomain> tracked(domain);
+    if (!m_domains.contains(tracked)) {
+        return;
+    }
+    disconnect(domain, &StagingDomain::dirtyChanged, this, &ApplicationController::onDomainDirtyChanged);
+    disconnect(domain, &QObject::destroyed, this, &ApplicationController::onTrackedDomainDestroyed);
+    m_domains.removeAll(tracked);
+    // An attachment holds only tracked domains (attachDomainToPage).
+    for (auto it = m_pageAttachments.begin(); it != m_pageAttachments.end(); ++it) {
+        it->removeAll(tracked);
+    }
+    pruneAttachments();
+    recomputeDirty();
+}
+
+void ApplicationController::pruneAttachments()
+{
+    for (auto it = m_pageAttachments.begin(); it != m_pageAttachments.end();) {
+        it->removeIf([](const QPointer<StagingDomain>& domain) {
+            return domain.isNull();
+        });
+        if (it->isEmpty()) {
+            it = m_pageAttachments.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void ApplicationController::onTrackedDomainDestroyed()
+{
+    // Queued: destroyed() runs inside the dying object's destructor, and the
+    // recompute calls isDirty() on every other domain. By the time the queued
+    // call runs, the dead entry's QPointer reads null and is compacted away,
+    // from m_domains and from the page attachments.
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            pruneAttachments();
+            recomputeDirty();
+        },
+        Qt::QueuedConnection);
 }
 
 void ApplicationController::onDomainDirtyChanged()
@@ -698,6 +850,14 @@ void ApplicationController::onDomainDirtyChanged()
 
 void ApplicationController::recomputeDirty()
 {
+    if (foldDirty()) {
+        m_dirtyNotifyPending = false;
+        Q_EMIT dirtyChanged();
+    }
+}
+
+bool ApplicationController::foldDirty()
+{
     // Re-entrancy guard. `isDirty()` is a virtual exposed for
     // subclass override; a misbehaving override that emits
     // dirtyChanged from inside its getter would route through
@@ -711,7 +871,7 @@ void ApplicationController::recomputeDirty()
     // edge would never be reflected in m_dirty (silently swallowed).
     if (m_recomputingDirty) {
         m_recomputeDirtyPending = true;
-        return;
+        return false;
     }
     m_recomputingDirty = true;
     auto guard = qScopeGuard([this]() {
@@ -749,10 +909,10 @@ void ApplicationController::recomputeDirty()
         m_domains.erase(writeIt, m_domains.end());
     }
     if (any == m_dirty) {
-        return;
+        return false;
     }
     m_dirty = any;
-    Q_EMIT dirtyChanged();
+    return true;
 }
 
 } // namespace PhosphorControl

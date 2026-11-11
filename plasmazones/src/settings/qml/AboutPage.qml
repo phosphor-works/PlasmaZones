@@ -14,13 +14,13 @@ PhosphorUi.AboutPageShell {
     id: root
 
     appName: i18n("PlasmaZones")
-    appIcon: "plasmazones"
+    appIcon: "org.phosphor_works.PlasmaZones"
     appVersion: Qt.application.version.length > 0 ? i18n("Version %1", Qt.application.version) : i18n("Version unknown")
     description: i18n("Window snapping, tiling and scrolling for Wayland compositors. Snap windows into zones you draw, let an algorithm tile them for you, or scroll them along an endless strip. Every monitor picks its own mode.")
     // Not translated: a copyright notice is a legal attribution, not UI prose.
     copyright: "© 2026 fuddlesworth"
     license: i18n("PlasmaZones is free software licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).")
-    homepageUrl: "https://github.com/fuddlesworth/PlasmaZones"
+    homepageUrl: "https://github.com/phosphor-works/PlasmaZones"
     // ── Extras: Links / Credits cards rendered below the homepage URL ──
     extraContent: [
         SettingsCard {
@@ -33,13 +33,13 @@ PhosphorUi.AboutPageShell {
                 LinkButton {
                     linkText: i18n("GitHub Repository")
                     linkIcon: "vcs-branch"
-                    url: "https://github.com/fuddlesworth/PlasmaZones"
+                    url: "https://github.com/phosphor-works/PlasmaZones"
                 }
 
                 LinkButton {
                     linkText: i18n("Report a Bug")
                     linkIcon: "tools-report-bug"
-                    url: "https://github.com/fuddlesworth/PlasmaZones/issues/new"
+                    url: "https://github.com/phosphor-works/PlasmaZones/issues/new"
                 }
 
                 LinkButton {
@@ -57,7 +57,7 @@ PhosphorUi.AboutPageShell {
                 LinkButton {
                     linkText: i18n("Releases")
                     linkIcon: "package-available"
-                    url: "https://github.com/fuddlesworth/PlasmaZones/releases"
+                    url: "https://github.com/phosphor-works/PlasmaZones/releases"
                 }
 
                 Button {

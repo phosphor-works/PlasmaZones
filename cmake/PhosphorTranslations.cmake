@@ -32,7 +32,8 @@ find_package(Qt6LinguistTools QUIET)
 # "Whole app tree" means src/, kcm/ and kwin-effect/. libs/ is NOT swept
 # wholesale: those are LGPL components with their own consumers, and most of
 # them ship untranslated by design. The one exception is phosphor-control,
-# whose QML IS the settings app's chrome — see the qsTr glob below. If another
+# whose QML IS the settings app's chrome — see the qsTr glob below — and
+# whose C++ reports Save/Discard errors and names the Facet categories. If another
 # library starts carrying user-facing text, it has to be added deliberately,
 # and this comment is the reason it will not happen by accident.
 #
@@ -48,6 +49,13 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
     # the same "plasmazones" catalog at construction.
     "${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.cpp"
     "${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.h"
+    # phosphor-control's C++ carries user-facing text too: the async
+    # Save/Discard errors ApplicationController reports through tr(), and
+    # the built-in Facet category names FacetHost marks with
+    # QT_TRANSLATE_NOOP. It cannot use PhosphorI18n::tr() (GPL tree), so it
+    # uses Qt's own markers under its class contexts, which lupdate reads
+    # natively, the same way the qsTr glob below serves its QML.
+    "${CMAKE_SOURCE_DIR}/phosphor-libs/libs/phosphor-control/src/*.cpp"
 )
 file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/src/*.qml"
@@ -141,9 +149,13 @@ if(Qt6LinguistTools_FOUND AND Python3_Interpreter_FOUND)
         # and the translations come back verbatim from git history once the
         # scrape gap is fixed. Review the catalog diff after every update-ts
         # run; a wave of deletions you did not expect IS the scrape-gap alarm.
+        # The phosphor-control include dir lets lupdate see that
+        # ApplicationController is PhosphorControl::ApplicationController, the
+        # context its tr() looks strings up under at runtime.
         COMMAND Qt6::lupdate
             -no-obsolete
             -I ${CMAKE_SOURCE_DIR}/plasmazones/src
+            -I ${CMAKE_SOURCE_DIR}/phosphor-libs/libs/phosphor-control/include
             ${PLASMAZONES_I18N_SOURCES}
             ${PLASMAZONES_I18N_QML_QSTR}
             "@${_qml_stub_dir}/stubs.txt"

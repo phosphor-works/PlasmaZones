@@ -3,12 +3,11 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// Shared Loader.onLoaded utilities used by SettingsAppWindow chrome
-// elements that mount consumer-supplied Component slots (Sidebar's
-// footerContent, AboutPageShell's topContent). Centralised so the
-// subtle "imperative Qt.binding assignment overrides any consumer
-// Layout.fillWidth on the loaded item" pitfall has one place to
-// document it.
+// Shared Loader.onLoaded utilities for the chrome's Loaders that mount
+// content from elsewhere: consumer-supplied Components, pages and module
+// sections. Centralised so the subtle "imperative Qt.binding assignment
+// overrides any consumer Layout.fillWidth on the loaded item" pitfall has
+// one place to document it.
 //
 // Usage from inside a Loader's onLoaded handler:
 //   onLoaded: PhosphorLoaderHelpers.bindItemWidthToLoader(loaderId)
@@ -42,9 +41,9 @@ function bindItemWidthToLoader(loader) {
  * Inject `value` into `item[propName]` only when the item declares
  * that property — and silently swallow the assignment when the
  * consumer's binding made it readonly. Centralises the
- * `hasOwnProperty + try-catch` idiom PageHost.qml uses three times
- * to forward a controller pointer into pages without crashing on
- * pages that bind their own controller.
+ * `hasOwnProperty + try-catch` idiom the chrome uses to forward a
+ * controller or settingsApp pointer into loaded content without
+ * crashing on content that binds its own.
  *
  * `value` may be `null` — the caller passes through whatever the
  * registry produced. PageHost treats null re-registration as
@@ -57,6 +56,6 @@ function injectIfAssignable(item, propName, value) {
     try {
         item[propName] = value;
     } catch (e) {
-        // Page binds its own controller (readonly) — skip.
+        // The loaded item binds its own value (readonly) — skip.
     }
 }
