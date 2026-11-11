@@ -41,16 +41,16 @@ public:
     // translated by the factory implementation.
     [[nodiscard]] virtual QString displayName() const = 0;
 
-    // Declared capabilities, drawn from the manifest for plugin
-    // factories or hardcoded for built-ins. Standard names follow the
+    // Declared capabilities, declared by the factory a plugin hands out
+    // or hardcoded for built-ins. Standard names follow the
     // dot-namespaced convention documented in the design docs
     // (`bar.widget`, `control-center.tile`, `network.read`,
     // `notify.send`, etc.). Enforcement is deferred to Phase 5; today
     // the list is informational.
     //
     // Defaulted to an empty list rather than pure-virtual: the five
-    // UI-seam plugin factories override it with their manifest
-    // capabilities, but the domain registries unified onto Registry<T>
+    // UI-seam plugin factories override it with the capabilities their
+    // plugins declare, but the domain registries unified onto Registry<T>
     // (shader packs, animation effects, easing curves, tiling
     // algorithms, layout sources) carry no capability metadata and
     // should not have to fabricate an override returning `{}`. The

@@ -341,7 +341,10 @@ or signal name, for an id that names no open connection of the router, and
 off the router's thread (an assert in debug builds, a warning in release
 builds; `broadcastEvent` drops its event the same way). The output limit of broadcasts
 applies: a connection more than 16 MiB behind is closed with a warning,
-and `sendEvent` returns false.
+and `sendEvent` returns false. A fifth argument, `qint64* lineBytes`,
+receives the size of the line that the event took, its newline included,
+for a target that counts the bytes its client has read. It is 0 when
+`sendEvent` returns false.
 
 `IpcRouter::connectionClosed(id)` follows the close of every connection,
 once: the client went away, the router closed it, or `stop()` ran. It is
@@ -356,6 +359,24 @@ slot uses, or disconnects first. A client that gets an event it did not
 subscribe to is free to skip it. `phosphorctl call` prints the events sent
 to its call on stderr, and `phosphorctl subscribe` prints every event it
 receives.
+
+`IpcRouter::connectionOpened(id)` comes when the router accepts a
+connection, before it reads anything from it, and `connectionCount()`
+returns the connections open now. `setMaxConnections(max)` caps them, for
+a socket that other processes can reach, such as one forwarded to another
+host. A connection accepted while `max` are open is closed at once and
+unread. It gets no id, `connectionOpened` and `connectionClosed` do not
+come for it, and `connectionRefused()` does. Lowering the cap closes no
+open connection. The default, 0, sets no limit.
+
+`stop()` closes each connection at once and drops what is still
+unwritten to it, so answers written just before it never arrive.
+`stop(IpcRouter::StopMode::Flush)` delivers them first: the router stops
+listening and forgets its connections at once, as `stop()` does, and each
+connection closes when the client has taken what was written to it. A
+client that does not read within the timeout (`DefaultFlushTimeoutMs`,
+5 seconds, or the second argument) loses the rest. The delivery does not
+need the router, which may be destroyed right after the call.
 
 ### CLI side
 
@@ -424,11 +445,16 @@ phosphorctl subscribe count.countChanged   # optional: same events on stdout
 - **Disconnect prunes subscriptions.** When a subscriber socket
   disconnects, all its subscriptions are dropped automatically, and so
   are the connection's deferred calls. `connectionClosed(id)` follows.
-- **Stale socket file recovery.** On `start`, if `listen()` fails
-  and the socket path is occupied, the router probes with a quick
-  connect. If no live listener answers, the stale path is unlinked
-  and `listen()` retries. A live listener is left alone (start
-  fails cleanly rather than clobbering).
+- **Stale socket file recovery.** On `start`, if the socket path is
+  occupied, the router probes with a quick connect. If the connect is
+  refused, the stale path is unlinked and taken. A live listener, also a
+  busy one, and a file that is not a socket are left alone (start fails
+  cleanly rather than clobbering).
+- **Socket mode without the umask.** The socket file has mode 0600. The
+  router binds it in a new 0700 directory beside the path, sets the mode
+  there and links it into place, so it never changes the umask, which
+  every thread of the process shares. `stop()` removes the socket file,
+  unless another file has taken the path since.
 - **No subscribe auto-broadcast from Qt signals.** Plugin authors
   call `IpcTarget.emitEvent("name", args)` explicitly. Firing the
   QML signal (e.g. `modeChanged(...)`) only notifies in-QML

@@ -15,11 +15,11 @@ namespace PhosphorControl {
 
 namespace {
 
-// U+203A (›) — QStringLiteral, not QLatin1String: the separator is multibyte
-// UTF-8, which QLatin1String would reinterpret byte-per-char into mojibake.
+// The page-path separator ApplicationController::titlePathFor uses, so a
+// search breadcrumb and a toast's page path read the same.
 QString breadcrumbSeparator()
 {
-    return QStringLiteral(" › ");
+    return ApplicationController::titlePathSeparator();
 }
 
 QVariantMap toVariant(const SearchEntry& e)
@@ -62,6 +62,9 @@ SearchController::SearchController(ApplicationController* app, QObject* parent)
         // GROWS at runtime (post-startup registerPage is a supported path),
         // so a late-registered page must reach the cache too.
         connect(m_app->registry(), &PageRegistry::pageRegistered, this, &SearchController::invalidate);
+        // PageRegistry::bindPage needs no connection of its own: the index
+        // reads only whether a page has QML, not which, and a bind that
+        // changes that also emits visibleSetChanged above.
     }
 }
 
@@ -161,18 +164,20 @@ QVector<SearchEntry> SearchController::buildIndex()
         return entries;
     }
 
-    // By reference: both walks below only READ (fill a title hash, filter the
-    // navigable leaves), and neither registers a page, so nothing can
-    // reallocate m_pages while the reference is live. Copying the catalogue
-    // here cost an Entry deep-copy per page on every index rebuild, which fires
-    // on every mode flip and every provider warm-up.
-    const QList<PageRegistry::Entry>& pages = m_app->registry()->allPagesRef();
+    // Tree order, the order the sidebar draws: the ranker breaks score ties
+    // by index position and then truncates, so equal-scoring pages list and
+    // drop in this order. Registration order would diverge from the rail
+    // whenever a host registers out of tree order (FacetHost places a module
+    // after the modules it depends on). Pointers into the registry, so no
+    // Entry is copied: both walks below only READ, and neither mutates the
+    // registry while the pointers are live.
+    const QList<const PageRegistry::Entry*> pages = m_app->registry()->pagesInTreeOrder();
 
     // id → title map for breadcrumb assembly (parentChainFor yields ids).
     QHash<QString, QString> titles;
     titles.reserve(pages.size());
-    for (const PageRegistry::Entry& e : pages) {
-        titles.insert(e.id, e.title);
+    for (const PageRegistry::Entry* e : pages) {
+        titles.insert(e->id, e->title);
     }
 
     // Breadcrumb for a page: its ancestor titles, optionally with the page's own
@@ -206,7 +211,8 @@ QVector<SearchEntry> SearchController::buildIndex()
                                         : (inSimple ? SearchEntry::Mode::SimpleOnly : SearchEntry::Mode::AdvancedOnly);
     };
 
-    for (const PageRegistry::Entry& e : pages) {
+    for (const PageRegistry::Entry* entry : pages) {
+        const PageRegistry::Entry& e = *entry;
         // Only navigable leaves are search targets; category / drill parents
         // carry no QML and aren't a destination.
         if (e.qmlSource.isEmpty()) {

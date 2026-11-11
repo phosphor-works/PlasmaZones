@@ -8,15 +8,28 @@
 #ifndef PHOSPHOR_CONTROL_FIXTURE_DIR
 #error "PHOSPHOR_CONTROL_FIXTURE_DIR must be defined by tests/CMakeLists.txt"
 #endif
+#ifndef PHOSPHOR_CONTROL_STAGING_DIR
+#error "PHOSPHOR_CONTROL_STAGING_DIR must be defined by tests/CMakeLists.txt"
+#endif
 
 using namespace PhosphorControl;
 
 namespace {
-QString fixture(const char* variant)
+
+// A FacetTestHost for fixture @p variant, staging under the build tree.
+FacetTestHost hostFor(const char* variant)
 {
-    return QStringLiteral(PHOSPHOR_CONTROL_FIXTURE_DIR) + QLatin1Char('/') + QLatin1String(variant)
-        + QStringLiteral(".so");
+    FacetTestHost host(QStringLiteral(PHOSPHOR_CONTROL_FIXTURE_DIR) + QLatin1Char('/') + QLatin1String(variant)
+                       + QStringLiteral(".so"));
+    host.setStagingDirectory(QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR));
+    return host;
 }
+
+QString joined(const QStringList& problems)
+{
+    return problems.join(QLatin1Char('\n'));
+}
+
 } // namespace
 
 class TestFacetTestHost : public QObject
@@ -26,49 +39,113 @@ class TestFacetTestHost : public QObject
 private Q_SLOTS:
     void aWellBehavedModulePasses()
     {
-        FacetTestHost host(fixture("good"));
+        FacetTestHost host = hostFor("good");
         const QStringList problems = host.run();
-        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+        QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
     }
 
-    void reportsAModuleThatSkipsAPage()
+    void reportsAContractBreach_data()
     {
-        FacetTestHost host(fixture("missingpage"));
-        const QString problems = host.run().join(QLatin1Char('\n'));
-        QVERIFY2(problems.contains(QStringLiteral("did not register page general/advanced")), qPrintable(problems));
+        QTest::addColumn<QByteArray>("variant");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("skips a page") << QByteArray("missingpage") << QStringLiteral("did not register page about");
+        QTest::newRow("no QML") << QByteArray("noqml") << QStringLiteral("no valid QML source");
+        QTest::newRow("relative QML") << QByteArray("relativeqml") << QStringLiteral("not an absolute URL");
+        QTest::newRow("missing QML file") << QByteArray("missingqml") << QStringLiteral("does not exist");
+        QTest::newRow("invalid metadata") << QByteArray("badmetadata") << QStringLiteral("invalid metadata");
+        QTest::newRow("not a module") << QByteArray("notamodule") << QStringLiteral("IFacetModule");
+        QTest::newRow("skips an extension")
+            << QByteArray("missingextension") << QStringLiteral("did not register extension second");
     }
 
     void anExtenderPassesWithoutItsTargets()
     {
         // Its extension domains go through Apply and Discard like any other.
-        FacetTestHost host(fixture("extender"));
+        FacetTestHost host = hostFor("extender");
         const QStringList problems = host.run();
-        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+        QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
     }
 
-    void reportsAModuleThatSkipsAnExtension()
+    void reportsAContractBreach()
     {
-        FacetTestHost host(fixture("missingextension"));
-        const QString problems = host.run().join(QLatin1Char('\n'));
-        QVERIFY2(problems.contains(QStringLiteral("did not register extension second")), qPrintable(problems));
+        QFETCH(QByteArray, variant);
+        QFETCH(QString, expected);
+        FacetTestHost host = hostFor(variant.constData());
+        const QString problems = joined(host.run());
+        QVERIFY2(problems.contains(expected), qPrintable(problems));
     }
 
-    void reportsADomainThatAnswersTwice()
+    void reportsADomainThatAnswersApplyTwice()
     {
-        FacetTestHost host(fixture("doubleresult"));
-        host.setResultTimeoutMs(200);
+        FacetTestHost host = hostFor("doubleresult");
         const QStringList problems = host.run();
-        // Two pages and one headless domain, each answering apply() twice.
-        QCOMPARE(problems.size(), 3);
+        // Every page and the headless domain answer apply() twice.
+        QCOMPARE(problems.size(), 4);
         for (const QString& problem : problems) {
             QVERIFY2(problem.contains(QStringLiteral("applyResult 2 times")), qPrintable(problem));
         }
     }
 
+    void reportsADomainThatAnswersDiscardTwice()
+    {
+        FacetTestHost host = hostFor("doublediscard");
+        const QStringList problems = host.run();
+        QCOMPARE(problems.size(), 4);
+        for (const QString& problem : problems) {
+            QVERIFY2(problem.contains(QStringLiteral("discardResult 2 times")), qPrintable(problem));
+        }
+    }
+
+    void catchesASecondResultSentFromTheEventLoop()
+    {
+        // The second applyResult arrives on a later event-loop turn, which
+        // only waiting in an event loop can see.
+        FacetTestHost host = hostFor("lateresult");
+        const QStringList problems = host.run();
+        QCOMPARE(problems.size(), 4);
+        for (const QString& problem : problems) {
+            QVERIFY2(problem.contains(QStringLiteral("applyResult 2 times")), qPrintable(problem));
+        }
+    }
+
+    void reportsAFailedApply()
+    {
+        FacetTestHost host = hostFor("failingapply");
+        const QString problems = joined(host.run());
+        QVERIFY2(problems.contains(QStringLiteral("reported a failed apply(): disk full")), qPrintable(problems));
+    }
+
+    void reportsADomainThatDeletesItself()
+    {
+        FacetTestHost host = hostFor("selfdelete");
+        const QString problems = joined(host.run());
+        QVERIFY2(problems.contains(QStringLiteral("was deleted by apply()")), qPrintable(problems));
+        // A headless domain is named by its objectName.
+        QVERIFY2(problems.contains(QStringLiteral("FakeDomain was deleted by apply()")), qPrintable(problems));
+    }
+
+    void reportsADomainDirtyAtLoad()
+    {
+        FacetTestHost host = hostFor("dirtyatload");
+        const QString problems = joined(host.run());
+        QVERIFY2(problems.contains(QStringLiteral("FakeDomain is dirty right after loading")), qPrintable(problems));
+    }
+
+    void reportsADomainThatNeverAnswers()
+    {
+        FacetTestHost host = hostFor("silent");
+        host.setResultTimeoutMs(100);
+        const QStringList problems = host.run();
+        QCOMPARE(problems.size(), 4);
+        for (const QString& problem : problems) {
+            QVERIFY2(problem.contains(QStringLiteral("applyResult 0 times")), qPrintable(problem));
+        }
+    }
+
     void reportsARefusedModule()
     {
-        FacetTestHost host(fixture("wrongapi"));
-        const QString problems = host.run().join(QLatin1Char('\n'));
+        FacetTestHost host = hostFor("wrongapi");
+        const QString problems = joined(host.run());
         QVERIFY2(problems.contains(QStringLiteral("refused")) && problems.contains(QStringLiteral("ApiVersion 2")),
                  qPrintable(problems));
     }
@@ -77,6 +154,24 @@ private Q_SLOTS:
     {
         FacetTestHost host(QStringLiteral("/nonexistent/module.so"));
         QCOMPARE(host.run(), QStringList{QStringLiteral("no module file at /nonexistent/module.so")});
+    }
+
+    void reportsAFileThatIsNotAPlugin()
+    {
+        // The test executable is a file, but no Facet module.
+        FacetTestHost host(QCoreApplication::applicationFilePath());
+        host.setStagingDirectory(QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR));
+        const QString problems = joined(host.run());
+        QVERIFY2(problems.contains(QStringLiteral("no Facet module found")), qPrintable(problems));
+    }
+
+    void waitsForAResultThatComesLater()
+    {
+        // Each domain answers once, from a timer, long after apply()
+        // returned: a pass, not "0 times".
+        FacetTestHost host = hostFor("slowresult");
+        const QStringList problems = host.run();
+        QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
     }
 };
 

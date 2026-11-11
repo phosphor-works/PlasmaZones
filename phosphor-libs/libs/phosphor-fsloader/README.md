@@ -20,8 +20,9 @@ The library factors the work into:
 - **`WatchedDirectorySet`** is the base mechanism. It owns the
   `QFileSystemWatcher`, debounces rescan triggers (50 ms), promotes
   watches to a parent directory when the target doesn't exist yet,
-  guards against rescan-during-rescan races, and re-arms individual
-  file watches after a scan.
+  guards against rescan-during-rescan races, re-arms individual
+  file watches after a scan, and re-arms its watches when a directory on
+  the way to a registered one is replaced or retargeted.
 - **`IScanStrategy`** is the pluggable policy for how to enumerate the
   registered directories, parse each entry, and commit results to the
   consumer's registry. The base owns *when* to scan, and the strategy owns
@@ -176,11 +177,31 @@ parse(mesh->bytes);
   deepest EXISTING ancestor and re-appends the missing tail, so the two domains
   are never mixed, and it fails closed when nothing on the chain exists.
 - **Single files report by fingerprint.** `WatchedFileSet` watches each file
-  and its nearest existing ancestor directory, so creation, deletion and
-  rename-replacement are seen, and re-resolves both after every event. A
-  directory event alone proves nothing, so after the debounce each path is
-  `stat()`ed and only those whose identity or content stamp moved are
-  reported. An unrelated write beside a watched file emits nothing.
+  and every directory on the way to it, from `/` down, so creation, deletion
+  and rename-replacement are seen wherever they happen. A directory event
+  alone proves nothing, so after the debounce each path is `stat()`ed and
+  only those whose identity or content stamp moved are reported. An
+  unrelated write beside a watched file or in one of its ancestors emits
+  nothing.
+- **Watches follow identity, not path strings.** An inotify watch stays on
+  the inode its path named when it was added, and Qt's directory watch does
+  not report its own rename. So a symlinked directory that is retargeted
+  (Home Manager, stow, chezmoi) or a parent replaced by rename would leave
+  every watch below it on the old tree. Both sets record an identity chain
+  for each watched path: the device and inode of every directory walked from
+  `/` and the text of every symlink followed, resolved component by
+  component. An event in an ancestor costs a walk of the chains, a few
+  `lstat()` calls. Only a chain that moved re-arms its watches, and in
+  `WatchedDirectorySet` only a chain that moved runs a rescan.
+  `WatchedDirectorySet` chains its registered directories, and also each
+  path its strategy reports that goes through a symlink below its
+  registered directory: a linked file, a linked folder, a file inside one.
+  A watch under the link's own spelling would stay on the old target when
+  the link is pointed elsewhere, and see nothing while it dangles, so such a
+  path is watched through its chain, its target under its physical path.
+  Reported paths that go through no link keep their plain watch, because
+  the chain of their registered directory already covers everything above
+  them.
 - **Containment of what was opened, not what was named.**
   `readFileWithinDirectory` runs `resolveWithinDirectory` first, then opens
   with `O_NONBLOCK`, `fstat()`s the descriptor and checks its

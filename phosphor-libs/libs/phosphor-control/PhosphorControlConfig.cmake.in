@@ -7,9 +7,9 @@ include(CMakeFindDependencyMacro)
 
 find_dependency(Qt6 @PHOSPHORCONTROL_QT_MIN@ COMPONENTS Core DBus Gui Qml Quick)
 
-# PhosphorControlQml links PhosphorAnimation::PhosphorAnimationQml PUBLIC, so
-# the exported targets file references it and a consumer must resolve it.
-find_dependency(PhosphorAnimation)
+# PhosphorControl links PhosphorRegistry PUBLIC (FacetHost.h exposes its
+# types), so the exported targets reference it. The QML module targets, which
+# link PhosphorAnimation, are not exported.
 find_dependency(PhosphorRegistry)
 
 include("${CMAKE_CURRENT_LIST_DIR}/PhosphorControlTargets.cmake")

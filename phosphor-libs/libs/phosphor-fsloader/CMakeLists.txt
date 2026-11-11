@@ -94,6 +94,7 @@ endif()
 set(phosphorfsloader_SRCS
     src/containedfilereader.cpp
     src/directoryloader.cpp
+    src/identitychain.cpp
     src/metadatapackscanstrategy.cpp
     src/schemavalidator.cpp
     src/watcheddirectoryset.cpp

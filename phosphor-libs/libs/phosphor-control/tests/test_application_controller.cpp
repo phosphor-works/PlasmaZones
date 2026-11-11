@@ -7,6 +7,8 @@
 #include <QThread>
 #include <QUrl>
 
+#include <memory>
+
 #include "PhosphorControl/ApplicationController.h"
 #include "PhosphorControl/PageController.h"
 #include "PhosphorControl/PageRegistry.h"
@@ -827,8 +829,8 @@ private Q_SLOTS:
 
         auto* silent = new StubPage(QStringLiteral("silent"));
         silent->setEmitApplyResult(false);
-        // Stamping objectName exercises the "Domain %1 did not report
-        // apply completion within timeout" branch in
+        // Stamping objectName exercises the "%1 did not finish saving
+        // in time" branch in
         // applicationcontroller_async.cpp's timeout handler (the
         // unnamed-vs-named arms in applyAllAsync) — instead of the
         // generic message. Asserting the name appears in the error
@@ -845,11 +847,9 @@ private Q_SLOTS:
         const QStringList errors = completeSpy.first().at(1).toStringList();
         QCOMPARE(errors.size(), 1);
         // The named-domain timeout message must mention both the
-        // object name AND the word "timeout" (case-insensitive on the
-        // word "timeout" would tighten the contract further, but the
-        // current message uses lowercase).
-        QVERIFY2(errors.first().contains(QStringLiteral("timeout")),
-                 qPrintable(QStringLiteral("expected timeout in error, got: ") + errors.first()));
+        // object name AND that the domain ran out of time.
+        QVERIFY2(errors.first().contains(QStringLiteral("in time")),
+                 qPrintable(QStringLiteral("expected a timeout error, got: ") + errors.first()));
         QVERIFY2(errors.first().contains(QStringLiteral("SilentDomain")),
                  qPrintable(QStringLiteral("expected SilentDomain in error, got: ") + errors.first()));
     }
@@ -1120,6 +1120,260 @@ private Q_SLOTS:
         // a applied → clean. failing kept itself dirty → global must
         // still be dirty.
         QVERIFY(app.isDirty());
+    }
+
+    void bindPageStopsTrackingTheControllerItReplaces()
+    {
+        ApplicationController app;
+        auto* placeholder = new StubPage(QStringLiteral("p"));
+        app.registerPage(placeholder, {}, QStringLiteral("P"), QUrl());
+        placeholder->setDirty(true);
+        QVERIFY(app.isDirty());
+
+        auto* real = new StubPage(QStringLiteral("p"));
+        QVERIFY(app.bindPage(QStringLiteral("p"), real, QUrl(QStringLiteral("qrc:/p.qml"))));
+        // The replaced controller has no page any more: its dirt no longer
+        // counts, and Apply leaves it alone.
+        QVERIFY(!app.isDirty());
+        QVERIFY(!app.isTrackedDomain(placeholder));
+        QVERIFY(app.isTrackedDomain(real));
+        QCOMPARE(real->parent(), &app);
+        app.applyAll();
+        QCOMPARE(placeholder->applyCount, 0);
+
+        // The bound controller joins the dirty flag and Apply.
+        real->setDirty(true);
+        QVERIFY(app.isDirty());
+        QCOMPARE(app.dirtyPageIds(), QStringList{QStringLiteral("p")});
+        app.applyAll();
+        QCOMPARE(real->applyCount, 1);
+        QVERIFY(!app.isDirty());
+    }
+
+    void bindPageRefusesAControllerForAnotherPage()
+    {
+        ApplicationController app;
+        app.registerPage(new StubPage(QStringLiteral("p")), {}, QStringLiteral("P"), QUrl());
+        const auto other = std::make_unique<StubPage>(QStringLiteral("q"));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("controller whose id is")));
+        QVERIFY(!app.bindPage(QStringLiteral("p"), other.get(), QUrl(QStringLiteral("qrc:/q.qml"))));
+        // Refused: not adopted, not tracked.
+        QVERIFY(!other->parent());
+        QVERIFY(!app.isTrackedDomain(other.get()));
+    }
+
+    void aNavigationFromInsideTheHookWins()
+    {
+        ApplicationController app;
+        for (const char* id : {"a", "b", "error"}) {
+            app.registerPage(new StubPage(QString::fromLatin1(id)), {}, QString::fromLatin1(id),
+                             QUrl(QStringLiteral("qrc:/x.qml")));
+        }
+        app.setCurrentPageId(QStringLiteral("a"));
+        QObject owner;
+        QVERIFY(app.setNavigationHook(&owner, [&app](const QString& id) {
+            if (id == QLatin1String("b")) {
+                app.setCurrentPageId(QStringLiteral("error"));
+            }
+        }));
+        QSignalSpy changed(&app, &ApplicationController::currentPageIdChanged);
+        app.setCurrentPageId(QStringLiteral("b"));
+        QCOMPARE(app.currentPageId(), QStringLiteral("error"));
+        QCOMPARE(changed.count(), 1);
+        // The history has the page the user was on, once, and not "b".
+        QCOMPARE(app.goBack(), QStringLiteral("a"));
+        QVERIFY(!app.canGoBack());
+    }
+
+    void theNavigationHookHasOneOwner()
+    {
+        ApplicationController app;
+        app.registerPage(new StubPage(QStringLiteral("a")), {}, QStringLiteral("A"),
+                         QUrl(QStringLiteral("qrc:/a.qml")));
+        app.registerPage(new StubPage(QStringLiteral("b")), {}, QStringLiteral("B"),
+                         QUrl(QStringLiteral("qrc:/b.qml")));
+        app.setCurrentPageId(QStringLiteral("a"));
+
+        QString target;
+        QString currentDuringHook;
+        auto first = std::make_unique<QObject>();
+        QVERIFY(app.setNavigationHook(first.get(), [&](const QString& id) {
+            target = id;
+            currentDuringHook = app.currentPageId();
+        }));
+        QObject second;
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("already held by")));
+        QVERIFY(!app.setNavigationHook(&second, [](const QString&) { }));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("no owner")));
+        QVERIFY(!app.setNavigationHook(nullptr, [](const QString&) { }));
+        // Only the owner can clear it.
+        app.clearNavigationHook(&second);
+
+        app.setCurrentPageId(QStringLiteral("b"));
+        QCOMPARE(target, QStringLiteral("b"));
+        QCOMPARE(currentDuringHook, QStringLiteral("a"));
+        QCOMPARE(app.currentPageId(), QStringLiteral("b"));
+
+        // Neither the current page nor an empty id reaches the hook.
+        target.clear();
+        app.setCurrentPageId(QStringLiteral("b"));
+        app.setCurrentPageId(QString());
+        QVERIFY(target.isEmpty());
+
+        // Once its owner is gone the hook is never called, and someone else
+        // may install one.
+        first.reset();
+        app.setCurrentPageId(QStringLiteral("a"));
+        QVERIFY(target.isEmpty());
+        QVERIFY(app.setNavigationHook(&second, [](const QString&) { }));
+    }
+
+    void dirtyIsCurrentWhenTheBatchCompletes()
+    {
+        ApplicationController app;
+        auto* page = new StubPage(QStringLiteral("p"));
+        app.registerPage(page, {}, QStringLiteral("P"), QUrl());
+        page->setDirty(true);
+        QVERIFY(app.isDirty());
+        // A completion handler deciding whether the batch left anything
+        // unsaved (the close prompt's apply-then-close) reads `dirty`.
+        bool dirtyAtComplete = true;
+        connect(&app, &ApplicationController::applyAllComplete, this, [&app, &dirtyAtComplete] {
+            dirtyAtComplete = app.isDirty();
+        });
+        QSignalSpy dirtyChanged(&app, &ApplicationController::dirtyChanged);
+        app.applyAllAsync();
+        QVERIFY(!dirtyAtComplete);
+        QCOMPARE(dirtyChanged.count(), 1);
+
+        page->setDirty(true);
+        bool discardDirty = true;
+        connect(&app, &ApplicationController::discardAllComplete, this, [&app, &discardDirty] {
+            discardDirty = app.isDirty();
+        });
+        app.discardAllAsync();
+        QVERIFY(!discardDirty);
+    }
+
+    void aDirtyDomainThatIsDestroyedStopsCounting()
+    {
+        ApplicationController app;
+        auto* doomed = new StubHeadlessDomain(&app);
+        app.registerDomain(doomed);
+        doomed->setDirty(true);
+        QVERIFY(app.isDirty());
+        QSignalSpy dirtyChanged(&app, &ApplicationController::dirtyChanged);
+        delete doomed;
+        QTRY_VERIFY(!app.isDirty());
+        QCOMPARE(dirtyChanged.count(), 1);
+
+        // Also when nothing else runs first: an Apply with nothing dirty
+        // left reports the flag clear to its completion handler.
+        auto* second = new StubHeadlessDomain(&app);
+        app.registerDomain(second);
+        second->setDirty(true);
+        delete second;
+        bool dirtyAtComplete = true;
+        connect(&app, &ApplicationController::applyAllComplete, this, [&app, &dirtyAtComplete] {
+            dirtyAtComplete = app.isDirty();
+        });
+        app.applyAllAsync();
+        QVERIFY(!dirtyAtComplete);
+        QVERIFY(!app.isDirty());
+    }
+
+    void aDomainThatAlreadyAnsweredIsNotApplied()
+    {
+        // The first domain's apply() makes the second report too, which
+        // finishes the batch. The second domain must not be applied after
+        // that: it already answered, and it may be clean.
+        ApplicationController app;
+        auto* first = new StubPage(QStringLiteral("first"));
+        auto* second = new StubPage(QStringLiteral("second"));
+        app.registerPage(first, {}, QStringLiteral("First"), QUrl());
+        app.registerPage(second, {}, QStringLiteral("Second"), QUrl());
+        first->setDirty(true);
+        second->setDirty(true);
+        connect(first, &StagingDomain::applyResult, second, [second] {
+            second->setDirty(false);
+            Q_EMIT second->applyResult(true, QString());
+        });
+        QSignalSpy complete(&app, &ApplicationController::applyAllComplete);
+        app.applyAllAsync();
+        QCOMPARE(complete.count(), 1);
+        QCOMPARE(first->applyCount, 1);
+        QCOMPARE(second->applyCount, 0);
+    }
+
+    void registerDomainReportsWhetherItWasAccepted()
+    {
+        ApplicationController app;
+        StubHeadlessDomain domain;
+        QVERIFY(app.registerDomain(&domain));
+        QVERIFY(app.isTrackedDomain(&domain));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("already tracked")));
+        QVERIFY(!app.registerDomain(&domain));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("null domain")));
+        QVERIFY(!app.registerDomain(nullptr));
+        QVERIFY(!app.isTrackedDomain(nullptr));
+    }
+
+    void nextAndPreviousFollowTheTreeNotRegistrationOrder()
+    {
+        // q is registered between p and p's child, as a plugin host that
+        // registers out of tree order would.
+        ApplicationController app;
+        app.registerPage(new StubPage(QStringLiteral("p")), {}, QStringLiteral("P"),
+                         QUrl(QStringLiteral("qrc:/p.qml")));
+        app.registerPage(new StubPage(QStringLiteral("q")), {}, QStringLiteral("Q"),
+                         QUrl(QStringLiteral("qrc:/q.qml")));
+        app.registerPage(new StubPage(QStringLiteral("p/x")), QStringLiteral("p"), QStringLiteral("X"),
+                         QUrl(QStringLiteral("qrc:/x.qml")));
+        app.setCurrentPageId(QStringLiteral("p"));
+        QCOMPARE(app.gotoNextPage(), QStringLiteral("p/x"));
+        QCOMPARE(app.gotoNextPage(), QStringLiteral("q"));
+        QCOMPARE(app.gotoPreviousPage(), QStringLiteral("p/x"));
+    }
+
+    void nextAndPreviousSayWhenThereIsNowhereToGo()
+    {
+        ApplicationController app;
+        app.registerPage(new StubPage(QStringLiteral("only")), {}, QStringLiteral("Only"),
+                         QUrl(QStringLiteral("qrc:/only.qml")));
+        QCOMPARE(app.gotoNextPage(), QStringLiteral("only"));
+        QCOMPARE(app.gotoNextPage(), QString());
+        QCOMPARE(app.gotoPreviousPage(), QString());
+        QCOMPARE(app.currentPageId(), QStringLiteral("only"));
+    }
+
+    void parentChainForResolvesTheFullHopCap()
+    {
+        ApplicationController app;
+        QString parent;
+        for (int i = 0; i <= PageRegistry::MaxParentChainHops + 1; ++i) {
+            const QString id = QStringLiteral("n%1").arg(i);
+            app.registerPage(new StubPage(id), parent, id, QUrl(QStringLiteral("qrc:/n.qml")));
+            parent = id;
+        }
+        // A page with exactly MaxParentChainHops ancestors: a complete chain,
+        // and no warning.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("nested deeper than")));
+        const QStringList chain = app.parentChainFor(QStringLiteral("n%1").arg(PageRegistry::MaxParentChainHops));
+        QCOMPARE(chain.size(), PageRegistry::MaxParentChainHops);
+        QCOMPARE(chain.first(), QStringLiteral("n0"));
+        // One deeper is truncated, and says so.
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("nested deeper than")));
+        app.parentChainFor(QStringLiteral("n%1").arg(PageRegistry::MaxParentChainHops + 1));
+    }
+
+    void titlePathUsesTheSharedSeparator()
+    {
+        ApplicationController app;
+        app.registerPage(new StubPage(QStringLiteral("a")), {}, QStringLiteral("A"), QUrl());
+        app.registerPage(new StubPage(QStringLiteral("b")), QStringLiteral("a"), QStringLiteral("B"),
+                         QUrl(QStringLiteral("qrc:/b.qml")));
+        QCOMPARE(app.titlePathFor(QStringLiteral("b")),
+                 QStringLiteral("A") + ApplicationController::titlePathSeparator() + QStringLiteral("B"));
     }
 };
 

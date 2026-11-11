@@ -53,6 +53,39 @@
     </message>
 </context>
 <context>
+    <name>FacetModulePage</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="39"/>
+        <source>%1 is turned off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="41"/>
+        <source>%1 could not be loaded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="42"/>
+        <source>%1 is not loaded yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="44"/>
+        <source>Facet closed unexpectedly the last time it loaded this module, so it stays off until you load it again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="48"/>
+        <source>Try Again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="48"/>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PageHost</name>
     <message>
         <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageHost.qml" line="281"/>
@@ -67,6 +100,92 @@
         <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageLoadingIndicator.qml" line="70"/>
         <source>Loading…</source>
         <translation>Läser in…</translation>
+    </message>
+</context>
+<context>
+    <name>PhosphorControl::ApplicationController</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="136"/>
+        <source>A settings section did not finish saving in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="137"/>
+        <source>%1 did not finish saving in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="185"/>
+        <source>Saving failed for an unknown reason</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="199"/>
+        <source>A settings section was closed before it finished saving</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="287"/>
+        <source>A settings section did not finish discarding in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="288"/>
+        <source>%1 did not finish discarding in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="322"/>
+        <source>Discarding failed for an unknown reason</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="331"/>
+        <source>A settings section was closed before it finished discarding</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="468"/>
+        <source>Saving was stopped before it finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="475"/>
+        <source>Discarding was stopped before it finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PhosphorControl::FacetHost</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="53"/>
+        <source>Window Management</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="55"/>
+        <source>Appearance</source>
+        <translation type="unfinished">Utseende</translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="57"/>
+        <source>Desktop</source>
+        <translation type="unfinished">Skrivbord</translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="58"/>
+        <source>Input</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="59"/>
+        <source>Apps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="60"/>
+        <source>System</source>
+        <translation type="unfinished">System</translation>
     </message>
 </context>
 <context>
@@ -90,7 +209,7 @@
 <context>
     <name>Sidebar</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/Sidebar.qml" line="563"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/Sidebar.qml" line="566"/>
         <source>Search...</source>
         <translation>Sök…</translation>
     </message>
@@ -1569,27 +1688,27 @@
         <translation>Byt namn på zon</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="75"/>
+        <location filename="../src/daemon/main.cpp" line="76"/>
         <source>Window snapping, tiling and scrolling</source>
         <translation>Fönsterfästning, panelindelning och rullning</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="81"/>
+        <location filename="../src/daemon/main.cpp" line="82"/>
         <source>Replace existing daemon instance</source>
         <translation>Ersätt befintlig demoninstans</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="83"/>
+        <location filename="../src/daemon/main.cpp" line="84"/>
         <source>Enable debug logging for all PlasmaZones categories</source>
         <translation>Aktivera felsökningsloggning för alla PlasmaZones-kategorier</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="85"/>
+        <location filename="../src/daemon/main.cpp" line="86"/>
         <source>Write log output to &lt;file&gt; instead of stderr</source>
         <translation>Skriv loggutdata till &lt;file&gt; i stället för stderr</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="85"/>
+        <location filename="../src/daemon/main.cpp" line="86"/>
         <source>file</source>
         <translation>file</translation>
     </message>
@@ -2273,7 +2392,7 @@
         <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="543"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="191"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="284"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="908"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="915"/>
         <source>Appearance</source>
         <translation>Utseende</translation>
     </message>
@@ -11002,7 +11121,7 @@
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="55"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="579"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="586"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="382"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/DisplayMap.qml.cpp" line="277"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/DisplayMap.qml.cpp" line="294"/>
@@ -11012,28 +11131,28 @@
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="59"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="580"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="587"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="386"/>
         <source>Standard (16:9)</source>
         <translation>Standard (16:9)</translation>
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="63"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="581"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="588"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="390"/>
         <source>Ultrawide (21:9)</source>
         <translation>Ultrabred (21:9)</translation>
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="67"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="582"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="589"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="394"/>
         <source>Super-Ultrawide (32:9)</source>
         <translation>Superultrabred (32:9)</translation>
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="71"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="583"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="590"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="398"/>
         <source>Portrait (9:16)</source>
         <translation>Stående (9:16)</translation>
@@ -14101,52 +14220,52 @@
         <translation>Sidåtgärder</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="621"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="628"/>
         <source>Save did not complete. %1</source>
         <translation>Sparandet slutfördes inte. %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="635"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="642"/>
         <source>No details were reported.</source>
         <translation>Inga detaljer rapporterades.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="636"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="643"/>
         <source>Discard did not complete. %1</source>
         <translation>Förkastandet slutfördes inte. %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="623"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="630"/>
         <source>Save did not complete. Some pages still have unsaved changes.</source>
         <translation>Sparningen slutfördes inte. Vissa sidor har fortfarande osparade ändringar.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="625"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="632"/>
         <source>Save did not complete. Still unsaved on: %1</source>
         <translation>Sparningen slutfördes inte. Fortfarande osparat på: %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="805"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="812"/>
         <source>Reset page to defaults</source>
         <translation>Återställ sidan till standardvärden</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="824"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="831"/>
         <source>Discard changes on this page</source>
         <translation>Förkasta ändringar på den här sidan</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="942"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="949"/>
         <source>Advanced</source>
         <translation>Avancerat</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="942"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="949"/>
         <source>Simple</source>
         <translation>Enkelt</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="982"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="989"/>
         <source>Toggle advanced settings</source>
         <translation>Växla avancerade inställningar</translation>
     </message>
@@ -20098,7 +20217,7 @@
         <translation>Inaktivera %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="1122"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="1129"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/ChainEditor.qml.cpp" line="305"/>
         <source>Enable %1</source>
         <translation>Aktivera %1</translation>

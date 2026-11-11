@@ -378,8 +378,8 @@ QStringList ScriptedAlgorithmLoader::performScan(const QStringList& directoriesI
 
     // Remove stale scripts that no longer exist on disk.
     //
-    // CAP-TRIP POLICY (unlike PluginLoader, which SKIPS its sweep on a cap
-    // trip): this sweep runs unconditionally even after a truncated scan, so a
+    // CAP-TRIP POLICY (unlike PluginCatalog, which keeps what it knew about
+    // the plugins a cap trip left unreached): this sweep runs unconditionally even after a truncated scan, so a
     // script whose directory sorted past MaxScripts is unregistered — which for
     // this loader means tearing down a live sandboxed Luau VM via deleteLater.
     // That is acceptable here only because the cap is a pure DoS backstop
@@ -675,7 +675,7 @@ QStringList ScriptedAlgorithmLoader::validatedLuauFiles(const QString& dirPath, 
     // inside canonicalDir after symlink expansion). Leaving NoSymLinks in the
     // filter would additionally block benign user-local symlinks pointing at
     // read-only system script directories.
-    // `QDir::Name` explicitly, matching JsonScanStrategy and PluginLoader. The
+    // `QDir::Name` explicitly, matching JsonScanStrategy and PluginCatalog. The
     // default sort is Name|IgnoreCase, and the ordering stopped being cosmetic
     // the moment the cap below started counting files CONSIDERED: in a
     // directory over the cap, sort order decides which files survive.

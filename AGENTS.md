@@ -39,7 +39,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
   authoritative one.
 
 ## License
-- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt, which in practice means `plasmazones/data/**/*.json`, the six `phosphor-libs/data/schemas/*.json` files, and the `manifest.json.in` fixtures under `phosphor-libs/libs/phosphor-registry/tests/` — never add a header to those, it makes the file invalid.
+- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt, which in practice means `plasmazones/data/**/*.json`, the six `phosphor-libs/data/schemas/*.json` files, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
 - License identifier depends on the tree:
   - **App tiers** (`plasmazones/**` except its `data/` trees, `phosphor-shell/**`, `phosphor-shell-libs/examples/**`, `scripts/**`): `GPL-3.0-or-later`
   - **Reusable libraries, including their own tests** (`phosphor-libs/libs/phosphor-*/**` and `phosphor-shell-libs/libs/phosphor-*/**`, which subsumes each library's `tests/`): `LGPL-2.1-or-later`
@@ -61,7 +61,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
 - Only emit signals when value actually changes
 - Parent-based ownership for QObjects; `std::unique_ptr`/`QPointer` otherwise; never manual delete
 - Forward declare in headers; group includes: own header → project → KDE → Qt
-- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering` and `plasmazones_shaderpreview` each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT` (56 distinct macros: 38 under `phosphor-libs/libs/`, 18 under `phosphor-shell-libs/libs/`). Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
+- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering` and `plasmazones_shaderpreview` each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT`. Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
 - Input validation at system boundaries
 
 ### Qt6 String Literals (CRITICAL)
@@ -97,7 +97,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
 - Extract: `cmake --build build --target update-ts`
 
 ## User-Facing Text (Plain Prose)
-User-facing strings MUST read like plain, human-written prose with no LLM tics. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). SVG `<desc>` elements in `plasmazones/icons/**` count too, since screen readers announce them.
+User-facing strings MUST read like plain, human-written prose with no LLM tics. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
 
 `README.md` is deliberately OUT of scope, along with the other developer-facing repo docs (`CLAUDE.md`, `AGENTS.md`, `docs/**`, `plasmazones/tools/**/README.md`). The README uses em-dashes structurally throughout and pulling it under this rule would need a full punctuation rewrite first. Do not "fix" README em-dashes to satisfy the bullets below.
 
@@ -261,7 +261,7 @@ ctest --test-dir build --output-on-failure
 # dramatic "Label: payload" colon; the rule-of-three triad and "not just X, but
 # Y", none of which it tests; and a clause-splicing semicolon built from
 # PAST-tense prose, because the verb list its semicolon arm matches on carries no
-# past-tense lexical verbs. Nor does it reach icon SVG <desc>.
+# past-tense lexical verbs.
 # Also runs on pre-commit (staged files) and in CI (whole tree).
 python3 scripts/check-conventions.py
 python3 scripts/check-conventions.py --list-rules
@@ -340,7 +340,7 @@ cmake/                   — Shared CMake modules, including the third-party pin
 scripts/                 — Repo-level checks and dev harnesses
 .moon/                   — moon workspace config (see Build & Test)
 ```
-Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/`, `plasmazones/icons/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. `phosphor-shell/` also carries its own `icons/` and `scripts/`.
+Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. `phosphor-shell/` also carries its own `scripts/`. App icons are not in the tree: they install from the pinned branding release (`cmake/PhosphorDependencies.cmake`).
 
 ## Testing
 - Qt Test: `QTEST_MAIN`, `QCOMPARE`, `QVERIFY`
@@ -390,5 +390,5 @@ Cross-cutting traps that each cost audit passes or a whole session. A trap owned
 
 ## Support
 - Documentation: https://phosphor-works.github.io/plasmazones/
-- Repository: https://github.com/fuddlesworth/PlasmaZones
-- Issues: https://github.com/fuddlesworth/PlasmaZones/issues
+- Repository: https://github.com/phosphor-works/PlasmaZones
+- Issues: https://github.com/phosphor-works/PlasmaZones/issues
