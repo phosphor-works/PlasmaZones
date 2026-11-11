@@ -219,7 +219,7 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
 
     // ── FLAT ────────────────────────────────────────────────────────────
     // One list of every visible navigable page, walked from the ROOT (drill
-    // scope is meaningless here), in registration order. Collapsible CATEGORY
+    // scope is meaningless here), in sibling order. Collapsible CATEGORY
     // headers dissolve — their leaves hoist to the surrounding depth — but a
     // no-QML DRILL parent applies the tree walk's own 0/1/2+ distinction
     // (via the same firstTwoNavigableUnder): zero visible descendants emits

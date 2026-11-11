@@ -4,9 +4,12 @@
 # PhosphorControl — reusable Qt6/QML/Kirigami settings-app framework
 #
 # Provides the chrome (window, sidebar, breadcrumbs, footer, page host)
-# and orchestration (PageController base, PageRegistry, IStagingDomain,
+# and orchestration (PageController base, PageRegistry, StagingDomain,
 # ApplicationController) that any Qt6/Kirigami settings app can build on,
-# so each consumer only writes its own page controllers + QML pages.
+# so each consumer only writes its own page controllers + QML pages. It
+# also hosts Facet modules: plugins that add their pages lazily
+# (FacetHost, loaded through phosphor-registry's PluginCatalog), with
+# PhosphorControlTest (FacetTestHost) for a module's own CI.
 #
 # Boundary:
 #   - phosphor-config owns the IBackend/IGroup configuration store. This
@@ -16,10 +19,9 @@
 #
 # Built standalone or as a subdirectory of Phosphor (or any consumer).
 
-# 3.21 floor: this file uses cmake_language(DEFER CALL ...) (>= 3.19) for the
-# plugin rpath and ${PROJECT_IS_TOP_LEVEL} (>= 3.21) for the examples gate. A
-# lower floor would fail mid-configure with an unknown-command / empty-variable
-# error instead of a clear minimum-version message.
+# 3.21 floor: this file uses ${PROJECT_IS_TOP_LEVEL} (>= 3.21) for the
+# examples gate. A lower floor would fail mid-configure with an
+# empty-variable error instead of a clear minimum-version message.
 cmake_minimum_required(VERSION 3.21)
 
 set(PHOSPHORCONTROL_VERSION "0.1.0")
@@ -99,7 +101,8 @@ endif()
 # LGPL-2.1's dynamic-linking exemption. Override to OFF only for
 # embedded / single-binary builds where the LGPL relinking obligation
 # is handled out-of-band (e.g. shipping the .o files alongside the
-# binary). Mirrors phosphor-libs/libs/phosphor-config's pattern.
+# binary). A STATIC build cannot host Facet modules: each module would
+# link its own copy of the library.
 option(PHOSPHOR_CONTROL_BUILD_SHARED
     "Build phosphor-control as a shared library (LGPL relinking-friendly)"
     ON)
@@ -147,7 +150,6 @@ set(phosphorcontrol_public_HDRS
     include/PhosphorControl/FacetModuleMetadata.h
     include/PhosphorControl/FacetContext.h
     include/PhosphorControl/FacetHost.h
-    include/PhosphorControl/FacetTestHost.h
 )
 
 set(phosphorcontrol_SRCS
@@ -167,7 +169,6 @@ set(phosphorcontrol_SRCS
     src/facetmodulemetadata.cpp
     src/facetcontext.cpp
     src/facethost.cpp
-    src/facettesthost.cpp
 )
 
 # NOTE: three near-identical targets (PhosphorControl C++ lib +
@@ -268,10 +269,47 @@ target_compile_definitions(PhosphorControl PRIVATE
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PhosphorControlTest — FacetTestHost, for a Facet module's own CI
+#
+# Test harness code (it stages a copy of the module and waits on event
+# loops), so it is its own library rather than part of the runtime one,
+# and it is not compiled into the QML module targets below.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+add_library(PhosphorControlTest ${_phosphor_control_lib_type}
+    include/PhosphorControl/FacetTestHost.h
+    src/facettesthost.cpp
+)
+add_library(PhosphorControl::PhosphorControlTest ALIAS PhosphorControlTest)
+
+generate_export_header(PhosphorControlTest
+    EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/phosphorcontroltest_export.h
+    EXPORT_MACRO_NAME PHOSPHORCONTROLTEST_EXPORT
+)
+
+target_link_libraries(PhosphorControlTest
+    PUBLIC
+        PhosphorControl::PhosphorControl
+        Qt6::Core
+)
+
+set_target_properties(PhosphorControlTest PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
+if(PHOSPHOR_CONTROL_BUILD_SHARED)
+    set_target_properties(PhosphorControlTest PROPERTIES
+        VERSION ${PHOSPHORCONTROL_VERSION}
+        SOVERSION 0
+    )
+endif()
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # QML Module — org.phosphor.control (STATIC, IN-TREE LINKABLE ONLY)
 #
-# The C++ library above intentionally avoids Qt6::Qml/Quick so non-QML
-# consumers (e.g. headless tests) stay light. The QML module target
+# The C++ library above links Qt6::Qml only for the registration macros
+# its headers carry, and avoids Qt6::Quick, so non-QML consumers (e.g.
+# headless tests) stay light. The QML module target
 # below re-compiles the same public C++ sources so qmltyperegistrar
 # sees the QML_NAMED_ELEMENT markers and emits the type registrations
 # into the org.phosphor.control module — no separate foreigntypes
@@ -290,11 +328,11 @@ target_compile_definitions(PhosphorControl PRIVATE
 # Out-of-tree consumers must either:
 #   * Add this directory as a git submodule and consume via add_subdirectory,
 #     OR
-#   * Wait for the SHARED-variant install path (see the phosphor-animation
-#     CMakeLists.txt PHOSPHOR_ANIMATION_QML_INSTALL pattern for the
-#     reference implementation: a parallel `PhosphorControlQmlShared`
-#     target whose plugin .so + qmldir + qmltypes are installed under
-#     `${KDE_INSTALL_QMLDIR}/org/phosphor/control/`).
+#   * Configure with -DPHOSPHOR_CONTROL_QML_INSTALL=ON, which builds the
+#     parallel SHARED `PhosphorControlQmlShared` target and installs its
+#     plugin .so + qmldir + qmltypes under
+#     `${KDE_INSTALL_QMLDIR}/org/phosphor/control/` (the same pattern as
+#     phosphor-animation's PHOSPHOR_ANIMATION_QML_INSTALL).
 #
 # The SHARED variant (PhosphorControlQmlShared, further down) is opt-in
 # through PHOSPHOR_CONTROL_QML_INSTALL, off by default because every
@@ -317,6 +355,7 @@ set(phosphorcontrol_qml_FILES
     qml/PageLoadingIndicator.qml
     qml/DiscardChangesDialog.qml
     qml/AboutPageShell.qml
+    qml/FacetModulePage.qml
 )
 
 # JS helpers shared by the QML chrome — kept separate from QML_FILES
@@ -394,7 +433,7 @@ target_link_libraries(PhosphorControlQml
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # The STATIC PhosphorControlQml target above is fine for in-tree
-# consumers (Phosphor + examples/minimal) — they link it directly
+# consumers — they link it directly
 # and Qt's plugin registration runs at link time. Out-of-tree
 # consumers using `find_package(PhosphorControl)` get the C++
 # target via the export set, but cannot consume STATIC QML modules:
@@ -408,22 +447,6 @@ target_link_libraries(PhosphorControlQml
 option(PHOSPHOR_CONTROL_QML_INSTALL
     "Also build a SHARED variant of org.phosphor.control and install it"
     OFF)
-
-# Ordering invariant: the function must be defined BEFORE the
-# cmake_language(DEFER CALL ...) inside the if-block below schedules it.
-# DEFER captures the function name now but resolves the body at end-of-
-# directory; if the function were declared after the if(), CMake would
-# error with "Function _phosphor_control_apply_plugin_rpath not
-# found" because the deferred call runs after the if() block has
-# already evaluated.
-function(_phosphor_control_apply_plugin_rpath plugin_target)
-    if(NOT TARGET ${plugin_target})
-        message(WARNING "phosphor-control: plugin target ${plugin_target} not found at install-rpath set time"
-                        " — packaging may need LD_LIBRARY_PATH for the QML module directory.")
-        return()
-    endif()
-    set_target_properties(${plugin_target} PROPERTIES INSTALL_RPATH "$ORIGIN")
-endfunction()
 
 if(PHOSPHOR_CONTROL_QML_INSTALL)
     qt_add_qml_module(PhosphorControlQmlShared
@@ -481,15 +504,10 @@ if(PHOSPHOR_CONTROL_QML_INSTALL)
     # install side-by-side in the QML module directory, which is not on
     # the linker's default search path. $ORIGIN on the plugin's
     # INSTALL_RPATH resolves the sibling library at runtime and during
-    # dpkg-shlibdeps packaging scans.
-    #
-    # Defer the rpath set with cmake_language(DEFER) — Qt creates the
-    # plugin target via qt_finalize_target() deferred to end of dir
-    # scope on some 6.6.x configurations, so a direct set_target_properties
-    # call here can race the target's actual creation. The DEFER guard +
-    # TARGET check covers every supported Qt 6.6+ generator path.
-    cmake_language(DEFER CALL _phosphor_control_apply_plugin_rpath
-        ${_phosphor_control_qml_shared_plugin_target})
+    # dpkg-shlibdeps packaging scans. qt_add_qml_module creates the
+    # plugin target before it returns on every Qt this library supports,
+    # so it can be set here directly.
+    set_target_properties(${_phosphor_control_qml_shared_plugin_target} PROPERTIES INSTALL_RPATH "$ORIGIN")
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -520,7 +538,7 @@ endif()
 # hoisted include(GNUInstallDirs) block — no per-section fallback
 # include needed here.
 
-install(TARGETS PhosphorControl
+install(TARGETS PhosphorControl PhosphorControlTest
     EXPORT PhosphorControlTargets
     LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${KDE_INSTALL_LIBDIR}
@@ -561,7 +579,9 @@ install(DIRECTORY include/PhosphorControl/
     FILES_MATCHING PATTERN "*.h"
 )
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/phosphorcontrol_export.h
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/phosphorcontrol_export.h
+        ${CMAKE_CURRENT_BINARY_DIR}/phosphorcontroltest_export.h
     DESTINATION ${KDE_INSTALL_INCLUDEDIR}/PhosphorControl
 )
 
@@ -586,21 +606,11 @@ if(PHOSPHOR_CONTROL_QML_INSTALL)
         LIBRARY DESTINATION ${_phosphor_control_qml_install_dir}
         ARCHIVE DESTINATION ${_phosphor_control_qml_install_dir}
     )
-    # The plugin target is created lazily by Qt's qt_finalize_target()
-    # finalizer — on some Qt 6.6.x configurations it isn't realised at
-    # the point this install() runs, in which case the variable still
-    # holds the expected name but `install(TARGETS ...)` would error
-    # out with "given target ... which does not exist". Gate on TARGET
-    # existence so the lib install succeeds even if the plugin target
-    # hasn't materialised (the rpath helper above logs a WARNING in
-    # the same condition, so the failure mode is visible).
-    if(TARGET ${_phosphor_control_qml_shared_plugin_target})
-        install(TARGETS ${_phosphor_control_qml_shared_plugin_target}
-            RUNTIME DESTINATION ${_phosphor_control_qml_install_dir}
-            LIBRARY DESTINATION ${_phosphor_control_qml_install_dir}
-            ARCHIVE DESTINATION ${_phosphor_control_qml_install_dir}
-        )
-    endif()
+    install(TARGETS ${_phosphor_control_qml_shared_plugin_target}
+        RUNTIME DESTINATION ${_phosphor_control_qml_install_dir}
+        LIBRARY DESTINATION ${_phosphor_control_qml_install_dir}
+        ARCHIVE DESTINATION ${_phosphor_control_qml_install_dir}
+    )
 
     install(FILES
             ${CMAKE_BINARY_DIR}/qml_install/org/phosphor/control/qmldir
@@ -613,6 +623,12 @@ endif()
 # Tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
-    add_subdirectory(tests)
+# enable_testing() here too, like the sibling libraries: a parent project
+# that vendors this one with BUILD_TESTING on but never calls it would
+# otherwise build the tests and register none of them.
+if(BUILD_TESTING)
+    enable_testing()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
+        add_subdirectory(tests)
+    endif()
 endif()

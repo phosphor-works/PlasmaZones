@@ -30,7 +30,8 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * Navigation modes:
  *
  *   - Drill-down parents (entry has children, not collapsible) — taps
- *     replace the list with the parent's children + a Back button.
+ *     replace the list with the parent's children + a Back button, and
+ *     also open the parent's own page when it has one.
  *   - Inline-collapsible categories (entry has children, isCollapsible) —
  *     accordion headers; tapping toggles children. Toggling animates
  *     rows in/out via ListView add/remove Transitions.
@@ -111,7 +112,7 @@ ColumnLayout {
      *  `currentPageId`, so all three read it from here. */
     readonly property string _dividerPrefix: rowBuilder.dividerPrefix()
     /** When true the sidebar renders the visible page tree as ONE flat
-     *  list in registration order, with no drill-downs. Collapsible
+     *  list in sibling order, with no drill-downs. Collapsible
      *  category headers dissolve to depth 0; a no-QML drill parent with
      *  two or more navigable descendants stays as an expandable header
      *  row with its subtree indented one step under it (see SidebarRows'
@@ -130,7 +131,9 @@ ColumnLayout {
      *  header that no longer shows. Consulted only while `flattenTree`
      *  is true. */
     property var flatTitleOverrides: ({})
-    /** Bumped on pageRegistered / visibleSetChanged. Bindings that read the
+    /** Bumped on pageRegistered / visibleSetChanged (PageRegistry::bindPage emits
+     *  the latter when a page gains or loses its QML, the only part of a bind
+     *  the rail shows). Bindings that read the
      *  registry through a Q_INVOKABLE (which registers no dependency of its
      *  own) touch this so they re-evaluate when the catalogue or the visible
      *  set changes. `_refreshModel` covers the ListModel; this covers

@@ -7,11 +7,14 @@
 #include "PhosphorControl/PageController.h"
 #include "PhosphorControl/StagingDomain.h"
 
+#include <QThread>
+
+#include <algorithm>
+
 namespace PhosphorControl {
 
-FacetContext::FacetContext(FacetHost* host, const FacetModuleMetadata& metadata)
-    : m_host(host)
-    , m_metadata(metadata)
+FacetContext::FacetContext(const FacetModuleMetadata& metadata)
+    : m_metadata(metadata)
 {
 }
 
@@ -50,26 +53,58 @@ bool FacetContext::registerPage(const QString& localPageId, PageController* cont
             QStringLiteral("page %1's controller has id %2, expected %3").arg(localPageId, controller->id(), scoped));
         return false;
     }
-    if (!m_host->bindPage(*m_host->m_modules.value(m_metadata.id), scoped, controller, qmlSource)) {
-        m_errors.append(QStringLiteral("page %1 could not take its place in the sidebar").arg(localPageId));
+    if (controller->thread() != QThread::currentThread()) {
+        m_errors.append(QStringLiteral("page %1's controller lives in another thread").arg(localPageId));
         return false;
     }
+    if (qmlSource.isEmpty() || !qmlSource.isValid()) {
+        // A page with no QML would read as a category to the registry: no
+        // row, no search result and an empty page body.
+        m_errors.append(QStringLiteral("page %1 has no valid QML source").arg(localPageId));
+        return false;
+    }
+    if (qmlSource.isRelative()) {
+        // The page host would resolve it against its own location, not the
+        // module's, and load nothing.
+        m_errors.append(
+            QStringLiteral("page %1's QML source %2 is not an absolute URL").arg(localPageId, qmlSource.toString()));
+        return false;
+    }
+    const bool controllerTaken = std::any_of(m_pages.cbegin(), m_pages.cend(), [controller](const auto& page) {
+        return page.controller.data() == controller;
+    });
+    if (controllerTaken || m_domains.contains(QPointer<StagingDomain>(controller))) {
+        m_errors.append(QStringLiteral("page %1's controller is already registered").arg(localPageId));
+        return false;
+    }
+    m_pages.append(PageRegistration{localPageId, controller, qmlSource});
     m_registeredPages.insert(localPageId);
     return true;
 }
 
-void FacetContext::registerDomain(StagingDomain* domain)
+bool FacetContext::registerDomain(StagingDomain* domain)
 {
     if (!domain) {
         m_errors.append(QStringLiteral("registered a null domain"));
-        return;
+        return false;
     }
     if (m_domains.contains(QPointer<StagingDomain>(domain))) {
         m_errors.append(QStringLiteral("registered a domain twice"));
-        return;
+        return false;
     }
-    m_host->addDomain(domain);
+    const bool isPage = std::any_of(m_pages.cbegin(), m_pages.cend(), [domain](const auto& page) {
+        return page.controller.data() == domain;
+    });
+    if (isPage) {
+        m_errors.append(QStringLiteral("registered a page controller as a domain"));
+        return false;
+    }
+    if (domain->thread() != QThread::currentThread()) {
+        m_errors.append(QStringLiteral("registered a domain that lives in another thread"));
+        return false;
+    }
     m_domains.append(domain);
+    return true;
 }
 
 } // namespace PhosphorControl

@@ -277,6 +277,10 @@ rm -rf %{buildroot}%{_includedir}/Phosphor*
 rm -rf %{buildroot}%{_libdir}/cmake/Phosphor*
 rm -f  %{buildroot}%{_libdir}/libPhosphor*.so
 rm -f  %{buildroot}%{_libdir}/libplasmazones*.so
+# PhosphorControlTest is FacetTestHost, which a Facet module's CI links
+# through the headers and CMake config removed above. Nothing in the
+# package uses it.
+rm -f  %{buildroot}%{_libdir}/libPhosphorControlTest.so.*
 
 %post
 # Register newly installed shared libraries with the dynamic linker.

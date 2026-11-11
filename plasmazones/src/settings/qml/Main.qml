@@ -546,7 +546,14 @@ PhosphorUi.SettingsAppWindow {
         // there, not as scopes).
         if (window.sidebar.flattenTree)
             return;
-        const chain = settingsController.app.parentChainFor(settingsController.activePage);
+        // A plain array, so the active page can be appended below.
+        const chain = Array.from(settingsController.app.parentChainFor(settingsController.activePage));
+        // A drill parent with a page of its own is a scope as well as a page:
+        // its row opens the page and drills in. Restore that scope, rather
+        // than the one around it.
+        const active = settingsController.app.registry.pageData(settingsController.activePage);
+        if (active && active.id && active.isCollapsible !== true && active.hasQmlSource && settingsController.app.registry.childPagesData(active.id).length > 0)
+            chain.push(active.id);
         for (let i = chain.length - 1; i >= 0; --i) {
             const entry = settingsController.app.registry.pageData(chain[i]);
             if (entry && entry.id && entry.isCollapsible !== true) {
