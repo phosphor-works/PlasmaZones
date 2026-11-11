@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // phosphor-registry-plugin-demo entry QML. Mirrors the in-process
 // demo's bar but adds a Reload button that asks the controller to
-// trigger an immediate rescan of the plugin root. Also displays the
-// active plugin root so the hot-reload exercise has visible context.
+// rescan the plugin directories now. Also displays the directories
+// searched and any plugin the catalog refused, so the live-reload
+// exercise has visible context.
 
 import Phosphor.RegistryPluginDemo
 import Phosphor.Theme
@@ -26,7 +27,7 @@ ApplicationWindow {
         spacing: Tokens.spacing_l
 
         Text {
-            text: qsTr("Phosphor.Registry — plugin demo + hot-reload")
+            text: qsTr("Phosphor.Registry plugin demo with live reload")
             color: Theme.on_surface
             font.pixelSize: Tokens.font_size_display_s
             font.family: Tokens.font_family
@@ -35,7 +36,7 @@ ApplicationWindow {
 
         Text {
             Layout.fillWidth: true
-            text: qsTr("Two built-in widgets (clock, colorsquare) plus the cpu-meter widget loaded as a separate .so from the plugin root below.")
+            text: qsTr("Two built-in widgets (clock, colorsquare) plus the cpu-meter widget loaded as a separate plugin from the directories below.")
             color: Theme.on_surface_variant
             font.pixelSize: Tokens.font_size_body_m
             font.family: Tokens.font_family
@@ -63,7 +64,7 @@ ApplicationWindow {
                 // a JS-owned Item delegate; the C++ factory parents
                 // a real widget under the slot in Component.onCompleted.
                 // When demoController.factoryIds changes (register /
-                // unregister / plugin hot-reload), the Repeater
+                // unregister / plugin added or removed), the Repeater
                 // destroys the old delegates; QObject's parent-cascade
                 // takes the C++-owned widgets with them. This avoids
                 // the "destroy() on an indestructible object" error
@@ -130,21 +131,22 @@ ApplicationWindow {
                     onClicked: demoController.reloadPlugins()
                 }
             }
+        }
 
-            Text {
-                Layout.fillWidth: true
-                // demoController is a context property and may not be
-                // bound on every QML evaluation path (e.g., if a future
-                // refactor moves the binding into an inner component
-                // that evaluates before the root context is wired).
-                // Guard with `?:` so the binding can never trip a
-                // null-deref TypeError.
-                text: qsTr("Plugin root: %1").arg(demoController ? demoController.pluginRoot : "")
-                color: Theme.on_surface_variant
-                font.pixelSize: Tokens.font_size_body_s
-                font.family: Tokens.font_family
-                elide: Text.ElideLeft
-            }
+        Text {
+            Layout.fillWidth: true
+            // demoController is a context property and may not be
+            // bound on every QML evaluation path (e.g., if a future
+            // refactor moves the binding into an inner component
+            // that evaluates before the root context is wired).
+            // Guard with `?:` so the binding can never trip a
+            // null-deref TypeError. One directory per line, highest
+            // priority first, wrapped rather than elided so none is hidden.
+            text: qsTr("Searched, in this order:\n%1").arg(demoController ? demoController.searchedDirectories.join("\n") : "")
+            color: Theme.on_surface_variant
+            font.pixelSize: Tokens.font_size_body_s
+            font.family: Tokens.font_family
+            wrapMode: Text.WrapAnywhere
         }
 
         Text {
@@ -153,6 +155,16 @@ ApplicationWindow {
             color: Theme.on_surface_variant
             font.pixelSize: Tokens.font_size_body_s
             font.family: Tokens.font_family
+        }
+
+        Text {
+            Layout.fillWidth: true
+            visible: demoController ? demoController.refusedPlugins.length > 0 : false
+            text: qsTr("Refused plugins:\n%1").arg(demoController ? demoController.refusedPlugins.join("\n") : "")
+            color: Theme.error
+            font.pixelSize: Tokens.font_size_body_s
+            font.family: Tokens.font_family
+            wrapMode: Text.WrapAnywhere
         }
 
         Item {

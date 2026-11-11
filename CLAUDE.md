@@ -39,7 +39,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
   authoritative one.
 
 ## License
-- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt, which in practice means `plasmazones/data/**/*.json`, the six `phosphor-libs/data/schemas/*.json` files, and the `manifest.json.in` fixtures under `phosphor-libs/libs/phosphor-registry/tests/` — never add a header to those, it makes the file invalid.
+- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt, which in practice means `plasmazones/data/**/*.json`, the six `phosphor-libs/data/schemas/*.json` files, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
 - License identifier depends on the tree:
   - **App tiers** (`plasmazones/**` except its `data/` trees, `phosphor-shell/**`, `phosphor-shell-libs/examples/**`, `scripts/**`): `GPL-3.0-or-later`
   - **Reusable libraries, including their own tests** (`phosphor-libs/libs/phosphor-*/**` and `phosphor-shell-libs/libs/phosphor-*/**`, which subsumes each library's `tests/`): `LGPL-2.1-or-later`

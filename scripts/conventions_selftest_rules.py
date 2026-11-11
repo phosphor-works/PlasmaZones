@@ -148,11 +148,15 @@ def _spdx_suffix_failures(partition_readable) -> list[str]:
         # one.
         exempt = "plasmazones/data/probe.json"
         (d / exempt).write_text("{}\n", encoding="utf-8")
+        # The second arm: a plugin's embedded metadata.json, anywhere in the tree.
+        exempt_metadata = "plugins/probe/metadata.json"
+        (d / exempt_metadata).parent.mkdir(parents=True)
+        (d / exempt_metadata).write_text("{}\n", encoding="utf-8")
         saved_repo, saved_suffixes = g["REPO"], g["CODE_SUFFIXES"]
         g["REPO"] = d
         g["CODE_SUFFIXES"] = saved_suffixes | {".json"}
         try:
-            reported = {v.path for v in rule_spdx([*headerless, good, idless, copyless, toodeep, deep_ok, exempt])}
+            reported = {v.path for v in rule_spdx([*headerless, good, idless, copyless, toodeep, deep_ok, exempt, exempt_metadata])}
         finally:
             g["REPO"], g["CODE_SUFFIXES"] = saved_repo, saved_suffixes
         for name in headerless:
@@ -170,8 +174,9 @@ def _spdx_suffix_failures(partition_readable) -> list[str]:
         if deep_ok in reported:
             bad.append(f"rule_spdx reported a header ending on line {g['SPDX_HEAD_LINES']}, so the window has "
                        f"narrowed and a correct file is now a finding")
-        if exempt in reported:
-            bad.append(f"rule_spdx reported {exempt}, which SPDX_EXEMPT covers by format")
+        for name in (exempt, exempt_metadata):
+            if name in reported:
+                bad.append(f"rule_spdx reported {name}, which SPDX_EXEMPT covers by format")
     return bad
 
 

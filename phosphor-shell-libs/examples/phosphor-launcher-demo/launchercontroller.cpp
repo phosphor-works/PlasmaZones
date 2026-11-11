@@ -63,8 +63,9 @@ LauncherController::LauncherController(QObject* parent)
     // Register the built-ins as ILauncherProviderFactory instances, the
     // same seam a plugin would come through. Capabilities are advisory
     // until the Phase 5 runtime, declared now so the built-ins exercise
-    // the manifest surface. The windows provider is not registered here:
-    // it needs the shell's Toplevels model, which the shell owns.
+    // the IFactoryBase::capabilities() surface a plugin factory will. The
+    // windows provider is not registered here: it needs the shell's
+    // Toplevels model, which the shell owns.
     const auto reg = [this](const QString& id, const QString& name, const QString& capability,
                             FunctionProviderFactory::Create create) {
         m_registry.registerFactory(
