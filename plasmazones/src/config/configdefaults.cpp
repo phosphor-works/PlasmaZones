@@ -130,8 +130,9 @@ ConfigDefaults::RenderingBootConfig ConfigDefaults::readRenderingConfigFromDisk(
 {
     // Lightweight read — only needs the Rendering group, so avoid constructing
     // a full backend (which parses the entire file and tracks group state), and
-    // parse the file once for both keys. This runs before QCoreApplication
-    // exists on the daemon startup path.
+    // parse the file once for both keys. The daemon calls it twice: for the
+    // GPU pin before QGuiApplication exists, and for the backend after the
+    // config migration.
     RenderingBootConfig out{renderingBackend(), gpuDevice()};
     bool backendFound = false;
     const QString jsonPath = configFilePath();
@@ -154,10 +155,14 @@ ConfigDefaults::RenderingBootConfig ConfigDefaults::readRenderingConfigFromDisk(
     }
 
     // Backend fallback: read from the legacy INI when the JSON is absent,
-    // unparseable, or doesn't carry the key — in practice the pre-migration
-    // window (this function is called very early, before ensureJsonConfig(),
-    // and a successful migration renames the INI away). No INI fallback for
-    // the GPU pin: Rendering.Gpu postdates the v1 INI format.
+    // unparseable, or doesn't carry the key, which in practice means a start
+    // whose migration failed (a successful migration renames the INI away).
+    // Not a v1 config.json: it holds the backend as
+    // Rendering.RenderingBackend, which is read neither here nor above, so the
+    // daemon reads the backend only after ConfigMigration::ensureJsonConfig()
+    // has renamed the key. The GPU pin it reads before the migration, which
+    // is safe because Rendering.Gpu postdates the v1 formats and no migration
+    // step moves it. For the same reason there is no INI fallback for it.
     if (!backendFound) {
         const QString iniPath = legacyConfigFilePath();
         if (QFile::exists(iniPath)) {

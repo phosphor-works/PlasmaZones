@@ -25,9 +25,10 @@ ln -sfn ../../../../plasmazones/data/schemas $T/plasmazones/data/schemas
 for f in animations overlays surface; do ln -sfn ../../../../../plasmazones/data/$f/shared $T/plasmazones/data/$f/shared; done
 ```
 
-Two schema roots, not one: the shader, animation, surface, pointer, curve and layout
-schemas live in `phosphor-libs/data/schemas/`, while `plasmazones/data/schemas/` holds only the
-scrolling-template and whatsnew ones. `validate-json-schemas.py` checks every mapped
+Two schema roots, not one: the libraries' schemas, the shader-family metadata and curve
+schemas among them, live in `phosphor-libs/data/schemas/`, while `plasmazones/data/schemas/`
+holds the PlasmaZones-only ones. `SCHEMA_MAP` in `scripts/validate-json-schemas.py` names
+which root each schema is in. `validate-json-schemas.py` checks every mapped
 schema exists before it filters to the files you named, so a single missing root fails the
 gate outright rather than skipping.
 

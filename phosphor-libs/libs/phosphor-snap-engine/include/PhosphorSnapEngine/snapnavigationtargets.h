@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorsnapengine_export.h>
+#include "phosphorsnapengine_export.h"
 #include <PhosphorEngine/IWindowTrackingService.h>
 #include <PhosphorProtocol/NavigationTypes.h>
 

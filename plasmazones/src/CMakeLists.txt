@@ -88,6 +88,9 @@ set(plasmazones_core_SRCS
     # layersurface moved to PhosphorWayland; shaderregistry/params moved to PhosphorShaders
     core/platform/singleinstanceservice.cpp
     core/platform/singleinstanceservice.h
+    # Header-only: the environment the daemon's spawn sites hand the editor and
+    # the settings app.
+    core/platform/childprocessenvironment.h
     # screen_resolver.{h,cpp} and screenmanager.{h,cpp} + screenmanager/
     # lifted to phosphor-libs/libs/phosphor-screens. Daemon consumers take
     # PhosphorScreens::ScreenManager* via constructor injection -
@@ -667,6 +670,9 @@ target_link_libraries(plasmazonesd
         # phosphor-shell, and the settings app's decoration preview) all name it
         # explicitly already.
         PhosphorSurface::PhosphorSurface  # SurfaceChainCompose / registry / DecorationSupportedPaths
+        # Named directly for the same reason: daemon/main.cpp includes
+        # <PhosphorConfig/HostDirectory.h> and calls HostDirectory::writeRecord.
+        PhosphorConfig::PhosphorConfig  # HostDirectory (the placement host record)
         PhosphorServiceIdle::PhosphorServiceIdle  # ext-idle-notify-v1; the daemon owns session-idle detection and pushes it to the KWin effect (a compositor SERVES that protocol, it cannot consume it)
         PhosphorOverlay::PhosphorOverlay  # per-screen shell-host + slot mechanism (Phase 2 onward)
         # Frozen-snapshot per-screen mode + disable/lock cascade façade.

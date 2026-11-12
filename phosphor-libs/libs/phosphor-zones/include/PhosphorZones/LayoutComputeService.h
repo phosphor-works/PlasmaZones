@@ -4,7 +4,7 @@
 #pragma once
 
 #include <PhosphorZones/LayoutComputeTypes.h>
-#include <phosphorzones_export.h>
+#include "phosphorzones_export.h"
 #include <QHash>
 #include <QObject>
 #include <QPointer>

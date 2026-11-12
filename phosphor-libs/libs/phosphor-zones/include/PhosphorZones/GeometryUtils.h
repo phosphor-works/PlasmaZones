@@ -4,7 +4,7 @@
 #pragma once
 
 #include <PhosphorGeometry/GeometryUtils.h>
-#include <phosphorzones_export.h>
+#include "phosphorzones_export.h"
 
 #include <PhosphorLayoutApi/EdgeGaps.h>
 

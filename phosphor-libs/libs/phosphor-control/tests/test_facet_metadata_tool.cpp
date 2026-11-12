@@ -39,7 +39,8 @@ private Q_SLOTS:
     {
         const QString source =
             write(QStringLiteral("m.json"),
-                  "{ \"Id\": \"m\", \"Name\": \"Say \\\"hi\\\" \\\\ now\", \"Keywords\": [\"k\", \"k\"] }");
+                  "{ \"Id\": \"m\", \"Name\": \"Say \\\"hi\\\" \\\\ now\", \"Keywords\": [\"k\", \"k\"],"
+                  " \"Pages\": [ { \"Id\": \"p\", \"Name\": \"P\" } ] }");
         const QString out = m_dir->filePath(QStringLiteral("strings.cpp"));
         QCOMPARE(run({QStringLiteral("strings"), source, out}), 0);
         const QString text = read(out);
@@ -52,7 +53,8 @@ private Q_SLOTS:
     void localizesFromCatalogs()
     {
         const QString source =
-            write(QStringLiteral("m.json"), R"({ "Id": "m", "Name": "Hello", "Keywords": ["one", "two"] })");
+            write(QStringLiteral("m.json"), R"({ "Id": "m", "Name": "Hello", "Keywords": ["one", "two"],
+                                                     "Pages": [ { "Id": "p", "Name": "P" } ] })");
         const QString catalog = write(QStringLiteral("m_fr.ts"), R"(<?xml version="1.0" encoding="utf-8"?>
 <TS version="2.1" language="fr"><context><name>FacetModule</name>
 <message><source>Hello</source><translation>Bonjour</translation></message>
@@ -69,7 +71,8 @@ private Q_SLOTS:
 
     void refusesACatalogWithoutALanguage()
     {
-        const QString source = write(QStringLiteral("m.json"), R"({ "Id": "m", "Name": "Hello" })");
+        const QString source = write(QStringLiteral("m.json"),
+                                     R"({ "Id": "m", "Name": "Hello", "Pages": [ { "Id": "p", "Name": "P" } ] })");
         const QString catalog = write(QStringLiteral("x.ts"), R"(<TS version="2.1"></TS>)");
         QString errors;
         QCOMPARE(run({QStringLiteral("localize"), source, m_dir->filePath(QStringLiteral("o.json")), catalog}, &errors),

@@ -20,15 +20,18 @@ namespace PhosphorRegistry {
 /// Loads every bar-widget plugin into a Registry<IBarWidgetFactory> and keeps
 /// it in step with the plugins on disk.
 ///
-/// Discovery, metadata checks, overrides and hot reload come from a
-/// PluginCatalog over the `bar-widget` seam (see barWidgetSeam). A plugin's
-/// root object implements IBarWidgetPlugin. Unlike Facet modules, which load
-/// lazily, every bar-widget plugin is loaded as soon as it is found, because
-/// the bar needs every factory to lay itself out.
+/// Discovery, vetting, overrides and live reload come from a PluginCatalog
+/// over the `bar-widget` seam (see barWidgetSeam). A plugin's root object
+/// implements IBarWidgetPlugin. Every bar-widget plugin is loaded as soon as
+/// it comes on offer, because the bar needs every factory to lay itself out.
+/// A plugin whose id the registry already holds is not loaded at all.
 ///
-/// A plugin that disappears from disk is unregistered and pluginUnloaded is
-/// emitted. Its library stays mapped (PluginCatalog never unloads), so widgets
-/// it already created keep working until their parents delete them.
+/// A plugin the catalog withdraws (its file is gone or now refused) is
+/// unregistered and pluginUnloaded is emitted. Its library stays mapped
+/// (PluginCatalog never unloads), so widgets it already created keep working
+/// until their parents delete them. A plugin whose library failed to load is
+/// tried again once its file changes. One that loaded but handed out no
+/// usable factory keeps its loaded code until the next start.
 ///
 /// The Registry must outlive the loader. GUI thread only.
 class PHOSPHORREGISTRY_EXPORT PluginLoader : public QObject
@@ -48,9 +51,11 @@ public:
     Q_DISABLE_COPY_MOVE(PluginLoader)
 
     /// The first scan: find, load and register every plugin, and arm the
-    /// watch. A second call rescans.
+    /// watch. It runs synchronously, so connect to the registry first to see
+    /// these registrations. A second call rescans, like rescanNow.
     void scanAndLoad();
-    /// Rescan now instead of waiting for the watch.
+    /// Rescan now instead of waiting for the watch. Called from a slot that
+    /// a running scan reached, the rescan runs once that scan has finished.
     void rescanNow();
 
     /// The ids of the plugins currently registered, sorted.
@@ -64,12 +69,14 @@ Q_SIGNALS:
     void rescanCompleted();
     /// A plugin's factory was registered.
     void pluginLoaded(const QString& id);
-    /// A plugin's factory was unregistered because its file is gone.
+    /// The catalog withdrew a plugin this loader had registered. Its factory
+    /// is unregistered, unless another owner has since replaced it.
     void pluginUnloaded(const QString& id);
 
 private:
     void loadPlugin(const QString& id);
     void unloadPlugin(const QString& id);
+    void unregisterIfOurs(const QString& id, const std::shared_ptr<IBarWidgetFactory>& ours);
 
     /// Non-owning, never null after construction.
     Registry<IBarWidgetFactory>* m_registry = nullptr;

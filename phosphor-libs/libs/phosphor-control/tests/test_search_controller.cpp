@@ -837,6 +837,41 @@ private Q_SLOTS:
         QCOMPARE(modeForTitle(sc, QStringLiteral("Later")), static_cast<int>(SearchEntry::Mode::AdvancedOnly));
     }
 
+    void equalScoresListInTreeOrder()
+    {
+        // q is registered between p and p's child, so registration order
+        // and the rail's tree order disagree. Three equally scored pages
+        // must list in the rail's order.
+        ApplicationController app;
+        app.registerPage(new StubPage(QStringLiteral("p")), {}, QStringLiteral("Twin"),
+                         QUrl(QStringLiteral("qrc:/p.qml")));
+        app.registerPage(new StubPage(QStringLiteral("q")), {}, QStringLiteral("Twin"),
+                         QUrl(QStringLiteral("qrc:/q.qml")));
+        app.registerPage(new StubPage(QStringLiteral("p/x")), QStringLiteral("p"), QStringLiteral("Twin"),
+                         QUrl(QStringLiteral("qrc:/x.qml")));
+        SearchController sc(&app);
+        sc.setQuery(QStringLiteral("twin"));
+        QCOMPARE(resultPageIds(sc), (QStringList{QStringLiteral("p"), QStringLiteral("p/x"), QStringLiteral("q")}));
+    }
+
+    void aBoundPageBecomesATarget()
+    {
+        // A page registered without QML is not a search target. Binding it
+        // to QML makes it one, without a new registration: the bind
+        // announces the change of the visible set, which rebuilds the
+        // index.
+        ApplicationController app;
+        app.registerPage(new StubPage(QStringLiteral("late")), {}, QStringLiteral("Latecomer"), QUrl());
+        SearchController sc(&app);
+        sc.setQuery(QStringLiteral("latecomer"));
+        QVERIFY(resultPageIds(sc).isEmpty());
+        QVERIFY(app.bindPage(QStringLiteral("late"), new StubPage(QStringLiteral("late")),
+                             QUrl(QStringLiteral("qrc:/late.qml"))));
+        sc.setQuery(QString());
+        sc.setQuery(QStringLiteral("latecomer"));
+        QCOMPARE(resultPageIds(sc), QStringList{QStringLiteral("late")});
+    }
+
 private:
     std::unique_ptr<ApplicationController> m_app;
 };

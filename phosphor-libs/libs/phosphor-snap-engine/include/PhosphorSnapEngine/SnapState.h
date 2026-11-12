@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorsnapengine_export.h>
+#include "phosphorsnapengine_export.h"
 #include <PhosphorEngine/IPlacementState.h>
 #include <PhosphorEngine/IWindowRegistry.h>
 

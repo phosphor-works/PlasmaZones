@@ -218,6 +218,15 @@ void IpcRouter::broadcastEvent(const QString& targetName, const QString& signalN
 bool IpcRouter::sendEvent(quint64 connectionId, const QString& targetName, const QString& signalName,
                           const QJsonArray& args)
 {
+    return sendEvent(connectionId, targetName, signalName, args, nullptr);
+}
+
+bool IpcRouter::sendEvent(quint64 connectionId, const QString& targetName, const QString& signalName,
+                          const QJsonArray& args, qint64* lineBytes)
+{
+    if (lineBytes) {
+        *lineBytes = 0;
+    }
     // Targets that defer their replies finish work on other threads; an
     // event sent from one would race the router's sockets and maps.
     const bool onRouterThread = thread() == QThread::currentThread();
@@ -246,7 +255,11 @@ bool IpcRouter::sendEvent(quint64 connectionId, const QString& targetName, const
     }
     // No flush(), as in broadcastEvent: the write goes out from the event
     // loop, in order with everything else written to the socket.
-    sock->write(writeLine(buildEvent(targetName, signalName, args)));
+    const QByteArray line = writeLine(buildEvent(targetName, signalName, args));
+    sock->write(line);
+    if (lineBytes) {
+        *lineBytes = line.size();
+    }
     return true;
 }
 

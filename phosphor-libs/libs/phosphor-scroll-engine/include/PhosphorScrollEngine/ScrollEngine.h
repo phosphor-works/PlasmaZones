@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorscrollengine_export.h>
+#include "phosphorscrollengine_export.h"
 
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorEngine/PerScreenStates.h>

@@ -3,8 +3,9 @@
 #
 # phosphor-registry-plugin-demo — driver for PhosphorRegistry's
 # plugin loader path. Built-in widgets plus a third widget loaded
-# from a separate .so. Demonstrates the plugin ABI shape +
-# hot-reload on directory change.
+# from a separate .so. Demonstrates the Qt plugin shape
+# (IBarWidgetPlugin) and the live reload of plugins added or removed
+# while it runs.
 
 find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
 
@@ -12,8 +13,9 @@ if(COMMAND qt_policy)
     qt_policy(SET QTP0001 NEW)
 endif()
 
-# Build the CPU-meter plugin first. It lands in the bar-widget directory
-# of the per-build plugin root the demo searches by default.
+# The per-build plugin root. The CPU-meter plugin builds into its
+# bar-widget directory, and the demo searches that directory first.
+set(PHOSPHOR_REGISTRY_PLUGIN_DEMO_ROOT ${CMAKE_BINARY_DIR}/registry-plugin-demo-plugins)
 add_subdirectory(plugins/cpu-meter)
 
 # Directory-scope suppression of -Wmissing-include-dirs for the targets
@@ -68,17 +70,13 @@ target_link_libraries(phosphor-registry-plugin-demo
         PhosphorThemeQmlplugin
 )
 
-# Build-tree default plugin root. When the demo runs from ./bin/
-# without --plugin-root, main.cpp falls back to this path so the
-# CPU-meter plugin loads out of the box. CI / dev workflow only;
-# installed deployment still uses the XDG default
-# (${GenericDataLocation}/phosphor/plugins/).
+# The root main.cpp uses when --plugin-root is not given, so the
+# CPU-meter plugin loads out of the box. The demo is never installed.
 target_compile_definitions(phosphor-registry-plugin-demo
     PRIVATE
-        PHOSPHOR_REGISTRY_PLUGIN_DEMO_DEFAULT_ROOT="${CMAKE_BINARY_DIR}/registry-plugin-demo-plugins"
+        PHOSPHOR_REGISTRY_PLUGIN_DEMO_DEFAULT_ROOT="${PHOSPHOR_REGISTRY_PLUGIN_DEMO_ROOT}"
 )
 
-# The CPU-meter plugin must be built before the demo runs (the demo
-# default plugin root won't have it, but CI / dev runs typically use
-# --plugin-root pointing at the build tree).
+# Building the demo builds the CPU-meter plugin, so cpu-meter.so is in the
+# default root's bar-widget directory before the demo runs.
 add_dependencies(phosphor-registry-plugin-demo phosphor_registry_demo_cpu_meter_plugin)

@@ -3,6 +3,8 @@
 // Generated per test plugin variant by tests/CMakeLists.txt.
 #pragma once
 
-#define FAKE_PLUGIN_IID "@FAKE_PLUGIN_IID@"
+#define FAKE_PLUGIN_IID @FAKE_PLUGIN_IID_EXPR@
 #define FAKE_FACTORY_ID "@FAKE_FACTORY_ID@"
 #define FAKE_NULL_FACTORY @FAKE_NULL_FACTORY@
+#define FAKE_NO_INTERFACE @FAKE_NO_INTERFACE@
+#define FAKE_UNRESOLVED_SYMBOL @FAKE_UNRESOLVED_SYMBOL@

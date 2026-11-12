@@ -9,7 +9,8 @@
  * Why this exists: plasmazonesd is Wayland-only. When systemd respawns it
  * during a logout → SDDM handoff (or autostarts it in a session with no live
  * wl_display), Qt's wayland QPA aborts in the QGuiApplication constructor via
- * qFatal() → SIGABRT → core dump. The guard in main() returns 0 early when no
+ * qFatal() → SIGABRT → core dump. The guard in main() exits early with
+ * kExitSessionNotServed (which plasmazones.service does not restart) when no
  * usable Wayland socket exists, turning the crash into a clean exit so
  * Restart=on-failure does not loop.
  *
@@ -23,7 +24,48 @@
 
 #include "daemon/waylandsessioncheck.h"
 
+#include <PhosphorWayland/LayerShellPluginLoader.h>
+
+#include <QByteArray>
+#include <QTemporaryDir>
 #include <QTest>
+
+#include <optional>
+
+namespace {
+
+/// Sets or unsets one environment variable for a scope and puts back what was
+/// there before, so a case cannot leak into the next.
+class ScopedEnv
+{
+public:
+    ScopedEnv(const char* name, std::optional<QByteArray> value)
+        : m_name(name)
+        , m_old(qEnvironmentVariableIsSet(name) ? std::optional<QByteArray>(qgetenv(name)) : std::nullopt)
+    {
+        apply(value);
+    }
+    ~ScopedEnv()
+    {
+        apply(m_old);
+    }
+    ScopedEnv(const ScopedEnv&) = delete;
+    ScopedEnv& operator=(const ScopedEnv&) = delete;
+
+private:
+    void apply(const std::optional<QByteArray>& value)
+    {
+        if (value) {
+            qputenv(m_name, *value);
+        } else {
+            qunsetenv(m_name);
+        }
+    }
+    const char* m_name;
+    std::optional<QByteArray> m_old;
+};
+
+} // namespace
 
 using namespace PlasmaZones;
 
@@ -64,6 +106,41 @@ private Q_SLOTS:
     {
         QVERIFY(resolveWaylandSocketPath(QByteArray(), QByteArray()).isEmpty());
         QVERIFY(resolveWaylandSocketPath("wayland-0", QByteArray()).isEmpty());
+    }
+
+    // The guard above lets a process with only WAYLAND_SOCKET through
+    // (libwayland connects through that fd ahead of any display name), so
+    // the layer-shell plugin must be registered for it too. Without the
+    // WAYLAND_SOCKET arm in registerLayerShellPlugin() nothing here names a
+    // display or a socket, and every overlay came up as an xdg_toplevel.
+    void layerShellPluginRegisteredForWaylandSocketAlone()
+    {
+        QTemporaryDir runtimeDir; // empty: no wayland-0 or wayland-1 socket
+        QVERIFY(runtimeDir.isValid());
+        ScopedEnv integration("QT_WAYLAND_SHELL_INTEGRATION", std::nullopt);
+        ScopedEnv display("WAYLAND_DISPLAY", std::nullopt);
+        ScopedEnv runtime("XDG_RUNTIME_DIR", runtimeDir.path().toLocal8Bit());
+        ScopedEnv socket("WAYLAND_SOCKET", QByteArrayLiteral("3"));
+
+        PhosphorWayland::registerLayerShellPlugin();
+
+        QCOMPARE(qgetenv("QT_WAYLAND_SHELL_INTEGRATION"), QByteArrayLiteral("phosphorwayland"));
+    }
+
+    // And with no connection of any kind it registers nothing, so a headless
+    // process keeps Qt's own choice.
+    void layerShellPluginNotRegisteredWithoutAConnection()
+    {
+        QTemporaryDir runtimeDir;
+        QVERIFY(runtimeDir.isValid());
+        ScopedEnv integration("QT_WAYLAND_SHELL_INTEGRATION", std::nullopt);
+        ScopedEnv display("WAYLAND_DISPLAY", std::nullopt);
+        ScopedEnv runtime("XDG_RUNTIME_DIR", runtimeDir.path().toLocal8Bit());
+        ScopedEnv socket("WAYLAND_SOCKET", std::nullopt);
+
+        PhosphorWayland::registerLayerShellPlugin();
+
+        QVERIFY(!qEnvironmentVariableIsSet("QT_WAYLAND_SHELL_INTEGRATION"));
     }
 };
 

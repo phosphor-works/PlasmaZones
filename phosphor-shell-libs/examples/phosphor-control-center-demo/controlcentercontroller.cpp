@@ -29,8 +29,8 @@ ControlCenterController::ControlCenterController(PhosphorServiceIdle::IdleServic
     : QObject(parent)
 {
     // Capabilities are advisory until the Phase 5 capability runtime lands,
-    // but they are declared now so the built-ins exercise the same manifest
-    // surface a plugin will.
+    // but they are declared now so the built-ins exercise the same
+    // IFactoryBase::capabilities() surface a plugin factory will.
     const auto reg = [this](const QString& id, const QString& name, const QString& type, const QString& capability,
                             const QVariantMap& initialProperties = {}) {
         m_registry.registerFactory(std::make_shared<QmlComponentTileFactory>(id, name, kModule, type, initialProperties,

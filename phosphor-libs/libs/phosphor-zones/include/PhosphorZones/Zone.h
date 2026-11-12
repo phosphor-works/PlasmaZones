@@ -4,7 +4,7 @@
 #pragma once
 
 #include <PhosphorZones/ZoneDefaults.h>
-#include <phosphorzones_export.h>
+#include "phosphorzones_export.h"
 #include <QObject>
 #include <QRect>
 #include <QUuid>

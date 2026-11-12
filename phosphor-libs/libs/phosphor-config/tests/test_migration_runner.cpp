@@ -144,6 +144,41 @@ private Q_SLOTS:
         QVERIFY(!QFile::exists(m_path));
     }
 
+    void runOnFile_whitespaceOnlyFileIsAFreshInstall()
+    {
+        // JsonBackend reads a white-space-only file as an empty document
+        // and does not count it as a failed load. The runner has to agree:
+        // succeed, and leave the file alone exactly as for a missing one,
+        // rather than calling it invalid JSON.
+        const QByteArray blank("  \n\t\n");
+        {
+            QFile f(m_path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QCOMPARE(f.write(blank), qint64(blank.size()));
+        }
+
+        Schema schema;
+        schema.version = 2;
+        schema.migrations = {
+            {1,
+             [](QJsonObject& root) {
+                 root[QStringLiteral("_version")] = 2;
+             }},
+        };
+
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("MigrationRunner")));
+        QVERIFY(MigrationRunner(schema).runOnFile(m_path));
+
+        QFile f(m_path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), blank);
+
+        // The backend's view of the same file, which the runner now matches.
+        JsonBackend backend(m_path);
+        QVERIFY(!backend.loadFailed());
+        QVERIFY(backend.blankFile());
+    }
+
     void customVersionKey()
     {
         Schema schema;

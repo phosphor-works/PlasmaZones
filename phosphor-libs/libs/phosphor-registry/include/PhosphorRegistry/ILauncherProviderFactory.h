@@ -42,11 +42,11 @@ public:
     // error; the surface simply has one provider fewer.
     // ABI NOTE. This signature returned QObject* before the launcher
     // surface existed, and narrowing it to ILauncherProvider* changed the
-    // vtable slot's type without a seam ApiVersion bump. That is safe only
-    // because no plugin implements this interface yet: it has never shipped
-    // in a release, and the one in-tree implementation is rebuilt with the
-    // library. The first external provider makes the version binding, and
-    // any change to this signature after that needs a bump.
+    // vtable slot's type before any external ABI contract existed. That is
+    // safe only because no plugin implements this interface yet: it has never
+    // shipped in a release, and the one in-tree implementation is rebuilt with
+    // the library. Once launcher providers load as plugins, their seam's
+    // ApiVersion binds this signature, and any change to it needs a bump.
     [[nodiscard]] virtual ILauncherProvider* createProvider(QObject* parent) = 0;
 };
 

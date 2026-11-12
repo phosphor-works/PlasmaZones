@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <phosphorplacement_export.h>
+#include "phosphorplacement_export.h"
 
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorEngine/IWindowTrackingService.h>

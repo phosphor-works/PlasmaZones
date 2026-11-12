@@ -2,23 +2,33 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
-#include "phosphorcontrol_export.h"
+#include "phosphorcontroltest_export.h"
 
 #include <QString>
 #include <QStringList>
 
 namespace PhosphorControl {
 
-/// Checks one Facet module without a window, for the module's own CI.
+/// Checks one Facet module without a window, for the module's own CI. Lives
+/// in the PhosphorControl::PhosphorControlTest library.
 ///
 /// run() copies the module library into a private search path, hosts it in a
 /// FacetHost over a fresh ApplicationController, loads it, and checks that:
 ///   - the catalog accepts it (IID, ApiVersion, a valid "Id")
 ///   - its metadata is valid
 ///   - it loads, and registerInto registers exactly the pages and extensions
-///     its metadata declares, with matching controller ids
-///   - every page controller, headless domain and extension domain emits
-///     applyResult and discardResult exactly once when applied and discarded
+///     its metadata declares, each page with a controller of the matching id
+///     and an absolute QML source (the rules FacetContext enforces)
+///   - every page was bound and every extension kept its domain, which code
+///     the module runs while it loads could delete
+///   - each page's and each extension's QML source exists, for a `qrc:` or
+///     `file:` URL
+///   - no page controller, headless domain or extension domain is dirty
+///     right after loading
+///   - every page controller, headless domain and extension domain answers
+///     apply() with one applyResult and discard() with one discardResult,
+///     both reporting success, and sends no second one within a short grace
+///     period
 ///   - every entry its search providers return points at one of its pages or
 ///     a page it extends, and a setting or section entry on its own page at
 ///     an anchor that page lists
@@ -27,14 +37,42 @@ namespace PhosphorControl {
 ///   - with setPreviousAnchors(), no page or anchor of the previous release
 ///     is gone unless the page's anchors version went up
 ///
+/// When the module is refused, its metadata is invalid or it does not load,
+/// run() reports that and stops, since the later checks need a loaded
+/// module. The checks after loading all run and report together.
+///
+/// The apply and discard round runs on freshly loaded, clean state, which is
+/// not how Facet drives a domain: Facet applies dirty domains only. It
+/// catches a domain that answers twice or not at all, not one whose dirty
+/// path misbehaves, so cover that in the module's own tests.
+///
+/// run() does not write the settings files the module opens through
+/// FacetContext::configBackend, as long as the module's factory opens the
+/// path it is handed. It makes each of them under its staging
+/// directory instead (FacetHost::setConfigRedirect), so the module starts
+/// from an empty file and its defaults, and the files go when run() returns.
+/// Anything else a domain's apply() writes (a file the module opens by
+/// itself, a call to a daemon) still goes where the module sends it, so
+/// point that at a scratch target first.
+///
 /// Needs a QCoreApplication (or QGuiApplication) running on this thread.
-class PHOSPHORCONTROL_EXPORT FacetTestHost
+class PHOSPHORCONTROLTEST_EXPORT FacetTestHost
 {
 public:
+    static constexpr int DefaultResultTimeoutMs = 2000;
+
     explicit FacetTestHost(QString modulePath);
 
-    /// How long to wait for a domain's applyResult or discardResult.
+    /// How long to wait for a domain's applyResult or discardResult. Zero or
+    /// negative restores DefaultResultTimeoutMs.
     void setResultTimeoutMs(int ms);
+    /// Where run() stages its copy of the module: the copy lands in
+    /// `<directory>/facet-test-XXXXXX/facet/`, under a fresh random name.
+    /// Default: QDir::tempPath(). Pick a directory on a filesystem that allows
+    /// executing libraries when /tmp is mounted noexec. A module that finds
+    /// its own libraries through an $ORIGIN rpath needs them reachable from
+    /// that copy, or an absolute rpath.
+    void setStagingDirectory(const QString& directory);
 
     /// Load the module at @p modulePath too, so the module under test's
     /// extensions aimed at it are checked against its slots.
@@ -51,7 +89,8 @@ private:
     QString m_modulePath;
     QStringList m_targetPaths;
     QString m_previousAnchorsPath;
-    int m_resultTimeoutMs = 2000;
+    QString m_stagingDirectory;
+    int m_resultTimeoutMs = DefaultResultTimeoutMs;
 };
 
 } // namespace PhosphorControl

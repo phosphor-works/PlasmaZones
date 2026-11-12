@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorgeometry_export.h>
+#include "phosphorgeometry_export.h"
 
 #include <QRect>
 #include <QRectF>

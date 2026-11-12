@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
+#include <QByteArray>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileDevice>
@@ -9,6 +11,8 @@
 #include <QString>
 #include <QStringList>
 #include <QtGlobal>
+
+#include <dlfcn.h>
 
 #ifndef PHOSPHOR_REGISTRY_FIXTURE_DIR
 #error "PHOSPHOR_REGISTRY_FIXTURE_DIR must be defined by tests/CMakeLists.txt"
@@ -20,7 +24,8 @@ void messageCapturingHandler(QtMsgType type, const QMessageLogContext& context, 
 
 /// Captures every warning (and, on request, info line) logged while in scope.
 /// qInstallMessageHandler takes a plain function, so the active capture is
-/// reached through a static pointer, saved and restored so captures nest.
+/// reached through a static pointer. A capture opened inside another one
+/// passes each line on to the outer capture as well.
 class MessageCapture
 {
 public:
@@ -61,7 +66,12 @@ inline void messageCapturingHandler(QtMsgType type, const QMessageLogContext& co
         active->m_infos->append(message);
     }
     if (active->m_priorHandler) {
+        // The prior handler is this function again when captures nest. It
+        // must see the outer capture as active, or it would call itself
+        // with the same capture forever.
+        MessageCapture::s_active = active->m_priorActive;
         active->m_priorHandler(type, context, message);
+        MessageCapture::s_active = active;
     }
 }
 
@@ -83,34 +93,102 @@ inline void messageCapturingHandler(QtMsgType type, const QMessageLogContext& co
     return QStringLiteral(PHOSPHOR_REGISTRY_FIXTURE_DIR) + QLatin1Char('/') + variant + QStringLiteral(".so");
 }
 
+/// rwxr-xr-x: the owner may write, nobody else may, which the catalog's
+/// permission check requires of a plugin and its directory.
+inline constexpr QFileDevice::Permissions OwnerWritableMode = QFileDevice::ReadOwner | QFileDevice::WriteOwner
+    | QFileDevice::ExeOwner | QFileDevice::ReadGroup | QFileDevice::ExeGroup | QFileDevice::ReadOther
+    | QFileDevice::ExeOther;
+
+/// Set @p path to OwnerWritableMode and confirm the filesystem kept it.
+[[nodiscard]] inline bool makeOwnerWritable(const QString& path)
+{
+    if (!QFile::setPermissions(path, OwnerWritableMode)) {
+        qWarning() << "cannot set the mode of" << path;
+        return false;
+    }
+    if (QFile::permissions(path) & (QFileDevice::WriteGroup | QFileDevice::WriteOther)) {
+        qWarning() << "the filesystem ignored the mode set on" << path;
+        return false;
+    }
+    return true;
+}
+
+/// Write @p bytes to @p destination with OwnerWritableMode, replacing any
+/// file there with a new one, so a library loaded from the old file stays
+/// mapped unchanged. Returns the destination, or an empty string on failure.
+[[nodiscard]] inline QString writePlugin(const QString& destination, const QByteArray& bytes)
+{
+    QFile::remove(destination);
+    QFile file(destination);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()) {
+        qWarning() << "cannot write" << destination;
+        return QString();
+    }
+    file.close();
+    return makeOwnerWritable(destination) ? destination : QString();
+}
+
 /// Copy the fixture @p variant into @p directory as @p fileName (default
-/// `<variant>.so`), creating the directory, with owner-only write bits on the
-/// file and the directory so the catalog's permission check passes. Returns
-/// the destination path, or an empty string on failure.
+/// `<variant>.so`), creating the directory, with OwnerWritableMode on the file
+/// and the directory so the catalog's permission check passes. Returns the
+/// destination path, or an empty string on failure.
 [[nodiscard]] inline QString stagePlugin(const QString& directory, const QString& variant,
                                          const QString& fileName = QString())
 {
-    if (!QDir().mkpath(directory)) {
-        qWarning().noquote() << "stagePlugin: cannot create" << directory;
+    if (!QDir().mkpath(directory) || !makeOwnerWritable(directory)) {
+        qWarning() << "stagePlugin: cannot prepare" << directory;
         return QString();
     }
-    const QFileDevice::Permissions readable = QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner
-        | QFileDevice::ReadGroup | QFileDevice::ExeGroup | QFileDevice::ReadOther | QFileDevice::ExeOther;
-    QFile::setPermissions(directory, readable);
-    const QString source = fixturePath(variant);
-    if (!QFileInfo::exists(source)) {
-        qWarning().noquote() << "stagePlugin: missing fixture" << source;
+    QFile source(fixturePath(variant));
+    if (!source.open(QIODevice::ReadOnly)) {
+        qWarning() << "stagePlugin: missing fixture" << source.fileName();
         return QString();
     }
-    const QString destination =
-        QDir(directory).absoluteFilePath(fileName.isEmpty() ? variant + QStringLiteral(".so") : fileName);
-    QFile::remove(destination);
-    if (!QFile::copy(source, destination)) {
-        qWarning().noquote() << "stagePlugin: cannot copy" << source << "to" << destination;
+    return writePlugin(
+        QDir(directory).absoluteFilePath(fileName.isEmpty() ? variant + QStringLiteral(".so") : fileName),
+        source.readAll());
+}
+
+/// Like stagePlugin, but the copy's plugin metadata says it was built against
+/// Qt @p major.@p minor. Qt keeps that in the `qt-project!` ELF note, right
+/// after a format byte. The bytes are Qt-private, so this fails loudly rather
+/// than patching the wrong place when they do not match exactly once.
+[[nodiscard]] inline QString stagePluginBuiltAgainstQt(const QString& directory, const QString& variant, int major,
+                                                       int minor, const QString& fileName = QString())
+{
+    QFile source(fixturePath(variant));
+    if (!QDir().mkpath(directory) || !makeOwnerWritable(directory) || !source.open(QIODevice::ReadOnly)) {
+        qWarning() << "stagePluginBuiltAgainstQt: cannot prepare" << directory << "or read" << source.fileName();
         return QString();
     }
-    QFile::setPermissions(destination, readable);
-    return destination;
+    QByteArray bytes = source.readAll();
+    QByteArray header = QByteArrayLiteral("qt-project!");
+    header.append('\0');
+    header.append('\x01');
+    header.append(char(QT_VERSION_MAJOR));
+    header.append(char(QT_VERSION_MINOR));
+    const qsizetype at = bytes.indexOf(header);
+    if (at < 0 || bytes.indexOf(header, at + 1) >= 0) {
+        qWarning() << "stagePluginBuiltAgainstQt: the Qt metadata header of" << source.fileName()
+                   << "is not where this helper expects it";
+        return QString();
+    }
+    bytes[at + header.size() - 2] = char(major);
+    bytes[at + header.size() - 1] = char(minor);
+    return writePlugin(
+        QDir(directory).absoluteFilePath(fileName.isEmpty() ? variant + QStringLiteral(".so") : fileName), bytes);
+}
+
+/// Whether the library at @p canonicalPath is mapped into this process.
+/// glibc matches an already-loaded library by its path or by its file, so
+/// pass the canonical path, captured before the file is removed.
+[[nodiscard]] inline bool isMapped(const QString& canonicalPath)
+{
+    void* const handle = ::dlopen(QFile::encodeName(canonicalPath).constData(), RTLD_NOW | RTLD_NOLOAD);
+    if (handle) {
+        ::dlclose(handle);
+    }
+    return handle != nullptr;
 }
 
 } // namespace PhosphorRegistryTestHelpers

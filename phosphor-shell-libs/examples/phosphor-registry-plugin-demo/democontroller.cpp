@@ -14,9 +14,8 @@ using namespace PhosphorRegistry;
 
 namespace PhosphorRegistryPluginDemo {
 
-DemoController::DemoController(QString pluginRoot, QObject* parent)
+DemoController::DemoController(const QString& pluginRoot, QObject* parent)
     : QObject(parent)
-    , m_pluginRoot(std::move(pluginRoot))
     , m_registry(std::make_unique<Registry<IBarWidgetFactory>>())
 {
     QObject::connect(m_registry->notifier(), &RegistryNotifier::factoryRegistered, this,
@@ -26,25 +25,27 @@ DemoController::DemoController(QString pluginRoot, QObject* parent)
 
     registerBuiltins();
 
-    // A given root is searched alone, as a development root. Without one
-    // the loader searches the standard paths.
+    // A given root's bar-widget directory is searched first, as a
+    // development root, then the standard paths, so the demo shows the real
+    // search order and a plugin from PHOSPHOR_WORKS_PLUGIN_PATH loads too.
+    // Without a root an empty list leaves the loader on the standard paths.
+    const QString seamName = PluginLoader::barWidgetSeam().name;
     QList<PluginSearchPath> searchPaths;
-    if (!m_pluginRoot.isEmpty()) {
-        searchPaths.append(
-            {m_pluginRoot + QLatin1Char('/') + PluginLoader::barWidgetSeam().name, PluginOrigin::Development});
+    if (!pluginRoot.isEmpty()) {
+        searchPaths.append({pluginRoot + QLatin1Char('/') + seamName, PluginOrigin::Development});
+        searchPaths.append(PluginCatalog::defaultSearchPaths(seamName));
     }
     m_loader = std::make_unique<PluginLoader>(m_registry.get(), searchPaths);
+    connect(m_loader.get(), &PluginLoader::rescanCompleted, this, &DemoController::updateRefusedPlugins);
     // scanAndLoad runs the first scan synchronously, so the bar has every
     // plugin widget on its first paint.
     m_loader->scanAndLoad();
-    // Show the directories actually searched. The CONSTANT property holds
-    // because QML is wired up only after the constructor returns.
-    QStringList searched;
-    const QList<PluginSearchPath> actual = m_loader->catalog().searchPaths();
-    for (const PluginSearchPath& path : actual) {
-        searched.append(path.directory);
+    // The CONSTANT property holds because QML is wired up only after the
+    // constructor returns, and the search paths are fixed by the first scan.
+    const QList<PluginSearchPath> searched = m_loader->catalog().searchPaths();
+    for (const PluginSearchPath& path : searched) {
+        m_searchedDirectories.append(path.directory);
     }
-    m_pluginRoot = searched.join(QStringLiteral(", "));
 }
 
 DemoController::~DemoController() = default;
@@ -101,9 +102,28 @@ QStringList DemoController::factoryIds() const
     return ids;
 }
 
-QString DemoController::pluginRoot() const
+QStringList DemoController::searchedDirectories() const
 {
-    return m_pluginRoot;
+    return m_searchedDirectories;
+}
+
+QStringList DemoController::refusedPlugins() const
+{
+    return m_refusedPlugins;
+}
+
+void DemoController::updateRefusedPlugins()
+{
+    QStringList refused;
+    const QList<RefusedPlugin> entries = m_loader->catalog().refused();
+    for (const RefusedPlugin& entry : entries) {
+        refused.append(QStringLiteral("%1: %2").arg(entry.filePath, entry.reason));
+    }
+    if (refused == m_refusedPlugins) {
+        return;
+    }
+    m_refusedPlugins = std::move(refused);
+    Q_EMIT refusedPluginsChanged();
 }
 
 } // namespace PhosphorRegistryPluginDemo

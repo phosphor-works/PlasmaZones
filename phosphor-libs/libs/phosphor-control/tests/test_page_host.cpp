@@ -92,7 +92,7 @@ private Q_SLOTS:
         QVERIFY(!hasItem(host, QStringLiteral("first")));
     }
 
-    void theUnavailablePageBuildsWithoutWarnings()
+    void theModulePageBuildsWithoutWarnings()
     {
         QQmlEngine engine;
         QList<QQmlError> warnings;
@@ -100,7 +100,7 @@ private Q_SLOTS:
             warnings.append(list);
         });
         QQmlComponent component(&engine);
-        component.setData("import org.phosphor.control\nFacetUnavailablePage { width: 400; height: 300 }\n", QUrl());
+        component.setData("import org.phosphor.control\nFacetModulePage { width: 400; height: 300 }\n", QUrl());
         std::unique_ptr<QObject> page(component.create());
         QVERIFY2(page, qPrintable(component.errorString()));
         QCoreApplication::processEvents();

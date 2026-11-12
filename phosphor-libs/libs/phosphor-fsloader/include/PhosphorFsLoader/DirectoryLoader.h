@@ -184,7 +184,7 @@ public:
     /// inotify watch. 10,000 unparseable `*.json` in one directory therefore
     /// holds 10,000 watches — above the 8192 `fs.inotify.max_user_watches`
     /// default several distributions still ship, which would starve every other
-    /// QFileSystemWatcher in the process. `PluginLoader` sets its own cap an
+    /// QFileSystemWatcher in the process. `PluginCatalog` sets its own cap an
     /// order of magnitude lower for exactly this reason.
     static constexpr int kMaxEntries = 10'000;
 

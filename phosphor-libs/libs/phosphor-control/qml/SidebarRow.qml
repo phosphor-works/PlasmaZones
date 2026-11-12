@@ -104,12 +104,18 @@ QQC2.ItemDelegate {
         if (rowItem._isDivider)
             return;
 
-        if (rowItem._isCollapsibleHeader)
+        if (rowItem._isCollapsibleHeader) {
             rowItem.categoryToggleRequested(rowItem.pageId);
-        else if (rowItem._isDrillParent)
+        } else if (rowItem._isDrillParent) {
+            // A drill parent with a page of its own (a plugin page that has
+            // child pages) opens that page too. Inside its scope no row
+            // stands for it, so this click is the way to it.
             rowItem.drillIntoRequested(rowItem.pageId);
-        else if (rowItem.hasQmlSource)
+            if (rowItem.hasQmlSource)
+                rowItem.navigationRequested(rowItem.pageId);
+        } else if (rowItem.hasQmlSource) {
             rowItem.navigationRequested(rowItem.pageId);
+        }
     }
 
     background: Rectangle {

@@ -8,7 +8,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 %:
 	dh $@ --buildsystem=cmake+ninja
 
-# PHOSPHOR_DEPS_ARCHIVES: the Luau and valijson archives pinned in
+# PHOSPHOR_DEPS_ARCHIVES: the Luau, valijson and branding archives pinned in
 # cmake/PhosphorDependencies.cmake, which CMake checks against their hashes and
 # unpacks, so the build never reaches the network. packaging/deps is filled in
 # both places this package is built: the OBS source package carries the
@@ -38,6 +38,10 @@ override_dh_auto_install:
 	rm -rf debian/plasmazones/usr/lib/*/cmake/Phosphor*
 	rm -f  debian/plasmazones/usr/lib/*/libPhosphor*.so
 	rm -f  debian/plasmazones/usr/lib/*/libplasmazones*.so
+	# PhosphorControlTest is FacetTestHost, which a Facet module's CI links
+	# through the headers and CMake config removed above. Nothing in the
+	# package uses it.
+	rm -f  debian/plasmazones/usr/lib/*/libPhosphorControlTest.so.*
 
 override_dh_auto_test:
 	# Skip tests during package build

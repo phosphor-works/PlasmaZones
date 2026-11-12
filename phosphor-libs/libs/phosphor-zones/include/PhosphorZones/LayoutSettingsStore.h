@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorzones_export.h>
+#include "phosphorzones_export.h"
 
 #include <QHash>
 #include <QJsonObject>

@@ -5,6 +5,7 @@
 #include <PhosphorIpc/IpcCallContext.h>
 #include <PhosphorIpc/phosphoripc_export.h>
 
+#include <QByteArray>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -49,7 +50,10 @@ namespace PhosphorIpc {
 //     the replies to later calls on the same connection.
 //   - sendEvent() writes an event to one connection. Everything written
 //     to a connection (replies, errors, events) arrives in write order.
-//   - connectionClosed(id) follows the close of every connection.
+//   - connectionOpened(id) follows the accept of every connection, and
+//     connectionClosed(id) its close. With setMaxConnections, a
+//     connection past the cap is closed at accept instead: it gets no
+//     id, and connectionRefused() follows.
 //   - The router reads one request of a connection at a time. A method
 //     that spins a nested event loop holds back every later request of
 //     its own connection (calls, subscribes, list) until it returns, so
@@ -95,19 +99,58 @@ public:
     static constexpr int MaxPendingCallsPerConnection = 256;
 
     // Bind the listening socket. Defaults to
-    // $XDG_RUNTIME_DIR/phosphor.sock when socketPath is empty.
+    // $XDG_RUNTIME_DIR/phosphor.sock when socketPath is empty. The socket
+    // file has mode 0600, and the process umask stays as it is (it is one
+    // for every thread). A stale socket at the path (one that refuses a
+    // connection) is replaced; anything else there makes start() fail.
     // Returns false on bind failure; safe to retry after stop().
     bool start(const QString& socketPath = QString());
 
     // Close the listening socket and every client connection, each of
     // which then gets its connectionClosed. Idempotent. A target method
     // may call it: the connection whose call runs is closed too, and the
-    // method's return value goes nowhere.
+    // method's return value goes nowhere. What is still unwritten to a
+    // connection is dropped: stop() is stop(StopMode::Abort).
     void stop();
+
+    // How stop() ends the client connections.
+    enum class StopMode {
+        // Close each one at once and drop what is still unwritten to it.
+        Abort,
+        // Deliver what was written to each one (replies, errors, events)
+        // first, then close it.
+        Flush,
+    };
+    // The default bound on the delivery of StopMode::Flush.
+    static constexpr int DefaultFlushTimeoutMs = 5000;
+
+    // stop() in `mode`. The router stops listening and forgets every
+    // connection at once, as stop() does: connectionClosed follows for
+    // each, from the event loop, and sendEvent() and pending replies find
+    // them closed. With StopMode::Flush, a connection that still has bytes
+    // to write closes once the client has taken them, or is aborted when
+    // `flushTimeoutMs` pass first (a client that stopped reading). The
+    // output limit bounds what is waiting, and the router reads nothing
+    // more from the connection meanwhile. The delivery goes on from the
+    // event loop and does not need the router: it is fine to destroy the
+    // router right after this call.
+    void stop(StopMode mode, int flushTimeoutMs = DefaultFlushTimeoutMs);
 
     // The resolved socket path (after XDG fallback). Empty if
     // start() has not been called or failed.
     [[nodiscard]] QString socketPath() const;
+
+    // The most client connections open at once. Each holds a descriptor
+    // and router state, so a socket that other processes can reach (one
+    // forwarded to another host, for example) caps them. A connection
+    // accepted while `max` are open is closed at once, before it is read:
+    // it gets no id and no connectionOpened or connectionClosed, and
+    // connectionRefused() follows. Lowering the cap closes no open
+    // connection. 0 (the default) and below: no limit.
+    void setMaxConnections(int max);
+    [[nodiscard]] int maxConnections() const;
+    // The client connections open now: accepted, and not closed yet.
+    [[nodiscard]] int connectionCount() const;
 
     // Register a target QObject under a name. Returns true if the
     // registry now binds `name` to `object` (a fresh registration,
@@ -211,10 +254,25 @@ public:
     // connection more than 16 MiB behind is closed (with a warning) and
     // the call returns false.
     bool sendEvent(quint64 connectionId, const QString& target, const QString& signalName, const QJsonArray& args);
+    // sendEvent(), which also sets `*lineBytes` (when not null) to the
+    // size of the line it wrote, its '\n' included: the bytes the client
+    // reads for this event, for a target that counts what its client has
+    // taken. 0 when it returns false.
+    bool sendEvent(quint64 connectionId, const QString& target, const QString& signalName, const QJsonArray& args,
+                   qint64* lineBytes);
 
 Q_SIGNALS:
     void targetRegistered(const QString& name);
     void targetUnregistered(const QString& name);
+    // The router accepted the client connection `connectionId`, the id
+    // that IpcCallContext::connectionId() and connectionClosed() name
+    // later. Sent from the event loop, when the router accepts, before it
+    // reads anything the client sent. sendEvent() to the id works from
+    // the slot on.
+    void connectionOpened(quint64 connectionId);
+    // The router closed a connection at accept because maxConnections()
+    // were open. Sent once per refused connection, from the event loop.
+    void connectionRefused();
     // The client connection `connectionId` has closed: the client went
     // away, the router closed it (malformed input, output limit) or
     // stop() ran. Sent once per connection, from the event loop and
@@ -290,6 +348,10 @@ private:
     // Deletes a closed socket from the event loop, once no dispatch on
     // it is on the stack.
     void retireSocket(QLocalSocket* socket);
+    // stop(StopMode::Flush) for one open socket, whose router handlers
+    // are gone: closes it once its write buffer has drained, or aborts it
+    // after `flushTimeoutMs`, and then deletes it.
+    void flushAndClose(QLocalSocket* socket, int flushTimeoutMs);
     // Ends every subscription to the target `name`: each subscriber gets
     // a NO_SUCH_TARGET error under its subscription id.
     void endSubscriptionsTo(const QString& name);
@@ -306,6 +368,11 @@ private:
 
     std::unique_ptr<QLocalServer> m_server;
     QString m_socketPath;
+    // The socket file that start() made, and its identity, so that stop()
+    // removes that file and not one that took the path since.
+    QByteArray m_socketFile;
+    quint64 m_socketDevice = 0;
+    quint64 m_socketInode = 0;
     QHash<QString, QPointer<QObject>> m_targets;
     // Per-socket subscription list; lets disconnect cleanup walk one
     // socket's subscriptions without scanning the whole router.
@@ -319,6 +386,8 @@ private:
     // connection closes, so a lookup by id finds only open connections.
     QHash<QLocalSocket*, quint64> m_connectionIdBySocket;
     QHash<quint64, QPointer<QLocalSocket>> m_socketByConnectionId;
+    // setMaxConnections; 0: no limit.
+    int m_maxConnections = 0;
     // Deferred calls that wait for their answer, by pending-reply token,
     // and the tokens of each connection's calls. A connection's entries go
     // when it closes.

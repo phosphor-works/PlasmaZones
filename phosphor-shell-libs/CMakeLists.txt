@@ -187,9 +187,10 @@ if(BUILD_PHOSPHOR_SHELL)
 endif()
 
 # phosphor-registry-plugin-demo. Sibling of phosphor-registry-demo
-# that exercises the PluginLoader + hot-reload path. The third
-# (CPU-meter) widget builds as a separate bar-widget Qt plugin and
-# is loaded via PluginLoader from a per-build plugin root. Links
+# that exercises PluginLoader and the live reload of added or removed
+# plugins. The third (CPU-meter) widget builds as a separate bar-widget
+# Qt plugin and is loaded by PluginLoader from the build tree's plugin
+# root, which it searches ahead of the standard plugin paths. Links
 # PhosphorTheme, so it is gated with the other SDK groundwork demos.
 if(BUILD_PHOSPHOR_SHELL)
     add_subdirectory(examples/phosphor-registry-plugin-demo)

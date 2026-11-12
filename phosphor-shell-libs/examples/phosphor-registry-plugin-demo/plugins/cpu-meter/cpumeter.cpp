@@ -16,6 +16,7 @@
 
 #include <QEventLoop>
 #include <QObject>
+#include <QPointer>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -103,22 +104,27 @@ public:
         // Ready transition via a nested QEventLoop.
         //
         // Re-entry hazard: any queued event delivered while the
-        // event loop spins runs before this function returns. The
-        // reload-button in the plugin demo can queue a SECOND
-        // reloadPlugins() while a first createWidget is mid-compile,
-        // re-entering this function and stacking nested loops.
+        // event loop spins runs before this function returns.
         // QEventLoop::ExcludeUserInputEvents blocks mouse/keyboard
-        // delivery during the spin so the Reload button cannot
-        // re-fire mid-compile. Non-user events (timers, deferred
-        // deletes) still flow, which is required for the QML
-        // compilation worker thread to post its statusChanged
-        // signal back to us.
+        // delivery during the spin, so the Reload button cannot fire
+        // mid-compile. Non-user events (timers, deferred deletes) still
+        // flow, which is required for the QML compilation worker thread
+        // to post its statusChanged signal back to us. One such timer is
+        // the plugin catalog's live-reload rescan: a plugin added or
+        // removed meanwhile changes the factory list, the bar rebuilds,
+        // and the delegate passed in as @p parent can be deleted before
+        // the spin ends. The QPointer notices that.
+        const QPointer<QObject> guardedParent(parent);
         QQmlComponent component(engine);
         component.setData(QByteArray(CpuMeterQml), QUrl(QStringLiteral("inline:cpu-meter")));
         if (component.isLoading()) {
             QEventLoop loop;
             QObject::connect(&component, &QQmlComponent::statusChanged, &loop, &QEventLoop::quit);
             loop.exec(QEventLoop::ExcludeUserInputEvents);
+        }
+        if (parent && !guardedParent) {
+            qWarning("CpuMeterFactory: the parent went away while the widget compiled");
+            return nullptr;
         }
         if (component.isError()) {
             qWarning("CpuMeterFactory: component error %s", qPrintable(component.errorString()));
@@ -153,8 +159,7 @@ public:
 
 } // namespace
 
-// The plugin's root object. Lives outside the anonymous namespace because
-// moc generates the plugin entry points against its name.
+// The plugin's root object.
 class CpuMeterPlugin : public QObject, public PhosphorRegistry::IBarWidgetPlugin
 {
     Q_OBJECT

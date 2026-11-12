@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
+@PACKAGE_INIT@
+
+# No dependencies: the library has no Qt and no other Phosphor library.
+
+include("${CMAKE_CURRENT_LIST_DIR}/PhosphorChannelTargets.cmake")
+
+check_required_components(PhosphorChannel)

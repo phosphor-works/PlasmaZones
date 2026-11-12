@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphortileengine_export.h>
+#include "phosphortileengine_export.h"
 #include <QRect>
 #include <QString>
 #include <QStringList>
