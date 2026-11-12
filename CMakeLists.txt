@@ -175,9 +175,13 @@ add_compile_definitions(QT_NO_CAST_FROM_ASCII)
 
 # KDE Frameworks integration.
 # ON (default): full KDE integration - KWin effect, KCM, KGlobalAccel shortcuts,
-#               PlasmaActivities, KConfigXT for KCM defaults.
-# OFF: portable Qt-only build - daemon + editor only, no KDE dependencies.
-#      Shortcuts use XDG Portal or D-Bus trigger fallback.
+#               PlasmaActivities when it is found.
+# OFF: portable build without the KWin effect, the KCM, KGlobalAccel or
+#      PlasmaActivities. It is not free of KDE dependencies: ECM is required
+#      in both modes (find_package(ECM) above), the settings app is built in
+#      both and requires KF6 Kirigami (plasmazones/src/settings/CMakeLists.txt),
+#      and the editor's and settings app's QML import org.kde.kirigami at run
+#      time. Shortcuts use XDG Portal or D-Bus trigger fallback.
 option(USE_KDE_FRAMEWORKS "Build with KDE Frameworks integration" ON)
 
 # Opt-in build for the in-progress phosphor-shell desktop shell and its
@@ -349,11 +353,11 @@ endif()
 # same way. See that file for the update-ts / lrelease detail.
 # ---------------------------------------------------------------------------
 # Must stay ABOVE add_subdirectory(plasmazones): that tier's CMakeLists reads
-# plasmazones_translations, Qt6LinguistTools_FOUND and TRANSLATION_TS_FILES from
-# this scope to attach the .qm catalogs to plasmazones-tier. Moved below it, the
-# target and both variables are simply absent there, so the if() is false AND the
-# elseif() guard is false, and the attach fails open silently -- which is the
-# exact failure that guard was added to stop.
+# the plasmazones_translations and update-ts targets and the
+# Qt6LinguistTools_FOUND and TRANSLATION_TS_FILES variables this module leaves
+# behind, to attach the .qm catalogs to plasmazones-tier. Moved below it, none
+# of them exists there yet, and plasmazones/CMakeLists.txt stops the configure
+# on the missing `update-ts`, which this module declares in every branch.
 include(cmake/PhosphorTranslations.cmake)
 
 # Generate version header with compile-time version info

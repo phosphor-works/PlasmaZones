@@ -1,15 +1,19 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// PageHost against a live ApplicationController: the page it shows follows
-// the registry when a page's QML changes under it.
+// The chrome's page QML against a live ApplicationController. PageHost: the
+// page it shows, and the controller it hands that page, follow the registry
+// when a page is bound to a new controller or QML, whether the page is on
+// screen or only cached, and a page that passes context has its controller
+// from its first binding. FacetModulePage: it builds without a warning in
+// each state its placeholder controller reports, and shows that state.
 
 #include <PhosphorControl/ApplicationController.h>
 #include <PhosphorControl/PageController.h>
 
 #include <QCoreApplication>
 #include <QFile>
-#include <QQmlError>
+#include <QPointer>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -17,12 +21,16 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <memory>
+#include <utility>
+
 using namespace PhosphorControl;
 
 namespace {
 
 class SimplePage : public PageController
 {
+    Q_OBJECT
 public:
     using PageController::PageController;
     bool isDirty() const override
@@ -39,16 +47,95 @@ public:
     }
 };
 
+// What FacetModulePage reads from the placeholder controller PageHost hands
+// it, in one fixed state.
+class PlaceholderController : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString moduleName READ moduleName CONSTANT)
+    Q_PROPERTY(bool failed READ failed CONSTANT)
+    Q_PROPERTY(bool disabledAfterCrash READ disabledAfterCrash CONSTANT)
+    Q_PROPERTY(QString reason READ reason CONSTANT)
+    Q_PROPERTY(bool canRetry READ canRetry CONSTANT)
+public:
+    PlaceholderController(bool failed, bool disabledAfterCrash, QString reason, bool canRetry)
+        : m_failed(failed)
+        , m_disabledAfterCrash(disabledAfterCrash)
+        , m_reason(std::move(reason))
+        , m_canRetry(canRetry)
+    {
+    }
+    QString moduleName() const
+    {
+        return QStringLiteral("Mod");
+    }
+    bool failed() const
+    {
+        return m_failed;
+    }
+    bool disabledAfterCrash() const
+    {
+        return m_disabledAfterCrash;
+    }
+    QString reason() const
+    {
+        return m_reason;
+    }
+    bool canRetry() const
+    {
+        return m_canRetry;
+    }
+    Q_INVOKABLE void retry()
+    {
+    }
+
+private:
+    bool m_failed;
+    bool m_disabledAfterCrash;
+    QString m_reason;
+    bool m_canRetry;
+};
+
 // Loader items are visual children, which QObject::findChild does not see.
-bool hasItem(QQuickItem* root, const QString& objectName)
+// The first item under @p root, depth first, that @p matches accepts.
+template<typename Predicate>
+QQuickItem* findItem(QQuickItem* root, const Predicate& matches)
 {
     const QList<QQuickItem*> children = root->childItems();
     for (QQuickItem* child : children) {
-        if (child->objectName() == objectName || hasItem(child, objectName)) {
-            return true;
+        if (matches(child)) {
+            return child;
+        }
+        if (QQuickItem* found = findItem(child, matches)) {
+            return found;
         }
     }
-    return false;
+    return nullptr;
+}
+
+QQuickItem* itemNamed(QQuickItem* root, const QString& objectName)
+{
+    return findItem(root, [&objectName](const QQuickItem* item) {
+        return item->objectName() == objectName;
+    });
+}
+
+// The controller PageHost injected into the page item named @p objectName,
+// or null when there is no such item.
+QObject* controllerOf(QQuickItem* root, const QString& objectName)
+{
+    QQuickItem* const item = itemNamed(root, objectName);
+    return item ? item->property("controller").value<QObject*>() : nullptr;
+}
+
+// Whether a visible item under @p root shows @p text.
+bool showsText(QQuickItem* root, const QString& text)
+{
+    return findItem(root,
+                    [&text](const QQuickItem* item) {
+                        return item->isVisible() && item->property("text").toString() == text;
+                    })
+        != nullptr;
 }
 
 } // namespace
@@ -58,74 +145,142 @@ class TestPageHost : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
-    void init()
-    {
-        // A page created with a property it does not declare is a contract
-        // break, not noise.
-        QTest::failOnWarning(QRegularExpression(QStringLiteral("non-existent property")));
-    }
-
     void initTestCase()
     {
         QVERIFY(m_dir.isValid());
-        for (const char* name : {"first", "second"}) {
+        for (const char* name : {"first", "second", "third"}) {
             QFile page(m_dir.filePath(QString::fromLatin1(name) + QStringLiteral(".qml")));
             QVERIFY(page.open(QIODevice::WriteOnly));
             // A bound page is a module page, which declares both.
             page.write(QByteArray("import QtQuick\nItem { objectName: \"") + name
-                       + "\"; property var controller; property var settingsApp }\n");
+                       + "\"; property QtObject controller: null; property QtObject settingsApp: null }\n");
         }
+        // Records the controller its first binding saw.
         QFile required(m_dir.filePath(QStringLiteral("required.qml")));
         QVERIFY(required.open(QIODevice::WriteOnly));
         required.write(
             "import QtQuick\nItem {\n    id: page\n    required property QtObject controller\n"
             "    required property QtObject settingsApp\n"
-            "    Item { objectName: \"saw:\" + (page.controller ? page.controller.objectName : \"null\") }\n}\n");
+            "    Item { objectName: \"saw:\" + page.controller.objectName }\n}\n");
+    }
+
+    void init()
+    {
+        // Every warning QML reports, from a file or from the components
+        // these tests build from data, fails the test that caused it.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("(\\.qml|<Unknown File>):\\d+")));
+        // A page created with a property it does not declare breaks the
+        // module page contract.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("non-existent property")));
     }
 
     void showsTheNewQmlWhenTheCurrentPageIsBound()
     {
         ApplicationController controller;
-        controller.registerPage(new SimplePage(QStringLiteral("p"), &controller), QString(), QStringLiteral("P"),
-                                url(QStringLiteral("first")));
+        auto* const placeholder = new SimplePage(QStringLiteral("p"), &controller);
+        controller.registerPage(placeholder, QString(), QStringLiteral("P"), url(QStringLiteral("first")));
         controller.setCurrentPageId(QStringLiteral("p"));
-
-        QQmlEngine engine;
-        QQmlComponent component(&engine);
-        component.setData("import org.phosphor.control\nPageHost {}\n", QUrl());
-        std::unique_ptr<QObject> created(component.createWithInitialProperties(
-            {{QStringLiteral("controller"), QVariant::fromValue<QObject*>(&controller)}}));
-        QVERIFY2(created, qPrintable(component.errorString()));
-        auto* const host = qobject_cast<QQuickItem*>(created.get());
+        const std::unique_ptr<QQuickItem> host = createHost(controller);
         QVERIFY(host);
-        QTRY_VERIFY(hasItem(host, QStringLiteral("first")));
+        QTRY_VERIFY(controllerOf(host.get(), QStringLiteral("first")) == placeholder);
 
         // A module that loads while its placeholder page is on screen binds
-        // the real page into it.
-        QVERIFY(controller.bindPage(QStringLiteral("p"), new SimplePage(QStringLiteral("p"), &controller),
-                                    url(QStringLiteral("second"))));
-        QTRY_VERIFY(hasItem(host, QStringLiteral("second")));
-        QVERIFY(!hasItem(host, QStringLiteral("first")));
+        // the real page into it, and the new item gets the real controller.
+        auto* const real = new SimplePage(QStringLiteral("p"), &controller);
+        QVERIFY(controller.bindPage(QStringLiteral("p"), real, url(QStringLiteral("second"))));
+        QTRY_VERIFY(controllerOf(host.get(), QStringLiteral("second")) == real);
+        QVERIFY(!itemNamed(host.get(), QStringLiteral("first")));
     }
 
-    void theUnavailablePageBuildsWithoutWarnings()
+    void handsTheNewControllerToAPageWhoseQmlStays()
     {
-        QQmlEngine engine;
-        QList<QQmlError> warnings;
-        connect(&engine, &QQmlEngine::warnings, this, [&warnings](const QList<QQmlError>& list) {
-            warnings.append(list);
-        });
-        QQmlComponent component(&engine);
-        component.setData("import org.phosphor.control\nFacetUnavailablePage { width: 400; height: 300 }\n", QUrl());
-        QObject placeholder;
-        placeholder.setProperty("unavailableReason", QStringLiteral("it broke"));
+        ApplicationController controller;
+        auto* const placeholder = new SimplePage(QStringLiteral("p"), &controller);
+        controller.registerPage(placeholder, QString(), QStringLiteral("P"), url(QStringLiteral("first")));
+        controller.setCurrentPageId(QStringLiteral("p"));
+        const std::unique_ptr<QQuickItem> host = createHost(controller);
+        QVERIFY(host);
+        QTRY_VERIFY(controllerOf(host.get(), QStringLiteral("first")) == placeholder);
+        const QPointer<QQuickItem> item = itemNamed(host.get(), QStringLiteral("first"));
+
+        auto* const real = new SimplePage(QStringLiteral("p"), &controller);
+        QVERIFY(controller.bindPage(QStringLiteral("p"), real, url(QStringLiteral("first"))));
+        QTRY_VERIFY(controllerOf(host.get(), QStringLiteral("first")) == real);
+        // The same item, not a rebuilt one.
+        QVERIFY(item);
+        QCOMPARE(itemNamed(host.get(), QStringLiteral("first")), item.data());
+    }
+
+    void rebindsACachedPageThatIsNotCurrent()
+    {
+        ApplicationController controller;
+        auto* const placeholder = new SimplePage(QStringLiteral("p"), &controller);
+        controller.registerPage(placeholder, QString(), QStringLiteral("P"), url(QStringLiteral("first")));
+        controller.registerPage(new SimplePage(QStringLiteral("q"), &controller), QString(), QStringLiteral("Q"),
+                                url(QStringLiteral("second")));
+        controller.setCurrentPageId(QStringLiteral("p"));
+        const std::unique_ptr<QQuickItem> host = createHost(controller);
+        QVERIFY(host);
+        QTRY_VERIFY(controllerOf(host.get(), QStringLiteral("first")) == placeholder);
+        // p stays built, hidden, once q is shown.
+        controller.setCurrentPageId(QStringLiteral("q"));
+        QTRY_VERIFY(itemNamed(host.get(), QStringLiteral("second")));
+
+        // The same QML: the cached item gets the new controller.
+        auto* const real = new SimplePage(QStringLiteral("p"), &controller);
+        QVERIFY(controller.bindPage(QStringLiteral("p"), real, url(QStringLiteral("first"))));
+        QTRY_VERIFY(controllerOf(host.get(), QStringLiteral("first")) == real);
+
+        // New QML: the cached page is rebuilt from it, with the controller.
+        auto* const next = new SimplePage(QStringLiteral("p"), &controller);
+        QVERIFY(controller.bindPage(QStringLiteral("p"), next, url(QStringLiteral("third"))));
+        QTRY_VERIFY(controllerOf(host.get(), QStringLiteral("third")) == next);
+        QVERIFY(!itemNamed(host.get(), QStringLiteral("first")));
+        QCOMPARE(controller.currentPageId(), QStringLiteral("q"));
+    }
+
+    void theModulePageBuildsWithoutWarnings_data()
+    {
+        QTest::addColumn<bool>("failed");
+        QTest::addColumn<bool>("disabledAfterCrash");
+        QTest::addColumn<QString>("reason");
+        QTest::addColumn<QString>("heading");
+        QTest::newRow("not loaded yet") << false << false << QString() << QStringLiteral("Mod is not loaded yet");
+        QTest::newRow("failed") << true << false << QStringLiteral("its library did not load")
+                                << QStringLiteral("Mod could not be loaded");
+        QTest::newRow("disabled after a crash") << false << true << QString() << QStringLiteral("Mod is turned off");
+        // A reason the controller still holds from before is not shown on a
+        // page that did not fail.
+        QTest::newRow("reason while not failed")
+            << false << false << QStringLiteral("an earlier failure") << QStringLiteral("Mod is not loaded yet");
+        QTest::newRow("reason while turned off")
+            << false << true << QStringLiteral("an earlier failure") << QStringLiteral("Mod is turned off");
+    }
+
+    void theModulePageBuildsWithoutWarnings()
+    {
+        QFETCH(bool, failed);
+        QFETCH(bool, disabledAfterCrash);
+        QFETCH(QString, reason);
+        QFETCH(QString, heading);
+        PlaceholderController placeholder(failed, disabledAfterCrash, reason, true);
         ApplicationController app;
-        std::unique_ptr<QObject> page(component.createWithInitialProperties(
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData("import org.phosphor.control\nFacetModulePage { width: 400; height: 300 }\n", QUrl());
+        // As PageHost creates it: both set before any binding runs.
+        std::unique_ptr<QObject> created(component.createWithInitialProperties(
             {{QStringLiteral("controller"), QVariant::fromValue<QObject*>(&placeholder)},
              {QStringLiteral("settingsApp"), QVariant::fromValue<QObject*>(&app)}}));
-        QVERIFY2(page, qPrintable(component.errorString()));
+        QVERIFY2(created, qPrintable(component.errorString()));
+        auto* const page = qobject_cast<QQuickItem*>(created.get());
+        QVERIFY(page);
         QCoreApplication::processEvents();
-        QVERIFY2(warnings.isEmpty(), qPrintable(warnings.isEmpty() ? QString() : warnings.first().toString()));
+        QVERIFY2(showsText(page, heading), qPrintable(heading));
+        // The host's reason shows for a failure only.
+        if (!reason.isEmpty()) {
+            QCOMPARE(showsText(page, reason), failed);
+        }
     }
 
     void aPageThatPassesContextHasItsControllerFromTheStart()
@@ -136,16 +291,10 @@ private Q_SLOTS:
         controller.registerPage(page, QString(), QStringLiteral("P"), url(QStringLiteral("required")));
         controller.registry()->setPassesContext(QStringLiteral("p"), true);
         controller.setCurrentPageId(QStringLiteral("p"));
-
-        QQmlEngine engine;
-        QQmlComponent component(&engine);
-        component.setData("import org.phosphor.control\nPageHost {}\n", QUrl());
-        std::unique_ptr<QObject> created(component.createWithInitialProperties(
-            {{QStringLiteral("controller"), QVariant::fromValue<QObject*>(&controller)}}));
-        QVERIFY2(created, qPrintable(component.errorString()));
-        auto* const host = qobject_cast<QQuickItem*>(created.get());
-        // The page records what it saw when its bindings first ran.
-        QTRY_VERIFY(hasItem(host, QStringLiteral("saw:the-controller")));
+        const std::unique_ptr<QQuickItem> host = createHost(controller);
+        QVERIFY(host);
+        // The page records what its bindings saw when they first ran.
+        QTRY_VERIFY(itemNamed(host.get(), QStringLiteral("saw:the-controller")));
     }
 
 private:
@@ -154,7 +303,29 @@ private:
         return QUrl::fromLocalFile(m_dir.filePath(name + QStringLiteral(".qml")));
     }
 
+    // A PageHost over @p controller, or null with the component's errors
+    // logged.
+    std::unique_ptr<QQuickItem> createHost(ApplicationController& controller)
+    {
+        QQmlComponent component(&m_engine);
+        component.setData("import org.phosphor.control\nPageHost {}\n", QUrl());
+        std::unique_ptr<QObject> created(component.createWithInitialProperties(
+            {{QStringLiteral("controller"), QVariant::fromValue<QObject*>(&controller)}}));
+        if (!created) {
+            qWarning("%s", qPrintable(component.errorString()));
+            return nullptr;
+        }
+        auto* const host = qobject_cast<QQuickItem*>(created.get());
+        if (!host) {
+            return nullptr;
+        }
+        created.release();
+        return std::unique_ptr<QQuickItem>(host);
+    }
+
     QTemporaryDir m_dir;
+    // Declared after m_dir, so it goes before the files it loaded.
+    QQmlEngine m_engine;
 };
 
 QTEST_MAIN(TestPageHost)

@@ -709,11 +709,25 @@ add_test(NAME test_animation_profile_publication COMMAND test_animation_profile_
 # Startup Wayland-display guard (main.cpp). Pins resolveWaylandSocketPath()
 # so an empty/unset WAYLAND_DISPLAY resolves to Qt's default "wayland-0" and
 # the guard exits cleanly instead of letting QGuiApplication qFatal() →
-# SIGABRT → core dump. Header-only logic, so links Qt6::Test + Qt6::Core
-# only (no plasmazones_core).
+# SIGABRT → core dump, and that PhosphorWayland::registerLayerShellPlugin()
+# admits the WAYLAND_SOCKET-only session the guard admits. Header-only logic,
+# so links Qt6::Test + Qt6::Core only (no plasmazones_core). The loader header
+# comes in by include path rather than by linking PhosphorWayland, which would
+# bring Qt6::Gui and turn QTEST_MAIN into a QGuiApplication that needs a
+# display.
 add_executable(test_wayland_session_check daemon/test_wayland_session_check.cpp)
+target_include_directories(test_wayland_session_check
+                           PRIVATE ${CMAKE_SOURCE_DIR}/phosphor-libs/libs/phosphor-wayland/include)
 target_link_libraries(test_wayland_session_check PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_wayland_session_check COMMAND test_wayland_session_check)
+
+# --replace's fallback when the bus cannot name the incumbent: when the pid in
+# the placement host record may be waited on (daemon/replaceincumbent.h).
+# Header-only; PhosphorConfig for HostRecord. It brings Qt6::Gui, so the test
+# uses QTEST_GUILESS_MAIN.
+add_executable(test_replace_incumbent daemon/test_replace_incumbent.cpp)
+target_link_libraries(test_replace_incumbent PRIVATE Qt6::Test Qt6::Core PhosphorConfig::PhosphorConfig)
+add_test(NAME test_replace_incumbent COMMAND test_replace_incumbent)
 
 # Strip-mode zone selector: pure hit-test classification (header-only
 # helper, no QML scene) and the strip-card wire shape. The hit-test test
@@ -933,6 +947,20 @@ target_compile_definitions(test_scrollingtemplate_store PRIVATE "P_SOURCE_DIR=\"
 p_add_test(test_whatsnew_data data/test_whatsnew_data.cpp)
 target_link_libraries(test_whatsnew_data PRIVATE PhosphorFsLoader::PhosphorFsLoader)
 target_compile_definitions(test_whatsnew_data PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+
+# data/placement-hosts/plasmazones.json is installed for a settings module to
+# read through PhosphorConfig::HostDirectory. It repeats by hand the host id the
+# daemon records (PlasmaZones::PlacementHostId), the bus name
+# (PhosphorProtocol::Service::Name) and the config file path
+# (ConfigDefaults::configFilePath()), so this target reads the file straight
+# out of the source tree, runs it through PhosphorConfig::HostDescriptor::parse
+# and compares each. Same shape as the whatsnew test above. PhosphorConfig and
+# PhosphorProtocol are named per this file's convention: the test calls both
+# directly rather than reaching them through plasmazones_core.
+p_add_test(test_placement_host_descriptor data/test_placement_host_descriptor.cpp)
+target_link_libraries(test_placement_host_descriptor PRIVATE PhosphorConfig::PhosphorConfig
+                                                             PhosphorProtocol::PhosphorProtocol)
+target_compile_definitions(test_placement_host_descriptor PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
 
 # The other direction of the same contract. validate-json-schemas.py checks DATA
 # against the shader schemas; nothing checked the schemas' own numeric bounds
@@ -1850,6 +1878,17 @@ target_compile_definitions(test_connect_sweep_ordering
                            PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_connect_sweep_ordering PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_connect_sweep_ordering COMMAND test_connect_sweep_ordering)
+
+# Same shape and same reason: plasmazonesd's main() and a started Daemon cannot
+# be stood up in a fixture. Pins three orderings by reading the source: stop()
+# releases the shortcut grabs before the bus name, main() reads the rendering
+# backend after the config migration, and the not-served exit status is in the
+# unit's RestartPreventExitStatus=.
+add_executable(test_daemon_lifecycle_order daemon/test_daemon_lifecycle_order.cpp)
+target_compile_definitions(test_daemon_lifecycle_order
+                           PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_link_libraries(test_daemon_lifecycle_order PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME test_daemon_lifecycle_order COMMAND test_daemon_lifecycle_order)
 
 # Same shape and same reason as the sweep-ordering guard above: OverlayService cannot be
 # stood up in a fixture (QGuiApplication plus a Wayland transport), and the behaviour it

@@ -12,6 +12,7 @@
 # the in-tree target must exist before the consumer configures, or the
 # fallback resolves a stale installed copy.
 
+add_subdirectory(libs/phosphor-channel)     # ordered byte frames between two processes with backpressure (shared-memory ring, multiplexed stream) - no Qt
 add_subdirectory(libs/phosphor-identity)    # stable cross-process window identity (composite ids, app-id matching)
 add_subdirectory(libs/phosphor-dbus)        # generic, service-agnostic D-Bus client utilities (Client, HasDBusStreaming)
 add_subdirectory(libs/phosphor-protocol)    # D-Bus wire types and service constants, needed by phosphor-screens (Resolver endpoint defaults)

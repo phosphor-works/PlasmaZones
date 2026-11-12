@@ -5,7 +5,7 @@
 
 #include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/IVirtualDesktopManager.h>
-#include <phosphorworkspaces_export.h>
+#include "phosphorworkspaces_export.h"
 #include <QHash>
 #include <QObject>
 #include <QString>

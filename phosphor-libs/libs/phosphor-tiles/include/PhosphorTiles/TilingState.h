@@ -5,7 +5,7 @@
 
 #include "AutotileConstants.h"
 #include <PhosphorEngine/IPlacementState.h>
-#include <phosphortiles_export.h>
+#include "phosphortiles_export.h"
 #include <QObject>
 #include <QJsonObject>
 #include <QRect>

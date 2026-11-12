@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <functional>
 
-#include <phosphorwayland_export.h>
+#include "phosphorwayland_export.h"
 
 namespace PhosphorWayland {
 

@@ -330,7 +330,11 @@ Compositor Process                        phosphor-shell Process
       │                                          │
 ```
 
-### Widget Manifest (reuses existing phosphor-registry format)
+### Widget Manifest
+
+phosphor-registry no longer has a manifest format: a bar-widget plugin is a Qt
+plugin whose embedded metadata carries `"Id"` and `"ApiVersion"`, found by its
+`PluginCatalog`. A Tier 2 QML widget needs a manifest of its own, sketched here.
 
 ```json
 {

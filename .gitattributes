@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Qt Linguist catalogs, not TypeScript. Linguist goes by the extension and
-# counts these as TS, which is the same misattribution the vendored rule above
-# exists to correct.
-plasmazones/translations/*.ts linguist-language=XML
+# counts every .ts file as TypeScript. The tree holds no TypeScript, so the
+# rule covers each catalog, the app's translations and the test fixtures'
+# alike.
+*.ts linguist-language=XML

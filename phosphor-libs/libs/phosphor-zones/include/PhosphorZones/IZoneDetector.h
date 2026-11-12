@@ -11,7 +11,7 @@
 // into a standalone phosphor-zones library without dragging the rest of
 // Phosphor's service interfaces along.
 
-#include <phosphorzones_export.h>
+#include "phosphorzones_export.h"
 
 #include <QObject>
 #include <QPointF>

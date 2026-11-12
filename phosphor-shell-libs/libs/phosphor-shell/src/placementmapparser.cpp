@@ -32,33 +32,17 @@ constexpr QLatin1String ScreenStatesTemplateId("scrollingTemplateId");
 
 // WindowDrag.registerDropProxy payload keys (the phase-3 daemon contract):
 // the miniature's rect and one entry per zone cell, both in screen-local
-// pixels.
-namespace DropProxyKey {
-constexpr QLatin1String Rect("rect");
-constexpr QLatin1String Cells("cells");
-constexpr QLatin1String Id("id");
-} // namespace DropProxyKey
+// pixels. The protocol's own definition, which the daemon's parser reads
+// through as well.
+namespace DropProxyKey = PhosphorProtocol::Service::DropProxyKey;
 
 // Zone::fromJson's ZoneGeometryMode: 0 relative, 1 fixed.
 constexpr int GeometryModeFixed = 1;
 
 // Scrolling.stripModelJson keys: a straight serialisation of the scroll
-// engine's strip (A2 §1.3). Pinned beside the only reader, like the
-// screen-state keys above.
-namespace StripModelKey {
-constexpr QLatin1String Axis("axis");
-constexpr QLatin1String ViewOffsetPx("viewOffsetPx");
-constexpr QLatin1String ViewportPx("viewportPx");
-constexpr QLatin1String StripExtentPx("stripExtentPx");
-constexpr QLatin1String ActiveColumn("activeColumn");
-constexpr QLatin1String Columns("columns");
-constexpr QLatin1String Index("index");
-constexpr QLatin1String StripPosPx("stripPosPx");
-constexpr QLatin1String ExtentPx("extentPx");
-constexpr QLatin1String Tiles("tiles");
-constexpr QLatin1String WindowId("windowId");
-constexpr QLatin1String Minimized("minimized");
-} // namespace StripModelKey
+// engine's strip (A2 §1.3). The protocol's own definition, which the daemon's
+// serializer writes through as well.
+namespace StripModelKey = PhosphorProtocol::Service::StripModelKey;
 
 // Tiling.currentTilesJson keys: one entry per tile in screen pixels, the
 // wire shape of a windowsTileRequested batch.

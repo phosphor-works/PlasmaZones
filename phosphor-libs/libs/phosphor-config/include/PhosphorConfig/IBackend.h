@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorconfig_export.h>
+#include "phosphorconfig_export.h"
 
 #include <QColor>
 #include <QJsonArray>

@@ -337,16 +337,20 @@ bool OverlayAdaptor::setSnapAssistThumbnail(const QString& compositorHandle, int
     if (!m_overlayService) {
         return false;
     }
-    // Hard byte cap matching a 1024² ARGB32 image (4 MiB) plus framing
-    // overhead, generous for the 256² steady state (256 KiB). Note: by the
-    // time this slot runs, QtDBus has already deserialised the QByteArray —
+    // Hard byte cap: an ARGB32 image at the shared per-axis ceiling
+    // (PhosphorProtocol::Service::SnapAssistThumbnailMaxDimension on both
+    // axes, four bytes a pixel) plus framing overhead, generous for the 256²
+    // steady state (256 KiB). Derived from the protocol constant so this
+    // pre-auth cap and the dimension checks behind it move together. Note: by
+    // the time this slot runs, QtDBus has already deserialised the QByteArray —
     // the marshaller cost is paid regardless. What this guard actually
     // bounds is (a) downstream validation cost in OverlayService against
     // an authenticated kwin-effect bug producing a too-large buffer, and
     // (b) the daemon's QImage.copy() walk if the buffer slipped past auth.
     // A finer-grained dimension/byte-count match runs in
     // OverlayService::setSnapAssistThumbnail.
-    static constexpr int MaxPixelBytes = 4 * 1024 * 1024 + 64;
+    static constexpr int MaxThumbnailDimension = PhosphorProtocol::Service::SnapAssistThumbnailMaxDimension;
+    static constexpr int MaxPixelBytes = MaxThumbnailDimension * MaxThumbnailDimension * 4 + 64;
     if (pixels.size() > MaxPixelBytes) {
         // Don't log @c compositorHandle — this branch fires before
         // @ref authenticateKwinSender, so the field is attacker-controlled
@@ -440,6 +444,21 @@ void OverlayAdaptor::setCompositorResolverForTesting(CompositorResolver resolver
     m_compositorResolver = std::move(resolver);
 }
 
+bool OverlayAdaptor::isKwinWaylandWrapper(QStringView executable)
+{
+    static constexpr QLatin1StringView Wrapper("kwin_wayland_wrapper");
+    // wrapProgram's hidden name for the binary is "." + name + "-wrapped".
+    // A second wrap appends "_" to the name it moves the first script to,
+    // but that file is a script, and the binary keeps the first name.
+    static constexpr QLatin1StringView NixPrefix(".");
+    static constexpr QLatin1StringView NixSuffix("-wrapped");
+    if (executable == Wrapper) {
+        return true;
+    }
+    return executable.size() == NixPrefix.size() + Wrapper.size() + NixSuffix.size() && executable.startsWith(NixPrefix)
+        && executable.endsWith(NixSuffix) && executable.sliced(NixPrefix.size(), Wrapper.size()) == Wrapper;
+}
+
 OverlayAdaptor::Compositor OverlayAdaptor::compositor()
 {
     if (m_compositorResolver) {
@@ -451,8 +470,7 @@ OverlayAdaptor::Compositor OverlayAdaptor::compositor()
         m_compositorDisplay = display;
         m_compositorFd = fd;
         m_compositor.pid = peerPid(fd);
-        m_compositor.trustsChildren =
-            m_compositor.pid != 0 && executableName(m_compositor.pid) == QLatin1String("kwin_wayland_wrapper");
+        m_compositor.trustsChildren = m_compositor.pid != 0 && isKwinWaylandWrapper(executableName(m_compositor.pid));
         qCDebug(lcDbus) << "compositor: pid" << m_compositor.pid << "trusts its children"
                         << m_compositor.trustsChildren;
     }

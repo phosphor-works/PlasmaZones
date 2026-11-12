@@ -55,18 +55,23 @@ post_upgrade() {
 }
 
 post_remove() {
-    # The service unit went away with the package, but if the user had
-    # enabled it the broken symlink in ~/.config/systemd/user/ lingers
-    # until manually cleaned. Disable the unit globally so systemd
-    # garbage-collects the symlinks. Safe to run when the unit is
-    # already absent.
+    # The service unit went away with the package. `--global disable`
+    # removes only an enablement made for every user, under
+    # /etc/systemd/user. The per-user one that post_install suggests lives
+    # in each user's ~/.config/systemd/user/, which a package hook running
+    # as root does not touch, so the message tells the user to remove it.
+    # Safe to run when the unit is already absent.
     if command -v systemctl >/dev/null 2>&1; then
         systemctl --global disable plasmazones.service 2>/dev/null || true
     fi
     _p_refresh_caches
     echo ""
-    echo "  PlasmaZones removed. The systemd unit symlink has been"
-    echo "  disabled; per-user state under ~/.config/plasmazones/ and"
-    echo "  ~/.local/share/plasmazones/ is intentionally left in place."
+    echo "  PlasmaZones removed. If you enabled the service for your"
+    echo "  user, remove the leftover link with:"
+    echo "      systemctl --user disable plasmazones.service"
+    echo "  Your settings in ~/.config/plasmazones/ and"
+    echo "  ~/.local/share/plasmazones/, and the record"
+    echo "  ~/.local/state/phosphor-works/placement-host.json, are"
+    echo "  left in place."
     echo ""
 }

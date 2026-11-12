@@ -247,7 +247,7 @@ def line_of(text: str, index: int) -> int:
 # .search(), not .match(): these are mid-path patterns, and .match() anchors
 # at position 0, so the (^|/) alternation could never fire for a tier-
 # prefixed path and the exemption would guard nothing even once it is reachable.
-SPDX_EXEMPT = re.compile(r"(^|/)data/.*\.json$|(^|/)libs/phosphor-registry/tests/.*manifest\.json(\.in)?$")
+SPDX_EXEMPT = re.compile(r"(^|/)data/.*\.json$|(^|/)metadata\.json$")
 
 # How far in a header may sit. Named because TWO rules read it and because the message
 # quotes the number: widening it silently turns "in the first 6 lines" into a lie. FIVE is

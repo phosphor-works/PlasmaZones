@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphortileengine_export.h>
+#include "phosphortileengine_export.h"
 #include <PhosphorEngine/PerScreenKeys.h>
 #include <PhosphorLayoutApi/EdgeGaps.h>
 #include <PhosphorTiles/AutotileConstants.h>

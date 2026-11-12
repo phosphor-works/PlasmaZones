@@ -4,7 +4,7 @@
 #pragma once
 
 #include <PhosphorEngine/WindowPlacement.h>
-#include <phosphorengine_export.h>
+#include "phosphorengine_export.h"
 
 #include <QHash>
 #include <QJsonObject>

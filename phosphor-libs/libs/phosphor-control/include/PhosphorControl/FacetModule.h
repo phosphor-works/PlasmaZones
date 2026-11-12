@@ -8,26 +8,50 @@ namespace PhosphorControl {
 
 class FacetContext;
 
+/// The `ApiVersion` a Facet module's metadata declares, and the version the
+/// PhosphorFacetModule_iid below ends in. Both change together.
+inline constexpr int FacetModuleApiVersion = 1;
+
 /// The root object of a Facet module.
 ///
 /// A Facet module is a Qt plugin in the `facet` seam: its root QObject
 /// implements this interface and declares
-/// `Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "metadata.json")`.
-/// The metadata describes the module and its pages (FacetModuleMetadata), so
-/// Facet can show them in the sidebar and search them before the module
-/// loads. The module loads the first time one of its pages is opened.
+/// `Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "facet_metadata.json")`,
+/// the metadata phosphor_add_facet_module_metadata() generates from the
+/// module's own metadata file and its translations. The metadata describes
+/// the module and its pages (FacetModuleMetadata), so Facet can put them in
+/// the sidebar before the module loads. The module loads the first time one
+/// of its pages is opened, or a page it adds a section to (its metadata's
+/// `Extensions`), or, when its metadata says `"SearchProviders": true`, once a
+/// search query is not blank.
 class IFacetModule
 {
 public:
     virtual ~IFacetModule() = default;
 
-    /// Register this module's page controllers and headless staging domains.
-    /// Every page in the metadata must be registered, and nothing else. Called
-    /// once, on the GUI thread, when the module loads. Must not throw.
+    /// Register this module's page controllers, headless staging domains and
+    /// extension sections. Every page and every extension the metadata
+    /// declares must be registered, and nothing it does not declare. Runs on
+    /// the GUI thread when the module loads. Must not throw.
+    ///
+    /// Nothing registered here takes effect until registerInto returns and
+    /// the whole registration checks out. When it does not, the module fails
+    /// and none of it is kept, and a retry calls registerInto again on the
+    /// same root object. So create the controllers and domains inside this
+    /// call, parented to the root object, rather than once up front.
+    ///
+    /// There are two exceptions. FacetContext::configBackend shares the
+    /// file's backend at once, and the backend stays shared when the
+    /// registration is not kept, so a retry gets the same one back. A search
+    /// provider (FacetContext::registerSearchProvider) is made once per root
+    /// object, not in each call, since a host may still be asking the one an
+    /// earlier call registered.
     virtual void registerInto(FacetContext& context) = 0;
 };
 
 } // namespace PhosphorControl
 
+/// The interface id of a Facet module. Its last component is
+/// PhosphorControl::FacetModuleApiVersion.
 #define PhosphorFacetModule_iid "org.phosphor_works.Facet.Module/1"
 Q_DECLARE_INTERFACE(PhosphorControl::IFacetModule, PhosphorFacetModule_iid)

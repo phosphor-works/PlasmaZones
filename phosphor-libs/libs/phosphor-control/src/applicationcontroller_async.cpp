@@ -64,14 +64,25 @@ void ApplicationController::applyAllAsync()
         // Also bump the generation + clear error/outstanding state so a
         // prior forceResetAsyncState that left stragglers behind can't
         // leak into the next real batch's observable state.
+        //
+        // No domain is dirty, so the global flag must not be either. It can
+        // be stale when a dirty domain was destroyed (its recompute is
+        // queued), and a completion handler reads it, so fold it first and
+        // notify after the terminal signal, like completeApplyIfDone.
         ++m_applyGeneration;
         m_applyErrors.clear();
         m_applyOutstanding.clear();
+        const bool dirtyFlipped = foldDirty();
+        m_dirtyNotifyPending = m_dirtyNotifyPending || dirtyFlipped;
         m_applying = true;
         Q_EMIT applyingChanged();
         m_applying = false;
         Q_EMIT applyingChanged();
         Q_EMIT applyAllComplete(true, QStringList{});
+        if (m_dirtyNotifyPending) {
+            m_dirtyNotifyPending = false;
+            Q_EMIT dirtyChanged();
+        }
         return;
     }
 
@@ -122,9 +133,8 @@ void ApplicationController::applyAllAsync()
         // wedged instead of N identical strings.
         for (StagingDomain* stuck : m_applyOutstanding) {
             const QString name = stuck ? stuck->objectName() : QString();
-            m_applyErrors.append(
-                name.isEmpty() ? QStringLiteral("Domain did not report apply completion within timeout")
-                               : QStringLiteral("Domain %1 did not report apply completion within timeout").arg(name));
+            m_applyErrors.append(name.isEmpty() ? tr("A settings section did not finish saving in time")
+                                                : tr("%1 did not finish saving in time").arg(name));
         }
         m_applyPending = 0;
         completeApplyIfDone();
@@ -172,7 +182,7 @@ void ApplicationController::applyAllAsync()
                                               if (!ok && !error.isEmpty())
                                                   m_applyErrors.append(error);
                                               else if (!ok)
-                                                  m_applyErrors.append(QStringLiteral("Unknown error"));
+                                                  m_applyErrors.append(tr("Saving failed for an unknown reason"));
                                               --m_applyPending;
                                               completeApplyIfDone();
                                           }));
@@ -186,7 +196,7 @@ void ApplicationController::applyAllAsync()
                 return;
             if (m_applyOutstanding.remove(domain) == 0)
                 return;
-            m_applyErrors.append(QStringLiteral("Domain destroyed before apply completed"));
+            m_applyErrors.append(tr("A settings section was closed before it finished saving"));
             --m_applyPending;
             completeApplyIfDone();
         }));
@@ -194,9 +204,16 @@ void ApplicationController::applyAllAsync()
     // Second pass — every lambda is wired, now drive the apply()s.
     // Iterate via QPointer so a domain destroyed between pass-1 and
     // pass-2 becomes a null QPointer and is skipped rather than
-    // dereferenced.
+    // dereferenced. A domain is applied only while this batch is still
+    // the live one and still owes its result: an earlier domain's
+    // synchronous apply() can cascade into a later domain's applyResult,
+    // which may finish the batch (and a completion handler may start the
+    // next one). Calling apply() on a domain that already reported, or
+    // under a newer batch, breaks the "only dirty domains are applied"
+    // contract StagingDomain documents.
     for (const auto& dp : dirty) {
-        if (auto* domain = dp.data())
+        auto* domain = dp.data();
+        if (domain && generation == m_applyGeneration && m_applyOutstanding.contains(domain))
             domain->apply();
     }
 }
@@ -221,14 +238,22 @@ void ApplicationController::discardAllAsync()
         // a prior forceResetAsyncState that left stragglers behind
         // can't leak into the next real batch's observable state
         // (symmetric with applyAllAsync no-op fast path).
+        // The global flag is folded first for the same reason as the
+        // applyAllAsync fast path.
         ++m_discardGeneration;
         m_discardErrors.clear();
         m_discardOutstanding.clear();
+        const bool dirtyFlipped = foldDirty();
+        m_dirtyNotifyPending = m_dirtyNotifyPending || dirtyFlipped;
         m_discarding = true;
         Q_EMIT discardingChanged();
         m_discarding = false;
         Q_EMIT discardingChanged();
         Q_EMIT discardAllComplete(true, QStringList{});
+        if (m_dirtyNotifyPending) {
+            m_dirtyNotifyPending = false;
+            Q_EMIT dirtyChanged();
+        }
         return;
     }
 
@@ -259,10 +284,8 @@ void ApplicationController::discardAllAsync()
         // identify the wedged page(s).
         for (StagingDomain* stuck : m_discardOutstanding) {
             const QString name = stuck ? stuck->objectName() : QString();
-            m_discardErrors.append(
-                name.isEmpty()
-                    ? QStringLiteral("Domain did not report discard completion within timeout")
-                    : QStringLiteral("Domain %1 did not report discard completion within timeout").arg(name));
+            m_discardErrors.append(name.isEmpty() ? tr("A settings section did not finish discarding in time")
+                                                  : tr("%1 did not finish discarding in time").arg(name));
         }
         m_discardPending = 0;
         completeDiscardIfDone();
@@ -286,35 +309,34 @@ void ApplicationController::discardAllAsync()
             continue;
         // Same generation + outstanding-set guard pattern as
         // applyAllAsync above. See the rationale comment there.
-        m_discardConnections.append(connect(domain, &StagingDomain::discardResult, this,
-                                            [this, domain, generation](bool ok, const QString& error) {
-                                                if (generation != m_discardGeneration)
-                                                    return;
-                                                if (m_discardOutstanding.remove(domain) == 0)
-                                                    return;
-                                                if (!ok && !error.isEmpty())
-                                                    m_discardErrors.append(error);
-                                                else if (!ok)
-                                                    m_discardErrors.append(QStringLiteral("Unknown error"));
-                                                --m_discardPending;
-                                                completeDiscardIfDone();
-                                            }));
+        m_discardConnections.append(connect(
+            domain, &StagingDomain::discardResult, this, [this, domain, generation](bool ok, const QString& error) {
+                if (generation != m_discardGeneration)
+                    return;
+                if (m_discardOutstanding.remove(domain) == 0)
+                    return;
+                if (!ok && !error.isEmpty())
+                    m_discardErrors.append(error);
+                else if (!ok)
+                    m_discardErrors.append(tr("Discarding failed for an unknown reason"));
+                --m_discardPending;
+                completeDiscardIfDone();
+            }));
         m_discardConnections.append(connect(domain, &QObject::destroyed, this, [this, domain, generation]() {
             if (generation != m_discardGeneration)
                 return;
             if (m_discardOutstanding.remove(domain) == 0)
                 return;
-            m_discardErrors.append(QStringLiteral("Domain destroyed before discard completed"));
+            m_discardErrors.append(tr("A settings section was closed before it finished discarding"));
             --m_discardPending;
             completeDiscardIfDone();
         }));
     }
     // Second pass — every lambda is wired, now drive the discard()s.
-    // Iterate via QPointer so a domain destroyed between pass-1 and
-    // pass-2 becomes a null QPointer and is skipped rather than
-    // dereferenced.
+    // Same QPointer and live-batch guards as the applyAllAsync pass.
     for (const auto& dp : dirty) {
-        if (auto* domain = dp.data())
+        auto* domain = dp.data();
+        if (domain && generation == m_discardGeneration && m_discardOutstanding.contains(domain))
             domain->discard();
     }
 }
@@ -345,12 +367,20 @@ void ApplicationController::completeApplyIfDone()
     //                                 a slot that re-invokes applyAllAsync
     //                                 from here starts a fresh batch
     //                                 cleanly)
-    //   5) recomputeDirty            (dirtyChanged-driven side effects
-    //                                 can now observe both applying=false
-    //                                 AND the terminal signal has already
-    //                                 been emitted — no chance of
-    //                                 Complete arriving AFTER a re-invoked
-    //                                 batch's applyingChanged(true))
+    //   5) dirtyChanged              (dirtyChanged-driven side effects
+    //                                 observe the terminal signal already
+    //                                 emitted, so Complete never arrives
+    //                                 after a re-invoked batch's
+    //                                 applyingChanged(true). They see
+    //                                 applying=false unless a completion
+    //                                 handler already started a new batch.)
+    // The dirty VALUE is folded before step 1, only its NOTIFY waits for
+    // step 5: every per-domain dirty edge in the batch was suppressed by
+    // m_inTransaction, and a completion handler deciding whether the batch
+    // left anything unsaved (the close prompt's apply-then-close) reads
+    // `dirty`.
+    const bool dirtyFlipped = foldDirty();
+    m_dirtyNotifyPending = m_dirtyNotifyPending || dirtyFlipped;
     const bool ok = m_applyErrors.isEmpty();
     const QStringList errors = std::move(m_applyErrors);
     // Defensive: std::move leaves the source in a valid-but-
@@ -363,7 +393,11 @@ void ApplicationController::completeApplyIfDone()
     m_inTransaction = false;
     Q_EMIT applyingChanged();
     Q_EMIT applyAllComplete(ok, errors);
-    recomputeDirty();
+    // A recomputeDirty from a completion handler has already notified.
+    if (m_dirtyNotifyPending) {
+        m_dirtyNotifyPending = false;
+        Q_EMIT dirtyChanged();
+    }
 }
 
 void ApplicationController::completeDiscardIfDone()
@@ -379,7 +413,10 @@ void ApplicationController::completeDiscardIfDone()
     m_discardConnections.clear();
     // Same emission order as completeApplyIfDone — m_discarding flips
     // false BEFORE m_inTransaction so a slot triggered by the terminal
-    // emit observes the intended pair. See the comment block there.
+    // emit observes the intended pair, and the dirty value is folded
+    // first. See the comment block there.
+    const bool dirtyFlipped = foldDirty();
+    m_dirtyNotifyPending = m_dirtyNotifyPending || dirtyFlipped;
     const bool ok = m_discardErrors.isEmpty();
     const QStringList errors = std::move(m_discardErrors);
     // Defensive clear after std::move (same rationale as
@@ -389,7 +426,10 @@ void ApplicationController::completeDiscardIfDone()
     m_inTransaction = false;
     Q_EMIT discardingChanged();
     Q_EMIT discardAllComplete(ok, errors);
-    recomputeDirty();
+    if (m_dirtyNotifyPending) {
+        m_dirtyNotifyPending = false;
+        Q_EMIT dirtyChanged();
+    }
 }
 
 void ApplicationController::forceResetAsyncState()
@@ -424,14 +464,14 @@ void ApplicationController::forceResetAsyncState()
         m_applyPending = 0;
         m_applyOutstanding.clear();
         if (m_applyErrors.isEmpty())
-            m_applyErrors.append(QStringLiteral("Async apply state force-reset"));
+            m_applyErrors.append(tr("Saving was stopped before it finished"));
         completeApplyIfDone();
     } else if (m_discarding) {
         ++m_discardGeneration;
         m_discardPending = 0;
         m_discardOutstanding.clear();
         if (m_discardErrors.isEmpty())
-            m_discardErrors.append(QStringLiteral("Async discard state force-reset"));
+            m_discardErrors.append(tr("Discarding was stopped before it finished"));
         completeDiscardIfDone();
     }
 }

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphortiles_export.h>
+#include "phosphortiles_export.h"
 
 // Back-compat include: previewFromAlgorithm(...) used to be declared here;
 // it now lives in AutotilePreviewRender.h. Keep the include so existing

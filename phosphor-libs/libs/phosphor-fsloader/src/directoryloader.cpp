@@ -337,10 +337,9 @@ QStringList DirectoryLoader::JsonScanStrategy::performScan(const QStringList& di
     // depends on it: the base copies into a QSet (so it dedupes and ignores
     // order), the IScanStrategy contract promises no ordering, and this
     // strategy is a private nested class whose return value never escapes
-    // `rescanAll`, so no test can assert on it either. Note only TWO of the
-    // four IScanStrategy implementations sort (this one and
-    // MetadataPackScanStrategy); PluginLoader and ScriptedAlgorithmLoader
-    // return raw/hash order. So this is a courtesy for consistency with one
+    // `rescanAll`, so no test can assert on it either. MetadataPackScanStrategy
+    // sorts too, PluginCatalog returns scan order and ScriptedAlgorithmLoader
+    // raw/hash order. So this is a courtesy for consistency with one
     // sibling, not a contract — it costs one sort of a small list.
     std::sort(desiredFileWatches.begin(), desiredFileWatches.end());
     return desiredFileWatches;

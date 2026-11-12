@@ -13,10 +13,16 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
+
+#include <cstdio>
+#include <unistd.h>
 
 using namespace PhosphorFsLoader;
 
@@ -50,6 +56,78 @@ void touchFile(const QString& path)
     QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
     f.write("x");
 }
+
+/// A symlink at @p linkPath holding @p target verbatim.
+[[nodiscard]] bool makeSymlink(const QString& target, const QString& linkPath)
+{
+    return ::symlink(QFile::encodeName(target).constData(), QFile::encodeName(linkPath).constData()) == 0;
+}
+
+/// rename(2), which replaces a file or a symlink at @p to.
+[[nodiscard]] bool renamePath(const QString& from, const QString& to)
+{
+    return ::rename(QFile::encodeName(from).constData(), QFile::encodeName(to).constData()) == 0;
+}
+
+/// How long a negative check waits to be sure no rescan arrives: many
+/// debounce windows.
+constexpr int kQuietMs = 300;
+
+/// Replace the symlink at @p linkPath with one holding @p target, in one
+/// rename, the way `ln -sfn`, stow and Home Manager switch a link.
+[[nodiscard]] bool retargetSymlink(const QString& target, const QString& linkPath)
+{
+    const QString staged = linkPath + QStringLiteral(".new");
+    return makeSymlink(target, staged) && renamePath(staged, linkPath);
+}
+
+/// Rewrite @p path in place: the inode stays, its content changes.
+void editInPlace(const QString& path)
+{
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Append));
+    f.write("y");
+}
+
+/// Every path the set's watcher holds, sorted. The watcher is the set's only
+/// QFileSystemWatcher child, created with live reload.
+QStringList watchedPaths(const WatchedDirectorySet& set)
+{
+    const auto* watcher = set.findChild<QFileSystemWatcher*>();
+    if (!watcher) {
+        return {};
+    }
+    QStringList paths = watcher->files() + watcher->directories();
+    paths.sort();
+    return paths;
+}
+
+/// Creates and deletes a file in each of @p directories every 5 ms while it
+/// lives, faster than any debounce in these tests.
+class Churn
+{
+public:
+    explicit Churn(const QStringList& directories)
+    {
+        m_timer.setInterval(5);
+        QObject::connect(&m_timer, &QTimer::timeout, &m_timer, [directories] {
+            for (const QString& directory : directories) {
+                const QString noise = directory + QStringLiteral("/noise.txt");
+                if (QFile file(noise); !file.exists()) {
+                    if (file.open(QIODevice::WriteOnly)) {
+                        file.close();
+                    }
+                } else {
+                    QFile::remove(noise);
+                }
+            }
+        });
+        m_timer.start();
+    }
+
+private:
+    QTimer m_timer;
+};
 
 } // namespace
 
@@ -631,7 +709,354 @@ private Q_SLOTS:
         QVERIFY(strategy.scanCount >= 2);
     }
 
+    /// A directory above the registered one is a symlink that is retargeted,
+    /// the way Home Manager switches a data directory into a new store path.
+    /// Only the directory holding the link sees the rename. The set rescans,
+    /// its watch follows the new target, and the old target no longer
+    /// triggers anything.
+    void testRegisteredDirectory_symlinkRetargetedRescansAndFollows()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/store-a/layouts")));
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/store-b/layouts")));
+        const QString link = tmp + QStringLiteral("/data");
+        QVERIFY(makeSymlink(tmp + QStringLiteral("/store-a"), link));
+
+        RecordingStrategy strategy;
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(1);
+        set.registerDirectory(link + QStringLiteral("/layouts"), LiveReload::On);
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+
+        QVERIFY(makeSymlink(tmp + QStringLiteral("/store-b"), link + QStringLiteral(".new")));
+        QVERIFY(renamePath(link + QStringLiteral(".new"), link));
+        QVERIFY(spy.wait(2000));
+
+        spy.clear();
+        touchFile(tmp + QStringLiteral("/store-b/layouts/new.json"));
+        QVERIFY(spy.wait(2000));
+
+        spy.clear();
+        touchFile(tmp + QStringLiteral("/store-a/layouts/old.json"));
+        QTest::qWait(kQuietMs);
+        QCOMPARE(spy.count(), 0);
+    }
+
+    /// The parent of the registered directory is replaced by a staged copy
+    /// through two renames. A directory watch does not see its own directory
+    /// being renamed, so only the watch on the grandparent notices. The set
+    /// rescans and its watch moves to the new directory.
+    void testRegisteredDirectory_parentReplacedByRenameRescansAndFollows()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/data/layouts")));
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/data.new/layouts")));
+
+        RecordingStrategy strategy;
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(1);
+        set.registerDirectory(tmp + QStringLiteral("/data/layouts"), LiveReload::On);
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+
+        QVERIFY(renamePath(tmp + QStringLiteral("/data"), tmp + QStringLiteral("/data.old")));
+        QVERIFY(renamePath(tmp + QStringLiteral("/data.new"), tmp + QStringLiteral("/data")));
+        QVERIFY(spy.wait(2000));
+
+        spy.clear();
+        touchFile(tmp + QStringLiteral("/data/layouts/new.json"));
+        QVERIFY(spy.wait(2000));
+
+        spy.clear();
+        touchFile(tmp + QStringLiteral("/data.old/layouts/old.json"));
+        QTest::qWait(kQuietMs);
+        QCOMPARE(spy.count(), 0);
+    }
+
+    /// Unrelated files and directories created, renamed and deleted in the
+    /// ancestors of a registered directory cost a re-check of its identity
+    /// and no rescan. A replacement of one of those ancestors does rescan,
+    /// which shows the churn reached a watch.
+    void testAncestorChurn_doesNotRescanButReplacementDoes()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/a/b")));
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/a.new/b")));
+
+        RecordingStrategy strategy;
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(1);
+        set.registerDirectory(tmp + QStringLiteral("/a/b"), LiveReload::On);
+        const int baseline = strategy.scanCount;
+
+        for (const QString& ancestor : QStringList{tmp, tmp + QStringLiteral("/a")}) {
+            const QString file = ancestor + QStringLiteral("/noise.txt");
+            touchFile(file);
+            QVERIFY(renamePath(file, file + QStringLiteral(".moved")));
+            QVERIFY(QFile::remove(file + QStringLiteral(".moved")));
+            const QString directory = ancestor + QStringLiteral("/noise.d");
+            QVERIFY(QDir().mkpath(directory));
+            QVERIFY(renamePath(directory, directory + QStringLiteral(".moved")));
+            QVERIFY(QDir().rmdir(directory + QStringLiteral(".moved")));
+        }
+        QTest::qWait(kQuietMs);
+        QCOMPARE(strategy.scanCount, baseline);
+
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+        QVERIFY(renamePath(tmp + QStringLiteral("/a"), tmp + QStringLiteral("/a.old")));
+        QVERIFY(renamePath(tmp + QStringLiteral("/a.new"), tmp + QStringLiteral("/a")));
+        QVERIFY(spy.wait(2000));
+    }
+
+    /// Steady churn in an ancestor, faster than the debounce, must not
+    /// postpone the identity check that notices a replaced directory: the
+    /// churn opens the window, and later events do not extend it.
+    void testAncestorChurn_doesNotPostponeIdentityCheck()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/a/b")));
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/a.new/b")));
+
+        RecordingStrategy strategy;
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(100);
+        set.registerDirectory(tmp + QStringLiteral("/a/b"), LiveReload::On);
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+
+        const QString noise = tmp + QStringLiteral("/noise.txt");
+        QTimer churn;
+        churn.setInterval(5);
+        connect(&churn, &QTimer::timeout, &churn, [noise] {
+            if (QFile file(noise); !file.exists()) {
+                if (file.open(QIODevice::WriteOnly)) {
+                    file.close();
+                }
+            } else {
+                QFile::remove(noise);
+            }
+        });
+        churn.start();
+
+        QVERIFY(renamePath(tmp + QStringLiteral("/a"), tmp + QStringLiteral("/a.old")));
+        QVERIFY(renamePath(tmp + QStringLiteral("/a.new"), tmp + QStringLiteral("/a")));
+        QVERIFY(spy.wait(2000));
+        churn.stop();
+    }
+
+    /// A file the strategy reports is a symlink inside the registered
+    /// directory, and it is pointed at another file by a rename over it. The
+    /// rename itself is an event in the registered directory. A watch added
+    /// under the link's path stays on the old target, so the set must follow
+    /// the new one: an edit of the new target rescans, and an edit of the old
+    /// one does not.
+    void testLinkedFile_retargetedRescansAndFollows()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        const QString scripts = tmp + QStringLiteral("/scripts");
+        const QString targets = tmp + QStringLiteral("/targets");
+        QVERIFY(QDir().mkpath(scripts));
+        QVERIFY(QDir().mkpath(targets));
+        touchFile(targets + QStringLiteral("/a.luau"));
+        touchFile(targets + QStringLiteral("/b.luau"));
+        const QString link = scripts + QStringLiteral("/tool.luau");
+        QVERIFY(makeSymlink(targets + QStringLiteral("/a.luau"), link));
+
+        RecordingStrategy strategy;
+        strategy.setReportedFiles({link});
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(1);
+        set.registerDirectory(scripts, LiveReload::On);
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+
+        QVERIFY(retargetSymlink(targets + QStringLiteral("/b.luau"), link));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        editInPlace(targets + QStringLiteral("/b.luau"));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        editInPlace(targets + QStringLiteral("/a.luau"));
+        QTest::qWait(kQuietMs);
+        QCOMPARE(spy.count(), 0);
+    }
+
+    /// A reported symlink inside the registered directory points to a file
+    /// whose directory does not exist yet. Nothing in the registered
+    /// directory changes when the target appears, so only a watch on the
+    /// deepest existing directory of the target can see it.
+    void testDanglingLink_rescansWhenTargetAppears()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        const QString scripts = tmp + QStringLiteral("/scripts");
+        const QString later = tmp + QStringLiteral("/targets/later");
+        QVERIFY(QDir().mkpath(scripts));
+        QVERIFY(QDir().mkpath(tmp + QStringLiteral("/targets")));
+        const QString link = scripts + QStringLiteral("/tool.luau");
+        QVERIFY(makeSymlink(later + QStringLiteral("/tool.luau"), link));
+
+        RecordingStrategy strategy;
+        strategy.setReportedFiles({link});
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(1);
+        set.registerDirectory(scripts, LiveReload::On);
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+
+        // The chain grows by a directory here, which may rescan once.
+        QVERIFY(QDir().mkpath(later));
+        settle(spy);
+
+        touchFile(later + QStringLiteral("/tool.luau"));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        editInPlace(later + QStringLiteral("/tool.luau"));
+        QVERIFY(spy.wait(2000));
+    }
+
+    /// A reported folder inside the registered directory is a symlink (a
+    /// package checkout linked in), and the strategy also reports a file
+    /// below it. After the link is pointed at another folder, a file created
+    /// in the new folder and an edit of the file below the link rescan, and
+    /// changes in the old folder do not.
+    void testLinkedFolder_retargetedRescansAndFollows()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        const QString scripts = tmp + QStringLiteral("/scripts");
+        const QString oldFolder = tmp + QStringLiteral("/targets/pkg-a");
+        const QString newFolder = tmp + QStringLiteral("/targets/pkg-b");
+        QVERIFY(QDir().mkpath(scripts));
+        QVERIFY(QDir().mkpath(oldFolder));
+        QVERIFY(QDir().mkpath(newFolder));
+        touchFile(oldFolder + QStringLiteral("/init.luau"));
+        touchFile(newFolder + QStringLiteral("/init.luau"));
+        const QString link = scripts + QStringLiteral("/pkg");
+        QVERIFY(makeSymlink(oldFolder, link));
+
+        RecordingStrategy strategy;
+        strategy.setReportedFiles({link, link + QStringLiteral("/init.luau")});
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(1);
+        set.registerDirectory(scripts, LiveReload::On);
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+
+        QVERIFY(retargetSymlink(newFolder, link));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        touchFile(newFolder + QStringLiteral("/new.luau"));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        editInPlace(newFolder + QStringLiteral("/init.luau"));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        touchFile(oldFolder + QStringLiteral("/old.luau"));
+        editInPlace(oldFolder + QStringLiteral("/init.luau"));
+        QTest::qWait(kQuietMs);
+        QCOMPARE(spy.count(), 0);
+    }
+
+    /// Steady churn in an ancestor shared by the registered directory and a
+    /// link target, and in the target's own directory, costs no rescan. It
+    /// postpones neither the rescan for an edit of the new target nor the
+    /// identity check that sees a missing target appear, and it does not make
+    /// the set rescan again afterwards.
+    void testLinkChurn_doesNotStarveOrRepeatRescans()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        const QString scripts = tmp + QStringLiteral("/scripts");
+        const QString targets = tmp + QStringLiteral("/targets");
+        QVERIFY(QDir().mkpath(scripts));
+        QVERIFY(QDir().mkpath(targets));
+        touchFile(targets + QStringLiteral("/a.luau"));
+        touchFile(targets + QStringLiteral("/b.luau"));
+        const QString link = scripts + QStringLiteral("/tool.luau");
+        QVERIFY(makeSymlink(targets + QStringLiteral("/a.luau"), link));
+
+        RecordingStrategy strategy;
+        strategy.setReportedFiles({link});
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(100);
+        set.registerDirectory(scripts, LiveReload::On);
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+
+        const Churn churn({tmp, targets});
+        QTest::qWait(kQuietMs);
+        QCOMPARE(spy.count(), 0);
+
+        QVERIFY(retargetSymlink(targets + QStringLiteral("/b.luau"), link));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        editInPlace(targets + QStringLiteral("/b.luau"));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        // Only the target's directory sees this file appear, and the churn
+        // there opens the identity window again and again.
+        QVERIFY(retargetSymlink(targets + QStringLiteral("/c.luau"), link));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+        touchFile(targets + QStringLiteral("/c.luau"));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+
+        QTest::qWait(kQuietMs);
+        QCOMPARE(spy.count(), 0);
+    }
+
+    /// A set whose reported paths cross no symlink watches what it watched
+    /// before links were followed: every directory from `/` down to the
+    /// registered one, that directory, and each reported path under its own
+    /// spelling. A rescan leaves the watch set as it was.
+    void testNoLinks_keepsItsWatches()
+    {
+        const QString tmp = QDir::cleanPath(m_tmp->path());
+        if (QFileInfo(tmp).canonicalFilePath() != tmp) {
+            QSKIP("the temporary directory is reached through a symlink");
+        }
+        const QString scripts = tmp + QStringLiteral("/scripts");
+        QVERIFY(QDir().mkpath(scripts + QStringLiteral("/sub")));
+        touchFile(scripts + QStringLiteral("/a.luau"));
+        touchFile(scripts + QStringLiteral("/sub/b.luau"));
+        const QStringList reported{scripts + QStringLiteral("/a.luau"), scripts + QStringLiteral("/sub"),
+                                   scripts + QStringLiteral("/sub/b.luau")};
+
+        RecordingStrategy strategy;
+        strategy.setReportedFiles(reported);
+        WatchedDirectorySet set(strategy);
+        set.setDebounceIntervalForTest(1);
+        set.registerDirectory(scripts, LiveReload::On);
+
+        QStringList expected = reported;
+        for (QString directory = scripts;; directory = QFileInfo(directory).absolutePath()) {
+            if (::access(QFile::encodeName(directory).constData(), R_OK) == 0) {
+                expected.append(directory);
+            }
+            if (directory == QLatin1String("/")) {
+                break;
+            }
+        }
+        expected.sort();
+        QCOMPARE(watchedPaths(set), expected);
+
+        QSignalSpy spy(&set, &WatchedDirectorySet::rescanCompleted);
+        editInPlace(scripts + QStringLiteral("/sub/b.luau"));
+        QVERIFY(spy.wait(2000));
+        settle(spy);
+        QCOMPARE(watchedPaths(set), expected);
+    }
+
 private:
+    /// Let the events of the last step drain, then forget the rescans they
+    /// caused, so the next check sees only its own.
+    static void settle(QSignalSpy& spy)
+    {
+        QTest::qWait(kQuietMs);
+        spy.clear();
+    }
+
     std::unique_ptr<QTemporaryDir> m_tmp;
 };
 

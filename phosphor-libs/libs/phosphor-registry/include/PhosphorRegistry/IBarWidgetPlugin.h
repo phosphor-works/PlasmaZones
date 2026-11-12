@@ -3,7 +3,9 @@
 #pragma once
 
 #include <PhosphorRegistry/IBarWidgetFactory.h>
+#include <PhosphorRegistry/phosphorregistry_export.h>
 
+#include <QtCore/qtclasshelpermacros.h>
 #include <QtPlugin>
 
 #include <memory>
@@ -17,17 +19,24 @@ namespace PhosphorRegistry {
 /// declares `Q_PLUGIN_METADATA(IID PhosphorRegistryBarWidgetPlugin_iid FILE
 /// "metadata.json")`, and its metadata carries `"Id"` and `"ApiVersion"`.
 ///
-/// Both binaries must use the same C++ standard library, because the factory
-/// is created in the plugin and destroyed by the loader.
-class IBarWidgetPlugin
+/// The plugin and the host must use the same C++ standard library, because
+/// the factory crosses this interface in a std::unique_ptr that the host
+/// adopts into a std::shared_ptr.
+class PHOSPHORREGISTRY_EXPORT IBarWidgetPlugin
 {
 public:
     virtual ~IBarWidgetPlugin() = default;
+    Q_DISABLE_COPY_MOVE(IBarWidgetPlugin)
 
     /// A fresh factory whose id() equals the plugin's metadata `"Id"`, or
-    /// nullptr when it cannot be built. Called once per plugin load. Must not
-    /// throw.
+    /// nullptr when it cannot be built. Called each time the plugin comes on
+    /// offer, which happens more than once when its file is removed and put
+    /// back. Must not throw: the library is built without exceptions, so an
+    /// exception that escapes ends the process.
     [[nodiscard]] virtual std::unique_ptr<IBarWidgetFactory> createFactory() = 0;
+
+protected:
+    IBarWidgetPlugin() = default;
 };
 
 } // namespace PhosphorRegistry

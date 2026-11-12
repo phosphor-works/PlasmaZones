@@ -384,6 +384,30 @@ private Q_SLOTS:
                  "RenderingBackend should not remain under General after migration");
     }
 
+    // The daemon's boot-time read of the rendering backend sees a v1
+    // config.json's choice only once ensureJsonConfig() has run. A v1 JSON
+    // holds it as Rendering.RenderingBackend, which readRenderingConfigFromDisk
+    // does not read, and the legacy INI fallback finds nothing because the
+    // INI→JSON step renamed the INI away long ago. daemon/main.cpp therefore
+    // reads the backend after the migration (test_daemon_lifecycle_order pins
+    // that order). The first QCOMPARE is the reason for that order; the second
+    // fails if the v1→v2 step stops carrying the key to Rendering.Backend.
+    void testRenderingBootReadSeesV1JsonBackendOnlyAfterMigration()
+    {
+        IsolatedConfigGuard guard;
+        QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
+        QFile f(ConfigDefaults::configFilePath());
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("{\"_version\":1,\"Rendering\":{\"RenderingBackend\":\"vulkan\"}}");
+        f.close();
+
+        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, ConfigDefaults::renderingBackend());
+
+        QVERIFY(ConfigMigration::ensureJsonConfig());
+
+        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, QStringLiteral("vulkan"));
+    }
+
     // =========================================================================
     // Idempotency
     // =========================================================================
