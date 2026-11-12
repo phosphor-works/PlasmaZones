@@ -22,8 +22,8 @@
 //  13  every domain emits a second applyResult from the event loop
 //  14  every domain reports a failed apply()
 //  16  register the first page with no QML source
-//  17  every domain, the headless one and each extension's, is dirty from
-//      the start
+//  17  every page and every domain, the headless one and each extension's,
+//      is dirty from the start
 //  18  every domain sends no applyResult at all
 //  19  the first page points at a QML file the module does not contain
 //  20  every domain sends its one applyResult from a timer, well after apply()
@@ -72,6 +72,17 @@
 //  46  also register a search provider with an entity entry on a page that
 //      is not the module's, and the setting entry of 45
 //  47  like 45, and also register a null domain
+//  48  also register a search provider with a setting entry on the first
+//      page at an anchor it does not list ("nope"), a section entry and a
+//      setting entry on the first extension's target page, at "speed" and at
+//      "gone", an action entry with no page, and an entity entry on the
+//      first page with no anchor
+//  49  also register a null search provider, and one search provider twice
+//  50  every domain reports a failed discard() and deletes itself
+//      (deleteLater) in it, and the headless domain has no objectName
+//  52  deleteLater() the first page's controller and the first extension's
+//      domain once registered, and the headless domain's apply() deletes the
+//      last extension's domain
 //
 // The config modes (30 and 40 to 43) record every call of their factory: the
 // file it was asked to open is appended to the application property
@@ -109,7 +120,7 @@
 #include <utility>
 
 static_assert((FAKE_MODE >= 0 && FAKE_MODE <= 10) || (FAKE_MODE >= 12 && FAKE_MODE <= 14)
-                  || (FAKE_MODE >= 16 && FAKE_MODE <= 47),
+                  || (FAKE_MODE >= 16 && FAKE_MODE <= 50) || FAKE_MODE == 52,
               "FAKE_MODE must be one of the modes listed above");
 
 #if FAKE_MODE == 44
@@ -161,6 +172,11 @@ void emitApply(PhosphorControl::StagingDomain* domain)
 
 void emitDiscard(PhosphorControl::StagingDomain* domain)
 {
+    if (FAKE_MODE == 50) {
+        Q_EMIT domain->discardResult(false, QStringLiteral("locked"));
+        domain->deleteLater();
+        return;
+    }
     Q_EMIT domain->discardResult(true, QString());
     if (FAKE_MODE == 9) {
         Q_EMIT domain->discardResult(true, QString());
@@ -173,6 +189,7 @@ class FakePage : public PhosphorControl::PageController
 public:
     FakePage(const QString& id, QObject* parent)
         : PageController(id, parent)
+        , m_dirty(FAKE_MODE == 17)
     {
     }
     bool isDirty() const override
@@ -198,7 +215,7 @@ public:
     }
 
 private:
-    bool m_dirty = false;
+    bool m_dirty;
 };
 
 class FakeDomain : public PhosphorControl::StagingDomain
@@ -213,14 +230,13 @@ public:
     bool isDirty() const override
     {
         if (FAKE_MODE == 29) {
-            // Once, and only what it was handed.
-            for (const QPointer<QObject>& victim : std::exchange(m_victims, {})) {
-                delete victim.data();
-            }
+            deleteVictims();
         }
         return m_dirty;
     }
-    void deleteOnFirstDirtyCheck(QObject* victim)
+    /// Delete @p victim on this domain's first isDirty() in mode 29, and on
+    /// its first apply() in mode 52.
+    void addVictim(QObject* victim)
     {
         m_victims.append(victim);
     }
@@ -233,6 +249,9 @@ public:
     }
     void apply() override
     {
+        if (FAKE_MODE == 52) {
+            deleteVictims();
+        }
         setDirty(false);
         emitApply(this);
     }
@@ -247,6 +266,14 @@ public:
     }
 
 private:
+    // Once, and only what it was handed.
+    void deleteVictims() const
+    {
+        for (const QPointer<QObject>& victim : std::exchange(m_victims, {})) {
+            delete victim.data();
+        }
+    }
+
     bool m_dirty = false;
     mutable QList<QPointer<QObject>> m_victims;
 };
@@ -389,6 +416,9 @@ public:
             if (FAKE_MODE == 29 && i == 0) {
                 firstPage = page;
             }
+            if (FAKE_MODE == 52 && i == 0) {
+                page->deleteLater();
+            }
             if (FAKE_MODE == 5 && i == 0) {
                 context.registerPage(local, new FakePage(id, this), source);
             }
@@ -399,9 +429,11 @@ public:
                                  QUrl(QStringLiteral("qrc:/fake/Page.qml")));
         }
         auto* const domain = new FakeDomain(this);
-        domain->setObjectName(QStringLiteral("FakeDomain"));
+        if (FAKE_MODE != 50) {
+            domain->setObjectName(QStringLiteral("FakeDomain"));
+        }
         if (firstPage) {
-            domain->deleteOnFirstDirtyCheck(firstPage);
+            domain->addVictim(firstPage);
         }
         context.registerDomain(domain);
         if (FAKE_MODE == 7) {
@@ -462,7 +494,13 @@ public:
             section->setObjectName(local);
             context.registerExtension(local, section, source);
             if (FAKE_MODE == 29 && i == 0) {
-                domain->deleteOnFirstDirtyCheck(section);
+                domain->addVictim(section);
+            }
+            if (FAKE_MODE == 52 && i == 0) {
+                section->deleteLater();
+            }
+            if (FAKE_MODE == 52 && i > 0 && i == extensions.size() - 1) {
+                domain->addVictim(section);
             }
         }
         if (FAKE_MODE == 30 || FAKE_MODE == 31 || (FAKE_MODE >= 40 && FAKE_MODE <= 43)) {
@@ -519,6 +557,52 @@ public:
             if (FAKE_MODE == 47) {
                 context.registerDomain(nullptr);
             }
+        }
+        if (FAKE_MODE == 48) {
+            using PhosphorControl::SearchEntry;
+            const auto& first = context.metadata().pages.first();
+            const QString extended = extensions.first().target;
+            QVector<SearchEntry> entries;
+            SearchEntry unlisted;
+            unlisted.kind = SearchEntry::Kind::Setting;
+            unlisted.pageId = context.pageId(first.id);
+            unlisted.anchor = QStringLiteral("nope");
+            unlisted.title = QStringLiteral("Unlisted anchor");
+            entries.append(unlisted);
+            SearchEntry section;
+            section.kind = SearchEntry::Kind::Section;
+            section.pageId = extended;
+            section.anchor = QStringLiteral("speed");
+            section.title = QStringLiteral("Extended section");
+            entries.append(section);
+            SearchEntry gone;
+            gone.kind = SearchEntry::Kind::Setting;
+            gone.pageId = extended;
+            gone.anchor = QStringLiteral("gone");
+            gone.title = QStringLiteral("Extended setting");
+            entries.append(gone);
+            SearchEntry action;
+            action.kind = SearchEntry::Kind::Action;
+            action.actionId = QStringLiteral("open-wizard");
+            action.title = QStringLiteral("Open the wizard");
+            entries.append(action);
+            SearchEntry entity;
+            entity.kind = SearchEntry::Kind::Entity;
+            entity.pageId = context.pageId(first.id);
+            entity.title = QStringLiteral("Unanchored entity");
+            entries.append(entity);
+            if (!m_provider) {
+                m_provider = std::make_unique<FakeProvider>(entries);
+            }
+            context.registerSearchProvider(m_provider.get());
+        }
+        if (FAKE_MODE == 49) {
+            if (!m_provider) {
+                m_provider = std::make_unique<FakeProvider>(QVector<PhosphorControl::SearchEntry>());
+            }
+            context.registerSearchProvider(nullptr);
+            context.registerSearchProvider(m_provider.get());
+            context.registerSearchProvider(m_provider.get());
         }
         if (FAKE_MODE == 23 && !extensions.isEmpty()) {
             context.registerExtension(QStringLiteral("undeclared"), new FakeDomain(this), sectionSource);

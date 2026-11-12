@@ -3,6 +3,7 @@
 
 #include <PhosphorControl/FacetModuleMetadata.h>
 
+#include <QDebug>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QTest>

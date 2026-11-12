@@ -253,6 +253,7 @@ _fake_with_good_pages(selfdelete 10 "Self Delete")
 _fake_with_good_pages(recorder 12 "Recorder")
 _fake_with_good_pages(lateresult 13 "Late Result")
 _fake_with_good_pages(failingapply 14 "Failing Apply")
+_fake_with_good_pages(discardbroken 50 "Discard Broken")
 phosphorcontrol_add_fake_module(notamodule MODE 0 SOURCE fake_module/notamodule.cpp METADATA [=[{
     "Id": "notamodule", "ApiVersion": 1, "Name": "Not A Module", "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
 _fake_with_good_pages(noqml 16 "No QML")
@@ -272,11 +273,27 @@ _fake_with_good_pages(foreigndomain 39 "Foreign Domain")
 # on disk between start() and its first load.
 phosphorcontrol_add_fake_module(goodv2 MODE 0 METADATA
     "{ \"Id\": \"good\", \"ApiVersion\": 1, \"Name\": \"Good Two\", \"Category\": \"input\",${_good_pages} }")
+# The next release of "good": the speed anchor of its page general is renamed,
+# so the page's anchors version goes up to 2. Its panel point is unchanged.
+phosphorcontrol_add_fake_module(goodnext MODE 0 METADATA [=[{
+    "Id": "good", "ApiVersion": 1, "Name": "Good Next", "Category": "input", "Order": 20,
+    "Pages": [
+        { "Id": "general/advanced", "Name": "Advanced", "Parent": "general" },
+        { "Id": "general", "Name": "General", "Keywords": ["basic"], "Anchors": ["speed-new"] },
+        { "Id": "about", "Name": "About" }
+    ],
+    "ExtensionPoints": [ { "Page": "general", "Id": "panel", "Version": 2 },
+                         { "Page": "general", "Id": "anchors", "Version": 2 } ] }]=])
 phosphorcontrol_add_fake_module(wrongapi MODE 0 INVALID METADATA [=[{
     "Id": "wrongapi", "ApiVersion": 2, "Name": "Wrong Api", "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
 phosphorcontrol_add_fake_module(badmetadata MODE 0 INVALID METADATA [=[{
     "Id": "badmetadata", "ApiVersion": 1,
     "Pages": [ { "Id": "a:b", "Name": "Colon" } ] }]=])
+# A key no Facet knows, which loads with a warning. The tool prints that
+# warning when it generates this fixture's metadata, on purpose.
+phosphorcontrol_add_fake_module(typokey MODE 0 METADATA [=[{
+    "Id": "typokey", "ApiVersion": 1, "Name": "Typo Key",
+    "Pages": [ { "Id": "page", "Name": "Page", "Keywrods": ["typo"] } ] }]=])
 # The same module id as "badmetadata" with valid metadata: the module after
 # its author fixed it.
 phosphorcontrol_add_fake_module(fixedmetadata MODE 0 METADATA [=[{
@@ -357,6 +374,7 @@ _fake_with_two_extensions(extensionmissingqml 27 "Extension Missing QML")
 _fake_with_two_extensions(extensionthread 28 "Extension Thread")
 _fake_with_two_extensions(deletesduringload 29 "Deletes During Load")
 _fake_with_two_extensions(extensionnoqml 35 "Extension No QML")
+_fake_with_two_extensions(deleteslater 52 "Deletes Later")
 
 # Modules that open a config file. Each has the one page "general", like the
 # page-contract variants, so the same keeps-nothing checks cover the ones that
@@ -397,6 +415,17 @@ phosphorcontrol_add_fake_module(undeclaredprovider MODE 45 METADATA
     "{ \"Id\": \"undeclaredprovider\", \"ApiVersion\": 1, \"Name\": \"Undeclared\",${_provider_pages} }")
 phosphorcontrol_add_fake_module(providersbroken MODE 47 METADATA
     "{ \"Id\": \"providersbroken\", \"ApiVersion\": 1, \"Name\": \"Providers Broken\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(badproviders MODE 49 METADATA
+    "{ \"Id\": \"badproviders\", \"ApiVersion\": 1, \"Name\": \"Bad Providers\", \"SearchProviders\": true,${_provider_pages} }")
+# Says it has providers and registers none.
+phosphorcontrol_add_fake_module(providersnone MODE 0 METADATA
+    "{ \"Id\": \"providersnone\", \"ApiVersion\": 1, \"Name\": \"Providers None\", \"SearchProviders\": true,${_provider_pages} }")
+# A provider whose entries FacetTestHost checks one by one: on its own page,
+# on the page its one extension targets, and an action with no page.
+phosphorcontrol_add_fake_module(providerchecks MODE 48 METADATA [=[{
+    "Id": "providerchecks", "ApiVersion": 1, "Name": "Provider Checks", "SearchProviders": true,
+    "Pages": [ { "Id": "general", "Name": "General", "Anchors": ["list"] } ],
+    "Extensions": [ { "Id": "first", "Target": "good:general", "Slot": "top", "Name": "First" } ] }]=])
 
 phosphorcontrol_add_test(test_facet_metadata_tool)
 target_compile_definitions(test_facet_metadata_tool PRIVATE
@@ -405,6 +434,11 @@ add_dependencies(test_facet_metadata_tool phosphor-facet-metadata)
 phosphorcontrol_add_test(test_facet_host)
 phosphorcontrol_add_test(test_facet_test_host)
 target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
+# The anchors files phosphor_add_facet_module_metadata generates, so the test
+# checks a release against what the tool really writes.
+target_compile_definitions(test_facet_test_host PRIVATE
+    PHOSPHOR_CONTROL_GOOD_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_good,FACET_ANCHORS_FILE>"
+    PHOSPHOR_CONTROL_GOODNEXT_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_goodnext,FACET_ANCHORS_FILE>")
 
 # FacetSlot and FacetExtensionFrame, through the static org.phosphor.control
 # module the in-tree apps link. They import org.kde.kirigami, and so does

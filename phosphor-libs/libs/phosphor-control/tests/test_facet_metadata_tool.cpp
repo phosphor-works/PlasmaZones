@@ -523,9 +523,12 @@ private Q_SLOTS:
         // Sorted, so reordering them in the metadata leaves the file as it is.
         QCOMPARE(p.value(QStringLiteral("Anchors")).toVariant().toStringList(),
                  (QStringList{QStringLiteral("a"), QStringLiteral("b")}));
-        // A named point has its own version, not the anchors one.
+        // A named point has its own version, not the anchors one, and is
+        // listed with it. The anchors point is not a named one.
         const QJsonObject q = json.value(QStringLiteral("Pages")).toObject().value(QStringLiteral("q")).toObject();
         QCOMPARE(q.value(QStringLiteral("Version")).toInt(), 1);
+        QCOMPARE(q.value(QStringLiteral("ExtensionPoints")).toObject(), (QJsonObject{{QStringLiteral("panel"), 5}}));
+        QCOMPARE(p.value(QStringLiteral("ExtensionPoints")).toObject(), QJsonObject());
     }
 
     void passesNonObjectsThroughUnderAllowInvalid()

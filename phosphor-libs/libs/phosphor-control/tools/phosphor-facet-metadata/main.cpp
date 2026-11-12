@@ -11,8 +11,9 @@
 //       The metadata with `Key[<lang>]` added for every string a catalog
 //       translates, which is what the module embeds.
 //   phosphor-facet-metadata anchors  <metadata.json> <out.json>
-//       Each page's anchors and the version of its `anchors` extension point,
-//       for FacetTestHost's check against the previous release.
+//       Each page's anchors, the version of its `anchors` extension point and
+//       the version of each of its named extension points, for
+//       FacetTestHost's check against the previous release.
 //
 // Every command first validates the metadata with FacetModuleMetadata::parse
 // and fails the build on an error, unless --allow-invalid is given (the test
@@ -465,6 +466,15 @@ bool anchors(const FacetModuleMetadata& metadata, const QString& out)
         QStringList sorted = page.anchors;
         sorted.sort();
         entry.insert(QLatin1String("Anchors"), QJsonArray::fromStringList(sorted));
+        // Keyed by id, which QJsonObject keeps sorted, so the file does not
+        // depend on the order the metadata declares them in either.
+        QJsonObject points;
+        for (const auto& point : metadata.extensionPoints) {
+            if (point.page == page.id && point.id != QLatin1String("anchors")) {
+                points.insert(point.id, point.version);
+            }
+        }
+        entry.insert(QLatin1String("ExtensionPoints"), points);
         pages.insert(page.id, entry);
     }
     QJsonObject root;
