@@ -185,12 +185,12 @@ function(phosphor_add_facet_module_metadata target)
     # be the caller's. A unity build compiles the file inside a unity source
     # that does not carry its OBJECT_DEPENDS, so it is kept out of the batch.
     # A source marked GENERATED is never read, on any configure, since whether
-    # it exists yet depends on whether the build has run. The mark is visible
-    # from the target's directory wherever it was set under policy CMP0163,
-    # which this file sets to NEW for the function. A CMake older than 3.30
-    # has no such policy and sees only a mark set in the target's directory,
-    # so there a source generated in another directory is skipped while it
-    # does not exist yet and read once it does.
+    # it exists yet depends on whether the build has run. Under policy
+    # CMP0163, which this file sets to NEW for the function, the mark is
+    # visible from every directory, whichever one set it. A CMake older than
+    # 3.30 has no such policy and sees only a mark set in the target's
+    # directory, so there a source generated in another directory is skipped
+    # while it does not exist yet and read once it does.
     get_target_property(sources ${target} SOURCES)
     set(embedders "")
     foreach(sourceFile IN LISTS sources)

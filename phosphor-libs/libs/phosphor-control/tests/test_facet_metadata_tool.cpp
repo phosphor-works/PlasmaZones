@@ -476,6 +476,14 @@ private Q_SLOTS:
             << QStringList{QStringLiteral("sh_Latn")} << QStringList{QStringLiteral("Name[sr_Latn]")}
             << QStringList{QStringLiteral("sr_Latn_RS=sh_Latn"), QStringLiteral("sr_Latn_BA=sh_Latn"),
                            QStringLiteral("sr_RS=Hello"), QStringLiteral("sr_Cyrl_RS=Hello")};
+        // A three-letter ISO 639 code names the language as its two-letter
+        // code does, so it is keyed the same, and is no old code to warn of.
+        QTest::newRow("three-letter code and region")
+            << QStringList{QStringLiteral("zho_TW")} << QStringList{QStringLiteral("Name[zh_Hant]")}
+            << QStringList{QStringLiteral("zh_TW=zho_TW"), QStringLiteral("zh_CN=Hello")};
+        QTest::newRow("three-letter code")
+            << QStringList{QStringLiteral("srp")} << QStringList{QStringLiteral("Name[sr_Cyrl]")}
+            << QStringList{QStringLiteral("sr_RS=srp"), QStringLiteral("sr_Latn_RS=Hello")};
     }
 
     void asksForTheScriptOfAnOldCodeForALanguageOfTwoScripts_data()

@@ -340,6 +340,43 @@ QRegularExpression exactly(const QString& text)
     return QRegularExpression(QLatin1Char('^') + QRegularExpression::escape(text) + QLatin1Char('$'));
 }
 
+// Counts the critical messages that contain a text, while it lives, and
+// passes every message on. QTest::failOnWarning sees warnings only.
+class CriticalCounter
+{
+public:
+    explicit CriticalCounter(const QString& text)
+    {
+        s_text = text;
+        s_count = 0;
+        s_previous = qInstallMessageHandler(&CriticalCounter::handle);
+    }
+    ~CriticalCounter()
+    {
+        qInstallMessageHandler(s_previous);
+    }
+    Q_DISABLE_COPY_MOVE(CriticalCounter)
+
+    int count() const
+    {
+        return s_count;
+    }
+
+private:
+    static void handle(QtMsgType type, const QMessageLogContext& context, const QString& message)
+    {
+        if (type == QtCriticalMsg && message.contains(s_text)) {
+            ++s_count;
+        }
+        if (s_previous) {
+            s_previous(type, context, message);
+        }
+    }
+    static inline QtMessageHandler s_previous = nullptr;
+    static inline QString s_text;
+    static inline int s_count = 0;
+};
+
 // Hand @p search to the host, before start() as the application does, with no
 // cap on how many results it lists.
 void attachSearch(Harness& h, SearchController& search)
@@ -2483,6 +2520,147 @@ private Q_SLOTS:
         QVERIFY2(nestedError.contains(QStringLiteral("still loading")), qPrintable(nestedError));
         // Still off, and still remembered as off.
         QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::DisabledAfterCrash));
+        QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("early")));
+    }
+
+    void aPageASlotOpensWhileItsModuleTakesItsPlaceLoadsItOnceItIsPlaced()
+    {
+        // A slot opens translated's first page as that page takes its place,
+        // before its second page does. Loading translated then would bind the
+        // first page and leave the second, which the registry does not have
+        // yet, a placeholder. It loads once both are in the sidebar, each page
+        // bound to translated's own controller.
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        const CriticalCounter refusedBinds(QStringLiteral("passed every check and was still refused"));
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("could not load module")));
+        bool opened = false;
+        bool secondWasPlaced = true;
+        ApplicationController* const controller = &h.controller;
+        PageRegistry* const registry = h.registry();
+        connect(registry, &PageRegistry::pageRegistered, controller,
+                [&opened, &secondWasPlaced, controller, registry](const QString& id) {
+                    if (id == QLatin1String("translated:speed")) {
+                        opened = true;
+                        secondWasPlaced = registry->hasPage(QStringLiteral("translated:extra"));
+                        controller->setCurrentPageId(QStringLiteral("translated:speed"));
+                    }
+                });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("translated")), std::optional<State>(State::Loaded),
+                                  10000);
+        QVERIFY(opened);
+        QVERIFY(!secondWasPlaced);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("translated:speed"));
+        const QStringList pages{QStringLiteral("translated:speed"), QStringLiteral("translated:extra")};
+        QCOMPARE(h.host->boundPages(QStringLiteral("translated")), pages);
+        for (const QString& page : pages) {
+            QCOMPARE(h.registry()->entry(page).qmlSource, QUrl(QStringLiteral("qrc:/fake/Page.qml")));
+        }
+        QCOMPARE(refusedBinds.count(), 0);
+    }
+
+    void aCrashedModuleThatArrivesIsNotLoadedForAPageASlotOpens()
+    {
+        // translated crashed Facet before, and arrives while Facet runs. A
+        // slot opens its page as it takes its place, before it is disabled.
+        // It is disabled once placed, and nothing loads it.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(
+            writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("translated")}}}));
+        Harness h({QStringLiteral("good")}, record, true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
+        bool opened = false;
+        ApplicationController* const controller = &h.controller;
+        connect(h.registry(), &PageRegistry::pageRegistered, controller, [&opened, controller](const QString& id) {
+            if (id == QLatin1String("translated:speed")) {
+                opened = true;
+                controller->setCurrentPageId(QStringLiteral("translated:speed"));
+            }
+        });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("translated")),
+                                  std::optional<State>(State::DisabledAfterCrash), 10000);
+        QVERIFY(opened);
+        QCOMPARE(loadsOf(loaded, QStringLiteral("translated")), 0);
+        QVERIFY(h.host->boundPages(QStringLiteral("translated")).isEmpty());
+        QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("translated")));
+    }
+
+    void aCrashedModuleThatArrivesIsDisabledRatherThanLoaded()
+    {
+        // translated crashed Facet before, and arrives while Facet runs. Once
+        // it is placed, the standing query's results change before the host
+        // disables it, and a slot of that asks to load it. It is disabled
+        // then, not loaded.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(
+            writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("translated")}}}));
+        Harness h({QStringLiteral("good")}, record, true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("module-word"));
+        bool asked = false;
+        bool result = true;
+        QString error;
+        FacetHost* const host = h.host.get();
+        PageRegistry* const registry = h.registry();
+        connect(&search, &SearchController::resultsChanged, &search, [&asked, &result, &error, host, registry] {
+            if (!asked && registry->hasPage(QStringLiteral("translated:extra"))) {
+                asked = true;
+                result = host->loadModule(QStringLiteral("translated"), &error);
+            }
+        });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("translated")),
+                                  std::optional<State>(State::DisabledAfterCrash), 10000);
+        QVERIFY(asked);
+        QVERIFY(!result);
+        QCOMPARE(error, h.host->stateReason(QStringLiteral("translated")));
+        QVERIFY(h.host->boundPages(QStringLiteral("translated")).isEmpty());
+        QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("translated")));
+    }
+
+    void aRetryWhileAModuleTakesItsPlaceChangesNothing()
+    {
+        // A slot retries early, which a crash turned off, while translated
+        // takes its place. Nothing can load then, so the retry changes nothing.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("early")}}}));
+        Harness h({QStringLiteral("good"), QStringLiteral("early")}, record, true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::DisabledAfterCrash));
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        bool tried = false;
+        bool result = true;
+        QString error;
+        FacetHost* const host = h.host.get();
+        connect(h.registry(), &PageRegistry::pageRegistered, &h.controller,
+                [&tried, &result, &error, host](const QString& id) {
+                    if (!tried && id == QLatin1String("translated:speed")) {
+                        tried = true;
+                        result = host->retryModule(QStringLiteral("early"), &error);
+                    }
+                });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("translated:extra")), 10000);
+        QVERIFY(tried);
+        QVERIFY(!result);
+        QVERIFY2(error.contains(QStringLiteral("taking their place")), qPrintable(error));
+        QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::DisabledAfterCrash));
+        QVERIFY(statesOf(changed, QStringLiteral("early")).isEmpty());
         QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("early")));
     }
 

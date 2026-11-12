@@ -432,9 +432,10 @@ _fake_with_config(confignested 42 "Config Nested")
 _fake_with_config(configthenbreaks 43 "Config Then Breaks")
 
 # Metadata localized from a catalog at build time, with a setting and an
-# advanced-only section to search for. Its second page, which takes its place
-# after the first one does, is for the module's keywords and name to find, and
-# has a setting of its own.
+# advanced-only section to search for on its first page. Its second page has
+# a setting of its own, and the module's keywords and name find it as they
+# find the first. It takes its place after the first, so a pageRegistered slot
+# for the first runs while the module is only partly in the sidebar.
 phosphorcontrol_add_fake_module(translated MODE 0
     TS_FILES ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/translated_de.ts
     METADATA [=[{

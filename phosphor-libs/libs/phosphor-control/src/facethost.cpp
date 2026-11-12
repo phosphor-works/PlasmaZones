@@ -747,6 +747,11 @@ void FacetHost::addModule(const QString& moduleId, const Module* previous)
     // The new module can be the target that makes another module's extension
     // active, or extend pages itself.
     updateExtensions();
+    // A page a slot opened while the module took its place, when nothing
+    // could load, gets what opening it loads now: its own module, unless
+    // that was turned off after a crash above, and what extends it.
+    loadOwedNavigation();
+    loadOwedExtenders();
     // With a query standing, a module with search providers loads at once, so
     // its entries are found. Also pays a query changed while it took its
     // place, which placeModules left owed.
@@ -1375,6 +1380,23 @@ void FacetHost::onNavigation(const QString& pageId)
     // loaded for this one. One that lands on this same page lets it go on.
     const QString landing = m_controller->currentPageId();
     const quint64 navigations = ++m_navigations;
+    if (m_placingModules) {
+        // A slot of a page taking its place in the sidebar (pageRegistered)
+        // navigated. A module loaded now would bind its pages while some of
+        // them are not in the sidebar yet, so canLoadNow refuses every load
+        // until the placing is over. The navigation is owed instead, and
+        // addModule pays it then (loadOwedNavigation), so the page does not
+        // stay a placeholder.
+        m_navigationOwed = owningModule(pageId);
+        return;
+    }
+    // This newer navigation wins over one still owed.
+    m_navigationOwed.reset();
+    openPage(pageId, landing, navigations);
+}
+
+void FacetHost::openPage(const QString& pageId, const QString& landing, quint64 navigations)
+{
     // Loads below finish their own pages through this navigation, not on
     // their own (showSectionsOn).
     const QString outerOpening = std::exchange(m_openingPage, pageId);
@@ -1399,12 +1421,31 @@ void FacetHost::onNavigation(const QString& pageId)
     loadExtenders(pageId, landing, navigations);
 }
 
+void FacetHost::loadOwedNavigation()
+{
+    // A placing nested in another (a slot that rescanned) leaves the debt to
+    // the outer one, whose pages are not all in the sidebar yet.
+    if (!m_navigationOwed || m_placingModules || !m_controller) {
+        return;
+    }
+    const QString owner = *std::exchange(m_navigationOwed, std::nullopt);
+    // Only while the page that navigation opened, or another page of the
+    // same module, is still on screen. The controller may have refused to
+    // move there.
+    const QString shown = m_controller->currentPageId();
+    if (owningModule(shown) != owner) {
+        return;
+    }
+    openPage(shown, shown, m_navigations);
+}
+
 void FacetHost::loadExtenders(const QString& pageId, const QString& landing, quint64 navigations)
 {
-    // While a module loads, canLoadNow refuses every other load, so nothing
-    // can be loaded for the page now. It is owed instead, and the load that
-    // is running pays once it is over (loadOwedExtenders).
-    if (!m_loadingModule.isEmpty()) {
+    // While a module loads, or modules take their place, canLoadNow refuses
+    // every load, so nothing can be loaded for the page now. It is owed
+    // instead, and the load that is running, or addModule once the placing
+    // is over, pays it (loadOwedExtenders).
+    if (!m_loadingModule.isEmpty() || m_placingModules) {
         m_extendersOwed = true;
         return;
     }
@@ -1447,8 +1488,9 @@ void FacetHost::loadExtenders(const QString& pageId, const QString& landing, qui
 void FacetHost::loadOwedExtenders()
 {
     // Every load comes through here once its outcome is settled, whatever
-    // started it. A page that a slot opened while it ran, or whose
-    // extensions changed then, could load nothing (loadExtenders). The page
+    // started it, and so does every module once it has taken its place
+    // (addModule). A page that a slot opened meanwhile, or whose extensions
+    // changed then, could load nothing (loadExtenders). The page
     // on screen now gets what extends it, as opening it would have given
     // it. A page whose own module was refused gets nothing: loadExtenders
     // skips it, and its placeholder offers to load the module
@@ -1523,6 +1565,13 @@ bool FacetHost::canLoadNow(const QString& moduleId, QString* errorString) const
         // module.
         return fail(QStringLiteral("module %1 is still loading").arg(m_loadingModule));
     }
+    if (m_placingModules) {
+        // Reached from a slot of a page taking its place (pageRegistered).
+        // A module loaded now would bind into a sidebar that does not have
+        // all of its pages yet, and a module that arrived turned off after a
+        // crash has not been disabled yet.
+        return fail(QStringLiteral("modules are still taking their place in the sidebar"));
+    }
     return true;
 }
 
@@ -1549,6 +1598,15 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
     }
     if (!canLoadNow(moduleId, errorString)) {
         return false;
+    }
+    // Turned off after a crash and still Available: a slot reacting to the
+    // module's arrival met it before addModule disabled it. A retry turns it
+    // on before it gets here (retryModule). It is disabled now rather than
+    // loaded, which would run the code that crashed without the user asking.
+    if (m_loadRecord->isDisabled(moduleId)) {
+        disableAfterCrash(*module);
+        // A slot of that may have retried it, which loads it.
+        return module->state == ModuleState::Loaded || fail(module->reason);
     }
     // Not on offer: withdrawn in the scan being announced, whose
     // pluginRemoved for it is still on its way (a slot of that scan's earlier
@@ -1835,7 +1893,7 @@ void FacetHost::transition(Module& module, ModuleState state, const QString& rea
     // before anyone hears of the change, except inside a SearchBatch (a run
     // of loads for search providers, a module taking its place): there it is
     // rebuilt once the batch is over, and a query typed meanwhile is answered
-    // from the index as it was.
+    // at once, without waiting for that rebuild.
     invalidateSearch();
     if (m_starting) {
         return;

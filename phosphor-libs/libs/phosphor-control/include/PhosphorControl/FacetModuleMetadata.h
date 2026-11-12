@@ -146,14 +146,18 @@ struct PHOSPHORCONTROL_EXPORT FacetSearchEntryMetadata
 /// and its script (`Name[de_Latn]`, `Name[zh_Hant]`) where only one catalog
 /// claims them, so every locale of that language and script finds it, and by
 /// the catalog's own language otherwise, in Qt's code for it (`nb`, never
-/// `no`). It keeps a usable variant written by hand, which wins over the
-/// catalog's at the catalog's key, at the language and script when the
-/// catalog keeps its own longer key, and at the bare language when the
-/// catalog's script is the language's usual one. A variant written by hand
-/// uses Qt's code for the language too, since `Name[no]` is never picked.
-/// parse() picks the best variant for the locale, following the locale's UI languages from the most specific
-/// form to the bare language (`de_Latn_AT`, `de_AT`, `de_Latn`, `de`), and
-/// skips one that is empty or not of the key's type. Whether a required key
+/// `no`, and `zh` for `zho`). The exception is an old code for a language
+/// written in more than one script, when the catalog names no script: `sh`
+/// keeps its own key, which no locale picks, and the build warns and asks
+/// for the script (`sh_Latn`). The build keeps a usable variant written by
+/// hand, which wins over the catalog's at the catalog's key, at the language
+/// and script when the catalog keeps its own longer key, and at the bare
+/// language when the catalog's script is the language's usual one. A variant
+/// written by hand uses Qt's code for the language too, since `Name[no]` is
+/// never picked. parse() picks the best variant for the locale, following
+/// the locale's UI languages from the most specific form to the bare
+/// language (`de_Latn_AT`, `de_AT`, `de_Latn`, `de`), and skips one that is
+/// empty or not of the key's type. Whether a required key
 /// (`Name`, a search entry's `Title`) is there is decided on its base value
 /// alone, so metadata valid in one locale is valid in all of them. The base
 /// values are what lupdate extracts: a string must hold no control character
@@ -206,7 +210,9 @@ struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
     /// and the metadata is usable only when none was added. What leaves it
     /// usable is appended to @p warnings when it is given: an unknown key or
     /// a search entry of an unknown `Kind`, either of which a newer Facet may
-    /// know, and a `[<locale>]` variant no locale ever picks.
+    /// know, and a `[<locale>]` variant whose locale is malformed
+    /// (`Name[pt-BR]`, `Name[]`), which no locale ever picks. A well-formed
+    /// variant no locale lists, such as `Name[no]`, is not reported.
     static FacetModuleMetadata parse(const QJsonObject& json, const QLocale& locale, QStringList* errors,
                                      QStringList* warnings = nullptr);
 

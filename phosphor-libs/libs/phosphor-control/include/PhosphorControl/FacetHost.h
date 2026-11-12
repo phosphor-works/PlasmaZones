@@ -80,7 +80,10 @@ class StagingDomain;
 /// loaded, and an extension that becomes active while its page is open loads
 /// its module then. Only one module loads at a time, so a page that a slot
 /// opens while a module is loading gets the modules that extend it when
-/// that load ends. All of this needs the navigation hook (start() says when
+/// that load ends. Nothing loads while a module that arrived takes its
+/// place in the sidebar either, so a page that a slot of that (pageRegistered)
+/// opens gets its own module and the modules that extend it once the module
+/// is placed. All of this needs the navigation hook (start() says when
 /// another component holds it). The host answers
 /// ApplicationController::extensionsFor() for the page's FacetSlots. A
 /// section is shown once its extension is active and its page's own module
@@ -196,7 +199,8 @@ public:
     /// the sections when another component answers extensionsFor. Whenever
     /// the query is not blank, every module whose metadata says
     /// `SearchProviders` and that has not loaded yet loads, so its entries
-    /// are found too: at once, or once a load that is running is over. That
+    /// are found too: at once, once a load that is running is over, or once
+    /// a module that arrived has taken its place in the sidebar. That
     /// covers a query typed before start() and a module that arrives while
     /// the query stands. The host takes its provider out of @p search when
     /// it is destroyed, so the modules' providers are asked only while the
@@ -207,6 +211,13 @@ public:
     void start();
 
     /// Load @p moduleId now. True when it is loaded, at once or already.
+    /// False, with the reason in @p errorString, for a module that failed or
+    /// was turned off after a crash, and for one that cannot load now:
+    /// another module is loading, modules are still taking their place in
+    /// the sidebar (a pageRegistered slot, in start() or as a module
+    /// arrives), or the call is off the GUI thread. A module the load record keeps turned off after a crash
+    /// that is still Available, as it is for a slot reacting to its arrival,
+    /// becomes DisabledAfterCrash instead of loading.
     bool loadModule(const QString& moduleId, QString* errorString = nullptr);
     /// Clear DisabledAfterCrash, or a Failed state that canRetry() allows,
     /// for @p moduleId and load it again. Any other module is handed to
@@ -214,7 +225,9 @@ public:
     /// a Failed one canRetry() refuses answers false with its reason. When
     /// the load record cannot be written, a module that was disabled after a
     /// crash is retried all the same, with a warning, and the next start may
-    /// disable it again.
+    /// disable it again. A retry that cannot run now, for the reasons
+    /// loadModule() gives, changes nothing: the module keeps its state, and
+    /// one turned off after a crash stays off in the load record.
     bool retryModule(const QString& moduleId, QString* errorString = nullptr);
     /// True when retryModule() would try to load @p moduleId again: it is
     /// DisabledAfterCrash, or it failed while loading and its file has not
@@ -237,6 +250,9 @@ public:
     /// Anything else needs a restart. That includes a module that failed
     /// with its library loaded: the process keeps running that code, so the
     /// file offered again cannot be tried.
+    /// True does not promise the retry runs now: while another module loads,
+    /// or modules take their place in the sidebar, retryModule() refuses it
+    /// and changes nothing.
     [[nodiscard]] bool canRetry(const QString& moduleId) const;
 
     /// Every module the host knows, sorted: the ones on offer, and the ones
@@ -375,16 +391,28 @@ private:
     [[nodiscard]] bool moduleSortsBefore(const Module& a, const Module& b) const;
     [[nodiscard]] bool categorySortsBefore(const FacetCategoryMetadata& a, const FacetCategoryMetadata& b) const;
     void onNavigation(const QString& pageId);
+    /// What a navigation to @p pageId loads: its own module, when it is
+    /// Available, then the modules that extend it (loadExtenders). Stops, as
+    /// loadExtenders does, when a newer navigation took the current page
+    /// elsewhere.
+    void openPage(const QString& pageId, const QString& landing, quint64 navigations);
+    /// Open the page on screen, as a navigation would, when the navigation
+    /// that reached it came while modules took their place and so loaded
+    /// nothing (m_navigationOwed), and the page still belongs to the module
+    /// it was owed for. Called once a module has taken its place (addModule).
+    void loadOwedNavigation();
     /// Load the modules that extend @p pageId, once its own module is loaded.
     /// Stops when a newer navigation, which a slot reacting to a load can
     /// start, took the current page anywhere but @p pageId: away from
     /// @p landing, or through another page and back (m_navigations moved on
-    /// from @p navigations). While a module is loading it loads nothing and
-    /// notes that a page is owed its extenders (loadOwedExtenders).
+    /// from @p navigations). While a module is loading, or modules take their
+    /// place, it loads nothing and notes that a page is owed its extenders
+    /// (loadOwedExtenders).
     void loadExtenders(const QString& pageId, const QString& landing, quint64 navigations);
     /// Load what extends the page on screen, when loadExtenders could not
-    /// while a module was loading (m_extendersOwed). Called as each load
-    /// ends.
+    /// while a module was loading or modules took their place
+    /// (m_extendersOwed). Called as each load ends, and once a module has
+    /// taken its place (addModule).
     void loadOwedExtenders();
     /// Whether a navigation newer than the one that saw @p landing and
     /// @p navigations left the current page on one other than @p pageId.
@@ -394,7 +422,8 @@ private:
     void showSectionsOn(const Module& owner);
     [[nodiscard]] QString owningModule(const QString& pageId) const;
     /// Whether @p moduleId may be loaded now. False, with the reason in
-    /// @p errorString, while another load runs or off the controller's thread.
+    /// @p errorString, while another load runs, while modules take their
+    /// place in the sidebar, or off the controller's thread.
     bool canLoadNow(const QString& moduleId, QString* errorString) const;
     void transition(Module& module, ModuleState state, const QString& reason, bool retryable = true);
     void disableAfterCrash(Module& module);
@@ -457,8 +486,15 @@ private:
     /// registerInto twice or overwriting the load record.
     QString m_loadingModule;
     /// Set when loadExtenders was called while a module was loading, and so
-    /// loaded nothing. Cleared by loadOwedExtenders, at the end of that load.
+    /// loaded nothing. Set too while modules took their place. Cleared by
+    /// loadOwedExtenders, at the end of that load or once the placing is
+    /// over.
     bool m_extendersOwed = false;
+    /// Set when the navigation hook ran while modules took their place, and
+    /// so loaded nothing: the module that owns the page it opened, empty for
+    /// a page no module owns. Paid and cleared by loadOwedNavigation, and
+    /// cleared by any later navigation, which loads what it opens itself.
+    std::optional<QString> m_navigationOwed;
     QHash<QString, std::shared_ptr<Module>> m_modules;
     QHash<QString, FacetCategoryMetadata> m_categories;
     QSet<QString> m_registeredCategoryNodes;

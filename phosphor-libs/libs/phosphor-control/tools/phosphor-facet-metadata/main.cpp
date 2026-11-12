@@ -387,7 +387,9 @@ std::optional<Catalog> readCatalog(const QString& path)
 // written in more than one script, when the catalog names no script (sh,
 // which QLocale reads as Serbian in Cyrillic where CLDR means Serbian in
 // Latin): `scriptForms` then lists the forms the catalog could mean, for the
-// warning that asks for one of them.
+// warning that asks for one of them. A three-letter ISO 639 code for the
+// language is no old code, and is keyed like the two-letter one (zho_TW as
+// zh_TW, srp as sr).
 struct LanguageKeys
 {
     QString full;
@@ -412,8 +414,12 @@ LanguageKeys languageKeys(const QString& language)
         return {language, QString(), QString(), {}};
     }
     // An old code (no, iw, sh) stands for the script QLocale picks only when
-    // the language it reads is written in that script alone (nb, he).
-    if (!namesScript && parts.first().compare(code, Qt::CaseInsensitive) != 0) {
+    // the language it reads is written in that script alone (nb, he). A
+    // three-letter code for the same language (zho, srp) is no old code: it
+    // names the language as the two-letter one does, and is keyed the same.
+    const bool synonym =
+        QLocale::codeToLanguage(parts.first(), QLocale::ISO639Part2 | QLocale::ISO639Part3) == locale.language();
+    if (!namesScript && !synonym && parts.first().compare(code, Qt::CaseInsensitive) != 0) {
         QStringList forms;
         const QList<QLocale> matches =
             QLocale::matchingLocales(locale.language(), QLocale::AnyScript, QLocale::AnyTerritory);
