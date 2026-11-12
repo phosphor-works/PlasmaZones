@@ -15,15 +15,20 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QSignalSpy>
-#include <QProcess>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
+#include <QVariant>
 
+#include <algorithm>
+#include <cstdio>
 #include <memory>
+#include <optional>
+#include <utility>
 
 #ifndef PHOSPHOR_CONTROL_FIXTURE_DIR
 #error "PHOSPHOR_CONTROL_FIXTURE_DIR must be defined by tests/CMakeLists.txt"
@@ -71,12 +76,43 @@ bool makeOwnerWritable(const QString& path)
         && !(QFile::permissions(path) & (QFileDevice::WriteGroup | QFileDevice::WriteOther));
 }
 
+// The start of every staging directory this test makes, so sweepStaging()
+// can tell them from the other tests' directories.
+const QLatin1String StagingPrefix("test_facet_host-");
+
 // A QTemporaryDir template under the build tree's staging directory, which
-// is made at configure time and made again here in case it was removed.
+// is made at configure time and made again here in case it was removed. The
+// name carries this process's id, which sweepStaging() reads.
 QString stagingTemplate(const QString& name)
 {
     QDir().mkpath(QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR));
-    return QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR "/") + name + QStringLiteral("-XXXXXX");
+    return QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR "/") + StagingPrefix + name + QLatin1Char('-')
+        + QString::number(QCoreApplication::applicationPid()) + QStringLiteral("-XXXXXX");
+}
+
+// Removes the staging directories a run of this test left behind when it
+// ended without cleaning up (a crash, a kill, a timeout). Only those whose
+// process is gone: ctest can run this test beside another copy of itself.
+void sweepStaging()
+{
+    static const QRegularExpression owned(QLatin1String("^") + StagingPrefix + QStringLiteral("[a-z]+-(\\d+)-.{6}$"));
+    const QFileInfoList entries = QDir(QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR))
+                                      .entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+    for (const QFileInfo& entry : entries) {
+        const QRegularExpressionMatch match = owned.match(entry.fileName());
+        if (!match.hasMatch()) {
+            continue;
+        }
+        const qint64 pid = match.captured(1).toLongLong();
+        if (pid == QCoreApplication::applicationPid() || QFileInfo::exists(QStringLiteral("/proc/%1").arg(pid))) {
+            continue;
+        }
+        // A test that takes the write bit off its directory puts it back on
+        // the way out, which a run that died never did.
+        QFile::setPermissions(entry.filePath(),
+                              QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        QDir(entry.filePath()).removeRecursively();
+    }
 }
 
 // Copy fixture @p variant into @p directory as <file>.so.
@@ -85,6 +121,13 @@ bool stage(const QString& directory, const QString& variant, const QString& file
     const QString target = directory + QLatin1Char('/') + file + QStringLiteral(".so");
     QFile::remove(target);
     return QFile::copy(fixture(variant), target) && makeOwnerWritable(target);
+}
+
+// Move @p from onto @p to in one step, replacing what is there, as a package
+// upgrade does. QFile::rename refuses to replace an existing file.
+bool replaceFile(const QString& from, const QString& to)
+{
+    return std::rename(QFile::encodeName(from).constData(), QFile::encodeName(to).constData()) == 0;
 }
 
 // A module directory under the build tree, a controller and a host over it.
@@ -142,6 +185,102 @@ struct Harness
     }
 };
 
+// The application properties and environment variables the fixtures read
+// and write (see fakemodule.cpp), cleared when a test that uses them starts
+// and again when it ends. Declare it before the Harness: the config modes'
+// backends record their destruction when the controller goes.
+struct FixtureState
+{
+    FixtureState()
+    {
+        clear();
+    }
+    ~FixtureState()
+    {
+        clear();
+    }
+    Q_DISABLE_COPY_MOVE(FixtureState)
+
+    static void clear()
+    {
+        for (const char* name :
+             {"facetLoadRecord", "fakeConfigFactoryPaths", "fakeConfigBackendsDestroyed", "fakeConfigNestedBackend",
+              "fakeConfigOuterBackend", "fakeForeignController", "fakeForeignDomain"}) {
+            qApp->setProperty(name, QVariant());
+        }
+        qunsetenv("FACET_TEST_LOAD_RECORD");
+        qunsetenv("FAKE_CONFIG_PATH");
+    }
+};
+
+// Puts the working directory back when a test that changes it ends. Declare
+// it after the Harness, so the directory is restored before the Harness
+// removes its own.
+struct WorkingDirectory
+{
+    WorkingDirectory() = default;
+    ~WorkingDirectory()
+    {
+        QDir::setCurrent(saved);
+    }
+    Q_DISABLE_COPY_MOVE(WorkingDirectory)
+
+    const QString saved = QDir::currentPath();
+};
+
+// The file the config modes open when they load (FAKE_CONFIG_PATH).
+void setConfigPath(const QString& path)
+{
+    qputenv("FAKE_CONFIG_PATH", QFile::encodeName(path));
+}
+
+// The files the config modes' factory was asked to open, one per call.
+QStringList factoryCalls()
+{
+    return qApp->property("fakeConfigFactoryPaths").toStringList();
+}
+
+// How many backends the config modes made have been destroyed.
+int backendsDestroyed()
+{
+    return qApp->property("fakeConfigBackendsDestroyed").toInt();
+}
+
+// The domain a config mode writes its key through, or null.
+StagingDomain* configDomainOf(const FacetHost& host, const QString& moduleId)
+{
+    const QList<StagingDomain*> domains = host.moduleDomains(moduleId);
+    const auto found = std::find_if(domains.cbegin(), domains.cend(), [](const StagingDomain* domain) {
+        return domain->objectName() == QLatin1String("config");
+    });
+    return found != domains.cend() ? *found : nullptr;
+}
+
+// The "Fake" group of the config file at @p path, where each config mode
+// writes its module id on apply().
+QJsonObject fakeGroupIn(const QString& path)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    return QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("Fake")).toObject();
+}
+
+// Apply what is dirty as the chrome's Apply button does, and wait for the
+// batch to end. True when it ended and every domain succeeded.
+bool applyAndWait(ApplicationController& controller)
+{
+    QSignalSpy done(&controller, &ApplicationController::applyAllComplete);
+    controller.applyAllAsync();
+    return QTest::qWaitFor(
+               [&done] {
+                   return !done.isEmpty();
+               },
+               10000)
+        && done.size() == 1 && done.first().first().toBool();
+}
+
 QJsonObject readRecord(const QString& path)
 {
     QFile file(path);
@@ -191,42 +330,40 @@ QString reasonOf(const QList<FacetHost::RefusedExtension>& refused, const QStrin
     return QString();
 }
 
-// A domain that counts its resets.
-class CountingDomain : public StagingDomain
+// Whether any extensionsChanged notice @p spy caught named @p pageId.
+bool noticed(const QSignalSpy& spy, const QString& pageId)
 {
-public:
-    using StagingDomain::StagingDomain;
-    int resets = 0;
-    bool isDirty() const override
-    {
-        return m_dirty;
-    }
-    void setDirty(bool dirty)
-    {
-        if (m_dirty != dirty) {
-            m_dirty = dirty;
-            Q_EMIT dirtyChanged();
+    return std::any_of(spy.cbegin(), spy.cend(), [&pageId](const QList<QVariant>& args) {
+        return args.first().toString() == pageId;
+    });
+}
+
+// The states @p spy caught moduleStateChanged announcing for @p moduleId,
+// in order.
+QList<State> statesOf(const QSignalSpy& spy, const QString& moduleId)
+{
+    QList<State> states;
+    for (const QList<QVariant>& args : spy) {
+        if (args.at(0).toString() == moduleId) {
+            states.append(args.at(1).value<State>());
         }
     }
-    void apply() override
-    {
-        setDirty(false);
-        Q_EMIT applyResult(true, QString());
-    }
-    void discard() override
-    {
-        setDirty(false);
-        Q_EMIT discardResult(true, QString());
-    }
-    void resetToDefaults() override
-    {
-        ++resets;
-        setDirty(false);
-    }
+    return states;
+}
 
-private:
-    bool m_dirty = false;
-};
+// How many moduleLoaded announcements @p spy caught for @p moduleId.
+qsizetype loadsOf(const QSignalSpy& spy, const QString& moduleId)
+{
+    return std::count_if(spy.cbegin(), spy.cend(), [&moduleId](const QList<QVariant>& args) {
+        return args.first().toString() == moduleId;
+    });
+}
+
+// A warning that reads exactly @p text.
+QRegularExpression exactly(const QString& text)
+{
+    return QRegularExpression(QLatin1Char('^') + QRegularExpression::escape(text) + QLatin1Char('$'));
+}
 
 } // namespace
 
@@ -235,6 +372,11 @@ class TestFacetHost : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    void initTestCase()
+    {
+        sweepStaging();
+    }
+
     void unloadedModulePagesAreOrdinaryPages()
     {
         Harness h({QStringLiteral("good"), QStringLiteral("early"), QStringLiteral("child")});
@@ -370,6 +512,20 @@ private Q_SLOTS:
         QCOMPARE(h.host->metadata(QStringLiteral("loopa"))->parent, QStringLiteral("loopb"));
     }
 
+    void pagesPlacedUnderEachOtherStayWithTheirModules()
+    {
+        // Each page waits for the other's, which waits for it: no order of
+        // placing them works, so both fall back under their own module
+        // instead of waiting for ever.
+        Harness h({QStringLiteral("pagecyclea"), QStringLiteral("pagecycleb")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QCOMPARE(h.registry()->parentIdOf(QStringLiteral("pagecyclea:leaf")), QStringLiteral("pagecyclea"));
+        QCOMPARE(h.registry()->parentIdOf(QStringLiteral("pagecycleb:leaf")), QStringLiteral("pagecycleb"));
+        QCOMPARE(h.host->state(QStringLiteral("pagecyclea")), std::optional<State>(State::Available));
+        QCOMPARE(h.host->state(QStringLiteral("pagecycleb")), std::optional<State>(State::Available));
+    }
+
     void metadataIsReadInTheHostLocale()
     {
         Harness h({QStringLiteral("good")});
@@ -380,12 +536,57 @@ private Q_SLOTS:
         QCOMPARE(h.registry()->entry(QStringLiteral("good:about")).title, QStringLiteral("About"));
     }
 
+    void settingsMadeAfterStartAreIgnored()
+    {
+        QTemporaryDir other(stagingTemplate(QStringLiteral("other")));
+        QVERIFY(other.isValid());
+        const QString otherRecord = other.filePath(QStringLiteral("facet-loading"));
+        Harness h({QStringLiteral("badmetadata")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        h.host->start();
+        // badmetadata's failure.
+        QCOMPARE(changed.count(), 1);
+
+        // Each is refused with a warning, and the host goes on as it started.
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: setSearchPaths after start() is ignored")));
+        h.host->setSearchPaths({{other.path(), PhosphorRegistry::PluginOrigin::Development}});
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: setSentinelPath after start() is ignored")));
+        h.host->setSentinelPath(otherRecord);
+        QTest::ignoreMessage(QtWarningMsg, exactly(QStringLiteral("FacetHost: setLocale after start() is ignored")));
+        h.host->setLocale(QLocale(QStringLiteral("de_DE")));
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: setLiveReload after start() is ignored")));
+        h.host->setLiveReload(false);
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: setConfigRedirect after start() is ignored")));
+        h.host->setConfigRedirect(other.filePath(QStringLiteral("config")));
+        // A second start() finds and announces nothing again.
+        QTest::ignoreMessage(QtWarningMsg, exactly(QStringLiteral("FacetHost: start() called twice")));
+        h.host->start();
+        QCOMPARE(changed.count(), 1);
+
+        // Live reload is still on and still watches the first search path,
+        // and a module that arrives is read in the C locale: good has a
+        // German name for its general page.
+        QVERIFY(stage(h.modules, QStringLiteral("good"), QStringLiteral("good")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("good:general")), 10000);
+        QCOMPARE(h.registry()->entry(QStringLiteral("good:general")).title, QStringLiteral("General"));
+        // The load record stays where it was.
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        QVERIFY(QFileInfo::exists(h.sentinel));
+        QVERIFY(!QFileInfo::exists(otherRecord));
+    }
+
     void openingAPageLoadsItsModule()
     {
         Harness h({QStringLiteral("good")});
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
         PageController* const placeholder = h.registry()->controller(QStringLiteral("good:general"));
+        QVERIFY(placeholder);
         QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
         QSignalSpy bound(h.registry(), &PageRegistry::pageBound);
         QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
@@ -450,12 +651,10 @@ private Q_SLOTS:
 
     void theLoadRecordNamesTheModuleWhileItLoads()
     {
+        FixtureState fixtures;
         Harness h({QStringLiteral("recorder")});
         QVERIFY2(h.ok, qPrintable(h.error));
         qputenv("FACET_TEST_LOAD_RECORD", h.sentinel.toUtf8());
-        const auto unset = qScopeGuard([] {
-            qunsetenv("FACET_TEST_LOAD_RECORD");
-        });
         h.host->start();
         QVERIFY(h.host->loadModule(QStringLiteral("recorder")));
         const QJsonObject during =
@@ -463,6 +662,45 @@ private Q_SLOTS:
         QCOMPARE(during.value(QStringLiteral("loading")).toString(), QStringLiteral("recorder"));
         QCOMPARE(during.value(QStringLiteral("pid")).toInteger(), QCoreApplication::applicationPid());
         QVERIFY(!readRecord(h.sentinel).contains(QStringLiteral("loading")));
+    }
+
+    void aRelativeLoadRecordPathStaysWhereItWasSet()
+    {
+        // Set relative in one working directory, the record stays there when
+        // the working directory moves on before the module loads.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("recorder")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        WorkingDirectory cwd;
+        const QString first = h.root.filePath(QStringLiteral("first"));
+        const QString second = h.root.filePath(QStringLiteral("second"));
+        QVERIFY(QDir().mkpath(first));
+        QVERIFY(QDir().mkpath(second));
+        QVERIFY(QDir::setCurrent(first));
+        const QString relative = QStringLiteral("state/facet-loading");
+        const QString record = QFileInfo(relative).absoluteFilePath();
+        h.host->setSentinelPath(relative);
+        QVERIFY(QDir::setCurrent(second));
+        qputenv("FACET_TEST_LOAD_RECORD", QFile::encodeName(record));
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("recorder")));
+        const QJsonObject during =
+            QJsonDocument::fromJson(qApp->property("facetLoadRecord").toString().toUtf8()).object();
+        QCOMPARE(during.value(QStringLiteral("loading")).toString(), QStringLiteral("recorder"));
+        QVERIFY(QDir(second).isEmpty());
+    }
+
+    void anEmptyLoadRecordPathRemembersNothing()
+    {
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->setSentinelPath(QString());
+        // A write of a record to the empty path would warn about the load
+        // record it could not write.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("load record")));
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        QVERIFY(!QFileInfo::exists(h.sentinel));
     }
 
     void aModuleThatBreaksItsContractKeepsNothing_data()
@@ -479,7 +717,8 @@ private Q_SLOTS:
             << QStringLiteral("extraextension") << QStringLiteral("registered extension undeclared");
         QTest::newRow("registers an extension twice")
             << QStringLiteral("extraextension") << QStringLiteral("registered extension first twice");
-        QTest::newRow("registers a page twice") << QStringLiteral("twicepage") << QStringLiteral("twice");
+        QTest::newRow("registers a page twice")
+            << QStringLiteral("twicepage") << QStringLiteral("registered page general twice");
         QTest::newRow("no controller") << QStringLiteral("nullcontroller") << QStringLiteral("with no controller");
         QTest::newRow("registers a domain twice")
             << QStringLiteral("twicedomain") << QStringLiteral("already registered as a headless domain");
@@ -498,17 +737,46 @@ private Q_SLOTS:
             << QStringLiteral("extensionthread") << QStringLiteral("extension first's domain lives in another thread");
         QTest::newRow("opens a config file by a relative path")
             << QStringLiteral("relativeconfig") << QStringLiteral("relative.json, which is not an absolute path");
+        QTest::newRow("page controller in another thread")
+            << QStringLiteral("pagethread") << QStringLiteral("page general's controller lives in another thread");
+        QTest::newRow("page controller already a headless domain")
+            << QStringLiteral("pageasdomain")
+            << QStringLiteral("page general's controller is already registered as a headless domain");
+        QTest::newRow("domain in another thread")
+            << QStringLiteral("domainthread") << QStringLiteral("registered a domain that lives in another thread");
+        QTest::newRow("extension with no QML")
+            << QStringLiteral("extensionnoqml") << QStringLiteral("extension first has no valid QML source");
+        QTest::newRow("page controller deleted while registering")
+            << QStringLiteral("deletespage")
+            << QStringLiteral("page general's controller was deleted during registration");
+        QTest::newRow("domain deleted while registering")
+            << QStringLiteral("deletesdomain") << QStringLiteral("a domain was deleted during registration");
+        QTest::newRow("page controller that is another page's")
+            << QStringLiteral("foreignpage") << QStringLiteral("page general's controller is already another page's");
+        QTest::newRow("domain the application tracks")
+            << QStringLiteral("foreigndomain") << QStringLiteral("registered a domain the application already tracks");
     }
 
     void aModuleThatBreaksItsContractKeepsNothing()
     {
         QFETCH(QString, variant);
         QFETCH(QString, reason);
+        FixtureState fixtures;
         Harness h({variant});
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
         QVERIFY(h.host->moduleIds().contains(variant));
         QSignalSpy failed(h.host.get(), &FacetHost::moduleFailed);
+
+        const QString general = FacetHost::pageId(variant, QStringLiteral("general"));
+        // What foreignpage and foreigndomain hand over (see fakemodule.cpp):
+        // a controller the registry holds already, this page's own
+        // placeholder, and a domain the application tracks already.
+        QVERIFY(h.registry()->controller(general));
+        qApp->setProperty("fakeForeignController", QVariant::fromValue<QObject*>(h.registry()->controller(general)));
+        auto* const tracked = new SimplePage(QStringLiteral("tracked"), &h.controller);
+        QVERIFY(h.controller.registerDomain(tracked));
+        qApp->setProperty("fakeForeignDomain", QVariant::fromValue<QObject*>(tracked));
 
         QString error;
         QVERIFY(!h.host->loadModule(variant, &error));
@@ -519,7 +787,6 @@ private Q_SLOTS:
 
         // Nothing it registered took effect: every page still shows the
         // placeholder, and no domain joined Apply.
-        const QString general = FacetHost::pageId(variant, QStringLiteral("general"));
         QCOMPARE(h.registry()->entry(general).qmlSource, FacetHost::placeholderPageSource());
         QVERIFY(!h.controller.isTrackedDomain(h.registry()->controller(general)));
         QVERIFY(h.host->boundPages(variant).isEmpty());
@@ -532,6 +799,59 @@ private Q_SLOTS:
         QVERIFY(!h.host->retryModule(variant));
         QCOMPARE(h.host->state(variant), std::optional<State>(State::Failed));
         QVERIFY(h.host->moduleDomains(variant).isEmpty());
+    }
+
+    void aConfigFileThatCannotBeOpenedFailsTheLoad_data()
+    {
+        QTest::addColumn<QString>("variant");
+        // "@root" stands for the Harness's directory.
+        QTest::addColumn<QString>("configPath");
+        // "%1" stands for configPath.
+        QTest::addColumn<QString>("reason");
+        // The factory calls a load and a retry make.
+        QTest::addColumn<int>("calls");
+        QTest::newRow("a factory that makes no backend")
+            << QStringLiteral("confignull") << QStringLiteral("@root/config.json")
+            << QStringLiteral("could not open config file %1") << 2;
+        QTest::newRow("no factory") << QStringLiteral("configempty") << QStringLiteral("@root/config.json")
+                                    << QStringLiteral("could not open config file %1") << 0;
+        QTest::newRow("a Qt resource") << QStringLiteral("sharera") << QStringLiteral(":/fake/config.json")
+                                       << QStringLiteral("opened config file %1, which is a Qt resource path") << 0;
+        QTest::newRow("a directory") << QStringLiteral("sharera") << QStringLiteral("@root/config/")
+                                     << QStringLiteral("opened config file %1, which has no file name") << 0;
+        QTest::newRow("a directory named by .") << QStringLiteral("sharera") << QStringLiteral("@root/config/.")
+                                                << QStringLiteral("opened config file %1, which has no file name") << 0;
+        QTest::newRow("a directory named by ..")
+            << QStringLiteral("sharera") << QStringLiteral("@root/config/..")
+            << QStringLiteral("opened config file %1, which has no file name") << 0;
+    }
+
+    void aConfigFileThatCannotBeOpenedFailsTheLoad()
+    {
+        QFETCH(QString, variant);
+        QFETCH(QString, configPath);
+        QFETCH(QString, reason);
+        QFETCH(int, calls);
+        FixtureState fixtures;
+        Harness h({variant});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString path = configPath.replace(QLatin1String("@root"), h.root.path());
+        setConfigPath(path);
+        h.host->start();
+
+        QString error;
+        QVERIFY(!h.host->loadModule(variant, &error));
+        QVERIFY2(error.contains(reason.arg(path)), qPrintable(error));
+        QCOMPARE(h.host->state(variant), std::optional<State>(State::Failed));
+        QVERIFY(h.host->boundPages(variant).isEmpty());
+        QVERIFY(h.host->moduleDomains(variant).isEmpty());
+        // Nothing is kept for the file, so a retry asks again.
+        QVERIFY(!h.host->configBackend(path));
+        QVERIFY(h.host->canRetry(variant));
+        QVERIFY(!h.host->retryModule(variant, &error));
+        QVERIFY2(error.contains(reason.arg(path)), qPrintable(error));
+        QVERIFY(!h.host->configBackend(path));
+        QCOMPARE(factoryCalls().size(), calls);
     }
 
     void aRootThatIsNotAModuleFails()
@@ -693,6 +1013,44 @@ private Q_SLOTS:
         }
     }
 
+    void startAnnouncesEachModuleOnceWhenASlotRetriesAnother()
+    {
+        // start() found both disabled. A slot of early's announcement
+        // retries good before start() reaches it, and that retry announces
+        // good's changes itself, so start() says nothing more about good.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(writeRecord(
+            record,
+            QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("early"), QStringLiteral("good")}}}));
+        QList<State> goodStates;
+        QList<State> earlyStates;
+        bool retried = false;
+        bool retryResult = false;
+        Harness h({QStringLiteral("early"), QStringLiteral("good")}, record);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        FacetHost* const host = h.host.get();
+        connect(host, &FacetHost::moduleStateChanged, this,
+                [host, &goodStates, &earlyStates, &retried, &retryResult](const QString& moduleId, State state) {
+                    if (moduleId == QLatin1String("good")) {
+                        goodStates.append(state);
+                    } else if (moduleId == QLatin1String("early")) {
+                        earlyStates.append(state);
+                        if (!retried) {
+                            retried = true;
+                            retryResult = host->retryModule(QStringLiteral("good"));
+                        }
+                    }
+                });
+        h.host->start();
+        QVERIFY(retried);
+        QVERIFY(retryResult);
+        QCOMPARE(earlyStates, QList<State>{State::DisabledAfterCrash});
+        QCOMPARE(goodStates, (QList<State>{State::Available, State::Loaded}));
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Loaded));
+    }
+
     void aLoadRecordThatCannotBeClearedIsIgnored()
     {
         QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
@@ -766,13 +1124,10 @@ private Q_SLOTS:
         Harness h({QStringLiteral("good")});
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
-        // Replaced by rename, as a package upgrade does, before its first
-        // load.
-        QVERIFY(stage(h.modules, QStringLiteral("goodv2"), QStringLiteral("good.new")));
-        QVERIFY(
-            QFile::rename(h.modules + QStringLiteral("/good.new.so"), h.modules + QStringLiteral("/good.so"))
-            || (QFile::remove(h.modules + QStringLiteral("/good.so"))
-                && QFile::rename(h.modules + QStringLiteral("/good.new.so"), h.modules + QStringLiteral("/good.so"))));
+        // Replaced in one rename over the old file, as a package upgrade
+        // does, before its first load.
+        QVERIFY(stage(h.root.path(), QStringLiteral("goodv2"), QStringLiteral("good-next")));
+        QVERIFY(replaceFile(h.root.filePath(QStringLiteral("good-next.so")), h.modules + QStringLiteral("/good.so")));
         QString error;
         QVERIFY(!h.host->loadModule(QStringLiteral("good"), &error));
         QVERIFY2(error.contains(QStringLiteral("changed on disk")), qPrintable(error));
@@ -811,7 +1166,9 @@ private Q_SLOTS:
         QVERIFY(h.controller.setNavigationHook(&other, [&otherCalls](const QString&) {
             ++otherCalls;
         }));
-        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("already held by")));
+        QTest::ignoreMessage(
+            QtWarningMsg,
+            QRegularExpression(QStringLiteral("setNavigationHook: refused, the hook is already held by")));
         h.host->start();
         h.controller.setCurrentPageId(QStringLiteral("good:general"));
         QCOMPARE(otherCalls, 1);
@@ -832,10 +1189,24 @@ private Q_SLOTS:
 
     void aDestroyedHostLeavesNoHookBehind()
     {
-        Harness h({QStringLiteral("good")});
+        // A slot of the notices the host sends as it goes navigates. The
+        // hook is gone by then, so no module code runs for a host that is
+        // being destroyed: the page stays on its placeholder.
+        bool navigated = false;
+        Harness h({QStringLiteral("good"), QStringLiteral("extender")});
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
+        ApplicationController* const controller = &h.controller;
+        connect(controller, &ApplicationController::extensionsChanged, this, [controller, &navigated] {
+            if (!navigated) {
+                navigated = true;
+                controller->setCurrentPageId(QStringLiteral("good:about"));
+            }
+        });
         h.host.reset();
+        QVERIFY(navigated);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:about"));
+        QCOMPARE(h.registry()->entry(QStringLiteral("good:about")).qmlSource, FacetHost::placeholderPageSource());
         // The placeholders belong to the controller and stay usable.
         h.controller.setCurrentPageId(QStringLiteral("good:general"));
         QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:general"));
@@ -873,6 +1244,76 @@ private Q_SLOTS:
         QVERIFY(stage(h.modules, QStringLiteral("good"), QStringLiteral("good")));
         QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("good")), std::optional<State>(State::Available), 10000);
         QVERIFY(h.host->loadModule(QStringLiteral("good")));
+    }
+
+    void aModuleWhoseMetadataChangedWhileItWasAwayNeedsARestart()
+    {
+        // Its placeholders were built from the metadata it had, so the file
+        // that comes back with other metadata cannot be loaded into them.
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QVERIFY(QFile::remove(h.modules + QStringLiteral("/good.so")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.host->stateReason(QStringLiteral("good")).contains(QStringLiteral("removed")),
+                                 10000);
+        QVERIFY(stage(h.modules, QStringLiteral("goodv2"), QStringLiteral("good")));
+        QTRY_VERIFY_WITH_TIMEOUT(
+            h.host->stateReason(QStringLiteral("good")).contains(QStringLiteral("metadata changed on disk")), 10000);
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Failed));
+        QVERIFY(!h.host->canRetry(QStringLiteral("good")));
+        QCOMPARE(h.registry()->entry(QStringLiteral("good")).title, QStringLiteral("Good"));
+    }
+
+    void aModuleFixedOnDiskIsPlacedAndAnnouncedOnce()
+    {
+        // Invalid metadata gives it no placeholders. Removed, then offered
+        // again with valid metadata, it is read and placed afresh, and its
+        // way back to Available is announced once.
+        Harness h({QStringLiteral("badmetadata")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("badmetadata")), std::optional<State>(State::Failed));
+        QVERIFY(QFile::remove(h.modules + QStringLiteral("/badmetadata.so")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.host->stateReason(QStringLiteral("badmetadata")).contains(QStringLiteral("removed")),
+                                 10000);
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+
+        QVERIFY(stage(h.modules, QStringLiteral("fixedmetadata"), QStringLiteral("badmetadata")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("badmetadata:page")), 10000);
+        QCOMPARE(h.host->state(QStringLiteral("badmetadata")), std::optional<State>(State::Available));
+        QCOMPARE(statesOf(changed, QStringLiteral("badmetadata")), QList<State>{State::Available});
+        QCOMPARE(h.registry()->entry(QStringLiteral("badmetadata")).title, QStringLiteral("Fixed Metadata"));
+        QVERIFY(h.host->loadModule(QStringLiteral("badmetadata")));
+    }
+
+    void aModuleOfferedAgainAfterItsCodeLoadedWaitsForARestart()
+    {
+        // Its library loaded and its registerInto broke the contract, so the
+        // process keeps that code mapped. The file coming back cannot be
+        // tried: a retry would run the old code again.
+        Harness h({QStringLiteral("missingpage")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        const QString id = QStringLiteral("missingpage");
+        QVERIFY(!h.host->loadModule(id));
+        QCOMPARE(h.host->state(id), std::optional<State>(State::Failed));
+        QVERIFY(h.host->canRetry(id));
+
+        QVERIFY(QFile::remove(h.modules + QStringLiteral("/missingpage.so")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.host->stateReason(id).contains(QStringLiteral("removed")), 10000);
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        QSignalSpy failed(h.host.get(), &FacetHost::moduleFailed);
+        QVERIFY(stage(h.modules, id, id));
+        const QString reason = QStringLiteral(
+            "its file was offered again after its code had been loaded, so the file now on disk can be used only "
+            "after a restart");
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->stateReason(id), reason, 10000);
+        QCOMPARE(h.host->state(id), std::optional<State>(State::Failed));
+        QVERIFY(!h.host->canRetry(id));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(statesOf(changed, id), QList<State>{State::Failed});
+        QCOMPARE(failed.count(), 1);
+        QCOMPARE(failed.first().at(1).toString(), reason);
     }
 
     void extensionsResolveAgainstTheirTargetPage()
@@ -918,13 +1359,14 @@ private Q_SLOTS:
 
     void openingATargetPageLoadsTheModulesThatExtendIt()
     {
+        // What a FacetSlot reading the list on the notice sees: the module
+        // must be loaded by the time it is told. Declared before the
+        // Harness, since the host sends notices as it is destroyed.
+        qsizetype topAtLastNotice = -1;
         Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("badextender")});
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
         QSignalSpy changed(&h.controller, &ApplicationController::extensionsChanged);
-        // What a FacetSlot reading the list on the notice sees: the module
-        // must be loaded by the time it is told.
-        qsizetype topAtLastNotice = -1;
         ApplicationController* const controller = &h.controller;
         connect(controller, &ApplicationController::extensionsChanged, this, [controller, &topAtLastNotice] {
             topAtLastNotice = controller->extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size();
@@ -1032,11 +1474,7 @@ private Q_SLOTS:
         QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Loaded));
         QCOMPARE(h.host->state(QStringLiteral("missingextension")), std::optional<State>(State::Failed));
         // The failure reaches the page, so an open slot shows the error.
-        bool told = false;
-        for (const QList<QVariant>& args : std::as_const(changed)) {
-            told = told || args.first().toString() == QLatin1String("good:general");
-        }
-        QVERIFY(told);
+        QVERIFY(noticed(changed, QStringLiteral("good:general")));
         const QVariantList bottom =
             h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("bottom"));
         QCOMPARE(bottom.size(), 2);
@@ -1050,6 +1488,48 @@ private Q_SLOTS:
         // A failed load keeps none of its sections.
         QVERIFY(h.host->moduleExtensions(QStringLiteral("missingextension")).isEmpty());
         QVERIFY(h.controller.dirtyPageIds().isEmpty());
+    }
+
+    void anExtenderThatFailedToLoadLoadsOnceItsFileIsReplaced()
+    {
+        // extender's metadata in a library that cannot be loaded, on the
+        // open page. A working build replaces it in one rename, so the
+        // catalog offers the file again without ever seeing it go, and the
+        // open page gets the sections without being opened again.
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QVERIFY(stage(h.modules, QStringLiteral("extenderbroken"), QStringLiteral("extender")));
+        h.host->start();
+        h.controller.setCurrentPageId(QStringLiteral("good:general"));
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Loaded));
+        QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Failed));
+        QVERIFY2(h.host->stateReason(QStringLiteral("extender")).contains(QStringLiteral("could not load")),
+                 qPrintable(h.host->stateReason(QStringLiteral("extender"))));
+        QVERIFY(h.host->canRetry(QStringLiteral("extender")));
+        const QVariantList failedTop =
+            h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top"));
+        QCOMPARE(failedTop.size(), 2);
+        for (const QVariant& entry : failedTop) {
+            QVERIFY(entry.toMap().value(QStringLiteral("moduleFailed")).toBool());
+        }
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+
+        QVERIFY(stage(h.root.path(), QStringLiteral("extender"), QStringLiteral("extender-next")));
+        QVERIFY(replaceFile(h.root.filePath(QStringLiteral("extender-next.so")),
+                            h.modules + QStringLiteral("/extender.so")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Loaded),
+                                  10000);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:general"));
+        // Back to Available, its library never having loaded, and loaded
+        // for the open page.
+        QCOMPARE(statesOf(changed, QStringLiteral("extender")), (QList<State>{State::Available, State::Loaded}));
+        const QVariantList top = h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top"));
+        QCOMPARE(top.size(), 2);
+        for (const QVariant& entry : top) {
+            const QVariantMap map = entry.toMap();
+            QVERIFY(map.value(QStringLiteral("domain")).value<QObject*>());
+            QVERIFY(!map.contains(QStringLiteral("error")));
+        }
     }
 
     void aDisabledExtenderSaysSoInItsSlot()
@@ -1092,7 +1572,9 @@ private Q_SLOTS:
         // so their domains stay out of Apply.
         QVERIFY(h.host->loadModule(QStringLiteral("extender")));
         QVERIFY(h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).isEmpty());
-        for (const FacetHost::ModuleExtension& section : h.host->moduleExtensions(QStringLiteral("extender"))) {
+        const QList<FacetHost::ModuleExtension> sections = h.host->moduleExtensions(QStringLiteral("extender"));
+        QCOMPARE(sections.size(), 5);
+        for (const FacetHost::ModuleExtension& section : sections) {
             QVERIFY(!h.controller.isTrackedDomain(section.domain));
         }
     }
@@ -1106,6 +1588,8 @@ private Q_SLOTS:
         QVERIFY(state.isValid());
         const QString record = state.filePath(QStringLiteral("facet-loading"));
         QVERIFY(writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("good")}}}));
+        // The top slot's size at each notice for the page.
+        QList<qsizetype> topAtNotices;
         Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("extender2")}, record);
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
@@ -1113,17 +1597,28 @@ private Q_SLOTS:
         h.controller.setCurrentPageId(QStringLiteral("good:general"));
         QCOMPARE(h.host->state(QStringLiteral("extender2")), std::optional<State>(State::Available));
         QSignalSpy changed(&h.controller, &ApplicationController::extensionsChanged);
+        ApplicationController* const controller = &h.controller;
+        connect(controller, &ApplicationController::extensionsChanged, this,
+                [controller, &topAtNotices](const QString& pageId) {
+                    if (pageId == QLatin1String("good:general")) {
+                        topAtNotices.append(
+                            controller->extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size());
+                    }
+                });
 
         QVERIFY(h.host->retryModule(QStringLiteral("good")));
 
-        bool told = false;
-        for (const QList<QVariant>& args : std::as_const(changed)) {
-            told = told || args.first().toString() == QLatin1String("good:general");
-        }
-        QVERIFY(told);
+        QVERIFY(noticed(changed, QStringLiteral("good:general")));
+        // Told as soon as good loaded, with extender's sections alone, and
+        // again once extender2 loaded and added its own.
+        QVERIFY(!topAtNotices.isEmpty());
+        QCOMPARE(topAtNotices.first(), 2);
+        QCOMPARE(topAtNotices.last(), 3);
         QCOMPARE(h.host->state(QStringLiteral("extender2")), std::optional<State>(State::Loaded));
         QCOMPARE(h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size(), 3);
-        for (const FacetHost::ModuleExtension& section : h.host->moduleExtensions(QStringLiteral("extender"))) {
+        const QList<FacetHost::ModuleExtension> sections = h.host->moduleExtensions(QStringLiteral("extender"));
+        QCOMPARE(sections.size(), 5);
+        for (const FacetHost::ModuleExtension& section : sections) {
             QCOMPARE(h.controller.isTrackedDomain(section.domain), section.id != QLatin1String("ghost"));
         }
     }
@@ -1145,6 +1640,133 @@ private Q_SLOTS:
         QVERIFY(navigated);
         QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:general"));
         QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Loaded));
+    }
+
+    void aPageASlotOpensWhileItsModuleLoadsGetsItsExtenders()
+    {
+        // Opening good:about loads good, and a slot of that load opens
+        // good:general. That page's extenders cannot load while good does,
+        // so they load once it has.
+        bool navigated = false;
+        Harness h({QStringLiteral("good"), QStringLiteral("extender")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        ApplicationController* const controller = &h.controller;
+        connect(h.registry(), &PageRegistry::pageBound, this, [controller, &navigated] {
+            if (!navigated) {
+                navigated = true;
+                controller->setCurrentPageId(QStringLiteral("good:general"));
+            }
+        });
+        QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
+        h.controller.setCurrentPageId(QStringLiteral("good:about"));
+        QVERIFY(navigated);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:general"));
+        QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Loaded));
+        QCOMPARE(loadsOf(loaded, QStringLiteral("extender")), 1);
+        QCOMPARE(h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size(), 2);
+    }
+
+    void aPageASlotOpensWhileAnotherModuleLoadsGetsItsExtenders()
+    {
+        // good is loaded. Opening early:main loads early, and a slot of that
+        // load opens good:general, whose extenders load once early has.
+        bool navigated = false;
+        Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("early")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        ApplicationController* const controller = &h.controller;
+        connect(h.registry(), &PageRegistry::pageBound, this, [controller, &navigated] {
+            if (!navigated) {
+                navigated = true;
+                controller->setCurrentPageId(QStringLiteral("good:general"));
+            }
+        });
+        QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
+        h.controller.setCurrentPageId(QStringLiteral("early:main"));
+        QVERIFY(navigated);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:general"));
+        QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::Loaded));
+        QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Loaded));
+        QCOMPARE(loadsOf(loaded, QStringLiteral("extender")), 1);
+        QCOMPARE(h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size(), 2);
+    }
+
+    void aPageASlotOpensDuringADirectLoadGetsItsExtenders()
+    {
+        // The same with no navigation around the load: loadModule() itself,
+        // as a placeholder's retry or the host application calls it.
+        bool navigated = false;
+        Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("early")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        ApplicationController* const controller = &h.controller;
+        connect(h.registry(), &PageRegistry::pageBound, this, [controller, &navigated] {
+            if (!navigated) {
+                navigated = true;
+                controller->setCurrentPageId(QStringLiteral("good:general"));
+            }
+        });
+        QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
+        QVERIFY(h.host->loadModule(QStringLiteral("early")));
+        QVERIFY(navigated);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:general"));
+        QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Loaded));
+        QCOMPARE(loadsOf(loaded, QStringLiteral("extender")), 1);
+        QCOMPARE(h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size(), 2);
+    }
+
+    void aPageASlotOpensAfterALoadGetsItsExtendersOnce()
+    {
+        // The control for the tests above: opened from moduleLoaded, when the
+        // load is over, the page loads its extenders itself, and nothing is
+        // left owed to load them a second time.
+        bool navigated = false;
+        Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("early")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        ApplicationController* const controller = &h.controller;
+        connect(h.host.get(), &FacetHost::moduleLoaded, this, [controller, &navigated](const QString& moduleId) {
+            if (moduleId == QLatin1String("early") && !navigated) {
+                navigated = true;
+                controller->setCurrentPageId(QStringLiteral("good:general"));
+            }
+        });
+        QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
+        QVERIFY(h.host->loadModule(QStringLiteral("early")));
+        QVERIFY(navigated);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("good:general"));
+        QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Loaded));
+        QCOMPARE(loadsOf(loaded, QStringLiteral("extender")), 1);
+    }
+
+    void aPageASlotOpensDuringALoadKeepsItsUnloadedModulesPlaceholder()
+    {
+        // The page a slot opens belongs to a module that is not loaded, and
+        // that load was refused while good loaded. Nothing loads it later on
+        // its own: the page shows its placeholder, which offers the load.
+        bool navigated = false;
+        Harness h({QStringLiteral("good"), QStringLiteral("early")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        ApplicationController* const controller = &h.controller;
+        connect(h.registry(), &PageRegistry::pageBound, this, [controller, &navigated] {
+            if (!navigated) {
+                navigated = true;
+                controller->setCurrentPageId(QStringLiteral("early:main"));
+            }
+        });
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        QVERIFY(navigated);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("early:main"));
+        QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::Available));
+        QCOMPARE(h.registry()->entry(QStringLiteral("early:main")).qmlSource, FacetHost::placeholderPageSource());
+        QObject* const placeholder = h.registry()->controller(QStringLiteral("early:main"));
+        QVERIFY(placeholder);
+        QVERIFY(placeholder->property("canRetry").toBool());
     }
 
     void aNavigationDuringALoadStopsTheRest()
@@ -1229,6 +1851,43 @@ private Q_SLOTS:
         QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::Loaded));
     }
 
+    void aRetryFromAFailureSlotSupersedesTheFailure()
+    {
+        // The first load is refused because the module registers a domain
+        // the application already tracks. A slot of the Failed announcement
+        // takes that domain away and retries, which loads it: the failure is
+        // over before moduleFailed would have said it, so it is not said.
+        FixtureState fixtures;
+        bool retried = false;
+        bool retryResult = false;
+        QString retryError;
+        Harness h({QStringLiteral("foreigndomain")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        auto* const tracked = new SimplePage(QStringLiteral("tracked"), &h.controller);
+        QVERIFY(h.controller.registerDomain(tracked));
+        qApp->setProperty("fakeForeignDomain", QVariant::fromValue<QObject*>(tracked));
+        h.host->start();
+        FacetHost* const host = h.host.get();
+        connect(host, &FacetHost::moduleStateChanged, this,
+                [host, &retried, &retryResult, &retryError](const QString& moduleId, State state) {
+                    if (state == State::Failed && !retried) {
+                        retried = true;
+                        qApp->setProperty("fakeForeignDomain", QVariant());
+                        retryResult = host->retryModule(moduleId, &retryError);
+                    }
+                });
+        QSignalSpy failed(host, &FacetHost::moduleFailed);
+        QSignalSpy loaded(host, &FacetHost::moduleLoaded);
+        QString error;
+        // The outcome reported is the retry's.
+        QVERIFY2(h.host->loadModule(QStringLiteral("foreigndomain"), &error), qPrintable(error));
+        QVERIFY(retried);
+        QVERIFY2(retryResult, qPrintable(retryError));
+        QCOMPARE(failed.count(), 0);
+        QCOMPARE(loaded.count(), 1);
+        QCOMPARE(h.host->state(QStringLiteral("foreigndomain")), std::optional<State>(State::Loaded));
+    }
+
     void aRetryThatCannotRunNowChangesNothing()
     {
         QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
@@ -1296,8 +1955,32 @@ private Q_SLOTS:
                                 "in the sidebar"));
     }
 
+    void anInvalidModuleArrivingRefusesTheExtensionsAimedAtIt()
+    {
+        // targetsbad's extension is aimed at a module that is not installed,
+        // so it is only inactive. Once that module arrives with invalid
+        // metadata, it is installed but never placed, and the extension is
+        // refused.
+        Harness h({QStringLiteral("targetsbad")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QVERIFY(h.host->refusedExtensions().isEmpty());
+        QSignalSpy refusedChanged(h.host.get(), &FacetHost::refusedExtensionsChanged);
+        QVERIFY(stage(h.modules, QStringLiteral("badmetadata"), QStringLiteral("badmetadata")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("badmetadata")), std::optional<State>(State::Failed),
+                                  10000);
+        QCOMPARE(refusedChanged.count(), 1);
+        QCOMPARE(h.host->refusedExtensions().size(), 1);
+        QCOMPARE(reasonOf(h.host->refusedExtensions(), QStringLiteral("targetsbad:top")),
+                 QStringLiteral("its target module badmetadata is installed but has invalid metadata or could not be "
+                                "placed in the sidebar"));
+    }
+
     void extensionsThatArriveWhileThePageIsOpenLoad()
     {
+        // Declared before the Harness, since the host sends notices as it is
+        // destroyed.
+        qsizetype topAtLastNotice = -1;
         Harness h({QStringLiteral("good")}, QString(), true);
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
@@ -1305,7 +1988,6 @@ private Q_SLOTS:
         QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Loaded));
         QSignalSpy changed(&h.controller, &ApplicationController::extensionsChanged);
         QSignalSpy refusedChanged(h.host.get(), &FacetHost::refusedExtensionsChanged);
-        qsizetype topAtLastNotice = -1;
         ApplicationController* const controller = &h.controller;
         connect(controller, &ApplicationController::extensionsChanged, this, [controller, &topAtLastNotice] {
             topAtLastNotice = controller->extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size();
@@ -1380,21 +2062,21 @@ private Q_SLOTS:
         QVERIFY(h.host->refusedExtensions().isEmpty());
         QVERIFY(h.host->extensionsOn(QStringLiteral("good:general")).isEmpty());
         // No section is active, so none of their domains joined Apply.
-        for (const FacetHost::ModuleExtension& section : h.host->moduleExtensions(QStringLiteral("extender"))) {
+        const QList<FacetHost::ModuleExtension> sections = h.host->moduleExtensions(QStringLiteral("extender"));
+        QCOMPARE(sections.size(), 5);
+        for (const FacetHost::ModuleExtension& section : sections) {
             QVERIFY(!h.controller.isTrackedDomain(section.domain));
         }
     }
 
     void modulesWritingOneFileShareItsBackend()
     {
+        FixtureState fixtures;
         Harness h({QStringLiteral("sharera"), QStringLiteral("sharerb")});
         QVERIFY2(h.ok, qPrintable(h.error));
         const QString path = h.root.filePath(QStringLiteral("shared/config.json"));
         QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
-        qputenv("FAKE_CONFIG_PATH", path.toUtf8());
-        const auto unset = qScopeGuard([] {
-            qunsetenv("FAKE_CONFIG_PATH");
-        });
+        setConfigPath(path);
         h.host->start();
         // Both load before either applies, so separate backends would each
         // hold a document without the other's key and the last write would win.
@@ -1405,69 +2087,338 @@ private Q_SLOTS:
         // The same file by another spelling is the same backend.
         QCOMPARE(h.host->configBackend(h.root.filePath(QStringLiteral("shared/../shared/config.json"))),
                  h.host->configBackend(path));
+        // Made once, by the first module to open the file.
+        QCOMPARE(factoryCalls().size(), 1);
 
         for (const QString& module : {QStringLiteral("sharera"), QStringLiteral("sharerb")}) {
-            for (StagingDomain* domain : h.host->moduleDomains(module)) {
-                if (domain->objectName() == QLatin1String("config")) {
-                    QVERIFY(invokeSetDirty(domain, true));
-                }
-            }
+            StagingDomain* const domain = configDomainOf(*h.host, module);
+            QVERIFY2(domain, qPrintable(module));
+            QVERIFY(invokeSetDirty(domain, true));
         }
-        QSignalSpy done(&h.controller, &ApplicationController::applyAllComplete);
-        h.controller.applyAllAsync();
-        QVERIFY(done.count() == 1 || done.wait());
-        QVERIFY(done.first().first().toBool());
+        QVERIFY(applyAndWait(h.controller));
 
-        QFile file(path);
-        QVERIFY(file.open(QIODevice::ReadOnly));
-        const QJsonObject fake =
-            QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("Fake")).toObject();
+        const QJsonObject fake = fakeGroupIn(path);
         QCOMPARE(fake.value(QStringLiteral("sharera")).toString(), QStringLiteral("applied"));
         QCOMPARE(fake.value(QStringLiteral("sharerb")).toString(), QStringLiteral("applied"));
     }
 
-    void attachingNeedsATrackedDomainAndARegisteredPage()
+    void everySpellingOfAFileSharesItsBackend()
     {
-        ApplicationController controller;
-        controller.registerPage(new SimplePage(QStringLiteral("page"), &controller), QString(), QStringLiteral("Page"),
-                                QUrl(QStringLiteral("qrc:/page.qml")));
-        auto* const domain = new CountingDomain(&controller);
-        QVERIFY(controller.registerDomain(domain));
+        // real/config.json, a link to that file, and a link to a directory
+        // under real/ followed by "..", which the OS resolves to real/ and
+        // a purely lexical clean-up would not.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("sharera"), QStringLiteral("sharerb")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QVERIFY(QDir().mkpath(h.root.filePath(QStringLiteral("real/sub"))));
+        const QString plain = h.root.filePath(QStringLiteral("real/config.json"));
+        const QString fileLink = h.root.filePath(QStringLiteral("link.json"));
+        QVERIFY(QFile::link(plain, fileLink));
+        QVERIFY(QFile::link(h.root.filePath(QStringLiteral("real/sub")), h.root.filePath(QStringLiteral("deep"))));
+        h.host->start();
 
-        // An unknown page: the attachment would hang on, and mark a page
-        // registered later under that id.
-        QTest::ignoreMessage(QtWarningMsg,
-                             QRegularExpression(QStringLiteral("attachDomainToPage: null domain or unknown page")));
-        controller.attachDomainToPage(domain, QStringLiteral("missing"));
-        QTest::ignoreMessage(QtWarningMsg,
-                             QRegularExpression(QStringLiteral("attachDomainToPage: null domain or unknown page")));
-        controller.attachDomainToPage(nullptr, QStringLiteral("page"));
-        controller.registerPage(new SimplePage(QStringLiteral("missing"), &controller), QString(),
-                                QStringLiteral("Missing"), QUrl(QStringLiteral("qrc:/missing.qml")));
-        domain->setDirty(true);
-        QVERIFY(controller.dirtyPageIds().isEmpty());
+        setConfigPath(plain);
+        QVERIFY(h.host->loadModule(QStringLiteral("sharera")));
+        setConfigPath(fileLink);
+        QVERIFY(h.host->loadModule(QStringLiteral("sharerb")));
+        // The second module, opening the file through the link, got the
+        // first one's backend.
+        QCOMPARE(factoryCalls().size(), 1);
 
-        // A domain that is not tracked is never applied, so it must not mark
-        // a page either.
-        CountingDomain untracked;
-        untracked.setDirty(true);
-        QTest::ignoreMessage(QtWarningMsg,
-                             QRegularExpression(QStringLiteral("attachDomainToPage: domain is not registered")));
-        controller.attachDomainToPage(&untracked, QStringLiteral("page"));
-        QVERIFY(controller.dirtyPageIds().isEmpty());
+        PhosphorConfig::IBackend* const backend = h.host->configBackend(plain);
+        QVERIFY(backend);
+        QCOMPARE(h.host->configBackend(fileLink), backend);
+        QCOMPARE(h.host->configBackend(h.root.filePath(QStringLiteral("deep/../config.json"))), backend);
+        QCOMPARE(h.host->configBackend(h.root.path() + QStringLiteral("/real/.//config.json")), backend);
+        // A relative path names no file a module opened, even one the
+        // working directory would lead to.
+        {
+            WorkingDirectory cwd;
+            QVERIFY(QDir::setCurrent(h.root.filePath(QStringLiteral("real"))));
+            QVERIFY(!h.host->configBackend(QStringLiteral("config.json")));
+            QVERIFY(!h.host->configBackend(QStringLiteral("./config.json")));
+        }
 
-        // Attached twice, it is reset once.
-        controller.attachDomainToPage(domain, QStringLiteral("page"));
-        controller.attachDomainToPage(domain, QStringLiteral("page"));
-        QCOMPARE(controller.dirtyPageIds(), QStringList{QStringLiteral("page")});
-        controller.setCurrentPageId(QStringLiteral("page"));
-        controller.resetCurrentPage();
-        QCOMPARE(domain->resets, 1);
-        QVERIFY(controller.dirtyPageIds().isEmpty());
+        StagingDomain* const first = configDomainOf(*h.host, QStringLiteral("sharera"));
+        StagingDomain* const second = configDomainOf(*h.host, QStringLiteral("sharerb"));
+        QVERIFY(first);
+        QVERIFY(second);
+        QVERIFY(invokeSetDirty(first, true));
+        QVERIFY(invokeSetDirty(second, true));
+        QVERIFY(applyAndWait(h.controller));
+        const QJsonObject fake = fakeGroupIn(plain);
+        QCOMPARE(fake.value(QStringLiteral("sharera")).toString(), QStringLiteral("applied"));
+        QCOMPARE(fake.value(QStringLiteral("sharerb")).toString(), QStringLiteral("applied"));
+        // Written where the link leads, which leaves the link a link.
+        QVERIFY(QFileInfo(fileLink).isSymLink());
+    }
+
+    void separateFilesKeepSeparateBackends()
+    {
+        // The same name in another directory, and another name in the same
+        // directory, are other files.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("sharera"), QStringLiteral("sharerb")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString first = h.root.filePath(QStringLiteral("a/config.json"));
+        const QString second = h.root.filePath(QStringLiteral("b/config.json"));
+        QVERIFY(QDir().mkpath(h.root.filePath(QStringLiteral("a"))));
+        QVERIFY(QDir().mkpath(h.root.filePath(QStringLiteral("b"))));
+        h.host->start();
+        setConfigPath(first);
+        QVERIFY(h.host->loadModule(QStringLiteral("sharera")));
+        setConfigPath(second);
+        QVERIFY(h.host->loadModule(QStringLiteral("sharerb")));
+        QCOMPARE(factoryCalls().size(), 2);
+
+        PhosphorConfig::IBackend* const firstBackend = h.host->configBackend(first);
+        PhosphorConfig::IBackend* const secondBackend = h.host->configBackend(second);
+        QVERIFY(firstBackend);
+        QVERIFY(secondBackend);
+        QVERIFY(firstBackend != secondBackend);
+        // Null for a file no module opened.
+        QVERIFY(!h.host->configBackend(h.root.filePath(QStringLiteral("a/other.json"))));
+        QVERIFY(!h.host->configBackend(h.root.filePath(QStringLiteral("c/config.json"))));
+
+        StagingDomain* const firstDomain = configDomainOf(*h.host, QStringLiteral("sharera"));
+        StagingDomain* const secondDomain = configDomainOf(*h.host, QStringLiteral("sharerb"));
+        QVERIFY(firstDomain);
+        QVERIFY(secondDomain);
+        QVERIFY(invokeSetDirty(firstDomain, true));
+        QVERIFY(invokeSetDirty(secondDomain, true));
+        QVERIFY(applyAndWait(h.controller));
+        QCOMPARE(fakeGroupIn(first).keys(), QStringList{QStringLiteral("sharera")});
+        QCOMPARE(fakeGroupIn(second).keys(), QStringList{QStringLiteral("sharerb")});
+    }
+
+    void aFileKeepsItsBackendWhenItsDirectoryIsCreated()
+    {
+        // The file is opened through a link to a directory, in a directory
+        // that does not exist yet. The first Apply creates it, and a module
+        // that opens the file after that still gets the same backend: two
+        // would each write a document without the other's key.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("sharera"), QStringLiteral("sharerb")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QVERIFY(QDir().mkpath(h.root.filePath(QStringLiteral("real"))));
+        QVERIFY(QFile::link(h.root.filePath(QStringLiteral("real")), h.root.filePath(QStringLiteral("link"))));
+        const QString path = h.root.filePath(QStringLiteral("link/app/config.json"));
+        QVERIFY(!QFileInfo::exists(h.root.filePath(QStringLiteral("real/app"))));
+        setConfigPath(path);
+        h.host->start();
+
+        QVERIFY(h.host->loadModule(QStringLiteral("sharera")));
+        PhosphorConfig::IBackend* const backend = h.host->configBackend(path);
+        QVERIFY(backend);
+        QCOMPARE(h.host->configBackend(h.root.path() + QStringLiteral("/link//app/../app/./config.json")), backend);
+        StagingDomain* const first = configDomainOf(*h.host, QStringLiteral("sharera"));
+        QVERIFY(first);
+        QVERIFY(invokeSetDirty(first, true));
+        QVERIFY(applyAndWait(h.controller));
+        QVERIFY(QFileInfo::exists(h.root.filePath(QStringLiteral("real/app/config.json"))));
+        QCOMPARE(h.host->configBackend(path), backend);
+
+        QVERIFY(h.host->loadModule(QStringLiteral("sharerb")));
+        QCOMPARE(h.host->configBackend(path), backend);
+        QCOMPARE(factoryCalls().size(), 1);
+        StagingDomain* const second = configDomainOf(*h.host, QStringLiteral("sharerb"));
+        QVERIFY(second);
+        // The later module applies first, then the earlier one: with a
+        // backend each, the earlier one's write would drop the later key.
+        QVERIFY(invokeSetDirty(second, true));
+        QVERIFY(applyAndWait(h.controller));
+        QVERIFY(invokeSetDirty(first, true));
+        QVERIFY(applyAndWait(h.controller));
+        const QJsonObject fake = fakeGroupIn(path);
+        QCOMPARE(fake.value(QStringLiteral("sharera")).toString(), QStringLiteral("applied"));
+        QCOMPARE(fake.value(QStringLiteral("sharerb")).toString(), QStringLiteral("applied"));
+    }
+
+    void aFactoryThatOpensItsOwnFileKeepsTheNestedBackend()
+    {
+        // confignested's factory opens the same file through its context
+        // before it makes a backend of its own. The nested call's backend is
+        // the one the module goes on using, so it is the one that stays.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("confignested")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString path = h.root.filePath(QStringLiteral("config.json"));
+        setConfigPath(path);
+        h.host->start();
+        QString error;
+        QVERIFY2(h.host->loadModule(QStringLiteral("confignested"), &error), qPrintable(error));
+
+        PhosphorConfig::IBackend* const backend = h.host->configBackend(path);
+        QVERIFY(backend);
+        const quintptr nested = qApp->property("fakeConfigNestedBackend").value<quintptr>();
+        QCOMPARE(reinterpret_cast<quintptr>(backend), nested);
+        QCOMPARE(qApp->property("fakeConfigOuterBackend").value<quintptr>(), nested);
+        // Both factory calls ran, and the backend the outer one made is gone.
+        QCOMPARE(factoryCalls().size(), 2);
+        QCOMPARE(backendsDestroyed(), 1);
+
+        StagingDomain* const domain = configDomainOf(*h.host, QStringLiteral("confignested"));
+        QVERIFY(domain);
+        QVERIFY(invokeSetDirty(domain, true));
+        QVERIFY(applyAndWait(h.controller));
+        QCOMPARE(fakeGroupIn(path).value(QStringLiteral("confignested")).toString(), QStringLiteral("applied"));
+    }
+
+    void aFailedRegistrationKeepsTheBackendItOpened()
+    {
+        // configthenbreaks opens its file, then registers a null domain. The
+        // registration is not kept, but the backend was shared the moment it
+        // was opened, and the retry gets it back without a second factory
+        // call.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("configthenbreaks")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString path = h.root.filePath(QStringLiteral("config.json"));
+        setConfigPath(path);
+        h.host->start();
+        QString error;
+        QVERIFY(!h.host->loadModule(QStringLiteral("configthenbreaks"), &error));
+        QVERIFY2(error.contains(QStringLiteral("registered a null domain")), qPrintable(error));
+        QCOMPARE(h.host->state(QStringLiteral("configthenbreaks")), std::optional<State>(State::Failed));
+        PhosphorConfig::IBackend* const backend = h.host->configBackend(path);
+        QVERIFY(backend);
+        QCOMPARE(factoryCalls().size(), 1);
+
+        QVERIFY(h.host->canRetry(QStringLiteral("configthenbreaks")));
+        QVERIFY(!h.host->retryModule(QStringLiteral("configthenbreaks")));
+        QCOMPARE(h.host->configBackend(path), backend);
+        QCOMPARE(factoryCalls().size(), 1);
+        QCOMPARE(backendsDestroyed(), 0);
+    }
+
+    void aDomainAppliesThroughItsBackendAfterTheHostIsGone()
+    {
+        // The backends belong to the controller, so a domain the controller
+        // still applies keeps a backend to write through when the host has
+        // gone, and the backends go with the controller.
+        FixtureState fixtures;
+        QString path;
+        {
+            Harness h({QStringLiteral("sharera")});
+            QVERIFY2(h.ok, qPrintable(h.error));
+            path = h.root.filePath(QStringLiteral("config.json"));
+            setConfigPath(path);
+            h.host->start();
+            QVERIFY(h.host->loadModule(QStringLiteral("sharera")));
+            StagingDomain* const domain = configDomainOf(*h.host, QStringLiteral("sharera"));
+            QVERIFY(domain);
+            QVERIFY(invokeSetDirty(domain, true));
+
+            h.host.reset();
+            QCOMPARE(backendsDestroyed(), 0);
+            QVERIFY(h.controller.isDirty());
+            QVERIFY(applyAndWait(h.controller));
+            QCOMPARE(fakeGroupIn(path).value(QStringLiteral("sharera")).toString(), QStringLiteral("applied"));
+        }
+        QCOMPARE(backendsDestroyed(), 1);
+    }
+
+    void aConfigRedirectMovesEveryFileItsModulesOpen()
+    {
+        FixtureState fixtures;
+        Harness h({QStringLiteral("sharera"), QStringLiteral("sharerb"), QStringLiteral("sharerc")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString redirect = h.root.filePath(QStringLiteral("redirect"));
+        h.host->setConfigRedirect(redirect);
+        QVERIFY(QDir().mkpath(h.root.filePath(QStringLiteral("real"))));
+        QVERIFY(QFile::link(h.root.filePath(QStringLiteral("real")), h.root.filePath(QStringLiteral("link"))));
+        // In a directory that does not exist, which the redirect creates
+        // under itself rather than here.
+        const QString path = h.root.filePath(QStringLiteral("real/app/config.json"));
+        const QString linked = h.root.filePath(QStringLiteral("link/app/config.json"));
+        const QString other = h.root.filePath(QStringLiteral("real/other.json"));
+        // The file under the redirect: its own path, links resolved, below
+        // the redirect directory.
+        const QString real = QFileInfo(h.root.filePath(QStringLiteral("real"))).canonicalFilePath();
+        QVERIFY(!real.isEmpty());
+        const QString moved = QDir::cleanPath(redirect + real + QStringLiteral("/app/config.json"));
+        const QString movedOther = QDir::cleanPath(redirect + real + QStringLiteral("/other.json"));
+        h.host->start();
+
+        setConfigPath(path);
+        QVERIFY(h.host->loadModule(QStringLiteral("sharera")));
+        QCOMPARE(factoryCalls(), QStringList{moved});
+        // Another spelling of the file shares its backend.
+        setConfigPath(linked);
+        QVERIFY(h.host->loadModule(QStringLiteral("sharerb")));
+        QCOMPARE(factoryCalls(), QStringList{moved});
+        // Another file has its own.
+        setConfigPath(other);
+        QVERIFY(h.host->loadModule(QStringLiteral("sharerc")));
+        QCOMPARE(factoryCalls(), (QStringList{moved, movedOther}));
+
+        // Answered for the path the module named, not where the file went.
+        PhosphorConfig::IBackend* const backend = h.host->configBackend(path);
+        QVERIFY(backend);
+        QCOMPARE(h.host->configBackend(linked), backend);
+        QVERIFY(h.host->configBackend(other));
+        QVERIFY(h.host->configBackend(other) != backend);
+        QVERIFY(!h.host->configBackend(moved));
+
+        for (const QString& module :
+             {QStringLiteral("sharera"), QStringLiteral("sharerb"), QStringLiteral("sharerc")}) {
+            StagingDomain* const domain = configDomainOf(*h.host, module);
+            QVERIFY2(domain, qPrintable(module));
+            QVERIFY(invokeSetDirty(domain, true));
+        }
+        QVERIFY(applyAndWait(h.controller));
+        const QJsonObject fake = fakeGroupIn(moved);
+        QCOMPARE(fake.value(QStringLiteral("sharera")).toString(), QStringLiteral("applied"));
+        QCOMPARE(fake.value(QStringLiteral("sharerb")).toString(), QStringLiteral("applied"));
+        QCOMPARE(fakeGroupIn(movedOther).keys(), QStringList{QStringLiteral("sharerc")});
+        // Nothing was made where the modules pointed.
+        QVERIFY(!QFileInfo::exists(h.root.filePath(QStringLiteral("real/app"))));
+        QVERIFY(!QFileInfo::exists(other));
+    }
+
+    void aConfigRedirectToTheRootIsRefused()
+    {
+        // The root would put every file back where it is, so it is refused
+        // and the files stay where the modules point.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("sharera")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QTest::ignoreMessage(
+            QtWarningMsg,
+            exactly(
+                QStringLiteral("FacetHost: setConfigRedirect to the filesystem root would redirect nothing, ignored")));
+        h.host->setConfigRedirect(QStringLiteral("/"));
+        const QString path = h.root.filePath(QStringLiteral("config.json"));
+        setConfigPath(path);
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("sharera")));
+        QCOMPARE(factoryCalls(),
+                 QStringList{QFileInfo(h.root.path()).canonicalFilePath() + QStringLiteral("/config.json")});
+    }
+
+    void aConfigRedirectSetAfterStartMovesNothing()
+    {
+        FixtureState fixtures;
+        Harness h({QStringLiteral("sharera")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString path = h.root.filePath(QStringLiteral("config.json"));
+        setConfigPath(path);
+        h.host->start();
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: setConfigRedirect after start() is ignored")));
+        h.host->setConfigRedirect(h.root.filePath(QStringLiteral("redirect")));
+        QVERIFY(h.host->loadModule(QStringLiteral("sharera")));
+        QCOMPARE(factoryCalls(),
+                 QStringList{QFileInfo(h.root.path()).canonicalFilePath() + QStringLiteral("/config.json")});
+        QVERIFY(!QFileInfo::exists(h.root.filePath(QStringLiteral("redirect"))));
     }
 
     void theExtensionProviderBelongsToItsOwner()
     {
+        // The top slot's size at each notice the host sends as it goes.
+        // Declared before the Harness, since those notices come from the
+        // host's destructor.
+        QList<qsizetype> topAtNotices;
         Harness h({QStringLiteral("good"), QStringLiteral("extender")});
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
@@ -1484,14 +2435,22 @@ private Q_SLOTS:
         QCOMPARE(h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size(), 2);
 
         // The host goes: its provider goes with it, and the open page is told.
+        // A FacetSlot rereading the list on that notice already finds it
+        // empty.
         QSignalSpy changed(&h.controller, &ApplicationController::extensionsChanged);
+        ApplicationController* const controller = &h.controller;
+        connect(controller, &ApplicationController::extensionsChanged, this,
+                [controller, &topAtNotices](const QString& pageId) {
+                    if (pageId == QLatin1String("good:general")) {
+                        topAtNotices.append(
+                            controller->extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).size());
+                    }
+                });
         h.host.reset();
         QVERIFY(h.controller.extensionsFor(QStringLiteral("good:general"), QStringLiteral("top")).isEmpty());
-        bool told = false;
-        for (const QList<QVariant>& args : std::as_const(changed)) {
-            told = told || args.first().toString() == QLatin1String("good:general");
-        }
-        QVERIFY(told);
+        QVERIFY(noticed(changed, QStringLiteral("good:general")));
+        QVERIFY(!topAtNotices.isEmpty());
+        QCOMPARE(topAtNotices, QList<qsizetype>(topAtNotices.size(), 0));
     }
 };
 

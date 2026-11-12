@@ -95,7 +95,8 @@ int main(int argc, char* argv[])
     // implicit_layer manifest attaches whenever MANGOHUD=1 is in the
     // environment (e.g. set globally for games), and its NVIDIA stat-polling
     // thread costs ~30% CPU continuously inside this process — we are a
-    // settings UI, not a game client. Both env vars are cleared:
+    // settings UI, not a game client. MANGOHUD is unset and DISABLE_MANGOHUD
+    // is set:
     // MANGOHUD=0 alone is not enough on all manifest versions; the explicit
     // DISABLE_MANGOHUD opt-out is honored regardless of MANGOHUD's value.
     // Must run before QApplication construction (which initializes the

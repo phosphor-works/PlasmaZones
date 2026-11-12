@@ -337,16 +337,20 @@ bool OverlayAdaptor::setSnapAssistThumbnail(const QString& compositorHandle, int
     if (!m_overlayService) {
         return false;
     }
-    // Hard byte cap matching a 1024² ARGB32 image (4 MiB) plus framing
-    // overhead, generous for the 256² steady state (256 KiB). Note: by the
-    // time this slot runs, QtDBus has already deserialised the QByteArray —
+    // Hard byte cap: an ARGB32 image at the shared per-axis ceiling
+    // (PhosphorProtocol::Service::SnapAssistThumbnailMaxDimension on both
+    // axes, four bytes a pixel) plus framing overhead, generous for the 256²
+    // steady state (256 KiB). Derived from the protocol constant so this
+    // pre-auth cap and the dimension checks behind it move together. Note: by
+    // the time this slot runs, QtDBus has already deserialised the QByteArray —
     // the marshaller cost is paid regardless. What this guard actually
     // bounds is (a) downstream validation cost in OverlayService against
     // an authenticated kwin-effect bug producing a too-large buffer, and
     // (b) the daemon's QImage.copy() walk if the buffer slipped past auth.
     // A finer-grained dimension/byte-count match runs in
     // OverlayService::setSnapAssistThumbnail.
-    static constexpr int MaxPixelBytes = 4 * 1024 * 1024 + 64;
+    static constexpr int MaxThumbnailDimension = PhosphorProtocol::Service::SnapAssistThumbnailMaxDimension;
+    static constexpr int MaxPixelBytes = MaxThumbnailDimension * MaxThumbnailDimension * 4 + 64;
     if (pixels.size() > MaxPixelBytes) {
         // Don't log @c compositorHandle — this branch fires before
         // @ref authenticateKwinSender, so the field is attacker-controlled

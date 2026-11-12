@@ -349,11 +349,11 @@ endif()
 # same way. See that file for the update-ts / lrelease detail.
 # ---------------------------------------------------------------------------
 # Must stay ABOVE add_subdirectory(plasmazones): that tier's CMakeLists reads
-# plasmazones_translations, Qt6LinguistTools_FOUND and TRANSLATION_TS_FILES from
-# this scope to attach the .qm catalogs to plasmazones-tier. Moved below it, the
-# target and both variables are simply absent there, so the if() is false AND the
-# elseif() guard is false, and the attach fails open silently -- which is the
-# exact failure that guard was added to stop.
+# the plasmazones_translations and update-ts targets and the
+# Qt6LinguistTools_FOUND and TRANSLATION_TS_FILES variables this module leaves
+# behind, to attach the .qm catalogs to plasmazones-tier. Moved below it, none
+# of them exists there yet, and plasmazones/CMakeLists.txt stops the configure
+# on the missing `update-ts`, which this module declares in every branch.
 include(cmake/PhosphorTranslations.cmake)
 
 # Generate version header with compile-time version info

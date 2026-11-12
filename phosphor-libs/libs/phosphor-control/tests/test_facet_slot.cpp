@@ -477,6 +477,10 @@ private Q_SLOTS:
         QQuickItem* const frame = findItem(slot, QStringLiteral("facet-extension:extender:off"));
         QVERIFY(frame);
         QVERIFY(shown(frame, QStringLiteral("facet-extension-error")));
+        // The translated card says the module was turned off after a crash.
+        // The host's English reason would only repeat it, as on the module's
+        // own page.
+        QVERIFY(!shown(frame, QStringLiteral("facet-extension-reason")));
         QObject* const open = frame->findChild<QObject*>(QStringLiteral("facet-extension-open-module"));
         QVERIFY(open);
         QVERIFY(open->property("visible").toBool());

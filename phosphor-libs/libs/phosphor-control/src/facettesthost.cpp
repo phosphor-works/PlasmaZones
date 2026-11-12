@@ -128,6 +128,10 @@ QStringList FacetTestHost::run()
     FacetHost host(&controller);
     host.setSearchPaths({{searchPath, PhosphorRegistry::PluginOrigin::Development}});
     host.setSentinelPath(root.filePath(QStringLiteral("facet-loading")));
+    // Under root, which is declared before the controller and so outlives
+    // it: the controller owns the backends, and a JsonBackend writes into
+    // this directory once more when it is destroyed.
+    host.setConfigRedirect(root.filePath(QStringLiteral("config")));
     host.setLiveReload(false);
     host.start();
 
@@ -158,6 +162,10 @@ QStringList FacetTestHost::run()
     };
     QList<Checked> domains;
     const std::optional<FacetModuleMetadata> metadata = host.metadata(moduleId);
+    if (!metadata) {
+        problems.append(QStringLiteral("module %1 has no metadata after it loaded").arg(moduleId));
+        return problems;
+    }
     const QStringList bound = host.boundPages(moduleId);
     for (const FacetPageMetadata& page : metadata->pages) {
         const QString scoped = FacetHost::pageId(moduleId, page.id);

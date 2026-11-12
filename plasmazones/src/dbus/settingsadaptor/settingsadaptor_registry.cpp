@@ -170,11 +170,16 @@ void SettingsAdaptor::initializeRegistry()
 // clamp to: QVariant::toInt() would hand the setter a silent 0 and the call
 // would report success, which is indistinguishable from the caller deliberately
 // writing 0.
-#define REGISTER_DOUBLE_SETTING(name, getter, setter)                                                                  \
-    m_getters[QStringLiteral(name)] = [this]() {                                                                       \
+//
+// REGISTER_DOUBLE_SETTING_KEYED is the body. @p keyExpr is any QString
+// expression, so a key whose name is a constant shared with its remote
+// readers (PhosphorProtocol::Service::SettingProperty) registers through that
+// constant. REGISTER_DOUBLE_SETTING is the string-literal form of it.
+#define REGISTER_DOUBLE_SETTING_KEYED(keyExpr, getter, setter)                                                         \
+    m_getters[keyExpr] = [this]() {                                                                                    \
         return m_settings->getter();                                                                                   \
     };                                                                                                                 \
-    m_setters[QStringLiteral(name)] = [this](const QVariant& v) {                                                      \
+    m_setters[keyExpr] = [this](const QVariant& v) {                                                                   \
         bool ok = false;                                                                                               \
         const double parsed = v.toDouble(&ok);                                                                         \
         if (!ok) {                                                                                                     \
@@ -183,7 +188,9 @@ void SettingsAdaptor::initializeRegistry()
         m_settings->setter(parsed);                                                                                    \
         return true;                                                                                                   \
     };                                                                                                                 \
-    m_schemas[QStringLiteral(name)] = QStringLiteral("double");
+    m_schemas[keyExpr] = QStringLiteral("double");
+#define REGISTER_DOUBLE_SETTING(name, getter, setter)                                                                  \
+    REGISTER_DOUBLE_SETTING_KEYED(QStringLiteral(name), getter, setter)
 
 // Unlike the numeric macros, the colour setter can be handed a string that
 // names no colour at all. Parsing it and storing the resulting invalid QColor
@@ -588,8 +595,10 @@ void SettingsAdaptor::initializeRegistry()
     REGISTER_BOOL_SETTING("decorationAnimateFocusedOnly", decorationAnimateFocusedOnly, setDecorationAnimateFocusedOnly)
     REGISTER_BOOL_SETTING("decorationPauseWhenIdle", decorationPauseWhenIdle, setDecorationPauseWhenIdle)
     REGISTER_INT_SETTING("decorationIdleTimeoutSec", decorationIdleTimeoutSec, setDecorationIdleTimeoutSec)
-    REGISTER_DOUBLE_SETTING("decorationBlurScaleMultiplier", decorationBlurScaleMultiplier,
-                            setDecorationBlurScaleMultiplier)
+    // Through the protocol constant, not a literal: the KWin effect and the
+    // Phosphor shell fetch this key by the same constant.
+    REGISTER_DOUBLE_SETTING_KEYED(QString(PhosphorProtocol::Service::SettingProperty::DecorationBlurScaleMultiplier),
+                                  decorationBlurScaleMultiplier, setDecorationBlurScaleMultiplier)
     // Also fetched by the effect via loadSettingAsync, and subject to the same
     // unknown-key trap the comment above describes: it is default-TRUE, so a
     // missing entry here would read back as false and quietly disable the
@@ -873,6 +882,7 @@ void SettingsAdaptor::initializeRegistry()
 #undef REGISTER_BOOL_SETTING
 #undef REGISTER_INT_SETTING
 #undef REGISTER_DOUBLE_SETTING
+#undef REGISTER_DOUBLE_SETTING_KEYED
 #undef REGISTER_COLOR_SETTING
 #undef REGISTER_STRINGLIST_SETTING
 #undef REGISTER_CONCRETE_STRING

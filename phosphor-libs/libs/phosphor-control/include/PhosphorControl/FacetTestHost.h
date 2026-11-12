@@ -37,9 +37,16 @@ namespace PhosphorControl {
 /// The apply and discard round runs on freshly loaded, clean state, which is
 /// not how Facet drives a domain: Facet applies dirty domains only. It
 /// catches a domain that answers twice or not at all, not one whose dirty
-/// path misbehaves, so cover that in the module's own tests. A domain whose
-/// apply() writes regardless of what is staged writes wherever it is
-/// configured to, so point the module at a scratch backend first.
+/// path misbehaves, so cover that in the module's own tests.
+///
+/// run() does not write the settings files the module opens through
+/// FacetContext::configBackend, as long as the module's factory opens the
+/// path it is handed. It makes each of them under its staging
+/// directory instead (FacetHost::setConfigRedirect), so the module starts
+/// from an empty file and its defaults, and the files go when run() returns.
+/// Anything else a domain's apply() writes (a file the module opens by
+/// itself, a call to a daemon) still goes where the module sends it, so
+/// point that at a scratch target first.
 ///
 /// Needs a QCoreApplication (or QGuiApplication) running on this thread.
 class PHOSPHORCONTROLTEST_EXPORT FacetTestHost

@@ -934,6 +934,20 @@ p_add_test(test_whatsnew_data data/test_whatsnew_data.cpp)
 target_link_libraries(test_whatsnew_data PRIVATE PhosphorFsLoader::PhosphorFsLoader)
 target_compile_definitions(test_whatsnew_data PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
 
+# data/placement-hosts/plasmazones.json is installed for a settings module to
+# read through PhosphorConfig::HostDirectory. It repeats by hand the host id the
+# daemon records (PlasmaZones::PlacementHostId), the bus name
+# (PhosphorProtocol::Service::Name) and the config file path
+# (ConfigDefaults::configFilePath()), so this target reads the file straight
+# out of the source tree, runs it through PhosphorConfig::HostDescriptor::parse
+# and compares each. Same shape as the whatsnew test above. PhosphorConfig and
+# PhosphorProtocol are named per this file's convention: the test calls both
+# directly rather than reaching them through plasmazones_core.
+p_add_test(test_placement_host_descriptor data/test_placement_host_descriptor.cpp)
+target_link_libraries(test_placement_host_descriptor PRIVATE PhosphorConfig::PhosphorConfig
+                                                             PhosphorProtocol::PhosphorProtocol)
+target_compile_definitions(test_placement_host_descriptor PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+
 # The other direction of the same contract. validate-json-schemas.py checks DATA
 # against the shader schemas; nothing checked the schemas' own numeric bounds
 # against the C++ constants they are meant to track, so every pass-budget or

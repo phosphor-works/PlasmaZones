@@ -10,6 +10,7 @@
 #include <PhosphorConfig/IBackend.h>
 
 #include <QDir>
+#include <QFileInfo>
 #include <QThread>
 
 namespace PhosphorControl {
@@ -167,6 +168,18 @@ PhosphorConfig::IBackend* FacetContext::configBackend(const QString& path, const
 {
     if (!QDir::isAbsolutePath(path)) {
         m_errors.append(QStringLiteral("opened config file %1, which is not an absolute path").arg(path));
+        return nullptr;
+    }
+    // QDir::isAbsolutePath also passes a Qt resource path, which no backend
+    // can write, and a path that ends in a separator, `.` or `..`, which
+    // names a directory.
+    if (path.startsWith(QLatin1Char(':'))) {
+        m_errors.append(QStringLiteral("opened config file %1, which is a Qt resource path").arg(path));
+        return nullptr;
+    }
+    const QString fileName = QFileInfo(path).fileName();
+    if (fileName.isEmpty() || fileName == QLatin1String(".") || fileName == QLatin1String("..")) {
+        m_errors.append(QStringLiteral("opened config file %1, which has no file name").arg(path));
         return nullptr;
     }
     PhosphorConfig::IBackend* const backend = m_host->sharedConfigBackend(path, create);

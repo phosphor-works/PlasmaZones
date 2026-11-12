@@ -18,8 +18,9 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * (QtObject, and it may be required) and can read it in
  * Component.onCompleted. It gets `settingsApp` if it declares that. When the
  * module did not load, or the section cannot be shown, a card says so in the
- * section's place, with the host's own reason below it, so the rest of the
- * page still works.
+ * section's place, so the rest of the page still works. The host's own reason
+ * goes below the card, except for a module turned off after a crash, where
+ * the card says it all.
  */
 ColumnLayout {
     id: root
@@ -130,11 +131,13 @@ ColumnLayout {
     }
 
     // The host's own account of the failure, for a bug report. Not
-    // translated: it names files, ids and contract rules.
+    // translated: it names files, ids and contract rules. Left out for a
+    // module turned off after a crash, as on FacetModulePage: the card above
+    // already says that, translated.
     QQC2.Label {
         objectName: "facet-extension-reason"
         Layout.fillWidth: true
-        visible: root.failed && root.error.length > 0
+        visible: root.failed && !root.disabledAfterCrash && root.error.length > 0
         text: root.error
         textFormat: Text.PlainText
         wrapMode: Text.Wrap

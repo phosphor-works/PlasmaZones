@@ -614,11 +614,13 @@ jobs:
           fi
 
   # ─── JSON Schema: validate every bundled data file against the committed
-  # schemas under phosphor-libs/data/schemas/ and plasmazones/data/schemas/. These are the same schema files runtime
-  # validation compiles (phosphor-fsloader's SchemaValidator via valijson), so
-  # this is the author-time gate that keeps malformed layouts (and future
-  # document types) out of the tree. Mirrors the lefthook `json-schema` hook;
-  # hard gate here, best-effort there. Validates the full set on every run
+  # schemas under phosphor-libs/data/schemas/ and plasmazones/data/schemas/. Runtime
+  # validation compiles some of these schema files too (phosphor-fsloader's
+  # SchemaValidator via valijson); the others are an author-time contract that
+  # no runtime loader compiles. Either way it keeps malformed layouts (and future
+  # document types) out of the tree. Mirrors the lefthook `json-schema` hook,
+  # and is a hard gate in both places: the hook bootstraps its own validator
+  # and fails the commit when it cannot. Validates the full set on every run
   # (cheap) so a schema change re-checks all governed documents.
   json-schema:
     name: JSON Schema
@@ -636,8 +638,10 @@ jobs:
       - name: Install jsonschema
         # The [format] extra matches the lefthook bootstrap venv and enables
         # string-format checks (e.g. format:"date"), so CI and the local hook
-        # validate identical surfaces.
-        run: pip install "jsonschema[format]"
+        # validate identical surfaces. The version is JSONSCHEMA_VERSION in
+        # scripts/validate-json-schemas.py, which that venv installs. Change
+        # both together.
+        run: pip install "jsonschema[format]==4.26.0"
 
       - name: Validate bundled data against schemas
         run: python3 scripts/validate-json-schemas.py

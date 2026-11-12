@@ -8,10 +8,9 @@
 # Source directories
 add_subdirectory(src)
 
-# Developer tools - opt-in via -DBUILD_TOOLS=ON.  Currently builds
-# plasmazones-shader-render (offscreen shader preview generator
-# used by the docs site).  Skipped by default so packagers don't
-# pick up CLI tools they didn't ask for.
+# Developer tools - opt-in via -DBUILD_TOOLS=ON.  Each tool is a
+# subdirectory that tools/CMakeLists.txt adds.  Skipped by default so
+# packagers don't pick up CLI tools they didn't ask for.
 if(BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
@@ -64,11 +63,16 @@ install(DIRECTORY data/layouts/
     FILES_MATCHING PATTERN "*.json"
 )
 
-# The descriptor that tells Facet's placement module, while plasmazonesd is
-# not running, that on KDE the placement settings live in PlasmaZones' file
-# (PhosphorConfig::HostDirectory).
-install(FILES data/placement-hosts/plasmazones.json
+# PlasmaZones' host descriptor for the placement settings API. It declares
+# that on KDE the placement settings live in PlasmaZones' config file, for a
+# settings module that looks the host up through PhosphorConfig::HostDirectory,
+# which reads this directory whether or not plasmazonesd is running. Installed
+# as a directory with the *.json filter, like the data rules around it, so the
+# descriptors at its top level that ship are the ones
+# scripts/validate-json-schemas.py checks and HostDirectory reads.
+install(DIRECTORY data/placement-hosts/
     DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/placement-hosts
+    FILES_MATCHING PATTERN "*.json"
 )
 
 # Install bundled scrolling templates
@@ -86,8 +90,8 @@ install(FILES data/whatsnew.json
     DESTINATION ${KDE_INSTALL_DATADIR}/plasmazones
 )
 
-# Install shared named curves. Profile JSONs reference these by name
-# (e.g. `"curve": "widget-out"`) so a single edit to a curve file
+# Install shared named curves. Profiles reference these by name
+# (e.g. `widget-out`) so a single edit to a curve file
 # retunes every profile that uses it, and users can drop their own
 # JSON under ~/.local/share/plasmazones/curves/ to override a shipped
 # curve system-wide. The daemon's CurveLoader scans this path first, so
@@ -97,45 +101,54 @@ install(DIRECTORY data/curves/
     FILES_MATCHING PATTERN "*.json"
 )
 
-# Defensive cleanup: an upgrade from a build that shipped per-leaf JSONs
-# (every commit before the family-seed migration) leaves stale files in
-# the install dir that `cmake --install` does NOT remove on its own -
-# install only adds/updates, never deletes orphans. Those stale leaves
-# silently shadow the user's parent-node Settings edits via the
-# deeper-leaf-wins overlay walk in PhosphorProfileRegistry::resolveWithInheritance,
-# making "All Popups → 2000 ms" appear to do nothing. Wipe the install
-# dir BEFORE the install(DIRECTORY) below copies new content so the
-# post-install state always matches the source tree.
+# The bundled overlay packs no longer ship preview.png card screenshots (the
+# browser previews live shaders), but install(DIRECTORY) never removes a file
+# dropped from the tree, and ShaderRegistry still adopts a preview.png it
+# finds beside a pack's metadata.json into that pack's previewPath. A prefix
+# upgraded in place would keep the old screenshots.
 #
-# SCRIPT runs at install time (`cmake --install`), not configure time,
-# and runs in the install prefix the user actually invoked install with
-# (DESTDIR-aware via $ENV{DESTDIR}). The wipe is bounded to our own
-# `plasmazones/profiles` subdirectory - never to a directory we don't
-# own - so an accidental wide install prefix can't cascade.
-# Use KDE_INSTALL_FULL_DATADIR (already prefix-resolved by ECM) so we
-# don't manually concatenate CMAKE_INSTALL_PREFIX with KDE_INSTALL_DATADIR:
-# that join produces `/usr//absolute/...` when ECM hands us an absolute
-# KDE_INSTALL_DATADIR (some distros override it that way).
-install(CODE "
-    set(_p_profiles_install_dir \"\$ENV{DESTDIR}${KDE_INSTALL_FULL_DATADIR}/plasmazones/profiles\")
-    if(EXISTS \"\${_p_profiles_install_dir}\")
-        file(GLOB _p_stale_profile_jsons \"\${_p_profiles_install_dir}/*.json\")
-        if(_p_stale_profile_jsons)
-            message(STATUS \"Removing stale animation profile JSONs from \${_p_profiles_install_dir}\")
-            file(REMOVE \${_p_stale_profile_jsons})
-        endif()
+# This removes preview.png from the installed directories of the BUNDLED packs
+# and from nowhere else. The pack list is taken at configure time: the source
+# directories under data/overlays/ that hold a metadata.json. That leaves out
+# shared/, and it leaves alone any pack a user or another package put under
+# the installed overlays directory.
+#
+# The installed path is put together when the install runs, from the prefix
+# and the DESTDIR in force then, so `cmake --install --prefix <other>` and a
+# staged install each clean the tree they write and no other. An absolute
+# KDE_INSTALL_DATADIR is used as it stands, the way install(DIRECTORY) treats
+# an absolute DESTINATION.
+#
+# It is declared ABOVE the install(DIRECTORY) rule for the overlays on
+# purpose. The install rules of one directory run in the order they are
+# declared, so a preview.png that a bundled pack does ship is copied after
+# this has run and survives it.
+file(GLOB _pz_overlay_pack_metadata CONFIGURE_DEPENDS
+    RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/data/overlays"
+    "${CMAKE_CURRENT_SOURCE_DIR}/data/overlays/*/metadata.json")
+set(_pz_bundled_overlay_packs "")
+foreach(_pz_overlay_metadata IN LISTS _pz_overlay_pack_metadata)
+    get_filename_component(_pz_overlay_pack "${_pz_overlay_metadata}" DIRECTORY)
+    # A dot-name is not bundled: the install(DIRECTORY) rule below excludes it.
+    if(NOT _pz_overlay_pack MATCHES "^\\.")
+        list(APPEND _pz_bundled_overlay_packs "${_pz_overlay_pack}")
     endif()
+endforeach()
+if(IS_ABSOLUTE "${KDE_INSTALL_DATADIR}")
+    set(_pz_overlays_install_dir "${KDE_INSTALL_DATADIR}/plasmazones/overlays")
+else()
+    set(_pz_overlays_install_dir "\${CMAKE_INSTALL_PREFIX}/${KDE_INSTALL_DATADIR}/plasmazones/overlays")
+endif()
+install(CODE "
+    set(_pz_bundled_overlay_packs \"${_pz_bundled_overlay_packs}\")
+    foreach(_pz_overlay_pack IN LISTS _pz_bundled_overlay_packs)
+        set(_pz_stale_overlay_preview \"\$ENV{DESTDIR}${_pz_overlays_install_dir}/\${_pz_overlay_pack}/preview.png\")
+        if(EXISTS \"\${_pz_stale_overlay_preview}\")
+            message(STATUS \"Removing stale overlay preview: \${_pz_stale_overlay_preview}\")
+            file(REMOVE \"\${_pz_stale_overlay_preview}\")
+        endif()
+    endforeach()
 ")
-
-# The data/profiles/ directory no longer ships per-leaf JSONs - animation
-# timings/curves are driven entirely from the Settings UI via
-# PhosphorProfileRegistry, with parent-chain inheritance filling in
-# unset leaves. The install(DIRECTORY) rule and the build-time
-# check-animation-profiles target were removed because there are no
-# profile JSONs to install or validate. scripts/check-animation-profiles.py
-# itself is still in the tree as a manual tool, and says so in its
-# docstring; nothing invokes it. The install(CODE) stale-cleanup
-# block above is intentionally kept for upgrades from older builds.
 
 # Install bundled RenderNode shaders (raw GLSL, no compilation needed).
 # Ship the whole pack tree so every asset a pack's metadata references
@@ -152,23 +165,6 @@ install(DIRECTORY data/overlays/
     PATTERN "p_generated.glsl" EXCLUDE
 )
 
-# The bundled overlay packs no longer ship preview.png card screenshots
-# (the browser previews live shaders), but install(DIRECTORY) never removes
-# files dropped from the tree, and the registry still adopts a lingering
-# preview.png into a pack's previewPath on a manually-upgraded prefix.
-# Same DESTDIR-aware, own-subdirectory-bounded cleanup pattern as the
-# animation-profiles wipe above; one level deep, bundled pack dirs only.
-install(CODE "
-    set(_p_overlays_install_dir \"\$ENV{DESTDIR}${KDE_INSTALL_FULL_DATADIR}/plasmazones/overlays\")
-    if(EXISTS \"\${_p_overlays_install_dir}\")
-        file(GLOB _p_stale_overlay_previews \"\${_p_overlays_install_dir}/*/preview.png\")
-        if(_p_stale_overlay_previews)
-            message(STATUS \"Removing stale overlay preview.png files from \${_p_overlays_install_dir}\")
-            file(REMOVE \${_p_stale_overlay_previews})
-        endif()
-    endif()
-")
-
 # Install bundled animation transition shader packs. The daemon's
 # AnimationShaderRegistry scans ${XDG_DATA_DIRS}/plasmazones/animations
 # at startup; user overrides at ~/.local/share/plasmazones/animations win.
@@ -184,7 +180,7 @@ install(DIRECTORY data/animations/
     PATTERN "p_generated.glsl" EXCLUDE
 )
 
-# Install bundled surface shader packs (window border / rounded corners today;
+# Install bundled surface shader packs (window and shell surface decoration;
 # the third shader-pack category alongside shaders + animations). The kwin-effect
 # discovers ${XDG_DATA_DIRS}/plasmazones/surface via the SurfaceShaderRegistry;
 # user overrides at ~/.local/share/plasmazones/surface win.
@@ -252,15 +248,36 @@ phosphor_tier_target(plasmazones-tier)
 # so keying the tier's artifact on it would silently stop working if Qt renamed
 # it or the call ever passed NO_GLOBAL_TARGET.
 #
-# The else() is a FATAL_ERROR rather than a silent skip. The previous spelling
-# keyed on Qt's internal `release_translations` inside a bare `if(TARGET ...)`,
-# and when the name was wrong the guard simply did not fire: the catalogs
-# dropped out of the tier, `moon run repo:install` was left to fail on
-# install(FILES ${QM_FILES}), and four review passes went by without anyone
-# noticing, because a full `cmake --build` had already produced the .qm on this
-# machine. A guard protecting an install rule must not fail open.
+# A missing target is a FATAL_ERROR rather than a silent skip, whichever way
+# it went missing. The previous spelling keyed on Qt's internal
+# `release_translations` inside a bare `if(TARGET ...)`, and when the name was
+# wrong the guard simply did not fire: the catalogs dropped out of the tier,
+# `moon run repo:install` was left to fail on install(FILES ${QM_FILES}), and
+# nobody noticed, because a full `cmake --build` had already produced the .qm
+# on this machine. A guard protecting an install rule must not fail open.
+#
+# The first elseif() is for cmake/PhosphorTranslations.cmake not having run by
+# the time this file does, which is what moving its include() below
+# add_subdirectory(plasmazones) in the root CMakeLists would cause. Neither the
+# target nor the variables the second elseif() reads would exist here, so
+# without this arm every condition would be false and the attach would be
+# skipped without a word. `update-ts` is the witness, because that module
+# declares it in every branch, whether or not lrelease is available.
+#
+# The second elseif() is for the module having called qt_add_lrelease (the
+# condition is the one that call sits under) without producing the target name
+# attached above.
+#
+# What falls through is the module having run and compiled no catalogs, for
+# want of Qt6LinguistTools or of .ts files. There is nothing to attach then.
 if(TARGET plasmazones_translations)
     add_dependencies(plasmazones-tier plasmazones_translations)
+elseif(NOT TARGET update-ts)
+    message(FATAL_ERROR
+        "cmake/PhosphorTranslations.cmake has not run yet: its update-ts target "
+        "does not exist. The root CMakeLists must include() it above "
+        "add_subdirectory(plasmazones), or the .qm catalogs never join "
+        "plasmazones-tier.")
 elseif(Qt6LinguistTools_FOUND AND TRANSLATION_TS_FILES)
     message(FATAL_ERROR
         "plasmazones_translations target missing although lrelease ran. "

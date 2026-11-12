@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 fuddlesworth
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-find_package(Qt6 REQUIRED COMPONENTS Test DBus)
+find_package(Qt6 REQUIRED COMPONENTS Test DBus Gui)
 
 # Shared test isolation: a private D-Bus session (so a test that touches D-Bus
 # cannot activate the INSTALLED daemon, which then holds the test's stdout pipe
@@ -31,18 +31,24 @@ else()
 endif()
 function(phosphorcontrol_add_test name)
     add_executable(${name} ${name}.cpp)
-    # Qt6::Gui is pulled in transitively by Qt6::Test (which links
-    # Qt6::Gui in its INTERFACE), so we don't need it explicitly. A test
-    # using QTEST_MAIN gets a QGuiApplication (the QT_GUI_LIB variant),
-    # which needs a platform plugin, hence QT_QPA_PLATFORM=offscreen
-    # below. test_facet_slot, which builds QML items, is one of those; the
-    # other Facet tests use QTEST_GUILESS_MAIN and need none. No test
-    # creates its own application object or touches widgets.
+    # Qt6::Gui is linked here on purpose. QTEST_MAIN builds a
+    # QGuiApplication exactly when the test is compiled against Qt6::Gui
+    # (its QT_GUI_LIB definition), and Qt6::Test does not bring it: its link
+    # interface is Qt6::Core alone. Gui would reach the tests anyway, through
+    # PhosphorControl's PUBLIC PhosphorConfig link, but naming it here makes
+    # the application type of the QTEST_MAIN tests a decision of this file
+    # instead of a side effect of that library's dependencies. A
+    # QGuiApplication needs a platform plugin, hence
+    # QT_QPA_PLATFORM=offscreen below. test_facet_slot, which builds QML
+    # items, is one of the QTEST_MAIN tests; the other Facet tests use
+    # QTEST_GUILESS_MAIN and need no plugin. No test creates its own
+    # application object or touches widgets.
     target_link_libraries(${name}
         PRIVATE
             PhosphorControl::PhosphorControl
             Qt6::Core
             Qt6::DBus
+            Qt6::Gui
             Qt6::Test
     )
     # LABELS lets `ctest -L phosphorcontrol` filter to just this
@@ -100,11 +106,23 @@ set(phosphorcontrol_fixture_targets "")
 # SOURCE replaces fake_module/fakemodule.cpp, for a fixture that is not a
 # FakeFacetModule at all.
 #
-# METADATA must not contain ';': cmake_parse_arguments splits a
-# one-value argument on it, and the variant would silently get only the part
-# before the first one.
+# METADATA is one argument. A ';' inside a JSON array's [...] does not split
+# it, because CMake keeps a bracketed run in one list element. A ';' anywhere
+# else does, and so does a misspelt keyword. Either leaves arguments that no
+# keyword claims, which is an error here rather than a variant built from
+# half its metadata.
+#
+# MODE 44 is the variant whose library cannot be loaded, because it calls a
+# function no library defines (see fakemodule.cpp). It is compiled with -fplt
+# and linked with -z undefs and -z lazy, so the call goes through a lazily
+# bound PLT slot and only the eager bind PluginCatalog::load asks for reports
+# it. Without -fplt a -fno-plt in CXXFLAGS would bind it at dlopen anyway.
 function(phosphorcontrol_add_fake_module variant)
     cmake_parse_arguments(ARG "" "MODE;METADATA;SOURCE" "" ${ARGN})
+    if(DEFINED ARG_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "phosphorcontrol_add_fake_module(${variant}): unexpected arguments: ${ARG_UNPARSED_ARGUMENTS}")
+    endif()
     if(NOT DEFINED ARG_SOURCE)
         set(ARG_SOURCE fake_module/fakemodule.cpp)
     endif()
@@ -124,7 +142,15 @@ function(phosphorcontrol_add_fake_module variant)
     add_library(${target} MODULE ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_SOURCE}
         ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/fake.qrc)
     target_include_directories(${target} PRIVATE ${configDir})
-    target_link_libraries(${target} PRIVATE PhosphorControl::PhosphorControl Qt6::Core)
+    # PhosphorConfig by name: fakemodule.cpp makes PhosphorConfig::JsonBackend
+    # objects itself, which is more than PhosphorControl's link interface
+    # promises to keep bringing.
+    target_link_libraries(${target}
+        PRIVATE PhosphorControl::PhosphorControl PhosphorConfig::PhosphorConfig Qt6::Core)
+    if(ARG_MODE EQUAL 44)
+        target_compile_options(${target} PRIVATE -fplt)
+        target_link_options(${target} PRIVATE "LINKER:-z,undefs" "LINKER:-z,lazy")
+    endif()
     set_target_properties(${target} PROPERTIES
         PREFIX ""
         OUTPUT_NAME ${variant}
@@ -225,6 +251,13 @@ _fake_with_good_pages(silent 18 "Silent")
 _fake_with_good_pages(missingqml 19 "Missing QML")
 _fake_with_good_pages(slowresult 20 "Slow Result")
 _fake_with_good_pages(relativeqml 21 "Relative QML")
+_fake_with_good_pages(pagethread 32 "Page Thread")
+_fake_with_good_pages(pageasdomain 33 "Page As Domain")
+_fake_with_good_pages(domainthread 34 "Domain Thread")
+_fake_with_good_pages(deletespage 36 "Deletes Page")
+_fake_with_good_pages(deletesdomain 37 "Deletes Domain")
+_fake_with_good_pages(foreignpage 38 "Foreign Page")
+_fake_with_good_pages(foreigndomain 39 "Foreign Domain")
 # The same module id as "good" with different metadata: a module that changed
 # on disk between start() and its first load.
 phosphorcontrol_add_fake_module(goodv2 MODE 0 METADATA
@@ -234,6 +267,19 @@ phosphorcontrol_add_fake_module(wrongapi MODE 0 METADATA [=[{
 phosphorcontrol_add_fake_module(badmetadata MODE 0 METADATA [=[{
     "Id": "badmetadata", "ApiVersion": 1,
     "Pages": [ { "Id": "a:b", "Name": "Colon" } ] }]=])
+# The same module id as "badmetadata" with valid metadata: the module after
+# its author fixed it.
+phosphorcontrol_add_fake_module(fixedmetadata MODE 0 METADATA [=[{
+    "Id": "badmetadata", "ApiVersion": 1, "Name": "Fixed Metadata",
+    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+# Two modules that each put a page under the other's page, both placed outside
+# their module: a cycle no order of placing them can satisfy.
+phosphorcontrol_add_fake_module(pagecyclea MODE 0 METADATA [=[{
+    "Id": "pagecyclea", "ApiVersion": 1, "Name": "Page Cycle A",
+    "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecycleb:leaf" } ] }]=])
+phosphorcontrol_add_fake_module(pagecycleb MODE 0 METADATA [=[{
+    "Id": "pagecycleb", "ApiVersion": 1, "Name": "Page Cycle B",
+    "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecyclea:leaf" } ] }]=])
 
 # Modules that add sections to good's pages. extender's first four land on
 # good:general: two at the top, one after the speed anchor, one at the panel
@@ -241,7 +287,7 @@ phosphorcontrol_add_fake_module(badmetadata MODE 0 METADATA [=[{
 # Its top two sort by Order against their id order, and extender2's, at Order
 # 0 with an id that sorts first, lands after extender's Order 0 ones, so both
 # sort keys are pinned. badextender's are all refused.
-phosphorcontrol_add_fake_module(extender MODE 0 METADATA [=[{
+set(_extender_metadata [=[{
     "Id": "extender", "ApiVersion": 1, "Name": "Extender",
     "Pages": [ { "Id": "own", "Name": "Own" } ],
     "Extensions": [
@@ -250,6 +296,17 @@ phosphorcontrol_add_fake_module(extender MODE 0 METADATA [=[{
         { "Id": "after-speed", "Target": "good:general", "Slot": "after:speed", "Name": "After speed" },
         { "Id": "panel", "Target": "good:general", "Slot": "panel", "TargetVersion": 2, "Name": "Panel" },
         { "Id": "ghost", "Target": "absent:page", "Slot": "top", "Name": "Ghost" } ] }]=])
+phosphorcontrol_add_fake_module(extender MODE 0 METADATA "${_extender_metadata}")
+# A broken build of extender: the same metadata, so the host takes the two for
+# one module, in a library that cannot be loaded. The live-reload test
+# replaces it with the working extender.
+phosphorcontrol_add_fake_module(extenderbroken MODE 44 METADATA "${_extender_metadata}")
+# Its one extension is aimed at badmetadata, a module whose metadata is
+# invalid.
+phosphorcontrol_add_fake_module(targetsbad MODE 0 METADATA [=[{
+    "Id": "targetsbad", "ApiVersion": 1, "Name": "Targets Bad",
+    "Pages": [ { "Id": "own", "Name": "Own" } ],
+    "Extensions": [ { "Id": "top", "Target": "badmetadata:page", "Slot": "top", "Name": "Top" } ] }]=])
 phosphorcontrol_add_fake_module(extender2 MODE 0 METADATA [=[{
     "Id": "extender2", "ApiVersion": 1, "Name": "Extender Two",
     "Pages": [ { "Id": "own", "Name": "Own" } ],
@@ -276,14 +333,12 @@ set(_two_extensions [=[
     "Extensions": [
         { "Id": "first", "Target": "good:general", "Slot": "bottom", "Name": "First" },
         { "Id": "second", "Target": "good:general", "Slot": "bottom", "Name": "Second" } ]]=])
-phosphorcontrol_add_fake_module(missingextension MODE 22 METADATA
-    "{ \"Id\": \"missingextension\", \"ApiVersion\": 1, \"Name\": \"Missing Extension\",${_two_extensions} }")
-phosphorcontrol_add_fake_module(extraextension MODE 23 METADATA
-    "{ \"Id\": \"extraextension\", \"ApiVersion\": 1, \"Name\": \"Extra Extension\",${_two_extensions} }")
 macro(_fake_with_two_extensions variant mode name)
     phosphorcontrol_add_fake_module(${variant} MODE ${mode} METADATA
         "{ \"Id\": \"${variant}\", \"ApiVersion\": 1, \"Name\": \"${name}\",${_two_extensions} }")
 endmacro()
+_fake_with_two_extensions(missingextension 22 "Missing Extension")
+_fake_with_two_extensions(extraextension 23 "Extra Extension")
 _fake_with_two_extensions(extensiondouble 4 "Extension Double")
 _fake_with_two_extensions(extensionnodomain 24 "Extension No Domain")
 _fake_with_two_extensions(extensionshared 25 "Extension Shared")
@@ -291,15 +346,24 @@ _fake_with_two_extensions(extensionrelative 26 "Extension Relative")
 _fake_with_two_extensions(extensionmissingqml 27 "Extension Missing QML")
 _fake_with_two_extensions(extensionthread 28 "Extension Thread")
 _fake_with_two_extensions(deletesduringload 29 "Deletes During Load")
+_fake_with_two_extensions(extensionnoqml 35 "Extension No QML")
 
-# Two modules writing one config file, and one opening it by a relative path.
-phosphorcontrol_add_fake_module(sharera MODE 30 METADATA [=[{
-    "Id": "sharera", "ApiVersion": 1, "Name": "Sharer A", "Pages": [ { "Id": "general", "Name": "General" } ] }]=])
-phosphorcontrol_add_fake_module(sharerb MODE 30 METADATA [=[{
-    "Id": "sharerb", "ApiVersion": 1, "Name": "Sharer B", "Pages": [ { "Id": "general", "Name": "General" } ] }]=])
-phosphorcontrol_add_fake_module(relativeconfig MODE 31 METADATA [=[{
-    "Id": "relativeconfig", "ApiVersion": 1, "Name": "Relative Config",
-    "Pages": [ { "Id": "general", "Name": "General" } ] }]=])
+# Modules that open a config file. Each has the one page "general", like the
+# page-contract variants, so the same keeps-nothing checks cover the ones that
+# break the contract. Each opens the file $FAKE_CONFIG_PATH names at the moment
+# it loads, so a test decides which of them share one.
+macro(_fake_with_config variant mode name)
+    phosphorcontrol_add_fake_module(${variant} MODE ${mode} METADATA
+        "{ \"Id\": \"${variant}\", \"ApiVersion\": 1, \"Name\": \"${name}\", \"Pages\": [ { \"Id\": \"general\", \"Name\": \"General\" } ] }")
+endmacro()
+_fake_with_config(sharera 30 "Sharer A")
+_fake_with_config(sharerb 30 "Sharer B")
+_fake_with_config(sharerc 30 "Sharer C")
+_fake_with_config(relativeconfig 31 "Relative Config")
+_fake_with_config(confignull 40 "Config Null")
+_fake_with_config(configempty 41 "Config Empty")
+_fake_with_config(confignested 42 "Config Nested")
+_fake_with_config(configthenbreaks 43 "Config Then Breaks")
 
 phosphorcontrol_add_test(test_facet_host)
 phosphorcontrol_add_test(test_facet_test_host)

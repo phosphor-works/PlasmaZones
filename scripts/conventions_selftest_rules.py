@@ -515,7 +515,7 @@ def _license_tree_failures(partition_readable) -> list[str]:
         # change a verdict today: this path matches neither `(^|/)libs/phosphor-` (the
         # substring is `phosphor-libs/`, not `libs/phosphor-`) nor any GPL-3 prefix, so
         # expected_license answers None with or without the alternative, and no tracked
-        # file under phosphor-libs/data/ carries a CODE_SUFFIX at all (the six schemas are
+        # file under phosphor-libs/data/ carries a CODE_SUFFIX at all (the schemas are
         # .json). Narrowing the pattern to `plasmazones` alone therefore survives. The
         # plasmazones half above IS load-bearing.
         ("phosphor-libs/data/schemas/x.frag", gpl3, False),
