@@ -19,7 +19,6 @@
 #include "settings/pages/snappingzonescontroller.h"
 #include "shaderpreview/shaderpreviewcontroller.h"
 #include "settings/pages/snappingbehaviorcontroller.h"
-#include "settings/pages/snappingeffectscontroller.h"
 #include "settings/pages/snappingzoneselectorcontroller.h"
 #include "settings/pages/tilingalgorithmcontroller.h"
 #include "settings/pages/scrollingbehaviorcontroller.h"
@@ -696,13 +695,12 @@ SettingsController::SettingsController(QObject* parent)
     // CONSTANT bounds facade over ConfigDefaults — no Settings wiring required.
     m_snappingZonesPage = new SnappingZonesController(this);
 
-    // Snapping→Effects page — CONSTANT-only bounds facade. The Window Appearance
-    // page is ISettings-backed: it forwards its window border / title bar and the
-    // shared inner/outer gap values straight to config (Windows.* / Gaps.*). Those
-    // values ARE Q_PROPERTY on Settings, so the meta-object loop above already
-    // wires their NOTIFY to onSettingsPropertyChanged(); the controller only
-    // provides the QML-facing forwarders + the slider bounds.
-    m_snappingEffectsPage = new SnappingEffectsController(this);
+    // The Window Appearance page is ISettings-backed: it forwards its window
+    // border / title bar and the shared inner/outer gap values straight to
+    // config (Windows.* / Gaps.*). Those values ARE Q_PROPERTY on Settings, so
+    // the meta-object loop above already wires their NOTIFY to
+    // onSettingsPropertyChanged(); the controller only provides the QML-facing
+    // forwarders + the slider bounds.
     m_windowAppearancePage = new WindowAppearanceController(m_settings, this);
 
     // Tiling→Algorithm page sub-controller. Owns the algorithm slider bounds +
@@ -722,8 +720,9 @@ SettingsController::SettingsController(QObject* parent)
     connect(m_tilingAlgorithmPage.get(), &TilingAlgorithmController::changed, this,
             &SettingsController::onSettingsPropertyChanged);
 
-    // General page sub-controller — owns rendering-backend picker data and
-    // animation bounds. Its startup backend snapshot is captured at ctor
+    // General page sub-controller — owns rendering-backend picker data, the
+    // shader frame-rate and audio-spectrum bounds with the cava probe, and
+    // the animation bounds. Its startup backend snapshot is captured at ctor
     // time, so this must run AFTER m_settings is fully initialised (which is
     // guaranteed by it being a value member: the member-init list runs to
     // completion before any of this ctor body does. Declaration position has
@@ -1132,24 +1131,9 @@ SnappingBehaviorController* SettingsController::snappingBehaviorPage() const
     return m_snappingBehaviorPage;
 }
 
-TilingBehaviorController* SettingsController::tilingBehaviorPage() const
-{
-    return m_tilingBehaviorPage;
-}
-
 ScrollingBehaviorController* SettingsController::scrollingBehaviorPage() const
 {
     return m_scrollingBehaviorPage;
-}
-
-WindowAppearanceController* SettingsController::windowAppearancePage() const
-{
-    return m_windowAppearancePage;
-}
-
-SnappingEffectsController* SettingsController::snappingEffectsPage() const
-{
-    return m_snappingEffectsPage;
 }
 
 OverlaysPageController* SettingsController::overlaysPage() const

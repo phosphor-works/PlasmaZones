@@ -3,6 +3,12 @@
 
 import QtQuick
 
-// The page every test module's pages show. Never loaded by a test, only
-// checked to exist.
-Item {}
+// The page every test module's pages and sections show. Never loaded by a
+// test, only checked to exist. It still declares what PageHost sets on a
+// module page (controller, settingsApp) and what FacetExtensionFrame sets on
+// a section (domain), so it would load cleanly as either.
+Item {
+    property QtObject controller: null
+    property QtObject settingsApp: null
+    property QtObject domain: null
+}

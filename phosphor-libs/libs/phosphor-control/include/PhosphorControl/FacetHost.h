@@ -58,12 +58,18 @@ class StagingDomain;
 /// modules under their category or parent module. A module's own pages
 /// follow their declaration order and come before the modules nested under
 /// it; a page that falls back under its module (its target is missing)
-/// comes after the others. A module added while Facet runs has its node
-/// slotted in the same way. The pages it places outside itself, in a category
-/// or under another module's page, go after the entries already there. Pages
+/// comes after the others. A page a module places outside itself, in a
+/// category or under another module's page, comes after everything else
+/// there, among the pages other modules placed there in the order of their
+/// modules. A module added while Facet runs has its node and those pages
+/// slotted in the same way, so it lands where a restart would put it. Pages
 /// that modules place under each other's in a cycle cannot all go where they
 /// ask: the one that sorts first stays under its own module, and the others
-/// go under their targets.
+/// go under their targets. Once a module's pages have taken their place, the
+/// host checks their counterparts (`Counterpart`) as
+/// PageRegistry::validateCounterparts does, and the counterparts of the
+/// pages already there that name one of them, and warns about each that does
+/// not resolve.
 ///
 /// Page ids: a category node is `@category/<id>`, a module node is the module
 /// id, and a module page is `<module>:<page>` (FacetContext::pageId). These
@@ -89,7 +95,12 @@ class StagingDomain;
 /// section is shown once its extension is active and its page's own module
 /// has loaded, and only then does its staging domain join Apply and the
 /// page's dirty mark and reset. Neither condition is ever undone, so a section
-/// that joins stays shown.
+/// that joins stays shown. When another component already answers
+/// extensionsFor (start() says so), no FacetSlot shows this host's sections:
+/// the host then loads no module for the sections it would add, joins no
+/// section's domain to Apply, tells no FacetSlot of a change, and search
+/// lists neither the sections nor what a module's providers list on the pages
+/// it extends.
 ///
 /// A crash while a module loads is remembered. The module's id is written to
 /// the load record (setSentinelPath) before its library is loaded, and
@@ -195,8 +206,11 @@ public:
     /// The host keeps one provider in @p search for all of it, listed in the
     /// order of each entry's page in the sidebar, and adds the entries of
     /// each loaded module's own search providers. It leaves out the entries
-    /// of a page whose module failed or was turned off after a crash, and
-    /// the sections when another component answers extensionsFor. Whenever
+    /// of a page whose module failed or was turned off after a crash, the
+    /// sections when another component answers extensionsFor, and what a
+    /// module's providers list on a page it extends where none of its
+    /// extensions is active (its extension there was refused), or on any page
+    /// it extends when another component answers extensionsFor. Whenever
     /// the query is not blank, every module whose metadata says
     /// `SearchProviders` and that has not loaded yet loads, so its entries
     /// are found too: at once, once a load that is running is over, or once
@@ -364,9 +378,16 @@ private:
     /// inactive, as if it were not installed.
     void withdrawModule(Module& module);
     void placeModules(QList<std::shared_ptr<Module>> modules);
+    /// Register a placeholder for @p module's node (@p page null) or for its
+    /// page @p page. False when the registry refuses it.
     bool registerPlaceholder(const QString& id, const QString& parentId, const QString& title, const QString& icon,
-                             const QUrl& qmlSource, bool isCollapsible, const Module* module,
+                             const QUrl& qmlSource, bool isCollapsible, const Module& module,
                              const FacetPageMetadata* page, qsizetype pageSlot = -1);
+    /// Check the counterparts (PageRegistry::validateCounterparts) of the
+    /// pages of those of @p modules that were placed, and of the pages
+    /// already in the sidebar that name one of theirs, warning for each that
+    /// does not resolve. Run once they have taken their place.
+    void validateCounterpartsOf(const QList<std::shared_ptr<Module>>& modules) const;
     /// Give @p module's placed pages their keywords in the search controller,
     /// once the module is placed. Its static search entries come from
     /// ModuleSearch.
@@ -475,7 +496,9 @@ private:
     /// their pages open.
     bool m_holdsNavigationHook = false;
     /// Whether start() got the extension provider, so FacetSlots show this
-    /// host's sections and search may list them.
+    /// host's sections and search may list them. Without it nothing is done
+    /// for sections: no extender loads, no section's domain is attached and
+    /// no FacetSlot is notified.
     bool m_holdsExtensionProvider = false;
     /// The page openPage is opening, for a navigation or for one owed
     /// (loadOwedNavigation), while it runs.
@@ -504,7 +527,8 @@ private:
     /// Target page id → its active extensions, sorted as extensionsOn() says.
     QHash<QString, QList<ActiveExtension>> m_extensionsByPage;
     QList<RefusedExtension> m_refusedExtensions;
-    QSet<QString> m_warnedExtensions;
+    /// Refused extension id → the reason last warned about.
+    QHash<QString, QString> m_warnedExtensions;
     /// The config backends modules share, and where they are made
     /// (setConfigRedirect). A child of the ApplicationController, which
     /// destroys it, so this is null once the controller is gone and is

@@ -40,6 +40,7 @@
 #include <PhosphorRules/Rule.h>
 
 #include "config/configmigration.h"
+#include "phosphor_i18n.h"
 #include "settings/stores/profilestore.h"
 
 using namespace PlasmaZones;
@@ -614,6 +615,55 @@ private Q_SLOTS:
         // The tree is unchanged: A is still the root of the chain.
         QCOMPARE(storedParent(a), QString());
         QCOMPARE(storedParent(c), QUuid(b).toString());
+    }
+
+    /// The cycle refusal explains itself, once per refused call, in the words
+    /// the Set Parent dialog's toast shows. A refusal that toasted nothing
+    /// would leave the picker looking broken.
+    void reparentUnderDescendantToastsReason()
+    {
+        m_current = baseDefaults();
+        const QString a = m_store->createProfile(QStringLiteral("A"), QString(), QString());
+        const QString b = m_store->createProfile(QStringLiteral("B"), QString(), a);
+
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(!m_store->setParent(a, b));
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(),
+                 PhosphorI18n::tr("A profile cannot inherit from itself or from a profile that inherits from it."));
+    }
+
+    /// selfAndDescendantIds is the exclusion list the Set Parent picker
+    /// applies: the profile itself plus every profile below it, and nothing
+    /// above it or beside it. A chain A → B → C with an unrelated root D pins
+    /// both halves, since an equality test in place of the ancestor walk
+    /// would return only the id itself.
+    void selfAndDescendantIdsCoversSubtree()
+    {
+        m_current = baseDefaults();
+        const QString a = m_store->createProfile(QStringLiteral("A"), QString(), QString());
+        const QString b = m_store->createProfile(QStringLiteral("B"), QString(), a);
+        const QString c = m_store->createProfile(QStringLiteral("C"), QString(), b);
+        const QString d = m_store->createProfile(QStringLiteral("D"), QString(), QString());
+        QVERIFY(!a.isEmpty() && !b.isEmpty() && !c.isEmpty() && !d.isEmpty());
+
+        const auto sorted = [](QStringList ids) {
+            std::sort(ids.begin(), ids.end());
+            return ids;
+        };
+        QCOMPARE(sorted(m_store->selfAndDescendantIds(a)), sorted(QStringList{a, b, c}));
+        QCOMPARE(sorted(m_store->selfAndDescendantIds(b)), sorted(QStringList{b, c}));
+        QCOMPARE(m_store->selfAndDescendantIds(c), QStringList{c});
+        QCOMPARE(m_store->selfAndDescendantIds(d), QStringList{d});
+        QVERIFY(m_store->selfAndDescendantIds(QUuid::createUuid().toString()).isEmpty());
+        QVERIFY(m_store->selfAndDescendantIds(QString()).isEmpty());
+
+        // The list and setParent's refusal agree: every id it names is refused
+        // as A's parent, and the one it leaves out (D) is accepted.
+        for (const QString& excluded : m_store->selfAndDescendantIds(a)) {
+            QVERIFY2(!m_store->setParent(a, excluded), qPrintable(excluded));
+        }
+        QVERIFY(m_store->setParent(a, d));
     }
 
     /// A pathologically nested structured value stops recursing at the depth
@@ -1368,6 +1418,34 @@ private Q_SLOTS:
         // Identical resolved settings → identical signature.
         QCOMPARE(rowById.value(imported).value(QStringLiteral("signature")).toString(),
                  rowById.value(original).value(QStringLiteral("signature")).toString());
+    }
+
+    /// A successful export confirms itself with exactly one toast naming the
+    /// profile. The save dialog has already closed by then, so without it the
+    /// export leaves nothing on screen.
+    void exportSuccessToastsOnce()
+    {
+        m_current = baseDefaults();
+        const QString id = m_store->createProfile(QStringLiteral("Work"), QString(), QString());
+        QVERIFY(!id.isEmpty());
+
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(m_store->exportProfile(id, m_dir->path() + QStringLiteral("/exported-profile")));
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(),
+                 PhosphorI18n::tr("Exported the profile “%1”.").arg(QStringLiteral("Work")));
+    }
+
+    /// An empty source (what urlToLocalFile hands over for a non-local pick)
+    /// is refused with one toast, because the Profiles page shows no failure
+    /// banner of its own.
+    void importEmptySourceToastsOnce()
+    {
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(m_store->importProfile(QString()).isEmpty());
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(), PhosphorI18n::tr("That file is not a readable profile."));
+        QCOMPARE(m_store->availableProfiles().size(), 0);
     }
 
     /// A successful setParent re-flattens the delta so the profile's RESOLVED

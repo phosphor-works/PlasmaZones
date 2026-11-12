@@ -12,6 +12,11 @@ import org.kde.kirigami as Kirigami
  * Wraps a Slider with an adjacent Label showing the current value
  * and an optional suffix (default "%").
  *
+ * The default "%" suffix is rendered through the translatable whole-number
+ * percentage format, so a locale places the sign (and any space before it)
+ * where it belongs. Any other suffix is appended after the rounded value as
+ * given, so a caller passes it already translated.
+ *
  * For custom formatting, set formatValue to a function(value) -> string.
  * When formatValue is set, valueSuffix is ignored.
  */
@@ -78,7 +83,12 @@ RowLayout {
     }
 
     Label {
-        text: root.formatValue ? root.formatValue(slider.value) : Math.round(slider.value) + root.valueSuffix
+        text: {
+            if (root.formatValue)
+                return root.formatValue(slider.value);
+            const rounded = Math.round(slider.value);
+            return root.valueSuffix === "%" ? i18nc("a whole-number percentage", "%1%", rounded) : rounded + root.valueSuffix;
+        }
         Layout.preferredWidth: root.labelWidth
         // The unit suffixes are translatable; a locale whose rendering is
         // wider than the fixed label width must elide rather than overflow.

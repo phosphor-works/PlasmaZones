@@ -31,6 +31,8 @@
 
 #include <QTest>
 
+#include <algorithm>
+
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
@@ -381,14 +383,20 @@ QSet<QString> validPageIds(QString* why)
 /// Top-level argument list of every `name(...)` call in @p src. Quote- and
 /// nesting-aware, because the registration calls this reads carry both
 /// (`PhosphorI18n::tr("Scrolling", "tiling mode name")` is ONE argument, and
-/// `m_page.get()` holds parens of its own).
-QList<QStringList> callArgLists(const QString& src, const QString& name)
+/// `m_page.get()` holds parens of its own). When @p positions is given it
+/// receives each call's offset in @p src, index-aligned with the result, so a
+/// caller can interleave the calls of two names in source order.
+QList<QStringList> callArgLists(const QString& src, const QString& name, QList<int>* positions = nullptr)
 {
     QList<QStringList> out;
     const QRegularExpression kCall(QStringLiteral("\\b") + QRegularExpression::escape(name) + QStringLiteral("\\("));
     auto it = kCall.globalMatch(src);
     while (it.hasNext()) {
-        const int open = it.next().capturedEnd() - 1;
+        const auto match = it.next();
+        const int open = match.capturedEnd() - 1;
+        if (positions) {
+            positions->append(match.capturedStart());
+        }
         int depth = 0;
         QStringList args;
         QString current;
@@ -463,6 +471,71 @@ const QHash<QString, QString>& regPageMemberToPageId()
         {QStringLiteral("m_windowAppearancePage"), QStringLiteral("window-appearance")},
     };
     return kMap;
+}
+
+/// One registration call in buildApplicationController, resolved to the
+/// arguments the topology checks need. Both helpers share the same positional
+/// shape (page, parent, title, qmlFile, icon, collapsible, divider, visibility,
+/// counterpartId), and regPage alone takes a trailing passesContext.
+struct Registration
+{
+    int pos = 0;
+    QString id; ///< empty when the first argument did not resolve
+    QStringList args;
+};
+
+/// Every regPage / regVirtual call in @p regSrc (comments already stripped),
+/// in source order, which is the order buildApplicationController registers
+/// them in.
+QList<Registration> registrationsInOrder(const QString& regSrc)
+{
+    QList<Registration> out;
+    QList<int> virtualPos;
+    const QList<QStringList> virtualCalls = callArgLists(regSrc, QStringLiteral("regVirtual"), &virtualPos);
+    for (int i = 0; i < virtualCalls.size(); ++i) {
+        out.append({virtualPos.at(i),
+                    virtualCalls.at(i).isEmpty() ? QString() : stringLiteralIn(virtualCalls.at(i).at(0)),
+                    virtualCalls.at(i)});
+    }
+    QList<int> pagePos;
+    const QList<QStringList> pageCalls = callArgLists(regSrc, QStringLiteral("regPage"), &pagePos);
+    static const QRegularExpression kMember(QStringLiteral("\\b(m_\\w+)"));
+    for (int i = 0; i < pageCalls.size(); ++i) {
+        const auto m = pageCalls.at(i).isEmpty() ? QRegularExpressionMatch() : kMember.match(pageCalls.at(i).at(0));
+        out.append(
+            {pagePos.at(i), regPageMemberToPageId().value(m.hasMatch() ? m.captured(1) : QString()), pageCalls.at(i)});
+    }
+    std::sort(out.begin(), out.end(), [](const Registration& a, const Registration& b) {
+        return a.pos < b.pos;
+    });
+    return out;
+}
+
+/// True when the ROOT object of the QML in @p src (comments stripped) declares
+/// `required property <Type> controller` in its own body. Nested objects are
+/// excluded: a card or dialog requiring its own `controller` says nothing
+/// about how PageHost must create the page. @p ok is false when no root
+/// object could be found, so a broken parse fails instead of reading as "no".
+///
+/// LIMITATION: a property the root TYPE declares in its own file (a page
+/// rooted in a shared component that itself requires `controller`) is not
+/// seen. No registered page is built that way today.
+bool rootRequiresController(const QString& src, bool* ok)
+{
+    const int rootOpen = src.indexOf(QLatin1Char('{'));
+    *ok = false;
+    if (rootOpen < 0) {
+        return false;
+    }
+    for (const Block& b : parseBlocks(src)) {
+        if (b.start == rootOpen) {
+            *ok = true;
+            static const QRegularExpression kRequired(
+                QStringLiteral("\\brequired\\s+property\\s+[\\w.<>]+\\s+controller\\b"));
+            return ownBody(src, b).contains(kRequired);
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -1172,6 +1245,194 @@ private Q_SLOTS:
         QVERIFY2(silent.isEmpty(),
                  qPrintable(QStringLiteral("navigable pages with no search catalogue entry: %1")
                                 .arg(silent.join(QLatin1String(", ")))));
+    }
+
+    /// The registry refuses a malformed registration with nothing but a log
+    /// warning (PageRegistry::registerPage: duplicate id, unknown parent), and
+    /// the page then just is not in the sidebar. validateCounterparts covers
+    /// counterparts only at runtime, as another warning. No test builds the
+    /// real catalogue, so pin its shape from the registration source:
+    ///   * every parent is QString() or an id registered by an EARLIER call
+    ///     (the registry has no forward references);
+    ///   * no id is registered twice;
+    ///   * every counterpart names a registered page that points back, and
+    ///     the pair is one SimpleOnly and one AdvancedOnly page.
+    void registrationTopologyIsConsistent()
+    {
+        const QString regSrc = stripLineComments(
+            readAll(QStringLiteral(P_SOURCE_DIR "/src/settings/controller/settingscontroller_pageregistration.cpp")));
+        QVERIFY2(!regSrc.isEmpty(), "settingscontroller_pageregistration.cpp unreadable");
+
+        enum class Tier {
+            Always,
+            SimpleOnly,
+            AdvancedOnly,
+            Unparsed
+        };
+        const auto tierOf = [](const QStringList& args) {
+            if (args.size() <= 7) {
+                return Tier::Always;
+            }
+            const QString v = args.at(7);
+            if (v.contains(QLatin1String("SimpleOnly"))) {
+                return Tier::SimpleOnly;
+            }
+            if (v.contains(QLatin1String("AdvancedOnly"))) {
+                return Tier::AdvancedOnly;
+            }
+            return v.contains(QLatin1String("Always")) ? Tier::Always : Tier::Unparsed;
+        };
+
+        const QList<Registration> regs = registrationsInOrder(regSrc);
+        QVERIFY2(regs.size() > 30,
+                 qPrintable(QStringLiteral("registration parse yielded only %1 calls").arg(regs.size())));
+
+        QStringList problems;
+        QSet<QString> registered;
+        QHash<QString, QString> counterpartOf;
+        QHash<QString, Tier> tierById;
+        for (const Registration& r : regs) {
+            if (r.id.isEmpty() || r.args.size() < 5) {
+                problems << QStringLiteral("unparsable registration: %1").arg(r.args.join(QLatin1String(", ")));
+                continue;
+            }
+            if (registered.contains(r.id)) {
+                problems << QStringLiteral("%1 is registered twice").arg(r.id);
+            }
+            const QString parentExpr = r.args.at(1);
+            if (parentExpr != QLatin1String("QString()")) {
+                const QString parent = stringLiteralIn(parentExpr);
+                if (parent.isEmpty()) {
+                    problems << QStringLiteral("%1: unparsable parent %2").arg(r.id, parentExpr);
+                } else if (!registered.contains(parent)) {
+                    problems << QStringLiteral("%1: parent %2 is not registered before it").arg(r.id, parent);
+                }
+            }
+            registered.insert(r.id);
+
+            const Tier tier = tierOf(r.args);
+            if (tier == Tier::Unparsed) {
+                problems << QStringLiteral("%1: unparsable visibility %2").arg(r.id, r.args.at(7));
+            }
+            tierById.insert(r.id, tier);
+            if (r.args.size() > 8 && !r.args.at(8).endsWith(QLatin1String("QString()"))) {
+                const QString counterpart = stringLiteralIn(r.args.at(8));
+                if (counterpart.isEmpty()) {
+                    problems << QStringLiteral("%1: unparsable counterpart %2").arg(r.id, r.args.at(8));
+                } else {
+                    counterpartOf.insert(r.id, counterpart);
+                }
+            }
+        }
+        // Vacuity guard: the counterpart checks below compare nothing if the
+        // argument parse stops seeing the counterpart position.
+        QVERIFY2(!counterpartOf.isEmpty(), "registration parse found no counterpart declarations");
+
+        for (auto it = counterpartOf.cbegin(); it != counterpartOf.cend(); ++it) {
+            const QString& id = it.key();
+            const QString& other = it.value();
+            if (!registered.contains(other)) {
+                problems << QStringLiteral("%1: counterpart %2 is not registered").arg(id, other);
+                continue;
+            }
+            if (counterpartOf.value(other) != id) {
+                problems << QStringLiteral("%1: counterpart %2 points at %3, not back")
+                                .arg(id, other,
+                                     counterpartOf.value(other).isEmpty() ? QStringLiteral("nothing")
+                                                                          : counterpartOf.value(other));
+            }
+            const Tier mine = tierById.value(id);
+            const Tier theirs = tierById.value(other);
+            const bool opposite = (mine == Tier::SimpleOnly && theirs == Tier::AdvancedOnly)
+                || (mine == Tier::AdvancedOnly && theirs == Tier::SimpleOnly);
+            if (!opposite) {
+                problems << QStringLiteral("%1 and its counterpart %2 are not one SimpleOnly and one AdvancedOnly page")
+                                .arg(id, other);
+            }
+        }
+
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1String("; "))));
+    }
+
+    /// PageHost creates a passesContext page with `controller` and
+    /// `settingsApp` already set, and any other page with neither, assigning
+    /// them only after creation. A page whose root declares `required property
+    /// <Type> controller` therefore fails to instantiate unless its
+    /// registration passes context, and one that passes context to a root
+    /// with no such property is created with initial properties its root does
+    /// not declare. Each regPage
+    /// call declares the flag; this pins it against the QML in both
+    /// directions. regVirtual pages cannot pass context (the adapter is no
+    /// controller a page could use), so a regVirtual page whose root requires
+    /// `controller` fails here too.
+    void passesContextMatchesRequiredControllerPages()
+    {
+        const QString regSrc = stripLineComments(
+            readAll(QStringLiteral(P_SOURCE_DIR "/src/settings/controller/settingscontroller_pageregistration.cpp")));
+        QVERIFY2(!regSrc.isEmpty(), "settingscontroller_pageregistration.cpp unreadable");
+
+        const QList<Registration> regs = registrationsInOrder(regSrc);
+        QSet<QString> passing;
+        QSet<QString> requiring;
+        QStringList problems;
+        int qmlPages = 0;
+        for (const Registration& r : regs) {
+            if (r.id.isEmpty() || r.args.size() < 4) {
+                problems << QStringLiteral("unparsable registration: %1").arg(r.args.join(QLatin1String(", ")));
+                continue;
+            }
+            if (r.args.size() > 9) {
+                // Only regPage takes a tenth argument. Anything but a literal
+                // bool there (a variable, a reordered call) is unreadable to
+                // this check and must fail rather than read as false.
+                const QString flag = r.args.at(9);
+                if (flag.endsWith(QLatin1String("true"))) {
+                    passing.insert(r.id);
+                } else if (!flag.endsWith(QLatin1String("false"))) {
+                    problems << QStringLiteral("%1: unparsable passesContext %2").arg(r.id, flag);
+                }
+            }
+            const QString file = stringLiteralIn(r.args.at(3));
+            if (file.isEmpty()) {
+                continue; // category header, no QML of its own
+            }
+            const QString qml = stripComments(readAll(m_qmlDir + QLatin1Char('/') + file));
+            if (qml.isEmpty()) {
+                problems << QStringLiteral("%1: QML %2 unreadable").arg(r.id, file);
+                continue;
+            }
+            ++qmlPages;
+            bool ok = false;
+            if (rootRequiresController(qml, &ok)) {
+                requiring.insert(r.id);
+            }
+            if (!ok) {
+                problems << QStringLiteral("%1: no root object parsed in %2").arg(r.id, file);
+            }
+        }
+        QVERIFY2(qmlPages > 30,
+                 qPrintable(QStringLiteral("registration parse yielded only %1 QML pages").arg(qmlPages)));
+        // Vacuity guards, one per side: an argument parse that stops seeing
+        // the flag, or a regex that stops seeing the declaration, would make
+        // both sets empty and the comparison below agree on nothing.
+        QVERIFY2(!passing.isEmpty(), "no regPage call parsed as passing context");
+        QVERIFY2(!requiring.isEmpty(), "no registered page parsed as requiring controller");
+
+        const QSet<QString> notPassedSet = requiring - passing;
+        const QSet<QString> notRequiredSet = passing - requiring;
+        QStringList notPassed(notPassedSet.cbegin(), notPassedSet.cend());
+        QStringList notRequired(notRequiredSet.cbegin(), notRequiredSet.cend());
+        notPassed.sort();
+        notRequired.sort();
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1String("; "))));
+        QVERIFY2(notPassed.isEmpty(),
+                 qPrintable(QStringLiteral("pages whose QML root requires `controller` but whose registration does "
+                                           "not pass context: %1")
+                                .arg(notPassed.join(QLatin1String(", ")))));
+        QVERIFY2(notRequired.isEmpty(),
+                 qPrintable(QStringLiteral("pages registered with passesContext whose QML root declares no required "
+                                           "`controller`: %1")
+                                .arg(notRequired.join(QLatin1String(", ")))));
     }
 
 private:

@@ -11,10 +11,12 @@ namespace PlasmaZones {
 
 class ISettings;
 
-/// Q_PROPERTY surface for the "Tiling → Behavior" settings page.
+/// Q_PROPERTY surface for the "Tiling → Window" settings page (page id
+/// "tiling-behavior").
 ///
-/// Exposed as a child Q_PROPERTY on SettingsController; QML reads
-/// `settingsController.tilingBehaviorPage.autotileDragInsertTriggers` etc.
+/// PageHost hands it to TilingBehaviorPage.qml as the page's `controller`
+/// (its registry entry passes context), so QML reads
+/// `root.controller.autotileDragInsertTriggers` etc.
 /// Covers the autotile drag-insert trigger list plus its derived
 /// `alwaysReinsertIntoStack` boolean and the shared trigger release-grace
 /// bounds. Trigger-list conversion lives in

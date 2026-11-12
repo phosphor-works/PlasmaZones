@@ -3,6 +3,8 @@
 
 #include <PhosphorControl/ApplicationController.h>
 #include <PhosphorControl/FacetHost.h>
+#include <PhosphorControl/ISearchProvider.h>
+#include <PhosphorControl/ModulePlaceholderPage.h>
 #include <PhosphorControl/PageController.h>
 #include <PhosphorControl/PageRegistry.h>
 #include <PhosphorControl/SearchController.h>
@@ -60,6 +62,19 @@ public:
     {
         Q_EMIT discardResult(true, QString());
     }
+};
+
+// A search provider that lists nothing and counts how often it is asked: once
+// per rebuild of the search index.
+class CountingProvider : public ISearchProvider
+{
+public:
+    QVector<SearchEntry> searchEntries() const override
+    {
+        ++asked;
+        return {};
+    }
+    mutable int asked = 0;
 };
 
 // PluginCatalog refuses a plugin, or a directory, that others can write.
@@ -534,6 +549,80 @@ private Q_SLOTS:
         QCOMPARE(pinned.visibility, PageRegistry::PageVisibility::AdvancedOnly);
     }
 
+    void modulePagesPassTheirContextAndNodesDoNot()
+    {
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        PageRegistry* const registry = h.registry();
+        const QString page = QStringLiteral("good:general");
+        const QString node = QStringLiteral("good");
+        const QString category = FacetHost::categoryNodeId(QStringLiteral("input"));
+        // FacetModulePage, like the module's own page that replaces it, is
+        // created with its context set. The nodes have no QML to create.
+        QVERIFY(registry->entry(page).passesContext);
+        QCOMPARE(registry->pageData(page).value(QStringLiteral("passesContext")).toBool(), true);
+        QVERIFY(registry->hasPage(node));
+        QVERIFY(!registry->entry(node).passesContext);
+        QVERIFY(registry->hasPage(category));
+        QVERIFY(!registry->entry(category).passesContext);
+        // Every placeholder is a ModulePlaceholderPage, the type
+        // FacetModulePage.qml declares its controller as.
+        QVERIFY(qobject_cast<ModulePlaceholderPage*>(registry->controller(page)));
+        QVERIFY(qobject_cast<ModulePlaceholderPage*>(registry->controller(node)));
+        QVERIFY(qobject_cast<ModulePlaceholderPage*>(registry->controller(category)));
+
+        // Bound to the module's own controller, the page still passes its
+        // context, and the node still does not.
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        QVERIFY(!qobject_cast<ModulePlaceholderPage*>(registry->controller(page)));
+        QVERIFY(registry->entry(page).passesContext);
+        QVERIFY(!registry->entry(node).passesContext);
+    }
+
+    void anApplicationCounterpartInAModuleIsCheckedOnceItIsPlaced()
+    {
+        // An application page naming a module's page as its counterpart
+        // cannot resolve before the module is placed, so the host checks it
+        // then. early:main names early:simple back, not it. An application
+        // page that names nothing of a module is the application's own to
+        // check, and is not warned about again.
+        using PV = PageRegistry::PageVisibility;
+        Harness h({QStringLiteral("early")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.controller.registerPage(new SimplePage(QStringLiteral("app-simple"), &h.controller), QString(),
+                                  QStringLiteral("App Simple"), QUrl(QStringLiteral("qrc:/app.qml")), QString(), false,
+                                  false, PV::SimpleOnly, QStringLiteral("early:main"));
+        h.controller.registerPage(new SimplePage(QStringLiteral("app-own"), &h.controller), QString(),
+                                  QStringLiteral("App Own"), QUrl(QStringLiteral("qrc:/app.qml")), QString(), false,
+                                  false, PV::SimpleOnly, QStringLiteral("app-missing"));
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("app-missing")));
+        // early's own pair is sound.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("PageRegistry: page .early:")));
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("PageRegistry: page .app-simple. declares counterpart "
+                                                               ".early:main. but that page declares .early:simple.")));
+        h.host->start();
+    }
+
+    void aModulePagesCounterpartsAreCheckedOnceItIsPlaced()
+    {
+        // Under an input category the application made SimpleOnly,
+        // early:main is out of reach in advanced mode, the mode that hides
+        // early:simple, so the redirect from early:simple would fall back.
+        Harness h({QStringLiteral("early")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString category = FacetHost::categoryNodeId(QStringLiteral("input"));
+        h.controller.registerPage(new SimplePage(category, &h.controller), QString(), QStringLiteral("Input"), QUrl(),
+                                  QString(), true, false, PageRegistry::PageVisibility::SimpleOnly);
+        QVERIFY(h.registry()->hasPage(category));
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("PageRegistry: page .early:simple. declares counterpart "
+                                                               ".early:main. which is itself unreachable")));
+        h.host->start();
+        QCOMPARE(h.registry()->parentIdOf(QStringLiteral("early")), category);
+    }
+
     void placementFallsBackOnlyWhereItMust()
     {
         Harness h({QStringLiteral("orphan"), QStringLiteral("orphankid"), QStringLiteral("stray"),
@@ -573,6 +662,69 @@ private Q_SLOTS:
         QCOMPARE(registry->parentIdOf(QStringLiteral("looptail")), QStringLiteral("loopa"));
         QVERIFY(h.host->metadata(QStringLiteral("loopa")));
         QCOMPARE(h.host->metadata(QStringLiteral("loopa"))->parent, QStringLiteral("loopb"));
+    }
+
+    void aModuleTooDeepForTheSidebarFails_data()
+    {
+        QTest::addColumn<int>("categoryDepth");
+        QTest::addColumn<QString>("reason");
+        // The node itself would have one ancestor too many.
+        QTest::newRow("its node") << PageRegistry::MaxParentChainHops
+                                  << QStringLiteral("its node could not take its place in the sidebar");
+        // The node fits, and its pages would have one ancestor too many.
+        QTest::newRow("its pages") << PageRegistry::MaxParentChainHops - 1
+                                   << QStringLiteral("a page of it could not take its place in the sidebar");
+    }
+
+    void aModuleTooDeepForTheSidebarFails()
+    {
+        // The registry refuses a page with more than MaxParentChainHops
+        // ancestors. A module that meets that fails like any module the
+        // sidebar has no room for, rather than being drawn somewhere the
+        // reachability walks cannot follow.
+        QFETCH(int, categoryDepth);
+        QFETCH(QString, reason);
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        // A chain of the application's own pages, with the input category's
+        // node at its foot, so good's node goes under it there.
+        QString parent;
+        for (int i = 0; i < categoryDepth; ++i) {
+            const QString id = QStringLiteral("level%1").arg(i);
+            h.controller.registerPage(new SimplePage(id, &h.controller), parent, id, QUrl());
+            parent = id;
+        }
+        const QString category = FacetHost::categoryNodeId(QStringLiteral("input"));
+        h.controller.registerPage(new SimplePage(category, &h.controller), parent, QStringLiteral("Input"), QUrl());
+        QVERIFY(h.registry()->hasPage(category));
+        QTest::ignoreMessage(
+            QtWarningMsg,
+            QRegularExpression(QStringLiteral("deeper than the %1 allowed").arg(PageRegistry::MaxParentChainHops)));
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Failed));
+        QCOMPARE(h.host->stateReason(QStringLiteral("good")), reason);
+        QVERIFY(!h.host->canRetry(QStringLiteral("good")));
+        QVERIFY(!h.host->loadModule(QStringLiteral("good")));
+    }
+
+    void aPageAnArrivingModulePlacesElsewhereLandsWhereARestartPutsIt()
+    {
+        // pagecycleb's page and pagechain's both go under pagecyclea's, and
+        // pagechain sorts first.
+        const QStringList restartOrder{QStringLiteral("pagechain:leaf"), QStringLiteral("pagecycleb:leaf")};
+        {
+            Harness h({QStringLiteral("pagecyclea"), QStringLiteral("pagecycleb"), QStringLiteral("pagechain")});
+            QVERIFY2(h.ok, qPrintable(h.error));
+            h.host->start();
+            QCOMPARE(h.childIds(QStringLiteral("pagecyclea:leaf")), restartOrder);
+        }
+        Harness h({QStringLiteral("pagecyclea"), QStringLiteral("pagecycleb")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QCOMPARE(h.childIds(QStringLiteral("pagecyclea:leaf")), QStringList{QStringLiteral("pagecycleb:leaf")});
+        QVERIFY(stage(h.modules, QStringLiteral("pagechain"), QStringLiteral("pagechain")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("pagechain:leaf")), 10000);
+        QCOMPARE(h.childIds(QStringLiteral("pagecyclea:leaf")), restartOrder);
     }
 
     void pagesPlacedUnderEachOtherBreakTheirCycleAtOnePage_data()
@@ -3040,6 +3192,45 @@ private Q_SLOTS:
         h.controller.clearExtensionProvider(&other);
     }
 
+    void searchLeavesOutWhatAProviderListsWhereNoSectionOfItsIsShown()
+    {
+        // providerchecks extends good:general, and its provider lists an
+        // entry there. Found while the host's sections are the ones shown.
+        {
+            Harness h({QStringLiteral("good"), QStringLiteral("providerchecks")});
+            QVERIFY2(h.ok, qPrintable(h.error));
+            SearchController search(&h.controller);
+            attachSearch(h, search);
+            h.host->start();
+            search.setQuery(QStringLiteral("Extended section"));
+            QCOMPARE(h.host->state(QStringLiteral("providerchecks")), std::optional<State>(State::Loaded));
+            QCOMPARE(countResults(search, QStringLiteral("good:general"), QStringLiteral("speed")), 1);
+        }
+        // Another component shows the slots, so no section of it is on that
+        // page: the entry would lead to nothing of the module's. Left out
+        // without a warning, since the module does extend the page.
+        Harness h({QStringLiteral("good"), QStringLiteral("providerchecks")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QObject other;
+        QVERIFY(h.controller.setExtensionProvider(&other, [](const QString&, const QString&) {
+            return QVariantList();
+        }));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("provider is already held by")));
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("another component answers extensionsFor")));
+        h.host->start();
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("neither its own nor one it extends")));
+        search.setQuery(QStringLiteral("Extended section"));
+        QCOMPARE(h.host->state(QStringLiteral("providerchecks")), std::optional<State>(State::Loaded));
+        QCOMPARE(countResults(search, QStringLiteral("good:general"), QStringLiteral("speed")), 0);
+        // What it lists on its own page is still found.
+        search.setQuery(QStringLiteral("Unlisted anchor"));
+        QCOMPARE(countResults(search, QStringLiteral("providerchecks:general"), QStringLiteral("nope")), 1);
+        h.controller.clearExtensionProvider(&other);
+    }
+
     void aModuleThatArrivesIsSearchedAtOnce()
     {
         // Its search entries wait for its pages, which are placed after its
@@ -3107,6 +3298,26 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("translated:extra")), 10000);
         QCOMPARE(qApp->property("fakeProvidersAsked").toInt() - asked, 1);
         QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void startAnswersAStandingQueryOnce()
+    {
+        // A query typed before start(): every page taking its place, each
+        // page's keywords and the host's own provider change the index, and
+        // the query is answered again once for all of them.
+        Harness h({QStringLiteral("good"), QStringLiteral("early")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        CountingProvider counter;
+        SearchController search(&h.controller);
+        search.registerProvider(&counter);
+        attachSearch(h, search);
+        search.setQuery(QStringLiteral("General"));
+        counter.asked = 0;
+        h.host->start();
+        QCOMPARE(counter.asked, 1);
+        // That one rebuild saw the pages.
+        QCOMPARE(countResults(search, QStringLiteral("good:general"), QString()), 1);
+        search.unregisterProvider(&counter);
     }
 
     void searchLoadsModulesWithProvidersOnTheFirstQuery()
@@ -3841,6 +4052,49 @@ private Q_SLOTS:
         QVERIFY(noticed(changed, QStringLiteral("good:general")));
         QVERIFY(!topAtNotices.isEmpty());
         QCOMPARE(topAtNotices, QList<qsizetype>(topAtNotices.size(), 0));
+    }
+
+    void aHostWithoutTheExtensionProviderDoesNothingForSections()
+    {
+        // Another component answers extensionsFor, so no FacetSlot shows this
+        // host's sections. It loads no module for them, joins none of their
+        // domains to Apply, and tells no FacetSlot of a change.
+        Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("extender2")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QObject other;
+        QVERIFY(h.controller.setExtensionProvider(&other, [](const QString&, const QString&) {
+            return QVariantList();
+        }));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("provider is already held by")));
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("another component answers extensionsFor")));
+        h.host->start();
+        QSignalSpy changed(&h.controller, &ApplicationController::extensionsChanged);
+
+        // extender loads first, which would tell good:general that its
+        // sections there changed (notifyExtendedPages).
+        QVERIFY(h.host->loadModule(QStringLiteral("extender")));
+        QCOMPARE(changed.count(), 0);
+        // Opening good:general loads good, which would tell the page it now
+        // shows extender's sections (showSectionsOn), and would load
+        // extender2 for its own (loadExtenders).
+        h.controller.setCurrentPageId(QStringLiteral("good:general"));
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Loaded));
+        QCOMPARE(h.host->state(QStringLiteral("extender2")), std::optional<State>(State::Available));
+        QCOMPARE(changed.count(), 0);
+        // extender2 loaded once good has, which would join its section's
+        // domain to Apply (attachExtensions). Nor have extender's joined.
+        QVERIFY(h.host->loadModule(QStringLiteral("extender2")));
+        for (const QString& moduleId : {QStringLiteral("extender"), QStringLiteral("extender2")}) {
+            const QList<FacetHost::ModuleExtension> sections = h.host->moduleExtensions(moduleId);
+            QVERIFY(!sections.isEmpty());
+            for (const FacetHost::ModuleExtension& section : sections) {
+                QVERIFY(section.domain);
+                QVERIFY2(!h.controller.isTrackedDomain(section.domain), qPrintable(moduleId + section.id));
+            }
+        }
+        QCOMPARE(changed.count(), 0);
+        h.controller.clearExtensionProvider(&other);
     }
 
 private:

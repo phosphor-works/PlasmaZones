@@ -701,23 +701,16 @@ QStringList ApplicationController::dirtyPageIds() const
 
 QStringList ApplicationController::parentChainFor(const QString& id) const
 {
-    // Nesting-depth cap, shared with PageRegistry's reachability walk so the
-    // two cannot drift. MaxParentChainHops is well above any realistic
-    // sidebar nesting. PageRegistry::registerPage
-    // refuses an entry whose parentId isn't already registered, which makes
-    // registry-internal cycles structurally impossible — so this cap is purely
-    // a nesting-depth limit.
+    // PageRegistry::registerPage refuses a parent that is not registered yet
+    // and a page with more than PageRegistry::MaxParentChainHops ancestors,
+    // so following at most that many parent links always reaches a root.
     QStringList chain;
     QString cursor = id;
-    // Walk parent links upward, following at most
-    // PageRegistry::MaxParentChainHops of them (the same unit
-    // PageRegistry::allowedInMode counts).
     for (int i = 0; i < PageRegistry::MaxParentChainHops; ++i) {
         if (!m_registry->hasPage(cursor)) {
             // Unknown id is a legitimate query path (QML probing during
             // bootstrap before pages are registered). Return whatever
-            // we've collected so far without warning — the warning below
-            // is reserved for actual depth-exceeded cases.
+            // we've collected so far, without warning.
             return chain;
         }
         // parentIdOf, not entry(): the walk needs one field per hop, and
@@ -729,14 +722,9 @@ QStringList ApplicationController::parentChainFor(const QString& id) const
         chain.prepend(parent);
         cursor = parent;
     }
-    // Followed the full number of hops. The chain is complete when the last
-    // ancestor reached is a root; otherwise it is nested deeper than the cap
-    // allows, so warn rather than silently return a truncated chain.
-    if (m_registry->parentIdOf(cursor).isEmpty()) {
-        return chain;
-    }
-    qWarning() << "ApplicationController::parentChainFor: page nested deeper than" << PageRegistry::MaxParentChainHops
-               << "levels walking up from id" << id;
+    // Followed every hop allowed: the page has exactly
+    // PageRegistry::MaxParentChainHops ancestors, and the last one reached
+    // is a root.
     return chain;
 }
 

@@ -424,4 +424,17 @@ QVariantList OverlaysPageController::shaderEffectUsages(const QString& effectId)
     return out;
 }
 
+int OverlaysPageController::shaderEffectLayoutUsageCount(const QString& effectId) const
+{
+    if (!m_settings || effectId.isEmpty())
+        return 0;
+    // The same per-layout test shaderEffectUsages applies to build its layout
+    // rows, so the count always matches the rows the dialog lists under it.
+    const OverlayShaderTree tree = m_settings->overlayShaderTree();
+    const QStringList overridden = tree.overriddenLayouts();
+    return static_cast<int>(std::count_if(overridden.cbegin(), overridden.cend(), [&](const QString& layoutId) {
+        return tree.directOverride(layoutId).shaderId == effectId;
+    }));
+}
+
 } // namespace PlasmaZones

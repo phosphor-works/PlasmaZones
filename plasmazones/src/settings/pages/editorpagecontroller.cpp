@@ -52,6 +52,22 @@ QString EditorPageController::fillShortcut() const
 {
     return m_settings->editorFillShortcut();
 }
+QString EditorPageController::defaultDuplicateShortcut() const
+{
+    return ConfigDefaults::editorDuplicateShortcut();
+}
+QString EditorPageController::defaultSplitHorizontalShortcut() const
+{
+    return ConfigDefaults::editorSplitHorizontalShortcut();
+}
+QString EditorPageController::defaultSplitVerticalShortcut() const
+{
+    return ConfigDefaults::editorSplitVerticalShortcut();
+}
+QString EditorPageController::defaultFillShortcut() const
+{
+    return ConfigDefaults::editorFillShortcut();
+}
 bool EditorPageController::gridSnappingEnabled() const
 {
     return m_settings->editorGridSnappingEnabled();

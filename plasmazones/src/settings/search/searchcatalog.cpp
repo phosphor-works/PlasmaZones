@@ -299,7 +299,9 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                              PhosphorI18n::tr("inherit"), PhosphorI18n::tr("create"), PhosphorI18n::tr("save")});
     search->setPageKeywords(QStringLiteral("editor"),
                             {PhosphorI18n::tr("editor"), PhosphorI18n::tr("layout"), PhosphorI18n::tr("design"),
-                             PhosphorI18n::tr("zones"), PhosphorI18n::tr("opacity"), PhosphorI18n::tr("background")});
+                             PhosphorI18n::tr("zones"), PhosphorI18n::tr("opacity"), PhosphorI18n::tr("background"),
+                             PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("split"), PhosphorI18n::tr("duplicate"),
+                             PhosphorI18n::tr("grid"), PhosphorI18n::tr("snap"), PhosphorI18n::tr("fill")});
     search->setPageKeywords(QStringLiteral("about"),
                             {PhosphorI18n::tr("about"), PhosphorI18n::tr("version"), PhosphorI18n::tr("license"),
                              PhosphorI18n::tr("credits")});
@@ -397,9 +399,6 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                 PhosphorI18n::tr("tiling")});
     addSection(search, QStringLiteral("general"), QStringLiteral("windowFiltering"),
                PhosphorI18n::tr("Window filtering"));
-    addSetting(search, QStringLiteral("general"), QStringLiteral("excludeTransient"),
-               PhosphorI18n::tr("Exclude transient windows"),
-               {PhosphorI18n::tr("dialog"), PhosphorI18n::tr("popup"), PhosphorI18n::tr("tooltip")});
     addSetting(search, QStringLiteral("general"), QStringLiteral("minimumWindowWidth"),
                PhosphorI18n::tr("Minimum window width"),
                {PhosphorI18n::tr("threshold"), PhosphorI18n::tr("narrow"), PhosphorI18n::tr("size")});
@@ -1150,6 +1149,40 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
     // ═══════════════════════════════════════════════════════════════════════════
     // Editor
     // ═══════════════════════════════════════════════════════════════════════════
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorShortcuts"),
+               PhosphorI18n::tr("Keyboard Shortcuts"));
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorDuplicateShortcut"),
+               PhosphorI18n::tr("Duplicate zone"),
+               {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("clone"), PhosphorI18n::tr("copy")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSplitHorizontalShortcut"),
+               PhosphorI18n::tr("Split horizontally"), {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("divide")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSplitVerticalShortcut"),
+               PhosphorI18n::tr("Split vertically"), {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("divide")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorFillShortcut"), PhosphorI18n::tr("Fill space"),
+               {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("expand")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorResetShortcuts"),
+               PhosphorI18n::tr("Reset shortcuts"),
+               {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("defaults"), PhosphorI18n::tr("restore")});
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorSnapping"), PhosphorI18n::tr("Snapping"));
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorGridSnapping"),
+               PhosphorI18n::tr("Grid snapping"), {PhosphorI18n::tr("grid"), PhosphorI18n::tr("snap")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorEdgeSnapping"),
+               PhosphorI18n::tr("Edge snapping"),
+               {PhosphorI18n::tr("edge"), PhosphorI18n::tr("snap"), PhosphorI18n::tr("neighbor")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSnapIntervalX"),
+               PhosphorI18n::tr("Grid interval X"),
+               {PhosphorI18n::tr("grid"), PhosphorI18n::tr("spacing"), PhosphorI18n::tr("horizontal")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSnapIntervalY"),
+               PhosphorI18n::tr("Grid interval Y"),
+               {PhosphorI18n::tr("grid"), PhosphorI18n::tr("spacing"), PhosphorI18n::tr("vertical")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSnapOverrideModifier"),
+               PhosphorI18n::tr("Override modifier"),
+               {PhosphorI18n::tr("modifier"), PhosphorI18n::tr("bypass"), PhosphorI18n::tr("snap")});
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorFillOnDrop"), PhosphorI18n::tr("Fill on Drop"));
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorFillOnDropModifier"),
+               PhosphorI18n::tr("Modifier key"),
+               {PhosphorI18n::tr("fill"), PhosphorI18n::tr("drop"), PhosphorI18n::tr("expand")});
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorAppearance"), PhosphorI18n::tr("Appearance"));
     addSetting(search, QStringLiteral("editor"), QStringLiteral("editorBackgroundOpacity"),
                PhosphorI18n::tr("Background opacity"),
                {PhosphorI18n::tr("transparency"), PhosphorI18n::tr("transparent"), PhosphorI18n::tr("canvas")});

@@ -159,6 +159,16 @@ and the backend stays shared when the registration is not kept. A module that
 did not load keeps its placeholder page, which says why, and offers a retry
 when loading again can help.
 
+**A module page's QML.** `PageHost` creates every page bound with `bindPage`,
+and the `FacetModulePage` placeholder before it, with two properties already
+set before any of the page's bindings run: `controller`, the page's
+`PageController`, and `settingsApp`, the `ApplicationController`. The page's
+root must declare both, and it may make them `required`. A root that leaves
+one out still loads, but Qt logs "Cannot assign to non-existent property"
+for it with no file or line to trace it to. `PageHost` does not create such a
+page while the registry has no controller for it: the page area says the page
+could not be shown, and a later `bindPage` creates it.
+
 A module that was loading when the process died is disabled, at the next start
 and every start after, until `retryModule` (or the placeholder page's retry
 button) loads it. The load record that remembers this

@@ -7,6 +7,7 @@
 #include "phosphor_i18n.h"
 #include "utils/gpudevicelist.h"
 
+#include <QStandardPaths>
 #include <QVariantMap>
 
 #include <algorithm>
@@ -16,6 +17,7 @@ namespace PlasmaZones {
 GeneralPageController::GeneralPageController(ISettings& settings, QObject* parent)
     : PhosphorControl::PageController(QStringLiteral("general"), parent)
     , m_settings(settings)
+    , m_cavaAvailable(!QStandardPaths::findExecutable(QStringLiteral("cava")).isEmpty())
 {
     // Snapshot current backend + GPU so the QML "restart required" message
     // survives page recreation. Re-baselined on daemon restart via

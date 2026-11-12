@@ -23,7 +23,10 @@ SettingsCard {
     id: card
 
     /// Called with a URL (dropped, or chosen in the host's file dialog).
-    /// @return true when the import succeeded.
+    /// @return whether the import succeeded: a bool, or the name the imported
+    /// item was stored under (empty when it failed). A host whose store can
+    /// rename on import returns the name, so the banner names what the user
+    /// will find in the list rather than the file they dropped.
     required property var importFn
     /// Opens the destination folder in the file manager. Null hides the button.
     property var openFolderFn: null
@@ -40,33 +43,48 @@ SettingsCard {
     property string hoverIcon: "document-import"
     property real iconSize: Kirigami.Units.iconSizes.medium
     property real dropZoneHeight: Kirigami.Units.gridUnit * 4
-    /// Given a file's display name, the banner text for each outcome.
+    /// Given the imported item's name, the banner text for each outcome.
     required property var successTextFn
-    required property var failureTextFn
+    /// Null when the host's import already reports every failure itself (a
+    /// store toast naming the cause), so the card shows no failure banner and
+    /// the user is not told the same thing twice.
+    property var failureTextFn: null
 
     property string importButtonText: i18n("Import…")
     property string importButtonAccessibleName: ""
     property string openFolderAccessibleName: ""
 
-    /// Show the result banner for @p url. Public so a host whose import runs
-    /// from its own file dialog reports through the same banner as the drop.
-    function showResult(ok, url) {
-        // A dropped URL is percent-encoded, so decode before showing the name
-        // ("My%20Pack" is not what the user called it). Some drag sources hand
-        // over a directory URL with a trailing slash, which would otherwise
-        // split to an empty tail.
-        const trimmed = String(url).replace(/\/+$/, "");
-        let basename = "";
-        try {
-            basename = decodeURIComponent(trimmed.split("/").pop());
-        } catch (e) {
-            basename = trimmed.split("/").pop();
+    /// Show the outcome of importing @p url, given what `importFn` returned
+    /// for it. Public so a host whose import runs from its own file dialog
+    /// reports through the same banner as the drop.
+    function showResult(result, url) {
+        const storedName = typeof result === "string" ? result : "";
+        const ok = result === true || storedName.length > 0;
+        if (!ok && card.failureTextFn === null) {
+            // The host reported the failure. Drop any earlier result rather
+            // than leave a stale success banner standing beside it.
+            autoHideTimer.stop();
+            resultBanner.visible = false;
+            return;
         }
-        if (basename.length === 0)
-            basename = i18nc("@item fallback name for a file with no usable name", "the file");
+        let name = storedName;
+        if (name.length === 0) {
+            // A dropped URL is percent-encoded, so decode before showing the
+            // name ("My%20Pack" is not what the user called it). Some drag
+            // sources hand over a directory URL with a trailing slash, which
+            // would otherwise split to an empty tail.
+            const trimmed = String(url).replace(/\/+$/, "");
+            try {
+                name = decodeURIComponent(trimmed.split("/").pop());
+            } catch (e) {
+                name = trimmed.split("/").pop();
+            }
+        }
+        if (name.length === 0)
+            name = i18nc("@item fallback name for a file with no usable name", "the file");
 
         resultBanner.type = ok ? Kirigami.MessageType.Positive : Kirigami.MessageType.Error;
-        resultBanner.text = ok ? card.successTextFn(basename) : card.failureTextFn(basename);
+        resultBanner.text = ok ? card.successTextFn(name) : card.failureTextFn(name);
         resultBanner.visible = true;
         autoHideTimer.restart();
     }
@@ -97,7 +115,7 @@ SettingsCard {
             iconSize: card.iconSize
             Layout.preferredHeight: card.dropZoneHeight
             onFileDropped: function (url) {
-                card.showResult(card.importFn(url) === true, url);
+                card.showResult(card.importFn(url), url);
             }
         }
 

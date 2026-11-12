@@ -8,6 +8,7 @@
 #include <QPointer>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
@@ -32,14 +33,14 @@ class PageController;
  * controller(id) return nullptr if the controller has been destroyed
  * out-of-order. The catalogue only ever GROWS: entries are never removed
  * at runtime, but dynamic page registration (post-startup `registerPage`
- * calls) is supported and fires `pageRegistered`. Two in-place changes are
- * also supported: an entry's simple/advanced tier can be restamped via
- * setPageVisibility (visibleSetChanged), and bindPage replaces an entry's
- * controller and QML source while keeping its place, title and icon
- * (pageBound, plus visibleSetChanged when the entry gains or loses its
- * QML). Neither fires pageRegistered. Dynamic removal is intentionally NOT
- * supported — apps that need plugin-style hot-unload should rebuild the
- * controller.
+ * calls) is supported and fires `pageRegistered`. An entry also changes in
+ * place, keeping its place in the tree: setPageVisibility restamps its
+ * simple/advanced tier (visibleSetChanged); bindPage replaces its controller
+ * and QML source and sets its passesContext flag (pageBound, plus
+ * visibleSetChanged when the entry gains or loses its QML); setPassesContext
+ * sets that flag alone, and announces nothing. None of them fires
+ * pageRegistered. Dynamic removal is intentionally NOT supported — apps that
+ * need plugin-style hot-unload should rebuild the controller.
  */
 class PHOSPHORCONTROL_EXPORT PageRegistry : public QObject
 {
@@ -77,14 +78,13 @@ public:
     };
     Q_ENUM(PageVisibility)
 
-    /// Depth bound for upward parent walks, shared by this class and
-    /// ApplicationController::parentChainFor: both walks follow at most this
-    /// many parent links, so a page with this many ancestors resolves in full.
-    /// registerPage rejects an entry whose parent is not already registered,
-    /// so the graph is a DAG and a walk always terminates — this only bounds
-    /// pathological nesting (real sidebars nest 3-4 deep). Declared here rather than duplicated per
-    /// translation unit: the two walks have to agree, and a comment asking a
-    /// human to keep two constants in step is not a mechanism.
+    /// The most ancestors a page may have. registerPage refuses a page any
+    /// deeper, and refuses a parent that is not registered yet, so the
+    /// catalogue is a forest no deeper than this, and every upward walk
+    /// (allowedInMode, ApplicationController::parentChainFor, Breadcrumbs)
+    /// reaches a root within this many parent links. Declared here rather
+    /// than per walk: they have to agree with the registration bound, and a
+    /// comment asking a human to keep constants in step is not a mechanism.
     static constexpr int MaxParentChainHops = 32;
 
     /// The same bound, readable from QML. Breadcrumbs runs its own upward walk
@@ -154,9 +154,8 @@ public:
         /// AdvancedOnly page it condenses point at each other. Empty
         /// means "no counterpart; use the app fallback". The registry
         /// stores the mapping; it does not act on it.
-        /// Braced default like every other member here, so aggregate-init
-        /// sites that omit the trailing field don't trip
-        /// -Wmissing-field-initializers.
+        /// Braced default, so an aggregate initialization that stops before
+        /// this field does not trip -Wmissing-field-initializers.
         QString counterpartId{};
         /// The page's QML root declares `controller` and `settingsApp`, and
         /// PageHost sets them when it creates the page, before any binding
@@ -164,6 +163,13 @@ public:
         /// flag gets them assigned after creation, if it declares them. Every
         /// page bound with bindPage() has it: it is part of the Facet module
         /// contract.
+        ///
+        /// PageHost reads the flag only when it creates the page, and
+        /// nothing announces a change of it. So changing it for a page
+        /// already built does nothing to that page; it counts the next time
+        /// PageHost creates the page: its first visit, or a bind that gives
+        /// it other QML. Clearing it for a page whose QML declares the
+        /// properties `required` (every Facet page) makes that creation fail.
         bool passesContext = false;
     };
 
@@ -172,7 +178,8 @@ public:
 
     /** Register a page. Emits `pageRegistered(id)` and returns `true` on
      *  success. Warns and returns `false` on any of, in the order the code
-     *  checks them: empty id, duplicate id, unknown parentId, null
+     *  checks them: empty id, duplicate id, unknown parentId, a parent so deep
+     *  that the page would have more than MaxParentChainHops ancestors, null
      *  controller, or the same controller already registered under another
      *  id. The intent is to surface
      *  programmer errors in the log without aborting startup; the
@@ -201,22 +208,31 @@ public:
     /// controller or QML source changes, and visibleSetChanged as well when
     /// the page gains or loses its QML source. Rebinding the same controller
     /// and source is accepted silently.
+    ///
+    /// Every accepted bind, the silent one included, also sets the entry's
+    /// passesContext: a bound page is created with `controller` and
+    /// `settingsApp` already set, as the Facet module contract has it. That
+    /// is announced by nothing of its own; PageHost reads the flag when a
+    /// pageBound for a new QML source makes it create the page.
     bool bindPage(const QString& id, PageController* controller, const QUrl& qmlSource);
 
     /// Mark page @p id as one whose QML is created with `controller` and
-    /// `settingsApp` already set (Entry::passesContext). Set it before the
-    /// page is first shown. Warns for an unknown id.
+    /// `settingsApp` already set (Entry::passesContext). Warns for an unknown
+    /// id. Emits nothing: PageHost reads the flag only when it creates the
+    /// page, so set it before the page is first shown. Set later, or cleared
+    /// on a page bound with bindPage(), it does nothing to a page already
+    /// built, and clearing it breaks the next creation of a page that
+    /// declares the properties `required` (see Entry::passesContext).
     void setPassesContext(const QString& id, bool passesContext);
 
-    /// Stamp a page's simple/advanced tier after it has been registered.
+    /// Restamp a page's simple/advanced tier after it has been registered.
     /// No-op (with a warning) for an unknown id, and a no-op when the tier is
-    /// already what you are setting. Kept separate from registerPage so the
-    /// classification lives in one post-build pass in the app rather than
-    /// threaded through every registration call site. Normally runs at startup
-    /// before the first paint, but a real change emits visibleSetChanged() so
-    /// consumers that cache a tier-filtered view stay correct if it is called
-    /// later. It does NOT emit showAdvancedChanged: the mode itself is
-    /// untouched, only this one entry's tier.
+    /// already what you are setting. Declaring the tier at registration
+    /// (Entry::visibility) is the canonical path; this is for a host that
+    /// registers a page before it knows the tier. A real change emits
+    /// visibleSetChanged() so consumers that cache a tier-filtered view stay
+    /// correct whenever it is called. It does NOT emit showAdvancedChanged:
+    /// the mode itself is untouched, only this one entry's tier.
     void setPageVisibility(const QString& id, PageVisibility visibility);
 
     bool showAdvanced() const;
@@ -242,16 +258,14 @@ public:
      *  use — that asks "is this category worth drawing", not "may the user
      *  navigate here".
      *
-     *  Reports FALSE for a page whose ancestry could not be resolved within
-     *  MaxParentChainHops, and logs why (once per id). So a false answer means
-     *  "hidden, or unverifiable" rather than strictly "hidden by tier" — the
-     *  safe direction for every consumer, all of which treat false as skip. */
+     *  The walk always reaches a root: registerPage refuses an unknown parent
+     *  and a page more than MaxParentChainHops levels down. */
     bool pageAllowedInCurrentMode(const QString& id) const;
     /** pageAllowedInCurrentMode against an EXPLICIT mode rather than the
-     *  current one. Same ancestor walk, same fail-closed behaviour and same
-     *  unknown-id semantics. Public so SearchController can classify an
-     *  entry's reachability in BOTH modes (its per-result simple/advanced
-     *  tag) without flipping the live mode back and forth. */
+     *  current one. Same ancestor walk and same unknown-id semantics. Public
+     *  so SearchController can classify an entry's reachability in BOTH modes
+     *  (its per-result simple/advanced tag) without flipping the live mode
+     *  back and forth. */
     bool allowedInMode(const QString& id, bool advanced) const;
     /** Log a warning for every entry whose `counterpartId` is broken. Listed
      *  in the order the warnings are emitted, which the tests assert:
@@ -277,6 +291,12 @@ public:
      *  after registration completes. Returns true when every counterpart
      *  resolves. */
     bool validateCounterparts() const;
+    /** validateCounterparts for the entries @p ids alone, with the same
+     *  checks and warnings. An unknown id, or an entry with no counterpart,
+     *  passes. For a host that registers pages after the application checked
+     *  its own (FacetHost, as modules take their place), so the application's
+     *  pages are not warned about again. */
+    bool validateCounterparts(const QStringList& ids) const;
     /** Depth-first search (sibling order) below `parentId` for the
      *  first navigable page visible under the current mode; empty string
      *  when nothing below the parent survives filtering. Pass an empty
@@ -307,15 +327,15 @@ public:
      *  navigable view wants this one. */
     QList<Entry> visibleChildPages(const QString& parentId) const;
     QList<Entry> allPages() const;
-    /** The catalogue by reference, for whole-list walks that only READ.
-     *  allPages() deep-copies every Entry, which the hot walks
-     *  (ApplicationController's dirtyPageIds and its keyboard next/prev
-     *  navigable collection) paid on every invocation for a list they only
-     *  iterate. The list is in REGISTRATION order, not the order the sidebar
-     *  draws; use pagesInTreeOrder() for anything the user sees in sequence.
-     *  The reference stays valid until the next registry mutation
-     *  (registerPage, bindPage, setPageVisibility), any of which may
-     *  reallocate the list — do not hold it across one. */
+    /** The catalogue by reference, for whole-list walks that only READ,
+     *  such as ApplicationController::dirtyPageIds. allPages() deep-copies
+     *  every Entry, which such a walk would pay on every call for a list it
+     *  only iterates. The list is in REGISTRATION order, not the order the
+     *  sidebar draws; use pagesInTreeOrder() for anything the user sees in
+     *  sequence. The reference stays valid until the next registry mutation
+     *  that changes something (registerPage, bindPage, setPageVisibility,
+     *  setPassesContext), any of which may reallocate or detach the list —
+     *  do not hold it across one. */
     const QList<Entry>& allPagesRef() const;
     /** Every entry in the order the sidebar draws the tree: each page, then
      *  its children in their sibling order, depth first. This is the order
@@ -326,10 +346,11 @@ public:
 
     // QML-facing accessors. Return dicts whose canonical key set lives in
     // entryToVariant() (pageregistry.cpp): id, parentId, title, iconSource,
-    // qmlSource, isCollapsible, hasDividerAfter, hasQmlSource. `visibility`
-    // and `counterpartId` are deliberately C++-only: tier filtering is applied
-    // here, inside the tree accessors, so QML never needs to re-derive it, and
-    // the counterpart is navigation policy the app owns.
+    // qmlSource, isCollapsible, hasDividerAfter, hasQmlSource, passesContext.
+    // PageHost reads passesContext to decide how it creates the page.
+    // `visibility` and `counterpartId` are deliberately C++-only: tier
+    // filtering is applied here, inside the tree accessors, so QML never needs
+    // to re-derive it, and the counterpart is navigation policy the app owns.
     //
     // The rail moved to SidebarRows and Breadcrumbs uses pageData /
     // firstVisibleLeafId, so the list accessors here serve the app's own QML
@@ -390,6 +411,9 @@ private:
     /// m_controllerSet lookup first, then a scan only on a hit, because the
     /// set can hold the address of a destroyed controller.
     bool isLiveRegisteredController(PageController* controller) const;
+    /// The checks validateCounterparts makes, for one entry: warns about
+    /// each fault and returns false when there is one.
+    bool counterpartResolves(const Entry& e) const;
 
     QList<Entry> m_pages;
     /// Simple/advanced master mode. Defaults true so an app that never
@@ -401,17 +425,13 @@ private:
     QHash<QString, qsizetype> m_indexById;
     // Child indices grouped by parentId (the empty key holds the top-level
     // entries), in sibling order: registration order, unless registerPage was
-    // given a sibling position. Every tree accessor here descends
-    // through this rather than rescanning m_pages: isEntryVisible used to walk
-    // the whole catalogue per level to find one node's children, which made a
-    // single visibleChildPages call O(N²). It is now bounded by the subtree
-    // below the node — isEntryVisible still descends a virtual child's whole
-    // subtree, so visibleChildPages(p) costs O(subtree(p)) and the sidebar's
-    // per-node walk stays superlinear in the catalogue's depth. The rescan is
-    // gone; the per-node descent is inherent to the empty-category rule. Built
-    // in registerPage and never
-    // invalidated — the catalogue only ever grows, and neither
-    // setPageVisibility nor bindPage moves an entry.
+    // given a sibling position. Every tree accessor here descends through this
+    // rather than rescanning m_pages, so finding a node's children costs the
+    // size of that list. visibleChildPages(p) still costs the subtree below
+    // p, since isEntryVisible descends a virtual child until it finds a
+    // visible descendant: that is the empty-category rule, not a rescan.
+    // Built in registerPage and never invalidated: the catalogue only grows,
+    // and no in-place change moves an entry.
     QHash<QString, QList<qsizetype>> m_childrenByParent;
     // Controller-pointer dedup set — registerPage previously did an
     // O(N) linear scan of m_pages per registration to reject a
@@ -419,11 +439,10 @@ private:
     // registrations. The set lookup keeps registration O(1) for
     // catalogues that grow to dozens of pages.
     QSet<PageController*> m_controllerSet;
-    /// Ids already warned about for an unresolvable ancestor chain. The check
-    /// runs per entry per search-index rebuild and per keyboard/history step,
-    /// so the diagnostic is once-per-id rather than once-per-call. Mutable
-    /// because the reachability query is const.
-    mutable QSet<QString> m_depthWarned;
+    /// How many ancestors each entry has, by its index in m_pages, so
+    /// registerPage checks a new page against MaxParentChainHops from its
+    /// parent's alone.
+    QList<int> m_depths;
 };
 
 } // namespace PhosphorControl

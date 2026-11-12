@@ -1089,7 +1089,8 @@ bool ProfileStore::setParent(const QString& id, const QString& parentId)
     // Reject a cycle: the new parent must not be the profile itself or one of
     // its descendants.
     if (!parent.isNull() && isSelfOrAncestor(uid, parent, all)) {
-        Q_EMIT toastRequested(PhosphorI18n::tr("A profile cannot inherit from itself."));
+        Q_EMIT toastRequested(
+            PhosphorI18n::tr("A profile cannot inherit from itself or from a profile that inherits from it."));
         return false;
     }
 
@@ -1114,6 +1115,24 @@ bool ProfileStore::setParent(const QString& id, const QString& parentId)
     }
     notifyProfilesChanged();
     return true;
+}
+
+QStringList ProfileStore::selfAndDescendantIds(const QString& id) const
+{
+    const QHash<QUuid, Record> all = loadAll();
+    const QUuid uid(id);
+    QStringList out;
+    if (!all.contains(uid)) {
+        return out;
+    }
+    // The same test setParent's cycle guard applies to a candidate parent, so
+    // the picker and the refusal can never disagree about which ids are out.
+    for (auto it = all.constBegin(); it != all.constEnd(); ++it) {
+        if (isSelfOrAncestor(uid, it.key(), all)) {
+            out.append(it.key().toString());
+        }
+    }
+    return out;
 }
 
 bool ProfileStore::removeProfile(const QString& id)
@@ -1255,12 +1274,20 @@ bool ProfileStore::exportProfile(const QString& id, const QString& destLocalPath
         Q_EMIT toastRequested(PhosphorI18n::tr("Could not write to %1.").arg(destPath));
         return false;
     }
+    // A save dialog closes on accept, so without this a successful export
+    // leaves nothing on screen to say it happened.
+    Q_EMIT toastRequested(PhosphorI18n::tr("Exported the profile “%1”.").arg(all.value(uid).name));
     return true;
 }
 
 QString ProfileStore::importProfile(const QString& sourcePathOrUrl)
 {
+    // Every refusal below toasts its reason. The Profiles page relies on that
+    // and shows no failure banner of its own, so a silent return here would
+    // leave a failed import with no feedback at all. An empty argument is what
+    // urlToLocalFile hands over for a file dialog pick that is not a local file.
     if (sourcePathOrUrl.isEmpty()) {
+        Q_EMIT toastRequested(PhosphorI18n::tr("That file is not a readable profile."));
         return QString();
     }
     // The drop zone hands over raw file:// URLs; the file dialog hands over
@@ -1297,7 +1324,12 @@ QString ProfileStore::importProfile(const QString& sourcePathOrUrl)
     if (rec.name.isEmpty()) {
         rec.name = uniqueName(PhosphorI18n::tr("Imported profile"), all);
     }
-    if (rec.name.isEmpty() || !writeProfileRecord(rec)) {
+    if (rec.name.isEmpty()) {
+        Q_EMIT toastRequested(PhosphorI18n::tr("Could not find a free name for the imported profile."));
+        return QString();
+    }
+    // writeProfileRecord toasts its own failure.
+    if (!writeProfileRecord(rec)) {
         return QString();
     }
     appendToOrder(rec.id);

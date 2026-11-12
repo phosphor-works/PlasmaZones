@@ -39,16 +39,20 @@ function bindItemWidthToLoader(loader) {
 
 /**
  * Inject `value` into `item[propName]` only when the item declares
- * that property — and silently swallow the assignment when the
- * consumer's binding made it readonly. Centralises the
- * `hasOwnProperty + try-catch` idiom the chrome uses to forward a
- * controller or settingsApp pointer into loaded content without
- * crashing on content that binds its own.
+ * that property. Centralises the `hasOwnProperty + try-catch` idiom the
+ * chrome uses to forward a controller, settingsApp or compact flag into
+ * loaded content.
  *
- * `value` may be `null` — the caller passes through whatever the
- * registry produced. PageHost treats null re-registration as
- * "keep prior" and won't call this function with a null value;
- * other consumers may need different policy.
+ * A property the item declares read-only (it supplies its own value, as
+ * a page binding `readonly property var controller` to its own controller
+ * does) is left alone silently: QML throws a TypeError for that write,
+ * which is the one failure this helper exists to tolerate. Any other
+ * failure, such as a value of the wrong type for the declared property,
+ * is a bug in the item or the caller and is logged.
+ *
+ * `value` may be `null`: callers pass through whatever they hold, and
+ * PageHost's onLoaded passes the registry's controller, which is null
+ * once that controller has been destroyed.
  */
 function injectIfAssignable(item, propName, value) {
     if (!item || !item.hasOwnProperty(propName))
@@ -56,6 +60,8 @@ function injectIfAssignable(item, propName, value) {
     try {
         item[propName] = value;
     } catch (e) {
-        // The loaded item binds its own value (readonly) — skip.
+        if (e instanceof TypeError && String(e.message).startsWith("Cannot assign to read-only property"))
+            return;
+        console.warn("injectIfAssignable: could not set", propName, "on", item, ":", e);
     }
 }

@@ -25,7 +25,9 @@ import org.phosphor.control
  * Each section the host resolved for that slot is shown in a
  * FacetExtensionFrame, in the order the extensions ask for. A slot with no
  * sections takes no space. settingsApp may arrive after the slot is built,
- * as PageHost's injection does, and the sections appear then.
+ * as it does on a page that does not pass context (PageHost assigns that
+ * page its settingsApp once the page is created), and the sections appear
+ * then.
  */
 ColumnLayout {
     id: root

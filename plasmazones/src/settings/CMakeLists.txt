@@ -134,8 +134,6 @@ set(plasmazones_settings_SRCS
     pages/windowappearancecontroller.cpp
     pages/snappingbehaviorcontroller.h
     pages/snappingbehaviorcontroller.cpp
-    pages/snappingeffectscontroller.h
-    pages/snappingeffectscontroller.cpp
     pages/overlayspagecontroller.h
     pages/overlayspagecontroller.cpp
     pages/overlayspagecontroller_sets.cpp
@@ -602,6 +600,7 @@ qt_add_qml_module(plasmazones-settings
         qml/pages/wizard/WizardPreviewFrame.qml
         qml/js/WizardUtils.js
         qml/js/MatchWireValue.js
+        qml/js/ExportFileName.js
     NO_PLUGIN
 )
 

@@ -16,7 +16,10 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * section's QML. The section is created with `domain` (the extension's
  * staging domain) already set, so it must declare a `domain` property
  * (QtObject, and it may be required) and can read it in
- * Component.onCompleted. It gets `settingsApp` if it declares that. When the
+ * Component.onCompleted. It gets `settingsApp` assigned once it is created,
+ * if it declares that, and the frame's settingsApp does not change after
+ * that while the section stays (FacetSlot builds its frames only once it has
+ * one, and PageHost and every page hand it the same one). When the
  * module did not load, or the section cannot be shown, a card says so in the
  * section's place, so the rest of the page still works. The host's own reason
  * goes below the card, except for a module turned off after a crash, where
@@ -110,7 +113,6 @@ ColumnLayout {
     onFailedChanged: root._scheduleLoad()
     onQmlSourceChanged: root._scheduleLoad()
     onDomainChanged: root._scheduleLoad()
-    onSettingsAppChanged: PhosphorLoaderHelpers.injectIfAssignable(sectionLoader.item, "settingsApp", root.settingsApp)
 
     Timer {
         id: reloadTimer
@@ -167,17 +169,17 @@ ColumnLayout {
         ]
     }
 
-    // The host's own account of the failure, for a bug report. Not
-    // translated: it names files, ids and contract rules. Left out for a
-    // module turned off after a crash, as on FacetModulePage: the card above
-    // already says that, translated.
-    QQC2.Label {
+    // The host's own account of the failure, for a bug report, so it can be
+    // selected and copied. Not translated: it names files, ids and contract
+    // rules. Left out for a module turned off after a crash, as on
+    // FacetModulePage: the card above already says that, translated.
+    Kirigami.SelectableLabel {
         objectName: "facet-extension-reason"
         Layout.fillWidth: true
         visible: root.failed && !root.disabledAfterCrash && root.error.length > 0
         text: root.error
-        textFormat: Text.PlainText
-        wrapMode: Text.Wrap
+        textFormat: TextEdit.PlainText
+        wrapMode: TextEdit.Wrap
         color: Kirigami.Theme.disabledTextColor
     }
 }

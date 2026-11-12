@@ -12,10 +12,10 @@ namespace PlasmaZones {
 /// register virtual / parent pages with the framework's PageRegistry without
 /// providing a concrete controller.
 ///
-/// The adapter is the framework-facing identity (id + lifecycle hooks);
-/// the actual per-page controllers (GeneralPage, EditorPage, etc.) are
-/// exposed via SettingsController's per-page Q_PROPERTYs so existing QML
-/// bindings (`settingsController.generalPage.x`) continue to work unchanged.
+/// The adapter is the framework-facing identity (id + lifecycle hooks) of a
+/// page that has no controller of its own. A page that does have one (the
+/// General and Editor pages, for example) registers that controller
+/// directly instead, and PageHost hands it to the page as `controller`.
 ///
 /// Per-page apply/discard semantics are deliberately no-ops here — dirty
 /// tracking is centralised in SettingsController and orchestrated through

@@ -6,30 +6,31 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.phosphor.control
 
-// "Appearance → Windows" page. The window border, title-bar, and gap values are
-// plain config settings (Windows.* and Gaps.*), edited through the
-// ISettings-backed WindowAppearanceController. Each control reads/writes the
-// matching controller property; per-window overrides remain ordinary
+// "Appearance → Decorations → General" page. The window border, title-bar, and
+// gap values are plain config settings (Windows.* and Gaps.*), edited through
+// the ISettings-backed WindowAppearanceController. Each control reads/writes
+// the matching controller property; per-window overrides remain ordinary
 // higher-priority rules edited on the Rules page.
 SettingsFlickable {
     id: root
 
-    // Set by PageHost before the page's bindings run (passesContext).
-    required property var controller
-    required property var settingsApp
+    // PageHost sets both before the page's bindings run, because this page's
+    // registry entry passes context (PageRegistry::Entry::passesContext).
+    // `controller` is this page's WindowAppearanceController: window border /
+    // title bar + gap values and the CONSTANT slider bounds. settingsApp is
+    // declared even though this page does not read it: PageHost passes it to
+    // every such page, and assigning it to a page that lacks the property
+    // logs an error on every build.
+    required property QtObject controller
+    required property ApplicationController settingsApp
 
-    // The config-backed controller: window border / title bar + gap values and
-    // the CONSTANT slider bounds.
-    readonly property var ctl: root.controller
-
-    // The border detail controls (width, radius, colours) are hidden while the
-    // border is off so the user cannot edit values that would not apply.
-    readonly property bool borderVisible: root.ctl.showWindowBorder
-    // Same hide-while-off treatment for the opacity+tint layer's rows.
-    readonly property bool opacityTintVisible: root.ctl.showWindowOpacityTint
+    // The Borders and Opacity cards hide their detail rows while their master
+    // toggle is off through the card's own body gate: the toggle disables the
+    // body, and a disabled SettingsRow or SettingsSeparator hides itself.
     // The title-bar scope row is only meaningful while title bars are hidden.
-    readonly property bool hideTitleBarsOn: root.ctl.hideWindowTitleBars
+    readonly property bool hideTitleBarsOn: root.controller.hideWindowTitleBars
 
     // Simple/advanced split on this page: simple mode keeps the everyday
     // decoration controls (border on/off + width/radius/colour, hide title
@@ -124,13 +125,13 @@ SettingsFlickable {
 
     function refreshGaps() {
         const scope = settingsController.scopeScreenName;
-        root.gapInnerValue = root.ctl.gapValue(scope, "InnerGap");
-        root.gapOuterValue = root.ctl.gapValue(scope, "OuterGap");
-        root.gapUsePerSideValue = root.ctl.gapValue(scope, "UsePerSideOuterGap");
-        root.gapTopValue = root.ctl.gapValue(scope, "OuterGapTop");
-        root.gapBottomValue = root.ctl.gapValue(scope, "OuterGapBottom");
-        root.gapLeftValue = root.ctl.gapValue(scope, "OuterGapLeft");
-        root.gapRightValue = root.ctl.gapValue(scope, "OuterGapRight");
+        root.gapInnerValue = root.controller.gapValue(scope, "InnerGap");
+        root.gapOuterValue = root.controller.gapValue(scope, "OuterGap");
+        root.gapUsePerSideValue = root.controller.gapValue(scope, "UsePerSideOuterGap");
+        root.gapTopValue = root.controller.gapValue(scope, "OuterGapTop");
+        root.gapBottomValue = root.controller.gapValue(scope, "OuterGapBottom");
+        root.gapLeftValue = root.controller.gapValue(scope, "OuterGapLeft");
+        root.gapRightValue = root.controller.gapValue(scope, "OuterGapRight");
     }
 
     Component.onCompleted: root.refreshGaps()
@@ -150,7 +151,7 @@ SettingsFlickable {
     // Re-read when a GLOBAL gap value changes (e.g. an "All Monitors" edit or a
     // per-page reset) so the card tracks the config even while scoped globally.
     Connections {
-        target: root.ctl
+        target: root.controller
         function onInnerGapChanged() {
             root.refreshGaps();
         }
@@ -191,8 +192,8 @@ SettingsFlickable {
             headerText: i18n("Borders")
             searchAnchor: "borders"
             showToggle: true
-            toggleChecked: root.ctl.showWindowBorder
-            onToggleClicked: checked => root.ctl.showWindowBorder = checked
+            toggleChecked: root.controller.showWindowBorder
+            onToggleClicked: checked => root.controller.showWindowBorder = checked
             collapsible: true
 
             contentItem: ColumnLayout {
@@ -201,9 +202,10 @@ SettingsFlickable {
                 // Easy/custom mode split: any decoration shader pack on a
                 // window replaces this plain border outright (see the effect's
                 // updateWindowDecoration), so say so where the border is edited.
+                // Follows the body gate like the rows below.
                 Label {
                     Layout.fillWidth: true
-                    visible: root.borderVisible
+                    visible: enabled
                     text: i18n("Windows that use custom decoration shaders show those instead of this border.")
                     font.italic: true
                     color: Kirigami.Theme.disabledTextColor
@@ -212,7 +214,6 @@ SettingsFlickable {
 
                 SettingsRow {
                     advancedOnly: true
-                    enabled: root.borderVisible
                     title: i18n("Apply to")
                     searchAnchor: "borderScope"
                     description: i18n("Which windows get a border")
@@ -221,18 +222,16 @@ SettingsFlickable {
                         Accessible.name: i18n("Apply borders to")
                         textRole: "text"
                         model: root.scopeOptions
-                        currentIndex: root.scopeIndex(root.ctl.borderScope)
-                        onActivated: index => root.ctl.borderScope = root.scopeOptions[index].value
+                        currentIndex: root.scopeIndex(root.controller.borderScope)
+                        onActivated: index => root.controller.borderScope = root.scopeOptions[index].value
                     }
                 }
 
                 SettingsSeparator {
                     advancedOnly: true
-                    enabled: root.borderVisible
                 }
 
                 SettingsRow {
-                    visible: root.borderVisible
                     title: i18n("Border width")
                     searchAnchor: "borderWidth"
                     description: i18n("Thickness of the colored border around windows")
@@ -241,28 +240,25 @@ SettingsFlickable {
                         id: borderWidthSpin
 
                         accessibleName: i18n("Border width")
-                        from: root.ctl.borderWidthMin
-                        to: root.ctl.borderWidthMax
-                        onValueModified: value => root.ctl.windowBorderWidth = value
+                        from: root.controller.borderWidthMin
+                        to: root.controller.borderWidthMax
+                        onValueModified: value => root.controller.windowBorderWidth = value
                         // Feed value through a guarded Binding so a config change
                         // keeps refreshing the control: a plain `value:` binding is
                         // destroyed by SettingsSpinBox's own edit echo after the
                         // first edit. RestoreNone + the focus gate keeps a live edit
                         // from being clobbered.
                         Binding on value {
-                            value: root.ctl.windowBorderWidth
+                            value: root.controller.windowBorderWidth
                             when: !borderWidthSpin.editing
                             restoreMode: Binding.RestoreNone
                         }
                     }
                 }
 
-                SettingsSeparator {
-                    visible: root.borderVisible
-                }
+                SettingsSeparator {}
 
                 SettingsRow {
-                    visible: root.borderVisible
                     title: i18n("Corner radius")
                     searchAnchor: "cornerRadius"
                     description: i18n("Roundness of the border corners (0 for square)")
@@ -271,23 +267,21 @@ SettingsFlickable {
                         id: borderRadiusSpin
 
                         accessibleName: i18n("Corner radius")
-                        from: root.ctl.borderRadiusMin
-                        to: root.ctl.borderRadiusMax
-                        onValueModified: value => root.ctl.windowBorderRadius = value
+                        from: root.controller.borderRadiusMin
+                        to: root.controller.borderRadiusMax
+                        onValueModified: value => root.controller.windowBorderRadius = value
                         // See borderWidthSpin: guarded Binding so a config change
                         // keeps refreshing after the first edit destroys a plain
                         // binding.
                         Binding on value {
-                            value: root.ctl.windowBorderRadius
+                            value: root.controller.windowBorderRadius
                             when: !borderRadiusSpin.editing
                             restoreMode: Binding.RestoreNone
                         }
                     }
                 }
 
-                SettingsSeparator {
-                    visible: root.borderVisible
-                }
+                SettingsSeparator {}
 
                 // ── Border colours — a border concern, so they live in this
                 // card. Theme-fallback keys with the standard EMPTY sentinel;
@@ -296,14 +290,13 @@ SettingsFlickable {
                 // rules vocabulary still spells its sentinel "accent", because
                 // a rule param's empty slot already means "unset".)
                 ThemeFallbackColorRow {
-                    visible: root.borderVisible
                     title: i18n("Active border color")
                     // Overridden because the title already says "color".
                     swatchAccessibleName: i18nc("@action:button", "Active border color")
                     searchAnchor: "activeBorderColor"
                     description: i18n("Border color for the focused window. Follows the color scheme unless you pick one.")
 
-                    storedColor: root.ctl.windowBorderColorActive
+                    storedColor: root.controller.windowBorderColorActive
                     // The colour the focused border actually draws while it
                     // follows the scheme: the live zone highlight, alpha
                     // included — which is the scheme accent unless the user
@@ -313,30 +306,27 @@ SettingsFlickable {
                     themeColor: appSettings.highlightColor
                     picker: borderColorDialog
                     onColorChosen: function (hex) {
-                        root.ctl.windowBorderColorActive = hex;
+                        root.controller.windowBorderColorActive = hex;
                     }
                 }
 
-                SettingsSeparator {
-                    visible: root.borderVisible
-                }
+                SettingsSeparator {}
 
                 ThemeFallbackColorRow {
-                    visible: root.borderVisible
                     title: i18n("Inactive border color")
                     // See the active row above.
                     swatchAccessibleName: i18nc("@action:button", "Inactive border color")
                     searchAnchor: "inactiveBorderColor"
                     description: i18n("Border color for unfocused windows. Follows the color scheme unless you pick one.")
 
-                    storedColor: root.ctl.windowBorderColorInactive
+                    storedColor: root.controller.windowBorderColorInactive
                     // The unfocused border follows the system INACTIVE colour
                     // (alpha included), not the accent, matching what the
                     // border actually draws.
                     themeColor: appSettings.inactiveColor
                     picker: borderColorDialog
                     onColorChosen: function (hex) {
-                        root.ctl.windowBorderColorInactive = hex;
+                        root.controller.windowBorderColorInactive = hex;
                     }
                 }
             }
@@ -353,16 +343,17 @@ SettingsFlickable {
             headerText: i18n("Opacity and tint")
             searchAnchor: "opacityTint"
             showToggle: true
-            toggleChecked: root.ctl.showWindowOpacityTint
-            onToggleClicked: checked => root.ctl.showWindowOpacityTint = checked
+            toggleChecked: root.controller.showWindowOpacityTint
+            onToggleClicked: checked => root.controller.showWindowOpacityTint = checked
             collapsible: true
 
             contentItem: ColumnLayout {
                 spacing: Kirigami.Units.smallSpacing
 
+                // Follows the body gate like the rows below.
                 Label {
                     Layout.fillWidth: true
-                    visible: root.opacityTintVisible
+                    visible: enabled
                     text: i18n("Windows that use custom decoration shaders show those instead of this opacity and tint.")
                     font.italic: true
                     color: Kirigami.Theme.disabledTextColor
@@ -373,7 +364,6 @@ SettingsFlickable {
                     // Same treatment as the border / title-bar scope rows:
                     // the per-window "Apply to" picker is advanced depth.
                     advancedOnly: true
-                    enabled: root.opacityTintVisible
                     title: i18n("Apply to")
                     searchAnchor: "opacityTintScope"
                     description: i18n("Which windows are faded and tinted")
@@ -382,8 +372,8 @@ SettingsFlickable {
                         Accessible.name: i18n("Apply opacity and tint to")
                         textRole: "text"
                         model: root.scopeOptions
-                        currentIndex: root.scopeIndex(root.ctl.opacityTintScope)
-                        onActivated: index => root.ctl.opacityTintScope = root.scopeOptions[index].value
+                        currentIndex: root.scopeIndex(root.controller.opacityTintScope)
+                        onActivated: index => root.controller.opacityTintScope = root.scopeOptions[index].value
                     }
                 }
 
@@ -391,58 +381,52 @@ SettingsFlickable {
                     // Pairs with the advanced "Apply to" row above: in simple
                     // mode the card leads straight with the Opacity slider.
                     advancedOnly: true
-                    enabled: root.opacityTintVisible
                 }
 
                 SettingsRow {
-                    visible: root.opacityTintVisible
                     title: i18n("Opacity")
                     searchAnchor: "windowOpacity"
                     description: i18n("How visible matched windows stay, where 100% is fully opaque")
 
                     SettingsSlider {
                         accessibleName: i18n("Opacity")
-                        from: Math.round(root.ctl.windowOpacityMin * 100)
-                        to: Math.round(root.ctl.windowOpacityMax * 100)
-                        value: Math.round(root.ctl.windowOpacity * 100)
-                        onMoved: value => root.ctl.windowOpacity = value / 100
+                        from: Math.round(root.controller.windowOpacityMin * 100)
+                        to: Math.round(root.controller.windowOpacityMax * 100)
+                        tickMarkStepSize: 10
+                        value: Math.round(root.controller.windowOpacity * 100)
+                        onMoved: value => root.controller.windowOpacity = value / 100
                     }
                 }
 
-                SettingsSeparator {
-                    visible: root.opacityTintVisible
-                }
+                SettingsSeparator {}
 
                 SettingsRow {
-                    visible: root.opacityTintVisible
                     title: i18n("Tint strength")
                     searchAnchor: "tintStrength"
                     description: i18n("How strongly the tint color blends over the window, where 0% keeps it untinted")
 
                     SettingsSlider {
                         accessibleName: i18n("Tint strength")
-                        from: Math.round(root.ctl.windowTintStrengthMin * 100)
-                        to: Math.round(root.ctl.windowTintStrengthMax * 100)
-                        value: Math.round(root.ctl.windowTintStrength * 100)
-                        onMoved: value => root.ctl.windowTintStrength = value / 100
+                        from: Math.round(root.controller.windowTintStrengthMin * 100)
+                        to: Math.round(root.controller.windowTintStrengthMax * 100)
+                        tickMarkStepSize: 10
+                        value: Math.round(root.controller.windowTintStrength * 100)
+                        onMoved: value => root.controller.windowTintStrength = value / 100
                     }
                 }
 
-                SettingsSeparator {
-                    visible: root.opacityTintVisible
-                }
+                SettingsSeparator {}
 
                 ThemeFallbackColorRow {
                     id: tintColorRow
 
-                    visible: root.opacityTintVisible
                     title: i18n("Tint color")
                     // Overridden because the title already says "color".
                     swatchAccessibleName: i18nc("@action:button", "Tint color")
                     searchAnchor: "tintColor"
                     description: i18n("Color the window is washed with when the tint strength is above zero. Follows the color scheme unless you pick one.")
 
-                    storedColor: root.ctl.windowTintColor
+                    storedColor: root.controller.windowTintColor
                     // Preview the live highlight the tint follows — with its
                     // alpha stripped, because the tint contract on this page
                     // is "stored opaque, strength is the sole alpha" and the
@@ -455,7 +439,7 @@ SettingsFlickable {
                         // Stored opaque unless it is the row's own sentinel;
                         // the tint strength slider is the sole alpha (see
                         // hexToOpaqueHex).
-                        root.ctl.windowTintColor = hex === tintColorRow.sentinel ? hex : root.hexToOpaqueHex(hex);
+                        root.controller.windowTintColor = hex === tintColorRow.sentinel ? hex : root.hexToOpaqueHex(hex);
                     }
                 }
             }
@@ -479,9 +463,9 @@ SettingsFlickable {
                     description: i18n("Remove window title bars, restored when a window floats")
 
                     SettingsSwitch {
-                        checked: root.ctl.hideWindowTitleBars
+                        checked: root.controller.hideWindowTitleBars
                         accessibleName: i18n("Hide title bars")
-                        onToggled: newValue => root.ctl.hideWindowTitleBars = newValue
+                        onToggled: newValue => root.controller.hideWindowTitleBars = newValue
                     }
                 }
 
@@ -501,8 +485,8 @@ SettingsFlickable {
                         Accessible.name: i18n("Hide title bars on")
                         textRole: "text"
                         model: root.scopeOptions
-                        currentIndex: root.scopeIndex(root.ctl.titleBarScope)
-                        onActivated: index => root.ctl.titleBarScope = root.scopeOptions[index].value
+                        currentIndex: root.scopeIndex(root.controller.titleBarScope)
+                        onActivated: index => root.controller.titleBarScope = root.scopeOptions[index].value
                     }
                 }
 
@@ -518,14 +502,15 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Focus fade duration")
-                        from: root.ctl.focusFadeDurationMin
-                        to: root.ctl.focusFadeDurationMax
+                        from: root.controller.focusFadeDurationMin
+                        to: root.controller.focusFadeDurationMax
                         stepSize: 10
-                        value: root.ctl.focusFadeDuration
-                        valueSuffix: " ms"
+                        tickMarkStepSize: 100
+                        value: root.controller.focusFadeDuration
+                        valueSuffix: " " + i18nc("milliseconds, unit appended to a slider value", "ms")
                         labelWidth: Kirigami.Units.gridUnit * 4
                         onMoved: value => {
-                            root.ctl.focusFadeDuration = Math.round(value);
+                            root.controller.focusFadeDuration = Math.round(value);
                         }
                     }
                 }
@@ -534,11 +519,12 @@ SettingsFlickable {
 
         // =================================================================
         // Window Filtering Card — which windows get a border at all. Shared
-        // component (also on Snapping → General and Animations), bound here to
-        // the independent Decorations.WindowFiltering group. Unlike the snapping
-        // filter, the transient toggle is real: turning it off draws borders
-        // onto dialogs / popups. Defaults preserve prior behavior (transients
-        // skipped, no size threshold).
+        // component (also on the General page and, through
+        // AnimationWindowFilterCard, the Animations pages), bound here to the
+        // independent Decorations.WindowFiltering group. The transient toggle
+        // is real here: turning it off draws borders onto dialogs / popups.
+        // Defaults preserve prior behavior (transients skipped, no size
+        // threshold).
         // =================================================================
         WindowFilterCard {
             Layout.fillWidth: true
@@ -552,13 +538,9 @@ SettingsFlickable {
                 appSettings.decorationExcludeTransientWindows = value;
             }
 
-            // Spin-box bounds come from generalPage (the shared schema-bounds
-            // controller that also serves the animation filter card), not
-            // root.ctl — the same cross-controller sourcing AnimationsGeneralPage
-            // uses for its filter bounds.
             minWidth: appSettings.decorationMinimumWindowWidth
-            minWidthFrom: settingsController.generalPage.decorationMinimumWindowWidthMin
-            minWidthTo: settingsController.generalPage.decorationMinimumWindowWidthMax
+            minWidthFrom: root.controller.decorationMinimumWindowWidthMin
+            minWidthTo: root.controller.decorationMinimumWindowWidthMax
             minWidthDescription: i18n("Windows narrower than this get no border")
             minWidthDisabledDescription: i18n("Disabled (no width threshold)")
             minWidthAccessibleName: i18n("Minimum window width for decorations")
@@ -567,8 +549,8 @@ SettingsFlickable {
             }
 
             minHeight: appSettings.decorationMinimumWindowHeight
-            minHeightFrom: settingsController.generalPage.decorationMinimumWindowHeightMin
-            minHeightTo: settingsController.generalPage.decorationMinimumWindowHeightMax
+            minHeightFrom: root.controller.decorationMinimumWindowHeightMin
+            minHeightTo: root.controller.decorationMinimumWindowHeightMax
             minHeightDescription: i18n("Windows shorter than this get no border")
             minHeightDisabledDescription: i18n("Disabled (no height threshold)")
             minHeightAccessibleName: i18n("Minimum window height for decorations")
@@ -632,10 +614,10 @@ SettingsFlickable {
         GapsSettingsCard {
             Layout.fillWidth: true
             searchAnchor: "gaps"
-            gapMin: root.ctl.outerGapMin
-            gapMax: root.ctl.outerGapMax
-            primaryGapMin: root.ctl.innerGapMin
-            primaryGapMax: root.ctl.innerGapMax
+            gapMin: root.controller.outerGapMin
+            gapMax: root.controller.outerGapMax
+            primaryGapMin: root.controller.innerGapMin
+            primaryGapMax: root.controller.innerGapMax
             primaryGapLabel: i18n("Inner gap")
             primaryGapDescription: i18n("Space between windows")
             outerGapLabel: i18n("Outer gap")
@@ -656,13 +638,13 @@ SettingsFlickable {
             outerGapBottomValue: root.gapBottomValue
             outerGapLeftValue: root.gapLeftValue
             outerGapRightValue: root.gapRightValue
-            onPrimaryGapModified: value => root.ctl.writeGap(settingsController.scopeScreenName, "InnerGap", value)
-            onOuterGapModified: value => root.ctl.writeGap(settingsController.scopeScreenName, "OuterGap", value)
-            onUsePerSideOuterGapToggled: checked => root.ctl.writeGap(settingsController.scopeScreenName, "UsePerSideOuterGap", checked)
-            onOuterGapTopModified: value => root.ctl.writeGap(settingsController.scopeScreenName, "OuterGapTop", value)
-            onOuterGapBottomModified: value => root.ctl.writeGap(settingsController.scopeScreenName, "OuterGapBottom", value)
-            onOuterGapLeftModified: value => root.ctl.writeGap(settingsController.scopeScreenName, "OuterGapLeft", value)
-            onOuterGapRightModified: value => root.ctl.writeGap(settingsController.scopeScreenName, "OuterGapRight", value)
+            onPrimaryGapModified: value => root.controller.writeGap(settingsController.scopeScreenName, "InnerGap", value)
+            onOuterGapModified: value => root.controller.writeGap(settingsController.scopeScreenName, "OuterGap", value)
+            onUsePerSideOuterGapToggled: checked => root.controller.writeGap(settingsController.scopeScreenName, "UsePerSideOuterGap", checked)
+            onOuterGapTopModified: value => root.controller.writeGap(settingsController.scopeScreenName, "OuterGapTop", value)
+            onOuterGapBottomModified: value => root.controller.writeGap(settingsController.scopeScreenName, "OuterGapBottom", value)
+            onOuterGapLeftModified: value => root.controller.writeGap(settingsController.scopeScreenName, "OuterGapLeft", value)
+            onOuterGapRightModified: value => root.controller.writeGap(settingsController.scopeScreenName, "OuterGapRight", value)
         }
 
         // =====================================================================
@@ -734,13 +716,14 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Idle after")
-                        from: root.ctl.decorationIdleTimeoutSecMin
-                        to: root.ctl.decorationIdleTimeoutSecMax
+                        from: root.controller.decorationIdleTimeoutSecMin
+                        to: root.controller.decorationIdleTimeoutSecMax
                         // The range runs to an hour, so a 1s step would put the
                         // useful half-minute band inside a few pixels of track.
                         stepSize: 5
+                        tickMarkStepSize: 300
                         value: appSettings.decorationIdleTimeoutSec
-                        valueSuffix: " s"
+                        valueSuffix: " " + i18nc("seconds, unit appended to a slider value", "s")
                         labelWidth: Kirigami.Units.gridUnit * 5
                         onMoved: value => {
                             appSettings.decorationIdleTimeoutSec = Math.round(value);

@@ -506,6 +506,11 @@ if(KF6Kirigami_FOUND)
     phosphorcontrol_add_test(test_page_host)
     target_link_libraries(test_page_host PRIVATE
         PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin PhosphorAnimationQmlplugin Qt6::Quick)
+    # Their shared page controller stub declares Q_OBJECT in a header, which
+    # AUTOMOC runs moc on only when the header is one of the target's sources.
+    foreach(test test_facet_slot test_page_host)
+        target_sources(${test} PRIVATE simple_page.h)
+    endforeach()
 else()
     message(STATUS "phosphor-control: KF6 Kirigami not found, so test_facet_slot and test_page_host are not built")
 endif()
