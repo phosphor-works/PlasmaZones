@@ -102,11 +102,15 @@ struct PHOSPHORCONTROL_EXPORT FacetSearchEntryMetadata
     QString page;
     /// One of that page's anchors.
     QString anchor;
-    /// `"Kind": "Section"`; a setting otherwise.
+    /// `"Kind": "Section"`. `"Setting"`, the default, leaves it false. A
+    /// kind this Facet does not know is a warning, and parse() leaves that
+    /// entry out, so an entry written for a newer Facet costs only itself.
     bool section = false;
     QString title;
     QStringList keywords;
-    /// The row shows only in advanced mode (SearchEntry::advancedOnly).
+    /// The row shows only in advanced mode (SearchEntry::advancedOnly). An
+    /// error on a page that, or whose local parent, shows only in simple
+    /// mode, where search could never offer it.
     bool advancedOnly = false;
 };
 
@@ -135,10 +139,19 @@ struct PHOSPHORCONTROL_EXPORT FacetSearchEntryMetadata
 /// The localizable keys may carry `[<locale>]` variants (`Name[de]`,
 /// `Name[pt_BR]`): `Name`, `Description` and `Keywords` on the module, `Name`
 /// on a category, `Name` and `Keywords` on a page and on an extension, and
-/// `Title` and `Keywords` on a search entry. phosphor_add_facet_module_metadata()
-/// writes them into the module's metadata from its translations when it is
-/// built. parse() picks the best one for the locale, following the locale's UI
-/// languages, and skips a variant that is empty or not of the key's type.
+/// `Title` and `Keywords` on a search entry. A locale is written with '_',
+/// never '-': `Name[pt-BR]` is never picked, and parse() warns about it.
+/// phosphor_add_facet_module_metadata() writes the variants into the module's
+/// metadata from its translations when it is built, keyed by the bare
+/// language where that is unambiguous, and keeps a variant written by hand,
+/// which wins over the catalog's. parse() picks the best variant for the
+/// locale, following the locale's UI languages from the most specific form
+/// to the bare language, and skips one that is empty or not of the key's
+/// type. Whether a required key (`Name`, a search entry's `Title`) is there
+/// is decided on its base value alone, so metadata valid in one locale is
+/// valid in all of them. The base values are what lupdate extracts: a string
+/// must hold no control character other than tab and newline, and every
+/// `Keywords` entry must be a non-empty string.
 ///
 /// `Visibility` is `Always` (the default), `AdvancedOnly` or `SimpleOnly`.
 /// A module must declare at least one page, even one that only adds sections
@@ -157,12 +170,20 @@ struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
     QString name;
     QString description;
     QString icon;
-    /// The category the module's node goes under. Empty means `apps`.
+    /// The category the module's node goes under when it is not nested under
+    /// `parent`: when it names none, when that module is not available, or
+    /// when nesting under it would close a cycle. Empty, or a category no
+    /// module and not Facet defines, means `apps`.
     QString category;
-    /// Another module's id to nest this module's node under, or empty.
+    /// Another module's id to nest this module's node under, or empty. When
+    /// that module is not available the node goes under `category` instead.
     QString parent;
     int order = 0;
     QStringList keywords;
+    /// Read and kept for the module's own use. Facet does not load a catalog
+    /// by it: the metadata's strings come translated from the module's
+    /// TS_FILES (phosphor_add_facet_module_metadata()), and the module
+    /// installs a translator for its QML itself.
     QString translationDomain;
     QList<FacetCategoryMetadata> categories;
     /// Pre-order: each page is followed by its local descendants, and
@@ -175,8 +196,10 @@ struct PHOSPHORCONTROL_EXPORT FacetModuleMetadata
     bool searchProviders = false;
 
     /// Parse @p json for @p locale. Every problem is appended to @p errors,
-    /// and the metadata is usable only when none was added. Unknown keys are
-    /// appended to @p warnings when it is given.
+    /// and the metadata is usable only when none was added. What leaves it
+    /// usable is appended to @p warnings when it is given: an unknown key or
+    /// a search entry of an unknown `Kind`, either of which a newer Facet may
+    /// know, and a `[<locale>]` variant no locale ever picks.
     static FacetModuleMetadata parse(const QJsonObject& json, const QLocale& locale, QStringList* errors,
                                      QStringList* warnings = nullptr);
 

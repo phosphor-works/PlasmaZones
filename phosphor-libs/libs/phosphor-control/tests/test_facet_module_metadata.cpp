@@ -6,6 +6,9 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QTest>
+#include <QThread>
+
+#include <memory>
 
 using namespace PhosphorControl;
 
@@ -41,7 +44,8 @@ private Q_SLOTS:
             "Keywords": ["snap", "tile"], "TranslationDomain": "facet-module-placement",
             "Categories": [ { "Id": "accessibility", "Name": "Accessibility", "Icon": "a11y", "Order": 70 } ],
             "Pages": [ { "Id": "snapping", "Name": "Snapping", "Icon": "snap", "Keywords": ["drag"],
-                         "Visibility": "AdvancedOnly", "DividerAfter": true, "Counterpart": "other:page" },
+                         "Visibility": "AdvancedOnly", "DividerAfter": true, "Counterpart": "other:page",
+                         "Anchors": ["A.b_c-d", "9"] },
                        { "Id": "pinned", "Name": "Pinned", "Category": "appearance" } ] })",
                      &object));
         QStringList errors;
@@ -59,6 +63,8 @@ private Q_SLOTS:
         QCOMPARE(metadata.keywords, (QStringList{QStringLiteral("snap"), QStringLiteral("tile")}));
         QCOMPARE(metadata.translationDomain, QStringLiteral("facet-module-placement"));
         QCOMPARE(metadata.categories.size(), 1);
+        QCOMPARE(metadata.categories.first().id, QStringLiteral("accessibility"));
+        QCOMPARE(metadata.categories.first().name, QStringLiteral("Accessibility"));
         QCOMPARE(metadata.categories.first().icon, QStringLiteral("a11y"));
         QCOMPARE(metadata.categories.first().order, 70);
         QCOMPARE(metadata.pages.size(), 2);
@@ -69,8 +75,23 @@ private Q_SLOTS:
         QCOMPARE(snapping->visibility, PageRegistry::PageVisibility::AdvancedOnly);
         QVERIFY(snapping->dividerAfter);
         QCOMPARE(snapping->counterpart, QStringLiteral("other:page"));
-        QCOMPARE(metadata.page(QStringLiteral("pinned"))->category, QStringLiteral("appearance"));
+        QCOMPARE(snapping->anchors, (QStringList{QStringLiteral("A.b_c-d"), QStringLiteral("9")}));
+        const FacetPageMetadata* const pinned = metadata.page(QStringLiteral("pinned"));
+        QVERIFY(pinned);
+        QCOMPARE(pinned->category, QStringLiteral("appearance"));
         QVERIFY(!metadata.page(QStringLiteral("nope")));
+    }
+
+    void keepsTabsAndNewlinesInText()
+    {
+        QJsonObject object;
+        QVERIFY(json(R"({ "Id": "m", "Name": "M", "Description": "one\ttwo\nthree",
+                          "Pages": [ { "Id": "p", "Name": "P" } ] })",
+                     &object));
+        QStringList errors;
+        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QCOMPARE(metadata.description, QStringLiteral("one\ttwo\nthree"));
     }
 
     void picksTheBestTranslation_data()
@@ -108,31 +129,78 @@ private Q_SLOTS:
     void fallsBackToTheLanguageForEveryLocalizedKey()
     {
         // A regional locale with no regional translation gets the
-        // language's, at module and page level alike.
+        // language's, for every localizable key at every level.
         QJsonObject object;
         QVERIFY(json(R"({ "Id": "m", "Name": "English", "Name[fr]": "Français",
-                          "Pages": [ { "Id": "p", "Name": "P", "Name[fr]": "Page", "Keywords[fr]": ["clé"] } ] })",
+                          "Description": "D", "Description[fr]": "Dé", "Keywords": ["k"], "Keywords[fr]": ["clé"],
+                          "Categories": [ { "Id": "c", "Name": "C", "Name[fr]": "Cé" } ],
+                          "Pages": [ { "Id": "p", "Name": "P", "Name[fr]": "Page", "Keywords[fr]": ["mot"],
+                                       "Anchors": ["a"] } ],
+                          "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E",
+                                            "Name[fr]": "Extension", "Keywords": ["x"], "Keywords[fr]": ["ix"] } ],
+                          "Search": [ { "Page": "p", "Anchor": "a", "Title": "T", "Title[fr]": "Titre",
+                                        "Keywords[fr]": ["terme"] } ] })",
                      &object));
         const QLocale locale(QLocale::French, QLocale::Switzerland);
         QStringList errors;
         const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, locale, &errors);
-        QVERIFY(errors.isEmpty());
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.name, QStringLiteral("Français"));
+        QCOMPARE(metadata.description, QStringLiteral("Dé"));
+        QCOMPARE(metadata.keywords, QStringList{QStringLiteral("clé")});
+        QCOMPARE(metadata.categories.first().name, QStringLiteral("Cé"));
         QCOMPARE(metadata.pages.first().name, QStringLiteral("Page"));
-        QCOMPARE(metadata.pages.first().keywords, QStringList{QStringLiteral("clé")});
+        QCOMPARE(metadata.pages.first().keywords, QStringList{QStringLiteral("mot")});
+        QCOMPARE(metadata.extensions.first().name, QStringLiteral("Extension"));
+        QCOMPARE(metadata.extensions.first().keywords, QStringList{QStringLiteral("ix")});
+        QCOMPARE(metadata.search.first().title, QStringLiteral("Titre"));
+        QCOMPARE(metadata.search.first().keywords, QStringList{QStringLiteral("terme")});
     }
 
-    void keepsKeywordsWhoseTranslationIsNotAList()
+    void keepsTheBaseKeywordsWhenATranslationIsUnusable_data()
     {
+        QTest::addColumn<QString>("locale");
+        QTest::newRow("translation not a list") << QStringLiteral("de_DE");
+        QTest::newRow("translation lists only empty strings") << QStringLiteral("fr_FR");
+    }
+
+    void keepsTheBaseKeywordsWhenATranslationIsUnusable()
+    {
+        QFETCH(QString, locale);
         QJsonObject object;
         QVERIFY(json(R"({ "Id": "m", "Name": "M", "Keywords": ["base"], "Keywords[de]": "einzeln",
                           "Keywords[fr]": [""], "Pages": [ { "Id": "p", "Name": "P" } ] })",
                      &object));
-        for (const QString& locale : {QStringLiteral("de_DE"), QStringLiteral("fr_FR")}) {
+        QStringList errors;
+        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale(locale), &errors);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QCOMPARE(metadata.keywords, QStringList{QStringLiteral("base")});
+    }
+
+    void requiresTheBaseValueInEveryLocale()
+    {
+        // Only translated, so it is missing in the build's C locale. It must
+        // be missing in German too, or the module would load in one language
+        // and be refused in another.
+        QJsonObject object;
+        QVERIFY(json(R"({ "Id": "m", "Name[de]": "M",
+                          "Categories": [ { "Id": "c", "Name[de]": "C" } ],
+                          "Pages": [ { "Id": "p", "Name": "", "Name[de]": "P", "Anchors": ["a"] },
+                                     { "Id": "q", "Name": "Q", "Anchors": ["a"] } ],
+                          "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name[de]": "E" } ],
+                          "Search": [ { "Page": "q", "Anchor": "a", "Title[de]": "T" } ] })",
+                     &object));
+        const QStringList expected{
+            QStringLiteral("\"Name\" is missing"),
+            QStringLiteral("category c has no \"Name\""),
+            QStringLiteral("page p has no \"Name\""),
+            QStringLiteral("extension e has no \"Name\""),
+            QStringLiteral("search entry q#a has no \"Title\""),
+        };
+        for (const QLocale& locale : {QLocale::c(), QLocale(QLocale::German, QLocale::Germany)}) {
             QStringList errors;
-            const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale(locale), &errors);
-            QVERIFY(errors.isEmpty());
-            QCOMPARE(metadata.keywords, QStringList{QStringLiteral("base")});
+            FacetModuleMetadata::parse(object, locale, &errors);
+            QCOMPARE(errors, expected);
         }
     }
 
@@ -169,9 +237,18 @@ private Q_SLOTS:
         text += QStringLiteral(" ] }");
         QJsonObject object;
         QVERIFY(json(text.toUtf8().constData(), &object));
+        // On a thread with a small stack, so a walk that recursed once per
+        // level would overflow it and crash the test instead of passing on
+        // the main thread's megabytes.
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
-        QVERIFY(errors.isEmpty());
+        FacetModuleMetadata metadata;
+        std::unique_ptr<QThread> thread(QThread::create([&] {
+            metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        }));
+        thread->setStackSize(256 * 1024);
+        thread->start();
+        QVERIFY(thread->wait(QDeadlineTimer(60000)));
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.pages.size(), 5000);
         QCOMPARE(metadata.pages.last().id, QStringLiteral("p4999"));
     }
@@ -183,26 +260,68 @@ private Q_SLOTS:
             "Pages": [ { "Id": "p", "Name": "P", "Parent": "placement:snapping/behavior" } ] })",
                      &object));
         QStringList errors;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QCOMPARE(metadata.pages.size(), 1);
+        QCOMPARE(metadata.pages.first().parent, QStringLiteral("placement:snapping/behavior"));
     }
 
-    void warnsAboutUnknownKeys()
+    void warnsAboutKeysItCannotUse_data()
     {
-        QJsonObject object;
-        QVERIFY(json(R"({ "Id": "m", "Name": "M", "Name[de]": "M", "Plugins": [],
+        QTest::addColumn<QByteArray>("text");
+        QTest::addColumn<QStringList>("expected");
+        QTest::addColumn<int>("entries");
+        const auto row = [](const char* name, const char* text, const QStringList& expected, int entries = 0) {
+            QTest::newRow(name) << QByteArray(text) << expected << entries;
+        };
+        row("unknown keys at every level", R"({ "Id": "m", "Name": "M", "Name[de]": "M", "Plugins": [],
             "Categories": [ { "Id": "c", "Name": "C", "Colour": "red" } ],
-            "Pages": [ { "Id": "p", "Name": "P", "Parnet": "q" } ] })",
-                     &object));
+            "Pages": [ { "Id": "p", "Name": "P", "Parnet": "q", "Anchors": ["a"] } ],
+            "ExtensionPoints": [ { "Page": "p", "Id": "panel", "Versoin": 2 } ],
+            "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E", "Slto": "x" } ],
+            "Search": [ { "Page": "p", "Anchor": "a", "Title": "T", "Titel": "U" } ] })",
+            {QStringLiteral("unknown key \"Plugins\""), QStringLiteral("category c: unknown key \"Colour\""),
+             QStringLiteral("page p: unknown key \"Parnet\""),
+             QStringLiteral("extension point panel on page p: unknown key \"Versoin\""),
+             QStringLiteral("extension e: unknown key \"Slto\""),
+             QStringLiteral("search entry p#a: unknown key \"Titel\"")},
+            1);
+        // Only the localizable keys take a [<locale>].
+        row("translation of a key that has none", R"({ "Id": "m", "Name": "M", "Icon[de]": "i",
+            "Pages": [ { "Id": "p", "Name": "P", "Icon[de]": "i" } ],
+            "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E", "Target[de]": "o:q" } ] })",
+            {QStringLiteral("unknown key \"Icon[de]\""), QStringLiteral("page p: unknown key \"Icon[de]\""),
+             QStringLiteral("extension e: unknown key \"Target[de]\"")});
+        // parse() matches `pt_BR`, never `pt-BR`, and never an empty locale.
+        row("translation for a locale never picked",
+            R"({ "Id": "m", "Name": "M", "Name[pt-BR]": "B", "Name[]": "E",
+                 "Pages": [ { "Id": "p", "Name": "P", "Keywords[de-AT]": ["k"] } ] })",
+            {QStringLiteral("\"Name[]\" is never picked: a locale is written with letters, digits and '_', as in "
+                            "Name[pt_BR]"),
+             QStringLiteral("\"Name[pt-BR]\" is never picked: a locale is written with letters, digits and '_', as "
+                            "in Name[pt_BR]"),
+             QStringLiteral("page p: \"Keywords[de-AT]\" is never picked: a locale is written with letters, digits "
+                            "and '_', as in Keywords[pt_BR]")});
+        // A kind a newer Facet added costs the entry, not the module.
+        row("search entry of an unknown kind",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Kind": "Thing", "Title": "T" } ] })",
+            {QStringLiteral("search entry p#a has \"Kind\" Thing, which this Facet does not know, so it is left out")});
+    }
+
+    void warnsAboutKeysItCannotUse()
+    {
+        QFETCH(QByteArray, text);
+        QFETCH(QStringList, expected);
+        QFETCH(int, entries);
+        QJsonObject object;
+        QVERIFY(json(text.constData(), &object));
         QStringList errors;
         QStringList warnings;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
+        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
-        const QString all = warnings.join(QLatin1Char('\n'));
-        QCOMPARE(warnings.size(), 3);
-        QVERIFY2(all.contains(QStringLiteral("\"Plugins\"")), qPrintable(all));
-        QVERIFY2(all.contains(QStringLiteral("\"Colour\"")), qPrintable(all));
-        QVERIFY2(all.contains(QStringLiteral("\"Parnet\"")), qPrintable(all));
+        QCOMPARE(warnings, expected);
+        QCOMPARE(metadata.search.size(), entries);
     }
 
     void parsesExtensionPointsAndExtensions()
@@ -221,8 +340,9 @@ private Q_SLOTS:
             FacetModuleMetadata::parse(object, QLocale(QStringLiteral("de_DE")), &errors, &warnings);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
-        QCOMPARE(metadata.page(QStringLiteral("p"))->anchors,
-                 (QStringList{QStringLiteral("speed"), QStringLiteral("size")}));
+        const FacetPageMetadata* const page = metadata.page(QStringLiteral("p"));
+        QVERIFY(page);
+        QCOMPARE(page->anchors, (QStringList{QStringLiteral("speed"), QStringLiteral("size")}));
         QCOMPARE(metadata.extensionPoints.size(), 1);
         QCOMPARE(metadata.extensionPoints.first().page, QStringLiteral("p"));
         QCOMPARE(metadata.extensionPoints.first().id, QStringLiteral("panel"));
@@ -283,36 +403,34 @@ private Q_SLOTS:
                               QStringLiteral("page p: \"Name\" must be a string")}));
     }
 
-    void reportsAKeyOfTheWrongTypeOnce()
+    void reportsAKeyOfTheWrongTypeOnce_data()
     {
-        QJsonObject object;
-        QVERIFY(json(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
-                          "Extensions": [ { "Id": "e", "Target": 3, "Slot": "top", "Name": "E" } ] })",
-                     &object));
-        QStringList errors;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
-        QCOMPARE(errors, QStringList{QStringLiteral("extension e: \"Target\" must be a string")});
+        QTest::addColumn<QByteArray>("text");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("extension") << QByteArray(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                          "Extensions": [ { "Id": "e", "Target": 3, "Slot": "top", "Name": "E" } ] })")
+                                   << QStringLiteral("extension e: \"Target\" must be a string");
+        // Not also "has no Title", nor "names anchor", for the value the
+        // wrong type leaves empty.
+        QTest::newRow("search entry title")
+            << QByteArray(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                          "Search": [ { "Page": "p", "Anchor": "a", "Title": ["T"] } ] })")
+            << QStringLiteral("search entry p#a: \"Title\" must be a string");
+        QTest::newRow("search entry anchor")
+            << QByteArray(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                          "Search": [ { "Page": "p", "Anchor": 1, "Title": "T" } ] })")
+            << QStringLiteral("search entry p#: \"Anchor\" must be a string");
     }
 
-    void warnsAboutUnknownKeysInPointsAndExtensions()
+    void reportsAKeyOfTheWrongTypeOnce()
     {
+        QFETCH(QByteArray, text);
+        QFETCH(QString, expected);
         QJsonObject object;
-        QVERIFY(json(R"({
-            "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
-            "ExtensionPoints": [ { "Page": "p", "Id": "panel", "Versoin": 2 } ],
-            "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E", "Slto": "x",
-                              "Target[de]": "o:q" } ] })",
-                     &object));
+        QVERIFY(json(text.constData(), &object));
         QStringList errors;
-        QStringList warnings;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
-        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
-        const QString all = warnings.join(QLatin1Char('\n'));
-        QCOMPARE(warnings.size(), 3);
-        QVERIFY2(all.contains(QStringLiteral("extension point panel on page p: unknown key \"Versoin\"")),
-                 qPrintable(all));
-        QVERIFY2(all.contains(QStringLiteral("extension e: unknown key \"Slto\"")), qPrintable(all));
-        QVERIFY2(all.contains(QStringLiteral("extension e: unknown key \"Target[de]\"")), qPrintable(all));
+        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        QCOMPARE(errors, QStringList{expected});
     }
 
     void offersSlotsAtTheirVersion_data()
@@ -356,10 +474,12 @@ private Q_SLOTS:
         QJsonObject object;
         QVERIFY(json(R"({
             "Id": "m", "Name": "M", "SearchProviders": true,
-            "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["speed", "size"] } ],
+            "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["speed", "size"] },
+                       { "Id": "q", "Name": "Q", "Anchors": ["speed"] } ],
             "Search": [ { "Page": "p", "Anchor": "speed", "Title": "Speed", "Title[de]": "Tempo",
-                          "Keywords": ["fast"], "AdvancedOnly": true },
-                        { "Page": "p", "Anchor": "size", "Kind": "Section", "Title": "Size" } ] })",
+                          "Keywords": ["fast"], "Keywords[de]": ["schnell"], "AdvancedOnly": true },
+                        { "Page": "p", "Anchor": "size", "Kind": "Section", "Title": "Size" },
+                        { "Page": "q", "Anchor": "speed", "Kind": "Setting", "Title": "Speed" } ] })",
                      &object));
         QStringList errors;
         QStringList warnings;
@@ -368,12 +488,23 @@ private Q_SLOTS:
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
         QVERIFY(metadata.searchProviders);
-        QCOMPARE(metadata.search.size(), 2);
-        QCOMPARE(metadata.search.at(0).title, QStringLiteral("Tempo"));
-        QCOMPARE(metadata.search.at(0).keywords, QStringList{QStringLiteral("fast")});
-        QVERIFY(metadata.search.at(0).advancedOnly);
-        QVERIFY(!metadata.search.at(0).section);
-        QVERIFY(metadata.search.at(1).section);
+        QCOMPARE(metadata.search.size(), 3);
+        const FacetSearchEntryMetadata& speed = metadata.search.at(0);
+        QCOMPARE(speed.page, QStringLiteral("p"));
+        QCOMPARE(speed.anchor, QStringLiteral("speed"));
+        QCOMPARE(speed.title, QStringLiteral("Tempo"));
+        QCOMPARE(speed.keywords, QStringList{QStringLiteral("schnell")});
+        QVERIFY(speed.advancedOnly);
+        QVERIFY(!speed.section);
+        const FacetSearchEntryMetadata& size = metadata.search.at(1);
+        QCOMPARE(size.anchor, QStringLiteral("size"));
+        QVERIFY(size.section);
+        QVERIFY(!size.advancedOnly);
+        // The same title at another place is another entry, and an explicit
+        // Setting is what no Kind means.
+        const FacetSearchEntryMetadata& other = metadata.search.at(2);
+        QCOMPARE(other.page, QStringLiteral("q"));
+        QVERIFY(!other.section);
 
         QVERIFY(json(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ] })", &object));
         errors.clear();
@@ -385,11 +516,13 @@ private Q_SLOTS:
     {
         QTest::addColumn<QByteArray>("text");
         QTest::addColumn<QString>("expected");
-        const auto row = [](const char* name, const char* text, const QString& expected) {
-            QTest::newRow(name) << QByteArray(text) << expected;
+        QTest::addColumn<int>("count");
+        const auto row = [](const char* name, const char* text, const QString& expected, int count = 1) {
+            QTest::newRow(name) << QByteArray(text) << expected << count;
         };
         // Every row has one fault and a valid page list otherwise, so the
-        // expected message is the only one it can match.
+        // expected message is the only one it can match, and the count says
+        // the fault is not reported again under another name.
         row("no id", R"({ "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ] })", QStringLiteral("\"Id\" must"));
         row("bad id", R"({ "Id": "a:b", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ] })",
             QStringLiteral("\"Id\" must"));
@@ -467,7 +600,7 @@ private Q_SLOTS:
             QStringLiteral("\"Icon\" must be a string"));
         row("cycle", R"({ "Id": "m", "Name": "M", "Pages": [
                    { "Id": "a", "Name": "A", "Parent": "b" }, { "Id": "b", "Name": "B", "Parent": "a" } ] })",
-            QStringLiteral("in or under a loop of local parents"));
+            QStringLiteral("in or under a loop of local parents"), 2);
         row("category without name",
             R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": "c" } ], "Pages": [ { "Id": "p", "Name": "P" } ] })",
             QStringLiteral("category c has no \"Name\""));
@@ -502,8 +635,6 @@ private Q_SLOTS:
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
                  "ExtensionPoints": { "Page": "a", "Id": "e" } })",
             QStringLiteral("\"ExtensionPoints\" must be a list"));
-        row("name not a string", R"({ "Id": "m", "Name": 5, "Pages": [ { "Id": "p", "Name": "P" } ] })",
-            QStringLiteral("\"Name\" must be a string"));
         row("page keywords not a list",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Keywords": "k" } ] })",
             QStringLiteral("page p: \"Keywords\" must be a list"));
@@ -587,20 +718,16 @@ private Q_SLOTS:
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
                  "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Order": 1.5, "Name": "E" } ] })",
             QStringLiteral("extension e: \"Order\" must be a whole number"));
-        row("extension target not a string",
-            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
-                 "Extensions": [ { "Id": "e", "Target": 3, "Slot": "top", "Name": "E" } ] })",
-            QStringLiteral("extension e: \"Target\" must be a string"));
         row("extension without name",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
                  "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top" } ] })",
             QStringLiteral("extension e has no \"Name\""));
         row("anchor with a colon",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a:b"] } ] })",
-            QStringLiteral("has anchor a:b"));
+            QStringLiteral("page p: anchor a:b must match [A-Za-z0-9][A-Za-z0-9._-]*"));
         row("anchor listed twice",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a", "a"] } ] })",
-            QStringLiteral("has anchor a,"));
+            QStringLiteral("page p: anchor a is listed twice"));
         row("search not a list",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
                  "Search": { "Page": "p", "Anchor": "a", "Title": "T" } })",
@@ -613,10 +740,6 @@ private Q_SLOTS:
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
                  "Search": [ { "Page": "p", "Anchor": "b", "Title": "T" } ] })",
             QStringLiteral("names anchor b"));
-        row("search entry of an unknown kind",
-            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
-                 "Search": [ { "Page": "p", "Anchor": "a", "Kind": "Thing", "Title": "T" } ] })",
-            QStringLiteral("\"Kind\" Thing"));
         row("search entry without a title",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
                  "Search": [ { "Page": "p", "Anchor": "a" } ] })",
@@ -632,17 +755,204 @@ private Q_SLOTS:
         row("search providers not a boolean",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ], "SearchProviders": 1 })",
             QStringLiteral("\"SearchProviders\" must be true or false"));
+        row("anchor starting with a dot",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": [".a"] } ] })",
+            QStringLiteral("page p: anchor .a must match"));
+        row("anchor starting with a dash",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["-a"] } ] })",
+            QStringLiteral("page p: anchor -a must match"));
+        row("anchor with a slash",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a/b"] } ] })",
+            QStringLiteral("page p: anchor a/b must match"));
+        row("anchor with a space",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a b"] } ] })",
+            QStringLiteral("page p: anchor a b must match"));
+        row("anchor with a trailing newline",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a\n"] } ] })",
+            QStringLiteral("page p: anchor a\n must match"));
+        row("empty anchor", R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": [""] } ] })",
+            QStringLiteral("page p: every \"Anchors\" entry must be a non-empty string"));
+        // The page stays, so what names the bad anchor adds nothing.
+        row("search entry at a bad anchor",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a:b"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a:b", "Title": "T" } ] })",
+            QStringLiteral("page p: anchor a:b must match"));
+        row("description not a string",
+            R"({ "Id": "m", "Name": "M", "Description": 1, "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Description\" must be a string"));
+        row("module icon not a string",
+            R"({ "Id": "m", "Name": "M", "Icon": 1, "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Icon\" must be a string"));
+        row("module category not a string",
+            R"({ "Id": "m", "Name": "M", "Category": 1, "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Category\" must be a string"));
+        row("module parent not a string",
+            R"({ "Id": "m", "Name": "M", "Parent": 1, "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Parent\" must be a string"));
+        row("module keywords not a list",
+            R"({ "Id": "m", "Name": "M", "Keywords": "k", "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Keywords\" must be a list"));
+        row("translation domain not a string",
+            R"({ "Id": "m", "Name": "M", "TranslationDomain": 1, "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"TranslationDomain\" must be a string"));
+        row("module id not a string", R"({ "Id": 5, "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Id\" must be a string"));
+        row("module keyword not a string",
+            R"({ "Id": "m", "Name": "M", "Keywords": ["k", 3], "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("every \"Keywords\" entry must be a non-empty string"));
+        row("empty page keyword",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Keywords": [""] } ] })",
+            QStringLiteral("page p: every \"Keywords\" entry must be a non-empty string"));
+        row("name with a carriage return", R"({ "Id": "m", "Name": "a\rb", "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Name\" holds a control character other than tab and newline"));
+        row("keyword with a control character",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Keywords": ["a\u0001"] } ] })",
+            QStringLiteral("page p: \"Keywords\" holds a control character"));
+        row("title with a control character",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Title": "T\u001f" } ] })",
+            QStringLiteral("search entry p#a: \"Title\" holds a control character"));
+        row("category id not a string",
+            R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": 1, "Name": "C" } ], "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("category: \"Id\" must be a string"));
+        row("category icon not a string",
+            R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": "c", "Name": "C", "Icon": 1 } ],
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("category c: \"Icon\" must be a string"));
+        row("category order not a whole number",
+            R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": "c", "Name": "C", "Order": "1" } ],
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("category c: \"Order\" must be a whole number"));
+        row("category name with a control character",
+            R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": "c", "Name": "C\r" } ],
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("category c: \"Name\" holds a control character"));
+        row("page id not a string", R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": 5, "Name": "P" } ] })",
+            QStringLiteral("page: \"Id\" must be a string"));
+        row("page parent not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Parent": 1 } ] })",
+            QStringLiteral("page p: \"Parent\" must be a string"));
+        row("page category not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Category": 1 } ] })",
+            QStringLiteral("page p: \"Category\" must be a string"));
+        row("page counterpart not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Counterpart": 1 } ] })",
+            QStringLiteral("page p: \"Counterpart\" must be a string"));
+        row("visibility not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Visibility": 1 } ] })",
+            QStringLiteral("page p: \"Visibility\" must be"));
+        row("counterpart naming its own module",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" }, { "Id": "b", "Name": "B", "Counterpart": "m:a" } ] })",
+            QStringLiteral("page b has counterpart m:a, which is neither a page of this module nor"));
+        row("malformed cross-module counterpart",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A", "Counterpart": "o:" } ] })",
+            QStringLiteral("page a has counterpart o:, which is neither a page of this module nor"));
+        row("point page not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": 1, "Id": "e" } ] })",
+            QStringLiteral("extension point: \"Page\" must be a string"));
+        row("point id not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a", "Id": 1 } ] })",
+            QStringLiteral("extension point: \"Id\" must be a string"));
+        row("point id with a capital",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "a", "Name": "A" } ],
+                 "ExtensionPoints": [ { "Page": "a", "Id": "Panel" } ] })",
+            QStringLiteral("extension point id Panel must match"));
+        row("extension id not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": 1, "Target": "o:p", "Slot": "top", "Name": "E" } ] })",
+            QStringLiteral("extension: \"Id\" must be a string"));
+        row("extension keywords not a list",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E", "Keywords": "k" } ] })",
+            QStringLiteral("extension e: \"Keywords\" must be a list"));
+        row("extension keyword not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
+                 "Extensions": [ { "Id": "e", "Target": "o:p", "Slot": "top", "Name": "E", "Keywords": [1] } ] })",
+            QStringLiteral("extension e: every \"Keywords\" entry must be a non-empty string"));
+        row("page not an object", R"({ "Id": "m", "Name": "M", "Pages": [ 5, { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Pages\"[0] must be an object"));
+        row("category not an object",
+            R"({ "Id": "m", "Name": "M", "Categories": [ "c" ], "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Categories\"[0] must be an object"));
+        row("point not an object",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ], "ExtensionPoints": [ [] ] })",
+            QStringLiteral("\"ExtensionPoints\"[0] must be an object"));
+        row("extension not an object",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ], "Extensions": [ null ] })",
+            QStringLiteral("\"Extensions\"[0] must be an object"));
+        row("search entry not an object",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ], "Search": [ "p#a" ] })",
+            QStringLiteral("\"Search\"[0] must be an object"));
+        row("search entry page not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": 1, "Anchor": "a", "Title": "T" } ] })",
+            QStringLiteral("search entry #a: \"Page\" must be a string"));
+        row("search entry anchor not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": 1, "Title": "T" } ] })",
+            QStringLiteral("search entry p#: \"Anchor\" must be a string"));
+        row("search entry kind not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Kind": 1, "Title": "T" } ] })",
+            QStringLiteral("search entry p#a: \"Kind\" must be a string"));
+        row("search entry keywords not a list",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Title": "T", "Keywords": "k" } ] })",
+            QStringLiteral("search entry p#a: \"Keywords\" must be a list"));
+        row("search entry keyword not a string",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Title": "T", "Keywords": [1] } ] })",
+            QStringLiteral("search entry p#a: every \"Keywords\" entry must be a non-empty string"));
+        row("search entry without a page",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Anchor": "a", "Title": "T" } ] })",
+            QStringLiteral("search entry #a has no \"Page\""));
+        row("search entry without an anchor",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Title": "T" } ] })",
+            QStringLiteral("search entry p# has no \"Anchor\""));
+        row("search entry declared twice",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Title": "T" },
+                             { "Page": "p", "Anchor": "a", "Title": "T", "Title[de]": "U" } ] })",
+            QStringLiteral("search entry p#a titled T is declared twice"));
+        row("advanced search entry on a simple page",
+            R"({ "Id": "m", "Name": "M",
+                 "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"], "Visibility": "SimpleOnly" } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Title": "T", "AdvancedOnly": true } ] })",
+            QStringLiteral("search entry p#a is AdvancedOnly, but page p shows only in simple mode"));
+        row("advanced search entry under a simple page",
+            R"({ "Id": "m", "Name": "M",
+                 "Pages": [ { "Id": "p", "Name": "P", "Visibility": "SimpleOnly" },
+                            { "Id": "p/q", "Name": "Q", "Parent": "p", "Anchors": ["a"] } ],
+                 "Search": [ { "Page": "p/q", "Anchor": "a", "Title": "T", "AdvancedOnly": true } ] })",
+            QStringLiteral("search entry p/q#a is AdvancedOnly, but page p shows only in simple mode"));
+        // The page is declared, so the entry on it is not told it is not:
+        // the loop is the one fault, reported once per page in it.
+        row("search entry on a page in a loop",
+            R"({ "Id": "m", "Name": "M", "Pages": [
+                   { "Id": "a", "Name": "A", "Parent": "b", "Anchors": ["x"] }, { "Id": "b", "Name": "B", "Parent": "a" } ],
+                 "Search": [ { "Page": "a", "Anchor": "x", "Title": "T" } ] })",
+            QStringLiteral("in or under a loop of local parents"), 2);
+        // A localizable key is required on its base value: one with only
+        // a translation would be refused in every other locale.
+        row("name only translated", R"({ "Id": "m", "Name[de]": "M", "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Name\" is missing"));
     }
 
     void reportsEveryProblem()
     {
         QFETCH(QByteArray, text);
         QFETCH(QString, expected);
+        QFETCH(int, count);
         QJsonObject object;
         QVERIFY(json(text.constData(), &object));
         QStringList errors;
         FacetModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.join(QLatin1Char('\n')).contains(expected), qPrintable(errors.join(QLatin1Char('\n'))));
+        QVERIFY2(errors.size() == count, qPrintable(errors.join(QLatin1Char('\n'))));
     }
 
     void reportsEveryProblemAtOnce()

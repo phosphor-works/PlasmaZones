@@ -16,9 +16,11 @@ inline constexpr int FacetModuleApiVersion = 1;
 ///
 /// A Facet module is a Qt plugin in the `facet` seam: its root QObject
 /// implements this interface and declares
-/// `Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "metadata.json")`.
-/// The metadata describes the module and its pages (FacetModuleMetadata), so
-/// Facet can put them in the sidebar before the module loads. The module
+/// `Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "facet_metadata.json")`,
+/// the metadata phosphor_add_facet_module_metadata() generates from the
+/// module's own metadata file and its translations. The metadata describes
+/// the module and its pages (FacetModuleMetadata), so Facet can put them in
+/// the sidebar before the module loads. The module
 /// loads the first time one of its pages is opened, or a page it adds a
 /// section to (its metadata's `Extensions`).
 class IFacetModule

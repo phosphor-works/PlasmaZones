@@ -3,6 +3,8 @@
 
 #include "PhosphorControl/FacetModuleMetadata.h"
 
+#include "facetmetadatakeys_p.h"
+
 #include <QHash>
 #include <QJsonArray>
 #include <QRegularExpression>
@@ -12,16 +14,29 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <span>
 
 namespace PhosphorControl {
 
 namespace {
+
+using FacetMetadataKeys::Localizable;
+using KeyTable = std::span<const FacetMetadataKeys::Key>;
 
 // The same rule PluginCatalog applies to the "Id" it vets, so a module id
 // that reached the host always passes here too. Anchored with
 // anchoredPattern(), not ^...$: in PCRE `$` also matches before a final
 // newline, which would let "general\n" through as an id.
 const QRegularExpression& moduleIdPattern()
+{
+    static const QRegularExpression pattern(
+        QRegularExpression::anchoredPattern(QStringLiteral("[A-Za-z0-9][A-Za-z0-9._-]*")));
+    return pattern;
+}
+
+// A page's anchor: the module id rule today, kept apart from it because the
+// two name different things and either may change on its own.
+const QRegularExpression& anchorPattern()
 {
     static const QRegularExpression pattern(
         QRegularExpression::anchoredPattern(QStringLiteral("[A-Za-z0-9][A-Za-z0-9._-]*")));
@@ -41,6 +56,15 @@ const QRegularExpression& pageIdPattern()
 const QRegularExpression& categoryIdPattern()
 {
     static const QRegularExpression pattern(QRegularExpression::anchoredPattern(QStringLiteral("[a-z0-9][a-z0-9-]*")));
+    return pattern;
+}
+
+// The `<locale>` of a `Key[<locale>]` variant that localeVariants() can
+// produce. `Name[pt-BR]` or `Name[]` is never picked, whatever the locale.
+const QRegularExpression& localeSuffixPattern()
+{
+    static const QRegularExpression pattern(
+        QRegularExpression::anchoredPattern(QString(FacetMetadataKeys::LocalePattern)));
     return pattern;
 }
 
@@ -75,22 +99,15 @@ QStringList stringList(const QJsonValue& value)
     return list;
 }
 
-// What a localizable key holds: a string (Name, Description) or an array of
-// strings (Keywords).
-enum class LocalizedKind : quint8 {
-    String,
-    Array,
-};
-
 // The value of `key` for the locale: the first variant that holds a usable
 // value, then `key` itself. A variant that is empty or not of the key's type
 // is skipped, so an untranslated `"Name[de]": ""` falls back to `Name`
 // instead of hiding it, and a `"Name[de]": [...]` cannot replace a string. A
 // list counts as empty when it holds no non-empty string.
-QJsonValue localized(const QJsonObject& json, QLatin1String key, LocalizedKind kind, const QStringList& variants)
+QJsonValue localized(const QJsonObject& json, QLatin1String key, Localizable kind, const QStringList& variants)
 {
     const auto usable = [kind](const QJsonValue& value) {
-        if (kind == LocalizedKind::String) {
+        if (kind == Localizable::String) {
             return value.isString() && !value.toString().isEmpty();
         }
         return !stringList(value).isEmpty();
@@ -152,50 +169,119 @@ QJsonArray arrayValue(const QJsonObject& json, QLatin1String key, const QString&
     return it->toArray();
 }
 
+// The objects of the top-level list @p array, read from @p key. An element
+// that is not an object is a problem, named by its position, rather than an
+// empty object whose missing id the checks after would report instead.
+QList<QJsonObject> objectsIn(const QJsonArray& array, QLatin1String key, QStringList* problems)
+{
+    QList<QJsonObject> objects;
+    for (qsizetype i = 0; i < array.size(); ++i) {
+        if (!array.at(i).isObject()) {
+            problems->append(QStringLiteral("\"%1\"[%2] must be an object").arg(key, QString::number(i)));
+            continue;
+        }
+        objects.append(array.at(i).toObject());
+    }
+    return objects;
+}
+
 // Whether the base value of a localizable key, when present, is of its kind.
 // A wrong one is a problem, which reports the key itself rather than leaving
 // it to read as missing or empty.
-bool baseKindOk(const QJsonObject& json, QLatin1String key, LocalizedKind kind, const QString& where,
+bool baseKindOk(const QJsonObject& json, QLatin1String key, Localizable kind, const QString& where,
                 QStringList* problems)
 {
     const auto it = json.constFind(key);
     if (it == json.cend()) {
         return true;
     }
-    if (kind == LocalizedKind::String && !it->isString()) {
+    if (kind == Localizable::String && !it->isString()) {
         problems->append(QStringLiteral("%1\"%2\" must be a string").arg(where, key));
         return false;
     }
-    if (kind == LocalizedKind::Array && !it->isArray()) {
+    if (kind == Localizable::List && !it->isArray()) {
         problems->append(QStringLiteral("%1\"%2\" must be a list").arg(where, key));
         return false;
     }
     return true;
 }
 
-// Keys parse() does not know, for the warnings list. A `<known>[<locale>]`
-// variant of a localizable key counts as known.
-QStringList unknownKeys(const QJsonObject& json, const QList<QLatin1String>& known,
-                        const QList<QLatin1String>& localizable)
+// Whether @p text holds a control character other than tab and newline.
+bool hasControlCharacter(QStringView text)
 {
-    const auto listed = [](const QList<QLatin1String>& keys, QStringView key) {
-        return std::any_of(keys.cbegin(), keys.cend(), [key](QLatin1String candidate) {
-            return key == candidate;
-        });
+    return std::any_of(text.begin(), text.end(), [](QChar c) {
+        return c.unicode() < 0x20 && c != QLatin1Char('\t') && c != QLatin1Char('\n');
+    });
+}
+
+// The base values of the localizable keys in @p keys, which are the source
+// strings lupdate extracts. A control character other than tab and newline
+// is a problem: lupdate drops a message holding a carriage return or a NUL
+// without a word, so the string could never be translated. A list's entries
+// must be non-empty strings, as an `Anchors` list's must, rather than being
+// dropped without a word. The `[<locale>]` variants are not checked: they
+// never reach lupdate, and one that is not usable is skipped (localized()).
+void checkLocalizableText(const QJsonObject& json, KeyTable keys, const QString& where, QStringList* problems)
+{
+    const auto controlProblem = [&](QLatin1String key) {
+        problems->append(
+            QStringLiteral("%1\"%2\" holds a control character other than tab and newline").arg(where, key));
     };
-    QStringList unknown;
-    for (auto it = json.cbegin(); it != json.cend(); ++it) {
-        const QString key = it.key();
-        bool isKnown = listed(known, key);
-        if (!isKnown && key.endsWith(QLatin1Char(']'))) {
-            const qsizetype bracket = key.indexOf(QLatin1Char('['));
-            isKnown = bracket > 0 && listed(localizable, QStringView(key).left(bracket));
-        }
-        if (!isKnown) {
-            unknown.append(key);
+    for (const FacetMetadataKeys::Key& key : keys) {
+        const QJsonValue value = json.value(key.name);
+        if (key.localizable == Localizable::String && value.isString()) {
+            if (hasControlCharacter(value.toString())) {
+                controlProblem(key.name);
+            }
+        } else if (key.localizable == Localizable::List && value.isArray()) {
+            const QJsonArray items = value.toArray();
+            for (const QJsonValue& item : items) {
+                if (!item.isString() || item.toString().isEmpty()) {
+                    problems->append(
+                        QStringLiteral("%1every \"%2\" entry must be a non-empty string").arg(where, key.name));
+                    break;
+                }
+                if (hasControlCharacter(item.toString())) {
+                    controlProblem(key.name);
+                    break;
+                }
+            }
         }
     }
-    return unknown;
+}
+
+// Keys @p keys does not list, appended to @p notes. A `<key>[<locale>]`
+// variant of a localizable key counts as known, unless its locale is not one
+// parse() can ever pick, which gets a note of its own.
+void noteUnknownKeys(const QJsonObject& json, KeyTable keys, const QString& where, QStringList* notes)
+{
+    for (auto it = json.cbegin(); it != json.cend(); ++it) {
+        const QString key = it.key();
+        const bool known = std::any_of(keys.begin(), keys.end(), [&key](const FacetMetadataKeys::Key& candidate) {
+            return key == candidate.name;
+        });
+        if (known) {
+            continue;
+        }
+        const qsizetype bracket = key.indexOf(QLatin1Char('['));
+        if (bracket > 0 && key.endsWith(QLatin1Char(']'))) {
+            const QStringView base = QStringView(key).left(bracket);
+            const bool localizable =
+                std::any_of(keys.begin(), keys.end(), [base](const FacetMetadataKeys::Key& candidate) {
+                    return candidate.localizable != Localizable::No && base == candidate.name;
+                });
+            if (localizable) {
+                const QStringView locale = QStringView(key).sliced(bracket + 1, key.size() - bracket - 2);
+                if (!localeSuffixPattern().matchView(locale).hasMatch()) {
+                    notes->append(QStringLiteral("%1\"%2\" is never picked: a locale is written with letters, digits "
+                                                 "and '_', as in %3[pt_BR]")
+                                      .arg(where, key, base));
+                }
+                continue;
+            }
+        }
+        notes->append(QStringLiteral("%1unknown key \"%2\"").arg(where, key));
+    }
 }
 
 struct CrossModuleRef
@@ -243,20 +329,28 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
     const QStringList variants = localeVariants(locale);
     const QString top;
 
+    // A localizable key is required on its base value, never on a variant:
+    // metadata whose only name is `Name[de]` would otherwise load in German
+    // and be refused in every other language, the build's C locale included.
+    const auto hasBase = [](const QJsonObject& object, QLatin1String key) {
+        return !object.value(key).toString().isEmpty();
+    };
+
+    const qsizetype idProblemsBefore = problems.size();
     metadata.id = stringValue(json, QLatin1String("Id"), top, &problems);
-    if (!moduleIdPattern().match(metadata.id).hasMatch()) {
+    if (problems.size() == idProblemsBefore && !moduleIdPattern().match(metadata.id).hasMatch()) {
         problems.append(QStringLiteral("\"Id\" must match [A-Za-z0-9][A-Za-z0-9._-]*"));
     }
     // PluginCatalog refuses a plugin without an integer ApiVersion for the
     // seam before the host sees it; parse() only reads it.
     metadata.apiVersion = integerValue(json, QLatin1String("ApiVersion"), 0, top, &problems);
-    const bool nameKindOk = baseKindOk(json, QLatin1String("Name"), LocalizedKind::String, top, &problems);
-    metadata.name = localized(json, QLatin1String("Name"), LocalizedKind::String, variants).toString();
-    if (metadata.name.isEmpty() && nameKindOk) {
+    const bool nameKindOk = baseKindOk(json, QLatin1String("Name"), Localizable::String, top, &problems);
+    metadata.name = localized(json, QLatin1String("Name"), Localizable::String, variants).toString();
+    if (!hasBase(json, QLatin1String("Name")) && nameKindOk) {
         problems.append(QStringLiteral("\"Name\" is missing"));
     }
-    baseKindOk(json, QLatin1String("Description"), LocalizedKind::String, top, &problems);
-    metadata.description = localized(json, QLatin1String("Description"), LocalizedKind::String, variants).toString();
+    baseKindOk(json, QLatin1String("Description"), Localizable::String, top, &problems);
+    metadata.description = localized(json, QLatin1String("Description"), Localizable::String, variants).toString();
     metadata.icon = stringValue(json, QLatin1String("Icon"), top, &problems);
     metadata.category = stringValue(json, QLatin1String("Category"), top, &problems);
     if (!metadata.category.isEmpty() && !categoryIdPattern().match(metadata.category).hasMatch()) {
@@ -271,42 +365,35 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
         }
     }
     metadata.order = integerValue(json, QLatin1String("Order"), 0, top, &problems);
-    baseKindOk(json, QLatin1String("Keywords"), LocalizedKind::Array, top, &problems);
-    metadata.keywords = stringList(localized(json, QLatin1String("Keywords"), LocalizedKind::Array, variants));
+    baseKindOk(json, QLatin1String("Keywords"), Localizable::List, top, &problems);
+    metadata.keywords = stringList(localized(json, QLatin1String("Keywords"), Localizable::List, variants));
     metadata.translationDomain = stringValue(json, QLatin1String("TranslationDomain"), top, &problems);
-    for (const QString& key : unknownKeys(
-             json,
-             {QLatin1String("Id"), QLatin1String("ApiVersion"), QLatin1String("Name"), QLatin1String("Description"),
-              QLatin1String("Icon"), QLatin1String("Category"), QLatin1String("Parent"), QLatin1String("Order"),
-              QLatin1String("Keywords"), QLatin1String("TranslationDomain"), QLatin1String("Categories"),
-              QLatin1String("Pages"), QLatin1String("ExtensionPoints"), QLatin1String("Extensions"),
-              QLatin1String("Search"), QLatin1String("SearchProviders")},
-             {QLatin1String("Name"), QLatin1String("Description"), QLatin1String("Keywords")})) {
-        notes.append(QStringLiteral("unknown key \"%1\"").arg(key));
-    }
+    checkLocalizableText(json, FacetMetadataKeys::Module, top, &problems);
+    noteUnknownKeys(json, FacetMetadataKeys::Module, top, &notes);
 
     QSet<QString> categoryIds;
-    const QJsonArray categories = arrayValue(json, QLatin1String("Categories"), top, &problems);
-    for (const QJsonValue& value : categories) {
-        const QJsonObject object = value.toObject();
+    const QList<QJsonObject> categories = objectsIn(arrayValue(json, QLatin1String("Categories"), top, &problems),
+                                                    QLatin1String("Categories"), &problems);
+    for (const QJsonObject& object : categories) {
         FacetCategoryMetadata category;
-        category.id = object.value(QLatin1String("Id")).toString();
+        const qsizetype problemsBefore = problems.size();
+        category.id = stringValue(object, QLatin1String("Id"), QStringLiteral("category: "), &problems);
+        if (problems.size() != problemsBefore) {
+            continue;
+        }
         const QString where = QStringLiteral("category %1: ").arg(category.id);
         const bool categoryNameKindOk =
-            baseKindOk(object, QLatin1String("Name"), LocalizedKind::String, where, &problems);
-        category.name = localized(object, QLatin1String("Name"), LocalizedKind::String, variants).toString();
+            baseKindOk(object, QLatin1String("Name"), Localizable::String, where, &problems);
+        category.name = localized(object, QLatin1String("Name"), Localizable::String, variants).toString();
         category.icon = stringValue(object, QLatin1String("Icon"), where, &problems);
         category.order = integerValue(object, QLatin1String("Order"), 0, where, &problems);
-        for (const QString& key : unknownKeys(
-                 object, {QLatin1String("Id"), QLatin1String("Name"), QLatin1String("Icon"), QLatin1String("Order")},
-                 {QLatin1String("Name")})) {
-            notes.append(QStringLiteral("%1unknown key \"%2\"").arg(where, key));
-        }
+        checkLocalizableText(object, FacetMetadataKeys::Category, where, &problems);
+        noteUnknownKeys(object, FacetMetadataKeys::Category, where, &notes);
         if (!categoryIdPattern().match(category.id).hasMatch()) {
             problems.append(QStringLiteral("category id %1 must match [a-z0-9][a-z0-9-]*").arg(category.id));
             continue;
         }
-        if (category.name.isEmpty()) {
+        if (!hasBase(object, QLatin1String("Name"))) {
             if (categoryNameKindOk) {
                 problems.append(QStringLiteral("category %1 has no \"Name\"").arg(category.id));
             }
@@ -323,33 +410,48 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
     QList<FacetPageMetadata> declared;
     QSet<QString> pageIds;
     const QJsonValue pagesValue = json.value(QLatin1String("Pages"));
-    const QJsonArray pages = pagesValue.toArray();
-    if (!pagesValue.isArray() || pages.isEmpty()) {
+    if (!pagesValue.isArray() || pagesValue.toArray().isEmpty()) {
         // A module's own page is where Facet says why it did not load and
         // offers to load it again, which a module that only adds sections to
         // other modules' pages needs as much as any other.
         problems.append(QStringLiteral("\"Pages\" must list at least one page"));
     }
-    for (const QJsonValue& value : pages) {
-        const QJsonObject object = value.toObject();
+    const QList<QJsonObject> pages = objectsIn(pagesValue.toArray(), QLatin1String("Pages"), &problems);
+    for (const QJsonObject& object : pages) {
         FacetPageMetadata page;
-        page.id = object.value(QLatin1String("Id")).toString();
+        const qsizetype idProblems = problems.size();
+        page.id = stringValue(object, QLatin1String("Id"), QStringLiteral("page: "), &problems);
+        if (problems.size() != idProblems) {
+            continue;
+        }
         const QString where = QStringLiteral("page %1: ").arg(page.id);
-        const bool pageNameKindOk = baseKindOk(object, QLatin1String("Name"), LocalizedKind::String, where, &problems);
-        page.name = localized(object, QLatin1String("Name"), LocalizedKind::String, variants).toString();
+        const bool pageNameKindOk = baseKindOk(object, QLatin1String("Name"), Localizable::String, where, &problems);
+        page.name = localized(object, QLatin1String("Name"), Localizable::String, variants).toString();
         page.icon = stringValue(object, QLatin1String("Icon"), where, &problems);
         page.parent = stringValue(object, QLatin1String("Parent"), where, &problems);
         page.category = stringValue(object, QLatin1String("Category"), where, &problems);
-        baseKindOk(object, QLatin1String("Keywords"), LocalizedKind::Array, where, &problems);
-        page.keywords = stringList(localized(object, QLatin1String("Keywords"), LocalizedKind::Array, variants));
+        baseKindOk(object, QLatin1String("Keywords"), Localizable::List, where, &problems);
+        page.keywords = stringList(localized(object, QLatin1String("Keywords"), Localizable::List, variants));
         page.counterpart = stringValue(object, QLatin1String("Counterpart"), where, &problems);
+        // A bad anchor is reported and the page kept, so the search entries
+        // and children that name the page do not each add an error of their
+        // own. The module is refused either way.
+        QSet<QString> anchorSet;
         const QJsonArray anchors = arrayValue(object, QLatin1String("Anchors"), where, &problems);
-        for (const QJsonValue& anchor : anchors) {
-            if (!anchor.isString() || anchor.toString().isEmpty()) {
+        for (const QJsonValue& value : anchors) {
+            if (!value.isString() || value.toString().isEmpty()) {
                 problems.append(QStringLiteral("%1every \"Anchors\" entry must be a non-empty string").arg(where));
                 break;
             }
-            page.anchors.append(anchor.toString());
+            const QString anchor = value.toString();
+            if (!anchorPattern().match(anchor).hasMatch()) {
+                problems.append(QStringLiteral("%1anchor %2 must match [A-Za-z0-9][A-Za-z0-9._-]*").arg(where, anchor));
+            } else if (anchorSet.contains(anchor)) {
+                problems.append(QStringLiteral("%1anchor %2 is listed twice").arg(where, anchor));
+                continue;
+            }
+            anchorSet.insert(anchor);
+            page.anchors.append(anchor);
         }
         if (const auto visibility = object.constFind(QLatin1String("Visibility")); visibility != object.cend()) {
             const auto parsed = visibilityFromString(visibility->toString());
@@ -367,21 +469,15 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
                 page.dividerAfter = divider->toBool();
             }
         }
-        for (const QString& key :
-             unknownKeys(object,
-                         {QLatin1String("Id"), QLatin1String("Name"), QLatin1String("Icon"), QLatin1String("Parent"),
-                          QLatin1String("Category"), QLatin1String("Keywords"), QLatin1String("Visibility"),
-                          QLatin1String("DividerAfter"), QLatin1String("Counterpart"), QLatin1String("Anchors")},
-                         {QLatin1String("Name"), QLatin1String("Keywords")})) {
-            notes.append(QStringLiteral("%1unknown key \"%2\"").arg(where, key));
-        }
+        checkLocalizableText(object, FacetMetadataKeys::Page, where, &problems);
+        noteUnknownKeys(object, FacetMetadataKeys::Page, where, &notes);
         if (!pageIdPattern().match(page.id).hasMatch()) {
             problems.append(QStringLiteral("page id %1 must be one or more [A-Za-z0-9][A-Za-z0-9._-]* segments joined "
                                            "by /")
                                 .arg(page.id));
             continue;
         }
-        if (page.name.isEmpty()) {
+        if (!hasBase(object, QLatin1String("Name"))) {
             if (pageNameKindOk) {
                 problems.append(QStringLiteral("page %1 has no \"Name\"").arg(page.id));
             }
@@ -398,21 +494,6 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
         }
         if (pageIds.contains(page.id)) {
             problems.append(QStringLiteral("page %1 is declared twice").arg(page.id));
-            continue;
-        }
-        bool anchorsValid = true;
-        QSet<QString> anchorSet;
-        for (const QString& anchor : std::as_const(page.anchors)) {
-            if (!moduleIdPattern().match(anchor).hasMatch() || anchorSet.contains(anchor)) {
-                problems.append(QStringLiteral("page %1 has anchor %2, which is listed twice or does not match "
-                                               "[A-Za-z0-9][A-Za-z0-9._-]*")
-                                    .arg(page.id, anchor));
-                anchorsValid = false;
-                break;
-            }
-            anchorSet.insert(anchor);
-        }
-        if (!anchorsValid) {
             continue;
         }
         pageIds.insert(page.id);
@@ -465,6 +546,8 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
         }
         localChildren[page.parent].append(page.id);
     }
+    // Every declared page, the ones in a loop of local parents included, so
+    // what names one of those is not also told the page does not exist.
     QHash<QString, const FacetPageMetadata*> byId;
     for (const FacetPageMetadata& page : std::as_const(declared)) {
         byId.insert(page.id, &page);
@@ -494,18 +577,19 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
     }
 
     QSet<QString> pointKeys;
-    const QJsonArray points = arrayValue(json, QLatin1String("ExtensionPoints"), top, &problems);
-    for (const QJsonValue& value : points) {
-        const QJsonObject object = value.toObject();
+    const QList<QJsonObject> points = objectsIn(arrayValue(json, QLatin1String("ExtensionPoints"), top, &problems),
+                                                QLatin1String("ExtensionPoints"), &problems);
+    for (const QJsonObject& object : points) {
         FacetExtensionPointMetadata point;
-        point.page = object.value(QLatin1String("Page")).toString();
-        point.id = object.value(QLatin1String("Id")).toString();
+        const qsizetype idProblems = problems.size();
+        point.page = stringValue(object, QLatin1String("Page"), QStringLiteral("extension point: "), &problems);
+        point.id = stringValue(object, QLatin1String("Id"), QStringLiteral("extension point: "), &problems);
+        if (problems.size() != idProblems) {
+            continue;
+        }
         const QString where = QStringLiteral("extension point %1 on page %2: ").arg(point.id, point.page);
         point.version = integerValue(object, QLatin1String("Version"), 1, where, &problems);
-        for (const QString& key :
-             unknownKeys(object, {QLatin1String("Page"), QLatin1String("Id"), QLatin1String("Version")}, {})) {
-            notes.append(QStringLiteral("%1unknown key \"%2\"").arg(where, key));
-        }
+        noteUnknownKeys(object, FacetMetadataKeys::ExtensionPoint, where, &notes);
         if (!pageIds.contains(point.page)) {
             problems.append(QStringLiteral("extension point %1 is on page %2, which the module does not declare")
                                 .arg(point.id, point.page));
@@ -534,30 +618,28 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
     }
 
     QSet<QString> extensionIds;
-    const QJsonArray extensions = arrayValue(json, QLatin1String("Extensions"), top, &problems);
-    for (const QJsonValue& value : extensions) {
-        const QJsonObject object = value.toObject();
+    const QList<QJsonObject> extensions = objectsIn(arrayValue(json, QLatin1String("Extensions"), top, &problems),
+                                                    QLatin1String("Extensions"), &problems);
+    for (const QJsonObject& object : extensions) {
         FacetExtensionMetadata extension;
-        extension.id = object.value(QLatin1String("Id")).toString();
-        const QString where = QStringLiteral("extension %1: ").arg(extension.id);
         // A key of the wrong type is reported once, by the reader below,
         // rather than again by the checks that would read its empty value.
         const qsizetype problemsBefore = problems.size();
+        extension.id = stringValue(object, QLatin1String("Id"), QStringLiteral("extension: "), &problems);
+        if (problems.size() != problemsBefore) {
+            continue;
+        }
+        const QString where = QStringLiteral("extension %1: ").arg(extension.id);
         extension.target = stringValue(object, QLatin1String("Target"), where, &problems);
         extension.slot = stringValue(object, QLatin1String("Slot"), where, &problems);
         extension.targetVersion = integerValue(object, QLatin1String("TargetVersion"), 1, where, &problems);
-        baseKindOk(object, QLatin1String("Name"), LocalizedKind::String, where, &problems);
-        baseKindOk(object, QLatin1String("Keywords"), LocalizedKind::Array, where, &problems);
-        extension.name = localized(object, QLatin1String("Name"), LocalizedKind::String, variants).toString();
-        extension.keywords = stringList(localized(object, QLatin1String("Keywords"), LocalizedKind::Array, variants));
+        baseKindOk(object, QLatin1String("Name"), Localizable::String, where, &problems);
+        baseKindOk(object, QLatin1String("Keywords"), Localizable::List, where, &problems);
+        extension.name = localized(object, QLatin1String("Name"), Localizable::String, variants).toString();
+        extension.keywords = stringList(localized(object, QLatin1String("Keywords"), Localizable::List, variants));
         extension.order = integerValue(object, QLatin1String("Order"), 0, where, &problems);
-        for (const QString& key : unknownKeys(object,
-                                              {QLatin1String("Id"), QLatin1String("Target"), QLatin1String("Slot"),
-                                               QLatin1String("TargetVersion"), QLatin1String("Name"),
-                                               QLatin1String("Keywords"), QLatin1String("Order")},
-                                              {QLatin1String("Name"), QLatin1String("Keywords")})) {
-            notes.append(QStringLiteral("%1unknown key \"%2\"").arg(where, key));
-        }
+        checkLocalizableText(object, FacetMetadataKeys::Extension, where, &problems);
+        noteUnknownKeys(object, FacetMetadataKeys::Extension, where, &notes);
         if (problems.size() != problemsBefore) {
             continue;
         }
@@ -594,7 +676,7 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
                                 .arg(extension.id, QString::number(extension.targetVersion)));
             continue;
         }
-        if (extension.name.isEmpty()) {
+        if (!hasBase(object, QLatin1String("Name"))) {
             problems.append(QStringLiteral("extension %1 has no \"Name\"").arg(extension.id));
             continue;
         }
@@ -602,9 +684,24 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
         metadata.extensions.append(extension);
     }
 
-    const QJsonArray search = arrayValue(json, QLatin1String("Search"), top, &problems);
-    for (const QJsonValue& value : search) {
-        const QJsonObject object = value.toObject();
+    // The page among @p pageId and its local parents that shows only in
+    // simple mode, or empty. PageRegistry hides a page in a mode when any of
+    // its parents is hidden in it.
+    const auto simpleOnlyPage = [&byId](const QString& pageId) {
+        QSet<QString> seen;
+        for (const FacetPageMetadata* page = byId.value(pageId); page && !seen.contains(page->id);
+             page = byId.value(page->parent)) {
+            seen.insert(page->id);
+            if (page->visibility == PageRegistry::PageVisibility::SimpleOnly) {
+                return page->id;
+            }
+        }
+        return QString();
+    };
+    QSet<QString> searchKeys;
+    const QList<QJsonObject> search =
+        objectsIn(arrayValue(json, QLatin1String("Search"), top, &problems), QLatin1String("Search"), &problems);
+    for (const QJsonObject& object : search) {
         FacetSearchEntryMetadata entry;
         const QString where =
             QStringLiteral("search entry %1#%2: ")
@@ -614,14 +711,13 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
         const qsizetype problemsBefore = problems.size();
         entry.page = stringValue(object, QLatin1String("Page"), where, &problems);
         entry.anchor = stringValue(object, QLatin1String("Anchor"), where, &problems);
-        QString kind = stringValue(object, QLatin1String("Kind"), where, &problems);
-        if (!object.contains(QLatin1String("Kind"))) {
-            kind = QStringLiteral("Setting");
-        }
-        baseKindOk(object, QLatin1String("Title"), LocalizedKind::String, where, &problems);
-        baseKindOk(object, QLatin1String("Keywords"), LocalizedKind::Array, where, &problems);
-        entry.title = localized(object, QLatin1String("Title"), LocalizedKind::String, variants).toString();
-        entry.keywords = stringList(localized(object, QLatin1String("Keywords"), LocalizedKind::Array, variants));
+        const QString kind = object.contains(QLatin1String("Kind"))
+            ? stringValue(object, QLatin1String("Kind"), where, &problems)
+            : QStringLiteral("Setting");
+        baseKindOk(object, QLatin1String("Title"), Localizable::String, where, &problems);
+        baseKindOk(object, QLatin1String("Keywords"), Localizable::List, where, &problems);
+        entry.title = localized(object, QLatin1String("Title"), Localizable::String, variants).toString();
+        entry.keywords = stringList(localized(object, QLatin1String("Keywords"), Localizable::List, variants));
         if (const auto advanced = object.constFind(QLatin1String("AdvancedOnly")); advanced != object.cend()) {
             if (!advanced->isBool()) {
                 problems.append(QStringLiteral("%1\"AdvancedOnly\" must be true or false").arg(where));
@@ -629,18 +725,31 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
                 entry.advancedOnly = advanced->toBool();
             }
         }
-        for (const QString& key :
-             unknownKeys(object,
-                         {QLatin1String("Page"), QLatin1String("Anchor"), QLatin1String("Kind"), QLatin1String("Title"),
-                          QLatin1String("Keywords"), QLatin1String("AdvancedOnly")},
-                         {QLatin1String("Title"), QLatin1String("Keywords")})) {
-            notes.append(QStringLiteral("%1unknown key \"%2\"").arg(where, key));
-        }
+        checkLocalizableText(object, FacetMetadataKeys::SearchEntry, where, &problems);
+        noteUnknownKeys(object, FacetMetadataKeys::SearchEntry, where, &notes);
         if (problems.size() != problemsBefore) {
             continue;
         }
         const QString at = entry.page + QLatin1Char('#') + entry.anchor;
-        const FacetPageMetadata* const target = metadata.page(entry.page);
+        // A kind a newer Facet added. What that Facet asks of one is unknown
+        // here, so the entry is left out with a warning rather than checked
+        // against this Facet's rules and costing the module its pages.
+        if (kind != QLatin1String("Setting") && kind != QLatin1String("Section")) {
+            notes.append(QStringLiteral("search entry %1 has \"Kind\" %2, which this Facet does not know, so it is "
+                                        "left out")
+                             .arg(at, kind));
+            continue;
+        }
+        entry.section = kind == QLatin1String("Section");
+        if (entry.page.isEmpty()) {
+            problems.append(QStringLiteral("search entry %1 has no \"Page\"").arg(at));
+            continue;
+        }
+        if (entry.anchor.isEmpty()) {
+            problems.append(QStringLiteral("search entry %1 has no \"Anchor\"").arg(at));
+            continue;
+        }
+        const FacetPageMetadata* const target = byId.value(entry.page);
         if (!target) {
             problems.append(
                 QStringLiteral("search entry %1 is on page %2, which the module does not declare").arg(at, entry.page));
@@ -652,16 +761,27 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
                     .arg(at, entry.anchor, entry.page));
             continue;
         }
-        if (kind != QLatin1String("Setting") && kind != QLatin1String("Section")) {
-            problems.append(
-                QStringLiteral("search entry %1 has \"Kind\" %2, which is not Setting or Section").arg(at, kind));
-            continue;
-        }
-        entry.section = kind == QLatin1String("Section");
-        if (entry.title.isEmpty()) {
+        const QString baseTitle = object.value(QLatin1String("Title")).toString();
+        if (baseTitle.isEmpty()) {
             problems.append(QStringLiteral("search entry %1 has no \"Title\"").arg(at));
             continue;
         }
+        if (entry.advancedOnly) {
+            if (const QString simpleOnly = simpleOnlyPage(entry.page); !simpleOnly.isEmpty()) {
+                problems.append(QStringLiteral("search entry %1 is AdvancedOnly, but page %2 shows only in simple "
+                                               "mode, so search never offers it")
+                                    .arg(at, simpleOnly));
+                continue;
+            }
+        }
+        // The unit separator cannot occur in a page id or an anchor, so two
+        // different entries never share a key.
+        const QString searchKey = at + QLatin1Char('\x1f') + baseTitle;
+        if (searchKeys.contains(searchKey)) {
+            problems.append(QStringLiteral("search entry %1 titled %2 is declared twice").arg(at, baseTitle));
+            continue;
+        }
+        searchKeys.insert(searchKey);
         metadata.search.append(entry);
     }
     if (const auto providers = json.constFind(QLatin1String("SearchProviders")); providers != json.cend()) {
