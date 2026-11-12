@@ -68,6 +68,9 @@ endif()
 if(NOT DEFINED KDE_INSTALL_BINDIR)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
+if(NOT DEFINED KDE_INSTALL_LIBEXECDIR)
+    set(KDE_INSTALL_LIBEXECDIR ${CMAKE_INSTALL_LIBEXECDIR})
+endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Dependencies
@@ -179,6 +182,10 @@ set(phosphorcontrol_SRCS
     src/facetmodulemetadata.cpp
     src/facetcontext.cpp
     src/facethost.cpp
+    # FacetHost's load record and its shared config backends, private to the
+    # library (facetloadrecord_p.h, facetconfigbackends_p.h).
+    src/facetloadrecord.cpp
+    src/facetconfigbackends.cpp
     src/facetslotmodel.cpp
 )
 
@@ -523,6 +530,49 @@ if(PHOSPHOR_CONTROL_QML_INSTALL)
     # so it can be set here directly.
     set_target_properties(${_phosphor_control_qml_shared_plugin_target} PROPERTIES INSTALL_RPATH "$ORIGIN")
 endif()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Facet module build support
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# phosphor-facet-metadata generates a module's translated metadata, anchor
+# list and lupdate strings, and validates the metadata at build time.
+# phosphor_add_facet_module_metadata() drives it, and a module built out of
+# tree gets both from find_package(PhosphorControl). Defined ahead of the
+# examples and tests, so either can build a module.
+#
+# The tool compiles the library's metadata parser, facetmodulemetadata.cpp,
+# rather than linking the library, so it runs on QtCore alone. A rebuilt
+# parser rebuilds the tool, which reruns every module's generation; linking
+# the shared library would not have, since a build that sets
+# LINK_DEPENDS_NO_SHARED (KDECMakeSettings does) does not relink an
+# executable when only a library it links changed. The tool also needs no
+# rpath to the library in the build tree or after install.
+add_executable(phosphor-facet-metadata
+    tools/phosphor-facet-metadata/main.cpp
+    src/facetmodulemetadata.cpp
+)
+add_executable(PhosphorControl::phosphor-facet-metadata ALIAS phosphor-facet-metadata)
+target_include_directories(phosphor-facet-metadata PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    # phosphorcontrol_export.h
+    ${CMAKE_CURRENT_BINARY_DIR}
+    # FacetModuleMetadata.h includes PageRegistry.h, which includes
+    # <QtQml/qqmlregistration.h>. The parser uses no QtQml symbol, so the
+    # headers are enough and the tool does not link QtQml.
+    $<TARGET_PROPERTY:Qt6::Qml,INTERFACE_INCLUDE_DIRECTORIES>
+)
+target_compile_features(phosphor-facet-metadata PRIVATE cxx_std_20)
+target_link_libraries(phosphor-facet-metadata PRIVATE Qt6::Core)
+# Like the library, whose sources it shares: each file keeps its own
+# anonymous namespace.
+set_target_properties(phosphor-facet-metadata PROPERTIES UNITY_BUILD OFF)
+install(TARGETS phosphor-facet-metadata
+    EXPORT PhosphorControlTargets
+    RUNTIME DESTINATION ${KDE_INSTALL_LIBEXECDIR}/phosphor
+)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PhosphorFacetModule.cmake)
+install(FILES cmake/PhosphorFacetModule.cmake DESTINATION ${KDE_INSTALL_LIBDIR}/cmake/PhosphorControl)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Examples — opt-in via -DBUILD_PHOSPHOR_CONTROL_EXAMPLES=ON

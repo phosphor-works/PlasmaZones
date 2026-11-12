@@ -4,6 +4,7 @@
 #include "PhosphorControl/FacetContext.h"
 
 #include "PhosphorControl/FacetHost.h"
+#include "PhosphorControl/ISearchProvider.h"
 #include "PhosphorControl/PageController.h"
 #include "PhosphorControl/StagingDomain.h"
 
@@ -12,6 +13,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QThread>
+
+#include <algorithm>
 
 namespace PhosphorControl {
 
@@ -161,6 +164,39 @@ bool FacetContext::registerExtension(const QString& localExtensionId, StagingDom
     m_domains.append(domain);
     m_extensions.append(ExtensionRegistration{localExtensionId, domain, qmlSource});
     m_registeredExtensions.insert(localExtensionId);
+    return true;
+}
+
+bool FacetContext::registerSearchProvider(ISearchProvider* provider)
+{
+    if (!provider) {
+        m_errors.append(QStringLiteral("registered a null search provider"));
+        return false;
+    }
+    if (!m_metadata.searchProviders) {
+        m_errors.append(
+            QStringLiteral("registered a search provider without \"SearchProviders\": true in its metadata"));
+        return false;
+    }
+    const bool registered = std::any_of(m_searchProviders.cbegin(), m_searchProviders.cend(),
+                                        [provider](const SearchProviderRegistration& registration) {
+                                            return registration.provider == provider;
+                                        });
+    if (registered) {
+        m_errors.append(QStringLiteral("registered a search provider twice"));
+        return false;
+    }
+    // ISearchProvider is not a QObject, but a provider that also is one gets
+    // the checks a domain gets: its thread now, and whether it is still
+    // there when the host checks the registration and each time it is
+    // asked for its entries.
+    QObject* const object = dynamic_cast<QObject*>(provider);
+    if (object && object->thread() != QThread::currentThread()) {
+        m_errors.append(QStringLiteral("registered a search provider that lives in another thread"));
+        return false;
+    }
+    // The host asks it for its entries once the registration is kept.
+    m_searchProviders.append(SearchProviderRegistration{provider, object, object != nullptr});
     return true;
 }
 

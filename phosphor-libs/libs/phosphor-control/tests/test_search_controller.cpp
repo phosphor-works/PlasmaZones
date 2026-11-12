@@ -84,6 +84,23 @@ public:
     }
 };
 
+// One entity on the "rules" page, counting how often it is asked, which is
+// how often the index is built while it is registered.
+class CountingProvider : public ISearchProvider
+{
+public:
+    mutable int asked = 0;
+    QVector<SearchEntry> searchEntries() const override
+    {
+        ++asked;
+        SearchEntry e;
+        e.kind = SearchEntry::Kind::Entity;
+        e.pageId = QStringLiteral("rules");
+        e.title = QStringLiteral("Counted");
+        return {e};
+    }
+};
+
 /** Counts SearchController's entry-drop warnings for its lifetime, restoring
  *  the previous handler on destruction.
  *
@@ -610,6 +627,218 @@ private Q_SLOTS:
             }
         }
         QCOMPARE(count, 1);
+    }
+
+    void anUnregisteredProviderIsNoLongerAsked()
+    {
+        SearchController sc(m_app.get());
+        StubProvider provider;
+        sc.registerProvider(&provider);
+        sc.setQuery(QStringLiteral("steam"));
+        QVERIFY(resultPageIds(sc).contains(QStringLiteral("rules")));
+
+        // The live query's results drop its entries at once.
+        QSignalSpy changed(&sc, &SearchController::resultsChanged);
+        sc.unregisterProvider(&provider);
+        QCOMPARE(changed.count(), 1);
+        QVERIFY(!resultPageIds(sc).contains(QStringLiteral("rules")));
+
+        // One that is not registered, or null, changes nothing.
+        sc.unregisterProvider(&provider);
+        sc.unregisterProvider(nullptr);
+        QCOMPARE(changed.count(), 1);
+
+        // And it can join again.
+        sc.registerProvider(&provider);
+        QVERIFY(resultPageIds(sc).contains(QStringLiteral("rules")));
+    }
+
+    void aProviderUnregisteredByAnotherIsNotAsked()
+    {
+        // The first provider asked takes the second out, as module code may.
+        // The second may be gone by then, so it is not asked in that pass,
+        // and none of its entries is listed.
+        struct Counting : ISearchProvider
+        {
+            mutable int asked = 0;
+            QVector<SearchEntry> searchEntries() const override
+            {
+                ++asked;
+                SearchEntry e;
+                e.kind = SearchEntry::Kind::Entity;
+                e.pageId = QStringLiteral("rules");
+                e.title = QStringLiteral("Victim");
+                return {e};
+            }
+        };
+        struct Remover : ISearchProvider
+        {
+            SearchController* controller = nullptr;
+            ISearchProvider* victim = nullptr;
+            QVector<SearchEntry> searchEntries() const override
+            {
+                controller->unregisterProvider(victim);
+                return {};
+            }
+        };
+        SearchController sc(m_app.get());
+        Counting victim;
+        Remover remover;
+        remover.controller = &sc;
+        remover.victim = &victim;
+        sc.registerProvider(&remover);
+        sc.registerProvider(&victim);
+        sc.setQuery(QStringLiteral("victim"));
+        QCOMPARE(victim.asked, 0);
+        QCOMPARE(sc.resultCount(), 0);
+    }
+
+    void aProviderRegisteredWhileTheIndexIsBuiltIsAsked()
+    {
+        // The first provider asked registers another, as module code may.
+        // The build goes round again, so the newcomer's entries are in the
+        // answer to the query that asked, not left out until the next one.
+        struct Late : ISearchProvider
+        {
+            QVector<SearchEntry> searchEntries() const override
+            {
+                SearchEntry e;
+                e.kind = SearchEntry::Kind::Entity;
+                e.pageId = QStringLiteral("rules");
+                e.title = QStringLiteral("Latecomer entity");
+                return {e};
+            }
+        };
+        struct Registrar : ISearchProvider
+        {
+            SearchController* controller = nullptr;
+            ISearchProvider* late = nullptr;
+            mutable int asked = 0;
+            QVector<SearchEntry> searchEntries() const override
+            {
+                ++asked;
+                controller->registerProvider(late);
+                return {};
+            }
+        };
+        SearchController sc(m_app.get());
+        Late late;
+        Registrar registrar;
+        registrar.controller = &sc;
+        registrar.late = &late;
+        sc.registerProvider(&registrar);
+        QSignalSpy changed(&sc, &SearchController::resultsChanged);
+        sc.setQuery(QStringLiteral("latecomer entity"));
+        QCOMPARE(subtitleForTitle(sc, QStringLiteral("Latecomer entity")), QStringLiteral("Rules"));
+        QCOMPARE(changed.count(), 1);
+        // Asked again in the second build, where registering the same
+        // provider changes nothing, so there is no third.
+        QCOMPARE(registrar.asked, 2);
+    }
+
+    void aProviderThatAlwaysChangesTheIndexCannotHangAQuery()
+    {
+        struct Churner : ISearchProvider
+        {
+            SearchController* controller = nullptr;
+            mutable int asked = 0;
+            QVector<SearchEntry> searchEntries() const override
+            {
+                ++asked;
+                controller->invalidate();
+                SearchEntry e;
+                e.kind = SearchEntry::Kind::Entity;
+                e.pageId = QStringLiteral("rules");
+                e.title = QStringLiteral("Churned");
+                return {e};
+            }
+        };
+        SearchController sc(m_app.get());
+        Churner churner;
+        churner.controller = &sc;
+        sc.registerProvider(&churner);
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("^SearchController: the index changed while it was "
+                                                               "built \\d+ times in a row")));
+        sc.setQuery(QStringLiteral("churned"));
+        // The last build answers.
+        QCOMPARE(sc.resultCount(), 1);
+        const int asked = churner.asked;
+        QVERIFY(asked > 1);
+        // The index stays stale, so the next query builds it again.
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("^SearchController: the index changed while it was "
+                                                               "built \\d+ times in a row")));
+        sc.setQuery(QStringLiteral("churn"));
+        QCOMPARE(churner.asked, 2 * asked);
+    }
+
+    void heldUpdatesRebuildOnceWhenTheLastHoldIsReleased()
+    {
+        SearchController sc(m_app.get());
+        CountingProvider provider;
+        sc.setQuery(QStringLiteral("counted"));
+        QCOMPARE(sc.resultCount(), 0);
+        QSignalSpy changed(&sc, &SearchController::resultsChanged);
+
+        sc.holdUpdates();
+        sc.holdUpdates();
+        sc.registerProvider(&provider);
+        sc.invalidate();
+        QCOMPARE(provider.asked, 0);
+        // The inner release leaves the outer hold standing.
+        sc.releaseUpdates();
+        QCOMPARE(provider.asked, 0);
+        QCOMPARE(sc.resultCount(), 0);
+        // Both changes held back are answered by one rebuild.
+        sc.releaseUpdates();
+        QCOMPARE(provider.asked, 1);
+        QCOMPARE(sc.resultCount(), 1);
+        QCOMPARE(changed.count(), 1);
+    }
+
+    void aQueryDuringAHoldAnswersAtOnce()
+    {
+        SearchController sc(m_app.get());
+        CountingProvider provider;
+        sc.holdUpdates();
+        sc.registerProvider(&provider);
+        QCOMPARE(provider.asked, 0);
+        sc.setQuery(QStringLiteral("counted"));
+        QCOMPARE(provider.asked, 1);
+        QCOMPARE(sc.resultCount(), 1);
+        // The query rebuilt the index with the change held before it, so
+        // the release owes nothing.
+        sc.releaseUpdates();
+        QCOMPARE(provider.asked, 1);
+    }
+
+    void aReleaseWithNothingHeldBackDoesNotRebuild()
+    {
+        SearchController sc(m_app.get());
+        CountingProvider provider;
+        sc.registerProvider(&provider);
+        sc.setQuery(QStringLiteral("counted"));
+        QCOMPARE(provider.asked, 1);
+        sc.holdUpdates();
+        sc.releaseUpdates();
+        QCOMPARE(provider.asked, 1);
+    }
+
+    void anUnbalancedReleaseIsIgnored()
+    {
+        SearchController sc(m_app.get());
+        CountingProvider provider;
+        sc.setQuery(QStringLiteral("counted"));
+        QTest::ignoreMessage(QtWarningMsg, "SearchController: releaseUpdates() without holdUpdates() is ignored");
+        sc.releaseUpdates();
+        // Holding still works afterwards: the count did not go below zero.
+        sc.holdUpdates();
+        sc.registerProvider(&provider);
+        QCOMPARE(provider.asked, 0);
+        sc.releaseUpdates();
+        QCOMPARE(provider.asked, 1);
+        QCOMPARE(sc.resultCount(), 1);
     }
 
     void pageKindEntryKeepsEmptySubtitle()

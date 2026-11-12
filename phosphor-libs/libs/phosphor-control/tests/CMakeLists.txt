@@ -39,10 +39,10 @@ function(phosphorcontrol_add_test name)
     # the application type of the QTEST_MAIN tests a decision of this file
     # instead of a side effect of that library's dependencies. A
     # QGuiApplication needs a platform plugin, hence
-    # QT_QPA_PLATFORM=offscreen below. test_facet_slot, which builds QML
-    # items, is one of the QTEST_MAIN tests; the other Facet tests use
-    # QTEST_GUILESS_MAIN and need no plugin. No test creates its own
-    # application object or touches widgets.
+    # QT_QPA_PLATFORM=offscreen below. Of the Facet tests, test_facet_slot
+    # and test_page_host, which build QML items, use QTEST_MAIN, as do most of
+    # the others here. A test that uses QTEST_GUILESS_MAIN needs no plugin. No
+    # test creates its own application object or touches widgets.
     target_link_libraries(${name}
         PRIVATE
             PhosphorControl::PhosphorControl
@@ -74,26 +74,36 @@ phosphorcontrol_add_test(test_search_controller)
 phosphorcontrol_add_test(test_sidebar_rows)
 # Parses metadata only, so it needs no fixture module.
 phosphorcontrol_add_test(test_facet_module_metadata)
+# Runs the build tool on files of its own, so it needs no fixture module
+# either.
+phosphorcontrol_add_test(test_facet_metadata_tool)
+target_compile_definitions(test_facet_metadata_tool PRIVATE
+    PHOSPHOR_FACET_METADATA_TOOL="$<TARGET_FILE:phosphor-facet-metadata>")
+add_dependencies(test_facet_metadata_tool phosphor-facet-metadata)
 
 # ─── Facet module fixtures ─────────────────────────────────────────────────────
 #
 # A STATIC build cannot host Facet modules (see PHOSPHOR_CONTROL_BUILD_SHARED):
 # each fixture would carry its own copy of the library, so the host and the
 # module would not even share StagingDomain's metaobject. The fixtures and the
-# tests that load them need the shared library. test_facet_slot below is left
-# out of a static build too: it links the library together with the static
-# QML module, which compiles the same sources, and two static archives of one
-# set of objects in one executable is not a combination this build supports.
+# tests that load them need the shared library. test_facet_slot and
+# test_page_host below are left out of a static build too: each links the
+# library together with the static QML module, which compiles the same
+# sources, and two static archives of one set of objects in one executable is
+# not a combination this build supports.
 if(NOT PHOSPHOR_CONTROL_BUILD_SHARED)
     message(STATUS "phosphor-control: static build, so the Facet module tests are not built")
     return()
 endif()
 #
-# Every test Facet module is fake_module/fakemodule.cpp built once per variant.
-# A variant differs only in its generated fake_module_config.h (FAKE_MODE, see
-# the source) and metadata.json, both in a per-variant directory on the
-# target's include path, where moc finds the metadata file. Each library lands
-# at ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
+# Every test Facet module but notamodule is fake_module/fakemodule.cpp built
+# once per variant. A variant differs in its generated fake_module_config.h
+# (FAKE_MODE, see the source), its metadata.json, both in a per-variant
+# directory on the target's include path, and the catalogs it translates its
+# metadata from (TS_FILES). The metadata goes through
+# phosphor_add_facet_module_metadata, and the plugin embeds the
+# facet_metadata.json it generates. Each library lands at
+# ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
 set(PHOSPHOR_CONTROL_FIXTURE_DIR ${CMAKE_CURRENT_BINARY_DIR}/fixtures)
 # The tests copy fixtures here before loading them, not under /tmp, which may
 # be mounted noexec.
@@ -101,16 +111,29 @@ set(PHOSPHOR_CONTROL_STAGING_DIR ${CMAKE_CURRENT_BINARY_DIR}/facet-staging)
 file(MAKE_DIRECTORY ${PHOSPHOR_CONTROL_STAGING_DIR})
 set(phosphorcontrol_fixture_targets "")
 
-# phosphorcontrol_add_fake_module(<variant> MODE <n> METADATA <json> [SOURCE <file>])
+# phosphorcontrol_add_fake_module(<variant> MODE <n> METADATA <json> [SOURCE <file>]
+#                                [TS_FILES <ts>...] [INVALID])
 #
 # SOURCE replaces fake_module/fakemodule.cpp, for a fixture that is not a
 # FakeFacetModule at all.
+#
+# The metadata goes through phosphor_add_facet_module_metadata like a real
+# module's, with TS_FILES as its translations. INVALID lets it through when it
+# is invalid on purpose.
+#
+# Each variant compiles the source through a symbolic link in its own
+# directory. phosphor_add_facet_module_metadata makes the plugin source
+# depend on the generated metadata, and a source file's dependencies are kept
+# per directory, so with one shared path every variant would be rebuilt
+# whenever any variant's metadata changed. The function refuses that.
 #
 # METADATA is one argument. A ';' inside a JSON array's [...] does not split
 # it, because CMake keeps a bracketed run in one list element. A ';' anywhere
 # else does, and so does a misspelt keyword. Either leaves arguments that no
 # keyword claims, which is an error here rather than a variant built from
-# half its metadata.
+# half its metadata. A keyword misspelt after TS_FILES is taken as one of its
+# catalogs instead, which phosphor_add_facet_module_metadata refuses for not
+# being a .ts file.
 #
 # MODE 44 is the variant whose library cannot be loaded, because it calls a
 # function no library defines (see fakemodule.cpp). It is compiled with -fplt
@@ -118,7 +141,7 @@ set(phosphorcontrol_fixture_targets "")
 # bound PLT slot and only the eager bind PluginCatalog::load asks for reports
 # it. Without -fplt a -fno-plt in CXXFLAGS would bind it at dlopen anyway.
 function(phosphorcontrol_add_fake_module variant)
-    cmake_parse_arguments(ARG "" "MODE;METADATA;SOURCE" "" ${ARGN})
+    cmake_parse_arguments(ARG "INVALID" "MODE;METADATA;SOURCE" "TS_FILES" ${ARGN})
     if(DEFINED ARG_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR
             "phosphorcontrol_add_fake_module(${variant}): unexpected arguments: ${ARG_UNPARSED_ARGUMENTS}")
@@ -139,7 +162,17 @@ function(phosphorcontrol_add_fake_module variant)
                    ${configDir}/fake_module_config.h @ONLY)
     file(WRITE ${configDir}/metadata.json.tmp "${ARG_METADATA}\n")
     configure_file(${configDir}/metadata.json.tmp ${configDir}/metadata.json COPYONLY)
-    add_library(${target} MODULE ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_SOURCE}
+    set(invalid "")
+    if(ARG_INVALID)
+        set(invalid ALLOW_INVALID)
+    endif()
+    # Not in the generated <target>_facet directory: a link there would put
+    # the generated facet_metadata.json beside the source, which the function
+    # refuses as a stray copy from the second configure on. No copy as a
+    # fallback either, since a copy would go stale when the source changes.
+    get_filename_component(sourceName ${ARG_SOURCE} NAME)
+    file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_SOURCE} ${configDir}/${sourceName} SYMBOLIC)
+    add_library(${target} MODULE ${configDir}/${sourceName}
         ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/fake.qrc)
     target_include_directories(${target} PRIVATE ${configDir})
     # PhosphorConfig by name: fakemodule.cpp makes PhosphorConfig::JsonBackend
@@ -159,6 +192,7 @@ function(phosphorcontrol_add_fake_module variant)
         AUTORCC ON
         UNITY_BUILD OFF
     )
+    phosphor_add_facet_module_metadata(${target} METADATA ${configDir}/metadata.json TS_FILES ${ARG_TS_FILES} ${invalid})
     set(phosphorcontrol_fixture_targets ${phosphorcontrol_fixture_targets} ${target} PARENT_SCOPE)
 endfunction()
 
@@ -225,11 +259,14 @@ phosphorcontrol_add_fake_module(orphankid MODE 0 METADATA [=[{
 phosphorcontrol_add_fake_module(stray MODE 0 METADATA [=[{
     "Id": "stray", "ApiVersion": 1, "Name": "Stray", "Category": "no-such-category",
     "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
-# A module that defines a category of its own.
+# A module that defines a category of its own. Its search entry has the title
+# of translated's: "owncat" sorts before "translated" by id, while its games
+# category comes after apps, where translated goes, in the sidebar.
 phosphorcontrol_add_fake_module(owncat MODE 0 METADATA [=[{
     "Id": "owncat", "ApiVersion": 1, "Name": "Own Category", "Category": "games",
     "Categories": [ { "Id": "games", "Name": "Games", "Icon": "games-icon", "Order": 55 } ],
-    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+    "Pages": [ { "Id": "page", "Name": "Page", "Anchors": ["shared"] } ],
+    "Search": [ { "Page": "page", "Anchor": "shared", "Title": "Pointer speed" } ] }]=])
 _fake_with_good_pages(missingpage 1 "Missing Page")
 _fake_with_good_pages(extrapage 2 "Extra Page")
 _fake_with_good_pages(wrongid 3 "Wrong Id")
@@ -243,6 +280,7 @@ _fake_with_good_pages(selfdelete 10 "Self Delete")
 _fake_with_good_pages(recorder 12 "Recorder")
 _fake_with_good_pages(lateresult 13 "Late Result")
 _fake_with_good_pages(failingapply 14 "Failing Apply")
+_fake_with_good_pages(discardbroken 50 "Discard Broken")
 phosphorcontrol_add_fake_module(notamodule MODE 0 SOURCE fake_module/notamodule.cpp METADATA [=[{
     "Id": "notamodule", "ApiVersion": 1, "Name": "Not A Module", "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
 _fake_with_good_pages(noqml 16 "No QML")
@@ -258,15 +296,35 @@ _fake_with_good_pages(deletespage 36 "Deletes Page")
 _fake_with_good_pages(deletesdomain 37 "Deletes Domain")
 _fake_with_good_pages(foreignpage 38 "Foreign Page")
 _fake_with_good_pages(foreigndomain 39 "Foreign Domain")
+_fake_with_good_pages(headlessgone 54 "Headless Gone")
+_fake_with_good_pages(deletesroot 56 "Deletes Root")
 # The same module id as "good" with different metadata: a module that changed
 # on disk between start() and its first load.
 phosphorcontrol_add_fake_module(goodv2 MODE 0 METADATA
     "{ \"Id\": \"good\", \"ApiVersion\": 1, \"Name\": \"Good Two\", \"Category\": \"input\",${_good_pages} }")
+# The next release of "good": the speed anchor of its page general is renamed,
+# so the page's anchors version goes up to 2. Its panel point is unchanged.
+phosphorcontrol_add_fake_module(goodnext MODE 0 METADATA [=[{
+    "Id": "good", "ApiVersion": 1, "Name": "Good Next", "Category": "input", "Order": 20,
+    "Pages": [
+        { "Id": "general/advanced", "Name": "Advanced", "Parent": "general" },
+        { "Id": "general", "Name": "General", "Keywords": ["basic"], "Anchors": ["speed-new"] },
+        { "Id": "about", "Name": "About" }
+    ],
+    "ExtensionPoints": [ { "Page": "general", "Id": "panel", "Version": 2 },
+                         { "Page": "general", "Id": "anchors", "Version": 2 } ] }]=])
+# Its metadata is valid: parse() reads ApiVersion without judging it, and the
+# catalog is what refuses the module.
 phosphorcontrol_add_fake_module(wrongapi MODE 0 METADATA [=[{
     "Id": "wrongapi", "ApiVersion": 2, "Name": "Wrong Api", "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
-phosphorcontrol_add_fake_module(badmetadata MODE 0 METADATA [=[{
+phosphorcontrol_add_fake_module(badmetadata MODE 0 INVALID METADATA [=[{
     "Id": "badmetadata", "ApiVersion": 1,
     "Pages": [ { "Id": "a:b", "Name": "Colon" } ] }]=])
+# A key no Facet knows, which loads with a warning. The tool prints that
+# warning when it generates this fixture's metadata, on purpose.
+phosphorcontrol_add_fake_module(typokey MODE 0 METADATA [=[{
+    "Id": "typokey", "ApiVersion": 1, "Name": "Typo Key",
+    "Pages": [ { "Id": "page", "Name": "Page", "Keywrods": ["typo"] } ] }]=])
 # The same module id as "badmetadata" with valid metadata: the module after
 # its author fixed it.
 phosphorcontrol_add_fake_module(fixedmetadata MODE 0 METADATA [=[{
@@ -279,6 +337,11 @@ phosphorcontrol_add_fake_module(pagecyclea MODE 0 METADATA [=[{
     "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecycleb:leaf" } ] }]=])
 phosphorcontrol_add_fake_module(pagecycleb MODE 0 METADATA [=[{
     "Id": "pagecycleb", "ApiVersion": 1, "Name": "Page Cycle B",
+    "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecyclea:leaf" } ] }]=])
+# A page under a page of that cycle, from outside it. Its module sorts ahead
+# of both cycle members, so it is the first page to wait.
+phosphorcontrol_add_fake_module(pagechain MODE 0 METADATA [=[{
+    "Id": "pagechain", "ApiVersion": 1, "Name": "Page Chain",
     "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecyclea:leaf" } ] }]=])
 
 # Modules that add sections to good's pages. extender's first four land on
@@ -310,7 +373,8 @@ phosphorcontrol_add_fake_module(targetsbad MODE 0 METADATA [=[{
 phosphorcontrol_add_fake_module(extender2 MODE 0 METADATA [=[{
     "Id": "extender2", "ApiVersion": 1, "Name": "Extender Two",
     "Pages": [ { "Id": "own", "Name": "Own" } ],
-    "Extensions": [ { "Id": "aaa", "Target": "good:general", "Slot": "top", "Name": "Aaa" } ] }]=])
+    "Extensions": [ { "Id": "aaa", "Target": "good:general", "Slot": "top", "Name": "Aaa",
+                      "Keywords": ["ext-word"] } ] }]=])
 # Its id is taken by an application page in the test, so it is never placed,
 # and its extension must not reach good:general.
 phosphorcontrol_add_fake_module(clashext MODE 0 METADATA [=[{
@@ -347,6 +411,8 @@ _fake_with_two_extensions(extensionmissingqml 27 "Extension Missing QML")
 _fake_with_two_extensions(extensionthread 28 "Extension Thread")
 _fake_with_two_extensions(deletesduringload 29 "Deletes During Load")
 _fake_with_two_extensions(extensionnoqml 35 "Extension No QML")
+_fake_with_two_extensions(deleteslater 52 "Deletes Later")
+_fake_with_two_extensions(removedwhileloading 55 "Removed While Loading")
 
 # Modules that open a config file. Each has the one page "general", like the
 # page-contract variants, so the same keeps-nothing checks cover the ones that
@@ -365,20 +431,83 @@ _fake_with_config(configempty 41 "Config Empty")
 _fake_with_config(confignested 42 "Config Nested")
 _fake_with_config(configthenbreaks 43 "Config Then Breaks")
 
+# Metadata localized from a catalog at build time, with a setting and an
+# advanced-only section to search for on its first page. Its second page has
+# a setting of its own, and the module's keywords and name find it as they
+# find the first. It takes its place after the first, so a pageRegistered slot
+# for the first runs while the module is only partly in the sidebar.
+phosphorcontrol_add_fake_module(translated MODE 0
+    TS_FILES ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/translated_de.ts
+    METADATA [=[{
+    "Id": "translated", "ApiVersion": 1, "Name": "Translated", "Keywords": ["module-word"],
+    "Pages": [ { "Id": "speed", "Name": "Speed", "Keywords": ["fast", "quick"], "Anchors": ["pointer", "accel"] },
+               { "Id": "extra", "Name": "Extra", "Anchors": ["more"] } ],
+    "Search": [ { "Page": "speed", "Anchor": "pointer", "Title": "Pointer speed", "Keywords": ["fast"] },
+                { "Page": "speed", "Anchor": "accel", "Kind": "Section", "Title": "Acceleration",
+                  "AdvancedOnly": true },
+                { "Page": "extra", "Anchor": "more", "Title": "More options" } ] }]=])
+
+# Dynamic search providers: well-behaved ones (providers, providerstwo),
+# strayprovider pointing elsewhere, undeclaredprovider registered without the
+# metadata flag, providersbroken in a registration that breaks the contract
+# otherwise, badproviders registering a null provider and one twice, and the
+# providers module again in a library that cannot be loaded
+# (providersunloadable).
+# Their one page is "general", like the page-contract variants, so the same
+# keeps-nothing checks cover the ones that break the contract.
+set(_provider_pages [=[ "Pages": [ { "Id": "general", "Name": "General", "Anchors": ["list"] } ] ]=])
+set(_providers_metadata
+    "{ \"Id\": \"providers\", \"ApiVersion\": 1, \"Name\": \"Providers\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(providers MODE 45 METADATA "${_providers_metadata}")
+phosphorcontrol_add_fake_module(providersunloadable MODE 44 METADATA "${_providers_metadata}")
+phosphorcontrol_add_fake_module(providerstwo MODE 45 METADATA
+    "{ \"Id\": \"providerstwo\", \"ApiVersion\": 1, \"Name\": \"Providers Two\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(strayprovider MODE 46 METADATA
+    "{ \"Id\": \"strayprovider\", \"ApiVersion\": 1, \"Name\": \"Stray\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(undeclaredprovider MODE 45 METADATA
+    "{ \"Id\": \"undeclaredprovider\", \"ApiVersion\": 1, \"Name\": \"Undeclared\",${_provider_pages} }")
+phosphorcontrol_add_fake_module(providersbroken MODE 47 METADATA
+    "{ \"Id\": \"providersbroken\", \"ApiVersion\": 1, \"Name\": \"Providers Broken\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(badproviders MODE 49 METADATA
+    "{ \"Id\": \"badproviders\", \"ApiVersion\": 1, \"Name\": \"Bad Providers\", \"SearchProviders\": true,${_provider_pages} }")
+# Providers that are QObjects: two the context refuses, and one a test deletes.
+phosphorcontrol_add_fake_module(providerobjects MODE 51 METADATA
+    "{ \"Id\": \"providerobjects\", \"ApiVersion\": 1, \"Name\": \"Provider Objects\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(providerobject MODE 53 METADATA
+    "{ \"Id\": \"providerobject\", \"ApiVersion\": 1, \"Name\": \"Provider Object\", \"SearchProviders\": true,${_provider_pages} }")
+# Says it has providers and registers none.
+phosphorcontrol_add_fake_module(providersnone MODE 0 METADATA
+    "{ \"Id\": \"providersnone\", \"ApiVersion\": 1, \"Name\": \"Providers None\", \"SearchProviders\": true,${_provider_pages} }")
+# A provider whose entries FacetTestHost checks one by one: on its own page,
+# on the page its one extension targets, and an action with no page.
+phosphorcontrol_add_fake_module(providerchecks MODE 48 METADATA [=[{
+    "Id": "providerchecks", "ApiVersion": 1, "Name": "Provider Checks", "SearchProviders": true,
+    "Pages": [ { "Id": "general", "Name": "General", "Anchors": ["list"] } ],
+    "Extensions": [ { "Id": "first", "Target": "good:general", "Slot": "top", "Name": "First" } ] }]=])
+
 phosphorcontrol_add_test(test_facet_host)
 phosphorcontrol_add_test(test_facet_test_host)
 target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
+# The anchors files phosphor_add_facet_module_metadata generates, so the test
+# checks a release against what the tool really writes.
+target_compile_definitions(test_facet_test_host PRIVATE
+    PHOSPHOR_CONTROL_GOOD_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_good,FACET_ANCHORS_FILE>"
+    PHOSPHOR_CONTROL_GOODNEXT_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_goodnext,FACET_ANCHORS_FILE>")
 
 # FacetSlot and FacetExtensionFrame, through the static org.phosphor.control
-# module the in-tree apps link. They import org.kde.kirigami, so the test
-# needs Kirigami's QML module at run time and is left out without it.
+# module the in-tree apps link. They import org.kde.kirigami, and so does
+# PageHost, so those tests need Kirigami's QML module at run time and are left
+# out without it.
 find_package(KF6Kirigami QUIET)
 if(KF6Kirigami_FOUND)
     phosphorcontrol_add_test(test_facet_slot)
     target_link_libraries(test_facet_slot PRIVATE PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin
                                                   Qt6::Quick)
+    phosphorcontrol_add_test(test_page_host)
+    target_link_libraries(test_page_host PRIVATE
+        PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin PhosphorAnimationQmlplugin Qt6::Quick)
 else()
-    message(STATUS "phosphor-control: KF6 Kirigami not found, so test_facet_slot is not built")
+    message(STATUS "phosphor-control: KF6 Kirigami not found, so test_facet_slot and test_page_host are not built")
 endif()
 foreach(test test_facet_host test_facet_test_host)
     target_compile_definitions(${test} PRIVATE

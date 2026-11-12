@@ -1,10 +1,13 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// One source for every Facet test module. tests/CMakeLists.txt builds it once
-// per variant with its own fake_module_config.h and metadata.json, so the
-// variants differ only in their metadata and in FAKE_MODE. "Pages" below means
-// context.metadata().pages, which is parents-first, not declaration order.
+// The source of the Facet test modules, all but notamodule.cpp's.
+// tests/CMakeLists.txt builds it once per variant, each with its own
+// fake_module_config.h, which sets FAKE_MODE, and its own metadata, which
+// phosphor_add_facet_module_metadata turns into the facet_metadata.json the
+// plugin embeds, translated from the variant's TS_FILES when it has any.
+// "Pages" below means context.metadata().pages, which is parents-first, not
+// declaration order.
 //   0  register every page and extension, and one headless domain
 //   1  skip the last page
 //   2  also register a page the metadata does not declare
@@ -22,8 +25,8 @@
 //  13  every domain emits a second applyResult from the event loop
 //  14  every domain reports a failed apply()
 //  16  register the first page with no QML source
-//  17  every domain, the headless one and each extension's, is dirty from
-//      the start
+//  17  every page and every domain, the headless one and each extension's,
+//      is dirty from the start
 //  18  every domain sends no applyResult at all
 //  19  the first page points at a QML file the module does not contain
 //  20  every domain sends its one applyResult from a timer, well after apply()
@@ -67,6 +70,50 @@
 //  44  call a function no library defines, so the library cannot be loaded.
 //      tests/CMakeLists.txt links this mode so that the call survives into
 //      the library.
+//  45  also register a search provider with an entity entry and a setting
+//      entry on the first page, at its first anchor
+//  46  also register a search provider with an entity entry on a page that
+//      is not the module's, and the setting entry of 45
+//  47  like 45, and also register a null domain
+//      The providers of 45 to 49 and of 53 are made once, by the first
+//      registerInto, as FacetContext::registerSearchProvider asks. 51 makes
+//      its two on every registerInto: the host refuses both, one is deleted
+//      at once, and the other, in another thread, is left until the process
+//      ends.
+//  48  also register a search provider with a setting entry on the first
+//      page at an anchor it does not list ("nope"), a section entry and a
+//      setting entry on the first extension's target page, at "speed" and at
+//      "gone", section entries on that page at the first extension's own
+//      anchor (`<module>:<extension>`) and at one of no extension of the
+//      module (`<module>:missing`), an action entry with no page, and an
+//      entity entry on the first page with no anchor
+//  49  also register a null search provider, and one search provider twice
+//  50  every domain reports a failed discard() and deletes itself
+//      (deleteLater) in it, and the headless domain has no objectName
+//  51  also register a search provider that is a QObject living in another
+//      thread, and one that is a QObject it deletes once registered
+//  52  deleteLater() the first page's controller and the first extension's
+//      domain once registered, and the headless domain's apply() deletes the
+//      last extension's domain
+//  53  also register a search provider that is a QObject, with the entity
+//      entry of 45, and put it in the application property
+//      fakeProviderObject, so a test can delete it
+//  54  also register two more headless domains: the first headless domain's
+//      first isDirty() deletes the first of them, as module code running
+//      while the host registers what passed its checks, and the second is
+//      deleted with deleteLater() once registered
+//  55  first remove the file the environment variable FAKE_REMOVE_FILE
+//      names, the module's own, and run a nested event loop for a second,
+//      which lets the catalog's rescan in while registerInto runs. Then
+//      register like 0, or nothing at all when the environment variable
+//      FAKE_REMOVE_FAIL is set, which fails the load.
+//  56  delete the root object with deleteLater() and register nothing
+//
+// The first search provider asked for its entries, of any mode, copies the
+// load record's content at that moment into the application property
+// facetSearchLoadRecord, when the FACET_TEST_LOAD_RECORD environment variable
+// names the record. Every search provider adds one to the application property
+// fakeProvidersAsked each time it is asked.
 //
 // The config modes (30 and 40 to 43) record every call of their factory: the
 // file it was asked to open is appended to the application property
@@ -83,6 +130,7 @@
 
 #include <PhosphorControl/FacetContext.h>
 #include <PhosphorControl/FacetModule.h>
+#include <PhosphorControl/ISearchProvider.h>
 #include <PhosphorControl/PageController.h>
 #include <PhosphorControl/StagingDomain.h>
 
@@ -90,6 +138,7 @@
 #include <PhosphorConfig/JsonBackend.h>
 
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QFile>
 #include <QObject>
 #include <QPointer>
@@ -103,7 +152,7 @@
 #include <utility>
 
 static_assert((FAKE_MODE >= 0 && FAKE_MODE <= 10) || (FAKE_MODE >= 12 && FAKE_MODE <= 14)
-                  || (FAKE_MODE >= 16 && FAKE_MODE <= 44),
+                  || (FAKE_MODE >= 16 && FAKE_MODE <= 56),
               "FAKE_MODE must be one of the modes listed above");
 
 #if FAKE_MODE == 44
@@ -155,6 +204,11 @@ void emitApply(PhosphorControl::StagingDomain* domain)
 
 void emitDiscard(PhosphorControl::StagingDomain* domain)
 {
+    if (FAKE_MODE == 50) {
+        Q_EMIT domain->discardResult(false, QStringLiteral("locked"));
+        domain->deleteLater();
+        return;
+    }
     Q_EMIT domain->discardResult(true, QString());
     if (FAKE_MODE == 9) {
         Q_EMIT domain->discardResult(true, QString());
@@ -167,6 +221,7 @@ class FakePage : public PhosphorControl::PageController
 public:
     FakePage(const QString& id, QObject* parent)
         : PageController(id, parent)
+        , m_dirty(FAKE_MODE == 17)
     {
     }
     bool isDirty() const override
@@ -192,7 +247,7 @@ public:
     }
 
 private:
-    bool m_dirty = false;
+    bool m_dirty;
 };
 
 class FakeDomain : public PhosphorControl::StagingDomain
@@ -206,15 +261,14 @@ public:
     }
     bool isDirty() const override
     {
-        if (FAKE_MODE == 29) {
-            // Once, and only what it was handed.
-            for (const QPointer<QObject>& victim : std::exchange(m_victims, {})) {
-                delete victim.data();
-            }
+        if (FAKE_MODE == 29 || FAKE_MODE == 54) {
+            deleteVictims();
         }
         return m_dirty;
     }
-    void deleteOnFirstDirtyCheck(QObject* victim)
+    /// Delete @p victim on this domain's first isDirty() in modes 29 and 54,
+    /// and on its first apply() in mode 52.
+    void addVictim(QObject* victim)
     {
         m_victims.append(victim);
     }
@@ -227,6 +281,9 @@ public:
     }
     void apply() override
     {
+        if (FAKE_MODE == 52) {
+            deleteVictims();
+        }
         setDirty(false);
         emitApply(this);
     }
@@ -241,6 +298,14 @@ public:
     }
 
 private:
+    // Once, and only what it was handed.
+    void deleteVictims() const
+    {
+        for (const QPointer<QObject>& victim : std::exchange(m_victims, {})) {
+            delete victim.data();
+        }
+    }
+
     bool m_dirty = false;
     mutable QList<QPointer<QObject>> m_victims;
 };
@@ -269,6 +334,50 @@ public:
 private:
     PhosphorConfig::IBackend* m_backend;
     QString m_key;
+};
+
+// What the load record holds the first time a provider is asked for its
+// entries, copied into facetSearchLoadRecord (see the mode list).
+void recordSearchLoadRecord()
+{
+    const QString path = qEnvironmentVariable("FACET_TEST_LOAD_RECORD");
+    if (path.isEmpty() || qApp->property("facetSearchLoadRecord").isValid()) {
+        return;
+    }
+    QFile record(path);
+    const QByteArray content = record.open(QIODevice::ReadOnly) ? record.readAll() : QByteArray();
+    qApp->setProperty("facetSearchLoadRecord", QString::fromUtf8(content));
+}
+
+class FakeProvider : public PhosphorControl::ISearchProvider
+{
+public:
+    explicit FakeProvider(QVector<PhosphorControl::SearchEntry> entries)
+        : m_entries(std::move(entries))
+    {
+    }
+    QVector<PhosphorControl::SearchEntry> searchEntries() const override
+    {
+        recordSearchLoadRecord();
+        qApp->setProperty("fakeProvidersAsked", qApp->property("fakeProvidersAsked").toInt() + 1);
+        return m_entries;
+    }
+
+private:
+    QVector<PhosphorControl::SearchEntry> m_entries;
+};
+
+// A provider that is a QObject too, for the checks FacetContext and the host
+// make on one.
+class ObjectProvider : public QObject, public FakeProvider
+{
+    Q_OBJECT
+public:
+    ObjectProvider(QVector<PhosphorControl::SearchEntry> entries, QObject* parent)
+        : QObject(parent)
+        , FakeProvider(std::move(entries))
+    {
+    }
 };
 
 // The backend the config modes make, which counts its destructions in the
@@ -306,7 +415,7 @@ std::unique_ptr<PhosphorConfig::IBackend> makeConfigBackend(const QString& file)
 class FakeFacetModule : public QObject, public PhosphorControl::IFacetModule
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "metadata.json")
+    Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "facet_metadata.json")
     Q_INTERFACES(PhosphorControl::IFacetModule)
 
 public:
@@ -318,6 +427,19 @@ public:
             return;
         }
 #endif
+        if (FAKE_MODE == 56) {
+            deleteLater();
+            return;
+        }
+        if (FAKE_MODE == 55) {
+            QFile::remove(qEnvironmentVariable("FAKE_REMOVE_FILE"));
+            QEventLoop loop;
+            QTimer::singleShot(1000, &loop, &QEventLoop::quit);
+            loop.exec();
+            if (!qEnvironmentVariableIsEmpty("FAKE_REMOVE_FAIL")) {
+                return;
+            }
+        }
         if (FAKE_MODE == 12) {
             QFile record(qEnvironmentVariable("FACET_TEST_LOAD_RECORD"));
             const QByteArray content = record.open(QIODevice::ReadOnly) ? record.readAll() : QByteArray();
@@ -368,6 +490,9 @@ public:
             if (FAKE_MODE == 29 && i == 0) {
                 firstPage = page;
             }
+            if (FAKE_MODE == 52 && i == 0) {
+                page->deleteLater();
+            }
             if (FAKE_MODE == 5 && i == 0) {
                 context.registerPage(local, new FakePage(id, this), source);
             }
@@ -378,9 +503,11 @@ public:
                                  QUrl(QStringLiteral("qrc:/fake/Page.qml")));
         }
         auto* const domain = new FakeDomain(this);
-        domain->setObjectName(QStringLiteral("FakeDomain"));
+        if (FAKE_MODE != 50) {
+            domain->setObjectName(QStringLiteral("FakeDomain"));
+        }
         if (firstPage) {
-            domain->deleteOnFirstDirtyCheck(firstPage);
+            domain->addVictim(firstPage);
         }
         context.registerDomain(domain);
         if (FAKE_MODE == 7) {
@@ -406,6 +533,16 @@ public:
             if (auto* const tracked = qobject_cast<PhosphorControl::StagingDomain*>(foreign)) {
                 context.registerDomain(tracked);
             }
+        }
+        if (FAKE_MODE == 54) {
+            auto* const victim = new FakeDomain(this);
+            victim->setObjectName(QStringLiteral("victim"));
+            domain->addVictim(victim);
+            context.registerDomain(victim);
+            auto* const late = new FakeDomain(this);
+            late->setObjectName(QStringLiteral("late"));
+            context.registerDomain(late);
+            late->deleteLater();
         }
 
         const auto& extensions = context.metadata().extensions;
@@ -441,7 +578,13 @@ public:
             section->setObjectName(local);
             context.registerExtension(local, section, source);
             if (FAKE_MODE == 29 && i == 0) {
-                domain->deleteOnFirstDirtyCheck(section);
+                domain->addVictim(section);
+            }
+            if (FAKE_MODE == 52 && i == 0) {
+                section->deleteLater();
+            }
+            if (FAKE_MODE == 52 && i > 0 && i == extensions.size() - 1) {
+                domain->addVictim(section);
             }
         }
         if (FAKE_MODE == 30 || FAKE_MODE == 31 || (FAKE_MODE >= 40 && FAKE_MODE <= 43)) {
@@ -477,11 +620,123 @@ public:
                 context.registerDomain(nullptr);
             }
         }
+        // The provider modes' metadata always declares a page, and 48's an
+        // extension, but a fixture with neither must not crash the test.
+        const bool providerMode = FAKE_MODE == 45 || FAKE_MODE == 46 || FAKE_MODE == 47 || FAKE_MODE == 48
+            || FAKE_MODE == 51 || FAKE_MODE == 53;
+        if (providerMode && (pages.isEmpty() || (FAKE_MODE == 48 && extensions.isEmpty()))) {
+            qWarning("fakemodule: search provider mode %d needs a page and, for 48, an extension", FAKE_MODE);
+            return;
+        }
+        if (FAKE_MODE == 45 || FAKE_MODE == 46 || FAKE_MODE == 47 || FAKE_MODE == 53) {
+            using PhosphorControl::SearchEntry;
+            QVector<SearchEntry> entries;
+            const auto& first = pages.first();
+            SearchEntry entity;
+            entity.kind = SearchEntry::Kind::Entity;
+            entity.pageId = FAKE_MODE == 46 ? QStringLiteral("elsewhere:page") : context.pageId(first.id);
+            entity.anchor = QStringLiteral("rule:42");
+            entity.title = QStringLiteral("Dynamic entity");
+            entries.append(entity);
+            if (FAKE_MODE != 53) {
+                SearchEntry setting;
+                setting.kind = SearchEntry::Kind::Setting;
+                setting.pageId = context.pageId(first.id);
+                setting.anchor = first.anchors.value(0);
+                setting.title = QStringLiteral("Dynamic setting");
+                entries.append(setting);
+            }
+            if (FAKE_MODE == 53) {
+                if (!m_objectProvider) {
+                    m_objectProvider = new ObjectProvider(entries, this);
+                }
+                qApp->setProperty("fakeProviderObject", QVariant::fromValue<QObject*>(m_objectProvider.data()));
+                context.registerSearchProvider(m_objectProvider.data());
+            } else {
+                if (!m_provider) {
+                    m_provider = std::make_unique<FakeProvider>(entries);
+                }
+                context.registerSearchProvider(m_provider.get());
+            }
+            if (FAKE_MODE == 47) {
+                context.registerDomain(nullptr);
+            }
+        }
+        if (FAKE_MODE == 51) {
+            auto* const foreign = new ObjectProvider({}, nullptr);
+            foreign->moveToThread(otherThread());
+            context.registerSearchProvider(foreign);
+            auto* const doomed = new ObjectProvider({}, this);
+            context.registerSearchProvider(doomed);
+            delete doomed;
+        }
+        if (FAKE_MODE == 48) {
+            using PhosphorControl::SearchEntry;
+            const auto& first = pages.first();
+            const QString extended = extensions.first().target;
+            QVector<SearchEntry> entries;
+            SearchEntry unlisted;
+            unlisted.kind = SearchEntry::Kind::Setting;
+            unlisted.pageId = context.pageId(first.id);
+            unlisted.anchor = QStringLiteral("nope");
+            unlisted.title = QStringLiteral("Unlisted anchor");
+            entries.append(unlisted);
+            SearchEntry section;
+            section.kind = SearchEntry::Kind::Section;
+            section.pageId = extended;
+            section.anchor = QStringLiteral("speed");
+            section.title = QStringLiteral("Extended section");
+            entries.append(section);
+            SearchEntry gone;
+            gone.kind = SearchEntry::Kind::Setting;
+            gone.pageId = extended;
+            gone.anchor = QStringLiteral("gone");
+            gone.title = QStringLiteral("Extended setting");
+            entries.append(gone);
+            SearchEntry own;
+            own.kind = SearchEntry::Kind::Section;
+            own.pageId = extended;
+            own.anchor = context.moduleId() + QLatin1Char(':') + extensions.first().id;
+            own.title = QStringLiteral("Own section");
+            entries.append(own);
+            SearchEntry missing;
+            missing.kind = SearchEntry::Kind::Section;
+            missing.pageId = extended;
+            missing.anchor = context.moduleId() + QStringLiteral(":missing");
+            missing.title = QStringLiteral("Missing section");
+            entries.append(missing);
+            SearchEntry action;
+            action.kind = SearchEntry::Kind::Action;
+            action.actionId = QStringLiteral("open-wizard");
+            action.title = QStringLiteral("Open the wizard");
+            entries.append(action);
+            SearchEntry entity;
+            entity.kind = SearchEntry::Kind::Entity;
+            entity.pageId = context.pageId(first.id);
+            entity.title = QStringLiteral("Unanchored entity");
+            entries.append(entity);
+            if (!m_provider) {
+                m_provider = std::make_unique<FakeProvider>(entries);
+            }
+            context.registerSearchProvider(m_provider.get());
+        }
+        if (FAKE_MODE == 49) {
+            if (!m_provider) {
+                m_provider = std::make_unique<FakeProvider>(QVector<PhosphorControl::SearchEntry>());
+            }
+            context.registerSearchProvider(nullptr);
+            context.registerSearchProvider(m_provider.get());
+            context.registerSearchProvider(m_provider.get());
+        }
         if (FAKE_MODE == 23 && !extensions.isEmpty()) {
             context.registerExtension(QStringLiteral("undeclared"), new FakeDomain(this), sectionSource);
             context.registerExtension(extensions.first().id, new FakeDomain(this), sectionSource);
         }
     }
+
+private:
+    std::unique_ptr<FakeProvider> m_provider;
+    QPointer<ObjectProvider> m_objectProvider;
 };
 
 #include "fakemodule.moc"

@@ -8,11 +8,13 @@
 #include <PhosphorControl/PageController.h>
 
 #include <QFile>
+#include <QHash>
 #include <QPointer>
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQuickItem>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -99,6 +101,28 @@ public:
     int builds = 0;
 Q_SIGNALS:
     void buildsChanged();
+};
+
+// Stands behind a page's reveal registry: the anchors registered with it, and
+// the ones taken out again.
+class AnchorLog : public QObject
+{
+    Q_OBJECT
+public:
+    QHash<QString, QPointer<QObject>> registered;
+    QStringList unregistered;
+
+    Q_INVOKABLE void add(const QString& anchorId, QObject* item)
+    {
+        registered.insert(anchorId, item);
+    }
+    Q_INVOKABLE void remove(const QString& anchorId, QObject* item)
+    {
+        if (registered.value(anchorId) == item) {
+            registered.remove(anchorId);
+            unregistered.append(anchorId);
+        }
+    }
 };
 
 class TestFacetSlot : public QObject
@@ -486,6 +510,69 @@ private Q_SLOTS:
         QVERIFY(open->property("visible").toBool());
         QVERIFY(QMetaObject::invokeMethod(open, "trigger"));
         QCOMPARE(m_controller->currentPageId(), QStringLiteral("extender:own"));
+    }
+
+    void aSectionIsASearchAnchorOnItsPage()
+    {
+        // A page's reveal registry, as plasmazones' SettingsFlickable has
+        // one, with a slot inside the page.
+        m_listed = {section(QStringLiteral("extender:ok"), QStringLiteral("Section.qml")),
+                    failed(QStringLiteral("extender:broken"), QStringLiteral("it failed to load"))};
+        AnchorLog log;
+        // The page's frames unregister their anchors from the log as they go,
+        // so they go before it, on a failed check too, rather than in
+        // cleanup() once the log is gone.
+        const auto pageGoesFirst = qScopeGuard([this] {
+            m_slot.reset();
+            m_engine.reset();
+        });
+        m_engine = std::make_unique<QQmlEngine>();
+        m_engine->rootContext()->setContextProperty(QStringLiteral("buildLog"), &m_buildLog);
+        m_engine->rootContext()->setContextProperty(QStringLiteral("anchorLog"), &log);
+        m_engine->rootContext()->setContextProperty(QStringLiteral("appController"), m_controller.get());
+        QQmlComponent component(m_engine.get());
+        component.setData(
+            "import QtQuick\n"
+            "import org.phosphor.control\n"
+            "Item {\n"
+            "    function registerSearchAnchor(anchorId, item) { anchorLog.add(anchorId, item) }\n"
+            "    function unregisterSearchAnchor(anchorId, item) { anchorLog.remove(anchorId, item) }\n"
+            "    Item {\n"
+            "        FacetSlot { objectName: \"slot\"; settingsApp: appController;\n"
+            "                    pageId: \"good:general\"; slot: \"top\" }\n"
+            "    }\n"
+            "}\n",
+            QUrl());
+        m_slot.reset(component.create());
+        QVERIFY2(m_slot, qPrintable(component.errorString()));
+        auto* const page = qobject_cast<QQuickItem*>(m_slot.get());
+        page->setParentItem(&m_page);
+        QQuickItem* const slot = findItem(page, QStringLiteral("slot"));
+        QVERIFY(slot);
+        QCOMPARE(slot->property("count").toInt(), 2);
+
+        // Each frame under its section's anchor, a card standing in for a
+        // section that cannot be shown too.
+        QQuickItem* const okFrame = findItem(slot, QStringLiteral("facet-extension:extender:ok"));
+        QQuickItem* const brokenFrame = findItem(slot, QStringLiteral("facet-extension:extender:broken"));
+        QVERIFY(okFrame);
+        QVERIFY(brokenFrame);
+        QTRY_COMPARE(log.registered.size(), 2);
+        QCOMPARE(log.registered.value(QStringLiteral("extender:ok")).data(), okFrame);
+        QCOMPARE(log.registered.value(QStringLiteral("extender:broken")).data(), brokenFrame);
+
+        // A section that goes takes its anchor with it, and only its own.
+        m_listed = {section(QStringLiteral("extender:ok"), QStringLiteral("Section.qml"))};
+        m_controller->notifyExtensionsChanged(QStringLiteral("good:general"));
+        QCOMPARE(slot->property("count").toInt(), 1);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QTRY_COMPARE(log.unregistered, QStringList{QStringLiteral("extender:broken")});
+        QCOMPARE(log.registered.keys(), QStringList{QStringLiteral("extender:ok")});
+
+        // The whole page going takes the rest.
+        m_slot.reset();
+        QCOMPARE(log.unregistered, (QStringList{QStringLiteral("extender:broken"), QStringLiteral("extender:ok")}));
+        QVERIFY(log.registered.isEmpty());
     }
 
     void changingThePageOrSlotRereadsTheList()

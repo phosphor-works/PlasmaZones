@@ -3,43 +3,39 @@
 
 #include "PhosphorControl/FacetHost.h"
 
+#include "facetconfigbackends_p.h"
+#include "facetloadrecord_p.h"
+
 #include "PhosphorControl/ApplicationController.h"
 #include "PhosphorControl/FacetContext.h"
 #include "PhosphorControl/FacetModule.h"
+#include "PhosphorControl/ISearchProvider.h"
 #include "PhosphorControl/PageController.h"
 #include "PhosphorControl/PageRegistry.h"
+#include "PhosphorControl/SearchController.h"
+#include "PhosphorControl/SearchEntry.h"
 #include "PhosphorControl/StagingDomain.h"
-
-#include <PhosphorConfig/IBackend.h>
 
 #include <QCollator>
 #include <QCoreApplication>
-#include <QDateTime>
 #include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
-#include <QSaveFile>
 #include <QScopeGuard>
-#include <QStandardPaths>
-#include <QTemporaryFile>
+#include <QScopedValueRollback>
 #include <QThread>
-#include <QTimeZone>
 #include <QVariantMap>
 
 #include <algorithm>
-#include <cstdio>
 #include <memory>
 #include <utility>
 
 namespace PhosphorControl {
 
-namespace {
+// Declared in facetloadrecord_p.h, which logs under it too.
 Q_LOGGING_CATEGORY(lcFacetHost, "phosphorcontrol.facethost")
 
+namespace {
 const QString CategoryPrefix = QStringLiteral("@category/");
 const QString DefaultCategory = QStringLiteral("apps");
 
@@ -48,10 +44,13 @@ const QString DefaultCategory = QStringLiteral("apps");
 // Facet restarts.
 const QString PageNotPlaced = QStringLiteral("a page of it could not take its place in the sidebar");
 
-const QLatin1String RecordLoadingKey("loading");
-const QLatin1String RecordPidKey("pid");
-const QLatin1String RecordProcessKey("process");
-const QLatin1String RecordDisabledKey("disabled");
+// The reason for a module the catalog stopped offering (withdrawModule).
+const QString FileRemoved = QStringLiteral("its file was removed or is no longer accepted");
+
+// The reason for a module whose file now carries other metadata than its
+// placeholders were built from.
+const QString MetadataChanged =
+    QStringLiteral("its metadata changed on disk after Facet started, so it can be used only after a restart");
 
 // The categories every Facet has. Their names are marked for extraction here
 // and translated when start() builds the sidebar, through whatever
@@ -73,36 +72,6 @@ constexpr BaseCategory BaseCategories[] = {
     {"apps", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "Apps"), "preferences-desktop-default-applications", 50},
     {"system", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "System"), "preferences-system", 60},
 };
-
-// What tells one process apart from a later one that reuses its pid: the
-// boot it runs in and the time it started, in clock ticks since boot (field
-// 22 of /proc/<pid>/stat). Empty when it cannot be read, which includes a
-// process that no longer exists. Wayland-only project, so /proc is there.
-QString processIdentity(qint64 pid)
-{
-    if (pid <= 0) {
-        return QString();
-    }
-    QFile bootFile(QStringLiteral("/proc/sys/kernel/random/boot_id"));
-    QFile statFile(QStringLiteral("/proc/%1/stat").arg(pid));
-    if (!bootFile.open(QIODevice::ReadOnly) || !statFile.open(QIODevice::ReadOnly)) {
-        return QString();
-    }
-    const QByteArray boot = bootFile.readAll().trimmed();
-    const QByteArray stat = statFile.readAll();
-    // The command name in field 2 may hold spaces and parentheses, so count
-    // fields from the last ')'. Field 3 is the first one after it.
-    const qsizetype close = stat.lastIndexOf(')');
-    if (boot.isEmpty() || close < 0) {
-        return QString();
-    }
-    const QList<QByteArray> fields = stat.mid(close + 1).simplified().split(' ');
-    constexpr qsizetype StartTimeIndex = 22 - 3;
-    if (fields.size() <= StartTimeIndex) {
-        return QString();
-    }
-    return QString::fromLatin1(boot + '/' + fields.at(StartTimeIndex));
-}
 
 // Stands in for a page whose module has not loaded, and for the structural
 // category and module nodes. Never dirty, and Apply and Discard succeed at
@@ -191,55 +160,6 @@ private:
     QString m_moduleName;
 };
 
-// The file the OS opens for @p path, which FacetContext::configBackend and
-// FacetHost::configBackend have checked is absolute: symbolic links followed,
-// and `.`, `..` and doubled separators removed. The file and the directories
-// above it may not exist yet, so the walk goes one name at a time and keeps
-// whatever is missing as written, where QFileInfo::canonicalFilePath gives
-// up. The key is therefore the same before the directory exists, once it
-// does and once the file does. A `..` leaves the directory a link leads to,
-// as it does for the OS, where QDir::cleanPath drops the link's name
-// instead. A link whose target is missing is followed too, because writing
-// through it creates that target.
-QString configFileKey(const QString& path)
-{
-    // What Linux follows in one lookup. A cycle of links ends here too, with
-    // the name it stopped at kept as written.
-    constexpr int MaxLinksFollowed = 40;
-    const auto namesIn = [](const QString& part) {
-        return part.split(QLatin1Char('/'), Qt::SkipEmptyParts);
-    };
-    QStringList pending = namesIn(path);
-    QStringList resolved;
-    int linksFollowed = 0;
-    while (!pending.isEmpty()) {
-        const QString name = pending.takeFirst();
-        if (name == QLatin1String(".")) {
-            continue;
-        }
-        if (name == QLatin1String("..")) {
-            if (!resolved.isEmpty()) {
-                resolved.removeLast();
-            }
-            continue;
-        }
-        const QFileInfo entry(QLatin1Char('/') + (resolved + QStringList{name}).join(QLatin1Char('/')));
-        const QString target =
-            entry.isSymbolicLink() && linksFollowed < MaxLinksFollowed ? entry.readSymLink() : QString();
-        if (target.isEmpty()) {
-            resolved.append(name);
-            continue;
-        }
-        ++linksFollowed;
-        // A relative target starts in the link's own directory, which is
-        // what `resolved` holds.
-        if (target.startsWith(QLatin1Char('/'))) {
-            resolved.clear();
-        }
-        pending = namesIn(target) + pending;
-    }
-    return QLatin1Char('/') + resolved.join(QLatin1Char('/'));
-}
 } // namespace
 
 struct FacetHost::Module
@@ -266,8 +186,12 @@ struct FacetHost::Module
     /// Its extensions are then inactive, as if it were not installed.
     bool installed = true;
     QStringList boundPages;
-    /// Its headless domains.
+    /// Its headless domains, in the order it registered them. One deleted
+    /// while it loaded, or refused by the application, is a null entry.
     QList<QPointer<StagingDomain>> domains;
+    /// Its search providers, kept when it loaded. One that is a QObject and
+    /// was deleted since is skipped.
+    QList<FacetContext::SearchProviderRegistration> searchProviders;
     struct Extension
     {
         QPointer<StagingDomain> domain;
@@ -280,34 +204,198 @@ struct FacetHost::Module
     QHash<QString, Extension> extensions;
 };
 
-struct FacetHost::LoadRecord
-{
-    QString loading;
-    qint64 pid = 0;
-    /// processIdentity() of the loading process, so a later process that
-    /// reuses its pid is not mistaken for it.
-    QString process;
-    QStringList disabled;
-};
-
-// The config backends modules share. A child of the ApplicationController
-// rather than a member of the host, so a backend is still there when the
-// controller applies a domain after the host is gone. The host makes it in
-// its constructor, which puts it ahead of everything the controller adopts
-// from a module later, and QObject deletes its children in the order they
-// were added. So the backends go before those controllers and domains do.
-class FacetHost::ConfigBackends final : public QObject
+// The one provider the host keeps in its SearchController: every placed
+// module's static search entries, each active extension as a section of the
+// page it is on, at an anchor that is its scoped id, and the entries of the
+// loaded modules' own providers. One provider rather than static entries and a
+// provider per module, because SearchController can drop no static entry, and
+// lists entries in the order it was handed them, which breaks score ties and
+// decides what a limit cuts. Here every entry comes in the order of its page in
+// the sidebar: the page's own entries, then its sections, then what providers
+// list for it, a module's before those of the modules after it in the sidebar.
+// Actions, which have no page, come last.
+//
+// A page whose module failed or was turned off after a crash shows that
+// module's placeholder, so nothing on it is listed, a section included. A
+// section of a module that failed or was turned off stays: its slot shows the
+// module's error card in the section's place, at the same anchor.
+//
+// The host owns it and takes it out of the controller as it goes, so nothing
+// here runs once the host is gone.
+class FacetHost::ModuleSearch final : public ISearchProvider
 {
 public:
-    explicit ConfigBackends(QObject* parent)
-        : QObject(parent)
+    explicit ModuleSearch(const FacetHost& host)
+        : m_host(host)
     {
     }
 
-    // By configFileKey. Shared, not unique: QHash values must be copyable.
-    // A PhosphorConfig::JsonBackend writes its unsaved changes when it is
-    // destroyed, which IBackend does not promise of other backends.
-    QHash<QString, std::shared_ptr<PhosphorConfig::IBackend>> backends;
+    QVector<SearchEntry> searchEntries() const override
+    {
+        QVector<SearchEntry> entries;
+        if (!m_host.m_controller) {
+            return entries;
+        }
+        const QList<const PageRegistry::Entry*> pages = m_host.m_controller->registry()->pagesInTreeOrder();
+        QHash<QString, qsizetype> position;
+        position.reserve(pages.size());
+        for (qsizetype i = 0; i < pages.size(); ++i) {
+            position.insert(pages.at(i)->id, i);
+        }
+        QList<QVector<SearchEntry>> byPage(pages.size());
+        // Actions, which have no page, after every page's entries. Every
+        // other entry is placed on a page in the sidebar: the loops below
+        // leave out one whose page is not there.
+        QVector<SearchEntry> rest;
+        const auto place = [&position, &byPage, &rest](SearchEntry&& entry) {
+            const auto at =
+                entry.kind == SearchEntry::Kind::Action ? position.cend() : position.constFind(entry.pageId);
+            if (at == position.cend()) {
+                rest.append(std::move(entry));
+            } else {
+                byPage[*at].append(std::move(entry));
+            }
+        };
+        const auto shown = [this](const QString& pageId) {
+            const std::shared_ptr<Module> owner = m_host.m_modules.value(m_host.owningModule(pageId));
+            return owner && (owner->state == ModuleState::Loaded || owner->state == ModuleState::Available);
+        };
+
+        // The placed modules in sidebar order, by their node.
+        QList<const Module*> modules;
+        for (auto it = m_host.m_modules.cbegin(); it != m_host.m_modules.cend(); ++it) {
+            if (it.value()->nodeRegistered) {
+                modules.append(it.value().get());
+            }
+        }
+        std::sort(modules.begin(), modules.end(), [&position](const Module* a, const Module* b) {
+            return position.value(a->metadata.id, -1) < position.value(b->metadata.id, -1);
+        });
+
+        for (const Module* module : std::as_const(modules)) {
+            for (const FacetSearchEntryMetadata& item : module->metadata.search) {
+                SearchEntry entry;
+                entry.kind = item.section ? SearchEntry::Kind::Section : SearchEntry::Kind::Setting;
+                entry.pageId = pageId(module->metadata.id, item.page);
+                entry.anchor = item.anchor;
+                entry.title = item.title;
+                entry.keywords = item.keywords;
+                entry.advancedOnly = item.advancedOnly;
+                // A page not in the registry yet, as while the module is
+                // being placed, has nothing to open: SearchController would
+                // drop the entry with a warning.
+                if (position.contains(entry.pageId) && shown(entry.pageId)) {
+                    place(std::move(entry));
+                }
+            }
+        }
+
+        // Only when this host's sections are the ones FacetSlots show.
+        if (m_host.m_holdsExtensionProvider) {
+            for (auto it = m_host.m_extensionsByPage.cbegin(); it != m_host.m_extensionsByPage.cend(); ++it) {
+                if (!shown(it.key())) {
+                    continue;
+                }
+                for (const ActiveExtension& active : it.value()) {
+                    const std::shared_ptr<Module> module = m_host.m_modules.value(active.moduleId);
+                    const FacetExtensionMetadata* const declared =
+                        module ? module->metadata.extension(active.localId) : nullptr;
+                    SearchEntry entry;
+                    entry.kind = SearchEntry::Kind::Section;
+                    entry.pageId = it.key();
+                    entry.anchor = pageId(active.moduleId, active.localId);
+                    entry.title = active.name;
+                    entry.keywords = declared ? declared->keywords : QStringList();
+                    place(std::move(entry));
+                }
+            }
+        }
+
+        for (const Module* module : std::as_const(modules)) {
+            if (module->state != ModuleState::Loaded || module->searchProviders.isEmpty()) {
+                continue;
+            }
+            QSet<QString> extended;
+            for (const FacetExtensionMetadata& extension : module->metadata.extensions) {
+                extended.insert(extension.target);
+            }
+            for (const FacetContext::SearchProviderRegistration& registration : module->searchProviders) {
+                if (registration.isObject && !registration.object) {
+                    continue;
+                }
+                const QVector<SearchEntry> provided = registration.provider->searchEntries();
+                for (SearchEntry entry : provided) {
+                    if (entry.kind == SearchEntry::Kind::Action) {
+                        place(std::move(entry));
+                        continue;
+                    }
+                    if (m_host.owningModule(entry.pageId) != module->metadata.id && !extended.contains(entry.pageId)) {
+                        // Another module's page, or the host's: once per page,
+                        // not once per rebuild.
+                        const QString key = module->metadata.id + QLatin1Char('\x1f') + entry.pageId;
+                        if (!m_warned.contains(key)) {
+                            m_warned.insert(key);
+                            qCWarning(lcFacetHost).noquote()
+                                << "FacetHost: module" << module->metadata.id << "lists search entries on page"
+                                << entry.pageId << "which is neither its own nor one it extends; they are left out";
+                        }
+                        continue;
+                    }
+                    // A page it extends whose module is not installed is not
+                    // in the sidebar: nothing to find there, and not an error.
+                    if (!position.contains(entry.pageId) || !shown(entry.pageId)) {
+                        continue;
+                    }
+                    place(std::move(entry));
+                }
+            }
+        }
+
+        for (QVector<SearchEntry>& onPage : byPage) {
+            entries.append(std::move(onPage));
+        }
+        entries.append(std::move(rest));
+        return entries;
+    }
+
+private:
+    const FacetHost& m_host;
+    /// The module and page pairs already warned about.
+    mutable QSet<QString> m_warned;
+};
+
+// Holds back the host's invalidateSearch() calls while it runs, and makes one
+// at its end when any was held back. It holds the SearchController's updates
+// too (holdUpdates()), for what changes the index without the host asking: a
+// page taking its place, its keywords. So a run of loads, or a module taking
+// its place, rebuilds the index of a live query once.
+struct FacetHost::SearchBatch
+{
+    explicit SearchBatch(FacetHost& host)
+        : m_host(host)
+        , m_search(host.m_search)
+    {
+        ++m_host.m_searchBatches;
+        if (m_search) {
+            m_search->holdUpdates();
+        }
+    }
+    ~SearchBatch()
+    {
+        if (--m_host.m_searchBatches == 0 && std::exchange(m_host.m_searchStale, false)) {
+            m_host.invalidateSearch();
+        }
+        if (m_search) {
+            m_search->releaseUpdates();
+        }
+    }
+    Q_DISABLE_COPY_MOVE(SearchBatch)
+
+private:
+    FacetHost& m_host;
+    /// The controller held, released even should the host's own pointer be
+    /// cleared meanwhile.
+    QPointer<SearchController> m_search;
 };
 
 PhosphorRegistry::PluginSeam FacetHost::seam()
@@ -335,21 +423,24 @@ FacetHost::FacetHost(ApplicationController* controller, QObject* parent)
     : QObject(parent)
     , m_controller(controller)
     , m_catalog(std::make_unique<PhosphorRegistry::PluginCatalog>(seam()))
+    , m_loadRecord(std::make_unique<FacetLoadRecord>())
 {
     if (!m_controller) {
         qFatal("FacetHost: controller must not be null");
     }
-    m_configBackends = new ConfigBackends(m_controller);
-    // An empty state location would put the record at the filesystem root.
-    // No location means no crash memory, said once at start().
-    const QString stateDir = QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation);
-    if (!stateDir.isEmpty()) {
-        m_sentinelPath = stateDir + QStringLiteral("/phosphor-works/facet-loading");
-    }
+    // First, so the backends are the controller's child ahead of everything
+    // it adopts from a module (FacetConfigBackends says why).
+    m_configBackends = new FacetConfigBackends(m_controller);
 }
 
 FacetHost::~FacetHost()
 {
+    // First, so a live query's results drop this host's entries at once and
+    // the controller never asks a provider of a module this host loaded once
+    // the host is gone.
+    if (m_search && m_searchProvider) {
+        m_search->unregisterProvider(m_searchProvider.get());
+    }
     if (!m_controller) {
         return;
     }
@@ -381,9 +472,7 @@ void FacetHost::setSentinelPath(const QString& path)
         qCWarning(lcFacetHost) << "FacetHost: setSentinelPath after start() is ignored";
         return;
     }
-    // Made absolute now, so the record stays where it is when the working
-    // directory changes later. Empty stays empty: no crash memory.
-    m_sentinelPath = path.isEmpty() ? QString() : QFileInfo(path).absoluteFilePath();
+    m_loadRecord->setPath(path);
 }
 
 void FacetHost::setConfigRedirect(const QString& directory)
@@ -399,7 +488,9 @@ void FacetHost::setConfigRedirect(const QString& directory)
         qCWarning(lcFacetHost) << "FacetHost: setConfigRedirect to the filesystem root would redirect nothing, ignored";
         return;
     }
-    m_configRedirect = absolute;
+    if (m_configBackends) {
+        m_configBackends->setRedirect(absolute);
+    }
 }
 
 void FacetHost::setLocale(const QLocale& locale)
@@ -420,6 +511,15 @@ void FacetHost::setLiveReload(bool enabled)
     m_catalog->setLiveReload(enabled);
 }
 
+void FacetHost::setSearchController(SearchController* search)
+{
+    if (m_started) {
+        qCWarning(lcFacetHost) << "FacetHost: setSearchController after start() is ignored";
+        return;
+    }
+    m_search = search;
+}
+
 void FacetHost::start()
 {
     if (m_started) {
@@ -432,7 +532,12 @@ void FacetHost::start()
     }
     m_started = true;
     m_starting = true;
-    m_collator = QCollator(m_locale);
+    // QLocale() as it is now, not as it was when the host was made: the
+    // application may set the default locale in between.
+    if (!m_locale) {
+        m_locale = QLocale();
+    }
+    m_collator = QCollator(*m_locale);
 
     for (const BaseCategory& base : BaseCategories) {
         const QString id = QString::fromLatin1(base.id);
@@ -442,62 +547,7 @@ void FacetHost::start()
                                                   QString::fromLatin1(base.icon), base.order});
     }
 
-    // A module left in the record's "loading" field was loading when a Facet
-    // process ended without finishing it. Unless that process is still
-    // running (a second instance mid-load), the module is disabled, and the
-    // record keeps it disabled across starts until it is retried.
-    if (m_sentinelPath.isEmpty()) {
-        qCInfo(lcFacetHost) << "FacetHost: no state directory, so a module that crashes Facet is not remembered";
-    } else {
-        // A process killed between naming a record write's temporary file and
-        // renaming it over the record leaves that file behind. A minute is far
-        // longer than a write takes, so a second instance writing right now
-        // keeps its file. QTemporaryFile's suffix is six letters or digits,
-        // and the match is case-sensitive, so a user's copy such as
-        // "facet-loading.v1.bak" is left alone.
-        const QFileInfo recordInfo(m_sentinelPath);
-        QDir recordDir = recordInfo.absoluteDir();
-        const QDateTime cutoff = QDateTime::currentDateTimeUtc().addSecs(-60);
-        const QString suffixChar = QStringLiteral("[A-Za-z0-9]");
-        const QFileInfoList strays =
-            recordDir.entryInfoList({recordInfo.fileName() + QLatin1Char('.') + suffixChar.repeated(6)},
-                                    QDir::Files | QDir::Hidden | QDir::System | QDir::CaseSensitive);
-        for (const QFileInfo& stray : strays) {
-            if (stray.lastModified(QTimeZone::UTC) < cutoff) {
-                recordDir.remove(stray.fileName());
-            }
-        }
-    }
-    LoadRecord record = readLoadRecord();
-    if (!record.loading.isEmpty()) {
-        if (record.pid != QCoreApplication::applicationPid() && !record.process.isEmpty()
-            && processIdentity(record.pid) == record.process) {
-            qCInfo(lcFacetHost).noquote()
-                << "FacetHost: process" << record.pid << "is loading module" << record.loading;
-        } else {
-            const QString crashed = record.loading;
-            record.loading.clear();
-            record.pid = 0;
-            record.process.clear();
-            if (!record.disabled.contains(crashed)) {
-                record.disabled.append(crashed);
-            }
-            if (writeLoadRecord(record)) {
-                qCWarning(lcFacetHost).noquote()
-                    << "FacetHost: module" << crashed
-                    << "was loading when Facet last stopped unexpectedly; it stays disabled until it is retried";
-            } else {
-                // Unable to clear the loading field, the record would name the
-                // module again at every start. Ignore it rather than disable
-                // the module forever.
-                record.disabled.removeAll(crashed);
-                qCWarning(lcFacetHost).noquote()
-                    << "FacetHost: module" << crashed << "was loading when Facet last stopped, but" << m_sentinelPath
-                    << "cannot be written, so it is not disabled";
-            }
-        }
-    }
-    m_disabled = QSet<QString>(record.disabled.cbegin(), record.disabled.cend());
+    m_loadRecord->restore();
 
     QStringList found;
     const QMetaObject::Connection collect =
@@ -526,17 +576,27 @@ void FacetHost::start()
 
     placeModules(parsed);
     for (const std::shared_ptr<Module>& module : std::as_const(parsed)) {
-        if (module->state == ModuleState::Available && m_disabled.contains(module->metadata.id)) {
+        if (module->state == ModuleState::Available && m_loadRecord->isDisabled(module->metadata.id)) {
             disableAfterCrash(*module);
         }
     }
 
     resolveExtensions();
-    if (!m_controller->setExtensionProvider(this, [this](const QString& pageId, const QString& slot) {
+    m_holdsExtensionProvider =
+        m_controller->setExtensionProvider(this, [this](const QString& pageId, const QString& slot) {
             return extensionsFor(pageId, slot);
-        })) {
+        });
+    if (!m_holdsExtensionProvider) {
         qCWarning(lcFacetHost) << "FacetHost: another component answers extensionsFor, so no FacetSlot shows this "
-                                  "host's sections";
+                                  "host's sections, and search does not list them";
+    }
+    if (m_search) {
+        for (const std::shared_ptr<Module>& module : std::as_const(parsed)) {
+            indexModule(*module);
+        }
+        m_searchProvider = std::make_unique<ModuleSearch>(*this);
+        m_search->registerProvider(m_searchProvider.get());
+        connect(m_search.data(), &SearchController::queryChanged, this, &FacetHost::loadOwedSearchProviders);
     }
 
     connect(m_catalog.get(), &PhosphorRegistry::PluginCatalog::pluginAdded, this, &FacetHost::onPluginAdded);
@@ -582,6 +642,10 @@ void FacetHost::start()
             Q_EMIT moduleFailed(finding.id, reason);
         }
     }
+    // A query typed before start(), or while its modules took their place:
+    // its modules with providers load now that the sidebar is complete and
+    // announced.
+    loadOwedSearchProviders();
 }
 
 std::shared_ptr<FacetHost::Module> FacetHost::parseModule(const QString& moduleId)
@@ -594,7 +658,8 @@ std::shared_ptr<FacetHost::Module> FacetHost::parseModule(const QString& moduleI
     module->rawMetadata = plugin->metaData;
     QStringList errors;
     QStringList warnings;
-    module->metadata = FacetModuleMetadata::parse(plugin->metaData, m_locale, &errors, &warnings);
+    // Only from start() on, which has fixed the locale.
+    module->metadata = FacetModuleMetadata::parse(plugin->metaData, *m_locale, &errors, &warnings);
     for (const QString& warning : std::as_const(warnings)) {
         qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId << "metadata:" << warning;
     }
@@ -629,7 +694,7 @@ void FacetHost::mergeCategories(const Module& module)
     }
 }
 
-void FacetHost::addModule(const QString& moduleId, bool offeredAgain)
+void FacetHost::addModule(const QString& moduleId, const Module* previous)
 {
     const std::shared_ptr<Module> module = parseModule(moduleId);
     if (!module) {
@@ -637,27 +702,60 @@ void FacetHost::addModule(const QString& moduleId, bool offeredAgain)
     }
     m_modules.insert(moduleId, module);
     if (module->state == ModuleState::Failed) {
-        Q_EMIT moduleStateChanged(moduleId, module->state);
-        Q_EMIT moduleFailed(moduleId, module->reason);
+        // Offered again and broken the same way: nothing changed, so nothing
+        // is announced.
+        const bool unchanged = previous && previous->state == module->state && previous->reason == module->reason
+            && previous->retryable == module->retryable;
+        if (!unchanged) {
+            Q_EMIT moduleStateChanged(moduleId, module->state);
+            Q_EMIT moduleFailed(moduleId, module->reason);
+        }
         // Installed, though not placed: an extension aimed at it is refused
         // from now on, where one aimed at a module that is not installed is
         // only inactive.
         updateExtensions();
         return;
     }
-    placeModules({module});
-    if (module->state == ModuleState::Available && m_disabled.contains(moduleId)) {
-        disableAfterCrash(*module);
-    }
     // A new module starts Available, which is not announced. One offered
-    // again was Failed until now (onPluginAdded), so for it this is a change.
-    if (offeredAgain && module->state == ModuleState::Available) {
-        Q_EMIT moduleStateChanged(moduleId, ModuleState::Available);
+    // again stays as it was last announced until placing it says otherwise,
+    // so transition() announces only a real change: failing to place it for
+    // the same reason as before says nothing.
+    if (previous) {
+        module->state = previous->state;
+        module->reason = previous->reason;
+        module->retryable = previous->retryable;
+    }
+    const quint64 transitions = module->transitions;
+    {
+        // Its node, each page taking its place and each page's keywords
+        // change the index: a live query is answered again once for all of
+        // them. Its static search entries are in it (ModuleSearch) before
+        // anyone hears that it was placed.
+        const SearchBatch batch(*this);
+        placeModules({module});
+        indexModule(*module);
+        invalidateSearch();
+    }
+    // Placed: its node is up, and nothing failed it on the way.
+    const bool placed = module->nodeRegistered && module->transitions == transitions;
+    if (placed && m_loadRecord->isDisabled(moduleId)) {
+        disableAfterCrash(*module);
+    } else if (placed && previous) {
+        transition(*module, ModuleState::Available, QString());
     }
 
     // The new module can be the target that makes another module's extension
     // active, or extend pages itself.
     updateExtensions();
+    // A page a slot opened while the module took its place, when nothing
+    // could load, gets what opening it loads now: its own module, unless
+    // that was turned off after a crash above, and what extends it.
+    loadOwedNavigation();
+    loadOwedExtenders();
+    // With a query standing, a module with search providers loads at once, so
+    // its entries are found. Also pays a query changed while it took its
+    // place, which placeModules left owed.
+    loadOwedSearchProviders();
 }
 
 void FacetHost::onPluginAdded(const QString& moduleId)
@@ -670,6 +768,19 @@ void FacetHost::onPluginAdded(const QString& moduleId)
         addModule(moduleId);
         return;
     }
+    if (existing->state == ModuleState::Available || existing->state == ModuleState::DisabledAfterCrash) {
+        // Its file changed on disk while its library was not loaded. With the
+        // same metadata the next load maps the new file, which fits the
+        // placeholders. With other metadata it never can, so it fails now,
+        // without mapping a library whose pages do not match the sidebar. A
+        // load in progress checks the file it maps itself.
+        const std::optional<PhosphorRegistry::PluginMetadata> plugin = m_catalog->plugin(moduleId);
+        if (moduleId != m_loadingModule && plugin && plugin->metaData != existing->rawMetadata) {
+            transition(*existing, ModuleState::Failed, MetadataChanged, false);
+        }
+        return;
+    }
+    // A loaded plugin is never offered again (PluginCatalog keeps its code).
     if (existing->state != ModuleState::Failed) {
         return;
     }
@@ -679,6 +790,12 @@ void FacetHost::onPluginAdded(const QString& moduleId)
     // was replaced): going back to Available takes its error card off the
     // pages it extends, and only this loads it for the one that is open.
     existing->installed = true;
+    // Declared first, so it runs last: back to Available with a query
+    // standing, it loads for its search providers like a module that just
+    // arrived (addModule), once its extensions are resolved again.
+    const auto loadOnceSettled = qScopeGuard([this] {
+        loadOwedSearchProviders();
+    });
     auto updateOnceSettled = qScopeGuard([this] {
         updateExtensions();
     });
@@ -691,7 +808,7 @@ void FacetHost::onPluginAdded(const QString& moduleId)
         // guard resolves them instead, for the extensions that aimed at the
         // module.
         m_modules.remove(moduleId);
-        addModule(moduleId, true);
+        addModule(moduleId, existing.get());
         if (m_modules.contains(moduleId)) {
             updateOnceSettled.dismiss();
         }
@@ -729,7 +846,7 @@ void FacetHost::onPluginAdded(const QString& moduleId)
         return;
     }
     if (plugin && plugin->metaData == existing->rawMetadata) {
-        if (m_disabled.contains(moduleId)) {
+        if (m_loadRecord->isDisabled(moduleId)) {
             // Removing and reinstalling a module that crashed Facet does not
             // turn it back on; only a retry does.
             disableAfterCrash(*existing);
@@ -737,10 +854,7 @@ void FacetHost::onPluginAdded(const QString& moduleId)
             transition(*existing, ModuleState::Available, QString());
         }
     } else {
-        transition(*existing, ModuleState::Failed,
-                   QStringLiteral("its metadata changed on disk after Facet started, so it can be used only after a "
-                                  "restart"),
-                   false);
+        transition(*existing, ModuleState::Failed, MetadataChanged, false);
     }
 }
 
@@ -758,15 +872,32 @@ void FacetHost::onPluginRemoved(const QString& moduleId)
                                       << "was removed; it keeps running the code it loaded until Facet restarts";
         return;
     }
+    if (moduleId == m_loadingModule) {
+        // A rescan reached while the module's code runs in its load (a
+        // nested event loop in registerInto). Its library is mapped, and the
+        // load settles its state: failing it here would be overwritten by a
+        // load that succeeds, which would then run with its extensions
+        // inactive. A load that fails withdraws it then (loadModule's
+        // failLoad), as this would have.
+        qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId
+                                      << "was removed while it loaded; the load goes on, and what it loads keeps "
+                                         "running until Facet restarts";
+        return;
+    }
+    withdrawModule(*module);
+}
+
+void FacetHost::withdrawModule(Module& module)
+{
     // Its sections leave the pages they extend, and the extensions aimed at
     // its pages go quiet, as for a module that was never installed. Done
     // before the transition, so the pages are not told about an error card
     // for a section that is about to go.
-    if (module->installed) {
-        module->installed = false;
+    if (module.installed) {
+        module.installed = false;
         updateExtensions();
     }
-    transition(*module, ModuleState::Failed, QStringLiteral("its file was removed or is no longer accepted"), false);
+    transition(module, ModuleState::Failed, FileRemoved, false);
 }
 
 bool FacetHost::moduleSortsBefore(const Module& a, const Module& b) const
@@ -888,6 +1019,11 @@ bool FacetHost::registerPlaceholder(const QString& id, const QString& parentId, 
 
 void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
 {
+    // Every page registered announces itself (pageRegistered), and a slot of
+    // that can change the search query while a module has some of its pages
+    // in the sidebar and not yet the others. The providers that query owes
+    // load once the placing is over (loadOwedSearchProviders).
+    const QScopedValueRollback placing(m_placingModules, true);
     PageRegistry* const registry = m_controller->registry();
     std::stable_sort(modules.begin(), modules.end(), [this](const auto& a, const auto& b) {
         return moduleSortsBefore(*a, *b);
@@ -1086,6 +1222,40 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
     // The scoped ids of foreign pages already tried, placed or not, so a page
     // waiting on one of them stops waiting once it has been tried.
     QSet<QString> attempted;
+    // The index in @p waiting of the page to break a cycle at, when every
+    // page there waits on the page of another there: the first, in sort
+    // order, of the pages on the cycle that following those waits from the
+    // first page runs into. A page that only waits on the cycle is never the
+    // one cut loose.
+    const auto cycleBreaker = [](const QList<ForeignRoot>& waiting) -> qsizetype {
+        // Each page waited on, by scoped id, to the root whose subtree
+        // holds it: the root, and its local descendants that follow it.
+        QHash<QString, qsizetype> holder;
+        for (qsizetype i = 0; i < waiting.size(); ++i) {
+            const ForeignRoot& root = waiting.at(i);
+            const QList<FacetPageMetadata>& pages = root.module->metadata.pages;
+            QSet<QString> subtree{pages.at(root.pageIndex).id};
+            holder.insert(pageId(root.module->metadata.id, pages.at(root.pageIndex).id), i);
+            for (qsizetype p = root.pageIndex + 1; p < pages.size() && subtree.contains(pages.at(p).parent); ++p) {
+                subtree.insert(pages.at(p).id);
+                holder.insert(pageId(root.module->metadata.id, pages.at(p).id), i);
+            }
+        }
+        QList<qsizetype> path;
+        qsizetype at = 0;
+        while (!path.contains(at)) {
+            path.append(at);
+            const ForeignRoot& root = waiting.at(at);
+            const qsizetype next = holder.value(root.module->metadata.pages.at(root.pageIndex).parent, -1);
+            if (next < 0) {
+                // Unreachable while every page waits on one held here.
+                return at;
+            }
+            at = next;
+        }
+        const QList<qsizetype> cycle = path.mid(path.indexOf(at));
+        return *std::min_element(cycle.cbegin(), cycle.cend());
+    };
     const auto placeForeign = [&](const ForeignRoot& root, const QString& parent) {
         Module& module = *root.module;
         const QList<FacetPageMetadata>& pages = module.metadata.pages;
@@ -1156,14 +1326,19 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
             placeForeign(root, root.module->metadata.id);
         }
         if (waiting.size() == pending.size()) {
-            for (const ForeignRoot& root : std::as_const(waiting)) {
-                const FacetPageMetadata& page = root.module->metadata.pages.at(root.pageIndex);
-                qCInfo(lcFacetHost).noquote()
-                    << "FacetHost: page" << pageId(root.module->metadata.id, page.id) << "goes under" << page.parent
-                    << "in a cycle of pages placed under each other; it stays under its module";
-                placeForeign(root, root.module->metadata.id);
-            }
-            break;
+            // Nothing was placed, so every page left waits on a page of
+            // another that waits too, and following those waits goes round
+            // a cycle. The page that sorts first in that cycle stays under
+            // its module, and the next round places the rest of the cycle,
+            // and the pages that wait on it from outside, under their
+            // targets.
+            const qsizetype breaker = cycleBreaker(waiting);
+            const ForeignRoot root = waiting.takeAt(breaker);
+            const FacetPageMetadata& page = root.module->metadata.pages.at(root.pageIndex);
+            qCInfo(lcFacetHost).noquote()
+                << "FacetHost: page" << pageId(root.module->metadata.id, page.id) << "goes under" << page.parent
+                << "in a cycle of pages placed under each other; it stays under its module";
+            placeForeign(root, root.module->metadata.id);
         }
         pending = waiting;
     }
@@ -1205,6 +1380,23 @@ void FacetHost::onNavigation(const QString& pageId)
     // loaded for this one. One that lands on this same page lets it go on.
     const QString landing = m_controller->currentPageId();
     const quint64 navigations = ++m_navigations;
+    if (m_placingModules) {
+        // A slot of a page taking its place in the sidebar (pageRegistered)
+        // navigated. A module loaded now would bind its pages while some of
+        // them are not in the sidebar yet, so canLoadNow refuses every load
+        // until the placing is over. The navigation is owed instead, and
+        // addModule pays it then (loadOwedNavigation), so the page does not
+        // stay a placeholder.
+        m_navigationOwed = owningModule(pageId);
+        return;
+    }
+    // This newer navigation wins over one still owed.
+    m_navigationOwed.reset();
+    openPage(pageId, landing, navigations);
+}
+
+void FacetHost::openPage(const QString& pageId, const QString& landing, quint64 navigations)
+{
     // Loads below finish their own pages through this navigation, not on
     // their own (showSectionsOn).
     const QString outerOpening = std::exchange(m_openingPage, pageId);
@@ -1229,12 +1421,31 @@ void FacetHost::onNavigation(const QString& pageId)
     loadExtenders(pageId, landing, navigations);
 }
 
+void FacetHost::loadOwedNavigation()
+{
+    // A placing nested in another (a slot that rescanned) leaves the debt to
+    // the outer one, whose pages are not all in the sidebar yet.
+    if (!m_navigationOwed || m_placingModules || !m_controller) {
+        return;
+    }
+    const QString owner = *std::exchange(m_navigationOwed, std::nullopt);
+    // Only while the page that navigation opened, or another page of the
+    // same module, is still on screen. The controller may have refused to
+    // move there.
+    const QString shown = m_controller->currentPageId();
+    if (owningModule(shown) != owner) {
+        return;
+    }
+    openPage(shown, shown, m_navigations);
+}
+
 void FacetHost::loadExtenders(const QString& pageId, const QString& landing, quint64 navigations)
 {
-    // While a module loads, canLoadNow refuses every other load, so nothing
-    // can be loaded for the page now. It is owed instead, and the load that
-    // is running pays once it is over (loadOwedExtenders).
-    if (!m_loadingModule.isEmpty()) {
+    // While a module loads, or modules take their place, canLoadNow refuses
+    // every load, so nothing can be loaded for the page now. It is owed
+    // instead, and the load that is running, or addModule once the placing
+    // is over, pays it (loadOwedExtenders).
+    if (!m_loadingModule.isEmpty() || m_placingModules) {
         m_extendersOwed = true;
         return;
     }
@@ -1277,8 +1488,9 @@ void FacetHost::loadExtenders(const QString& pageId, const QString& landing, qui
 void FacetHost::loadOwedExtenders()
 {
     // Every load comes through here once its outcome is settled, whatever
-    // started it. A page that a slot opened while it ran, or whose
-    // extensions changed then, could load nothing (loadExtenders). The page
+    // started it, and so does every module once it has taken its place
+    // (addModule). A page that a slot opened meanwhile, or whose extensions
+    // changed then, could load nothing (loadExtenders). The page
     // on screen now gets what extends it, as opening it would have given
     // it. A page whose own module was refused gets nothing: loadExtenders
     // skips it, and its placeholder offers to load the module
@@ -1353,6 +1565,13 @@ bool FacetHost::canLoadNow(const QString& moduleId, QString* errorString) const
         // module.
         return fail(QStringLiteral("module %1 is still loading").arg(m_loadingModule));
     }
+    if (m_placingModules) {
+        // Reached from a slot of a page taking its place (pageRegistered).
+        // A module loaded now would bind into a sidebar that does not have
+        // all of its pages yet, and a module that arrived turned off after a
+        // crash has not been disabled yet.
+        return fail(QStringLiteral("modules are still taking their place in the sidebar"));
+    }
     return true;
 }
 
@@ -1380,56 +1599,92 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
     if (!canLoadNow(moduleId, errorString)) {
         return false;
     }
+    // Turned off after a crash and still Available: the caller is a slot
+    // that runs once its pages are placed but before addModule has disabled
+    // it (a search results update, say). A retry turns it on before it gets
+    // here (retryModule). It is disabled now rather than loaded, which would
+    // run the code that crashed without the user asking.
+    if (m_loadRecord->isDisabled(moduleId)) {
+        disableAfterCrash(*module);
+        // A slot of that may have retried it, which loads it.
+        return module->state == ModuleState::Loaded || fail(module->reason);
+    }
+    // Not on offer: withdrawn in the scan being announced, whose
+    // pluginRemoved for it is still on its way (a slot of that scan's earlier
+    // announcements asked for it). It fails as the removal does, so that
+    // removal, when it comes, finds it so and announces nothing more.
+    if (!m_catalog->plugin(moduleId)) {
+        withdrawModule(*module);
+        return fail(FileRemoved);
+    }
     // Held until the module's state is settled, so a slot reached while its
     // code runs or its pages bind (pageBound, a navigation) cannot run its
     // registerInto again. Released just before the transition that announces
     // the outcome, so a slot of that may load the next module.
     m_loadingModule = moduleId;
-    const bool recorded = recordLoading(moduleId);
+    const bool recorded = m_loadRecord->recordLoading(moduleId);
     const auto finishLoading = [this, recorded]() {
-        clearLoading(recorded);
+        m_loadRecord->clearLoading(m_loadingModule, recorded);
         m_loadingModule.clear();
     };
-    // The way out of a failed load, after its transition. What the load
-    // kept other pages from loading comes first (loadOwedExtenders). A slot
-    // of the failure transition, or of those loads, may have retried the
-    // module and loaded it, which is then the outcome to report.
-    const auto failedWith = [this, &module, &fail](const QString& reason) {
+    // The way out of a failed load. Its transition comes first, then what
+    // the load kept other pages from loading (loadOwedExtenders), then the
+    // search providers a query asked for meanwhile. A slot of the failure
+    // transition, or of those loads, may have retried the module and loaded
+    // it, which is then the outcome to report. A module the catalog stopped
+    // offering while its code ran, which onPluginRemoved leaves to the load,
+    // is withdrawn as that removal would have done: its extensions go
+    // inactive and it fails for its removal, announced once, rather than for
+    // the load's reason with its sections still on other pages.
+    const auto failLoad = [this, &module, &moduleId, &fail, &finishLoading](const QString& reason, bool retryable) {
+        finishLoading();
+        const bool withdrawn = !m_catalog->plugin(moduleId);
+        if (withdrawn) {
+            // The module fails for its removal, so a load that failed for
+            // another reason says that reason here, or it would go unheard.
+            if (reason != FileRemoved) {
+                qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId
+                                              << "was removed while it loaded, and its load failed too:" << reason;
+            }
+            withdrawModule(*module);
+        } else {
+            transition(*module, ModuleState::Failed, reason, retryable);
+        }
         loadOwedExtenders();
-        return module->state == ModuleState::Loaded || fail(reason);
+        if (m_searchProvidersOwed) {
+            loadOwedSearchProviders();
+        }
+        return module->state == ModuleState::Loaded || fail(withdrawn ? FileRemoved : reason);
     };
 
     QString loadError;
     QObject* const root = m_catalog->load(moduleId, &loadError);
     if (!root) {
-        finishLoading();
-        transition(*module, ModuleState::Failed, loadError);
-        return failedWith(loadError);
+        // A library that did not load may load another time, once what it
+        // needs is installed. One that is mapped already failed because the
+        // root object it handed out was deleted since, and loading it again
+        // hands out the same deleted object.
+        return failLoad(loadError, !m_catalog->isLoaded(moduleId));
     }
     auto* const facetModule = qobject_cast<IFacetModule*>(root);
     if (!facetModule) {
-        finishLoading();
-        const QString reason = QStringLiteral("its root object does not implement IFacetModule");
-        transition(*module, ModuleState::Failed, reason, false);
-        return failedWith(reason);
+        return failLoad(QStringLiteral("its root object does not implement IFacetModule"), false);
     }
     // The placeholders were built from the metadata read at start(). Code
     // loaded from a file that changed since then expects other pages, and
-    // binding it would half-match them.
+    // binding it would half-match them. PluginCatalog::load offers what it
+    // has just loaded, so the plugin is on offer here. Were it not, it fails
+    // as its removal does (failLoad), which then announces nothing more.
     const std::optional<PhosphorRegistry::PluginMetadata> offered = m_catalog->plugin(moduleId);
     if (!offered || offered->metaData != module->rawMetadata) {
-        finishLoading();
-        const QString reason =
-            QStringLiteral("its metadata changed on disk after Facet started, so it can be used only after a restart");
-        transition(*module, ModuleState::Failed, reason, false);
-        return failedWith(reason);
+        return failLoad(offered ? MetadataChanged : FileRemoved, false);
     }
 
     FacetContext context(this, module->metadata);
     facetModule->registerInto(context);
-    clearLoading(recorded);
 
-    // Check the whole registration before anything takes effect.
+    // Check the whole registration before anything takes effect. The load
+    // record still names the module, for the search providers asked below.
     QStringList errors = context.m_errors;
     for (const FacetPageMetadata& page : std::as_const(module->metadata.pages)) {
         if (!context.m_registeredPages.contains(page.id)) {
@@ -1461,29 +1716,58 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
             errors.append(QStringLiteral("registered a domain the application already tracks"));
         }
     }
-    if (!errors.isEmpty()) {
-        const QString reason = errors.join(QStringLiteral("; "));
-        m_loadingModule.clear();
-        transition(*module, ModuleState::Failed, reason);
-        return failedWith(reason);
+    for (const FacetContext::SearchProviderRegistration& provider : std::as_const(context.m_searchProviders)) {
+        if (provider.isObject && !provider.object) {
+            errors.append(QStringLiteral("a search provider was deleted during registration"));
+        }
     }
-
-    // From here on module code can run (an isDirty override while a domain
-    // registers, a dirtyChanged or pageBound slot), so a domain or controller
-    // the checks above found alive can be gone by the time it is used. Each
-    // use checks again.
-    //
+    if (!errors.isEmpty()) {
+        return failLoad(errors.join(QStringLiteral("; ")), true);
+    }
     // context.m_domains holds the extensions' domains too, for the checks
-    // above. Those join Apply only once their section is shown
-    // (attachExtensions), so a section that is never shown never marks the
-    // application dirty.
+    // above. The headless ones are told apart now, while the checks have
+    // just found every one alive: module code run from here on can delete
+    // one, and a deleted one could no longer be told from a section's.
     QSet<const StagingDomain*> extensionDomains;
     for (const auto& extension : std::as_const(context.m_extensions)) {
         extensionDomains.insert(extension.domain.data());
     }
+    QList<QPointer<StagingDomain>> headless;
     for (const QPointer<StagingDomain>& domain : std::as_const(context.m_domains)) {
-        if (domain && !extensionDomains.contains(domain.data()) && m_controller->registerDomain(domain.data())) {
+        if (!extensionDomains.contains(domain.data())) {
+            headless.append(domain);
+        }
+    }
+    // Each search provider is asked for its entries once now, while the load
+    // record names the module, so one that crashes the first time it is asked
+    // disables the module at the next start, as a crash in registerInto does.
+    // Its later answers are not covered. Without a search controller nothing
+    // ever asks.
+    if (m_search) {
+        for (const FacetContext::SearchProviderRegistration& provider : std::as_const(context.m_searchProviders)) {
+            // One asked before it can delete another.
+            if (!provider.isObject || provider.object) {
+                provider.provider->searchEntries();
+            }
+        }
+    }
+    m_loadRecord->clearLoading(m_loadingModule, recorded);
+
+    // From here on module code can run (a search provider asked above, an
+    // isDirty override while a domain registers, a dirtyChanged or pageBound
+    // slot), so a domain or controller the checks above found alive can be
+    // gone by the time it is used. Each use checks again.
+    //
+    // The headless domains join Apply now. The extensions' domains join only
+    // once their section is shown (attachExtensions), so a section that is
+    // never shown never marks the application dirty. A headless domain that
+    // is gone by now, or that the application refused, keeps its place as a
+    // null entry, so moduleDomains() shows it went.
+    for (const QPointer<StagingDomain>& domain : std::as_const(headless)) {
+        if (domain && m_controller->registerDomain(domain.data())) {
             module->domains.append(domain);
+        } else {
+            module->domains.append(QPointer<StagingDomain>());
         }
     }
     for (const auto& extension : std::as_const(context.m_extensions)) {
@@ -1527,6 +1811,9 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
                                               << "passed every check and was still refused by the registry";
         }
     }
+    // Asked from now on (ModuleSearch), once the transition below has had the
+    // index rebuilt.
+    module->searchProviders = context.m_searchProviders;
     // Its sections shown on pages whose module is loaded join them: Apply,
     // dirty mark and reset. transition() then tells those pages' FacetSlots.
     attachExtensions(*module);
@@ -1534,6 +1821,9 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
     transition(*module, ModuleState::Loaded, QString());
     showSectionsOn(*module);
     loadOwedExtenders();
+    if (m_searchProvidersOwed) {
+        loadOwedSearchProviders();
+    }
     qCInfo(lcFacetHost).noquote() << "FacetHost: loaded module" << moduleId;
     return true;
 }
@@ -1555,9 +1845,13 @@ bool FacetHost::retryModule(const QString& moduleId, QString* errorString)
     if (!canLoadNow(moduleId, errorString)) {
         return false;
     }
-    if (module->state == ModuleState::DisabledAfterCrash) {
-        m_disabled.remove(moduleId);
-        persistDisabled();
+    // Retried all the same when the record cannot be written: the user asked
+    // for it, and the module is on screen. Only the next start may disable
+    // it again, unless a later write of the record succeeds.
+    if (module->state == ModuleState::DisabledAfterCrash && !m_loadRecord->enable(moduleId)) {
+        qCWarning(lcFacetHost).noquote() << "FacetHost: module" << moduleId
+                                         << "is retried, but the load record could not be written, so the next start "
+                                            "may disable it again";
     }
     transition(*module, ModuleState::Available, QString());
     return loadModule(moduleId, errorString);
@@ -1595,6 +1889,13 @@ void FacetHost::transition(Module& module, ModuleState state, const QString& rea
     if (state == ModuleState::Failed) {
         qCWarning(lcFacetHost).noquote() << "FacetHost: module" << module.metadata.id << "failed:" << reason;
     }
+    // What search lists for a module follows its state (ModuleSearch): its
+    // providers once loaded, nothing on its pages once failed. Rebuilt
+    // before anyone hears of the change, except inside a SearchBatch (a run
+    // of loads for search providers, a module taking its place): there it is
+    // rebuilt once the batch is over, and a query typed meanwhile is answered
+    // at once, without waiting for that rebuild.
+    invalidateSearch();
     if (m_starting) {
         return;
     }
@@ -1664,6 +1965,91 @@ void FacetHost::notifyExtendedPages(const QString& moduleId)
     for (const QString& page : std::as_const(touched)) {
         m_controller->notifyExtensionsChanged(page);
     }
+}
+
+void FacetHost::indexModule(const Module& module)
+{
+    // A module that was never placed may share a page id with a page of the
+    // host application's, whose keywords are not this module's to set.
+    if (!m_search || !module.nodeRegistered) {
+        return;
+    }
+    // Only the pages that took their place in the sidebar: SearchController
+    // drops, with a warning, an entry on a page it cannot navigate to. The
+    // module's own keywords and its name find every one of its pages, a page
+    // placed outside the module's node too, whose breadcrumb does not name
+    // the module.
+    const PageRegistry* const registry = m_controller->registry();
+    QStringList moduleWords = module.metadata.keywords;
+    if (!module.metadata.name.isEmpty()) {
+        moduleWords.append(module.metadata.name);
+    }
+    for (const FacetPageMetadata& page : module.metadata.pages) {
+        const QString scoped = pageId(module.metadata.id, page.id);
+        if (registry->hasPage(scoped)) {
+            m_search->setPageKeywords(scoped, page.keywords + moduleWords);
+        }
+    }
+}
+
+void FacetHost::invalidateSearch()
+{
+    if (!m_search) {
+        return;
+    }
+    if (m_searchBatches > 0) {
+        m_searchStale = true;
+        return;
+    }
+    m_search->invalidate();
+}
+
+void FacetHost::loadOwedSearchProviders()
+{
+    if (!m_search || !m_controller || m_search->query().trimmed().isEmpty()) {
+        return;
+    }
+    // One walk at a time, and none while a module loads, since every load is
+    // refused then. A call meanwhile, from a slot of a load (a query typed, a
+    // module arriving or offered again), is owed: the walk goes round again,
+    // or the load that is running pays it once it is over. None while modules
+    // take their place either, since a module loaded then would bind pages
+    // that are not in the sidebar yet: start() and addModule pay what that
+    // owes once it is over.
+    if (m_loadingSearchProviders || !m_loadingModule.isEmpty() || m_placingModules) {
+        m_searchProvidersOwed = true;
+        return;
+    }
+    m_loadingSearchProviders = true;
+    const auto done = qScopeGuard([this] {
+        m_loadingSearchProviders = false;
+    });
+    // The loads' transitions rebuild the index once, at the end.
+    const SearchBatch batch(*this);
+    do {
+        m_searchProvidersOwed = false;
+        // Collected afresh each round, since a load can add modules to the
+        // map or move them on, and in id order, so the loads run in the same
+        // order every time. A module the catalog withdrew in the scan being
+        // announced is left for its pluginRemoved, since loading it now
+        // could only fail.
+        QStringList owed;
+        for (auto it = m_modules.cbegin(); it != m_modules.cend(); ++it) {
+            const Module& module = *it.value();
+            if (module.metadata.searchProviders && module.state == ModuleState::Available
+                && m_catalog->plugin(it.key())) {
+                owed.append(it.key());
+            }
+        }
+        std::sort(owed.begin(), owed.end());
+        for (const QString& moduleId : std::as_const(owed)) {
+            QString error;
+            if (!loadModule(moduleId, &error)) {
+                qCWarning(lcFacetHost).noquote()
+                    << "FacetHost: module" << moduleId << "has search providers but did not load -" << error;
+            }
+        }
+    } while (m_searchProvidersOwed && m_controller && m_search);
 }
 
 void FacetHost::resolveExtensions()
@@ -1781,6 +2167,11 @@ void FacetHost::updateExtensions()
         }
     }
     std::sort(changed.begin(), changed.end());
+    // ModuleSearch lists the active extensions as sections, so a live query
+    // shows the change before the pages are told.
+    if (!changed.isEmpty()) {
+        invalidateSearch();
+    }
     if (refusedChanged) {
         Q_EMIT refusedExtensionsChanged();
     }
@@ -1926,9 +2317,7 @@ QList<StagingDomain*> FacetHost::moduleDomains(const QString& moduleId) const
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     if (module) {
         for (const QPointer<StagingDomain>& domain : module->domains) {
-            if (domain) {
-                domains.append(domain.data());
-            }
+            domains.append(domain.data());
         }
     }
     return domains;
@@ -1958,39 +2347,7 @@ FacetHost::sharedConfigBackend(const QString& path,
     if (!m_configBackends) {
         return nullptr;
     }
-    const QString key = configFileKey(path);
-    const auto existing = m_configBackends->backends.constFind(key);
-    if (existing != m_configBackends->backends.cend()) {
-        return existing->get();
-    }
-    // The backends stay keyed by the file the module named. A redirect
-    // (setConfigRedirect) only changes where that file's backend is made:
-    // the same path again, under the redirect directory, which is created
-    // because the module could not know to.
-    QString file = key;
-    if (!m_configRedirect.isEmpty()) {
-        file = QDir::cleanPath(m_configRedirect + QLatin1Char('/') + key);
-        QDir().mkpath(QFileInfo(file).absolutePath());
-    }
-    std::unique_ptr<PhosphorConfig::IBackend> created = create ? create(file) : nullptr;
-    // create is module code, so look again before using what it can have
-    // changed.
-    if (!m_configBackends) {
-        return nullptr;
-    }
-    // It can have opened this same file through the host. The backend that
-    // call shared is already in use, so it stands, and the one made here is
-    // dropped rather than put in its place. That holds when create returned
-    // null too: the file's shared backend is the answer whoever made it.
-    if (const auto nested = m_configBackends->backends.constFind(key); nested != m_configBackends->backends.cend()) {
-        return nested->get();
-    }
-    if (!created) {
-        return nullptr;
-    }
-    PhosphorConfig::IBackend* const backend = created.get();
-    m_configBackends->backends.insert(key, std::shared_ptr<PhosphorConfig::IBackend>(std::move(created)));
-    return backend;
+    return m_configBackends->shared(path, create);
 }
 
 PhosphorConfig::IBackend* FacetHost::configBackend(const QString& path) const
@@ -2002,147 +2359,27 @@ PhosphorConfig::IBackend* FacetHost::configBackend(const QString& path) const
     if (!m_configBackends || !QDir::isAbsolutePath(path)) {
         return nullptr;
     }
-    const QString key = configFileKey(path);
-    const auto existing = m_configBackends->backends.constFind(key);
-    return existing != m_configBackends->backends.cend() ? existing->get() : nullptr;
+    return m_configBackends->find(path);
+}
+
+QList<ISearchProvider*> FacetHost::searchProviders(const QString& moduleId) const
+{
+    QList<ISearchProvider*> providers;
+    const std::shared_ptr<Module> module = m_modules.value(moduleId);
+    if (module) {
+        for (const FacetContext::SearchProviderRegistration& provider : module->searchProviders) {
+            if (!provider.isObject || provider.object) {
+                providers.append(provider.provider);
+            }
+        }
+    }
+    return providers;
 }
 
 QStringList FacetHost::boundPages(const QString& moduleId) const
 {
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     return module ? module->boundPages : QStringList();
-}
-
-FacetHost::LoadRecord FacetHost::readLoadRecord() const
-{
-    LoadRecord record;
-    if (m_sentinelPath.isEmpty()) {
-        return record;
-    }
-    QFile file(m_sentinelPath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return record;
-    }
-    const QJsonObject json = QJsonDocument::fromJson(file.readAll()).object();
-    record.loading = json.value(RecordLoadingKey).toString();
-    record.pid = json.value(RecordPidKey).toInteger();
-    record.process = json.value(RecordProcessKey).toString();
-    for (const QJsonValue& id : json.value(RecordDisabledKey).toArray()) {
-        if (id.isString() && !id.toString().isEmpty() && !record.disabled.contains(id.toString())) {
-            record.disabled.append(id.toString());
-        }
-    }
-    return record;
-}
-
-bool FacetHost::writeLoadRecord(const LoadRecord& record, RecordWrite mode) const
-{
-    if (m_sentinelPath.isEmpty()) {
-        return false;
-    }
-    QJsonObject json;
-    if (!record.loading.isEmpty()) {
-        json.insert(RecordLoadingKey, record.loading);
-        json.insert(RecordPidKey, record.pid);
-        json.insert(RecordProcessKey, record.process);
-    }
-    if (!record.disabled.isEmpty()) {
-        json.insert(RecordDisabledKey, QJsonArray::fromStringList(record.disabled));
-    }
-    QDir().mkpath(QFileInfo(m_sentinelPath).absolutePath());
-    const QByteArray bytes = QJsonDocument(json).toJson(QJsonDocument::Compact);
-    // Atomic replace in both modes, because the file also holds the disabled
-    // list, which a write cut short by a crash must not lose.
-    //
-    // A record that is a symbolic link takes the QSaveFile path: it writes
-    // through the link to its target, where a rename would put a regular file
-    // in place of the link and leave the target stale.
-    const QFileInfo existing(m_sentinelPath);
-    if (mode == RecordWrite::ProcessCrashSafe && !existing.isSymLink()) {
-        // QSaveFile refuses to replace a record that is not writable, and so
-        // does this path, so both modes fail on the same file.
-        if (existing.exists() && !existing.isWritable()) {
-            qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_sentinelPath;
-            return false;
-        }
-        // QSaveFile::commit() syncs the file to disk (an fdatasync), which
-        // costs milliseconds on the GUI thread for each write around a
-        // module load. Once written and renamed into place the record is in
-        // the kernel, which is all a crash of this process needs. A power
-        // loss can then lose the write or leave an empty record, which
-        // forgets the disabled list: each module on it is loaded once more
-        // and, if it still crashes Facet, disabled again.
-        //
-        // fileName() gives the file a name in the record's directory when
-        // Qt opened it unnamed, and is empty when it cannot.
-        //
-        // QTemporaryFile creates the file owner-only. An existing record keeps
-        // its own permissions, as QSaveFile keeps them.
-        QTemporaryFile file(m_sentinelPath + QStringLiteral(".XXXXXX"));
-        const bool written = file.open() && (!existing.exists() || file.setPermissions(existing.permissions()))
-            && file.write(bytes) == bytes.size() && file.flush();
-        const QString temporaryName = written ? file.fileName() : QString();
-        if (!temporaryName.isEmpty()
-            && std::rename(QFile::encodeName(temporaryName).constData(), QFile::encodeName(m_sentinelPath).constData())
-                == 0) {
-            // The name is the record's now. Removing the temporary file's
-            // name on destruction would remove nothing, or whatever took the
-            // old name since.
-            file.setAutoRemove(false);
-            return true;
-        }
-        qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_sentinelPath;
-        return false;
-    }
-    QSaveFile file(m_sentinelPath);
-    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) < 0 || !file.commit()) {
-        qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_sentinelPath;
-        return false;
-    }
-    return true;
-}
-
-bool FacetHost::recordLoading(const QString& moduleId)
-{
-    if (m_sentinelPath.isEmpty()) {
-        return false;
-    }
-    LoadRecord record;
-    record.loading = moduleId;
-    record.pid = QCoreApplication::applicationPid();
-    record.process = processIdentity(record.pid);
-    record.disabled = QStringList(m_disabled.cbegin(), m_disabled.cend());
-    std::sort(record.disabled.begin(), record.disabled.end());
-    // The disabled list is written unchanged, so this write only has to
-    // outlive a crash of the module about to load.
-    return writeLoadRecord(record, RecordWrite::ProcessCrashSafe);
-}
-
-void FacetHost::clearLoading(bool recorded)
-{
-    // Nothing named the module when its record could not be written, so there
-    // is nothing to take back.
-    if (!recorded || m_sentinelPath.isEmpty()) {
-        return;
-    }
-    // A record left naming the module would make the next start disable a
-    // module that loaded fine, so try once more before giving up.
-    if (!persistDisabled(RecordWrite::ProcessCrashSafe) && !persistDisabled(RecordWrite::ProcessCrashSafe)) {
-        qCWarning(lcFacetHost).noquote() << "FacetHost: the load record" << m_sentinelPath << "still names module"
-                                         << m_loadingModule
-                                         << "as loading; the next start will treat it as having crashed";
-    }
-}
-
-bool FacetHost::persistDisabled(RecordWrite mode)
-{
-    if (m_sentinelPath.isEmpty()) {
-        return false;
-    }
-    LoadRecord record;
-    record.disabled = QStringList(m_disabled.cbegin(), m_disabled.cend());
-    std::sort(record.disabled.begin(), record.disabled.end());
-    return writeLoadRecord(record, mode);
 }
 
 } // namespace PhosphorControl

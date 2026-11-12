@@ -6,7 +6,10 @@
 #include <PhosphorControl/PageController.h>
 #include <PhosphorControl/PageRegistry.h>
 #include <PhosphorControl/SearchController.h>
+#include <PhosphorControl/SearchEntry.h>
 #include <PhosphorControl/StagingDomain.h>
+
+#include "facet_fixtures.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -21,6 +24,7 @@
 #include <QSaveFile>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
@@ -34,14 +38,8 @@
 
 #include <unistd.h>
 
-#ifndef PHOSPHOR_CONTROL_FIXTURE_DIR
-#error "PHOSPHOR_CONTROL_FIXTURE_DIR must be defined by tests/CMakeLists.txt"
-#endif
-#ifndef PHOSPHOR_CONTROL_STAGING_DIR
-#error "PHOSPHOR_CONTROL_STAGING_DIR must be defined by tests/CMakeLists.txt"
-#endif
-
 using namespace PhosphorControl;
+using PhosphorControlTest::fixturePath;
 using State = FacetHost::ModuleState;
 
 namespace {
@@ -64,11 +62,6 @@ public:
     }
 };
 
-QString fixture(const QString& variant)
-{
-    return QStringLiteral(PHOSPHOR_CONTROL_FIXTURE_DIR) + QLatin1Char('/') + variant + QStringLiteral(".so");
-}
-
 // PluginCatalog refuses a plugin, or a directory, that others can write.
 // Set the mode and confirm the filesystem kept it, so a test fails here and
 // not later with a puzzling "refused".
@@ -80,13 +73,13 @@ bool makeOwnerWritable(const QString& path)
         && !(QFile::permissions(path) & (QFileDevice::WriteGroup | QFileDevice::WriteOther));
 }
 
-// The start of every staging directory this test makes, so sweepStaging()
+// The start of every staging directory this test makes, so initTestCase()
 // can tell them from the other tests' directories.
 const QLatin1String StagingPrefix("test_facet_host-");
 
 // A QTemporaryDir template under the build tree's staging directory, which
 // is made at configure time and made again here in case it was removed. The
-// name carries this process's id, which sweepStaging() reads.
+// name carries this process's id, which initTestCase()'s sweep reads.
 QString stagingTemplate(const QString& name)
 {
     QDir().mkpath(QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR));
@@ -94,37 +87,12 @@ QString stagingTemplate(const QString& name)
         + QString::number(QCoreApplication::applicationPid()) + QStringLiteral("-XXXXXX");
 }
 
-// Removes the staging directories a run of this test left behind when it
-// ended without cleaning up (a crash, a kill, a timeout). Only those whose
-// process is gone: ctest can run this test beside another copy of itself.
-void sweepStaging()
-{
-    static const QRegularExpression owned(QLatin1String("^") + StagingPrefix + QStringLiteral("[a-z]+-(\\d+)-.{6}$"));
-    const QFileInfoList entries = QDir(QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR))
-                                      .entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
-    for (const QFileInfo& entry : entries) {
-        const QRegularExpressionMatch match = owned.match(entry.fileName());
-        if (!match.hasMatch()) {
-            continue;
-        }
-        const qint64 pid = match.captured(1).toLongLong();
-        if (pid == QCoreApplication::applicationPid() || QFileInfo::exists(QStringLiteral("/proc/%1").arg(pid))) {
-            continue;
-        }
-        // A test that takes the write bit off its directory puts it back on
-        // the way out, which a run that died never did.
-        QFile::setPermissions(entry.filePath(),
-                              QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
-        QDir(entry.filePath()).removeRecursively();
-    }
-}
-
 // Copy fixture @p variant into @p directory as <file>.so.
 bool stage(const QString& directory, const QString& variant, const QString& file)
 {
     const QString target = directory + QLatin1Char('/') + file + QStringLiteral(".so");
     QFile::remove(target);
-    return QFile::copy(fixture(variant), target) && makeOwnerWritable(target);
+    return QFile::copy(fixturePath(variant), target) && makeOwnerWritable(target);
 }
 
 // Move @p from onto @p to in one step, replacing what is there, as a package
@@ -208,12 +176,15 @@ struct FixtureState
     static void clear()
     {
         for (const char* name :
-             {"facetLoadRecord", "fakeConfigFactoryPaths", "fakeConfigBackendsDestroyed", "fakeConfigNestedBackend",
-              "fakeConfigOuterBackend", "fakeForeignController", "fakeForeignDomain"}) {
+             {"facetLoadRecord", "facetSearchLoadRecord", "fakeConfigFactoryPaths", "fakeConfigBackendsDestroyed",
+              "fakeConfigNestedBackend", "fakeConfigOuterBackend", "fakeForeignController", "fakeForeignDomain",
+              "fakeProviderObject", "fakeProvidersAsked"}) {
             qApp->setProperty(name, QVariant());
         }
         qunsetenv("FACET_TEST_LOAD_RECORD");
         qunsetenv("FAKE_CONFIG_PATH");
+        qunsetenv("FAKE_REMOVE_FILE");
+        qunsetenv("FAKE_REMOVE_FAIL");
     }
 };
 
@@ -255,7 +226,7 @@ StagingDomain* configDomainOf(const FacetHost& host, const QString& moduleId)
 {
     const QList<StagingDomain*> domains = host.moduleDomains(moduleId);
     const auto found = std::find_if(domains.cbegin(), domains.cend(), [](const StagingDomain* domain) {
-        return domain->objectName() == QLatin1String("config");
+        return domain && domain->objectName() == QLatin1String("config");
     });
     return found != domains.cend() ? *found : nullptr;
 }
@@ -369,6 +340,78 @@ QRegularExpression exactly(const QString& text)
     return QRegularExpression(QLatin1Char('^') + QRegularExpression::escape(text) + QLatin1Char('$'));
 }
 
+// Counts the critical messages that contain a text, while it lives, and
+// passes every message on. QTest::failOnWarning sees warnings only.
+class CriticalCounter
+{
+public:
+    explicit CriticalCounter(const QString& text)
+    {
+        s_text = text;
+        s_count = 0;
+        s_previous = qInstallMessageHandler(&CriticalCounter::handle);
+    }
+    ~CriticalCounter()
+    {
+        qInstallMessageHandler(s_previous);
+    }
+    Q_DISABLE_COPY_MOVE(CriticalCounter)
+
+    int count() const
+    {
+        return s_count;
+    }
+
+private:
+    static void handle(QtMsgType type, const QMessageLogContext& context, const QString& message)
+    {
+        if (type == QtCriticalMsg && message.contains(s_text)) {
+            ++s_count;
+        }
+        if (s_previous) {
+            s_previous(type, context, message);
+        }
+    }
+    static inline QtMessageHandler s_previous = nullptr;
+    static inline QString s_text;
+    static inline int s_count = 0;
+};
+
+// Hand @p search to the host, before start() as the application does, with no
+// cap on how many results it lists.
+void attachSearch(Harness& h, SearchController& search)
+{
+    search.setLimit(-1);
+    h.host->setSearchController(&search);
+}
+
+// How many of @p search's current results are on @p pageId at @p anchor.
+qsizetype countResults(const SearchController& search, const QString& pageId, const QString& anchor)
+{
+    const QVariantList results = search.results();
+    return std::count_if(results.cbegin(), results.cend(), [&pageId, &anchor](const QVariant& result) {
+        const QVariantMap map = result.toMap();
+        return map.value(QStringLiteral("pageId")).toString() == pageId
+            && map.value(QStringLiteral("anchor")).toString() == anchor;
+    });
+}
+
+// The result of @p search for @p query on @p pageId at @p anchor, or an empty
+// map when it has none. A query equal to the one standing is no new query, so
+// the results are the standing ones.
+QVariantMap findResult(SearchController& search, const QString& query, const QString& pageId, const QString& anchor)
+{
+    search.setQuery(query);
+    for (const QVariant& result : search.results()) {
+        const QVariantMap map = result.toMap();
+        if (map.value(QStringLiteral("pageId")).toString() == pageId
+            && map.value(QStringLiteral("anchor")).toString() == anchor) {
+            return map;
+        }
+    }
+    return QVariantMap();
+}
+
 } // namespace
 
 class TestFacetHost : public QObject
@@ -378,7 +421,23 @@ class TestFacetHost : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        sweepStaging();
+        // The default load record goes under a state directory of this run's
+        // own, never the user's, should a host ever fall back to it. The
+        // variable rather than QStandardPaths' test mode, which moves only
+        // some locations and puts the state one under ~/.qttest, shared by
+        // every run.
+        QVERIFY2(m_stateHome.emplace().isValid(), qPrintable(m_stateHome->errorString()));
+        qputenv("XDG_STATE_HOME", QFile::encodeName(m_stateHome->path()));
+        QCOMPARE(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation), m_stateHome->path());
+        // The staging directories a run of this test left behind when it
+        // ended without cleaning up (a crash, a kill, a timeout).
+        PhosphorControlTest::sweepDeadStaging(
+            QRegularExpression(QLatin1String("^") + StagingPrefix + QStringLiteral("[a-z]+-(\\d+)-.{6}$")));
+    }
+
+    void cleanupTestCase()
+    {
+        m_stateHome.reset();
     }
 
     void unloadedModulePagesAreOrdinaryPages()
@@ -516,18 +575,41 @@ private Q_SLOTS:
         QCOMPARE(h.host->metadata(QStringLiteral("loopa"))->parent, QStringLiteral("loopb"));
     }
 
-    void pagesPlacedUnderEachOtherStayWithTheirModules()
+    void pagesPlacedUnderEachOtherBreakTheirCycleAtOnePage_data()
+    {
+        QTest::addColumn<bool>("chain");
+        QTest::newRow("the cycle alone") << false;
+        // pagechain's page goes under pagecyclea's from outside the cycle,
+        // and its module sorts first, so it is the first page to wait.
+        QTest::newRow("a page waiting on the cycle") << true;
+    }
+
+    void pagesPlacedUnderEachOtherBreakTheirCycleAtOnePage()
     {
         // Each page waits for the other's, which waits for it: no order of
-        // placing them works, so both fall back under their own module
-        // instead of waiting for ever.
-        Harness h({QStringLiteral("pagecyclea"), QStringLiteral("pagecycleb")});
+        // placing them works. The one that sorts first stays under its own
+        // module, which ends the wait for the other, and for a page outside
+        // the cycle that waits on it.
+        QFETCH(bool, chain);
+        QStringList variants{QStringLiteral("pagecyclea"), QStringLiteral("pagecycleb")};
+        if (chain) {
+            variants.append(QStringLiteral("pagechain"));
+        }
+        Harness h(variants);
         QVERIFY2(h.ok, qPrintable(h.error));
+        QTest::ignoreMessage(QtInfoMsg,
+                             exactly(QStringLiteral("FacetHost: page pagecyclea:leaf goes under pagecycleb:leaf in a "
+                                                    "cycle of pages placed under each other; it stays under its "
+                                                    "module")));
         h.host->start();
         QCOMPARE(h.registry()->parentIdOf(QStringLiteral("pagecyclea:leaf")), QStringLiteral("pagecyclea"));
-        QCOMPARE(h.registry()->parentIdOf(QStringLiteral("pagecycleb:leaf")), QStringLiteral("pagecycleb"));
-        QCOMPARE(h.host->state(QStringLiteral("pagecyclea")), std::optional<State>(State::Available));
-        QCOMPARE(h.host->state(QStringLiteral("pagecycleb")), std::optional<State>(State::Available));
+        QCOMPARE(h.registry()->parentIdOf(QStringLiteral("pagecycleb:leaf")), QStringLiteral("pagecyclea:leaf"));
+        if (chain) {
+            QCOMPARE(h.registry()->parentIdOf(QStringLiteral("pagechain:leaf")), QStringLiteral("pagecyclea:leaf"));
+        }
+        for (const QString& id : h.host->moduleIds()) {
+            QCOMPARE(h.host->state(id), std::optional<State>(State::Available));
+        }
     }
 
     void metadataIsReadInTheHostLocale()
@@ -567,6 +649,11 @@ private Q_SLOTS:
         QTest::ignoreMessage(QtWarningMsg,
                              exactly(QStringLiteral("FacetHost: setConfigRedirect after start() is ignored")));
         h.host->setConfigRedirect(other.filePath(QStringLiteral("config")));
+        SearchController late(&h.controller);
+        late.setLimit(-1);
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: setSearchController after start() is ignored")));
+        h.host->setSearchController(&late);
         // A second start() finds and announces nothing again.
         QTest::ignoreMessage(QtWarningMsg, exactly(QStringLiteral("FacetHost: start() called twice")));
         h.host->start();
@@ -578,6 +665,11 @@ private Q_SLOTS:
         QVERIFY(stage(h.modules, QStringLiteral("good"), QStringLiteral("good")));
         QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("good:general")), 10000);
         QCOMPARE(h.registry()->entry(QStringLiteral("good:general")).title, QStringLiteral("General"));
+        // The search controller set late was given nothing: the page is
+        // found by its title, which the registry gives every controller, but
+        // not by its keyword, which only the host gives.
+        QVERIFY(!findResult(late, QStringLiteral("General"), QStringLiteral("good:general"), QString()).isEmpty());
+        QVERIFY(findResult(late, QStringLiteral("basic"), QStringLiteral("good:general"), QString()).isEmpty());
         // The load record stays where it was.
         QVERIFY(h.host->loadModule(QStringLiteral("good")));
         QVERIFY(QFileInfo::exists(h.sentinel));
@@ -606,8 +698,10 @@ private Q_SLOTS:
         QVERIFY(real != placeholder);
         QCOMPARE(h.registry()->entry(QStringLiteral("good:general")).qmlSource,
                  QUrl(QStringLiteral("qrc:/fake/Page.qml")));
-        QCOMPARE(bound.count(), 3);
-        QCOMPARE(h.host->boundPages(QStringLiteral("good")).size(), 3);
+        // Each of good's pages is bound once.
+        const qsizetype goodPages = h.host->metadata(QStringLiteral("good"))->pages.size();
+        QCOMPARE(bound.count(), goodPages);
+        QCOMPARE(h.host->boundPages(QStringLiteral("good")).size(), goodPages);
         QCOMPARE(h.host->moduleDomains(QStringLiteral("good")).size(), 1);
         QVERIFY(h.controller.isTrackedDomain(real));
         QVERIFY(h.controller.isTrackedDomain(h.host->moduleDomains(QStringLiteral("good")).first()));
@@ -699,15 +793,70 @@ private Q_SLOTS:
 
     void anEmptyLoadRecordPathRemembersNothing()
     {
+        // Where the record would go by default: under this run's state
+        // directory (initTestCase), so a host that fell back to it is seen.
+        const QString fallback = m_stateHome->filePath(QStringLiteral("phosphor-works/facet-loading"));
+        QCOMPARE(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation), m_stateHome->path());
+        QFile::remove(fallback);
+        QVERIFY(!QFileInfo::exists(fallback));
         Harness h({QStringLiteral("good")});
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->setSentinelPath(QString());
         // A write of a record to the empty path would warn about the load
         // record it could not write.
         QTest::failOnWarning(QRegularExpression(QStringLiteral("load record")));
+        // Turned off on purpose, which is not a missing state directory.
+        QTest::ignoreMessage(QtInfoMsg,
+                             exactly(QStringLiteral("FacetHost: the load record is turned off, so a module that "
+                                                    "crashes Facet is not remembered")));
         h.host->start();
         QVERIFY(h.host->loadModule(QStringLiteral("good")));
         QVERIFY(!QFileInfo::exists(h.sentinel));
+        QVERIFY(!QFileInfo::exists(fallback));
+    }
+
+    void aRecordNamedLikeAWildcardIsMatchedByItsName()
+    {
+        // Read as a wildcard pattern, "[loading]" in the record's name would
+        // stand for one of those letters, so the stale file beside the record
+        // would not match and a file of another name would.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet[loading]"));
+        const QString stale = record + QStringLiteral(".aBc123");
+        const QString lookalike = state.filePath(QStringLiteral("facetl.aBc123"));
+        const QDateTime old = QDateTime::currentDateTimeUtc().addSecs(-3600);
+        for (const QString& path : {stale, lookalike}) {
+            QVERIFY(writeRecord(path, QJsonObject()));
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::ReadWrite));
+            QVERIFY(file.setFileTime(old, QFileDevice::FileModificationTime));
+        }
+        Harness h({QStringLiteral("good")}, record);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QVERIFY(!QFileInfo::exists(stale));
+        QVERIFY(QFileInfo::exists(lookalike));
+    }
+
+    void theDefaultLocaleIsReadWhenStartRuns()
+    {
+        // The application sets the default locale after it made the host,
+        // and before start(): the metadata is read in that locale.
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        ApplicationController controller;
+        FacetHost host(&controller);
+        host.setSearchPaths({{h.modules, PhosphorRegistry::PluginOrigin::Development}});
+        host.setSentinelPath(h.root.filePath(QStringLiteral("own-loading")));
+        host.setLiveReload(false);
+        const QLocale saved;
+        const auto restore = qScopeGuard([&saved] {
+            QLocale::setDefault(saved);
+        });
+        QLocale::setDefault(QLocale(QStringLiteral("de_DE")));
+        host.start();
+        QCOMPARE(controller.registry()->entry(QStringLiteral("good:general")).title, QStringLiteral("Allgemein"));
     }
 
     void aLoadRecordThatIsALinkStaysALink()
@@ -805,6 +954,34 @@ private Q_SLOTS:
         QVERIFY(QFile::setPermissions(h.sentinel, before | QFileDevice::WriteOwner));
     }
 
+    void aRetryTheRecordCannotRememberStillLoads()
+    {
+        if (::geteuid() == 0) {
+            QSKIP("root writes a file whatever its mode");
+        }
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QVERIFY(writeRecord(h.sentinel, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("good")}}}));
+        QVERIFY(QFile::setPermissions(h.sentinel, QFileDevice::ReadOwner | QFileDevice::ReadGroup));
+        const auto writable = qScopeGuard([sentinel = h.sentinel] {
+            QFile::setPermissions(sentinel, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        });
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::DisabledAfterCrash));
+        // The user asked for it, so it loads, and is told the retry may not
+        // last: the record, which cannot be written, still names it. The
+        // load is not recorded either.
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("could not write the load record")));
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: module good is retried, but the load record could not "
+                                                    "be written, so the next start may disable it again")));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("could not write the load record")));
+        QVERIFY(h.host->retryModule(QStringLiteral("good")));
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Loaded));
+        QCOMPARE(readRecord(h.sentinel).value(QStringLiteral("disabled")).toArray(),
+                 QJsonArray{QStringLiteral("good")});
+    }
+
     void aModuleThatBreaksItsContractKeepsNothing_data()
     {
         QTest::addColumn<QString>("variant");
@@ -819,6 +996,19 @@ private Q_SLOTS:
             << QStringLiteral("extraextension") << QStringLiteral("registered extension undeclared");
         QTest::newRow("registers an extension twice")
             << QStringLiteral("extraextension") << QStringLiteral("registered extension first twice");
+        QTest::newRow("registers a search provider it did not declare")
+            << QStringLiteral("undeclaredprovider") << QStringLiteral("without \"SearchProviders\": true");
+        QTest::newRow("registers a search provider, then a null domain")
+            << QStringLiteral("providersbroken") << QStringLiteral("registered a null domain");
+        QTest::newRow("null search provider")
+            << QStringLiteral("badproviders") << QStringLiteral("registered a null search provider");
+        QTest::newRow("registers a search provider twice")
+            << QStringLiteral("badproviders") << QStringLiteral("registered a search provider twice");
+        QTest::newRow("search provider in another thread")
+            << QStringLiteral("providerobjects")
+            << QStringLiteral("registered a search provider that lives in another thread");
+        QTest::newRow("search provider deleted while registering")
+            << QStringLiteral("providerobjects") << QStringLiteral("a search provider was deleted during registration");
         QTest::newRow("registers a page twice")
             << QStringLiteral("twicepage") << QStringLiteral("registered page general twice");
         QTest::newRow("no controller") << QStringLiteral("nullcontroller") << QStringLiteral("with no controller");
@@ -886,21 +1076,31 @@ private Q_SLOTS:
         QCOMPARE(failed.count(), 1);
         QCOMPARE(h.host->state(variant), std::optional<State>(State::Failed));
         QVERIFY(h.host->stateReason(variant).contains(reason));
+        // The application's own domain, which foreigndomain hands over, stays
+        // the application's.
+        QVERIFY(h.controller.isTrackedDomain(tracked));
 
         // Nothing it registered took effect: every page still shows the
-        // placeholder, and no domain joined Apply.
+        // placeholder, no domain joined Apply, and no search provider is
+        // kept.
         QCOMPARE(h.registry()->entry(general).qmlSource, FacetHost::placeholderPageSource());
         QVERIFY(!h.controller.isTrackedDomain(h.registry()->controller(general)));
         QVERIFY(h.host->boundPages(variant).isEmpty());
         QVERIFY(h.host->moduleDomains(variant).isEmpty());
         QVERIFY(h.host->moduleExtensions(variant).isEmpty());
+        QVERIFY(h.host->searchProviders(variant).isEmpty());
 
         // So it can be retried, and a retry that fails the same way keeps
         // nothing either.
         QVERIFY(h.host->canRetry(variant));
         QVERIFY(!h.host->retryModule(variant));
         QCOMPARE(h.host->state(variant), std::optional<State>(State::Failed));
+        QCOMPARE(h.registry()->entry(general).qmlSource, FacetHost::placeholderPageSource());
+        QVERIFY(h.host->boundPages(variant).isEmpty());
         QVERIFY(h.host->moduleDomains(variant).isEmpty());
+        QVERIFY(h.host->moduleExtensions(variant).isEmpty());
+        QVERIFY(h.host->searchProviders(variant).isEmpty());
+        QVERIFY(h.controller.isTrackedDomain(tracked));
     }
 
     void aConfigFileThatCannotBeOpenedFailsTheLoad_data()
@@ -1040,6 +1240,8 @@ private Q_SLOTS:
     {
         Harness h({QStringLiteral("good")});
         QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
         auto* const appPage = new SimplePage(QStringLiteral("good:general"), &h.controller);
         h.controller.registerPage(appPage, QString(), QStringLiteral("App Page"), QUrl(QStringLiteral("qrc:/app.qml")));
         h.host->start();
@@ -1047,6 +1249,10 @@ private Q_SLOTS:
         QVERIFY(h.host->stateReason(QStringLiteral("good")).contains(QStringLiteral("good:general is already")));
         QVERIFY(!h.host->loadModule(QStringLiteral("good")));
         QCOMPARE(h.registry()->controller(QStringLiteral("good:general")), appPage);
+        // The application's page keeps its own search terms: good's keyword
+        // does not find it.
+        QVERIFY(!findResult(search, QStringLiteral("App Page"), QStringLiteral("good:general"), QString()).isEmpty());
+        QVERIFY(findResult(search, QStringLiteral("basic"), QStringLiteral("good:general"), QString()).isEmpty());
     }
 
     void aHostPageThatOnlyLooksLikeAModulePageLoadsNothing()
@@ -1099,13 +1305,23 @@ private Q_SLOTS:
             QCOMPARE(placeholder->property("moduleName").toString(), QStringLiteral("Good"));
             QSignalSpy placeholderChanged(placeholder, SIGNAL(moduleStateChanged()));
             QSignalSpy bound(h.registry(), &PageRegistry::pageBound);
+            QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
             QVERIFY(QMetaObject::invokeMethod(placeholder, "retry"));
             QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Loaded));
-            QVERIFY(placeholderChanged.count() >= 1);
-            QVERIFY(bound.count() >= 1);
+            // Told it is Available again, then Loaded. Each of good's pages
+            // is bound once, so the page on screen is good's own now.
+            QCOMPARE(placeholderChanged.count(), 2);
+            QCOMPARE(bound.count(), h.host->metadata(QStringLiteral("good"))->pages.size());
+            QCOMPARE(loaded.count(), 1);
+            QVERIFY(h.registry()->controller(QStringLiteral("good:general")) != placeholder);
             QCOMPARE(h.registry()->entry(QStringLiteral("good:general")).qmlSource,
                      QUrl(QStringLiteral("qrc:/fake/Page.qml")));
             QVERIFY(!readRecord(record).contains(QStringLiteral("disabled")));
+            // A second retry of the loaded module loads nothing again.
+            QVERIFY(h.host->retryModule(QStringLiteral("good")));
+            QCOMPARE(placeholderChanged.count(), 2);
+            QCOMPARE(bound.count(), h.host->metadata(QStringLiteral("good"))->pages.size());
+            QCOMPARE(loaded.count(), 1);
         }
         {
             Harness h({QStringLiteral("good")}, record);
@@ -1210,16 +1426,24 @@ private Q_SLOTS:
                             QJsonObject{{QStringLiteral("loading"), QStringLiteral("good")},
                                         {QStringLiteral("pid"), pid},
                                         {QStringLiteral("process"), identity}}));
+        const QJsonObject before = readRecord(record);
         Harness h({QStringLiteral("good")}, record);
         QVERIFY2(h.ok, qPrintable(h.error));
         h.host->start();
         QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Available));
+        // The other process's record is its own: left as it is.
+        QCOMPARE(readRecord(record), before);
     }
 
     void aReusedPidIsNotTheProcessThatCrashed()
     {
         // The crashed process's pid now belongs to a live, unrelated process
         // (here process 1): its identity differs, so the crash counts.
+        if (processIdentity(1).isEmpty()) {
+            // Taken for a process that is gone, which disables the module
+            // too, so the test would pass without comparing identities.
+            QSKIP("process 1's /proc entry cannot be read here");
+        }
         QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
         QVERIFY(state.isValid());
         const QString record = state.filePath(QStringLiteral("facet-loading"));
@@ -1450,6 +1674,254 @@ private Q_SLOTS:
         QCOMPARE(statesOf(changed, id), QList<State>{State::Failed});
         QCOMPARE(failed.count(), 1);
         QCOMPARE(failed.first().at(1).toString(), reason);
+    }
+
+    void aModuleOfferedAgainBrokenTheSameWayIsNotAnnouncedAgain_data()
+    {
+        QTest::addColumn<QString>("variant");
+        QTest::addColumn<bool>("idTaken");
+        QTest::newRow("invalid metadata") << QStringLiteral("badmetadata") << false;
+        QTest::newRow("an id the application's page has") << QStringLiteral("good") << true;
+    }
+
+    void aModuleOfferedAgainBrokenTheSameWayIsNotAnnouncedAgain()
+    {
+        // Never placed, the module is read and placed afresh when the catalog
+        // offers it again, and fails for the reason it failed before. That
+        // is no change, so nothing is announced.
+        QFETCH(QString, variant);
+        QFETCH(bool, idTaken);
+        Harness h({variant}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        if (idTaken) {
+            h.controller.registerPage(new SimplePage(variant, &h.controller), QString(), QStringLiteral("App Page"),
+                                      QUrl(QStringLiteral("qrc:/app.qml")));
+        }
+        h.host->start();
+        QCOMPARE(h.host->state(variant), std::optional<State>(State::Failed));
+        const QString reason = h.host->stateReason(variant);
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        QSignalSpy failed(h.host.get(), &FacetHost::moduleFailed);
+
+        // A fresh copy renamed over its file, which the catalog offers again,
+        // and early, staged in the same step and so in the same scan. Once
+        // early is in the sidebar, the module has been read again.
+        QVERIFY(stage(h.root.path(), variant, variant + QStringLiteral("-next")));
+        QVERIFY(replaceFile(h.root.filePath(variant + QStringLiteral("-next.so")),
+                            h.modules + QLatin1Char('/') + variant + QStringLiteral(".so")));
+        QVERIFY(stage(h.modules, QStringLiteral("early"), QStringLiteral("early")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("early")), 10000);
+        QCOMPARE(h.host->state(variant), std::optional<State>(State::Failed));
+        QCOMPARE(h.host->stateReason(variant), reason);
+        QVERIFY(statesOf(changed, variant).isEmpty());
+        QCOMPARE(failed.count(), 0);
+    }
+
+    void aModuleWhoseFileChangesBeforeItLoads_data()
+    {
+        QTest::addColumn<bool>("disabled");
+        QTest::addColumn<QString>("replacement");
+        QTest::addColumn<bool>("fails");
+        QTest::newRow("available, with other metadata") << false << QStringLiteral("goodv2") << true;
+        QTest::newRow("disabled after a crash, with other metadata") << true << QStringLiteral("goodv2") << true;
+        QTest::newRow("available, with the same metadata") << false << QStringLiteral("good") << false;
+    }
+
+    void aModuleWhoseFileChangesBeforeItLoads()
+    {
+        // Replaced in one rename before its first load, so the catalog offers
+        // it again. With other metadata it can never fit its placeholders and
+        // fails at once. With the same metadata nothing changes until it
+        // loads the new file.
+        QFETCH(bool, disabled);
+        QFETCH(QString, replacement);
+        QFETCH(bool, fails);
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        if (disabled) {
+            QVERIFY(
+                writeRecord(h.sentinel, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("good")}}}));
+        }
+        h.host->start();
+        const State before = disabled ? State::DisabledAfterCrash : State::Available;
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(before));
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        QSignalSpy failed(h.host.get(), &FacetHost::moduleFailed);
+
+        QVERIFY(stage(h.root.path(), replacement, QStringLiteral("good-next")));
+        QVERIFY(replaceFile(h.root.filePath(QStringLiteral("good-next.so")), h.modules + QStringLiteral("/good.so")));
+        // Staged in the same step, so read in the same scan.
+        QVERIFY(stage(h.modules, QStringLiteral("early"), QStringLiteral("early")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("early")), 10000);
+        if (!fails) {
+            QVERIFY(statesOf(changed, QStringLiteral("good")).isEmpty());
+            QCOMPARE(failed.count(), 0);
+            QVERIFY(h.host->loadModule(QStringLiteral("good")));
+            return;
+        }
+        const QString reason =
+            QStringLiteral("its metadata changed on disk after Facet started, so it can be used only after a restart");
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Failed));
+        QCOMPARE(h.host->stateReason(QStringLiteral("good")), reason);
+        QVERIFY(!h.host->canRetry(QStringLiteral("good")));
+        QCOMPARE(statesOf(changed, QStringLiteral("good")), QList<State>{State::Failed});
+        QCOMPARE(failed.count(), 1);
+        QCOMPARE(failed.first().at(1).toString(), reason);
+        QString error;
+        QVERIFY(!h.host->loadModule(QStringLiteral("good"), &error));
+        QCOMPARE(error, reason);
+    }
+
+    void aModuleWhoseRootObjectIsGoneCannotBeRetried()
+    {
+        // deletesroot deletes its root object and registers nothing. The
+        // failure can be retried while the root lives, but once it is gone
+        // the catalog only hands out the deleted object.
+        Harness h({QStringLiteral("deletesroot")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QString error;
+        QVERIFY(!h.host->loadModule(QStringLiteral("deletesroot"), &error));
+        QVERIFY2(error.contains(QStringLiteral("did not register page")), qPrintable(error));
+        QVERIFY(h.host->canRetry(QStringLiteral("deletesroot")));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(!h.host->retryModule(QStringLiteral("deletesroot"), &error));
+        QVERIFY2(error.contains(QStringLiteral("its root object has since been deleted")), qPrintable(error));
+        QCOMPARE(h.host->state(QStringLiteral("deletesroot")), std::optional<State>(State::Failed));
+        QVERIFY(!h.host->canRetry(QStringLiteral("deletesroot")));
+    }
+
+    void aModuleLoadedInTheScanThatRemovesItFailsOnce()
+    {
+        // early and good go in one scan, which announces early's removal
+        // first. A slot of early's failure loads good, which that scan
+        // withdrew too, before good's own removal is announced: good fails as
+        // that removal fails it, and once.
+        Harness h({QStringLiteral("early"), QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        FacetHost* const host = h.host.get();
+        bool loaded = true;
+        QString loadError;
+        connect(host, &FacetHost::moduleFailed, this, [host, &loaded, &loadError](const QString& moduleId) {
+            if (moduleId == QLatin1String("early")) {
+                loaded = host->loadModule(QStringLiteral("good"), &loadError);
+            }
+        });
+        QSignalSpy changed(host, &FacetHost::moduleStateChanged);
+        QSignalSpy failed(host, &FacetHost::moduleFailed);
+        QVERIFY(QFile::remove(h.modules + QStringLiteral("/early.so")));
+        QVERIFY(QFile::remove(h.modules + QStringLiteral("/good.so")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("early")), std::optional<State>(State::Failed), 10000);
+        const QString reason = QStringLiteral("its file was removed or is no longer accepted");
+        QVERIFY(!loaded);
+        QCOMPARE(loadError, reason);
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Failed));
+        QCOMPARE(h.host->stateReason(QStringLiteral("good")), reason);
+        QVERIFY(!h.host->canRetry(QStringLiteral("good")));
+        QCOMPARE(statesOf(changed, QStringLiteral("good")), QList<State>{State::Failed});
+        QStringList goodFailures;
+        for (const QList<QVariant>& args : std::as_const(failed)) {
+            if (args.at(0).toString() == QLatin1String("good")) {
+                goodFailures.append(args.at(1).toString());
+            }
+        }
+        QCOMPARE(goodFailures, QStringList{reason});
+    }
+
+    void aModuleRemovedWhileItLoadsFinishesItsLoad()
+    {
+        // removedwhileloading removes its own file and runs a nested event
+        // loop in registerInto, so the catalog's rescan withdraws it while it
+        // loads. Its code is mapped by then, and the load finishes as it
+        // would have, like a module removed once loaded: Loaded, and its
+        // sections stay on the page they extend.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("good"), QStringLiteral("removedwhileloading")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        const QString id = QStringLiteral("removedwhileloading");
+        const QString file = h.modules + QStringLiteral("/removedwhileloading.so");
+        qputenv("FAKE_REMOVE_FILE", QFile::encodeName(file));
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        QSignalSpy failed(h.host.get(), &FacetHost::moduleFailed);
+        // Said only when the removal reached the host during the load.
+        QTest::ignoreMessage(QtInfoMsg,
+                             exactly(QStringLiteral("FacetHost: module removedwhileloading was removed while it "
+                                                    "loaded; the load goes on, and what it loads keeps running until "
+                                                    "Facet restarts")));
+        QString error;
+        QVERIFY2(h.host->loadModule(id, &error), qPrintable(error));
+        QVERIFY(!QFileInfo::exists(file));
+        QCOMPARE(h.host->state(id), std::optional<State>(State::Loaded));
+        QCOMPARE(statesOf(changed, id), QList<State>{State::Loaded});
+        QCOMPARE(failed.count(), 0);
+        QCOMPARE(
+            h.host->extensionsOn(QStringLiteral("good:general")),
+            (QStringList{QStringLiteral("removedwhileloading:first"), QStringLiteral("removedwhileloading:second")}));
+    }
+
+    void aModuleRemovedWhileItLoadsAndFailsIsWithdrawn()
+    {
+        // As above, but the load then fails. Nothing else will withdraw it,
+        // since the removal reached the host during the load, so the load
+        // does: it fails for its removal, said once, and its sections leave
+        // the page they extend rather than showing its error card there.
+        FixtureState fixtures;
+        Harness h({QStringLiteral("good"), QStringLiteral("removedwhileloading")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        const QString id = QStringLiteral("removedwhileloading");
+        const QString file = h.modules + QStringLiteral("/removedwhileloading.so");
+        qputenv("FAKE_REMOVE_FILE", QFile::encodeName(file));
+        qputenv("FAKE_REMOVE_FAIL", "1");
+        QCOMPARE(
+            h.host->extensionsOn(QStringLiteral("good:general")),
+            (QStringList{QStringLiteral("removedwhileloading:first"), QStringLiteral("removedwhileloading:second")}));
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        QSignalSpy failed(h.host.get(), &FacetHost::moduleFailed);
+        QTest::ignoreMessage(QtInfoMsg,
+                             exactly(QStringLiteral("FacetHost: module removedwhileloading was removed while it "
+                                                    "loaded; the load goes on, and what it loads keeps running until "
+                                                    "Facet restarts")));
+        const QString removed = QStringLiteral("its file was removed or is no longer accepted");
+        QString error;
+        QVERIFY(!h.host->loadModule(id, &error));
+        QCOMPARE(error, removed);
+        QVERIFY(!QFileInfo::exists(file));
+        QCOMPARE(h.host->state(id), std::optional<State>(State::Failed));
+        QCOMPARE(h.host->stateReason(id), removed);
+        QCOMPARE(statesOf(changed, id), QList<State>{State::Failed});
+        QCOMPARE(failed.count(), 1);
+        QVERIFY(h.host->extensionsOn(QStringLiteral("good:general")).isEmpty());
+        QVERIFY(!h.host->canRetry(id));
+    }
+
+    void aHeadlessDomainGoneWhileLoadingReadsNull()
+    {
+        // headlessgone's second headless domain is deleted while the host
+        // registers them, and its third with deleteLater(). Each keeps its
+        // place, and reads null once it is gone.
+        Harness h({QStringLiteral("headlessgone")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        const QString id = QStringLiteral("headlessgone");
+        QVERIFY(h.host->loadModule(id));
+        QList<StagingDomain*> domains = h.host->moduleDomains(id);
+        QCOMPARE(domains.size(), 3);
+        QVERIFY(domains.at(0));
+        QCOMPARE(domains.at(0)->objectName(), QStringLiteral("FakeDomain"));
+        QVERIFY(!domains.at(1));
+        QVERIFY(domains.at(2));
+        QCOMPARE(domains.at(2)->objectName(), QStringLiteral("late"));
+        QVERIFY(h.controller.isTrackedDomain(domains.at(2)));
+
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        domains = h.host->moduleDomains(id);
+        QCOMPARE(domains.size(), 3);
+        QVERIFY(domains.at(0));
+        QVERIFY(!domains.at(1));
+        QVERIFY(!domains.at(2));
     }
 
     void extensionsResolveAgainstTheirTargetPage()
@@ -2051,6 +2523,147 @@ private Q_SLOTS:
         QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("early")));
     }
 
+    void aPageASlotOpensWhileItsModuleTakesItsPlaceLoadsItOnceItIsPlaced()
+    {
+        // A slot opens translated's first page as that page takes its place,
+        // before its second page does. Loading translated then would bind the
+        // first page and leave the second, which the registry does not have
+        // yet, a placeholder. It loads once both are in the sidebar, each page
+        // bound to translated's own controller.
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        const CriticalCounter refusedBinds(QStringLiteral("passed every check and was still refused"));
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("could not load module")));
+        bool opened = false;
+        bool secondWasPlaced = true;
+        ApplicationController* const controller = &h.controller;
+        PageRegistry* const registry = h.registry();
+        connect(registry, &PageRegistry::pageRegistered, controller,
+                [&opened, &secondWasPlaced, controller, registry](const QString& id) {
+                    if (id == QLatin1String("translated:speed")) {
+                        opened = true;
+                        secondWasPlaced = registry->hasPage(QStringLiteral("translated:extra"));
+                        controller->setCurrentPageId(QStringLiteral("translated:speed"));
+                    }
+                });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("translated")), std::optional<State>(State::Loaded),
+                                  10000);
+        QVERIFY(opened);
+        QVERIFY(!secondWasPlaced);
+        QCOMPARE(h.controller.currentPageId(), QStringLiteral("translated:speed"));
+        const QStringList pages{QStringLiteral("translated:speed"), QStringLiteral("translated:extra")};
+        QCOMPARE(h.host->boundPages(QStringLiteral("translated")), pages);
+        for (const QString& page : pages) {
+            QCOMPARE(h.registry()->entry(page).qmlSource, QUrl(QStringLiteral("qrc:/fake/Page.qml")));
+        }
+        QCOMPARE(refusedBinds.count(), 0);
+    }
+
+    void aCrashedModuleThatArrivesIsNotLoadedForAPageASlotOpens()
+    {
+        // translated crashed Facet before, and arrives while Facet runs. A
+        // slot opens its page as it takes its place, before it is disabled.
+        // It is disabled once placed, and nothing loads it.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(
+            writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("translated")}}}));
+        Harness h({QStringLiteral("good")}, record, true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QSignalSpy loaded(h.host.get(), &FacetHost::moduleLoaded);
+        bool opened = false;
+        ApplicationController* const controller = &h.controller;
+        connect(h.registry(), &PageRegistry::pageRegistered, controller, [&opened, controller](const QString& id) {
+            if (id == QLatin1String("translated:speed")) {
+                opened = true;
+                controller->setCurrentPageId(QStringLiteral("translated:speed"));
+            }
+        });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("translated")),
+                                  std::optional<State>(State::DisabledAfterCrash), 10000);
+        QVERIFY(opened);
+        QCOMPARE(loadsOf(loaded, QStringLiteral("translated")), 0);
+        QVERIFY(h.host->boundPages(QStringLiteral("translated")).isEmpty());
+        QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("translated")));
+    }
+
+    void aCrashedModuleThatArrivesIsDisabledRatherThanLoaded()
+    {
+        // translated crashed Facet before, and arrives while Facet runs. Once
+        // it is placed, the standing query's results change before the host
+        // disables it, and a slot of that asks to load it. It is disabled
+        // then, not loaded.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(
+            writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("translated")}}}));
+        Harness h({QStringLiteral("good")}, record, true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("module-word"));
+        bool asked = false;
+        bool result = true;
+        QString error;
+        FacetHost* const host = h.host.get();
+        PageRegistry* const registry = h.registry();
+        connect(&search, &SearchController::resultsChanged, &search, [&asked, &result, &error, host, registry] {
+            if (!asked && registry->hasPage(QStringLiteral("translated:extra"))) {
+                asked = true;
+                result = host->loadModule(QStringLiteral("translated"), &error);
+            }
+        });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("translated")),
+                                  std::optional<State>(State::DisabledAfterCrash), 10000);
+        QVERIFY(asked);
+        QVERIFY(!result);
+        QCOMPARE(error, h.host->stateReason(QStringLiteral("translated")));
+        QVERIFY(h.host->boundPages(QStringLiteral("translated")).isEmpty());
+        QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("translated")));
+    }
+
+    void aRetryWhileAModuleTakesItsPlaceChangesNothing()
+    {
+        // A slot retries early, which a crash turned off, while translated
+        // takes its place. Nothing can load then, so the retry changes nothing.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("early")}}}));
+        Harness h({QStringLiteral("good"), QStringLiteral("early")}, record, true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::DisabledAfterCrash));
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+        bool tried = false;
+        bool result = true;
+        QString error;
+        FacetHost* const host = h.host.get();
+        connect(h.registry(), &PageRegistry::pageRegistered, &h.controller,
+                [&tried, &result, &error, host](const QString& id) {
+                    if (!tried && id == QLatin1String("translated:speed")) {
+                        tried = true;
+                        result = host->retryModule(QStringLiteral("early"), &error);
+                    }
+                });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("translated:extra")), 10000);
+        QVERIFY(tried);
+        QVERIFY(!result);
+        QVERIFY2(error.contains(QStringLiteral("taking their place")), qPrintable(error));
+        QCOMPARE(h.host->state(QStringLiteral("early")), std::optional<State>(State::DisabledAfterCrash));
+        QVERIFY(statesOf(changed, QStringLiteral("early")).isEmpty());
+        QVERIFY(readRecord(record).value(QStringLiteral("disabled")).toArray().contains(QStringLiteral("early")));
+    }
+
     void loadingOffTheGuiThreadIsRefused()
     {
         Harness h({QStringLiteral("good")});
@@ -2236,6 +2849,647 @@ private Q_SLOTS:
         const QJsonObject fake = fakeGroupIn(path);
         QCOMPARE(fake.value(QStringLiteral("sharera")).toString(), QStringLiteral("applied"));
         QCOMPARE(fake.value(QStringLiteral("sharerb")).toString(), QStringLiteral("applied"));
+    }
+
+    void searchFindsModulesBeforeTheyLoad()
+    {
+        Harness h({QStringLiteral("good"), QStringLiteral("early"), QStringLiteral("extender"),
+                   QStringLiteral("extender2"), QStringLiteral("badextender"), QStringLiteral("translated")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->setLocale(QLocale(QStringLiteral("de_DE")));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        // Each entry the host lists is on a page in the sidebar. SearchController
+        // would drop one that is not, with this warning, so a "not found"
+        // below could otherwise pass for the wrong reason.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("dropping search entry")));
+        h.host->start();
+
+        // Translated at build time from the module's catalog.
+        QVERIFY(h.host->metadata(QStringLiteral("translated")));
+        QCOMPARE(h.host->metadata(QStringLiteral("translated"))->name, QStringLiteral("Übersetzt"));
+        QCOMPARE(h.registry()->entry(QStringLiteral("translated:speed")).title, QStringLiteral("Geschwindigkeit"));
+        QVERIFY(!findResult(search, QStringLiteral("Geschwindigkeit"), QStringLiteral("translated:speed"), QString())
+                     .isEmpty());
+
+        // A page by its keywords: a translated one, and one with no
+        // translation, which keeps its source text.
+        QVERIFY(
+            !findResult(search, QStringLiteral("schnell"), QStringLiteral("translated:speed"), QString()).isEmpty());
+        QVERIFY(!findResult(search, QStringLiteral("quick"), QStringLiteral("translated:speed"), QString()).isEmpty());
+        QVERIFY(!findResult(search, QStringLiteral("basic"), QStringLiteral("good:general"), QString()).isEmpty());
+        // Every page of a module by the module's keyword.
+        QVERIFY(!findResult(search, QStringLiteral("module-word"), QStringLiteral("translated:speed"), QString())
+                     .isEmpty());
+        QCOMPARE(countResults(search, QStringLiteral("translated:extra"), QString()), 1);
+        // And by the module's name, a page placed in a category too, whose
+        // breadcrumb does not name its module.
+        QCOMPARE(h.registry()->parentIdOf(QStringLiteral("early:pinned")),
+                 FacetHost::categoryNodeId(QStringLiteral("appearance")));
+        QVERIFY(!findResult(search, QStringLiteral("Early"), QStringLiteral("early:pinned"), QString()).isEmpty());
+
+        // A static entry at its anchor. Its title has no finished translation.
+        const QVariantMap setting = findResult(search, QStringLiteral("Pointer"), QStringLiteral("translated:speed"),
+                                               QStringLiteral("pointer"));
+        QCOMPARE(setting.value(QStringLiteral("title")).toString(), QStringLiteral("Pointer speed"));
+        QCOMPARE(setting.value(QStringLiteral("kind")).toInt(), static_cast<int>(SearchEntry::Kind::Setting));
+        QCOMPARE(setting.value(QStringLiteral("mode")).toInt(), static_cast<int>(SearchEntry::Mode::Both));
+        // A static section that only advanced mode shows.
+        const QVariantMap advanced = findResult(search, QStringLiteral("Acceleration"),
+                                                QStringLiteral("translated:speed"), QStringLiteral("accel"));
+        QCOMPARE(advanced.value(QStringLiteral("kind")).toInt(), static_cast<int>(SearchEntry::Kind::Section));
+        QCOMPARE(advanced.value(QStringLiteral("mode")).toInt(), static_cast<int>(SearchEntry::Mode::AdvancedOnly));
+
+        // An extension, as a section of the page it is on, by its name and by
+        // its keywords.
+        const QVariantMap section = findResult(search, QStringLiteral("Top A"), QStringLiteral("good:general"),
+                                               QStringLiteral("extender:top-a"));
+        QCOMPARE(section.value(QStringLiteral("kind")).toInt(), static_cast<int>(SearchEntry::Kind::Section));
+        QVERIFY(!findResult(search, QStringLiteral("ext-word"), QStringLiteral("good:general"),
+                            QStringLiteral("extender2:aaa"))
+                     .isEmpty());
+        // Neither an inactive extension, aimed at a module that is not
+        // installed, nor a refused one, on a page that is.
+        QVERIFY(
+            findResult(search, QStringLiteral("Ghost"), QStringLiteral("absent:page"), QStringLiteral("extender:ghost"))
+                .isEmpty());
+        QVERIFY(findResult(search, QStringLiteral("No anchor"), QStringLiteral("good:general"),
+                           QStringLiteral("badextender:no-anchor"))
+                    .isEmpty());
+
+        for (const QString& id : h.host->moduleIds()) {
+            QCOMPARE(h.host->state(id), std::optional<State>(State::Available));
+        }
+    }
+
+    void searchListsEntriesInSidebarOrder()
+    {
+        // Both have a setting titled "Pointer speed", which ties on score, and
+        // a tie lists in the order the host listed them. owncat sorts first by
+        // id, translated first in the sidebar, so the one result a limit of
+        // one keeps is translated's.
+        Harness h({QStringLiteral("translated"), QStringLiteral("owncat")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("Pointer speed"));
+        QCOMPARE(countResults(search, QStringLiteral("owncat:page"), QStringLiteral("shared")), 1);
+        QCOMPARE(countResults(search, QStringLiteral("translated:speed"), QStringLiteral("pointer")), 1);
+        search.setLimit(1);
+        QCOMPARE(search.resultCount(), 1);
+        QCOMPARE(countResults(search, QStringLiteral("translated:speed"), QStringLiteral("pointer")), 1);
+    }
+
+    void searchDropsTheSectionsOfARemovedExtender()
+    {
+        Harness h({QStringLiteral("good"), QStringLiteral("extender")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        const QString page = QStringLiteral("good:general");
+        const QString anchor = QStringLiteral("extender:top-a");
+        QVERIFY(!findResult(search, QStringLiteral("Top A"), page, anchor).isEmpty());
+
+        // The query stands, and its results lose the section as the module
+        // goes, with no new query.
+        QVERIFY(QFile::remove(h.modules + QStringLiteral("/extender.so")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.host->extensionsOn(page).isEmpty(), 10000);
+        QCOMPARE(countResults(search, page, anchor), 0);
+
+        // Back with the module, and found once, not twice: in the standing
+        // query's results, and in a new query's.
+        QVERIFY(stage(h.modules, QStringLiteral("extender"), QStringLiteral("extender")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->extensionsOn(page).size(), 4, 10000);
+        QCOMPARE(countResults(search, page, anchor), 1);
+        search.setQuery(QString());
+        search.setQuery(QStringLiteral("Top A"));
+        QCOMPARE(countResults(search, page, anchor), 1);
+    }
+
+    void searchLeavesOutThePagesOfAModuleThatDidNotLoad()
+    {
+        // A page whose module is off shows that module's placeholder: what
+        // the module and its extenders list on it is not found, while the
+        // page is, as the placeholder that says why.
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        {
+            const QString record = state.filePath(QStringLiteral("owners-off"));
+            QVERIFY(writeRecord(record,
+                                QJsonObject{{QStringLiteral("disabled"),
+                                             QJsonArray{QStringLiteral("good"), QStringLiteral("translated")}}}));
+            Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("translated")}, record);
+            QVERIFY2(h.ok, qPrintable(h.error));
+            SearchController search(&h.controller);
+            attachSearch(h, search);
+            h.host->start();
+            QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::DisabledAfterCrash));
+            QVERIFY(findResult(search, QStringLiteral("Top A"), QStringLiteral("good:general"),
+                               QStringLiteral("extender:top-a"))
+                        .isEmpty());
+            QVERIFY(findResult(search, QStringLiteral("Pointer"), QStringLiteral("translated:speed"),
+                               QStringLiteral("pointer"))
+                        .isEmpty());
+            QVERIFY(
+                !findResult(search, QStringLiteral("Speed"), QStringLiteral("translated:speed"), QString()).isEmpty());
+        }
+        {
+            // The extender is off and the page's module is not: its slot
+            // shows the extender's error card at the section's anchor, so the
+            // section is still found.
+            const QString record = state.filePath(QStringLiteral("extender-off"));
+            QVERIFY(
+                writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("extender")}}}));
+            Harness h({QStringLiteral("good"), QStringLiteral("extender")}, record);
+            QVERIFY2(h.ok, qPrintable(h.error));
+            SearchController search(&h.controller);
+            attachSearch(h, search);
+            h.host->start();
+            QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::DisabledAfterCrash));
+            QVERIFY(!findResult(search, QStringLiteral("Top A"), QStringLiteral("good:general"),
+                                QStringLiteral("extender:top-a"))
+                         .isEmpty());
+        }
+    }
+
+    void searchListsNoSectionWhenAnotherComponentShowsTheSlots()
+    {
+        // FacetSlots ask whoever answers extensionsFor, and that is not this
+        // host, so a section it found would lead to a slot without it.
+        Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("translated")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QObject other;
+        QVERIFY(h.controller.setExtensionProvider(&other, [](const QString&, const QString&) {
+            return QVariantList();
+        }));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("provider is already held by")));
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("another component answers extensionsFor")));
+        h.host->start();
+        QVERIFY(findResult(search, QStringLiteral("Top A"), QStringLiteral("good:general"),
+                           QStringLiteral("extender:top-a"))
+                    .isEmpty());
+        // The rest of what the host lists is still found.
+        QVERIFY(!findResult(search, QStringLiteral("Pointer"), QStringLiteral("translated:speed"),
+                            QStringLiteral("pointer"))
+                     .isEmpty());
+        h.controller.clearExtensionProvider(&other);
+    }
+
+    void aModuleThatArrivesIsSearchedAtOnce()
+    {
+        // Its search entries wait for its pages, which are placed after its
+        // node, rather than being dropped as entries of no page.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("dropping search entry")));
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        QVERIFY(
+            findResult(search, QStringLiteral("module-word"), QStringLiteral("translated:speed"), QString()).isEmpty());
+
+        // The standing query's results gain its pages, by the module's
+        // keyword, without a new query.
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("translated:speed")), 10000);
+        QCOMPARE(countResults(search, QStringLiteral("translated:speed"), QString()), 1);
+        QVERIFY(!findResult(search, QStringLiteral("Pointer"), QStringLiteral("translated:speed"),
+                            QStringLiteral("pointer"))
+                     .isEmpty());
+    }
+
+    void aQueryChangedWhileAModuleIsPlacedDropsNothing()
+    {
+        // A new query answers at once, also while a module that arrived has
+        // some of its pages in the sidebar and not yet the others: the
+        // entries of those wait for them rather than being dropped as
+        // entries of no page. Asked as translated's first page takes its
+        // place, before its second, which has a setting.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("dropping search entry")));
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("module-word"));
+        bool asked = false;
+        connect(h.registry(), &PageRegistry::pageRegistered, &search, [&search, &asked](const QString& id) {
+            if (id == QLatin1String("translated:speed")) {
+                asked = true;
+                search.setQuery(QStringLiteral("More options"));
+            }
+        });
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("translated:extra")), 10000);
+        QVERIFY(asked);
+        QCOMPARE(countResults(search, QStringLiteral("translated:extra"), QStringLiteral("more")), 1);
+    }
+
+    void aModuleThatArrivesRebuildsTheIndexOnce()
+    {
+        // Its node, each page taking its place and each page's keywords
+        // change the index. A standing query is answered again once for all
+        // of them, which asks the loaded modules' providers once.
+        Harness h({QStringLiteral("providers")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+        const int asked = qApp->property("fakeProvidersAsked").toInt();
+        QVERIFY(stage(h.modules, QStringLiteral("translated"), QStringLiteral("translated")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("translated:extra")), 10000);
+        QCOMPARE(qApp->property("fakeProvidersAsked").toInt() - asked, 1);
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void searchLoadsModulesWithProvidersOnTheFirstQuery()
+    {
+        Harness h({QStringLiteral("providers"), QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Available));
+
+        const QVariantMap entity = findResult(search, QStringLiteral("Dynamic entity"),
+                                              QStringLiteral("providers:general"), QStringLiteral("rule:42"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+        QCOMPARE(h.host->searchProviders(QStringLiteral("providers")).size(), 1);
+        QCOMPARE(entity.value(QStringLiteral("kind")).toInt(), static_cast<int>(SearchEntry::Kind::Entity));
+        const QVariantMap setting = findResult(search, QStringLiteral("Dynamic setting"),
+                                               QStringLiteral("providers:general"), QStringLiteral("list"));
+        QCOMPARE(setting.value(QStringLiteral("kind")).toInt(), static_cast<int>(SearchEntry::Kind::Setting));
+        // A module without providers stays unloaded.
+        QCOMPARE(h.host->state(QStringLiteral("good")), std::optional<State>(State::Available));
+    }
+
+    void aFirstQueryRebuildsTheResultsOnce()
+    {
+        // Each load would rebuild the index, and each rebuild that finds more
+        // would announce new results. Both loads land in one.
+        Harness h({QStringLiteral("providers"), QStringLiteral("providerstwo")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        QSignalSpy changed(&search, &SearchController::resultsChanged);
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+        QCOMPARE(h.host->state(QStringLiteral("providerstwo")), std::optional<State>(State::Loaded));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+        QCOMPARE(countResults(search, QStringLiteral("providerstwo:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aQueryTypedBeforeStartLoadsTheModulesWithProviders()
+    {
+        Harness h({QStringLiteral("providers")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aBlankQueryLoadsNothing()
+    {
+        Harness h({QStringLiteral("providers")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("   "));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Available));
+        search.setQuery(QStringLiteral(" Dynamic entity "));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+    }
+
+    void aQueryDuringALoadLoadsTheModulesWithProvidersOnceItIsOver()
+    {
+        // Typed while good loads, when every other load is refused. The
+        // providers load once good's load is over, not at the next query.
+        Harness h({QStringLiteral("good"), QStringLiteral("providers")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        bool queried = false;
+        SearchController* const searchPtr = &search;
+        connect(h.registry(), &PageRegistry::pageBound, this, [searchPtr, &queried] {
+            if (!queried) {
+                queried = true;
+                searchPtr->setQuery(QStringLiteral("Dynamic entity"));
+            }
+        });
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("has search providers but did not load")));
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        QVERIFY(queried);
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aModuleWithProvidersThatArrivesLoadsForAStandingQuery()
+    {
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QVERIFY(stage(h.modules, QStringLiteral("providers"), QStringLiteral("providers")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded),
+                                  10000);
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+
+        // With no query standing, one that arrives waits for the next query.
+        search.setQuery(QString());
+        QVERIFY(stage(h.modules, QStringLiteral("providerstwo"), QStringLiteral("providerstwo")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("providerstwo:general")), 10000);
+        QCOMPARE(h.host->state(QStringLiteral("providerstwo")), std::optional<State>(State::Available));
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providerstwo")), std::optional<State>(State::Loaded));
+        QCOMPARE(countResults(search, QStringLiteral("providerstwo:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aModuleWithProvidersLoadsForAQueryChangedWhileItTakesItsPlace()
+    {
+        // A slot changes the query as the providers module's node takes its
+        // place, before its page does. It loads once its page is in the
+        // sidebar too, so the page binds to the module's own controller
+        // rather than staying a placeholder.
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        bool asked = false;
+        bool pageWasPlaced = true;
+        PageRegistry* const registry = h.registry();
+        connect(registry, &PageRegistry::pageRegistered, &search,
+                [&search, &asked, &pageWasPlaced, registry](const QString& id) {
+                    if (id == QLatin1String("providers")) {
+                        asked = true;
+                        pageWasPlaced = registry->hasPage(QStringLiteral("providers:general"));
+                        search.setQuery(QStringLiteral("Dynamic setting"));
+                    }
+                });
+        QVERIFY(stage(h.modules, QStringLiteral("providers"), QStringLiteral("providers")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded),
+                                  10000);
+        QVERIFY(asked);
+        QVERIFY(!pageWasPlaced);
+        QCOMPARE(h.host->boundPages(QStringLiteral("providers")), QStringList{QStringLiteral("providers:general")});
+        QCOMPARE(h.registry()->entry(QStringLiteral("providers:general")).qmlSource,
+                 QUrl(QStringLiteral("qrc:/fake/Page.qml")));
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("list")), 1);
+    }
+
+    void aModuleWithProvidersOfferedAgainLoadsForAStandingQuery()
+    {
+        // The providers module's library cannot be loaded, so the first
+        // query fails it. A working build replaces it in one rename, the
+        // catalog offers it again, and the query that still stands loads it.
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QVERIFY(stage(h.modules, QStringLiteral("providersunloadable"), QStringLiteral("providers")));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral(
+                                 "^FacetHost: module providers has search providers but did not load - ")));
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Failed));
+        QVERIFY(h.host->canRetry(QStringLiteral("providers")));
+
+        QVERIFY(stage(h.root.path(), QStringLiteral("providers"), QStringLiteral("providers-next")));
+        QVERIFY(replaceFile(h.root.filePath(QStringLiteral("providers-next.so")),
+                            h.modules + QStringLiteral("/providers.so")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded),
+                                  10000);
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aModuleOpenedBeforeASearchIsFoundOnce()
+    {
+        Harness h({QStringLiteral("providers")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        h.controller.setCurrentPageId(QStringLiteral("providers:general"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aModuleTurnedOffAfterACrashIsNotLoadedForASearch()
+    {
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString record = state.filePath(QStringLiteral("facet-loading"));
+        QVERIFY(
+            writeRecord(record, QJsonObject{{QStringLiteral("disabled"), QJsonArray{QStringLiteral("providers")}}}));
+        Harness h({QStringLiteral("providers")}, record);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        // Not tried and refused, which would warn: not tried at all.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("has search providers but did not load")));
+        h.host->start();
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::DisabledAfterCrash));
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 0);
+    }
+
+    void aSearchProviderIsFirstAskedWhileTheLoadIsRecorded()
+    {
+        // A provider that crashes the first time it is asked disables its
+        // module at the next start, as a crash in registerInto does.
+        FixtureState fixtures;
+        {
+            Harness h({QStringLiteral("providers")});
+            QVERIFY2(h.ok, qPrintable(h.error));
+            SearchController search(&h.controller);
+            attachSearch(h, search);
+            qputenv("FACET_TEST_LOAD_RECORD", QFile::encodeName(h.sentinel));
+            h.host->start();
+            search.setQuery(QStringLiteral("Dynamic entity"));
+            QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+            const QJsonObject during =
+                QJsonDocument::fromJson(qApp->property("facetSearchLoadRecord").toString().toUtf8()).object();
+            QCOMPARE(during.value(QStringLiteral("loading")).toString(), QStringLiteral("providers"));
+            QVERIFY(!readRecord(h.sentinel).contains(QStringLiteral("loading")));
+        }
+        FixtureState::clear();
+        {
+            // With no search controller nothing asks it, while loading or after.
+            Harness h({QStringLiteral("providers")});
+            QVERIFY2(h.ok, qPrintable(h.error));
+            qputenv("FACET_TEST_LOAD_RECORD", QFile::encodeName(h.sentinel));
+            h.host->start();
+            QVERIFY(h.host->loadModule(QStringLiteral("providers")));
+            QVERIFY(!qApp->property("facetSearchLoadRecord").isValid());
+        }
+    }
+
+    void aRefusedRegistrationKeepsNoSearchProvider()
+    {
+        // providersbroken registers a well-formed provider, then a null
+        // domain, so the host keeps nothing of the registration, the provider
+        // included.
+        Harness h({QStringLiteral("providersbroken")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: module providersbroken has search providers but did "
+                                                    "not load - registered a null domain")));
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providersbroken")), std::optional<State>(State::Failed));
+        QCOMPARE(h.host->stateReason(QStringLiteral("providersbroken")), QStringLiteral("registered a null domain"));
+        QVERIFY(h.host->searchProviders(QStringLiteral("providersbroken")).isEmpty());
+        QCOMPARE(countResults(search, QStringLiteral("providersbroken:general"), QStringLiteral("rule:42")), 0);
+        // Its page is found, as the placeholder that says why, so its results
+        // would have been there to find.
+        QVERIFY(!findResult(search, QStringLiteral("General"), QStringLiteral("providersbroken:general"), QString())
+                     .isEmpty());
+    }
+
+    void searchLeavesOutWhatAProviderListsOnAnotherPage()
+    {
+        // strayprovider lists an entity on a page that is neither its own nor
+        // one it extends. The host leaves it out, saying so once, and keeps
+        // the entry on its own page.
+        Harness h({QStringLiteral("strayprovider")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        QTest::ignoreMessage(QtWarningMsg,
+                             exactly(QStringLiteral("FacetHost: module strayprovider lists search entries on page "
+                                                    "elsewhere:page which is neither its own nor one it extends; they "
+                                                    "are left out")));
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("neither its own nor one it extends")));
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("dropping search entry")));
+        search.setQuery(QStringLiteral("Dynamic"));
+        QCOMPARE(h.host->state(QStringLiteral("strayprovider")), std::optional<State>(State::Loaded));
+        QCOMPARE(countResults(search, QStringLiteral("strayprovider:general"), QStringLiteral("list")), 1);
+        QCOMPARE(countResults(search, QStringLiteral("elsewhere:page"), QStringLiteral("rule:42")), 0);
+        // A rebuild leaves it out again, without saying so again.
+        search.invalidate();
+        QCOMPARE(countResults(search, QStringLiteral("strayprovider:general"), QStringLiteral("list")), 1);
+    }
+
+    void aDeletedSearchProviderIsNoLongerAsked()
+    {
+        FixtureState fixtures;
+        Harness h({QStringLiteral("providerobject")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providerobject")), std::optional<State>(State::Loaded));
+        QCOMPARE(countResults(search, QStringLiteral("providerobject:general"), QStringLiteral("rule:42")), 1);
+
+        delete qApp->property("fakeProviderObject").value<QObject*>();
+        QVERIFY(h.host->searchProviders(QStringLiteral("providerobject")).isEmpty());
+        search.invalidate();
+        QCOMPARE(countResults(search, QStringLiteral("providerobject:general"), QStringLiteral("rule:42")), 0);
+    }
+
+    void aSecondHostLoadingTheSameFileKeepsTheFirstHostsProvider()
+    {
+        // Two hosts in one process loading one file get one root object, and
+        // so one registerInto per host. The provider is made once, so the
+        // first host still asks a live one.
+        Harness h({QStringLiteral("providers")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+
+        ApplicationController otherController;
+        FacetHost other(&otherController);
+        other.setSearchPaths({{h.modules, PhosphorRegistry::PluginOrigin::Development}});
+        other.setSentinelPath(h.root.filePath(QStringLiteral("other-loading")));
+        other.setLiveReload(false);
+        other.setLocale(QLocale::c());
+        other.start();
+        QVERIFY(other.loadModule(QStringLiteral("providers")));
+        QCOMPARE(other.searchProviders(QStringLiteral("providers")).size(), 1);
+        QVERIFY(other.searchProviders(QStringLiteral("providers"))
+                == h.host->searchProviders(QStringLiteral("providers")));
+        search.invalidate();
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aDestroyedHostTakesItsEntriesOutOfSearch()
+    {
+        Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("providers")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        QVERIFY(!findResult(search, QStringLiteral("Top A"), QStringLiteral("good:general"),
+                            QStringLiteral("extender:top-a"))
+                     .isEmpty());
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 1);
+
+        // The standing query's results lose the host's entries as it goes,
+        // with no new query, and the modules' providers are not asked again.
+        const int asked = qApp->property("fakeProvidersAsked").toInt();
+        QVERIFY(asked > 0);
+        h.host.reset();
+        QCOMPARE(qApp->property("fakeProvidersAsked").toInt(), asked);
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("rule:42")), 0);
+        QVERIFY(findResult(search, QStringLiteral("Top A"), QStringLiteral("good:general"),
+                           QStringLiteral("extender:top-a"))
+                    .isEmpty());
+        // The pages stay, as the controller's.
+        QVERIFY(!findResult(search, QStringLiteral("General"), QStringLiteral("good:general"), QString()).isEmpty());
+    }
+
+    void aHostOutlivesItsSearchController()
+    {
+        Harness h({QStringLiteral("good"), QStringLiteral("extender"), QStringLiteral("providers")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        auto search = std::make_unique<SearchController>(&h.controller);
+        attachSearch(h, *search);
+        h.host->start();
+        search->setQuery(QStringLiteral("Dynamic entity"));
+        QCOMPARE(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded));
+        search.reset();
+        const int asked = qApp->property("fakeProvidersAsked").toInt();
+
+        // Loads, a module arriving, extensions changing and the host going
+        // all carry on without it, and nothing asks the providers for a
+        // search that is gone. What this guards against is the host reaching
+        // the destroyed controller, a use-after-free that a plain build may
+        // survive by chance: only a sanitizer build (ECM_ENABLE_SANITIZERS)
+        // reports it every time.
+        h.controller.setCurrentPageId(QStringLiteral("good:general"));
+        QCOMPARE(h.host->state(QStringLiteral("extender")), std::optional<State>(State::Loaded));
+        QVERIFY(stage(h.modules, QStringLiteral("extender2"), QStringLiteral("extender2")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("extender2")), std::optional<State>(State::Loaded),
+                                  10000);
+        h.host.reset();
+        QCOMPARE(qApp->property("fakeProvidersAsked").toInt(), asked);
     }
 
     void everySpellingOfAFileSharesItsBackend()
@@ -2588,6 +3842,10 @@ private Q_SLOTS:
         QVERIFY(!topAtNotices.isEmpty());
         QCOMPARE(topAtNotices, QList<qsizetype>(topAtNotices.size(), 0));
     }
+
+private:
+    /// XDG_STATE_HOME for the whole run (initTestCase).
+    std::optional<QTemporaryDir> m_stateHome;
 };
 
 QTEST_GUILESS_MAIN(TestFacetHost)
