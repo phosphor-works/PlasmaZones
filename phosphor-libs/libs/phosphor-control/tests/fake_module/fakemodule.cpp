@@ -40,6 +40,38 @@
 //  29  the headless domain's first isDirty() deletes the first extension's
 //      domain and the first page's controller, as module code running while
 //      the host registers what passed its checks
+//  30  also open the config file $FAKE_CONFIG_PATH and register a domain
+//      that writes ["Fake"][<module id>] = "applied" there on apply(), and
+//      reports a commit that failed as a failed apply()
+//  31  open a config file by a relative path
+//  32  register the first page with a controller that lives in another
+//      thread
+//  33  register the first page's controller as a headless domain before it
+//      is registered as the page's
+//  34  also register a headless domain that lives in another thread
+//  35  the first extension has no QML source
+//  36  delete the first page's controller once it is registered
+//  37  also register a headless domain and delete it
+//  38  register the first page with the object in the application property
+//      fakeForeignController as its controller
+//  39  also register the object in the application property
+//      fakeForeignDomain as a headless domain, when the property holds one
+//  40  like 30, with a factory that makes no backend
+//  41  like 30, with an empty factory
+//  42  like 30, with a factory that opens the same file through the context
+//      itself before it returns a backend of its own. The backend that
+//      nested call returned goes into the application property
+//      fakeConfigNestedBackend, the one the outer call returned into
+//      fakeConfigOuterBackend, and the domain writes through the nested one.
+//  43  like 30, and also register a null domain
+//  44  call a function no library defines, so the library cannot be loaded.
+//      tests/CMakeLists.txt links this mode so that the call survives into
+//      the library.
+//
+// The config modes (30 and 40 to 43) record every call of their factory: the
+// file it was asked to open is appended to the application property
+// fakeConfigFactoryPaths. Each backend they make adds one to the application
+// property fakeConfigBackendsDestroyed when it is destroyed.
 //
 // Every page and domain has an invokable setDirty(bool), so a test can stage
 // an edit without knowing these classes. A domain's resetToDefaults() clears
@@ -54,21 +86,43 @@
 #include <PhosphorControl/PageController.h>
 #include <PhosphorControl/StagingDomain.h>
 
+#include <PhosphorConfig/IBackend.h>
+#include <PhosphorConfig/JsonBackend.h>
+
 #include <QCoreApplication>
 #include <QFile>
 #include <QObject>
 #include <QPointer>
+#include <QStringList>
 #include <QThread>
 #include <QTimer>
 #include <QUrl>
+#include <QVariant>
 
+#include <memory>
 #include <utility>
 
 static_assert((FAKE_MODE >= 0 && FAKE_MODE <= 10) || (FAKE_MODE >= 12 && FAKE_MODE <= 14)
-                  || (FAKE_MODE >= 16 && FAKE_MODE <= 29),
+                  || (FAKE_MODE >= 16 && FAKE_MODE <= 44),
               "FAKE_MODE must be one of the modes listed above");
 
+#if FAKE_MODE == 44
+// Defined by no library. The variant is built with -fplt and links with
+// -z undefs and -z lazy, so the reference survives into the module as a lazily
+// bound call and only an eager bind at load time reports it.
+extern "C" Q_DECL_IMPORT int phosphor_control_test_missing_function();
+#endif
+
 namespace {
+
+// A thread that is never started, for an object that has to live in another
+// thread than the one registering it. Only the affinity matters, and such an
+// object is never deleted, since the check it is made for refuses it.
+QThread* otherThread()
+{
+    static QThread thread;
+    return &thread;
+}
 
 void emitApply(PhosphorControl::StagingDomain* domain)
 {
@@ -191,6 +245,62 @@ private:
     mutable QList<QPointer<QObject>> m_victims;
 };
 
+// Writes its module's key into a shared config file on apply().
+class ConfigDomain : public FakeDomain
+{
+public:
+    ConfigDomain(PhosphorConfig::IBackend* backend, QString key, QObject* parent)
+        : FakeDomain(parent)
+        , m_backend(backend)
+        , m_key(std::move(key))
+    {
+    }
+    void apply() override
+    {
+        m_backend->group(QStringLiteral("Fake"))->writeString(m_key, QStringLiteral("applied"));
+        if (!m_backend->commit()) {
+            // Nothing was saved, so the edit stays staged.
+            Q_EMIT applyResult(false, QStringLiteral("the config file could not be written"));
+            return;
+        }
+        FakeDomain::apply();
+    }
+
+private:
+    PhosphorConfig::IBackend* m_backend;
+    QString m_key;
+};
+
+// The backend the config modes make, which counts its destructions in the
+// application property fakeConfigBackendsDestroyed, so a test sees when the
+// host or the ApplicationController lets go of one.
+class CountedBackend : public PhosphorConfig::JsonBackend
+{
+public:
+    using JsonBackend::JsonBackend;
+    ~CountedBackend() override
+    {
+        if (qApp) {
+            qApp->setProperty("fakeConfigBackendsDestroyed", qApp->property("fakeConfigBackendsDestroyed").toInt() + 1);
+        }
+    }
+};
+
+// The factory the config modes hand to FacetContext::configBackend. It
+// appends the file it was asked to open to the application property
+// fakeConfigFactoryPaths, so a test can count the calls and read their
+// argument.
+std::unique_ptr<PhosphorConfig::IBackend> makeConfigBackend(const QString& file)
+{
+    QStringList files = qApp->property("fakeConfigFactoryPaths").toStringList();
+    files.append(file);
+    qApp->setProperty("fakeConfigFactoryPaths", files);
+    if (FAKE_MODE == 40) {
+        return nullptr;
+    }
+    return std::make_unique<CountedBackend>(file);
+}
+
 } // namespace
 
 class FakeFacetModule : public QObject, public PhosphorControl::IFacetModule
@@ -202,6 +312,12 @@ class FakeFacetModule : public QObject, public PhosphorControl::IFacetModule
 public:
     void registerInto(PhosphorControl::FacetContext& context) override
     {
+#if FAKE_MODE == 44
+        // Never reached: the library this call is in does not load.
+        if (phosphor_control_test_missing_function() != 0) {
+            return;
+        }
+#endif
         if (FAKE_MODE == 12) {
             QFile record(qEnvironmentVariable("FACET_TEST_LOAD_RECORD"));
             const QByteArray content = record.open(QIODevice::ReadOnly) ? record.readAll() : QByteArray();
@@ -227,8 +343,28 @@ public:
                 context.registerPage(local, nullptr, source);
                 continue;
             }
+            if (FAKE_MODE == 32 && i == 0) {
+                auto* const foreign = new FakePage(id, nullptr);
+                foreign->moveToThread(otherThread());
+                context.registerPage(local, foreign, source);
+                continue;
+            }
+            if (FAKE_MODE == 38 && i == 0) {
+                // A controller the registry already holds: the test hands
+                // over this page's own placeholder, whose id matches.
+                QObject* const foreign = qApp->property("fakeForeignController").value<QObject*>();
+                context.registerPage(local, qobject_cast<PhosphorControl::PageController*>(foreign), source);
+                continue;
+            }
             auto* const page = new FakePage(id, this);
+            if (FAKE_MODE == 33 && i == 0) {
+                context.registerDomain(page);
+            }
             context.registerPage(local, page, source);
+            if (FAKE_MODE == 36 && i == 0) {
+                delete page;
+                continue;
+            }
             if (FAKE_MODE == 29 && i == 0) {
                 firstPage = page;
             }
@@ -253,6 +389,24 @@ public:
         if (FAKE_MODE == 8) {
             context.registerDomain(nullptr);
         }
+        if (FAKE_MODE == 34) {
+            auto* const foreign = new FakeDomain(nullptr);
+            foreign->moveToThread(otherThread());
+            context.registerDomain(foreign);
+        }
+        if (FAKE_MODE == 37) {
+            auto* const doomed = new FakeDomain(this);
+            context.registerDomain(doomed);
+            delete doomed;
+        }
+        if (FAKE_MODE == 39) {
+            // A domain the application tracks already, when the test handed
+            // one over. Without one the module registers like mode 0.
+            QObject* const foreign = qApp->property("fakeForeignDomain").value<QObject*>();
+            if (auto* const tracked = qobject_cast<PhosphorControl::StagingDomain*>(foreign)) {
+                context.registerDomain(tracked);
+            }
+        }
 
         const auto& extensions = context.metadata().extensions;
         const QUrl sectionSource(QStringLiteral("qrc:/fake/Page.qml"));
@@ -266,6 +420,8 @@ public:
                 source = QUrl(QStringLiteral("Section.qml"));
             } else if (i == 0 && FAKE_MODE == 27) {
                 source = QUrl(QStringLiteral("qrc:/fake/MissingSection.qml"));
+            } else if (i == 0 && FAKE_MODE == 35) {
+                source = QUrl();
             }
             if (i == 0 && FAKE_MODE == 24) {
                 context.registerExtension(local, nullptr, source);
@@ -276,11 +432,8 @@ public:
                 continue;
             }
             if (i == 0 && FAKE_MODE == 28) {
-                // Never started: only its affinity matters. The domain is
-                // never deleted, since the check refuses it.
-                static QThread elsewhere;
                 auto* const foreign = new FakeDomain(nullptr);
-                foreign->moveToThread(&elsewhere);
+                foreign->moveToThread(otherThread());
                 context.registerExtension(local, foreign, source);
                 continue;
             }
@@ -289,6 +442,39 @@ public:
             context.registerExtension(local, section, source);
             if (FAKE_MODE == 29 && i == 0) {
                 domain->deleteOnFirstDirtyCheck(section);
+            }
+        }
+        if (FAKE_MODE == 30 || FAKE_MODE == 31 || (FAKE_MODE >= 40 && FAKE_MODE <= 43)) {
+            const QString path =
+                FAKE_MODE == 31 ? QStringLiteral("relative.json") : qEnvironmentVariable("FAKE_CONFIG_PATH");
+            PhosphorConfig::IBackend* nested = nullptr;
+            PhosphorControl::FacetContext::ConfigBackendFactory create = [&context, &path,
+                                                                          &nested](const QString& file) {
+                if (FAKE_MODE == 42) {
+                    nested = context.configBackend(path, &makeConfigBackend);
+                }
+                return makeConfigBackend(file);
+            };
+            if (FAKE_MODE == 41) {
+                create = nullptr;
+            }
+            PhosphorConfig::IBackend* backend = context.configBackend(path, create);
+            if (FAKE_MODE == 42) {
+                qApp->setProperty("fakeConfigNestedBackend",
+                                  QVariant::fromValue<quintptr>(reinterpret_cast<quintptr>(nested)));
+                qApp->setProperty("fakeConfigOuterBackend",
+                                  QVariant::fromValue<quintptr>(reinterpret_cast<quintptr>(backend)));
+                // The backend the nested call was given is in use from that
+                // moment, so it is the one that has to go on working.
+                backend = nested;
+            }
+            if (backend) {
+                auto* const config = new ConfigDomain(backend, context.moduleId(), this);
+                config->setObjectName(QStringLiteral("config"));
+                context.registerDomain(config);
+            }
+            if (FAKE_MODE == 43) {
+                context.registerDomain(nullptr);
             }
         }
         if (FAKE_MODE == 23 && !extensions.isEmpty()) {

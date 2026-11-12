@@ -39,6 +39,7 @@ library provides:
 | `PhosphorConfig::Schema`            | Declarative struct: groups of `KeyDef` (default + expected type + validator), version, migration chain |
 | `PhosphorConfig::MigrationRunner`   | Runs the schema's `MigrationStep` chain, one step per schema bump |
 | `PhosphorConfig::IGroupPathResolver`| Group-name to backend-key mapping |
+| `PhosphorConfig::HostDirectory`     | Which host's settings file a settings module edits, when several hosts can serve one API: their installed descriptors, the record the running host writes, and the choice between them |
 
 ## Typical use
 
@@ -58,11 +59,11 @@ bool zoneSpanEnabled =
     settings.read<bool>(QStringLiteral("Snapping.Behavior.ZoneSpan"),
                         QStringLiteral("enabled"));
 
-// Write + auto-persist
+// Write. The file is rewritten on the next sync() or commit(), not here.
 settings.write(QStringLiteral("Snapping.Behavior.ZoneSpan"),
                QStringLiteral("enabled"), true);
 
-// React to any write or reset
+// React to a change. Store::write() and Store::reset() say when one is announced.
 connect(&settings, &Store::changed,
         this, [](const QString &group, const QString &key) {
             qDebug() << "changed:" << group << key;
@@ -115,8 +116,9 @@ A file that exists but does not parse, or whose root is not an object, is
 never overwritten. `loadFailed()` turns on, the backend reads as the last
 document it read or wrote cleanly (empty on a first load), and `sync()`,
 `commit()` and `applyMigration()` refuse rather than write over the user's
-file. `flushNow` also re-checks the file's size and mtime against the last
-load, so a file broken by hand after it was read is refused too. The overlay
+file. A flush also re-checks the file's size and mtime against the backend's
+last read or write of it, so a file broken by hand after it was read is refused
+too. The overlay
 stays on top of the fallback document. A later `reparseConfiguration()` or
 `reload()` that reads the file cleanly clears the flag. `reload()` is the same
 reload for a caller that reports problems itself: it logs nothing and returns
@@ -127,6 +129,58 @@ writes. A caller that reloads at once constructs the backend with
 `JsonBackend::Load::Deferred`, so the file is read and reported one time. Until
 that first reload the backend is empty and refuses writes. A machine-written file with
 nothing worth keeping opts out with `setOverwriteUnreadable(true)`.
+
+## Hosts of a settings API
+
+Some settings can be served by more than one host, each keeping them in its own
+file. The placement settings are PlasmaZones' on KWin, and the Phosphor
+compositor is the intended second host, in its own session. A settings module
+edits the right file whether or not the host runs:
+
+- Each host's package installs a descriptor, a `*.json` file in
+  `<datadir>/phosphor-works/<api>-hosts/`, with its id, name, bus name,
+  backend, config path (starting with `$XDG_CONFIG_HOME`, `$XDG_DATA_HOME`,
+  `$XDG_STATE_HOME` or `$HOME`) and the desktops it serves.
+  `HostDirectory::descriptors()` reads them, a per-user one overriding a system
+  one with the same id. Descriptors are keyed by the `Id` inside the file, and
+  the file name is not checked against it.
+- A host calls `writeRecord(id, configPath, pid)` when it starts, at
+  `$XDG_STATE_HOME/phosphor-works/<api>-host.json`. The record stays after the
+  host stops.
+- `HostDirectory::resolve()` chooses, taking the first of these that applies.
+  The running host's own record: the process that wrote it owns the bus name
+  now, and it wins whatever the desktop. A user's choice: a record with pid 0
+  whose host serves this session, whether or not anything owns the name. A
+  host's record: one with any other pid, when nothing owns the name and its
+  host serves this session. Then the one descriptor matching
+  `XDG_CURRENT_DESKTOP`. When several match, it lists them so the module can
+  ask the user and record the answer with pid 0. When none matches, there is
+  no host and nothing to offer.
+- A record's host serves the session when one of the session's desktops is
+  among the descriptor's, ignoring case. A descriptor without `Desktops` passes
+  that test for a record, but the desktop match never chooses or offers it, so
+  only a record reaches such a host.
+- The file is the record's path as written when a record chose the host, and it
+  is stale if the host has moved its file since. Otherwise it is the
+  descriptor's resolved path.
+- `running` says only that some process owns the bus name. That process is
+  known to be the chosen host only under the running host's own record.
+
+```cpp
+const PhosphorConfig::HostDirectory hosts(QStringLiteral("placement"));
+const QList<PhosphorConfig::HostDescriptor> descriptors = hosts.descriptors();
+// resolve() takes the pid of one owner, so the hosts of one API are expected
+// to share a bus name and any descriptor's will do. The pid stays 0 when
+// nothing owns the name, when no host is installed, or when there is no
+// session bus to ask.
+qint64 owner = 0;
+QDBusConnectionInterface* bus = QDBusConnection::sessionBus().interface();
+if (bus && !descriptors.isEmpty()) {
+    owner = bus->servicePid(descriptors.constFirst().busName).value();
+}
+const auto chosen = PhosphorConfig::HostDirectory::resolve(descriptors, hosts.record(), owner,
+                                                           PhosphorConfig::HostDirectory::currentDesktops());
+```
 
 ## Design notes
 

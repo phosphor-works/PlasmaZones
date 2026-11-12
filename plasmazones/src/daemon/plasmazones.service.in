@@ -8,14 +8,27 @@ PartOf=graphical-session.target
 After=plasma-workspace.target plasma-kglobalaccel.service
 
 [Service]
+# Type=simple, not Type=dbus with BusName=. systemd stops a Type=dbus unit
+# whose bus name goes away, and Daemon::stop() releases the name before its
+# shutdown saves (so a --replace successor can take over). Under Type=dbus a
+# quit through Control.quit could then have systemd send SIGTERM into those
+# saves, after main() has handed SIGTERM back to its default action.
+#
+# Exit status 69 (kExitSessionNotServed in daemon/main.cpp, EX_UNAVAILABLE)
+# means this session is not one the daemon serves: no Wayland display, or no
+# KWin. It is listed in RestartPreventExitStatus= below, so it is not
+# restarted, and the unit ends "failed" rather than "inactive". That is what
+# lets dbus-broker fail a bus activation that started the daemon in such a
+# session instead of keeping it pending, since a unit that merely goes
+# inactive reports a successful start.
 Type=simple
 ExecStart=@KDE_INSTALL_FULL_BINDIR@/plasmazonesd
 Restart=on-failure
 RestartSec=5
 # Qt's qFatal (e.g. wayland QPA losing wl_display at logout) is
 # "unrecoverable, do not retry". See queryPlasmaWorkspaceState()
-# in daemon.cpp for the phantom-session analysis.
-RestartPreventExitStatus=SIGABRT
+# in daemon/plasma_workspace.cpp for the phantom-session analysis.
+RestartPreventExitStatus=SIGABRT 69
 Slice=session.slice
 Environment=QT_PLUGIN_PATH=@KDE_INSTALL_FULL_LIBDIR@/qt6/plugins
 Environment=LD_LIBRARY_PATH=@KDE_INSTALL_FULL_LIBDIR@

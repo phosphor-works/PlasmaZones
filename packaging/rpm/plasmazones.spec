@@ -386,9 +386,10 @@ echo ""
 %endif
 %{_datadir}/systemsettings/categories/settings-windowmanagement-plasmazones.desktop
 
-# Runtime data — application data plus the bundled Phosphor component
-# data trees (phosphor-shell assets, phosphorshaders GLSL,
-# phosphorwayland shaders + protocol XMLs).
+# Runtime data — application data plus the Phosphor data trees the build
+# installs: phosphorwayland/ (protocol XMLs) and phosphor-works/ (the
+# placement-host descriptors). phosphor-shell/ would match too, but the
+# shell is not built here (see the executables note above).
 %{_datadir}/plasmazones/
 %{_datadir}/phosphor*/
 

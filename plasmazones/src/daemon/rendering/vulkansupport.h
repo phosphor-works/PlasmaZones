@@ -30,8 +30,12 @@ inline constexpr const char* PVulkanInstanceProperty = "_p_vulkanInstance";
 inline const QVersionNumber PVulkanApiVersion = QVersionNumber(1, 1);
 
 /**
- * Probe Vulkan availability before QGuiApplication. Sets the graphics API and
- * returns true if Vulkan should be used. Call BEFORE QGuiApplication construction.
+ * Probe Vulkan availability. Sets the graphics API and returns true if Vulkan
+ * should be used. Call BEFORE the first QQuickWindow is constructed, which is
+ * the only ordering QQuickWindow::setGraphicsApi() requires. It may run
+ * before or after QGuiApplication: the daemon calls it after the app object
+ * exists, once ConfigMigration::ensureJsonConfig() has brought the backend
+ * key to its current name.
  *
  * @param backend  Normalized rendering backend string ("vulkan", "opengl", "auto")
  * @return true if Vulkan was selected and library loaded; false otherwise

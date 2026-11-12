@@ -45,7 +45,8 @@ endif()
 # manifest-less installs and does not cover every artifact (QML plugin dirs
 # under org/phosphor and header/CMake package files stay manifest-covered).
 # Covers: bin, lib, share/applications, share/autostart, share/dbus-1/interfaces,
-# share/icons, share/kglobalaccel, share/plasmazones, lib/.../qml, lib/.../plugins
+# share/icons, share/kglobalaccel, share/phosphor-works/placement-hosts,
+# share/plasmazones, lib/.../qml, lib/.../plugins
 # ═══════════════════════════════════════════════════════════════════════════════
 
 message(STATUS "")
@@ -67,6 +68,7 @@ set(KNOWN_FILES
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_BINDIR@/phosphorctl"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_BINDIR@/phosphor-shell"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/kglobalaccel/plasmazonesd.desktop"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/phosphor-works/placement-hosts/plasmazones.json"
     "$ENV{DESTDIR}@PZ_UNINSTALL_QT_PLUGINS@/wayland-shell-integration/phosphorwayland-qpa.so"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_APPDIR@/org.phosphor_works.PlasmaZones.desktop"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_APPDIR@/org.phosphor_works.PlasmaZones.Editor.desktop"
@@ -230,6 +232,8 @@ message(STATUS "")
 message(STATUS "[3/5] Removing empty parent directories...")
 
 set(PARENT_DIRS
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/phosphor-works/placement-hosts"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/phosphor-works"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_QMLDIR@/org/kde/kcms"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_QMLDIR@/org/kde"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_QMLDIR@/org"

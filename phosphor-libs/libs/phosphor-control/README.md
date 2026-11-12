@@ -56,7 +56,7 @@ library provides:
 | `PhosphorControl::LocalizedContext`       | QML i18n context routing `i18n()`/`i18nc()`/`i18np()` through Qt translation, for Qt-only consumers without KF6 |
 | `PhosphorControl::IFacetModule`           | The interface a Facet module's root object implements (`registerInto(FacetContext&)`), IID `org.phosphor_works.Facet.Module/1` |
 | `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, pages and their anchors, extension points, extensions), parsed and validated per locale |
-| `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, and the domain and QML of each section it adds to another module's page |
+| `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, and the domain and QML of each section it adds to another module's page. It also hands out one config backend per file, shared by every module that writes it |
 | `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened |
 | `PhosphorControl::FacetSlotModel`         | The sections in one slot of one page, for `FacetSlot`: reads `extensionsFor` again on `extensionsChanged` and keeps the row of a section that stays |
 | `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
@@ -150,13 +150,22 @@ records. Facet then checks the whole registration and binds every page
 wrong (a page or extension the metadata does not declare, a skipped page or
 extension, one registered twice, a controller with the wrong id, a page or
 section without QML), keeps none of it and fails the module with the
-reason. A module that did not load keeps its placeholder page, which says
-why, and offers a retry when loading again can help.
+reason. The one call that does more than record is
+`FacetContext::configBackend` (below): it shares the file's backend at once,
+and the backend stays shared when the registration is not kept. A module that
+did not load keeps its placeholder page, which says why, and offers a retry
+when loading again can help.
 
 A module that was loading when the process died is disabled, at the next start
 and every start after, until `retryModule` (or the placeholder page's retry
-button) loads it. `FacetTestHost` runs a module through the same host
-headless, for the module's own CI.
+button) loads it. A module that failed after its library was loaded stays
+failed when its file is offered again: the process keeps running the code it
+loaded, so the new file takes effect at the next start. `FacetTestHost` runs a
+module through the same host headless, for the module's own CI. It makes the
+config files the module opens under its temporary directory
+(`FacetHost::setConfigRedirect`), so the module starts from its defaults and
+the run does not write the real settings, as long as the module's factory
+opens the path it is handed.
 
 A module can also add sections to another module's page. Its metadata lists
 each one under `Extensions` with a `Target` (`<module>:<page>`), a `Slot`,
@@ -197,6 +206,49 @@ FacetSlot {
 }
 ```
 
+Modules that keep settings in one file share its backend:
+`FacetContext::configBackend(path, create)` creates the backend for the first
+module that opens the file and hands the same one to every later module, so
+one Apply writes every module's keys into one document and no module
+overwrites another's. Each module wraps the backend in its own
+`PhosphorConfig::Store` or settings object. A module whose settings belong to
+a host that may not be running finds the file with
+`PhosphorConfig::HostDirectory`.
+
+The path must be absolute. Paths that lead to one file through symbolic
+links, `.` or `..` get one backend, whether or not the file or its directory
+exists yet, and `create` is handed the resolved path. Sharing a backend asks
+three things of the modules:
+
+- Every `Store` on the backend must be given the same path resolver object
+  (`Schema::pathResolver` is compared by pointer, so an equal copy counts as
+  another) and the same version stamp. The first `Store`'s stand, and what a
+  later one brings instead is ignored, with a warning. A `Store`'s migrations
+  run on the whole document.
+- A `JsonBackend` allows one live group at a time, whichever module holds it.
+  A second one asserts in a debug build and is read-only in a release build,
+  so its writes are lost. Open a group, use it and let it go without running
+  other modules' code in between.
+- `sync()`, `commit()` and `reparseConfiguration()` act on the whole document.
+  A write also saves what the other modules have not saved yet, and a reparse
+  drops it.
+
+The backends belong to the `ApplicationController`: `FacetHost` keeps them in
+an object it parents to the controller, so they outlive the host and a domain
+can still be applied after it is gone. The controller destroys them before
+the page controllers and domains it adopted from modules, and a `JsonBackend`
+writes what was not saved then. A module must therefore not use its backend
+from a destructor, nor keep one of its groups in a member. A second
+`FacetHost` on the same controller keeps its own backends, and the first's
+stay alive with the controller, so two hosts whose modules open one file hold
+two documents for it and each write drops the keys only the other holds.
+
+`FacetHost::configBackend(path)` returns the backend a file is shared under,
+for a host application or a test that wants to look. Modules get theirs from
+the context. `FacetHost::setConfigRedirect(directory)` makes every such file
+under `directory` instead, at its own absolute path below it, for a test that
+must not touch the real settings.
+
 ## Design notes
 
 - **Staging is the contract, not persistence.** `ApplicationController` only
@@ -205,14 +257,19 @@ FacetSlot {
   (timestamp stamping, notifications). Every domain must emit `applyResult` /
   `discardResult` exactly once per batch. The async driver's pending counter
   parks the chrome's "Saving…" state until it lands or the 60 s timeout fires.
-- **Boundary with phosphor-config and phosphor-shortcuts.** This library owns no
-  configuration store and no shortcut backend. Consumers wire their own
-  `ISettings` against [`phosphor-config`](../phosphor-config/README.md) and pull
-  global shortcuts from [`phosphor-shortcuts`](../phosphor-shortcuts/README.md).
-- **Headless-friendly C++ core.** The `PhosphorControl` library links `Qt6::Gui`
-  privately and avoids `Qt6::Quick`, so headless tests can construct
-  `ApplicationController` / `PageController` / `StagingDomain` without a QML
-  engine. The QML module is a separate target.
+- **Boundary with phosphor-config and phosphor-shortcuts.** This library
+  defines no configuration store and no shortcut backend. Consumers wire their
+  own `ISettings` against [`phosphor-config`](../phosphor-config/README.md) and
+  pull global shortcuts from [`phosphor-shortcuts`](../phosphor-shortcuts/README.md).
+  It links `phosphor-config` for one thing: `FacetHost` keeps the `IBackend` of
+  each config file Facet modules share, which the first module to open the
+  file creates (`FacetContext::configBackend`).
+- **Headless-friendly C++ core.** The `PhosphorControl` library avoids
+  `Qt6::Quick`, so headless tests can construct `ApplicationController` /
+  `PageController` / `StagingDomain` without a QML engine. The QML module is a
+  separate target. `Qt6::Gui` is another matter: the library links it
+  privately, but `phosphor-config` links it publicly, so it reaches every
+  consumer through that dependency.
 - **Search is layered.** `SearchRanker` is pure and unit-testable on its own
   (best-tier-per-field scoring, weighted title > keywords > subtitle, edit
   distance only as a "did you mean" fallback). `SearchController` composes it
@@ -225,7 +282,8 @@ FacetSlot {
 
 ## Dependencies
 
-- `QtCore`, `QtDBus`, `QtGui` (private), `QtQml`. The QML module adds `QtQuick`,
+- `QtCore`, `QtDBus`, `QtQml`, and `QtGui`, which the library links privately
+  and consumers get through `phosphor-config`. The QML module adds `QtQuick`,
   and its QML imports `QtQuick.Controls`, `QtQuick.Layouts` and KF6 Kirigami
   (`org.kde.kirigami`) at run time
 - [`phosphor-animation`](../phosphor-animation/README.md) — the QML chrome
@@ -234,11 +292,13 @@ FacetSlot {
   tint)
 - [`phosphor-registry`](../phosphor-registry/README.md) — `PluginCatalog`, the
   plugin loader `FacetHost` finds and loads Facet modules through
+- [`phosphor-config`](../phosphor-config/README.md) — `IBackend`, the config
+  backend `FacetContext::configBackend` hands Facet modules, one for each file
 
 ## See also
 
 - [`phosphor-config`](../phosphor-config/README.md) — the configuration store an
-  app's `ISettings` implementation is wired against. This library does not
-  duplicate that contract.
+  app's `ISettings` implementation is wired against, and the backends Facet
+  modules share. This library does not duplicate that contract.
 - [`phosphor-shortcuts`](../phosphor-shortcuts/README.md) — global-shortcut
   backends, kept out of this library on purpose.

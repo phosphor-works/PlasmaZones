@@ -1,0 +1,44 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "urn:phosphor-works:schema:host-descriptor",
+    "title": "Settings API host descriptor",
+    "description": "One host of a settings API, installed as <datadir>/phosphor-works/<api>-hosts/*.json and read by PhosphorConfig::HostDirectory, which keys descriptors by the Id inside the file and does not check the file name. This schema is the author-time gate on the descriptors the tree ships, and it is stricter than the run-time parser. It refuses an unknown key, which the parser ignores. It requires BusName to be a D-Bus well-known name, where the parser only requires a non-empty string. The parser also checks something a schema cannot, that the variable starting ConfigPath resolves to an absolute path for the user running it.",
+    "type": "object",
+    "required": ["Id", "Name", "BusName", "Backend", "ConfigPath"],
+    "additionalProperties": false,
+    "properties": {
+        "Id": {
+            "type": "string",
+            "allOf": [
+                { "pattern": "^[a-z0-9][a-z0-9-]*$" },
+                { "not": { "pattern": "\\s" } }
+            ],
+            "description": "Lowercase letters, digits and hyphens, starting with a letter or digit. The second rule refuses a trailing line break, which the end anchor alone lets through in some regex dialects."
+        },
+        "Name": { "type": "string", "minLength": 1 },
+        "BusName": {
+            "type": "string",
+            "maxLength": 255,
+            "allOf": [
+                { "pattern": "^[A-Za-z_-][A-Za-z0-9_-]*(\\.[A-Za-z_-][A-Za-z0-9_-]*)+$" },
+                { "not": { "pattern": "\\s" } }
+            ],
+            "description": "A D-Bus well-known bus name: two or more elements separated by periods, each of letters, digits, underscores and hyphens, and none starting with a digit."
+        },
+        "Backend": { "type": "string", "enum": ["json"] },
+        "ConfigPath": {
+            "type": "string",
+            "allOf": [
+                { "pattern": "^\\$(XDG_CONFIG_HOME|XDG_DATA_HOME|XDG_STATE_HOME|HOME)(/[^/]+)+$" },
+                { "not": { "pattern": "(^|/)\\.\\.?(/|$)" } },
+                { "not": { "pattern": "[\\u0000-\\u001F\\u007F]" } }
+            ],
+            "description": "The settings file: one of the listed variables, then one or more path segments. An empty segment, a . or .. segment and an ASCII control character (U+0000 to U+001F, U+007F) are refused."
+        },
+        "Desktops": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "XDG_CURRENT_DESKTOP entries the host serves, compared ignoring case."
+        }
+    }
+}

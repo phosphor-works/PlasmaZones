@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorwayland_export.h>
+#include "phosphorwayland_export.h"
 
 #include <QObject>
 #include <QWindow>

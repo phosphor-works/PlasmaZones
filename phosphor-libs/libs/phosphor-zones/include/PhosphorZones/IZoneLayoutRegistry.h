@@ -21,7 +21,7 @@
 // every path through ILayoutManager reaches QObject exactly once, so
 // LayoutManager has a single QObject subobject.
 
-#include <phosphorzones_export.h>
+#include "phosphorzones_export.h"
 
 #include <PhosphorLayoutApi/ILayoutSourceRegistry.h>
 #include <PhosphorLayoutApi/LayoutId.h>

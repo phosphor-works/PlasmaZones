@@ -39,7 +39,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
   authoritative one.
 
 ## License
-- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt, which in practice means `plasmazones/data/**/*.json`, the six `phosphor-libs/data/schemas/*.json` files, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
+- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt. JSON is such a format, so no `.json` file needs a header wherever it sits. The usual cases are `plasmazones/data/**/*.json`, the `phosphor-libs/data/schemas/*.json` files, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
 - License identifier depends on the tree:
   - **App tiers** (`plasmazones/**` except its `data/` trees, `phosphor-shell/**`, `phosphor-shell-libs/examples/**`, `scripts/**`): `GPL-3.0-or-later`
   - **Reusable libraries, including their own tests** (`phosphor-libs/libs/phosphor-*/**` and `phosphor-shell-libs/libs/phosphor-*/**`, which subsumes each library's `tests/`): `LGPL-2.1-or-later`
@@ -143,7 +143,7 @@ An unclamped setter compares, early-returns, writes, then emits. A **clamped** s
 - Rationale: ad-hoc migration code is write-once, test-forever complexity that rots and never gets removed
 
 ### Schema Version Migrations (ConfigSchemaVersion bumps)
-- Schema version migrations (`migrateV1ToV2`, etc.) are the ONE exception — they live in `configmigration.cpp`
+- Schema version migrations (`migrateV1ToV2`, etc.) are the ONE exception — each lives in its own `configmigration_v<N>.cpp`, named for the version it produces; the `MigrationStep` registry and `ensureJsonConfig()` are in `configmigration.cpp`
 - Each version bump gets exactly one migration function + one `MigrationStep` registry entry
 - Migration functions transform the entire JSON root in-place and stamp the new `_version`
 - v1 group/key accessors in `configkeys.h` (prefixed `v1*`) exist ONLY for migration code readability
@@ -180,8 +180,8 @@ docker build -t plasmazones-build .
 # Build + test (default runs ctest)
 docker run --rm -v "$PWD":/src plasmazones-build
 
-# Build + test with verbose output
-docker run --rm -v "$PWD":/src plasmazones-build ctest --output-on-failure
+# Build, then run a command of your own in place of the default (shown here: the default itself)
+docker run --rm -v "$PWD":/src plasmazones-build ctest --output-on-failure --no-tests=error
 ```
 
 On Linux (native):
@@ -213,9 +213,10 @@ On Linux (native):
 # SECOND TEST-TIME DEPENDENCY: `appstreamcli` (distro package `appstream`).
 # ECM registers the `appstreamtest` test only when it finds appstreamcli AT
 # CONFIGURE TIME, and otherwise just prints a STATUS line. `moon run repo:test`
-# is `ctest -R ^appstreamtest$ --no-tests=error`, so on a machine without it
-# that task fails with "no tests were found" rather than skipping. Install
-# appstream before running repo:test, or reconfigure after installing it.
+# is `ctest --test-dir build -R ^appstreamtest$ --no-tests=error`, so on a
+# machine without it that task fails with "no tests were found" rather than
+# skipping. Install appstream before running repo:test, or reconfigure after
+# installing it.
 #
 # BUILD_PHOSPHOR_SHELL also defaults to OFF, and it gates the whole Phosphor
 # shell tier: phosphor-shell-libs/libs/phosphor-shell*, the bar, control center, launcher, power
@@ -286,7 +287,7 @@ moon run phosphor-libs:test-release      # ctest --test-dir build-release/phosph
 moon query projects --affected      # which tiers a change reaches
 ```
 
-Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests, the shell and the tools on. The moon tasks are the debug ones by default and each has a `-release` twin. Plain CMake users get the same trees with `cmake --preset release && cmake --build --preset release`.
+Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests, the shell and the tools on. The moon tasks are the debug ones by default. Each tier's `build` and `test` and the `repo:configure` step have a `-release` twin; `repo:test` and `repo:install` have none and act on `build/`. Plain CMake users get the same trees with `cmake --preset release && cmake --build --preset release`.
 
 How it maps onto CMake (see `.moon/tasks/cmake.yml`): every tier task runs from the workspace root against the build directory its preset names. `build` invokes the tier's aggregate target, `<tier>-tier`, declared by `phosphor_tier_target()` near the end of each tier CMakeLists (the plasmazones one attaches its translations target after the call); `test` runs ctest scoped to `build/<tier>`. Because the build directory is shared, moon does not cache build outputs and ccache remains the compile cache. A tier gets its own build directory, and with it a moon-cached output, once it can be configured standalone against an installed upstream tier.
 
@@ -296,8 +297,8 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 
 - CMake with `CMAKE_AUTOMOC/AUTORCC/AUTOUIC ON`
 - `qt_add_qml_module()` — ALL QML files must be listed (missing = runtime "not a type" error)
-- `cmake -DUSE_KDE_FRAMEWORKS=ON` (default) or `OFF` for portable Qt-only build
-- KF6 deps when ON: `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme); optional: `Activities`
+- `cmake -DUSE_KDE_FRAMEWORKS=ON` (default) or `OFF` for a portable build without the KWin effect and the KCM. `OFF` is not Qt-only: the settings app requires KF6 `Kirigami` in both modes
+- KF6 deps: `Kirigami` always (`plasmazones/src/settings/CMakeLists.txt`); when ON also `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme); optional: `Activities`
 - Pluggable backends: `PhosphorConfig::IBackend`, `PhosphorShortcuts::IBackend`, `IWallpaperProvider`
 - Standalone settings app (`plasmazones-settings`) + minimal KCM launcher
 
@@ -306,7 +307,7 @@ The tree is four product tiers plus repo-level support directories. Each tier ha
 ```
 phosphor-libs/           — tier 1: core LGPL libraries
   libs/phosphor-*/       — engines, rendering, layer-shell, animation, config, ipc, service-idle, ...
-  data/schemas/          — JSON schemas the libraries compile in
+  data/schemas/          — JSON schemas for library-owned document formats; the libraries compile most of them in
 phosphor-shell-libs/     — tier 2: shell libraries (BUILD_PHOSPHOR_SHELL)
   libs/phosphor-*/       — theme, popout, phosphor-shell*, phosphor-service-* (all but idle)
   examples/              — demos and CLI acceptance harnesses
@@ -330,7 +331,7 @@ plasmazones/             — tier 4: PlasmaZones
   kcm/                   — System Settings module
   kwin-effect/           — KWin effect (C++)
   tests/                 — Unit tests (Qt Test)
-  tools/                 — Developer tools (shader-render); built with -DBUILD_TOOLS=ON
+  tools/                 — Developer tools; built with -DBUILD_TOOLS=ON
   data/layouts/          — Default layout templates (JSON) — snapping
   data/algorithms/       — Bundled Luau tiling algorithms — tiling
   data/scrolling-templates/ — Bundled strip templates — scrolling
@@ -339,6 +340,7 @@ plasmazones/             — tier 4: PlasmaZones
   data/surface/          — Window/shell decoration packs
   data/pointer/          — Pointer shader packs
   data/curves/           — Animation easing curves
+  data/placement-hosts/  — Host descriptor for the placement settings API
   data/schemas/          — Schemas for plasmazones-only documents (whatsnew, scrolling templates)
 cmake/                   — Shared CMake modules, including the third-party pins (PhosphorDependencies.cmake)
 scripts/                 — Repo-level checks and dev harnesses

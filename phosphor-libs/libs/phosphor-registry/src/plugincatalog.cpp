@@ -127,12 +127,14 @@ struct PluginCatalog::Loaded
 // reason it is not and the id it claimed, when the refusal came that late.
 // A file refused before it was known to be a readable regular file cannot
 // take a file watch; its directory's watch still reports changes to it.
+// identity is set for an accepted file, taken before its metadata was read.
 struct PluginCatalog::Vetted
 {
     std::optional<PluginMetadata> metadata;
     QString id;
     QString reason;
     bool watchable = true;
+    FileIdentity identity = {};
 };
 
 class PluginCatalog::ScanStrategy : public PhosphorFsLoader::IScanStrategy
@@ -384,6 +386,11 @@ PluginCatalog::Vetted PluginCatalog::vet(const QString& filePath, PluginOrigin o
             QStringLiteral("%1 exists beside it, and Qt would load that file in its place").arg(variant.fileName()));
     }
 
+    // Taken before the metadata is read, so a file replaced between the two
+    // is recorded as the older file, and the next scan sees it change and
+    // offers it again. The other order would record the new file beside the
+    // old metadata and never offer the new metadata.
+    const FileIdentity identity = identityOf(filePath);
     const QJsonObject pluginMetaData = QPluginLoader(filePath).metaData();
     if (pluginMetaData.isEmpty()) {
         return refuse(QString(), QStringLiteral("not a Qt plugin"));
@@ -422,7 +429,9 @@ PluginCatalog::Vetted PluginCatalog::vet(const QString& filePath, PluginOrigin o
                       QStringLiteral("plugin %1 is built for ApiVersion %2, this build loads %3")
                           .arg(id, QString::number(apiVersion), QString::number(m_seam.apiVersion)));
     }
-    return Vetted{PluginMetadata{id, filePath, origin, own}, id, QString(), true};
+    Vetted accepted{PluginMetadata{id, filePath, origin, own}, id, QString(), true};
+    accepted.identity = identity;
+    return accepted;
 }
 
 QObject* PluginCatalog::load(const QString& id, QString* errorString)
@@ -452,7 +461,7 @@ QObject* PluginCatalog::load(const QString& id, QString* errorString)
     // always matches a scan.
     const Vetted vetted = vet(offer.filePath, offer.origin);
     if (!vetted.metadata || vetted.metadata->id != id) {
-        m_failed.insert(id, identityOf(offer.filePath));
+        m_offered.insert(id, identityOf(offer.filePath));
         m_watcher->requestRescan();
         return fail(
             vetted.metadata
@@ -468,14 +477,14 @@ QObject* PluginCatalog::load(const QString& id, QString* errorString)
     // QPluginLoader falls back to similarly named files when the given one
     // is gone. Map only the file that was vetted.
     if (QFileInfo(loader->fileName()).canonicalFilePath() != QFileInfo(offer.filePath).canonicalFilePath()) {
-        m_failed.insert(id, identityOf(offer.filePath));
+        m_offered.insert(id, identityOf(offer.filePath));
         m_watcher->requestRescan();
         return fail(
             QStringLiteral("Qt resolved %1 to %2, which was not vetted").arg(offer.filePath, loader->fileName()));
     }
     QObject* const instance = loader->instance();
     if (!instance) {
-        m_failed.insert(id, identityOf(offer.filePath));
+        m_offered.insert(id, identityOf(offer.filePath));
         return fail(QStringLiteral("could not load %1: %2").arg(offer.filePath, loader->errorString()));
     }
 
@@ -484,7 +493,7 @@ QObject* PluginCatalog::load(const QString& id, QString* errorString)
     entry->loader = std::move(loader);
     entry->instance = instance;
     m_loaded.insert(id, entry);
-    m_failed.remove(id);
+    m_offered.remove(id);
     m_plugins.insert(id, entry->metadata);
     qCInfo(lcPluginCatalog) << qUtf8Printable(logPrefix(m_seam)) << "loaded" << id << "from" << offer.filePath;
     return instance;
@@ -518,6 +527,8 @@ QStringList PluginCatalog::performScan(const QStringList& directoriesLowestPrior
     // higher-priority copy overrides.
     QHash<QString, PluginMetadata> found;
     QHash<QString, PluginMetadata> acceptable;
+    // The file each acceptable path held when this scan vetted it.
+    QHash<QString, FileIdentity> identities;
     QList<RefusedPlugin> refused;
     QSet<QString> raisedWarnings;
     // Files this scan reached, and directories it listed to the end.
@@ -583,6 +594,7 @@ QStringList PluginCatalog::performScan(const QStringList& directoriesLowestPrior
             }
             idsInThisDirectory.insert(id, fileName);
             acceptable.insert(filePath, *vetted.metadata);
+            identities.insert(filePath, vetted.identity);
 
             if (const auto winner = found.constFind(id); winner != found.cend()) {
                 note(QStringLiteral("override|") + filePath,
@@ -659,20 +671,31 @@ QStringList PluginCatalog::performScan(const QStringList& directoriesLowestPrior
         found.insert(id, running);
     }
 
-    // A plugin whose load failed is offered again once its file changes.
-    QStringList retried;
-    for (auto it = m_failed.begin(); it != m_failed.end();) {
-        const auto now = found.constFind(it.key());
-        if (now == found.cend()) {
-            it = m_failed.erase(it);
+    // A plugin on offer that is not loaded is offered again once the file
+    // behind it is not the one it was last offered with, or the one a load
+    // of it last failed on: a consumer that judged it by its metadata, or
+    // gave up on a failed load, has to look again. One left untouched is not
+    // offered again. A loaded plugin keeps its code and is never offered
+    // again here. A file a cut-short scan did not reach keeps what was known.
+    QStringList changed;
+    QHash<QString, FileIdentity> offered;
+    for (auto it = found.cbegin(); it != found.cend(); ++it) {
+        const QString& id = it.key();
+        if (m_loaded.contains(id)) {
             continue;
         }
-        if (identityOf(now->filePath) != it.value()) {
-            retried.append(it.key());
-            it = m_failed.erase(it);
+        const auto before = m_offered.constFind(id);
+        const auto now = identities.constFind(it->filePath);
+        if (now == identities.cend()) {
+            if (before != m_offered.cend()) {
+                offered.insert(id, *before);
+            }
             continue;
         }
-        ++it;
+        if (before != m_offered.cend() && *before != *now && m_plugins.contains(id)) {
+            changed.append(id);
+        }
+        offered.insert(id, *now);
     }
 
     std::sort(refused.begin(), refused.end(), [](const RefusedPlugin& a, const RefusedPlugin& b) {
@@ -682,7 +705,7 @@ QStringList PluginCatalog::performScan(const QStringList& directoriesLowestPrior
     QStringList added;
     QStringList removed;
     for (auto it = found.cbegin(); it != found.cend(); ++it) {
-        if (!m_plugins.contains(it.key()) || retried.contains(it.key())) {
+        if (!m_plugins.contains(it.key()) || changed.contains(it.key())) {
             added.append(it.key());
         }
     }
@@ -695,6 +718,9 @@ QStringList PluginCatalog::performScan(const QStringList& directoriesLowestPrior
     std::sort(removed.begin(), removed.end());
 
     m_plugins = std::move(found);
+    // Before the signals: a slot can load() a plugin, which drops its entry
+    // or records the file a failed load saw.
+    m_offered = std::move(offered);
     m_refused = std::move(refused);
     // A problem that went away forgets its warning, so it warns again if it
     // comes back.

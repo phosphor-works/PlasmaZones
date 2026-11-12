@@ -5,7 +5,9 @@
 
 include(CMakeFindDependencyMacro)
 
-find_dependency(Qt6 @PHOSPHORWORKSPACES_QT_MIN@ COMPONENTS Core DBus)
+# Core only: Qt6::DBus is a PRIVATE link of a shared library, and the public
+# headers only forward-declare the QDBus types they name.
+find_dependency(Qt6 @PHOSPHORWORKSPACES_QT_MIN@ COMPONENTS Core)
 find_dependency(PhosphorEngine)
 
 include("${CMAKE_CURRENT_LIST_DIR}/PhosphorWorkspacesTargets.cmake")

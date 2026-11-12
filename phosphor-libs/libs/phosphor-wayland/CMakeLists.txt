@@ -322,11 +322,15 @@ set_target_properties(phosphorwayland-qpa PROPERTIES
 if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_DATADIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_DATADIR ${CMAKE_INSTALL_DATADIR})
 endif()
 
 if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

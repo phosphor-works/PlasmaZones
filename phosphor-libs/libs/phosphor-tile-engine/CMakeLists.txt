@@ -31,6 +31,12 @@ endif()
 
 include(GenerateExportHeader)
 
+# Unconditional, like phosphor-zones: in-tree this re-find is a cache hit,
+# and a standalone configure has no other source for the Qt targets the
+# library links below. Gui is for the sources' QScreen use, linked
+# PRIVATE, so the package config does not need it.
+find_package(Qt6 ${PHOSPHORTILEENGINE_QT_MIN} REQUIRED COMPONENTS Core Gui)
+
 set(CMAKE_AUTOMOC ON)
 
 # Sibling Phosphor libraries this one links. Each lookup is GUARDED rather than
@@ -117,6 +123,15 @@ generate_export_header(PhosphorTileEngine
     EXPORT_MACRO_NAME PHOSPHORTILEENGINE_EXPORT
 )
 
+# Resolve KDE_INSTALL_INCLUDEDIR before target_include_directories expands it
+# into $<INSTALL_INTERFACE:>. Until it was set here, a non-KDE configure
+# exported no install include directory while the headers still went to
+# GNUInstallDirs' includedir.
+if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+    include(GNUInstallDirs)
+    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
 target_include_directories(PhosphorTileEngine
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -149,6 +164,7 @@ target_link_libraries(PhosphorTileEngine
         # in its API, so downstream consumers need this on their include path.
         PhosphorLayoutApi::PhosphorLayoutApi
     PRIVATE
+        Qt6::Gui  # the sources use QScreen directly
         PhosphorScreens::Runtime  # AutotileEngine queries screen geometry via ScreenManager
         PhosphorIdentity::PhosphorIdentity
         PhosphorZones::PhosphorZones
@@ -159,10 +175,13 @@ target_link_libraries(PhosphorTileEngine
 # Install
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

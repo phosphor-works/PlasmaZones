@@ -46,30 +46,48 @@ tasks:
     options:
       mergeArgs: 'replace'
 
-  # The checker walks every tracked file, so the input set has to be just as
-  # wide or moon serves a cached PASS for a change it never inspected. The
-  # parts it actually inspects are scripts/*.py and the four tier trees plus
-  # packaging/ and .github/workflows/. cmake/ and CMakePresets.json are listed
-  # as over-broad insurance rather than because a rule reads them: no rule
-  # inspects .cmake or .json at those paths. Over-breadth costs a cache miss;
-  # under-breadth costs a missed check.
+  # The checker walks every tracked file (`git ls-files`), so the input set has
+  # to be just as wide or moon serves a cached PASS for a change it never
+  # inspected. The dep5 rule reads the head of EVERY tracked path for an SPDX
+  # header, whatever its type: the docs, the root files, the dotfiles and the
+  # moon and lefthook configs included. The prose rule reads CHANGELOG.md and
+  # .github/workflows/*.yml, and dep-pins reads cmake/ and the packaging
+  # recipes. Over-breadth costs a cache miss; under-breadth costs a missed
+  # check.
+  #
+  # So this is the tracked tree by top-level entry, not a bare '**/*': the
+  # hasher's vcs walk also hands moon gitignored files, and '**/*' would hash
+  # .moon/cache/ (which every run rewrites) and the .cache/cpm archives. '*'
+  # takes the files at the root; the dotfiles there are listed by name.
+  #
+  # NOT covered, and not coverable from here: .claude/ and .codex/. dep5 reads
+  # their tracked files too, but .moon/workspace.yml's hasher.ignorePatterns
+  # drops both trees from every task's hash, so an input entry for them is
+  # filtered away (measured on moon 2.6.5: a '.claude/hooks/**/*' entry hashed
+  # none of them). .agents/ is absent on purpose: it tracks only symlinks to
+  # .claude/skills directories, which the checker skips as not files.
   conventions:
     command: 'python3 scripts/check-conventions.py'
     inputs:
-      - 'scripts/**/*'
+      - '*'
+      - '.clangd'
+      - '.clang-format'
+      - '.dockerignore'
+      - '.gitattributes'
+      - '.gitignore'
+      - '.worktreeinclude'
+      - '.copr/**/*'
+      - '.github/**/*'
+      - '.moon/workspace.yml'
+      - '.moon/tasks/**/*'
       - 'cmake/**/*'
-      - 'CMakeLists.txt'
-      - 'CMakePresets.json'
-      - 'CLAUDE.md'
+      - 'docs/**/*'
+      - 'scripts/**/*'
+      - 'packaging/**/*'
       - 'phosphor-libs/**/*'
       - 'phosphor-shell-libs/**/*'
       - 'phosphor-shell/**/*'
       - 'plasmazones/**/*'
-      - 'packaging/**/*'
-      # .github because rule_prose now takes .github/workflows/*.yml through
-      # the pkgdesc arm. This task is CACHED, so without the input moon would
-      # replay a pass for a workflow edit it never looked at.
-      - '.github/**/*'
 
   schemas:
     command: 'python3 scripts/validate-json-schemas.py'

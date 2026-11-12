@@ -46,6 +46,24 @@ inline constexpr const char* PGpuExportedVarsProperty = "_p_gpuExportedVars";
 /// into the child environment after scrubbing the exported names.
 inline constexpr const char* PGpuClearedVarsProperty = "_p_gpuClearedVars";
 
+/// Dynamic QCoreApplication property carrying the names of the daemon-private
+/// environment variables the daemon's main() INTRODUCED (a QStringList): unset
+/// in the environment the daemon inherited, and set by it for itself (the
+/// MangoHud opt-out, the scene graph's simple animation driver, the
+/// layer-shell QPA plugin). They describe the daemon, not the editor or the
+/// settings app, so spawn sites remove them from a child's environment. A
+/// variable the user had already set to the daemon's value is not listed and
+/// reaches the child unchanged.
+inline constexpr const char* PDaemonEnvIntroducedVarsProperty = "_p_daemonEnvIntroducedVars";
+
+/// Companion property: the daemon-private variables that WERE set in the
+/// environment the daemon inherited and that its main() unset or overwrote
+/// (a QVariantMap of name to the inherited value). Spawn sites put the
+/// inherited value back into the child environment. They read all four
+/// properties through childProcessEnvironment()
+/// (core/platform/childprocessenvironment.h).
+inline constexpr const char* PDaemonEnvInheritedVarsProperty = "_p_daemonEnvInheritedVars";
+
 // PhosphorZones::ZoneGeometryMode lives in libs/phosphor-zones —
 // `PhosphorZones::Zone.h` declares it inside `namespace PlasmaZones` so it's
 // visible to existing callers via the same name.  No alias needed here;
@@ -99,6 +117,19 @@ constexpr int MinimumZoneDisplaySizePx = 10; // Minimum zone size for display (c
  * the subdirectory ever needs to change.
  */
 inline constexpr QLatin1String ScriptedAlgorithmSubdir{"plasmazones/algorithms"};
+
+/**
+ * @brief PlasmaZones' id as a host of the placement API.
+ *
+ * plasmazonesd records itself under this id at start
+ * (@c PhosphorConfig::HostDirectory::writeRecord in daemon/main.cpp), and the
+ * descriptor the package installs, data/placement-hosts/plasmazones.json,
+ * carries the same string as its @c Id. They have to agree:
+ * @c PhosphorConfig::HostDirectory::resolve ignores a record that names a host
+ * with no descriptor. tests/unit/data/test_placement_host_descriptor.cpp reads
+ * the shipped descriptor and compares it with this constant.
+ */
+inline constexpr QLatin1String PlacementHostId{"plasmazones"};
 
 /**
  * @brief Maximum length for user-visible layout and zone names.

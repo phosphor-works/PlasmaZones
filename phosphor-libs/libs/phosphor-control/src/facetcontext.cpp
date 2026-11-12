@@ -7,12 +7,17 @@
 #include "PhosphorControl/PageController.h"
 #include "PhosphorControl/StagingDomain.h"
 
+#include <PhosphorConfig/IBackend.h>
+
+#include <QDir>
+#include <QFileInfo>
 #include <QThread>
 
 namespace PhosphorControl {
 
-FacetContext::FacetContext(const FacetModuleMetadata& metadata)
-    : m_metadata(metadata)
+FacetContext::FacetContext(FacetHost* host, const FacetModuleMetadata& metadata)
+    : m_host(host)
+    , m_metadata(metadata)
 {
 }
 
@@ -157,6 +162,31 @@ bool FacetContext::registerExtension(const QString& localExtensionId, StagingDom
     m_extensions.append(ExtensionRegistration{localExtensionId, domain, qmlSource});
     m_registeredExtensions.insert(localExtensionId);
     return true;
+}
+
+PhosphorConfig::IBackend* FacetContext::configBackend(const QString& path, const ConfigBackendFactory& create)
+{
+    if (!QDir::isAbsolutePath(path)) {
+        m_errors.append(QStringLiteral("opened config file %1, which is not an absolute path").arg(path));
+        return nullptr;
+    }
+    // QDir::isAbsolutePath also passes a Qt resource path, which no backend
+    // can write, and a path that ends in a separator, `.` or `..`, which
+    // names a directory.
+    if (path.startsWith(QLatin1Char(':'))) {
+        m_errors.append(QStringLiteral("opened config file %1, which is a Qt resource path").arg(path));
+        return nullptr;
+    }
+    const QString fileName = QFileInfo(path).fileName();
+    if (fileName.isEmpty() || fileName == QLatin1String(".") || fileName == QLatin1String("..")) {
+        m_errors.append(QStringLiteral("opened config file %1, which has no file name").arg(path));
+        return nullptr;
+    }
+    PhosphorConfig::IBackend* const backend = m_host->sharedConfigBackend(path, create);
+    if (!backend) {
+        m_errors.append(QStringLiteral("could not open config file %1").arg(path));
+    }
+    return backend;
 }
 
 } // namespace PhosphorControl

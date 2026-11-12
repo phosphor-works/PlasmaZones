@@ -36,6 +36,10 @@ public:
     /// and none of it is kept, and a retry calls registerInto again on the
     /// same root object. So create the controllers and domains inside this
     /// call, parented to the root object, rather than once up front.
+    ///
+    /// FacetContext::configBackend is the exception. It shares the file's
+    /// backend at once, and the backend stays shared when the registration
+    /// is not kept, so a retry gets the same one back.
     virtual void registerInto(FacetContext& context) = 0;
 };
 

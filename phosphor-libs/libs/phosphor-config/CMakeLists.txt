@@ -4,14 +4,15 @@
 # PhosphorConfig — declarative Qt6 configuration library
 #
 # Pluggable config backends (JSON), a legacy INI reader for migration,
-# schema-driven defaults,
-# and a versioned migration runner. Built standalone or as a subdirectory
-# of Phosphor.
+# schema-driven defaults, a versioned migration runner,
+# and the host directory of a settings API. Built standalone or as a
+# subdirectory of Phosphor.
 
 cmake_minimum_required(VERSION 3.16)
 
-# PhosphorConfig's own version — used for SOVERSION. When split to a
-# standalone repo, this becomes the project() version.
+# PhosphorConfig's own version: the library's VERSION property, the package
+# version file and, in a standalone configure, the project() version. The
+# SOVERSION is set on the target, separately from this.
 set(PHOSPHORCONFIG_VERSION "0.1.0")
 
 # The Qt floor this library requires AND advertises in its generated
@@ -54,6 +55,7 @@ set(phosphorconfig_public_HDRS
     include/PhosphorConfig/Schema.h
     include/PhosphorConfig/MigrationRunner.h
     include/PhosphorConfig/Store.h
+    include/PhosphorConfig/HostDirectory.h
 )
 
 set(phosphorconfig_SRCS
@@ -61,6 +63,7 @@ set(phosphorconfig_SRCS
     src/qsettingsbackend.cpp
     src/migrationrunner.cpp
     src/store.cpp
+    src/hostdirectory.cpp
 )
 
 add_library(PhosphorConfig SHARED
@@ -125,10 +128,10 @@ set_target_properties(PhosphorConfig PROPERTIES
 if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
 if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 
@@ -175,6 +178,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/phosphorconfig_export.h
 # Tests (only when PhosphorConfig is the top-level project or BUILD_TESTING is on)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(BUILD_TESTING)
+if(CMAKE_PROJECT_NAME STREQUAL "PhosphorConfig" OR BUILD_TESTING)
+    enable_testing()
     add_subdirectory(tests)
 endif()

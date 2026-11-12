@@ -28,9 +28,10 @@ pre-commit:
       stage_fixed: true
     json-schema:
       # Explicit per-type globs mirroring scripts/validate-json-schemas.py's
-      # SCHEMA_MAP (plus the schemas dir, so editing a schema re-checks its
-      # data). A single `data/**/*.json` does NOT match reliably in lefthook's
-      # matcher, so the paths are enumerated.
+      # SCHEMA_MAP, plus the schema directories, so editing a schema re-checks
+      # its data, and the gate script itself, so a change to its rules is run
+      # against the whole set before it lands. A single `data/**/*.json` does
+      # NOT match reliably in lefthook's matcher, so the paths are enumerated.
       glob:
         - "plasmazones/data/layouts/*.json"
         - "plasmazones/data/scrolling-templates/*.json"
@@ -42,35 +43,44 @@ pre-commit:
         - "phosphor-libs/data/schemas/*.json"
         - "plasmazones/data/schemas/*.json"
         - "plasmazones/data/whatsnew.json"
-      # Hard gate: when a schema-governed data file or a schema itself is
-      # staged, validate the whole mapped set against the committed JSON
-      # Schemas (the same files runtime validation compiles) and fail the
-      # commit on any mismatch, so data and schemas can't drift apart.
+        - "plasmazones/data/placement-hosts/*.json"
+        - "scripts/validate-json-schemas.py"
+      # Hard gate: when a schema-governed data file, a schema or the gate
+      # script is staged, validate the whole mapped set against the committed
+      # JSON Schemas and fail the commit on any mismatch, so data and schemas
+      # can't drift apart. Runtime validation compiles some of these schema
+      # files too; the others are an author-time contract that no runtime
+      # loader compiles.
       # Validates the full set rather than just staged files so a schema edit
-      # re-checks every governed document. The script bootstraps a cached venv
-      # with jsonschema on first run (no global install needed), so the gate
-      # always runs; it only exits non-zero if validation fails or the
-      # validator genuinely can't be obtained (e.g. offline first run).
+      # re-checks every governed document. A jsonschema that python3 can
+      # already import is used as found. Otherwise the script bootstraps a
+      # cached venv with the pinned jsonschema on first run (no global install
+      # needed), so the gate always runs; it exits non-zero if validation fails
+      # or the validator genuinely can't be obtained (e.g. offline first run),
+      # and never skips. A cached venv on another jsonschema release is rebuilt
+      # at the pin, and kept with a warning when the rebuild cannot run.
       run: python3 scripts/validate-json-schemas.py
     conventions:
       # The CLAUDE.md rules that are decidable by inspection: SPDX headers, the
       # GPL-3 app / LGPL-2.1 libs/phosphor-* split (any tier's libs/ directory),
       # i18n() in C++, inline config paths that should be ConfigDefaults::
       # accessors, `.pragma library` in QML .js libraries, the DEP-5 copyright
-      # file, the plain-prose rules on user-facing strings, and the shared
-      # description a chain-resolved shader param carries on every pack. Only
-      # the staged files are checked so the hook stays instant, with TWO
-      # exceptions. shared-param-text is a whole-set rule and compares all
-      # twenty packs whenever this hook runs at all, so it can name a file this
-      # commit did not stage; and dep5 widens to the whole tree when
+      # file, the plain-prose rules on user-facing strings, the shared
+      # description a chain-resolved shader param carries on every pack, and
+      # the third-party pins each packaging recipe repeats from
+      # cmake/PhosphorDependencies.cmake. Only the staged files are checked so
+      # the hook stays instant, except where a rule cannot answer from a staged
+      # subset. shared-param-text and dep-pins are whole-set rules: each reads
+      # every file it governs whenever this hook runs at all, so it can name a
+      # file this commit did not stage. dep5 widens to the whole tree when
       # packaging/debian/copyright is itself staged. A commit that stages
-      # nothing matching the globs below runs neither, because lefthook skips a
-      # command whose glob filters every staged path away; the gate's own
-      # empty-staged-list early return is the backstop for a hand-run or another
-      # runner. CI's whole-tree run is the backstop for both.
+      # nothing matching the globs below runs none of them, because lefthook
+      # skips a command whose glob filters every staged path away; the gate's
+      # own empty-staged-list early return is the backstop for a hand-run or
+      # another runner. CI's whole-tree run is the backstop for all of them.
       #
-      # Stdlib-only, so unlike the schema hook there is no venv to bootstrap
-      # and this is always a hard gate.
+      # Stdlib-only, so unlike the schema hook there is no venv to bootstrap.
+      # Both are hard gates.
       glob:
         # `js` is here for the js-pragma rule. Without it a staged .js matches
         # no entry, lefthook passes no files, and the rule that exists to stop
@@ -78,7 +88,7 @@ pre-commit:
         # CI, which is the wall-of-warnings-from-files-nobody-edited case it
         # was written to prevent.
         # `sh` and `cmake` for the same reason: three rules read those suffixes, and
-        # without an entry the 16 tracked files outside packaging/ (cmake/, the
+        # without an entry the tracked ones outside packaging/ (cmake/, the
         # nested-session helpers, plasmazones-report.sh, docs/media/videos/convert.sh)
         # matched no glob at all, so editing one ran no pre-commit check. `c` covers the
         # two QPA protocol stubs.
@@ -96,20 +106,56 @@ pre-commit:
         - "*.desktop*"
         - "*.metainfo.xml*"
         - "packaging/**"
-        - "CHANGELOG.md"
-        # The prose rule reaches .github/workflows/*.yml for the generated
-        # pkgdesc strings; without this entry that arm is CI-only, which is
-        # the same gap the js entry above exists to close. Both suffixes,
-        # because rule_prose accepts .yml AND .yaml and a glob for one of them
-        # reopens the gap for the other.
-        - ".github/workflows/*.yml"
-        - ".github/workflows/*.yaml"
+        # Markdown at any depth, for two rules. The prose rule reads
+        # CHANGELOG.md, and dep5 reads every staged path that carries an SPDX
+        # header, which the docs, the skills and the agent definitions do.
+        - "*.md"
+        # YAML at any depth, for the same two rules. The prose rule reaches
+        # .github/workflows/*.yml for the generated pkgdesc strings, and dep5
+        # reads the header on any YAML, wherever it lives (this file and the
+        # moon configs among them). Without an entry either arm is CI-only,
+        # which is the same gap the js entry above exists to close. Both
+        # suffixes, because rule_prose accepts .yml AND .yaml and a glob for
+        # one of them reopens the gap for the other.
+        - "*.yml"
+        - "*.yaml"
+        # Everything else that carries an SPDX header, for dep5 alone: a
+        # licence changed in any of these is checked against
+        # packaging/debian/copyright like a source file's. In order, the
+        # CMakeLists.txt files and other .txt, the .in templates, D-Bus and
+        # protocol XML, Qt resource lists, SVG, the session-bus config, the Nix
+        # flake, the extensionless forwarding headers under a library's
+        # include/ directory, the JSON test fixtures that keep their header in
+        # a `_comment` key, the Makefiles and Dockerfiles, and the repo-level
+        # dotfiles. `*` crosses directory separators in lefthook's matcher and
+        # may match nothing, so each pattern matches at any depth and at the
+        # root: `*.txt` takes the root CMakeLists.txt, `*Makefile` the root
+        # Makefile.
+        #
+        # The list is by type. A header-bearing file of a type with no entry
+        # here still reaches dep5 only in CI's whole-tree run.
+        - "*.txt"
+        - "*.in"
+        - "*.xml"
+        - "*.qrc"
+        - "*.svg"
+        - "*.conf"
+        - "*.nix"
+        - "*/include/*"
+        - "*/tests/*.json"
+        - "*Makefile"
+        - "*Dockerfile"
+        - "*.clang-format"
+        - "*.dockerignore"
+        - "*.gitattributes"
+        - "*.gitignore"
       run: python3 scripts/check-conventions.py --staged {staged_files}
     conventions-selftest:
       # Only when the gate itself is edited. A rule that narrows reports a clean
-      # tree, so the whole-tree run above cannot catch its own blind spots.
+      # tree, so neither the staged-files run above nor CI's whole-tree run can
+      # catch its own blind spots.
       #
-      # The gate is SIX files now, not one: watching only the entry point meant a
+      # The gate is several files, not one: watching only the entry point meant a
       # commit that broke conventions_selftest.py ran no selftest at all, because
       # this glob did not match it and the `conventions` hook only imports the
       # sibling under --selftest. CI was the sole net. The second glob is a wildcard
@@ -136,31 +182,42 @@ pre-commit:
       # gate (shader_validate_animations); without a local hook, edits under
       # data/animations/** were the only shader tree with no pre-commit
       # validation. Same best-effort skip when the binary isn't built.
+      #
+      # A second skip, shared with the surface and pointer hooks below: these
+      # three families also compile for the compositor, which the validator
+      # does by running `glslangValidator` or `glslang` from PATH, and it fails
+      # every pack when neither is there. ctest gets the pinned release through
+      # phosphor_put_glslang_on_test_path(), which sets PATH per test and so
+      # does nothing for a hook. Without one on PATH the hook skips with a note
+      # and leaves the check to ctest's shader_validate_* gates.
       run: >
         sh -c 'bin=build/bin/plasmazones-shader-validate;
-        if [ -x "$bin" ]; then exec "$bin" --quiet --animation plasmazones/data/animations;
-        else echo "plasmazones-shader-validate not built (build/bin/) — skipping animation shader validation; build the target to enable this local gate" >&2; fi'
+        if [ ! -x "$bin" ]; then echo "plasmazones-shader-validate not built (build/bin/) — skipping animation shader validation; build the target to enable this local gate" >&2;
+        elif command -v glslangValidator >/dev/null 2>&1 || command -v glslang >/dev/null 2>&1; then exec "$bin" --quiet --animation plasmazones/data/animations;
+        else echo "neither glslangValidator nor glslang is on PATH, so animation shader validation is skipped. Install glslang to enable this local gate" >&2; fi'
     shader-validate-surface:
       glob: "plasmazones/data/surface/**/*.{frag,vert,glsl,json}"
       # Surface (decoration) packs use a distinct authoring model, so validate
       # them with --surface separately from the overlay packs above. Same
-      # best-effort skip when the binary isn't built; CI's
-      # shader_validate_surface is the hard gate.
+      # best-effort skips as the animation hook, when the binary isn't built or
+      # no glslang is on PATH; CI's shader_validate_surface is the hard gate.
       run: >
         sh -c 'bin=build/bin/plasmazones-shader-validate;
-        if [ -x "$bin" ]; then exec "$bin" --quiet --surface plasmazones/data/surface;
-        else echo "plasmazones-shader-validate not built (build/bin/) — skipping surface shader validation; build the target to enable this local gate" >&2; fi'
+        if [ ! -x "$bin" ]; then echo "plasmazones-shader-validate not built (build/bin/) — skipping surface shader validation; build the target to enable this local gate" >&2;
+        elif command -v glslangValidator >/dev/null 2>&1 || command -v glslang >/dev/null 2>&1; then exec "$bin" --quiet --surface plasmazones/data/surface;
+        else echo "neither glslangValidator nor glslang is on PATH, so surface shader validation is skipped. Install glslang to enable this local gate" >&2; fi'
     shader-validate-pointer:
       glob: "plasmazones/data/pointer/**/*.{frag,vert,glsl,json}"
       # Pointer packs are the fourth authoring model, with their own CI gate
       # (shader_validate_pointer). Without this hook they would be the only
       # shader tree with no pre-commit validation, which is the gap the
-      # animation hook above was added to close. Same best-effort skip when the
-      # binary isn't built.
+      # animation hook above was added to close. Same best-effort skips as that
+      # hook, when the binary isn't built or no glslang is on PATH.
       run: >
         sh -c 'bin=build/bin/plasmazones-shader-validate;
-        if [ -x "$bin" ]; then exec "$bin" --quiet --pointer plasmazones/data/pointer;
-        else echo "plasmazones-shader-validate not built (build/bin/) — skipping pointer shader validation; build the target to enable this local gate" >&2; fi'
+        if [ ! -x "$bin" ]; then echo "plasmazones-shader-validate not built (build/bin/) — skipping pointer shader validation; build the target to enable this local gate" >&2;
+        elif command -v glslangValidator >/dev/null 2>&1 || command -v glslang >/dev/null 2>&1; then exec "$bin" --quiet --pointer plasmazones/data/pointer;
+        else echo "neither glslangValidator nor glslang is on PATH, so pointer shader validation is skipped. Install glslang to enable this local gate" >&2; fi'
 
 commit-msg:
   commands:

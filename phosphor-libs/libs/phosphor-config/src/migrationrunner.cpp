@@ -152,9 +152,18 @@ bool MigrationRunner::runOnFile(const QString& jsonPath) const
         qWarning("PhosphorConfig::MigrationRunner: failed to open %s for migration", qPrintable(jsonPath));
         return false;
     }
-    QJsonParseError err;
-    QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
+    const QByteArray bytes = f.readAll();
     f.close();
+    if (bytes.trimmed().isEmpty()) {
+        // A file holding only white space (a `touch`, or an editor that
+        // emptied it in place) is the same as a missing one: JsonBackend reads
+        // it as an empty document and does not count it as a failed load, so
+        // calling it invalid here would make a caller refuse a start the
+        // backend would accept. Like the missing file, it is left untouched.
+        return true;
+    }
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &err);
     if (err.error != QJsonParseError::NoError || !doc.isObject()) {
         qWarning("PhosphorConfig::MigrationRunner: invalid JSON in %s during migration", qPrintable(jsonPath));
         return false;

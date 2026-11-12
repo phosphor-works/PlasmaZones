@@ -346,6 +346,24 @@ void Daemon::stop()
     // silently gone.
     teardownIdleConnections();
 
+    // Release the shortcut grabs BEFORE the bus name. A successor started with
+    // --replace, or by bus activation, can register its own shortcuts as soon
+    // as the name is free, and KGlobalAccel keys a shortcut by component and
+    // action name alone: no process identity reaches kglobalacceld. The
+    // QActions this release destroys tell kglobalacceld setInactive (and
+    // removeAllShortcuts, for the transient ids, tells it unregister) for
+    // "plasmazonesd" and each id, which after the successor registered would
+    // ungrab the SUCCESSOR's keys. Sent on this connection ahead of the name
+    // release, those calls reach kglobalacceld before anything the successor
+    // can send once it owns the name, whatever the successor knows about this
+    // process. The grabs come from start() (registerShortcuts), so only a
+    // started daemon has any. The connections to the shortcut manager are
+    // severed below the running gate, and unregisterShortcuts() emits nothing
+    // into them.
+    if (m_running && m_shortcutManager) {
+        m_shortcutManager->unregisterShortcuts();
+    }
+
     // Unregister D-Bus object path and service to prevent late calls during shutdown
     QDBusConnection bus = QDBusConnection::sessionBus();
     bus.unregisterObject(QString(PhosphorProtocol::Service::ObjectPath));
@@ -691,7 +709,8 @@ void Daemon::stop()
     // just above — all of which either sever a BORROWED pointer a member
     // destructor would otherwise deref, or are idempotent no-ops (the
     // window-tracking shutdown save above runs only when m_running, ahead of
-    // the provider clears it reads). Everything BELOW is start()-origin (the
+    // the provider clears it reads, and so does the shortcut release, which
+    // has to precede the bus-name release). Everything BELOW is start()-origin (the
     // persistent sender reconnects, the layout and settings save, and the
     // engine/resolver member RESETS established during a running session);
     // running those without a prior start() could touch half-wired state.
@@ -828,13 +847,10 @@ void Daemon::stop()
     // OSD of the new session.
     m_screensSettlingUntil = {};
 
-    // Release the shortcut grabs and the Portal session with the connections:
-    // registerShortcuts() on the next start() lazily recreates the registry
-    // and backend, and starting from an empty entry table avoids the second
-    // run's re-registration warning.
-    if (m_shortcutManager) {
-        m_shortcutManager->unregisterShortcuts();
-    }
+    // The shortcut grabs and the Portal session were released above the
+    // running gate, before the bus name: registerShortcuts() on the next
+    // start() lazily recreates the registry and backend, and starting from an
+    // empty entry table avoids the second run's re-registration warning.
 
     // stop() deliberately does NOT unregister the settings-driven entries
     // (`Global`, …), shed the shell-family-seed partition, or clear the
@@ -876,10 +892,10 @@ void Daemon::stop()
     m_geometryDeferralClock.invalidate();
 
     // Hide the zone overlay AND the three Escape-consuming modal slots. The
-    // shortcut grabs those modals dismiss on are released just above
-    // (unregisterShortcuts), so a slot left showing has no way out; on a
-    // stop() → start() cycle the next session comes up with a stale picker
-    // or cheatsheet floating over it.
+    // shortcut grabs those modals dismiss on are already released
+    // (unregisterShortcuts, ahead of the bus name), so a slot left showing has
+    // no way out; on a stop() → start() cycle the next session comes up with
+    // a stale picker or cheatsheet floating over it.
     hideOverlay();
     if (m_overlayService) {
         m_overlayService->hideLayoutPicker();

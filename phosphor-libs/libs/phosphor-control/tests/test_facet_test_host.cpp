@@ -3,7 +3,14 @@
 
 #include <PhosphorControl/FacetTestHost.h>
 
+#include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
+#include <QScopeGuard>
+#include <QStringList>
+#include <QTemporaryDir>
 #include <QTest>
+#include <QVariant>
 
 #ifndef PHOSPHOR_CONTROL_FIXTURE_DIR
 #error "PHOSPHOR_CONTROL_FIXTURE_DIR must be defined by tests/CMakeLists.txt"
@@ -28,6 +35,15 @@ FacetTestHost hostFor(const char* variant)
 QString joined(const QStringList& problems)
 {
     return problems.join(QLatin1Char('\n'));
+}
+
+// What the config fixtures read and write (see fakemodule.cpp), cleared
+// before and after a test that loads one.
+void clearConfigFixtureState()
+{
+    qunsetenv("FAKE_CONFIG_PATH");
+    qApp->setProperty("fakeConfigFactoryPaths", QVariant());
+    qApp->setProperty("fakeConfigBackendsDestroyed", QVariant());
 }
 
 } // namespace
@@ -76,6 +92,67 @@ private Q_SLOTS:
         FacetTestHost host = hostFor(variant.constData());
         const QString problems = joined(host.run());
         QVERIFY2(problems.contains(expected), qPrintable(problems));
+    }
+
+    void neverWritesTheConfigFileAModuleOpens()
+    {
+        // sharera writes its key on apply(), which run() calls on every
+        // domain. The file it opens is in a directory that does not exist,
+        // and neither is made.
+        clearConfigFixtureState();
+        const auto cleanup = qScopeGuard(&clearConfigFixtureState);
+        QTemporaryDir scratch;
+        QVERIFY(scratch.isValid());
+        const QString path = scratch.filePath(QStringLiteral("app/config.json"));
+        qputenv("FAKE_CONFIG_PATH", QFile::encodeName(path));
+        FacetTestHost host = hostFor("sharera");
+        const QStringList problems = host.run();
+        QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
+        // Opened, and somewhere else.
+        const QStringList opened = qApp->property("fakeConfigFactoryPaths").toStringList();
+        QCOMPARE(opened.size(), 1);
+        QVERIFY2(opened.first() != path, qPrintable(opened.first()));
+        QVERIFY(!QFileInfo::exists(path));
+        QVERIFY(!QFileInfo::exists(scratch.filePath(QStringLiteral("app"))));
+    }
+
+    void reportsAConfigFileItCannotOpen_data()
+    {
+        QTest::addColumn<QByteArray>("variant");
+        // "@dir" stands for a scratch directory, in both columns.
+        QTest::addColumn<QString>("configPath");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("a factory that makes no backend")
+            << QByteArray("confignull") << QStringLiteral("@dir/config.json")
+            << QStringLiteral("could not open config file @dir/config.json");
+        QTest::newRow("a relative path") << QByteArray("relativeconfig") << QString()
+                                         << QStringLiteral("relative.json, which is not an absolute path");
+        QTest::newRow("a Qt resource") << QByteArray("sharera") << QStringLiteral(":/fake/config.json")
+                                       << QStringLiteral(":/fake/config.json, which is a Qt resource path");
+        QTest::newRow("a directory") << QByteArray("sharera") << QStringLiteral("@dir/config/")
+                                     << QStringLiteral("@dir/config/, which has no file name");
+        QTest::newRow("a directory named by .") << QByteArray("sharera") << QStringLiteral("@dir/config/.")
+                                                << QStringLiteral("@dir/config/., which has no file name");
+        QTest::newRow("a directory named by ..") << QByteArray("sharera") << QStringLiteral("@dir/config/..")
+                                                 << QStringLiteral("@dir/config/.., which has no file name");
+    }
+
+    void reportsAConfigFileItCannotOpen()
+    {
+        QFETCH(QByteArray, variant);
+        QFETCH(QString, configPath);
+        QFETCH(QString, expected);
+        clearConfigFixtureState();
+        const auto cleanup = qScopeGuard(&clearConfigFixtureState);
+        QTemporaryDir scratch;
+        QVERIFY(scratch.isValid());
+        if (!configPath.isEmpty()) {
+            qputenv("FAKE_CONFIG_PATH", QFile::encodeName(configPath.replace(QLatin1String("@dir"), scratch.path())));
+        }
+        FacetTestHost host = hostFor(variant.constData());
+        const QString problems = joined(host.run());
+        const QString reason = expected.replace(QLatin1String("@dir"), scratch.path());
+        QVERIFY2(problems.contains(QStringLiteral("did not load")) && problems.contains(reason), qPrintable(problems));
     }
 
     void anExtenderPassesWithoutItsTargets()

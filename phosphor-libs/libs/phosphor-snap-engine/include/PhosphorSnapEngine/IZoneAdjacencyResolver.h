@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorsnapengine_export.h>
+#include "phosphorsnapengine_export.h"
 
 #include <QString>
 #include <QStringList>

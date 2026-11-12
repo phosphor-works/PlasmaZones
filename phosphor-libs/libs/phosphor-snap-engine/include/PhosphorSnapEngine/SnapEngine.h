@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorsnapengine_export.h>
+#include "phosphorsnapengine_export.h"
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorEngine/IVirtualDesktopManager.h>

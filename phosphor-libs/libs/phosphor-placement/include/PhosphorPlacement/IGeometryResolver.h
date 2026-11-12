@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorplacement_export.h>
+#include "phosphorplacement_export.h"
 #include <PhosphorLayoutApi/EdgeGaps.h>
 #include <QString>
 

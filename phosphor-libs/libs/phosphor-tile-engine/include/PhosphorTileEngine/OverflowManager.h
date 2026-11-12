@@ -4,7 +4,7 @@
 #pragma once
 
 // Project headers
-#include <phosphortileengine_export.h>
+#include "phosphortileengine_export.h"
 
 // Qt headers
 #include <QHash>

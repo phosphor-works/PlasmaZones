@@ -607,18 +607,36 @@ jobs:
           # up by default. Prepend the qt6 bin dir for this step.
           export PATH="/usr/lib/qt6/bin:$PATH"
           mapfile -t files < <(grep -E '\.qml$' changed.txt || true)
-          if [ "${#files[@]}" -gt 0 ]; then
-            qmlformat -n "${files[@]}"
-          else
+          if [ "${#files[@]}" -eq 0 ]; then
             echo "No QML files changed — skipping qmlformat"
+            exit 0
+          fi
+          # qmlformat has no check mode: --dry-run only prints the settings
+          # file it would use, and -n (normalize) reorders and prints, exiting
+          # 0 on misformatted QML. So format each file to stdout, with the
+          # same options the lefthook hook's `qmlformat -i` uses, and diff it
+          # against the file. A difference fails the step and prints the
+          # change; a parse error fails it through pipefail.
+          unformatted=0
+          for f in "${files[@]}"; do
+            if ! qmlformat "$f" | diff -u --label "$f" --label "$f (qmlformat -i)" "$f" -; then
+              unformatted=1
+            fi
+          done
+          if [ "$unformatted" -ne 0 ]; then
+            echo "::error::The QML files above are not formatted as qmlformat -i would leave them. Run qmlformat -i on them."
+            exit 1
           fi
 
   # ─── JSON Schema: validate every bundled data file against the committed
-  # schemas under phosphor-libs/data/schemas/ and plasmazones/data/schemas/. These are the same schema files runtime
-  # validation compiles (phosphor-fsloader's SchemaValidator via valijson), so
-  # this is the author-time gate that keeps malformed layouts (and future
-  # document types) out of the tree. Mirrors the lefthook `json-schema` hook;
-  # hard gate here, best-effort there. Validates the full set on every run
+  # schemas under phosphor-libs/data/schemas/ and plasmazones/data/schemas/. Runtime
+  # validation compiles some of these schema files too (phosphor-fsloader's
+  # SchemaValidator via valijson); the others are an author-time contract that
+  # no runtime loader compiles. Either way it keeps malformed layouts (and future
+  # document types) out of the tree. Mirrors the lefthook `json-schema` hook,
+  # and is a hard gate in both places: the hook uses a jsonschema its python3
+  # can import, or else a cached venv it bootstraps at the pinned release, and
+  # fails the commit when it has neither. Validates the full set on every run
   # (cheap) so a schema change re-checks all governed documents.
   json-schema:
     name: JSON Schema
@@ -635,9 +653,11 @@ jobs:
 
       - name: Install jsonschema
         # The [format] extra matches the lefthook bootstrap venv and enables
-        # string-format checks (e.g. format:"date"), so CI and the local hook
-        # validate identical surfaces.
-        run: pip install "jsonschema[format]"
+        # string-format checks (e.g. format:"date"), so CI and the hook's venv
+        # validate identical surfaces. The version is JSONSCHEMA_VERSION in
+        # scripts/validate-json-schemas.py, which that venv installs. Change
+        # both together.
+        run: pip install "jsonschema[format]==4.26.0"
 
       - name: Validate bundled data against schemas
         run: python3 scripts/validate-json-schemas.py

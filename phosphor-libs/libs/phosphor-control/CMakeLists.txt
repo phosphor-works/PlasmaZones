@@ -13,8 +13,11 @@
 #
 # Boundary:
 #   - phosphor-config owns the IBackend/IGroup configuration store. This
-#     library does NOT duplicate that contract. Consumers wire their own
-#     ISettings implementation against phosphor-config.
+#     library does NOT duplicate that contract. It links phosphor-config
+#     for one thing: FacetHost keeps the IBackend of each config file Facet
+#     modules share and hands it out (FacetContext::configBackend).
+#     Consumers wire their own ISettings implementation against
+#     phosphor-config.
 #   - phosphor-shortcuts owns global-shortcut backends. Not included here.
 #
 # Built standalone or as a subdirectory of Phosphor (or any consumer).
@@ -93,6 +96,12 @@ endif()
 # already exists; a standalone build finds the installed package.
 if(NOT TARGET PhosphorRegistry::PhosphorRegistry)
     find_package(PhosphorRegistry CONFIG REQUIRED)
+endif()
+
+# The IBackend that FacetContext::configBackend hands Facet modules. In-tree
+# the target already exists; a standalone build finds the installed package.
+if(NOT TARGET PhosphorConfig::PhosphorConfig)
+    find_package(PhosphorConfig CONFIG REQUIRED)
 endif()
 
 # Shared-vs-static lib type. SHARED is the LGPL-friendly default: an
@@ -233,16 +242,17 @@ target_link_libraries(PhosphorControl
         # PUBLIC: FacetHost.h exposes PluginSeam, PluginSearchPath and
         # RefusedPlugin, the shared plugin catalog's types.
         PhosphorRegistry::PhosphorRegistry
+        # PUBLIC: FacetContext::configBackend hands modules a
+        # PhosphorConfig::IBackend.
+        PhosphorConfig::PhosphorConfig
     PRIVATE
-        # Qt6::Gui is PRIVATE: moc-generated code on the implementation
-        # side may reference QColor/QPalette/etc. through Qt5 compat
-        # headers, but the public API in include/PhosphorControl/
+        # Qt6::Gui is PRIVATE here: moc-generated code on the
+        # implementation side may reference QColor/QPalette/etc. through
+        # Qt5 compat headers, but the public API in include/PhosphorControl/
         # exposes no Gui types (QObject + QString + QUrl + QList only).
-        # Leaving Gui PUBLIC would force every consumer to link
-        # Qt6::Gui even when only the headless ApplicationController/
-        # PageController/StagingDomain surface is used (e.g. headless
-        # tests). The QML targets below explicitly add Gui PUBLIC for
-        # QML consumers that DO need it.
+        # Consumers link Qt6::Gui all the same: PhosphorConfig above
+        # links it PUBLIC, and passes it on to everything that links this
+        # library. The QML targets below also add Gui PUBLIC themselves.
         Qt6::Gui
 )
 
@@ -362,9 +372,9 @@ set(phosphorcontrol_qml_FILES
     qml/FacetModulePage.qml
 )
 
-# JS helpers shared by the QML chrome — kept separate from QML_FILES
-# because qt_add_qml_module's qmltc / qmlcachegen pipeline expects
-# `.qml`/`.mjs` for QML_FILES and `.js` for RESOURCES.
+# JS helpers shared by the QML chrome, which imports them by relative
+# path. Listed apart from QML_FILES and shipped as plain resources of the
+# module.
 set(phosphorcontrol_qml_RESOURCES
     qml/LoaderHelpers.js
 )

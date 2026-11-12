@@ -131,10 +131,18 @@ generate_export_header(PhosphorFsLoader
 if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
     # The install(TARGETS) below names a RUNTIME destination too; without this
     # a standalone (non-ECM) configure expands it empty. Matches the sibling
     # fallbacks in phosphor-registry and phosphor-tiles.
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

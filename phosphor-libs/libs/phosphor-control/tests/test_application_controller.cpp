@@ -173,6 +173,45 @@ public:
     }
 };
 
+/// A page that is never dirty and whose reset does nothing, for the
+/// page-attachment test below, which watches only the domain attached to it.
+class CleanPage : public PageController
+{
+    Q_OBJECT
+public:
+    using PageController::PageController;
+
+    bool isDirty() const override
+    {
+        return false;
+    }
+    void apply() override
+    {
+        Q_EMIT applyResult(true, QString());
+    }
+    void discard() override
+    {
+        Q_EMIT discardResult(true, QString());
+    }
+};
+
+/// Counts its resets, and a reset leaves it clean, for the page-attachment
+/// test below.
+class ResettableHeadlessDomain : public StubHeadlessDomain
+{
+    Q_OBJECT
+public:
+    using StubHeadlessDomain::StubHeadlessDomain;
+
+    void resetToDefaults() override
+    {
+        ++resetCount;
+        setDirty(false);
+    }
+
+    int resetCount = 0;
+};
+
 } // namespace ApplicationControllerTest
 
 using namespace ApplicationControllerTest;
@@ -1374,6 +1413,46 @@ private Q_SLOTS:
                          QUrl(QStringLiteral("qrc:/b.qml")));
         QCOMPARE(app.titlePathFor(QStringLiteral("b")),
                  QStringLiteral("A") + ApplicationController::titlePathSeparator() + QStringLiteral("B"));
+    }
+
+    void attachingNeedsATrackedDomainAndARegisteredPage()
+    {
+        ApplicationController controller;
+        controller.registerPage(new CleanPage(QStringLiteral("page"), &controller), QString(), QStringLiteral("Page"),
+                                QUrl(QStringLiteral("qrc:/page.qml")));
+        auto* const domain = new ResettableHeadlessDomain(&controller);
+        QVERIFY(controller.registerDomain(domain));
+
+        // An unknown page: the attachment would hang on, and mark a page
+        // registered later under that id.
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("attachDomainToPage: null domain or unknown page")));
+        controller.attachDomainToPage(domain, QStringLiteral("missing"));
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("attachDomainToPage: null domain or unknown page")));
+        controller.attachDomainToPage(nullptr, QStringLiteral("page"));
+        controller.registerPage(new CleanPage(QStringLiteral("missing"), &controller), QString(),
+                                QStringLiteral("Missing"), QUrl(QStringLiteral("qrc:/missing.qml")));
+        domain->setDirty(true);
+        QVERIFY(controller.dirtyPageIds().isEmpty());
+
+        // A domain that is not tracked is never applied, so it must not mark
+        // a page either.
+        ResettableHeadlessDomain untracked;
+        untracked.setDirty(true);
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("attachDomainToPage: domain is not registered")));
+        controller.attachDomainToPage(&untracked, QStringLiteral("page"));
+        QVERIFY(controller.dirtyPageIds().isEmpty());
+
+        // Attached twice, it is reset once.
+        controller.attachDomainToPage(domain, QStringLiteral("page"));
+        controller.attachDomainToPage(domain, QStringLiteral("page"));
+        QCOMPARE(controller.dirtyPageIds(), QStringList{QStringLiteral("page")});
+        controller.setCurrentPageId(QStringLiteral("page"));
+        controller.resetCurrentPage();
+        QCOMPARE(domain->resetCount, 1);
+        QVERIFY(controller.dirtyPageIds().isEmpty());
     }
 };
 

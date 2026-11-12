@@ -9,7 +9,6 @@
 
 #include <QCollator>
 #include <QHash>
-#include <QJsonObject>
 #include <QList>
 #include <QLocale>
 #include <QObject>
@@ -24,12 +23,14 @@
 #include <memory>
 #include <optional>
 
+namespace PhosphorConfig {
+class IBackend;
+}
+
 namespace PhosphorControl {
 
 class ApplicationController;
 class FacetContext;
-class PageController;
-class PageRegistry;
 class StagingDomain;
 
 /// Hosts Facet modules in an ApplicationController.
@@ -51,8 +52,9 @@ class StagingDomain;
 /// modules under their category or parent module. A module's own pages
 /// follow their declaration order and come before the modules nested under
 /// it; a page that falls back under its module (its target is missing)
-/// comes after the others. A module added while Facet runs is slotted in the
-/// same way.
+/// comes after the others. A module added while Facet runs has its node
+/// slotted in the same way. The pages it places outside itself, in a category
+/// or under another module's page, go after the entries already there.
 ///
 /// Page ids: a category node is `@category/<id>`, a module node is the module
 /// id, and a module page is `<module>:<page>` (FacetContext::pageId). These
@@ -67,8 +69,10 @@ class StagingDomain;
 /// at a module that is not installed is skipped quietly. Opening a page also
 /// loads every module that extends it, once the page's own module has
 /// loaded, and an extension that becomes active while its page is open loads
-/// its module then. Both need the navigation hook (start() says when another
-/// component holds it). The host answers
+/// its module then. Only one module loads at a time, so a page that a slot
+/// opens while a module is loading gets the modules that extend it when
+/// that load ends. All of this needs the navigation hook (start() says when
+/// another component holds it). The host answers
 /// ApplicationController::extensionsFor() for the page's FacetSlots. A
 /// section is shown once its extension is active and its page's own module
 /// has loaded, and only then does its staging domain join Apply and the
@@ -84,6 +88,18 @@ class StagingDomain;
 /// page loads every module that extends it, a module whose section crashes
 /// takes that page down each time it opens, until the module is removed.
 ///
+/// The host also keeps the config backends modules share, one for each file,
+/// and hands them out through FacetContext::configBackend. They belong to
+/// the ApplicationController, in an object the host parents to it when the
+/// host is constructed. So they outlive the host, and a domain can still be
+/// applied through its backend then. They are destroyed with the controller,
+/// before the page controllers and domains it adopted from modules (see
+/// FacetContext::configBackend for what that asks of a module). A second
+/// host on the same controller keeps its own backends, apart from the
+/// first's, and the first's stay alive with the controller. Two hosts whose
+/// modules open one file therefore hold two documents for it, and each
+/// write drops the keys only the other holds.
+///
 /// GUI thread only. The ApplicationController must outlive the host.
 class PHOSPHORCONTROL_EXPORT FacetHost : public QObject
 {
@@ -96,8 +112,8 @@ public:
         /// Its metadata is invalid, its id or a page id is already taken,
         /// its node or a page could not be placed, its library did not load,
         /// its root object is not an IFacetModule, its registerInto did not
-        /// match its metadata, or its file changed or went away. See
-        /// stateReason().
+        /// match its metadata, its file changed or went away, or its file
+        /// came back after its code had been loaded. See stateReason().
         Failed,
         /// It was loading when Facet last stopped unexpectedly.
         DisabledAfterCrash,
@@ -126,10 +142,26 @@ public:
     void setSearchPaths(const QList<PhosphorRegistry::PluginSearchPath>& paths);
     /// The load record: the file that holds the module being loaded and the
     /// modules disabled after a crash. Before start(), ignored with a warning
-    /// after. Default: `$XDG_STATE_HOME/phosphor-works/facet-loading`. When
-    /// no state directory is available, or the path is set empty, crashes
-    /// are not remembered. One Facet process per load record.
+    /// after. Default: `$XDG_STATE_HOME/phosphor-works/facet-loading`. A
+    /// relative path is made absolute against the working directory of this
+    /// call. When no state directory is available, or the path is set empty,
+    /// crashes are not remembered. One Facet process per load record.
     void setSentinelPath(const QString& path);
+    /// Make every config file a module opens (FacetContext::configBackend)
+    /// under @p directory instead of where it is, so the backends modules
+    /// get do not read or write the real files, as long as each module's
+    /// factory opens the path it is handed: for FacetTestHost and other
+    /// tests.
+    /// The module's factory is handed `<directory>/<path>`, where `<path>` is
+    /// the file's absolute path with its symbolic links, `.` and `..`
+    /// resolved, and the host creates that file's directory. Two spellings of
+    /// one file still share one backend, two files stay apart, and
+    /// configBackend() goes on answering for the path the module named.
+    /// Before start(), ignored with a warning after. A relative path is made
+    /// absolute against the working directory of this call. The filesystem
+    /// root is refused with a warning, since it would redirect nothing.
+    /// Default: empty, which redirects nothing.
+    void setConfigRedirect(const QString& directory);
     /// The locale module metadata is read and sorted in. Before start(),
     /// ignored with a warning after. Default: QLocale(). The names of the
     /// built-in categories come from the application's installed translators
@@ -151,13 +183,24 @@ public:
     /// changed since. A failure that loading again cannot fix (invalid
     /// metadata, a taken id, a node or page that could not be placed, a
     /// root object that is not an IFacetModule, a file that changed or went
-    /// away) is not retryable. When the catalog offers the file again, a
-    /// module whose metadata is unchanged and whose pages are all placed can
-    /// be loaded again, and one that was never placed (invalid metadata, no
-    /// node) is read and placed afresh. Anything else needs a restart.
+    /// away) is not retryable. The catalog offers a module's file again when
+    /// it is installed again after a removal, and when it changes on disk
+    /// (rewritten, or replaced by a rename over it) while its library is not
+    /// loaded. Then a module whose metadata is unchanged, whose pages are all
+    /// placed and whose library was never loaded can be loaded again, and one
+    /// that was never placed (invalid metadata, a taken id, no node) is read
+    /// and placed afresh, so fixing its metadata on disk is enough.
+    /// Anything else needs a restart. That includes a module that failed
+    /// with its library loaded: the process keeps running that code, so the
+    /// file offered again cannot be tried.
     [[nodiscard]] bool canRetry(const QString& moduleId) const;
 
-    /// The modules on offer, sorted.
+    /// Every module the host knows, sorted: the ones on offer, and the ones
+    /// the catalog stopped offering, which stay (Failed, or Loaded when they
+    /// had loaded). The one exception is a module that was never placed (its
+    /// metadata was invalid, an id it needs was taken, or its node could not
+    /// be placed) and whose plugin is gone by the time it is read again:
+    /// nothing is left of it to keep.
     [[nodiscard]] QStringList moduleIds() const;
     /// The state of @p moduleId, or nullopt for a module the host does not
     /// know.
@@ -205,6 +248,15 @@ public:
     /// The page ids the module of @p moduleId registered while loading.
     [[nodiscard]] QStringList boundPages(const QString& moduleId) const;
 
+    /// The config backend modules share for the file at @p path, an absolute
+    /// path in any spelling of the file (FacetContext::configBackend), or
+    /// null when no module opened that file, @p path is relative or the
+    /// ApplicationController is gone. With setConfigRedirect, @p path is
+    /// still the path the module named, not where the file was made. For a
+    /// host application, or a test, that wants to see which backend a file
+    /// is shared under. A module gets its backend from its FacetContext.
+    [[nodiscard]] PhosphorConfig::IBackend* configBackend(const QString& path) const;
+
 Q_SIGNALS:
     void moduleLoaded(const QString& moduleId);
     void moduleFailed(const QString& moduleId, const QString& reason);
@@ -216,8 +268,11 @@ Q_SIGNALS:
     void refusedExtensionsChanged();
 
 private:
+    // For sharedConfigBackend.
+    friend class FacetContext;
     struct Module;
     struct LoadRecord;
+    class ConfigBackends;
     /// An extension resolved onto its target page.
     struct ActiveExtension
     {
@@ -230,13 +285,21 @@ private:
 
     std::shared_ptr<Module> parseModule(const QString& moduleId);
     void mergeCategories(const Module& module);
-    void addModule(const QString& moduleId);
+    /// Read and place @p moduleId. @p offeredAgain says the host knew it as
+    /// Failed until now, so that coming back Available is announced.
+    void addModule(const QString& moduleId, bool offeredAgain = false);
     void onPluginAdded(const QString& moduleId);
     void onPluginRemoved(const QString& moduleId);
     void placeModules(QList<std::shared_ptr<Module>> modules);
     bool registerPlaceholder(const QString& id, const QString& parentId, const QString& title, const QString& icon,
                              const QUrl& qmlSource, bool isCollapsible, const Module* module,
                              const FacetPageMetadata* page, qsizetype pageSlot = -1);
+    /// The backend modules share for @p path (FacetContext::configBackend),
+    /// created with @p create the first time any module opens the file. Null
+    /// when @p create made none, or the ApplicationController is gone.
+    PhosphorConfig::IBackend*
+    sharedConfigBackend(const QString& path,
+                        const std::function<std::unique_ptr<PhosphorConfig::IBackend>(const QString&)>& create);
     void ensureCategoryNode(const QString& categoryId);
     [[nodiscard]] qsizetype siblingSlot(const QString& parentId,
                                         const std::function<bool(const QString& siblingId)>& sortsAfter) const;
@@ -247,8 +310,13 @@ private:
     /// Stops when a newer navigation, which a slot reacting to a load can
     /// start, took the current page anywhere but @p pageId: away from
     /// @p landing, or through another page and back (m_navigations moved on
-    /// from @p navigations).
+    /// from @p navigations). While a module is loading it loads nothing and
+    /// notes that a page is owed its extenders (loadOwedExtenders).
     void loadExtenders(const QString& pageId, const QString& landing, quint64 navigations);
+    /// Load what extends the page on screen, when loadExtenders could not
+    /// while a module was loading (m_extendersOwed). Called as each load
+    /// ends.
+    void loadOwedExtenders();
     /// Whether a navigation newer than the one that saw @p landing and
     /// @p navigations left the current page on one other than @p pageId.
     [[nodiscard]] bool navigatedElsewhere(const QString& landing, quint64 navigations, const QString& pageId) const;
@@ -261,15 +329,29 @@ private:
     bool canLoadNow(const QString& moduleId, QString* errorString) const;
     void transition(Module& module, ModuleState state, const QString& reason, bool retryable = true);
     void disableAfterCrash(Module& module);
+    /// How far a write of the load record goes before it counts as done.
+    /// Both replace the record atomically, so a reader sees the old record
+    /// or the new one and never a part of one.
+    enum class RecordWrite : quint8 {
+        /// The new record's data reaches the disk before it replaces the old
+        /// one (QSaveFile). For the writes that change the disabled list.
+        Durable,
+        /// The new record replaces the old one without waiting for the disk,
+        /// which survives a crash of the process but not a power loss. For
+        /// the pair of writes around every module load, which only have to
+        /// outlive a crash of this process. A record that is a symbolic link
+        /// is written durably through it, as Durable writes it.
+        ProcessCrashSafe,
+    };
     [[nodiscard]] LoadRecord readLoadRecord() const;
-    bool writeLoadRecord(const LoadRecord& record) const;
+    bool writeLoadRecord(const LoadRecord& record, RecordWrite mode = RecordWrite::Durable) const;
     /// Write @p moduleId into the load record as loading. False when it was
     /// not written (no record, or the write failed).
     bool recordLoading(const QString& moduleId);
     /// Take the loading module back out of the record, when recordLoading
     /// put it there (@p recorded).
     void clearLoading(bool recorded);
-    bool persistDisabled();
+    bool persistDisabled(RecordWrite mode = RecordWrite::Durable);
     void resolveExtensions();
     /// Resolve again after a module came or went: attach what became active,
     /// tell the pages whose sections changed, announce a changed refused
@@ -287,6 +369,9 @@ private:
     QPointer<ApplicationController> m_controller;
     std::unique_ptr<PhosphorRegistry::PluginCatalog> m_catalog;
     QString m_sentinelPath;
+    /// Where config files are made instead of where they are
+    /// (setConfigRedirect), or empty.
+    QString m_configRedirect;
     QLocale m_locale;
     /// Sorts names in m_locale. Built once start() has fixed the locale.
     QCollator m_collator;
@@ -307,6 +392,9 @@ private:
     /// inside registerInto or a pageBound slot) is refused instead of running
     /// registerInto twice or overwriting the load record.
     QString m_loadingModule;
+    /// Set when loadExtenders was called while a module was loading, and so
+    /// loaded nothing. Cleared by loadOwedExtenders, at the end of that load.
+    bool m_extendersOwed = false;
     QSet<QString> m_disabled;
     QHash<QString, std::shared_ptr<Module>> m_modules;
     QHash<QString, FacetCategoryMetadata> m_categories;
@@ -315,6 +403,10 @@ private:
     QHash<QString, QList<ActiveExtension>> m_extensionsByPage;
     QList<RefusedExtension> m_refusedExtensions;
     QSet<QString> m_warnedExtensions;
+    /// The config backends modules share. A child of the
+    /// ApplicationController, which destroys it, so this is null once the
+    /// controller is gone and is checked before every use.
+    QPointer<ConfigBackends> m_configBackends;
 };
 
 } // namespace PhosphorControl

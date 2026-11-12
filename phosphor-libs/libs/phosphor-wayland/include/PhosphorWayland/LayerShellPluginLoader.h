@@ -12,7 +12,9 @@ namespace PhosphorWayland {
 /// Call before QGuiApplication to register the phosphorwayland QPA plugin.
 /// Lightweight header — does not pull in Qt Wayland private headers.
 /// Respects any existing QT_WAYLAND_SHELL_INTEGRATION value (e.g. for debugging).
-/// Only sets the env var when WAYLAND_DISPLAY is set (proves a compositor is running).
+/// Only sets the env var when there is a Wayland connection to make: WAYLAND_SOCKET
+/// is set, WAYLAND_DISPLAY is set, or a wayland-0 or wayland-1 socket exists in
+/// XDG_RUNTIME_DIR.
 ///
 /// Note: if the application is started before the compositor sets WAYLAND_DISPLAY
 /// (e.g. early systemd unit ordering), this will not register the plugin and
@@ -30,7 +32,14 @@ inline void registerLayerShellPlugin()
         // Also check XDG_RUNTIME_DIR/wayland-0 as a fallback: some compositors
         // (e.g. COSMIC) or systemd socket-activation setups may not set
         // WAYLAND_DISPLAY but the socket exists at the default path.
-        if (!qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")) {
+        //
+        // WAYLAND_SOCKET admits on its own: it is a connected fd the
+        // compositor handed this process, and libwayland's wl_display_connect,
+        // which Qt's wayland platform calls, takes it ahead of WAYLAND_DISPLAY
+        // and any socket path. A process given only WAYLAND_SOCKET has a live
+        // compositor with no display name or socket to show for it, so it
+        // passes none of the checks below.
+        if (!qEnvironmentVariableIsEmpty("WAYLAND_SOCKET") || !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")) {
             qputenv("QT_WAYLAND_SHELL_INTEGRATION", "phosphorwayland");
         } else {
             // Fallback: check for common Wayland sockets. Compositors may use any
