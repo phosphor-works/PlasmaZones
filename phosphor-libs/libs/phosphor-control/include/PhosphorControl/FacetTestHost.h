@@ -18,8 +18,10 @@ namespace PhosphorControl {
 ///   - the catalog accepts it (IID, ApiVersion, a valid "Id")
 ///   - its metadata is valid, and parses without a warning: a key this Facet
 ///     does not know, a search entry of a kind it does not know, or a
-///     `Key[<lang>]` no locale picks is reported as `metadata: <warning>`,
-///     since the module is built against the Facet that checks it
+///     `Key[<lang>]` whose locale is not written in letters, digits and '_'
+///     (`Name[pt-BR]`, which no locale picks) is reported as
+///     `metadata: <warning>`, since the module is built against the Facet
+///     that checks it
 ///   - it loads, and registerInto registers exactly the pages and extensions
 ///     its metadata declares, each page with a controller of the matching id
 ///     and an absolute QML source (the rules FacetContext enforces)
@@ -38,8 +40,10 @@ namespace PhosphorControl {
 ///   - every entry its search providers return, except an action (which has
 ///     no page), points at one of its pages or a page it extends. A setting
 ///     or section entry with an anchor names one its page lists, on its own
-///     page, and on a page it extends when that page's module is a target.
-///     One with no anchor points at the page as a whole and passes.
+///     page, and on a page it extends when that page's module is a target,
+///     where the anchor `<module>:<extension>` of one of the module's own
+///     sections on that page passes too. One with no anchor points at the
+///     page as a whole and passes.
 ///   - with addTargetModule(), every extension aimed at a target module fits
 ///     the slot and version that module offers
 ///   - with setPreviousAnchors(), no page of the previous release is gone, no

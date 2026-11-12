@@ -14,6 +14,7 @@
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQuickItem>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -518,6 +519,13 @@ private Q_SLOTS:
         m_listed = {section(QStringLiteral("extender:ok"), QStringLiteral("Section.qml")),
                     failed(QStringLiteral("extender:broken"), QStringLiteral("it failed to load"))};
         AnchorLog log;
+        // The page's frames unregister their anchors from the log as they go,
+        // so they go before it, on a failed check too, rather than in
+        // cleanup() once the log is gone.
+        const auto pageGoesFirst = qScopeGuard([this] {
+            m_slot.reset();
+            m_engine.reset();
+        });
         m_engine = std::make_unique<QQmlEngine>();
         m_engine->rootContext()->setContextProperty(QStringLiteral("buildLog"), &m_buildLog);
         m_engine->rootContext()->setContextProperty(QStringLiteral("anchorLog"), &log);

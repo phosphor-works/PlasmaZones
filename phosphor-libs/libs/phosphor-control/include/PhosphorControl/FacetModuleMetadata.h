@@ -109,8 +109,8 @@ struct PHOSPHORCONTROL_EXPORT FacetSearchEntryMetadata
     QString title;
     QStringList keywords;
     /// The row shows only in advanced mode (SearchEntry::advancedOnly). An
-    /// error on a page that, or whose local parent, shows only in simple
-    /// mode, where search could never offer it.
+    /// error on a page that, or any of whose local ancestors, shows only in
+    /// simple mode, where search could never offer it.
     bool advancedOnly = false;
 };
 
@@ -142,16 +142,19 @@ struct PHOSPHORCONTROL_EXPORT FacetSearchEntryMetadata
 /// `Title` and `Keywords` on a search entry. A locale is written with '_',
 /// never '-': `Name[pt-BR]` is never picked, and parse() warns about it.
 /// phosphor_add_facet_module_metadata() writes the variants into the module's
-/// metadata from its translations when it is built, keyed by the bare
-/// language where that is unambiguous, and keeps a variant written by hand,
-/// which wins over the catalog's. parse() picks the best variant for the
-/// locale, following the locale's UI languages from the most specific form
-/// to the bare language, and skips one that is empty or not of the key's
-/// type. Whether a required key (`Name`, a search entry's `Title`) is there
-/// is decided on its base value alone, so metadata valid in one locale is
-/// valid in all of them. The base values are what lupdate extracts: a string
-/// must hold no control character other than tab and newline, and every
-/// `Keywords` entry must be a non-empty string.
+/// metadata from its translations when it is built, keyed by the language
+/// and its script (`Name[de_Latn]`, `Name[zh_Hant]`) where only one catalog
+/// claims them, so every locale of that language and script finds it, and by
+/// the catalog's own language otherwise. It keeps a usable variant written by
+/// hand, which wins over the catalog's. parse() picks the best variant for
+/// the locale, following the locale's UI languages from the most specific
+/// form to the bare language (`de_Latn_AT`, `de_AT`, `de_Latn`, `de`), and
+/// skips one that is empty or not of the key's type. Whether a required key
+/// (`Name`, a search entry's `Title`) is there is decided on its base value
+/// alone, so metadata valid in one locale is valid in all of them. The base
+/// values are what lupdate extracts: a string must hold no control character
+/// other than tab and newline, no U+FFFE or U+FFFF and no half of a surrogate
+/// pair, and every `Keywords` entry must be a non-empty string.
 ///
 /// `Visibility` is `Always` (the default), `AdvancedOnly` or `SimpleOnly`.
 /// A module must declare at least one page, even one that only adds sections

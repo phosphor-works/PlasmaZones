@@ -39,10 +39,10 @@ function(phosphorcontrol_add_test name)
     # the application type of the QTEST_MAIN tests a decision of this file
     # instead of a side effect of that library's dependencies. A
     # QGuiApplication needs a platform plugin, hence
-    # QT_QPA_PLATFORM=offscreen below. test_facet_slot and test_page_host,
-    # which build QML items, use QTEST_MAIN. A test that uses
-    # QTEST_GUILESS_MAIN needs no plugin. No test creates its own application
-    # object or touches widgets.
+    # QT_QPA_PLATFORM=offscreen below. Of the Facet tests, test_facet_slot
+    # and test_page_host, which build QML items, use QTEST_MAIN, as do most of
+    # the others here. A test that uses QTEST_GUILESS_MAIN needs no plugin. No
+    # test creates its own application object or touches widgets.
     target_link_libraries(${name}
         PRIVATE
             PhosphorControl::PhosphorControl
@@ -433,21 +433,25 @@ _fake_with_config(configthenbreaks 43 "Config Then Breaks")
 
 # Metadata localized from a catalog at build time, with a setting and an
 # advanced-only section to search for, and a second page for the module's
-# keywords and name to find.
+# keywords and name to find, with a setting of its own, which takes its place
+# after the first page does.
 phosphorcontrol_add_fake_module(translated MODE 0
     TS_FILES ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/translated_de.ts
     METADATA [=[{
     "Id": "translated", "ApiVersion": 1, "Name": "Translated", "Keywords": ["module-word"],
     "Pages": [ { "Id": "speed", "Name": "Speed", "Keywords": ["fast", "quick"], "Anchors": ["pointer", "accel"] },
-               { "Id": "extra", "Name": "Extra" } ],
+               { "Id": "extra", "Name": "Extra", "Anchors": ["more"] } ],
     "Search": [ { "Page": "speed", "Anchor": "pointer", "Title": "Pointer speed", "Keywords": ["fast"] },
                 { "Page": "speed", "Anchor": "accel", "Kind": "Section", "Title": "Acceleration",
-                  "AdvancedOnly": true } ] }]=])
+                  "AdvancedOnly": true },
+                { "Page": "extra", "Anchor": "more", "Title": "More options" } ] }]=])
 
-# Dynamic search providers: two well-behaved, one pointing elsewhere, one
-# registered without the metadata flag, one in a registration that breaks the
-# contract otherwise, and the providers module again in a library that cannot
-# be loaded.
+# Dynamic search providers: well-behaved ones (providers, providerstwo),
+# strayprovider pointing elsewhere, undeclaredprovider registered without the
+# metadata flag, providersbroken in a registration that breaks the contract
+# otherwise, badproviders registering a null provider and one twice, and the
+# providers module again in a library that cannot be loaded
+# (providersunloadable).
 # Their one page is "general", like the page-contract variants, so the same
 # keeps-nothing checks cover the ones that break the contract.
 set(_provider_pages [=[ "Pages": [ { "Id": "general", "Name": "General", "Anchors": ["list"] } ] ]=])

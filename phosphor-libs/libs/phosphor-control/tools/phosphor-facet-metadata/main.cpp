@@ -27,14 +27,16 @@
 // runs with -nounfinished) is not in the metadata, so a module that wants its
 // pages and its sidebar entry to agree passes -nounfinished to lrelease.
 //
-// A catalog's `language` is written into the keys with '-' turned into '_',
-// the form parse() matches. lupdate names a catalog for its region (de_DE)
-// however general its translation is, and a user in de_AT matches `Name[de]`
-// but never `Name[de_DE]`. So a regional catalog's strings go under the bare
-// language, unless another catalog claims that language too, the catalog's
-// script is not the language's usual one (zh_TW is Traditional Chinese), or
-// QLocale reads the language part as another language (no_NO is nb). A
-// `Key[<lang>]` the metadata already holds was written by hand and is kept.
+// A catalog's `language` is read with '-' turned into '_'. Its translations
+// go under the language and its script (`Name[de_Latn]` for a de_DE catalog,
+// `Name[zh_Hant]` for zh_TW), which every locale of that language and script
+// lists among its UI languages, so a user in de_AT gets the de_DE catalog
+// while one in zh_TW never gets zh_CN's Simplified Chinese. When two catalogs
+// claim one language and script (de and de_AT), each keeps its own full key.
+// The language part is QLocale's code for it, so a no_NO catalog serves nb
+// users. A usable `Key[<lang>]` the metadata already holds, at the catalog's
+// key or at a less specific form the catalog's would shadow (`Name[de]`),
+// was written by hand and wins.
 
 #include <PhosphorControl/FacetModuleMetadata.h>
 
@@ -362,24 +364,67 @@ std::optional<Catalog> readCatalog(const QString& path)
     return catalog;
 }
 
-// The bare language a regional catalog may serve, or empty: `de` for de_DE,
-// nothing for zh_TW, whose script is not zh's usual one, or for no_NO, whose
-// language QLocale reads as nb. Only the script and the language code come
-// from QLocale, never its name(), which would turn `de` into de_DE.
-QString bareLanguage(const QString& language)
+// The keys a catalog's language can go under. `full` is the language as the
+// catalog spells it, with '-' turned into '_' and the language part in
+// QLocale's code for it (no_NO is nb_NO). `languageScript` is the language
+// and its script (de_Latn for de_DE, zh_Hant for zh_TW, nb_Latn for no_NO),
+// which every locale of that language and script lists among its UI
+// languages, so a user in de_AT matches it as well as one in de_DE. `bare`
+// is the language alone when the script is the language's usual one (de, but
+// nothing for zh_TW), which is how a translation written by hand for the
+// whole language is spelled. Only the codes come from QLocale, never its
+// name(), which would turn `de` into de_DE. A language QLocale does not know,
+// or one whose explicit script QLocale replaced, gets `full` only.
+struct LanguageKeys
 {
-    const qsizetype underscore = language.indexOf(QLatin1Char('_'));
-    if (underscore <= 0) {
-        return QString();
-    }
-    const QString bare = language.left(underscore);
+    QString full;
+    QString languageScript;
+    QString bare;
+};
+
+LanguageKeys languageKeys(const QString& language)
+{
+    const QStringList parts = language.split(QLatin1Char('_'));
     const QLocale locale(language);
-    if (locale.language() == QLocale::C || locale.language() == QLocale::AnyLanguage
-        || QLocale::languageToCode(locale.language()) != bare
-        || locale.script() != QLocale(locale.language()).script()) {
-        return QString();
+    if (locale.language() == QLocale::C || locale.language() == QLocale::AnyLanguage) {
+        return {language, QString(), QString()};
     }
-    return bare;
+    const QString code = QLocale::languageToCode(locale.language());
+    const QString script = QLocale::scriptToCode(locale.script());
+    // A script subtag QLocale has no data for (de_Cyrl) makes it fall back
+    // to the language's usual script, which is not the catalog's.
+    if (parts.size() > 1 && parts.at(1).size() == 4 && parts.at(1).compare(script, Qt::CaseInsensitive) != 0) {
+        return {language, QString(), QString()};
+    }
+    QStringList canonical = parts;
+    canonical.first() = code;
+    const bool usualScript = locale.script() == QLocale(locale.language()).script();
+    return {canonical.join(QLatin1Char('_')), code + QLatin1Char('_') + script, usualScript ? code : QString()};
+}
+
+// A catalog and the language key its translations go under.
+struct Keyed
+{
+    const Catalog* catalog;
+    LanguageKeys language;
+    QString key;
+};
+
+// The keys whose hand-written value the catalog's would shadow: its own key
+// and the less specific forms parse() tries after it for the same user
+// (de_Latn and de after de_AT, de after de_Latn). A more specific one, such
+// as a hand-written de_DE beside a catalog keyed de_Latn, still wins for its
+// users without help, so the catalog serves the rest of the language.
+QStringList handWrittenKeys(const Keyed& entry)
+{
+    QStringList keys{entry.key};
+    if (entry.key != entry.language.languageScript && !entry.language.languageScript.isEmpty()) {
+        keys.append(entry.language.languageScript);
+    }
+    if (!entry.language.bare.isEmpty() && !keys.contains(entry.language.bare)) {
+        keys.append(entry.language.bare);
+    }
+    return keys;
 }
 
 bool localize(QJsonObject root, const QStringList& tsFiles, const QString& out)
@@ -392,19 +437,6 @@ bool localize(QJsonObject root, const QStringList& tsFiles, const QString& out)
         }
         catalogs.push_back(std::move(*catalog));
     }
-    // By language, then path, so neither the outcome nor the messages depend
-    // on the order the build lists the files in.
-    std::sort(catalogs.begin(), catalogs.end(), [](const Catalog& a, const Catalog& b) {
-        return a.language != b.language ? a.language < b.language : a.path < b.path;
-    });
-    for (std::size_t i = 1; i < catalogs.size(); ++i) {
-        if (catalogs[i].language == catalogs[i - 1].language) {
-            fail(QStringLiteral("%1 and %2 are both catalogs for %3, and which one the metadata should use is "
-                                "unclear")
-                     .arg(catalogs[i - 1].path, catalogs[i].path, catalogs[i].language));
-            return false;
-        }
-    }
     const QRegularExpression localePattern(QRegularExpression::anchoredPattern(QString(Keys::LocalePattern)));
     std::erase_if(catalogs, [&localePattern](const Catalog& catalog) {
         if (localePattern.match(catalog.language).hasMatch()) {
@@ -414,28 +446,49 @@ bool localize(QJsonObject root, const QStringList& tsFiles, const QString& out)
                  .arg(catalog.path, catalog.language));
         return true;
     });
+    std::vector<Keyed> keyed;
     QHash<QString, int> claims;
     for (const Catalog& catalog : catalogs) {
-        const QString bare = bareLanguage(catalog.language);
-        ++claims[bare.isEmpty() ? catalog.language : bare];
+        keyed.push_back({&catalog, languageKeys(catalog.language), QString()});
+        if (!keyed.back().language.languageScript.isEmpty()) {
+            ++claims[keyed.back().language.languageScript];
+        }
     }
-    struct Keyed
-    {
-        const Catalog* catalog;
-        QString key;
-    };
-    std::vector<Keyed> keyed;
-    for (const Catalog& catalog : catalogs) {
-        const QString bare = bareLanguage(catalog.language);
-        const bool ownsBare = !bare.isEmpty() && claims.value(bare) == 1;
-        keyed.push_back({&catalog, ownsBare ? bare : catalog.language});
+    for (Keyed& entry : keyed) {
+        const QString& languageScript = entry.language.languageScript;
+        entry.key =
+            !languageScript.isEmpty() && claims.value(languageScript) == 1 ? languageScript : entry.language.full;
+    }
+    // By key, then path, so neither the outcome nor the messages depend on
+    // the order the build lists the files in.
+    std::sort(keyed.begin(), keyed.end(), [](const Keyed& a, const Keyed& b) {
+        return a.key != b.key ? a.key < b.key : a.catalog->path < b.catalog->path;
+    });
+    for (std::size_t i = 1; i < keyed.size(); ++i) {
+        if (keyed[i].key == keyed[i - 1].key) {
+            fail(QStringLiteral("%1 and %2 are both catalogs for %3, and which one the metadata should use is "
+                                "unclear")
+                     .arg(keyed[i - 1].catalog->path, keyed[i].catalog->path, keyed[i].key));
+            return false;
+        }
     }
 
     forEachField(root, [&](QJsonObject& object, const Field& field) {
+        const Keys::Localizable kind = field.list ? Keys::Localizable::List : Keys::Localizable::String;
+        // What was written by hand, before any catalog adds to it.
+        const QJsonObject handWritten = object;
+        const auto localizedKey = [&field](const QString& language) {
+            return field.key + QLatin1Char('[') + language + QLatin1Char(']');
+        };
         for (const Keyed& entry : keyed) {
-            const QString localizedKey = field.key + QLatin1Char('[') + entry.key + QLatin1Char(']');
-            // Written by hand, which wins over the catalog.
-            if (object.contains(localizedKey)) {
+            // A usable translation written by hand wins over the catalog's,
+            // at the catalog's key and at the less specific ones, which the
+            // catalog's would otherwise shadow. An empty one is no
+            // translation, as parse() reads it.
+            const QStringList forms = handWrittenKeys(entry);
+            if (std::any_of(forms.begin(), forms.end(), [&](const QString& form) {
+                    return Keys::isUsable(handWritten.value(localizedKey(form)), kind);
+                })) {
                 continue;
             }
             const QHash<QString, QString>& messages = entry.catalog->messages;
@@ -451,12 +504,12 @@ bool localize(QJsonObject root, const QStringList& tsFiles, const QString& out)
                     translated.append(text.isEmpty() ? item : QJsonValue(text));
                 }
                 if (any) {
-                    object.insert(localizedKey, translated);
+                    object.insert(localizedKey(entry.key), translated);
                 }
             } else {
                 const QString text = messages.value(object.value(field.key).toString());
                 if (!text.isEmpty()) {
-                    object.insert(localizedKey, text);
+                    object.insert(localizedKey(entry.key), text);
                 }
             }
         }

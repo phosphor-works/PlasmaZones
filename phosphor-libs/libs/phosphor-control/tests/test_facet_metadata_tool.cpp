@@ -190,7 +190,7 @@ private Q_SLOTS:
         QVERIFY2(errors.isEmpty(), qPrintable(errors));
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
         // The description has no translation, so it gets no key.
-        QVERIFY(!json.contains(QStringLiteral("Description[fr]")));
+        QVERIFY(!json.contains(QStringLiteral("Description[fr_Latn]")));
 
         QStringList parseErrors;
         QStringList warnings;
@@ -226,23 +226,62 @@ private Q_SLOTS:
         const QString outcome = run(0, {QStringLiteral("localize"), source, out, ts});
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
-        QCOMPARE(json.value(QStringLiteral("Name[fr]")).toString(), QStringLiteral("Bonjour"));
+        QCOMPARE(json.value(QStringLiteral("Name[fr_Latn]")).toString(), QStringLiteral("Bonjour"));
         // An untranslated keyword keeps its source text: a search term in
         // the source language still finds the page.
-        QCOMPARE(json.value(QStringLiteral("Keywords[fr]")).toVariant().toStringList(),
+        QCOMPARE(json.value(QStringLiteral("Keywords[fr_Latn]")).toVariant().toStringList(),
                  (QStringList{QStringLiteral("one"), QStringLiteral("deux")}));
         // The page name has no translation, so it gets no key.
         const QJsonObject page = json.value(QStringLiteral("Pages")).toArray().first().toObject();
-        QVERIFY(!page.contains(QStringLiteral("Name[fr]")));
+        QCOMPARE(keysStartingWith(page, QStringLiteral("Name[")), QStringList());
+    }
+
+    void keepsHandWrittenTranslations_data()
+    {
+        QTest::addColumn<QByteArray>("metadata");
+        QTest::addColumn<QString>("name");
+        QTest::addColumn<QStringList>("keywords");
+        QTest::addColumn<QStringList>("nameKeys");
+        // The catalog is fr's, keyed fr_Latn, and fr_FR is the user.
+        QTest::newRow("for the language")
+            << QByteArray(
+                   R"({ "Id": "m", "Name": "Hello", "Name[fr]": "Salut", "Keywords": ["one"], "Keywords[fr]": ["un"],
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })")
+            << QStringLiteral("Salut") << QStringList{QStringLiteral("un")} << QStringList{QStringLiteral("Name[fr]")};
+        QTest::newRow("at the catalog's key") << QByteArray(
+            R"({ "Id": "m", "Name": "Hello", "Name[fr_Latn]": "Salut", "Keywords": ["one"],
+                 "Keywords[fr_Latn]": ["un"], "Pages": [ { "Id": "p", "Name": "P" } ] })")
+                                              << QStringLiteral("Salut") << QStringList{QStringLiteral("un")}
+                                              << QStringList{QStringLiteral("Name[fr_Latn]")};
+        // parse() skips an empty variant, so it is no translation and the
+        // catalog's is used.
+        QTest::newRow("empty") << QByteArray(
+            R"({ "Id": "m", "Name": "Hello", "Name[fr]": "", "Keywords": ["one"], "Keywords[fr]": [],
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })")
+                               << QStringLiteral("Bonjour") << QStringList{QStringLiteral("une")}
+                               << QStringList{QStringLiteral("Name[fr]"), QStringLiteral("Name[fr_Latn]")};
+        QTest::newRow("empty at the catalog's key") << QByteArray(
+            R"({ "Id": "m", "Name": "Hello", "Name[fr_Latn]": "", "Keywords": ["one"], "Keywords[fr_Latn]": [""],
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })")
+                                                    << QStringLiteral("Bonjour") << QStringList{QStringLiteral("une")}
+                                                    << QStringList{QStringLiteral("Name[fr_Latn]")};
+        // A user in fr_CA gets the hand-written one either way, so the rest
+        // of the language still gets the catalog's.
+        QTest::newRow("for one region") << QByteArray(
+            R"({ "Id": "m", "Name": "Hello", "Name[fr_CA]": "Salut", "Keywords": ["one"], "Keywords[fr_CA]": ["un"],
+                 "Pages": [ { "Id": "p", "Name": "P" } ] })")
+                                        << QStringLiteral("Bonjour") << QStringList{QStringLiteral("une")}
+                                        << QStringList{QStringLiteral("Name[fr_CA]"), QStringLiteral("Name[fr_Latn]")};
     }
 
     void keepsHandWrittenTranslations()
     {
+        QFETCH(QByteArray, metadata);
+        QFETCH(QString, name);
+        QFETCH(QStringList, keywords);
+        QFETCH(QStringList, nameKeys);
         QString source;
-        QVERIFY(write(QStringLiteral("m.json"),
-                      R"({ "Id": "m", "Name": "Hello", "Name[fr]": "Salut", "Keywords": ["one"],
-                           "Keywords[fr]": ["un"], "Pages": [ { "Id": "p", "Name": "P" } ] })",
-                      &source));
+        QVERIFY(write(QStringLiteral("m.json"), metadata, &source));
         QString ts;
         QVERIFY(write(QStringLiteral("m_fr.ts"),
                       catalog(QStringLiteral("fr"),
@@ -254,12 +293,14 @@ private Q_SLOTS:
         const QString outcome = run(0, {QStringLiteral("localize"), source, out, ts});
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
-        QCOMPARE(json.value(QStringLiteral("Name[fr]")).toString(), QStringLiteral("Salut"));
-        QCOMPARE(json.value(QStringLiteral("Keywords[fr]")).toVariant().toStringList(),
-                 QStringList{QStringLiteral("un")});
+        QCOMPARE(keysStartingWith(json, QStringLiteral("Name[")), nameKeys);
+        QStringList errors;
+        const FacetModuleMetadata parsed = FacetModuleMetadata::parse(json, QLocale(QStringLiteral("fr_FR")), &errors);
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
+        QCOMPARE(parsed.name, name);
+        QCOMPARE(parsed.keywords, keywords);
         // What was not written by hand is still translated.
-        const QJsonObject page = json.value(QStringLiteral("Pages")).toArray().first().toObject();
-        QCOMPARE(page.value(QStringLiteral("Name[fr]")).toString(), QStringLiteral("Pé"));
+        QCOMPARE(parsed.pages.first().name, QStringLiteral("Pé"));
     }
 
     void usesOnlyFinishedTranslationsInItsContext_data()
@@ -296,6 +337,12 @@ private Q_SLOTS:
             "Hello</source><translation><numerusform>Bonjour</numerusform>"
             "</translation></message></context>")
                                 << false;
+        // Marked plural, with a plain translation: the mark alone rules it
+        // out.
+        QTest::newRow("plural without forms") << QByteArray(
+            "<context><name>FacetModule</name><message numerus=\"yes\"><source>Hello</source>"
+            "<translation>Bonjour</translation></message></context>")
+                                              << false;
         QTest::newRow("length variants") << QByteArray(
             "<context><name>FacetModule</name><message><source>Hello</source><translation "
             "variants=\"yes\"><lengthvariant>Bonjour</lengthvariant><lengthvariant>Bjr"
@@ -315,7 +362,7 @@ private Q_SLOTS:
         const QString outcome = run(0, {QStringLiteral("localize"), source, out, ts});
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
-        QCOMPARE(json.value(QStringLiteral("Name[fr]")).toString(), used ? QStringLiteral("Bonjour") : QString());
+        QCOMPARE(json.value(QStringLiteral("Name[fr_Latn]")).toString(), used ? QStringLiteral("Bonjour") : QString());
     }
 
     void readsMessagesItDoesNotUse_data()
@@ -355,7 +402,7 @@ private Q_SLOTS:
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         QVERIFY2(errors.isEmpty(), qPrintable(errors));
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
-        QCOMPARE(json.value(QStringLiteral("Name[fr]")).toString(), QStringLiteral("Bonjour"));
+        QCOMPARE(json.value(QStringLiteral("Name[fr_Latn]")).toString(), QStringLiteral("Bonjour"));
     }
 
     void decodesControlCharactersInMessages()
@@ -373,50 +420,59 @@ private Q_SLOTS:
         const QString outcome = run(0, {QStringLiteral("localize"), source, out, ts});
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
-        QCOMPARE(json.value(QStringLiteral("Name[fr]")).toString(), QStringLiteral("Onglet\tici"));
+        QCOMPARE(json.value(QStringLiteral("Name[fr_Latn]")).toString(), QStringLiteral("Onglet\tici"));
     }
 
     void keysEachCatalogByTheLanguageUsersMatch_data()
     {
         QTest::addColumn<QStringList>("languages");
         QTest::addColumn<QStringList>("keys");
-        QTest::addColumn<QString>("userLocale");
-        QTest::addColumn<QString>("name");
-        // Translations are the catalog's language, so the name says which
-        // one a user got.
+        // User locale -> the name parse() gives that user. Translations are
+        // the catalog's language, so the name says which catalog a user got.
+        QTest::addColumn<QStringList>("users");
         QTest::newRow("regional catalog serves the language")
-            << QStringList{QStringLiteral("de_DE")} << QStringList{QStringLiteral("Name[de]")}
-            << QStringLiteral("de_AT") << QStringLiteral("de_DE");
-        QTest::newRow("dash") << QStringList{QStringLiteral("pt-BR")} << QStringList{QStringLiteral("Name[pt]")}
-                              << QStringLiteral("pt_BR") << QStringLiteral("pt-BR");
+            << QStringList{QStringLiteral("de_DE")} << QStringList{QStringLiteral("Name[de_Latn]")}
+            << QStringList{QStringLiteral("de_AT=de_DE"), QStringLiteral("de_CH=de_DE"), QStringLiteral("de_DE=de_DE")};
+        QTest::newRow("dash") << QStringList{QStringLiteral("pt-BR")} << QStringList{QStringLiteral("Name[pt_Latn]")}
+                              << QStringList{QStringLiteral("pt_BR=pt-BR"), QStringLiteral("pt_PT=pt-BR")};
         QTest::newRow("two regions of one language")
             << QStringList{QStringLiteral("pt-BR"), QStringLiteral("pt_PT")}
-            << QStringList{QStringLiteral("Name[pt_BR]"), QStringLiteral("Name[pt_PT]")} << QStringLiteral("pt_PT")
-            << QStringLiteral("pt_PT");
+            << QStringList{QStringLiteral("Name[pt_BR]"), QStringLiteral("Name[pt_PT]")}
+            << QStringList{QStringLiteral("pt_PT=pt_PT"), QStringLiteral("pt_BR=pt-BR")};
         QTest::newRow("language and one region")
             << QStringList{QStringLiteral("de_AT"), QStringLiteral("de")}
-            << QStringList{QStringLiteral("Name[de]"), QStringLiteral("Name[de_AT]")} << QStringLiteral("de_CH")
-            << QStringLiteral("de");
-        // Traditional Chinese is not for every zh user.
-        QTest::newRow("script other than the language's usual one")
-            << QStringList{QStringLiteral("zh_TW")} << QStringList{QStringLiteral("Name[zh_TW]")}
-            << QStringLiteral("zh_CN") << QStringLiteral("Hello");
+            << QStringList{QStringLiteral("Name[de]"), QStringLiteral("Name[de_AT]")}
+            << QStringList{QStringLiteral("de_CH=de"), QStringLiteral("de_DE=de"), QStringLiteral("de_AT=de_AT")};
+        // Simplified Chinese is not for a user who reads Traditional.
+        QTest::newRow("Simplified Chinese")
+            << QStringList{QStringLiteral("zh_CN")} << QStringList{QStringLiteral("Name[zh_Hans]")}
+            << QStringList{QStringLiteral("zh_CN=zh_CN"), QStringLiteral("zh_TW=Hello"), QStringLiteral("zh_HK=Hello")};
+        QTest::newRow("Traditional Chinese")
+            << QStringList{QStringLiteral("zh_TW")} << QStringList{QStringLiteral("Name[zh_Hant]")}
+            << QStringList{QStringLiteral("zh_TW=zh_TW"), QStringLiteral("zh_HK=zh_TW"), QStringLiteral("zh_CN=Hello")};
+        QTest::newRow("both Chinese scripts")
+            << QStringList{QStringLiteral("zh_TW"), QStringLiteral("zh_CN")}
+            << QStringList{QStringLiteral("Name[zh_Hans]"), QStringLiteral("Name[zh_Hant]")}
+            << QStringList{QStringLiteral("zh_CN=zh_CN"), QStringLiteral("zh_TW=zh_TW"), QStringLiteral("zh_HK=zh_TW")};
         QTest::newRow("explicit script") << QStringList{QStringLiteral("sr_Latn_RS")}
-                                         << QStringList{QStringLiteral("Name[sr_Latn_RS]")}
-                                         << QStringLiteral("sr_Latn_RS") << QStringLiteral("sr_Latn_RS");
-        // QLocale reads `no` as Norwegian Bokmål, nb, so `no` is no bare
-        // language a locale matches.
+                                         << QStringList{QStringLiteral("Name[sr_Latn]")}
+                                         << QStringList{QStringLiteral("sr_Latn_RS=sr_Latn_RS"),
+                                                        QStringLiteral("sr_RS=Hello")};
+        QTest::newRow("the language's usual script")
+            << QStringList{QStringLiteral("sr_RS")} << QStringList{QStringLiteral("Name[sr_Cyrl]")}
+            << QStringList{QStringLiteral("sr_RS=sr_RS"), QStringLiteral("sr_Latn_RS=Hello")};
+        // QLocale reads `no` as Norwegian Bokmål, nb, and so do the locales
+        // of nb users.
         QTest::newRow("language QLocale reads as another")
-            << QStringList{QStringLiteral("no_NO")} << QStringList{QStringLiteral("Name[no_NO]")}
-            << QStringLiteral("nb_NO") << QStringLiteral("Hello");
+            << QStringList{QStringLiteral("no_NO")} << QStringList{QStringLiteral("Name[nb_Latn]")}
+            << QStringList{QStringLiteral("nb_NO=no_NO"), QStringLiteral("no_NO=no_NO")};
     }
 
     void keysEachCatalogByTheLanguageUsersMatch()
     {
         QFETCH(QStringList, languages);
         QFETCH(QStringList, keys);
-        QFETCH(QString, userLocale);
-        QFETCH(QString, name);
+        QFETCH(QStringList, users);
         QString source;
         QVERIFY(write(QStringLiteral("m.json"), ValidMetadata, &source));
         QStringList arguments{QStringLiteral("localize"), source, m_dir->filePath(QStringLiteral("out.json"))};
@@ -432,25 +488,44 @@ private Q_SLOTS:
         QVERIFY2(errors.isEmpty(), qPrintable(errors));
         const QJsonObject json = QJsonDocument::fromJson(read(arguments.at(2)).toUtf8()).object();
         QCOMPARE(keysStartingWith(json, QStringLiteral("Name[")), keys);
-        QStringList parseErrors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(json, QLocale(userLocale), &parseErrors);
-        QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
-        QCOMPARE(metadata.name, name);
+        for (const QString& user : std::as_const(users)) {
+            const QStringList pair = user.split(QLatin1Char('='));
+            QCOMPARE(pair.size(), 2);
+            QStringList parseErrors;
+            const FacetModuleMetadata metadata = FacetModuleMetadata::parse(json, QLocale(pair.first()), &parseErrors);
+            QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
+            QVERIFY2(metadata.name == pair.last(), qPrintable(QStringLiteral("%1 got %2").arg(user, metadata.name)));
+        }
+    }
+
+    void refusesTwoCatalogsForOneLanguage_data()
+    {
+        QTest::addColumn<QString>("first");
+        QTest::addColumn<QString>("second");
+        QTest::addColumn<QString>("key");
+        QTest::newRow("spelled two ways")
+            << QStringLiteral("pt-BR") << QStringLiteral("pt_BR") << QStringLiteral("pt_BR");
+        // QLocale reads no as nb.
+        QTest::newRow("language QLocale reads as another")
+            << QStringLiteral("no_NO") << QStringLiteral("nb_NO") << QStringLiteral("nb_NO");
     }
 
     void refusesTwoCatalogsForOneLanguage()
     {
+        QFETCH(QString, first);
+        QFETCH(QString, second);
+        QFETCH(QString, key);
         QString source;
         QVERIFY(write(QStringLiteral("m.json"), ValidMetadata, &source));
-        QString dash;
-        QString underscore;
-        QVERIFY(write(QStringLiteral("a.ts"), catalog(QStringLiteral("pt-BR"), {}), &dash));
-        QVERIFY(write(QStringLiteral("b.ts"), catalog(QStringLiteral("pt_BR"), {}), &underscore));
+        QString a;
+        QString b;
+        QVERIFY(write(QStringLiteral("a.ts"), catalog(first, {}), &a));
+        QVERIFY(write(QStringLiteral("b.ts"), catalog(second, {}), &b));
         QString errors;
         const QString out = m_dir->filePath(QStringLiteral("out.json"));
-        const QString outcome = run(1, {QStringLiteral("localize"), source, out, underscore, dash}, &errors);
+        const QString outcome = run(1, {QStringLiteral("localize"), source, out, b, a}, &errors);
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
-        QVERIFY2(errors.contains(QStringLiteral("%1 and %2 are both catalogs for pt_BR").arg(dash, underscore)),
+        QVERIFY2(errors.contains(QStringLiteral("%1 and %2 are both catalogs for %3").arg(a, b, key)),
                  qPrintable(errors));
         QVERIFY(!QFile::exists(out));
     }

@@ -11,6 +11,8 @@
 #include <QDebug>
 #include <QLatin1Char>
 
+#include <utility>
+
 namespace PhosphorControl {
 
 namespace {
@@ -150,10 +152,30 @@ void SearchController::unregisterProvider(ISearchProvider* provider)
 void SearchController::invalidate()
 {
     m_indexDirty = true;
+    if (m_updateHolds > 0) {
+        m_rebuildHeld = true;
+        return;
+    }
     // Refresh live results if a query is active; otherwise the rebuild happens
     // lazily on the next setQuery.
     if (!m_query.trimmed().isEmpty()) {
         recompute();
+    }
+}
+
+void SearchController::holdUpdates()
+{
+    ++m_updateHolds;
+}
+
+void SearchController::releaseUpdates()
+{
+    if (m_updateHolds == 0) {
+        qWarning() << "SearchController: releaseUpdates() without holdUpdates() is ignored";
+        return;
+    }
+    if (--m_updateHolds == 0 && std::exchange(m_rebuildHeld, false)) {
+        invalidate();
     }
 }
 
@@ -334,7 +356,11 @@ QVector<SearchEntry> SearchController::buildIndex()
         entries.push_back(e);
     }
 
-    for (const ISearchProvider* provider : m_providers) {
+    // A copy, since a provider's searchEntries() may register or unregister
+    // providers. One unregistered by an earlier one in this pass is skipped
+    // rather than asked, as it may be gone.
+    const QVector<ISearchProvider*> providers = m_providers;
+    for (ISearchProvider* const provider : providers) {
         // No null check: registerProvider rejects nullptr and dedupes, and
         // unregisterProvider removes the entry outright, so an entry here is
         // always non-null. A check would read as protection against the
@@ -342,6 +368,9 @@ QVector<SearchEntry> SearchController::buildIndex()
         // without unregisterProvider), which it cannot detect:
         // ISearchProvider is not a QObject, so there is nothing to QPointer.
         // Provider lifetime stays the caller's contract.
+        if (!m_providers.contains(provider)) {
+            continue;
+        }
         const QVector<SearchEntry> provided = provider->searchEntries();
         for (SearchEntry e : provided) {
             if (!classifyMode(e)) {

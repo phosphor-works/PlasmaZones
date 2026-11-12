@@ -106,15 +106,9 @@ QStringList stringList(const QJsonValue& value)
 // list counts as empty when it holds no non-empty string.
 QJsonValue localized(const QJsonObject& json, QLatin1String key, Localizable kind, const QStringList& variants)
 {
-    const auto usable = [kind](const QJsonValue& value) {
-        if (kind == Localizable::String) {
-            return value.isString() && !value.toString().isEmpty();
-        }
-        return !stringList(value).isEmpty();
-    };
     for (const QString& variant : variants) {
         const auto it = json.constFind(key + QLatin1Char('[') + variant + QLatin1Char(']'));
-        if (it != json.cend() && usable(*it)) {
+        if (it != json.cend() && FacetMetadataKeys::isUsable(*it, kind)) {
             return *it;
         }
     }
@@ -206,32 +200,52 @@ bool baseKindOk(const QJsonObject& json, QLatin1String key, Localizable kind, co
     return true;
 }
 
-// Whether @p text holds a control character other than tab and newline.
-bool hasControlCharacter(QStringView text)
+// Whether @p text holds a character a source string must not: a control
+// character other than tab and newline, U+FFFE or U+FFFF, or half of a
+// surrogate pair.
+bool hasUnfitCharacter(QStringView text)
 {
-    return std::any_of(text.begin(), text.end(), [](QChar c) {
-        return c.unicode() < 0x20 && c != QLatin1Char('\t') && c != QLatin1Char('\n');
-    });
+    for (qsizetype i = 0; i < text.size(); ++i) {
+        const QChar c = text.at(i);
+        if (c.unicode() < 0x20 && c != QLatin1Char('\t') && c != QLatin1Char('\n')) {
+            return true;
+        }
+        if (c.unicode() == 0xfffe || c.unicode() == 0xffff) {
+            return true;
+        }
+        if (c.isHighSurrogate() && i + 1 < text.size() && text.at(i + 1).isLowSurrogate()) {
+            ++i;
+        } else if (c.isSurrogate()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // The base values of the localizable keys in @p keys, which are the source
-// strings lupdate extracts. A control character other than tab and newline
-// is a problem: lupdate drops a message holding a carriage return or a NUL
-// without a word, so the string could never be translated. A list's entries
-// must be non-empty strings, as an `Anchors` list's must, rather than being
-// dropped without a word. The `[<locale>]` variants are not checked: they
-// never reach lupdate, and one that is not usable is skipped (localized()).
+// strings lupdate extracts. An unfit character (hasUnfitCharacter()) is a
+// problem. A control character is never text a user should see in a name,
+// title or keyword, and lupdate can only carry one into a catalog as a
+// `<byte>` element, which translation tools show as a code. lupdate writes
+// U+FFFE and U+FFFF into the catalog as they are, which XML cannot hold, so
+// lrelease and the tool refuse the whole catalog. A lone surrogate becomes
+// U+FFFD in the strings file lupdate reads, so its message is never the
+// metadata's and is never translated. A list's entries must be non-empty
+// strings, as an `Anchors` list's must, rather than being dropped without a
+// word. The `[<locale>]` variants are not checked: they never reach lupdate,
+// and one that is not usable is skipped (localized()).
 void checkLocalizableText(const QJsonObject& json, KeyTable keys, const QString& where, QStringList* problems)
 {
-    const auto controlProblem = [&](QLatin1String key) {
-        problems->append(
-            QStringLiteral("%1\"%2\" holds a control character other than tab and newline").arg(where, key));
+    const auto unfitProblem = [&](QLatin1String key) {
+        problems->append(QStringLiteral("%1\"%2\" holds a character it may not: a control character other than "
+                                        "tab and newline, U+FFFE, U+FFFF or half of a surrogate pair")
+                             .arg(where, key));
     };
     for (const FacetMetadataKeys::Key& key : keys) {
         const QJsonValue value = json.value(key.name);
         if (key.localizable == Localizable::String && value.isString()) {
-            if (hasControlCharacter(value.toString())) {
-                controlProblem(key.name);
+            if (hasUnfitCharacter(value.toString())) {
+                unfitProblem(key.name);
             }
         } else if (key.localizable == Localizable::List && value.isArray()) {
             const QJsonArray items = value.toArray();
@@ -241,8 +255,8 @@ void checkLocalizableText(const QJsonObject& json, KeyTable keys, const QString&
                         QStringLiteral("%1every \"%2\" entry must be a non-empty string").arg(where, key.name));
                     break;
                 }
-                if (hasControlCharacter(item.toString())) {
-                    controlProblem(key.name);
+                if (hasUnfitCharacter(item.toString())) {
+                    unfitProblem(key.name);
                     break;
                 }
             }
@@ -436,12 +450,18 @@ FacetModuleMetadata FacetModuleMetadata::parse(const QJsonObject& json, const QL
         // A bad anchor is reported and the page kept, so the search entries
         // and children that name the page do not each add an error of their
         // own. The module is refused either way.
+        // A bad entry is reported once and skipped, so the anchors after it
+        // are still read.
         QSet<QString> anchorSet;
+        bool reportedNonString = false;
         const QJsonArray anchors = arrayValue(object, QLatin1String("Anchors"), where, &problems);
         for (const QJsonValue& value : anchors) {
             if (!value.isString() || value.toString().isEmpty()) {
-                problems.append(QStringLiteral("%1every \"Anchors\" entry must be a non-empty string").arg(where));
-                break;
+                if (!reportedNonString) {
+                    problems.append(QStringLiteral("%1every \"Anchors\" entry must be a non-empty string").arg(where));
+                    reportedNonString = true;
+                }
+                continue;
             }
             const QString anchor = value.toString();
             if (!anchorPattern().match(anchor).hasMatch()) {

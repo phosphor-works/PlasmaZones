@@ -10,9 +10,12 @@
 // table, so a key the parser learns is a key the tool translates. Private:
 // the tool is built from this source tree and nothing else includes it.
 
+#include <QJsonArray>
+#include <QJsonValue>
 #include <QLatin1String>
 #include <QtTypes>
 
+#include <algorithm>
 #include <span>
 
 namespace PhosphorControl::FacetMetadataKeys {
@@ -30,6 +33,24 @@ enum class Localizable : quint8 {
     /// A list of strings, with `Key[<locale>]` variants.
     List,
 };
+
+/// Whether @p value can stand for a localizable key of kind @p kind: a
+/// non-empty string, or a list holding at least one non-empty string. A
+/// `Key[<locale>]` variant that is not is skipped by parse(), and the tool
+/// does not count one as a translation written by hand.
+inline bool isUsable(const QJsonValue& value, Localizable kind)
+{
+    if (kind == Localizable::String) {
+        return value.isString() && !value.toString().isEmpty();
+    }
+    if (kind == Localizable::List && value.isArray()) {
+        const QJsonArray items = value.toArray();
+        return std::any_of(items.begin(), items.end(), [](const QJsonValue& item) {
+            return item.isString() && !item.toString().isEmpty();
+        });
+    }
+    return false;
+}
 
 struct Key
 {

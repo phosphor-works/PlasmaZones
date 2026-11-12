@@ -57,7 +57,7 @@ library provides:
 | `PhosphorControl::IFacetModule`           | The interface a Facet module's root object implements (`registerInto(FacetContext&)`), IID `org.phosphor_works.Facet.Module/1` |
 | `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, the categories it defines, pages and their anchors, extension points, extensions, search entries, and whether it registers search providers), parsed and validated per locale |
 | `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, the domain and QML of each section it adds to another module's page, and its search providers (`registerSearchProvider`). It also hands out one config backend per file, shared by every module that writes it |
-| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened, or, for a module with search providers, the first time a search query is not blank. With a `SearchController` it lists every module's pages and search entries before they load |
+| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened, or, for a module with search providers, while a search query is not blank and it has not loaded yet. With a `SearchController` it lists every module's pages and search entries before they load |
 | `PhosphorControl::FacetSlotModel`         | The sections in one slot of one page, for `FacetSlot`: reads `extensionsFor` again on `extensionsChanged` and keeps the row of a section that stays |
 | `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI: metadata, registration, staging, search providers, extension targets and anchor stability. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
 | `phosphor-facet-metadata`                 | Build tool behind `phosphor_add_facet_module_metadata()`: validates a module's metadata, adds `Key[<lang>]` translations from its `.ts` files, and writes its anchor list and lupdate strings |
@@ -150,8 +150,9 @@ records. Facet then checks the whole registration and binds every page
 (`ApplicationController::bindPage`) and domain at once, or, when anything is
 wrong (a page or extension the metadata does not declare, a skipped page or
 extension, one registered twice, a controller with the wrong id, a page or
-section without QML, a search provider that is null, registered twice or
-registered without `"SearchProviders": true` in the metadata), keeps none of
+section without QML, a search provider that is null, registered twice,
+registered without `"SearchProviders": true` in the metadata, living in
+another thread or deleted while the module registered), keeps none of
 it and fails the module with the reason. The one call that does more than record is
 `FacetContext::configBackend` (below): it shares the file's backend at once,
 and the backend stays shared when the registration is not kept. A module that
@@ -218,7 +219,10 @@ by default (`PhosphorRegistry::PluginCatalog` lists the whole search path).
 `KDE_INSTALL_QTPLUGINDIR` below comes from ECM's `KDEInstallDirs6`:
 
 ```cmake
+find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(PhosphorControl REQUIRED)
+# AUTOMOC, which Q_PLUGIN_METADATA needs.
+qt_standard_project_setup()
 
 qt_add_plugin(facet_module_mine)
 target_sources(facet_module_mine PRIVATE mymodule.cpp)
@@ -248,14 +252,18 @@ such as a symbolic link. `phosphor_add_facet_module_metadata()` stops the
 configure in each of these cases.
 
 The translations come from the module's catalogs: every finished translation
-in context `FacetModule` is added as `Key[<lang>]`. The language is the
-catalog's with `-` turned into `_`, and a regional catalog such as `de_DE` is
-keyed by the bare language (`de`), so a user in `de_AT` gets it too, unless
-that would be wrong or ambiguous, as when another catalog claims that
-language or the region writes it in another script (`zh_TW`). A `Key[<lang>]` written in the metadata by hand wins over
-the catalog. An unfinished translation is left out, while `lrelease` ships it
-unless given `-nounfinished`, so pass that for a module's pages to read in
-the same language as its sidebar entry.
+in context `FacetModule` is added as `Key[<lang>]`. A catalog is keyed by its
+language and that language's script, so `de_DE` becomes `Key[de_Latn]` and
+`zh_TW` becomes `Key[zh_Hant]`. Every locale lists that form among its UI
+languages, so a user in `de_AT` gets the `de_DE` catalog while one in `zh_TW`
+never gets the Simplified Chinese of `zh_CN`. When two catalogs claim one
+language and script (`de` and `de_AT`), each is keyed by its own language,
+with `-` turned into `_`. The language is the code Qt gives it, so a `no_NO`
+catalog serves `nb` users. A `Key[<lang>]` written in the metadata by hand
+wins over the catalog, at the catalog's key or a less specific one
+(`Key[de]`), unless it is empty. An unfinished translation is left out, while
+`lrelease` ships it unless given `-nounfinished`, so pass that for a module's
+pages to read in the same language as its sidebar entry.
 
 `FACET_STRINGS_FILE` holds the metadata's strings for `lupdate`, in context
 `FacetModule`. The build writes it (the target `<target>_facet_metadata`), so

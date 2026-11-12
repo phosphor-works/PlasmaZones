@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QScopeGuard>
 #include <QTest>
 #include <QThread>
 
@@ -241,14 +242,31 @@ private Q_SLOTS:
         // On a thread with a small stack, so a walk that recursed once per
         // level would overflow it and crash the test instead of passing on
         // the main thread's megabytes.
-        QStringList errors;
-        FacetModuleMetadata metadata;
-        std::unique_ptr<QThread> thread(QThread::create([&] {
-            metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        // The thread works on its own copies, which the shared pointers keep
+        // alive should the wait time out and the test return while it runs.
+        struct Result
+        {
+            QStringList errors;
+            FacetModuleMetadata metadata;
+        };
+        const auto result = std::make_shared<Result>();
+        std::unique_ptr<QThread> thread(QThread::create([result, object] {
+            result->metadata = FacetModuleMetadata::parse(object, QLocale::c(), &result->errors);
         }));
         thread->setStackSize(256 * 1024);
         thread->start();
+        // Destroying a QThread that still runs aborts the process, so one
+        // that overran the wait is stopped first and the test fails instead.
+        auto stop = qScopeGuard([&thread] {
+            if (thread->isRunning()) {
+                thread->terminate();
+                thread->wait();
+            }
+        });
         QVERIFY(thread->wait(QDeadlineTimer(60000)));
+        stop.dismiss();
+        const QStringList& errors = result->errors;
+        const FacetModuleMetadata& metadata = result->metadata;
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.pages.size(), 5000);
         QCOMPARE(metadata.pages.last().id, QStringLiteral("p4999"));
@@ -411,16 +429,9 @@ private Q_SLOTS:
         QTest::newRow("extension") << QByteArray(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
                           "Extensions": [ { "Id": "e", "Target": 3, "Slot": "top", "Name": "E" } ] })")
                                    << QStringLiteral("extension e: \"Target\" must be a string");
-        // Not also "has no Title", nor "names anchor", for the value the
-        // wrong type leaves empty.
-        QTest::newRow("search entry title")
-            << QByteArray(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
-                          "Search": [ { "Page": "p", "Anchor": "a", "Title": ["T"] } ] })")
-            << QStringLiteral("search entry p#a: \"Title\" must be a string");
-        QTest::newRow("search entry anchor")
-            << QByteArray(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
-                          "Search": [ { "Page": "p", "Anchor": 1, "Title": "T" } ] })")
-            << QStringLiteral("search entry p#: \"Anchor\" must be a string");
+        // A search entry's Title or Anchor of the wrong type is reported
+        // once too, and not also as "has no Title" or "names anchor": the
+        // rows of reportsEveryProblem pin that, as they count the problems.
     }
 
     void reportsAKeyOfTheWrongTypeOnce()
@@ -773,6 +784,12 @@ private Q_SLOTS:
             QStringLiteral("page p: anchor a\n must match"));
         row("empty anchor", R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": [""] } ] })",
             QStringLiteral("page p: every \"Anchors\" entry must be a non-empty string"));
+        // Reported once, and the anchors after it are still read, so the
+        // search entry naming one adds no problem of its own.
+        row("anchor entries not strings",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": [1, "", "a"] } ],
+                 "Search": [ { "Page": "p", "Anchor": "a", "Title": "T" } ] })",
+            QStringLiteral("page p: every \"Anchors\" entry must be a non-empty string"));
         // The page stays, so what names the bad anchor adds nothing.
         row("search entry at a bad anchor",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a:b"] } ],
@@ -805,14 +822,35 @@ private Q_SLOTS:
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Keywords": [""] } ] })",
             QStringLiteral("page p: every \"Keywords\" entry must be a non-empty string"));
         row("name with a carriage return", R"({ "Id": "m", "Name": "a\rb", "Pages": [ { "Id": "p", "Name": "P" } ] })",
-            QStringLiteral("\"Name\" holds a control character other than tab and newline"));
+            QStringLiteral("\"Name\" holds a character it may not: a control character other than tab and "
+                           "newline, U+FFFE, U+FFFF or half of a surrogate pair"));
         row("keyword with a control character",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Keywords": ["a\u0001"] } ] })",
-            QStringLiteral("page p: \"Keywords\" holds a control character"));
+            QStringLiteral("page p: \"Keywords\" holds a character it may not"));
         row("title with a control character",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
                  "Search": [ { "Page": "p", "Anchor": "a", "Title": "T\u001f" } ] })",
-            QStringLiteral("search entry p#a: \"Title\" holds a control character"));
+            QStringLiteral("search entry p#a: \"Title\" holds a character it may not"));
+        // lupdate writes these into the catalog as they are, which XML
+        // cannot hold.
+        row("name with U+FFFE", R"({ "Id": "m", "Name": "a\ufffeb", "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Name\" holds a character it may not"));
+        row("keyword with U+FFFF",
+            R"({ "Id": "m", "Name": "M", "Keywords": ["a\uffff"], "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Keywords\" holds a character it may not"));
+        // A lone surrogate is U+FFFD by the time lupdate reads it.
+        row("name with half a surrogate pair",
+            R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "a\ud83d" } ] })",
+            QStringLiteral("page p: \"Name\" holds a character it may not"));
+        row("name with the other half of a surrogate pair",
+            R"({ "Id": "m", "Name": "\ude00a", "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Name\" holds a character it may not"));
+        row("halves of a surrogate pair the wrong way round",
+            R"({ "Id": "m", "Name": "\ude00\ud83d", "Pages": [ { "Id": "p", "Name": "P" } ] })",
+            QStringLiteral("\"Name\" holds a character it may not"));
+        // A whole pair is one character.
+        row("name with a character outside the BMP",
+            R"({ "Id": "m", "Name": "a\ud83d\ude00", "Pages": [ { "Id": "p", "Name": "P" } ] })", QString(), 0);
         row("category id not a string",
             R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": 1, "Name": "C" } ], "Pages": [ { "Id": "p", "Name": "P" } ] })",
             QStringLiteral("category: \"Id\" must be a string"));
@@ -827,7 +865,7 @@ private Q_SLOTS:
         row("category name with a control character",
             R"({ "Id": "m", "Name": "M", "Categories": [ { "Id": "c", "Name": "C\r" } ],
                  "Pages": [ { "Id": "p", "Name": "P" } ] })",
-            QStringLiteral("category c: \"Name\" holds a control character"));
+            QStringLiteral("category c: \"Name\" holds a character it may not"));
         row("page id not a string", R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": 5, "Name": "P" } ] })",
             QStringLiteral("page: \"Id\" must be a string"));
         row("page parent not a string",

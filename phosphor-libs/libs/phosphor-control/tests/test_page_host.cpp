@@ -243,6 +243,12 @@ private Q_SLOTS:
                                 << QStringLiteral("Mod could not be loaded");
         QTest::newRow("disabled after a crash")
             << true << false << true << QString() << QStringLiteral("Mod is turned off");
+        // A reason the controller still holds from before is not shown on a
+        // page that did not fail.
+        QTest::newRow("reason while not failed") << true << false << false << QStringLiteral("an earlier failure")
+                                                 << QStringLiteral("Mod is not loaded yet");
+        QTest::newRow("reason while turned off")
+            << true << false << true << QStringLiteral("an earlier failure") << QStringLiteral("Mod is turned off");
     }
 
     void theModulePageBuildsWithoutWarnings()
@@ -268,7 +274,7 @@ private Q_SLOTS:
         QVERIFY2(showsText(page, heading), qPrintable(heading));
         // The host's reason shows for a failure only.
         if (!reason.isEmpty()) {
-            QVERIFY(showsText(page, reason));
+            QCOMPARE(showsText(page, reason), failed);
         }
     }
 

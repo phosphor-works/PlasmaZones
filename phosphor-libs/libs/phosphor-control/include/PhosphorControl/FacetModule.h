@@ -20,9 +20,10 @@ inline constexpr int FacetModuleApiVersion = 1;
 /// the metadata phosphor_add_facet_module_metadata() generates from the
 /// module's own metadata file and its translations. The metadata describes
 /// the module and its pages (FacetModuleMetadata), so Facet can put them in
-/// the sidebar before the module loads. The module
-/// loads the first time one of its pages is opened, or a page it adds a
-/// section to (its metadata's `Extensions`).
+/// the sidebar before the module loads. The module loads the first time one
+/// of its pages is opened, or a page it adds a section to (its metadata's
+/// `Extensions`), or, when its metadata says `"SearchProviders": true`, once a
+/// search query is not blank.
 class IFacetModule
 {
 public:
@@ -39,9 +40,12 @@ public:
     /// same root object. So create the controllers and domains inside this
     /// call, parented to the root object, rather than once up front.
     ///
-    /// FacetContext::configBackend is the exception. It shares the file's
-    /// backend at once, and the backend stays shared when the registration
-    /// is not kept, so a retry gets the same one back.
+    /// There are two exceptions. FacetContext::configBackend shares the
+    /// file's backend at once, and the backend stays shared when the
+    /// registration is not kept, so a retry gets the same one back. A search
+    /// provider (FacetContext::registerSearchProvider) is made once per root
+    /// object, not in each call, since a host may still be asking the one an
+    /// earlier call registered.
     virtual void registerInto(FacetContext& context) = 0;
 };
 

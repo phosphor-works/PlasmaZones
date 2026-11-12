@@ -75,13 +75,18 @@
 //  46  also register a search provider with an entity entry on a page that
 //      is not the module's, and the setting entry of 45
 //  47  like 45, and also register a null domain
-//      The providers of 45 to 49 are made once, by the first registerInto,
-//      as FacetContext::registerSearchProvider asks.
+//      The providers of 45 to 49 and of 53 are made once, by the first
+//      registerInto, as FacetContext::registerSearchProvider asks. 51 makes
+//      its two on every registerInto: the host refuses both, one is deleted
+//      at once, and the other, in another thread, is left until the process
+//      ends.
 //  48  also register a search provider with a setting entry on the first
 //      page at an anchor it does not list ("nope"), a section entry and a
 //      setting entry on the first extension's target page, at "speed" and at
-//      "gone", an action entry with no page, and an entity entry on the
-//      first page with no anchor
+//      "gone", section entries on that page at the first extension's own
+//      anchor (`<module>:<extension>`) and at one of no extension of the
+//      module (`<module>:missing`), an action entry with no page, and an
+//      entity entry on the first page with no anchor
 //  49  also register a null search provider, and one search provider twice
 //  50  every domain reports a failed discard() and deletes itself
 //      (deleteLater) in it, and the headless domain has no objectName
@@ -100,13 +105,15 @@
 //  55  first remove the file the environment variable FAKE_REMOVE_FILE
 //      names, the module's own, and run a nested event loop for a second,
 //      which lets the catalog's rescan in while registerInto runs. Then
-//      register like 0.
+//      register like 0, or nothing at all when the environment variable
+//      FAKE_REMOVE_FAIL is set, which fails the load.
 //  56  delete the root object with deleteLater() and register nothing
 //
-// Every search provider copies the load record's content, read the first time
-// it is asked for its entries, into the application property
+// The first search provider asked for its entries, of any mode, copies the
+// load record's content at that moment into the application property
 // facetSearchLoadRecord, when the FACET_TEST_LOAD_RECORD environment variable
-// names the record.
+// names the record. Every search provider adds one to the application property
+// fakeProvidersAsked each time it is asked.
 //
 // The config modes (30 and 40 to 43) record every call of their factory: the
 // file it was asked to open is appended to the application property
@@ -352,6 +359,7 @@ public:
     QVector<PhosphorControl::SearchEntry> searchEntries() const override
     {
         recordSearchLoadRecord();
+        qApp->setProperty("fakeProvidersAsked", qApp->property("fakeProvidersAsked").toInt() + 1);
         return m_entries;
     }
 
@@ -428,6 +436,9 @@ public:
             QEventLoop loop;
             QTimer::singleShot(1000, &loop, &QEventLoop::quit);
             loop.exec();
+            if (!qEnvironmentVariableIsEmpty("FAKE_REMOVE_FAIL")) {
+                return;
+            }
         }
         if (FAKE_MODE == 12) {
             QFile record(qEnvironmentVariable("FACET_TEST_LOAD_RECORD"));
@@ -682,6 +693,18 @@ public:
             gone.anchor = QStringLiteral("gone");
             gone.title = QStringLiteral("Extended setting");
             entries.append(gone);
+            SearchEntry own;
+            own.kind = SearchEntry::Kind::Section;
+            own.pageId = extended;
+            own.anchor = context.moduleId() + QLatin1Char(':') + extensions.first().id;
+            own.title = QStringLiteral("Own section");
+            entries.append(own);
+            SearchEntry missing;
+            missing.kind = SearchEntry::Kind::Section;
+            missing.pageId = extended;
+            missing.anchor = context.moduleId() + QStringLiteral(":missing");
+            missing.title = QStringLiteral("Missing section");
+            entries.append(missing);
             SearchEntry action;
             action.kind = SearchEntry::Kind::Action;
             action.actionId = QStringLiteral("open-wizard");

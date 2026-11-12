@@ -257,8 +257,8 @@ private Q_SLOTS:
 
     void checksExtensionDomainsLikeAnyOther()
     {
-        // One page, the headless domain and two sections, each answering
-        // apply() twice, each named so its author can find it.
+        // The page, the headless domain and each section answer apply()
+        // twice, and each is named so its author can find it.
         FacetTestHost host = hostFor(QStringLiteral("extensiondouble"));
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), 4);
@@ -282,25 +282,31 @@ private Q_SLOTS:
         QCOMPARE(problems.size(), 1);
         QVERIFY2(problems.first().contains(QStringLiteral("elsewhere:page")), qPrintable(problems.first()));
 
-        // Of its five entries only the setting at an anchor its own page
-        // does not list is wrong. The section and the setting on the page it
-        // extends cannot be checked without that page's module, the action
-        // has no page to check, and the entity needs no anchor.
+        // Of its entries only the setting at an anchor its own page does not
+        // list is wrong. Those on the page it extends cannot be checked
+        // without that page's module, the action has no page to check, and
+        // the entity needs no anchor.
         FacetTestHost checks = hostFor(QStringLiteral("providerchecks"));
         problems = checks.run();
         QCOMPARE(problems.size(), 1);
         QVERIFY2(problems.first().contains(QStringLiteral("(providerchecks:general#nope) names an anchor its page")),
                  qPrintable(problems.first()));
 
-        // With that module, the setting at an anchor its page does not list
-        // is wrong too, and the section at one it lists is not.
+        // With that module, the setting at an anchor the page does not list
+        // is wrong too, and so is the section at the anchor of an extension
+        // the module does not have. The section at one the page lists and
+        // the one at the anchor of the module's own section there are not.
         FacetTestHost withTarget = hostFor(QStringLiteral("providerchecks"));
         withTarget.addTargetModule(fixturePath(QStringLiteral("good")));
         problems = withTarget.run();
-        QCOMPARE(problems.size(), 2);
+        QCOMPARE(problems.size(), 3);
         QVERIFY2(problems.at(1).contains(
                      QStringLiteral("(good:general#gone) names an anchor page good:general does not list")),
                  qPrintable(problems.at(1)));
+        QVERIFY2(problems.at(2).contains(QStringLiteral(
+                     "(good:general#providerchecks:missing) names an anchor page good:general does not list")),
+                 qPrintable(problems.at(2)));
+        QVERIFY2(!joined(problems).contains(QStringLiteral("providerchecks:first")), qPrintable(joined(problems)));
 
         FacetTestHost none = hostFor(QStringLiteral("providersnone"));
         problems = none.run();

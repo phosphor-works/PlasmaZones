@@ -31,11 +31,13 @@
 # a newer Facet still builds.
 #
 # Translations: each catalog's strings in context "FacetModule" go under the
-# catalog's language, with '-' turned into '_' and a regional catalog (de_DE)
-# keyed by the bare language (de) unless that would be ambiguous. A
-# `Key[<lang>]` already in METADATA was written by hand and wins. Only
-# finished translations are used, so a module whose pages and sidebar entry
-# should agree passes -nounfinished to lrelease.
+# catalog's language and script (de_DE as de_Latn, zh_TW as zh_Hant), which
+# every locale of that language and script matches, or under the catalog's
+# own language, with '-' turned into '_', when two catalogs claim the same
+# language and script. A usable `Key[<lang>]` already in METADATA, at that key
+# or a less specific one, was written by hand and wins. Only finished
+# translations are used, so a module whose pages and sidebar entry should
+# agree passes -nounfinished to lrelease.
 #
 # The function refuses a setup in which moc could embed some other file
 # named facet_metadata.json: METADATA itself under that name, or such a file
@@ -167,8 +169,10 @@ function(phosphor_add_facet_module_metadata target)
     # Relative paths resolve against the target's directory, which need not
     # be the caller's. A unity build compiles the file inside a unity source
     # that does not carry its OBJECT_DEPENDS, so it is kept out of the batch.
-    # A generated source is never read, on any configure, since whether it
-    # exists yet depends on whether the build has run.
+    # A source marked GENERATED is never read, on any configure, since whether
+    # it exists yet depends on whether the build has run. That holds where the
+    # mark is visible from the target's directory: always under policy
+    # CMP0118 NEW, and under OLD only when the mark was set in that directory.
     get_target_property(sources ${target} SOURCES)
     set(embedders "")
     foreach(sourceFile IN LISTS sources)

@@ -128,9 +128,12 @@ QStringList checkSearchProviders(const FacetHost& host, const QString& moduleId,
             QStringLiteral("its metadata says \"SearchProviders\": true, but it registered no search "
                            "provider"));
     }
-    QSet<QString> extended;
+    // The pages it extends, each with the anchors of its own sections there:
+    // FacetHost indexes an extension's section at `<module>:<extension>`, and
+    // the section's FacetExtensionFrame registers that anchor with the page.
+    QHash<QString, QSet<QString>> extended;
     for (const FacetExtensionMetadata& extension : metadata.extensions) {
-        extended.insert(extension.target);
+        extended[extension.target].insert(moduleId + QLatin1Char(':') + extension.id);
     }
     QHash<QString, std::optional<FacetModuleMetadata>> targets;
     for (const ISearchProvider* provider : providers) {
@@ -158,10 +161,12 @@ QStringList checkSearchProviders(const FacetHost& host, const QString& moduleId,
                                                    "\"Anchors\"")
                                         .arg(entry.title, entry.address()));
                 }
-            } else if (page && !page->anchors.contains(entry.anchor)) {
+            } else if (page && !page->anchors.contains(entry.anchor)
+                       && !extended.value(entry.pageId).contains(entry.anchor)) {
                 // A page it extends, of a target module added with
-                // addTargetModule(). Without the target its anchors are
-                // unknown here.
+                // addTargetModule(), at neither one of the page's anchors nor
+                // one of the module's sections there. Without the target the
+                // page's anchors are unknown here.
                 problems.append(QStringLiteral("search entry %1 (%2) names an anchor page %3 does not list in "
                                                "\"Anchors\"")
                                     .arg(entry.title, entry.address(), entry.pageId));

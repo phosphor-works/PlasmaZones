@@ -279,7 +279,10 @@ public:
                 entry.title = item.title;
                 entry.keywords = item.keywords;
                 entry.advancedOnly = item.advancedOnly;
-                if (shown(entry.pageId)) {
+                // A page not in the registry yet, as while the module is
+                // being placed, has nothing to open: SearchController would
+                // drop the entry with a warning.
+                if (position.contains(entry.pageId) && shown(entry.pageId)) {
                     place(std::move(entry));
                 }
             }
@@ -360,25 +363,37 @@ private:
 };
 
 // Holds back the host's invalidateSearch() calls while it runs, and makes one
-// at its end when any was held back, so a run of loads rebuilds the index
-// once.
+// at its end when any was held back. It holds the SearchController's updates
+// too (holdUpdates()), for what changes the index without the host asking: a
+// page taking its place, its keywords. So a run of loads, or a module taking
+// its place, rebuilds the index of a live query once.
 struct FacetHost::SearchBatch
 {
     explicit SearchBatch(FacetHost& host)
         : m_host(host)
+        , m_search(host.m_search)
     {
         ++m_host.m_searchBatches;
+        if (m_search) {
+            m_search->holdUpdates();
+        }
     }
     ~SearchBatch()
     {
         if (--m_host.m_searchBatches == 0 && std::exchange(m_host.m_searchStale, false)) {
             m_host.invalidateSearch();
         }
+        if (m_search) {
+            m_search->releaseUpdates();
+        }
     }
     Q_DISABLE_COPY_MOVE(SearchBatch)
 
 private:
     FacetHost& m_host;
+    /// The controller held, released even should the host's own pointer be
+    /// cleared meanwhile.
+    QPointer<SearchController> m_search;
 };
 
 PhosphorRegistry::PluginSeam FacetHost::seam()
@@ -708,11 +723,16 @@ void FacetHost::addModule(const QString& moduleId, const Module* previous)
         module->retryable = previous->retryable;
     }
     const quint64 transitions = module->transitions;
-    placeModules({module});
-    indexModule(*module);
-    // Its static search entries join the index (ModuleSearch), before anyone
-    // hears of it.
-    invalidateSearch();
+    {
+        // Its node, each page taking its place and each page's keywords
+        // change the index: a live query is answered again once for all of
+        // them. Its static search entries are in it (ModuleSearch) before
+        // anyone hears that it was placed.
+        const SearchBatch batch(*this);
+        placeModules({module});
+        indexModule(*module);
+        invalidateSearch();
+    }
     // Placed: its node is up, and nothing failed it on the way.
     const bool placed = module->nodeRegistered && module->transitions == transitions;
     if (placed && m_loadRecord->isDisabled(moduleId)) {
@@ -848,8 +868,8 @@ void FacetHost::onPluginRemoved(const QString& moduleId)
         // nested event loop in registerInto). Its library is mapped, and the
         // load settles its state: failing it here would be overwritten by a
         // load that succeeds, which would then run with its extensions
-        // inactive. A load that fails leaves it Failed, and a retry finds it
-        // withdrawn (loadModule).
+        // inactive. A load that fails withdraws it then (loadModule's
+        // failLoad), as this would have.
         qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId
                                       << "was removed while it loaded; the load goes on, and what it loads keeps "
                                          "running until Facet restarts";
@@ -1523,9 +1543,8 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
     }
     // Not on offer: withdrawn in the scan being announced, whose
     // pluginRemoved for it is still on its way (a slot of that scan's earlier
-    // announcements asked for it), or removed while its last load ran, which
-    // onPluginRemoved leaves to the load. It fails as the removal does, so
-    // that removal, when it comes, finds it so and announces nothing more.
+    // announcements asked for it). It fails as the removal does, so that
+    // removal, when it comes, finds it so and announces nothing more.
     if (!m_catalog->plugin(moduleId)) {
         withdrawModule(*module);
         return fail(FileRemoved);
@@ -1540,48 +1559,51 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
         m_loadRecord->clearLoading(m_loadingModule, recorded);
         m_loadingModule.clear();
     };
-    // The way out of a failed load, after its transition. What the load
-    // kept other pages from loading comes first (loadOwedExtenders), then the
+    // The way out of a failed load. Its transition comes first, then what
+    // the load kept other pages from loading (loadOwedExtenders), then the
     // search providers a query asked for meanwhile. A slot of the failure
     // transition, or of those loads, may have retried the module and loaded
-    // it, which is then the outcome to report.
-    const auto failedWith = [this, &module, &fail](const QString& reason) {
+    // it, which is then the outcome to report. A module the catalog stopped
+    // offering while its code ran, which onPluginRemoved leaves to the load,
+    // is withdrawn as that removal would have done: its extensions go
+    // inactive and it fails for its removal, announced once, rather than for
+    // the load's reason with its sections still on other pages.
+    const auto failLoad = [this, &module, &moduleId, &fail, &finishLoading](const QString& reason, bool retryable) {
+        finishLoading();
+        const bool withdrawn = !m_catalog->plugin(moduleId);
+        if (withdrawn) {
+            withdrawModule(*module);
+        } else {
+            transition(*module, ModuleState::Failed, reason, retryable);
+        }
         loadOwedExtenders();
         if (m_searchProvidersOwed) {
             loadOwedSearchProviders();
         }
-        return module->state == ModuleState::Loaded || fail(reason);
+        return module->state == ModuleState::Loaded || fail(withdrawn ? FileRemoved : reason);
     };
 
     QString loadError;
     QObject* const root = m_catalog->load(moduleId, &loadError);
     if (!root) {
-        finishLoading();
         // A library that did not load may load another time, once what it
         // needs is installed. One that is mapped already failed because the
         // root object it handed out was deleted since, and loading it again
         // hands out the same deleted object.
-        transition(*module, ModuleState::Failed, loadError, !m_catalog->isLoaded(moduleId));
-        return failedWith(loadError);
+        return failLoad(loadError, !m_catalog->isLoaded(moduleId));
     }
     auto* const facetModule = qobject_cast<IFacetModule*>(root);
     if (!facetModule) {
-        finishLoading();
-        const QString reason = QStringLiteral("its root object does not implement IFacetModule");
-        transition(*module, ModuleState::Failed, reason, false);
-        return failedWith(reason);
+        return failLoad(QStringLiteral("its root object does not implement IFacetModule"), false);
     }
     // The placeholders were built from the metadata read at start(). Code
     // loaded from a file that changed since then expects other pages, and
     // binding it would half-match them. PluginCatalog::load offers what it
     // has just loaded, so the plugin is on offer here. Were it not, it fails
-    // as its removal does, which then announces nothing more.
+    // as its removal does (failLoad), which then announces nothing more.
     const std::optional<PhosphorRegistry::PluginMetadata> offered = m_catalog->plugin(moduleId);
     if (!offered || offered->metaData != module->rawMetadata) {
-        finishLoading();
-        const QString reason = offered ? MetadataChanged : FileRemoved;
-        transition(*module, ModuleState::Failed, reason, false);
-        return failedWith(reason);
+        return failLoad(offered ? MetadataChanged : FileRemoved, false);
     }
 
     FacetContext context(this, module->metadata);
@@ -1626,10 +1648,7 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
         }
     }
     if (!errors.isEmpty()) {
-        const QString reason = errors.join(QStringLiteral("; "));
-        finishLoading();
-        transition(*module, ModuleState::Failed, reason);
-        return failedWith(reason);
+        return failLoad(errors.join(QStringLiteral("; ")), true);
     }
     // context.m_domains holds the extensions' domains too, for the checks
     // above. The headless ones are told apart now, while the checks have

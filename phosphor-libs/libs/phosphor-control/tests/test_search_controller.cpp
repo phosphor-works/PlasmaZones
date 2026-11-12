@@ -636,6 +636,46 @@ private Q_SLOTS:
         QVERIFY(resultPageIds(sc).contains(QStringLiteral("rules")));
     }
 
+    void aProviderUnregisteredByAnotherIsNotAsked()
+    {
+        // The first provider asked takes the second out, as module code may.
+        // The second may be gone by then, so it is not asked in that pass,
+        // and none of its entries is listed.
+        struct Counting : ISearchProvider
+        {
+            mutable int asked = 0;
+            QVector<SearchEntry> searchEntries() const override
+            {
+                ++asked;
+                SearchEntry e;
+                e.kind = SearchEntry::Kind::Entity;
+                e.pageId = QStringLiteral("rules");
+                e.title = QStringLiteral("Victim");
+                return {e};
+            }
+        };
+        struct Remover : ISearchProvider
+        {
+            SearchController* controller = nullptr;
+            ISearchProvider* victim = nullptr;
+            QVector<SearchEntry> searchEntries() const override
+            {
+                controller->unregisterProvider(victim);
+                return {};
+            }
+        };
+        SearchController sc(m_app.get());
+        Counting victim;
+        Remover remover;
+        remover.controller = &sc;
+        remover.victim = &victim;
+        sc.registerProvider(&remover);
+        sc.registerProvider(&victim);
+        sc.setQuery(QStringLiteral("victim"));
+        QCOMPARE(victim.asked, 0);
+        QCOMPARE(sc.resultCount(), 0);
+    }
+
     void pageKindEntryKeepsEmptySubtitle()
     {
         // The auto-derive is gated on kind != Page: a Page-kind static entry

@@ -87,6 +87,16 @@ public:
     /// Mark the index stale; the next query (or the current one) rebuilds it.
     Q_INVOKABLE void invalidate();
 
+    /// Hold back the rebuild a live query makes on every change, until the
+    /// matching releaseUpdates(), which makes one rebuild when anything
+    /// changed in between. Calls nest. For a run of changes that would
+    /// otherwise rebuild the index once each, such as a module placing its
+    /// pages and setting their keywords. setQuery() still answers at once.
+    void holdUpdates();
+    /// End a holdUpdates(). One without a matching hold is ignored with a
+    /// warning.
+    void releaseUpdates();
+
 Q_SIGNALS:
     void queryChanged();
     void resultsChanged();
@@ -119,6 +129,10 @@ private:
     QSet<QString> m_warnedEntryKeys;
 
     bool m_indexDirty = true;
+    /// holdUpdates() calls not yet released, and whether a live query owes a
+    /// rebuild once they are.
+    int m_updateHolds = 0;
+    bool m_rebuildHeld = false;
     QVector<SearchEntry> m_index;
     QVariantList m_resultsVariant;
     QString m_suggestion;
