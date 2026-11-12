@@ -530,6 +530,19 @@ private Q_SLOTS:
                 QStringLiteral("extension deleteslater:second's domain was deleted before its apply() was called")}));
     }
 
+    void reportsAHeadlessDomainDeletedWhileLoading()
+    {
+        // The second headless domain is deleted while the host registers
+        // them, and the third with deleteLater() once registered. Facet
+        // never applies either, so both are reported, by their place.
+        FacetTestHost host = hostFor(QStringLiteral("headlessgone"));
+        QCOMPARE(host.run(),
+                 (QStringList{QStringLiteral("headless domain 2 was deleted while the module loaded, or the "
+                                             "application refused it"),
+                              QStringLiteral("headless domain 3 was deleted while the module loaded, or the "
+                                             "application refused it")}));
+    }
+
     void reportsARefusedModule()
     {
         FacetTestHost host = hostFor(QStringLiteral("wrongapi"));

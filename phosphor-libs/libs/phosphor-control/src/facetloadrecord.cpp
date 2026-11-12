@@ -78,6 +78,7 @@ void FacetLoadRecord::setPath(const QString& path)
     // Made absolute now, so the record stays where it is when the working
     // directory changes later. Empty stays empty: no crash memory.
     m_path = path.isEmpty() ? QString() : QFileInfo(path).absoluteFilePath();
+    m_turnedOff = path.isEmpty();
 }
 
 void FacetLoadRecord::restore()
@@ -86,25 +87,38 @@ void FacetLoadRecord::restore()
     // process ended without finishing it. Unless that process is still
     // running (a second instance mid-load), the module is disabled, and the
     // record keeps it disabled across starts until it is retried.
-    if (m_path.isEmpty()) {
+    if (m_turnedOff) {
+        qCInfo(lcFacetHost) << "FacetHost: the load record is turned off, so a module that crashes Facet is not "
+                               "remembered";
+    } else if (m_path.isEmpty()) {
         qCInfo(lcFacetHost) << "FacetHost: no state directory, so a module that crashes Facet is not remembered";
     } else {
         // A process killed between naming a record write's temporary file and
         // renaming it over the record leaves that file behind. A minute is far
         // longer than a write takes, so a second instance writing right now
-        // keeps its file. QTemporaryFile's suffix is six letters or digits,
-        // and the match is case-sensitive, so a user's copy such as
-        // "facet-loading.v1.bak" is left alone.
+        // keeps its file. QTemporaryFile's suffix is six ASCII letters or
+        // digits. Names are compared as they are, never as a wildcard
+        // pattern, which the record's own name could hold characters of, and
+        // case-sensitively, so a user's copy such as "facet-loading.v1.bak"
+        // is left alone.
         const QFileInfo recordInfo(m_path);
         QDir recordDir = recordInfo.absoluteDir();
         const QDateTime cutoff = QDateTime::currentDateTimeUtc().addSecs(-60);
-        const QString suffixChar = QStringLiteral("[A-Za-z0-9]");
-        const QFileInfoList strays =
-            recordDir.entryInfoList({recordInfo.fileName() + QLatin1Char('.') + suffixChar.repeated(6)},
-                                    QDir::Files | QDir::Hidden | QDir::System | QDir::CaseSensitive);
-        for (const QFileInfo& stray : strays) {
-            if (stray.lastModified(QTimeZone::UTC) < cutoff) {
-                recordDir.remove(stray.fileName());
+        const QString prefix = recordInfo.fileName() + QLatin1Char('.');
+        constexpr qsizetype SuffixLength = 6;
+        const auto isSuffixChar = [](QChar c) {
+            return c.unicode() < 128 && c.isLetterOrNumber();
+        };
+        const QFileInfoList entries = recordDir.entryInfoList(QDir::Files | QDir::Hidden | QDir::System);
+        for (const QFileInfo& entry : entries) {
+            const QString name = entry.fileName();
+            if (name.size() != prefix.size() + SuffixLength || !name.startsWith(prefix)) {
+                continue;
+            }
+            const QStringView suffix = QStringView(name).sliced(prefix.size());
+            if (std::all_of(suffix.cbegin(), suffix.cend(), isSuffixChar)
+                && entry.lastModified(QTimeZone::UTC) < cutoff) {
+                recordDir.remove(name);
             }
         }
     }
@@ -145,10 +159,10 @@ bool FacetLoadRecord::isDisabled(const QString& moduleId) const
     return m_disabled.contains(moduleId);
 }
 
-void FacetLoadRecord::enable(const QString& moduleId)
+bool FacetLoadRecord::enable(const QString& moduleId)
 {
     m_disabled.remove(moduleId);
-    persistDisabled();
+    return persistDisabled();
 }
 
 QStringList FacetLoadRecord::disabledList() const

@@ -296,6 +296,8 @@ _fake_with_good_pages(deletespage 36 "Deletes Page")
 _fake_with_good_pages(deletesdomain 37 "Deletes Domain")
 _fake_with_good_pages(foreignpage 38 "Foreign Page")
 _fake_with_good_pages(foreigndomain 39 "Foreign Domain")
+_fake_with_good_pages(headlessgone 54 "Headless Gone")
+_fake_with_good_pages(deletesroot 56 "Deletes Root")
 # The same module id as "good" with different metadata: a module that changed
 # on disk between start() and its first load.
 phosphorcontrol_add_fake_module(goodv2 MODE 0 METADATA
@@ -335,6 +337,11 @@ phosphorcontrol_add_fake_module(pagecyclea MODE 0 METADATA [=[{
     "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecycleb:leaf" } ] }]=])
 phosphorcontrol_add_fake_module(pagecycleb MODE 0 METADATA [=[{
     "Id": "pagecycleb", "ApiVersion": 1, "Name": "Page Cycle B",
+    "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecyclea:leaf" } ] }]=])
+# A page under a page of that cycle, from outside it. Its module sorts ahead
+# of both cycle members, so it is the first page to wait.
+phosphorcontrol_add_fake_module(pagechain MODE 0 METADATA [=[{
+    "Id": "pagechain", "ApiVersion": 1, "Name": "Page Chain",
     "Pages": [ { "Id": "leaf", "Name": "Leaf", "Parent": "pagecyclea:leaf" } ] }]=])
 
 # Modules that add sections to good's pages. extender's first four land on
@@ -405,6 +412,7 @@ _fake_with_two_extensions(extensionthread 28 "Extension Thread")
 _fake_with_two_extensions(deletesduringload 29 "Deletes During Load")
 _fake_with_two_extensions(extensionnoqml 35 "Extension No QML")
 _fake_with_two_extensions(deleteslater 52 "Deletes Later")
+_fake_with_two_extensions(removedwhileloading 55 "Removed While Loading")
 
 # Modules that open a config file. Each has the one page "general", like the
 # page-contract variants, so the same keeps-nothing checks cover the ones that

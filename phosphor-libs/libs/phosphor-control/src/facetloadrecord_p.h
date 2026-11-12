@@ -25,7 +25,9 @@ Q_DECLARE_LOGGING_CATEGORY(lcFacetHost)
 /// enabled again (enable()).
 ///
 /// It owns the record's path and the set of disabled modules, and nothing of
-/// the host. GUI thread only, like the host. One Facet process per record.
+/// the host. GUI thread only, like the host. One FacetHost per record: two
+/// hosts on one record, in one process or two, each write their own disabled
+/// list over the other's.
 class FacetLoadRecord
 {
 public:
@@ -51,7 +53,7 @@ public:
     /// Empty when crashes are not remembered.
     [[nodiscard]] QString path() const;
     /// A relative @p path is made absolute against the working directory of
-    /// this call. Empty remembers nothing.
+    /// this call. Empty turns crash memory off.
     void setPath(const QString& path);
 
     /// Read the record a previous Facet left, once, as Facet starts: remove
@@ -62,7 +64,9 @@ public:
 
     [[nodiscard]] bool isDisabled(const QString& moduleId) const;
     /// Take @p moduleId off the disabled list, and write the list (Durable).
-    void enable(const QString& moduleId);
+    /// False when the list could not be written, so the record on disk still
+    /// names the module, until a later write of the record succeeds.
+    bool enable(const QString& moduleId);
 
     /// Write @p moduleId into the record as loading. False when it was not
     /// written (no record, or the write failed).
@@ -90,6 +94,9 @@ private:
     [[nodiscard]] QStringList disabledList() const;
 
     QString m_path;
+    /// setPath() was handed an empty path, which turns crash memory off on
+    /// purpose, as opposed to there being no state directory.
+    bool m_turnedOff = false;
     QSet<QString> m_disabled;
 };
 

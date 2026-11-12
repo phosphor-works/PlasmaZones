@@ -160,9 +160,11 @@ when loading again can help.
 
 A module that was loading when the process died is disabled, at the next start
 and every start after, until `retryModule` (or the placeholder page's retry
-button) loads it. A module that failed after its library was loaded stays
-failed when its file is offered again: the process keeps running the code it
-loaded, so the new file takes effect at the next start. `FacetTestHost` runs a
+button) loads it. The load record that remembers this
+(`FacetHost::setSentinelPath`) belongs to one host, so a second `FacetHost`
+needs a path of its own. A module that failed after its library was loaded
+stays failed when its file is offered again: the process keeps running the
+code it loaded, so the new file takes effect at the next start. `FacetTestHost` runs a
 module through the same host headless, for the module's own CI. It makes the
 config files the module opens under its temporary directory
 (`FacetHost::setConfigRedirect`), so the module starts from its defaults and
@@ -280,8 +282,9 @@ from a private copy and returns every problem it finds, one line each
 (`FacetTestHost.h` lists the checks). Besides what `FacetHost` refuses, it
 reports each metadata warning as `metadata: <warning>`, since the module is
 built against the Facet that checks it, a module whose metadata says
-`"SearchProviders": true` that registers no provider, and a domain that does
-not answer apply or discard exactly once. `addTargetModule()` adds a module
+`"SearchProviders": true` that registers no provider, a page controller or
+domain that code the module ran while it loaded deleted, and a domain that
+does not answer apply or discard exactly once. `addTargetModule()` adds a module
 this one extends, so its extensions are checked against that module's slots.
 The copies are staged as `module.so` and `target-000.so` onwards, and every
 problem names a module by the path it was given.
@@ -324,9 +327,9 @@ three things of the modules:
 
 - Every `Store` on the backend must be given the same path resolver object
   (`Schema::pathResolver` is compared by pointer, so an equal copy counts as
-  another) and the same version stamp. The first `Store`'s stand, and what a
-  later one brings instead is ignored, with a warning. A `Store`'s migrations
-  run on the whole document.
+  another) and the same version stamp. The first `Store`'s settings stand,
+  and what a later one brings instead is ignored, with a warning. A `Store`'s
+  migrations run on the whole document.
 - A `JsonBackend` allows one live group at a time, whichever module holds it.
   A second one asserts in a debug build and is read-only in a release build,
   so its writes are lost. Open a group, use it and let it go without running

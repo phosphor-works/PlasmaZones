@@ -60,7 +60,10 @@ class StagingDomain;
 /// it; a page that falls back under its module (its target is missing)
 /// comes after the others. A module added while Facet runs has its node
 /// slotted in the same way. The pages it places outside itself, in a category
-/// or under another module's page, go after the entries already there.
+/// or under another module's page, go after the entries already there. Pages
+/// that modules place under each other's in a cycle cannot all go where they
+/// ask: the one that sorts first stays under its own module, and the others
+/// go under their targets.
 ///
 /// Page ids: a category node is `@category/<id>`, a module node is the module
 /// id, and a module page is `<module>:<page>` (FacetContext::pageId). These
@@ -154,7 +157,9 @@ public:
     /// after. Default: `$XDG_STATE_HOME/phosphor-works/facet-loading`. A
     /// relative path is made absolute against the working directory of this
     /// call. When no state directory is available, or the path is set empty,
-    /// crashes are not remembered. One Facet process per load record.
+    /// crashes are not remembered. One FacetHost per load record: a second
+    /// host, in this process or another, needs a path of its own, or each
+    /// writes its disabled list over the other's.
     void setSentinelPath(const QString& path);
     /// Make every config file a module opens (FacetContext::configBackend)
     /// under @p directory instead of where it is, so the backends modules
@@ -172,9 +177,10 @@ public:
     /// Default: empty, which redirects nothing.
     void setConfigRedirect(const QString& directory);
     /// The locale module metadata is read and sorted in. Before start(),
-    /// ignored with a warning after. Default: QLocale(). The names of the
-    /// built-in categories come from the application's installed translators
-    /// instead, when start() runs.
+    /// ignored with a warning after. Default: QLocale() as it is when start()
+    /// runs, so a default locale the application sets after making the host
+    /// still counts. The names of the built-in categories come from the
+    /// application's installed translators instead, when start() runs.
     void setLocale(const QLocale& locale);
     /// Turn the catalog's live reload off, for tests. Before start().
     void setLiveReload(bool enabled);
@@ -203,20 +209,31 @@ public:
     /// Load @p moduleId now. True when it is loaded, at once or already.
     bool loadModule(const QString& moduleId, QString* errorString = nullptr);
     /// Clear DisabledAfterCrash, or a Failed state that canRetry() allows,
-    /// for @p moduleId and load it again.
+    /// for @p moduleId and load it again. Any other module is handed to
+    /// loadModule(): an Available one loads, a Loaded one answers true, and
+    /// a Failed one canRetry() refuses answers false with its reason. When
+    /// the load record cannot be written, a module that was disabled after a
+    /// crash is retried all the same, with a warning, and the next start may
+    /// disable it again.
     bool retryModule(const QString& moduleId, QString* errorString = nullptr);
     /// True when retryModule() would try to load @p moduleId again: it is
     /// DisabledAfterCrash, or it failed while loading and its file has not
-    /// changed since. A failure that loading again cannot fix (invalid
-    /// metadata, a taken id, a node or page that could not be placed, a
-    /// root object that is not an IFacetModule, a file that changed or went
-    /// away) is not retryable. The catalog offers a module's file again when
+    /// changed since. False for a module that is Available, which
+    /// loadModule() and retryModule() both load (its placeholder page offers
+    /// that as a retry too), and for a Loaded one. A failure that loading
+    /// again cannot fix (invalid metadata, a taken id, a node or page that
+    /// could not be placed, a root object that is not an IFacetModule or was
+    /// deleted after its library loaded, a file that changed or went away)
+    /// is not retryable. The catalog offers a module's file again when
     /// it is installed again after a removal, and when it changes on disk
     /// (rewritten, or replaced by a rename over it) while its library is not
     /// loaded. Then a module whose metadata is unchanged, whose pages are all
     /// placed and whose library was never loaded can be loaded again, and one
     /// that was never placed (invalid metadata, a taken id, no node) is read
-    /// and placed afresh, so fixing its metadata on disk is enough.
+    /// and placed afresh, so fixing its metadata on disk is enough. A module
+    /// that had not failed, Available or DisabledAfterCrash, whose file comes
+    /// back with other metadata fails then, without its library being
+    /// loaded.
     /// Anything else needs a restart. That includes a module that failed
     /// with its library loaded: the process keeps running that code, so the
     /// file offered again cannot be tried.
@@ -267,7 +284,10 @@ public:
         QUrl qmlSource;
         StagingDomain* domain = nullptr;
     };
-    /// The headless domains @p moduleId registered while loading.
+    /// The headless domains @p moduleId registered while loading, in the
+    /// order it registered them. One that code the module ran while it
+    /// loaded deleted, or that the application refused, reads null, and so
+    /// does one deleted since.
     [[nodiscard]] QList<StagingDomain*> moduleDomains(const QString& moduleId) const;
     /// The sections @p moduleId registered while loading, in its metadata's
     /// order, whether or not they are active. A deleted domain reads null.
@@ -315,11 +335,16 @@ private:
 
     std::shared_ptr<Module> parseModule(const QString& moduleId);
     void mergeCategories(const Module& module);
-    /// Read and place @p moduleId. @p offeredAgain says the host knew it as
-    /// Failed until now, so that coming back Available is announced.
-    void addModule(const QString& moduleId, bool offeredAgain = false);
+    /// Read and place @p moduleId. @p previous is the module as the host knew
+    /// it until the catalog offered it again (onPluginAdded): Failed, and
+    /// never placed. It keeps the state it last announced until reading and
+    /// placing it give another, so only a change is announced.
+    void addModule(const QString& moduleId, const Module* previous = nullptr);
     void onPluginAdded(const QString& moduleId);
     void onPluginRemoved(const QString& moduleId);
+    /// Fail @p module as one the catalog no longer offers: its extensions go
+    /// inactive, as if it were not installed.
+    void withdrawModule(Module& module);
     void placeModules(QList<std::shared_ptr<Module>> modules);
     bool registerPlaceholder(const QString& id, const QString& parentId, const QString& title, const QString& icon,
                              const QUrl& qmlSource, bool isCollapsible, const Module* module,
@@ -403,7 +428,8 @@ private:
     /// The load record (setSentinelPath) and the modules it keeps disabled
     /// after a crash.
     std::unique_ptr<FacetLoadRecord> m_loadRecord;
-    QLocale m_locale;
+    /// setLocale(), or QLocale() once start() has run without it.
+    std::optional<QLocale> m_locale;
     /// Sorts names in m_locale. Built once start() has fixed the locale.
     QCollator m_collator;
     bool m_started = false;

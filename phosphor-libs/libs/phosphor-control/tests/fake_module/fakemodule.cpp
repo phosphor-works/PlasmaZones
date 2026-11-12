@@ -93,6 +93,15 @@
 //  53  also register a search provider that is a QObject, with the entity
 //      entry of 45, and put it in the application property
 //      fakeProviderObject, so a test can delete it
+//  54  also register two more headless domains: the first headless domain's
+//      first isDirty() deletes the first of them, as module code running
+//      while the host registers what passed its checks, and the second is
+//      deleted with deleteLater() once registered
+//  55  first remove the file the environment variable FAKE_REMOVE_FILE
+//      names, the module's own, and run a nested event loop for a second,
+//      which lets the catalog's rescan in while registerInto runs. Then
+//      register like 0.
+//  56  delete the root object with deleteLater() and register nothing
 //
 // Every search provider copies the load record's content, read the first time
 // it is asked for its entries, into the application property
@@ -122,6 +131,7 @@
 #include <PhosphorConfig/JsonBackend.h>
 
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QFile>
 #include <QObject>
 #include <QPointer>
@@ -135,7 +145,7 @@
 #include <utility>
 
 static_assert((FAKE_MODE >= 0 && FAKE_MODE <= 10) || (FAKE_MODE >= 12 && FAKE_MODE <= 14)
-                  || (FAKE_MODE >= 16 && FAKE_MODE <= 53),
+                  || (FAKE_MODE >= 16 && FAKE_MODE <= 56),
               "FAKE_MODE must be one of the modes listed above");
 
 #if FAKE_MODE == 44
@@ -244,13 +254,13 @@ public:
     }
     bool isDirty() const override
     {
-        if (FAKE_MODE == 29) {
+        if (FAKE_MODE == 29 || FAKE_MODE == 54) {
             deleteVictims();
         }
         return m_dirty;
     }
-    /// Delete @p victim on this domain's first isDirty() in mode 29, and on
-    /// its first apply() in mode 52.
+    /// Delete @p victim on this domain's first isDirty() in modes 29 and 54,
+    /// and on its first apply() in mode 52.
     void addVictim(QObject* victim)
     {
         m_victims.append(victim);
@@ -409,6 +419,16 @@ public:
             return;
         }
 #endif
+        if (FAKE_MODE == 56) {
+            deleteLater();
+            return;
+        }
+        if (FAKE_MODE == 55) {
+            QFile::remove(qEnvironmentVariable("FAKE_REMOVE_FILE"));
+            QEventLoop loop;
+            QTimer::singleShot(1000, &loop, &QEventLoop::quit);
+            loop.exec();
+        }
         if (FAKE_MODE == 12) {
             QFile record(qEnvironmentVariable("FACET_TEST_LOAD_RECORD"));
             const QByteArray content = record.open(QIODevice::ReadOnly) ? record.readAll() : QByteArray();
@@ -502,6 +522,16 @@ public:
             if (auto* const tracked = qobject_cast<PhosphorControl::StagingDomain*>(foreign)) {
                 context.registerDomain(tracked);
             }
+        }
+        if (FAKE_MODE == 54) {
+            auto* const victim = new FakeDomain(this);
+            victim->setObjectName(QStringLiteral("victim"));
+            domain->addVictim(victim);
+            context.registerDomain(victim);
+            auto* const late = new FakeDomain(this);
+            late->setObjectName(QStringLiteral("late"));
+            context.registerDomain(late);
+            late->deleteLater();
         }
 
         const auto& extensions = context.metadata().extensions;

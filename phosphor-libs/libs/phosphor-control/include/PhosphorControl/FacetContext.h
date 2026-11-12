@@ -140,9 +140,10 @@ public:
     /// - Every Store on the backend must be given the same path resolver
     ///   object (PhosphorConfig::Schema::pathResolver is compared by pointer,
     ///   so an equal copy counts as another) and the same version stamp, key
-    ///   and version. The first Store's stand, and what a later Store brings
-    ///   instead is ignored, with a warning. A Store's migrations run on the
-    ///   whole document, and write it to the file when they raise its version.
+    ///   and version. The first Store's settings stand, and what a later
+    ///   Store brings instead is ignored, with a warning. A Store's migrations
+    ///   run on the whole document, and write it to the file when they raise
+    ///   its version.
     /// - A PhosphorConfig::JsonBackend allows one live group (IGroup) at a
     ///   time, whichever module holds it. A second one asserts in a debug
     ///   build and is read-only in a release build, so its writes are lost.

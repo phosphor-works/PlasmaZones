@@ -438,9 +438,18 @@ QStringList FacetTestHost::run()
             problems.append(QStringLiteral("page %1's controller was deleted after it was bound").arg(scoped));
         }
     }
+    // A null entry is a domain the module registered that is gone, deleted
+    // while the module loaded, or that the application refused. Facet
+    // applies neither, so whatever it staged is lost.
     const QList<StagingDomain*> headless = host.moduleDomains(moduleId);
     for (qsizetype i = 0; i < headless.size(); ++i) {
         StagingDomain* const domain = headless.at(i);
+        if (!domain) {
+            problems.append(
+                QStringLiteral("headless domain %1 was deleted while the module loaded, or the application refused it")
+                    .arg(QString::number(i + 1)));
+            continue;
+        }
         const QString name = domain->objectName().isEmpty()
             ? QStringLiteral("%1 (headless domain %2)")
                   .arg(QString::fromLatin1(domain->metaObject()->className()), QString::number(i + 1))

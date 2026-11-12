@@ -8,7 +8,6 @@
 
 #include <QCoreApplication>
 #include <QDir>
-#include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
 #include <QString>
@@ -46,10 +45,6 @@ inline void sweepDeadStaging(const QRegularExpression& owned)
         if (pid == QCoreApplication::applicationPid() || QFileInfo::exists(QStringLiteral("/proc/%1").arg(pid))) {
             continue;
         }
-        // A test that takes the write bit off its directory puts it back on
-        // the way out, which a run that died never did.
-        QFile::setPermissions(entry.filePath(),
-                              QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
         QDir(entry.filePath()).removeRecursively();
     }
 }
