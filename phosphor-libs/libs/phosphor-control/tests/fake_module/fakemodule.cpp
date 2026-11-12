@@ -1,10 +1,13 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// One source for every Facet test module. tests/CMakeLists.txt builds it once
-// per variant with its own fake_module_config.h and metadata.json, so the
-// variants differ only in their metadata and in FAKE_MODE. "Pages" below means
-// context.metadata().pages, which is parents-first, not declaration order.
+// The source of the Facet test modules, all but notamodule.cpp's.
+// tests/CMakeLists.txt builds it once per variant, each with its own
+// fake_module_config.h, which sets FAKE_MODE, and its own metadata, which
+// phosphor_add_facet_module_metadata turns into the facet_metadata.json the
+// plugin embeds, translated from the variant's TS_FILES when it has any.
+// "Pages" below means context.metadata().pages, which is parents-first, not
+// declaration order.
 //   0  register every page and extension, and one headless domain
 //   1  skip the last page
 //   2  also register a page the metadata does not declare
@@ -72,6 +75,8 @@
 //  46  also register a search provider with an entity entry on a page that
 //      is not the module's, and the setting entry of 45
 //  47  like 45, and also register a null domain
+//      The providers of 45 to 49 are made once, by the first registerInto,
+//      as FacetContext::registerSearchProvider asks.
 //  48  also register a search provider with a setting entry on the first
 //      page at an anchor it does not list ("nope"), a section entry and a
 //      setting entry on the first extension's target page, at "speed" and at
@@ -80,9 +85,19 @@
 //  49  also register a null search provider, and one search provider twice
 //  50  every domain reports a failed discard() and deletes itself
 //      (deleteLater) in it, and the headless domain has no objectName
+//  51  also register a search provider that is a QObject living in another
+//      thread, and one that is a QObject it deletes once registered
 //  52  deleteLater() the first page's controller and the first extension's
 //      domain once registered, and the headless domain's apply() deletes the
 //      last extension's domain
+//  53  also register a search provider that is a QObject, with the entity
+//      entry of 45, and put it in the application property
+//      fakeProviderObject, so a test can delete it
+//
+// Every search provider copies the load record's content, read the first time
+// it is asked for its entries, into the application property
+// facetSearchLoadRecord, when the FACET_TEST_LOAD_RECORD environment variable
+// names the record.
 //
 // The config modes (30 and 40 to 43) record every call of their factory: the
 // file it was asked to open is appended to the application property
@@ -120,7 +135,7 @@
 #include <utility>
 
 static_assert((FAKE_MODE >= 0 && FAKE_MODE <= 10) || (FAKE_MODE >= 12 && FAKE_MODE <= 14)
-                  || (FAKE_MODE >= 16 && FAKE_MODE <= 50) || FAKE_MODE == 52,
+                  || (FAKE_MODE >= 16 && FAKE_MODE <= 53),
               "FAKE_MODE must be one of the modes listed above");
 
 #if FAKE_MODE == 44
@@ -304,6 +319,19 @@ private:
     QString m_key;
 };
 
+// What the load record holds the first time a provider is asked for its
+// entries, copied into facetSearchLoadRecord (see the mode list).
+void recordSearchLoadRecord()
+{
+    const QString path = qEnvironmentVariable("FACET_TEST_LOAD_RECORD");
+    if (path.isEmpty() || qApp->property("facetSearchLoadRecord").isValid()) {
+        return;
+    }
+    QFile record(path);
+    const QByteArray content = record.open(QIODevice::ReadOnly) ? record.readAll() : QByteArray();
+    qApp->setProperty("facetSearchLoadRecord", QString::fromUtf8(content));
+}
+
 class FakeProvider : public PhosphorControl::ISearchProvider
 {
 public:
@@ -313,12 +341,27 @@ public:
     }
     QVector<PhosphorControl::SearchEntry> searchEntries() const override
     {
+        recordSearchLoadRecord();
         return m_entries;
     }
 
 private:
     QVector<PhosphorControl::SearchEntry> m_entries;
 };
+
+// A provider that is a QObject too, for the checks FacetContext and the host
+// make on one.
+class ObjectProvider : public QObject, public FakeProvider
+{
+    Q_OBJECT
+public:
+    ObjectProvider(QVector<PhosphorControl::SearchEntry> entries, QObject* parent)
+        : QObject(parent)
+        , FakeProvider(std::move(entries))
+    {
+    }
+};
+
 // The backend the config modes make, which counts its destructions in the
 // application property fakeConfigBackendsDestroyed, so a test sees when the
 // host or the ApplicationController lets go of one.
@@ -536,31 +579,59 @@ public:
                 context.registerDomain(nullptr);
             }
         }
-        if (FAKE_MODE == 45 || FAKE_MODE == 46 || FAKE_MODE == 47) {
+        // The provider modes' metadata always declares a page, and 48's an
+        // extension, but a fixture with neither must not crash the test.
+        const bool providerMode = FAKE_MODE == 45 || FAKE_MODE == 46 || FAKE_MODE == 47 || FAKE_MODE == 48
+            || FAKE_MODE == 51 || FAKE_MODE == 53;
+        if (providerMode && (pages.isEmpty() || (FAKE_MODE == 48 && extensions.isEmpty()))) {
+            qWarning("fakemodule: search provider mode %d needs a page and, for 48, an extension", FAKE_MODE);
+            return;
+        }
+        if (FAKE_MODE == 45 || FAKE_MODE == 46 || FAKE_MODE == 47 || FAKE_MODE == 53) {
             using PhosphorControl::SearchEntry;
             QVector<SearchEntry> entries;
-            const auto& first = context.metadata().pages.first();
+            const auto& first = pages.first();
             SearchEntry entity;
             entity.kind = SearchEntry::Kind::Entity;
             entity.pageId = FAKE_MODE == 46 ? QStringLiteral("elsewhere:page") : context.pageId(first.id);
             entity.anchor = QStringLiteral("rule:42");
             entity.title = QStringLiteral("Dynamic entity");
             entries.append(entity);
-            SearchEntry setting;
-            setting.kind = SearchEntry::Kind::Setting;
-            setting.pageId = context.pageId(first.id);
-            setting.anchor = first.anchors.value(0);
-            setting.title = QStringLiteral("Dynamic setting");
-            entries.append(setting);
-            m_provider = std::make_unique<FakeProvider>(entries);
-            context.registerSearchProvider(m_provider.get());
+            if (FAKE_MODE != 53) {
+                SearchEntry setting;
+                setting.kind = SearchEntry::Kind::Setting;
+                setting.pageId = context.pageId(first.id);
+                setting.anchor = first.anchors.value(0);
+                setting.title = QStringLiteral("Dynamic setting");
+                entries.append(setting);
+            }
+            if (FAKE_MODE == 53) {
+                if (!m_objectProvider) {
+                    m_objectProvider = new ObjectProvider(entries, this);
+                }
+                qApp->setProperty("fakeProviderObject", QVariant::fromValue<QObject*>(m_objectProvider.data()));
+                context.registerSearchProvider(m_objectProvider.data());
+            } else {
+                if (!m_provider) {
+                    m_provider = std::make_unique<FakeProvider>(entries);
+                }
+                context.registerSearchProvider(m_provider.get());
+            }
             if (FAKE_MODE == 47) {
                 context.registerDomain(nullptr);
             }
         }
+        if (FAKE_MODE == 51) {
+            auto* const foreign = new ObjectProvider({}, nullptr);
+            foreign->moveToThread(otherThread());
+            context.registerSearchProvider(foreign);
+            auto* const doomed = new ObjectProvider({}, this);
+            context.registerSearchProvider(doomed);
+            delete doomed;
+        }
         if (FAKE_MODE == 48) {
             using PhosphorControl::SearchEntry;
-            const auto& first = context.metadata().pages.first();
+            const auto& first = pages.first();
             const QString extended = extensions.first().target;
             QVector<SearchEntry> entries;
             SearchEntry unlisted;
@@ -612,6 +683,7 @@ public:
 
 private:
     std::unique_ptr<FakeProvider> m_provider;
+    QPointer<ObjectProvider> m_objectProvider;
 };
 
 #include "fakemodule.moc"

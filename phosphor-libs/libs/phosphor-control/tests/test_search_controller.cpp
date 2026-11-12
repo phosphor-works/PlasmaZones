@@ -612,6 +612,30 @@ private Q_SLOTS:
         QCOMPARE(count, 1);
     }
 
+    void anUnregisteredProviderIsNoLongerAsked()
+    {
+        SearchController sc(m_app.get());
+        StubProvider provider;
+        sc.registerProvider(&provider);
+        sc.setQuery(QStringLiteral("steam"));
+        QVERIFY(resultPageIds(sc).contains(QStringLiteral("rules")));
+
+        // The live query's results drop its entries at once.
+        QSignalSpy changed(&sc, &SearchController::resultsChanged);
+        sc.unregisterProvider(&provider);
+        QCOMPARE(changed.count(), 1);
+        QVERIFY(!resultPageIds(sc).contains(QStringLiteral("rules")));
+
+        // One that is not registered, or null, changes nothing.
+        sc.unregisterProvider(&provider);
+        sc.unregisterProvider(nullptr);
+        QCOMPARE(changed.count(), 1);
+
+        // And it can join again.
+        sc.registerProvider(&provider);
+        QVERIFY(resultPageIds(sc).contains(QStringLiteral("rules")));
+    }
+
     void pageKindEntryKeepsEmptySubtitle()
     {
         // The auto-derive is gated on kind != Page: a Page-kind static entry

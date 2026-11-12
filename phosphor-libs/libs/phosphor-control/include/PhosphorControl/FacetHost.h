@@ -48,9 +48,11 @@ class StagingDomain;
 /// (or navigating to its node) loads the module synchronously, through
 /// ApplicationController's navigation hook: its registerInto registers into
 /// a FacetContext, and the host then binds its real controllers into the
-/// placeholders, all before the page change is announced. A module that does
-/// not load leaves its placeholder up, and the placeholder page shows why,
-/// and offers a retry when loading again can help.
+/// placeholders, all before the page change is announced. A search loads
+/// modules too: those whose metadata says `SearchProviders`
+/// (setSearchController). A module that does not load leaves its
+/// placeholder up, and the placeholder page shows why, and offers a retry
+/// when loading again can help.
 ///
 /// Siblings follow `Order`, then the name: categories at the top level, and
 /// modules under their category or parent module. A module's own pages
@@ -85,12 +87,15 @@ class StagingDomain;
 ///
 /// A crash while a module loads is remembered. The module's id is written to
 /// the load record (setSentinelPath) before its library is loaded, and
-/// removed once its registerInto has returned. A load record left behind at
-/// the next start disables that module (DisabledAfterCrash), and it stays
+/// removed once its registerInto has returned, the host has checked what it
+/// registered and, with a search controller set, has asked each of its
+/// search providers for its entries once. A load record left behind at the
+/// next start disables that module (DisabledAfterCrash), and it stays
 /// disabled across starts until retryModule(). A crash later, in a page's
-/// or a section's QML or in a domain, is not remembered. Since opening a
-/// page loads every module that extends it, a module whose section crashes
-/// takes that page down each time it opens, until the module is removed.
+/// or a section's QML, in a domain, or in a search provider asked again, is
+/// not remembered. Since opening a page loads every module that extends it,
+/// a module whose section crashes takes that page down each time it opens,
+/// until the module is removed.
 ///
 /// The host also keeps the config backends modules share, one for each file,
 /// and hands them out through FacetContext::configBackend. They belong to
@@ -173,11 +178,23 @@ public:
     void setLocale(const QLocale& locale);
     /// Turn the catalog's live reload off, for tests. Before start().
     void setLiveReload(bool enabled);
-    /// Index every module's pages and search entries, and each active
-    /// extension as a section of the page it is on, in @p search, before any
-    /// module loads. Set before start(). A module's own search providers
-    /// join as it loads, and one whose metadata says `SearchProviders` loads
-    /// the first time the query is not empty, so its entries are found too.
+    /// Make @p search find every module's pages and `Search` entries, and
+    /// each active extension as a section of the page it is on, before any
+    /// module loads. Before start(), ignored with a warning after. Default:
+    /// none, and nothing is searched.
+    ///
+    /// The host keeps one provider in @p search for all of it, listed in the
+    /// order of each entry's page in the sidebar, and adds the entries of
+    /// each loaded module's own search providers. It leaves out the entries
+    /// of a page whose module failed or was turned off after a crash, and
+    /// the sections when another component answers extensionsFor. Whenever
+    /// the query is not blank, every module whose metadata says
+    /// `SearchProviders` and that has not loaded yet loads, so its entries
+    /// are found too: at once, or once a load that is running is over. That
+    /// covers a query typed before start() and a module that arrives while
+    /// the query stands. The host takes its provider out of @p search when
+    /// it is destroyed, so the modules' providers are asked only while the
+    /// host lives. @p search may go first.
     void setSearchController(SearchController* search);
 
     /// Find the modules and build the placeholder sidebar. Call once.
@@ -257,7 +274,8 @@ public:
     [[nodiscard]] QList<ModuleExtension> moduleExtensions(const QString& moduleId) const;
     /// The page ids the module of @p moduleId registered while loading.
     [[nodiscard]] QStringList boundPages(const QString& moduleId) const;
-    /// The search providers the module of @p moduleId registered while loading.
+    /// The search providers the module of @p moduleId registered while
+    /// loading, but for one that is a QObject and was deleted since.
     [[nodiscard]] QList<ISearchProvider*> searchProviders(const QString& moduleId) const;
 
     /// The config backend modules share for the file at @p path, an absolute
@@ -283,7 +301,8 @@ private:
     // For sharedConfigBackend.
     friend class FacetContext;
     struct Module;
-    class ExtensionSearch;
+    class ModuleSearch;
+    struct SearchBatch;
     /// An extension resolved onto its target page.
     struct ActiveExtension
     {
@@ -305,14 +324,19 @@ private:
     bool registerPlaceholder(const QString& id, const QString& parentId, const QString& title, const QString& icon,
                              const QUrl& qmlSource, bool isCollapsible, const Module* module,
                              const FacetPageMetadata* page, qsizetype pageSlot = -1);
-    /// Hand the search providers @p module registered while loading to the
-    /// search controller.
-    void addSearchProviders(const Module& module);
-    /// Index @p module's pages and static search entries, once it is placed.
+    /// Give @p module's placed pages their keywords in the search controller,
+    /// once the module is placed. Its static search entries come from
+    /// ModuleSearch.
     void indexModule(const Module& module);
-    /// Load every module that declares search providers. Runs once, the first
-    /// time the search query is not empty.
-    void loadSearchProviders();
+    /// Load every module that declares search providers and has not loaded
+    /// yet, while the query is not blank. Runs from queryChanged, at the end
+    /// of start(), and when a module arrives or is offered again. Called
+    /// while it runs, or while another module loads, it is owed instead
+    /// (m_searchProvidersOwed), and paid when that is over.
+    void loadOwedSearchProviders();
+    /// Have the search controller rebuild what ModuleSearch lists, now or,
+    /// inside a SearchBatch, once the batch is over.
+    void invalidateSearch();
     /// The backend modules share for @p path (FacetContext::configBackend),
     /// created with @p create the first time any module opens the file. Null
     /// when @p create made none, or the ApplicationController is gone.
@@ -364,7 +388,17 @@ private:
 
     QPointer<ApplicationController> m_controller;
     QPointer<SearchController> m_search;
-    bool m_searchProvidersLoaded = false;
+    /// The one provider the host keeps in m_search, from start() on.
+    std::unique_ptr<ModuleSearch> m_searchProvider;
+    /// True while loadOwedSearchProviders runs.
+    bool m_loadingSearchProviders = false;
+    /// Set when loadOwedSearchProviders was called while it ran, or while a
+    /// module loaded, and so loaded nothing.
+    bool m_searchProvidersOwed = false;
+    /// How many SearchBatch scopes are open, and whether one of them held
+    /// back an invalidateSearch().
+    int m_searchBatches = 0;
+    bool m_searchStale = false;
     std::unique_ptr<PhosphorRegistry::PluginCatalog> m_catalog;
     /// The load record (setSentinelPath) and the modules it keeps disabled
     /// after a crash.
@@ -379,6 +413,9 @@ private:
     /// Whether start() got the navigation hook, so the host loads modules as
     /// their pages open.
     bool m_holdsNavigationHook = false;
+    /// Whether start() got the extension provider, so FacetSlots show this
+    /// host's sections and search may list them.
+    bool m_holdsExtensionProvider = false;
     /// The page a navigation is opening, while onNavigation runs.
     QString m_openingPage;
     /// Counts the navigations the hook saw, so one that went somewhere and

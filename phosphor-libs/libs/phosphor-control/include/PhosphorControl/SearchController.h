@@ -76,8 +76,13 @@ public:
     void setPageKeywords(const QString& pageId, const QStringList& keywords);
     /// A static section / setting anchor entry (or any extra entry).
     void addEntry(const SearchEntry& entry);
-    /// Register a dynamic content source (not owned; must outlive this).
+    /// Register a dynamic content source. Not owned: it must outlive this
+    /// controller, or be taken out with unregisterProvider() before it goes.
     void registerProvider(ISearchProvider* provider);
+    /// Stop asking @p provider, and refresh the results of a live query. For
+    /// a provider that goes before this controller does. Nothing happens for
+    /// one that is not registered.
+    void unregisterProvider(ISearchProvider* provider);
 
     /// Mark the index stale; the next query (or the current one) rebuilds it.
     Q_INVOKABLE void invalidate();

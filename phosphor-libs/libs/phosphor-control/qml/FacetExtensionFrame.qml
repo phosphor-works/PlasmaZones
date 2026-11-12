@@ -21,6 +21,15 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * section's place, so the rest of the page still works. The host's own reason
  * goes below the card, except for a module turned off after a crash, where
  * the card says it all.
+ *
+ * The frame is the search anchor FacetHost's results name for the section,
+ * `<module>:<extension>` (its extensionId). It registers under that anchor
+ * with the nearest ancestor that has registerSearchAnchor(anchorId, item),
+ * the call a page's reveal registry takes (PageHost hands that page the
+ * pending anchor through its revealAnchor()), and unregisters with
+ * unregisterSearchAnchor(anchorId, item) as it goes. A frame with no such
+ * ancestor registers nowhere: PageHost's top and bottom slots sit outside the
+ * page's scrolling area and are always on screen.
  */
 ColumnLayout {
     id: root
@@ -48,6 +57,31 @@ ColumnLayout {
     // row changes, so a load waits for all of them: once the frame is
     // complete, then once per change, after the rest of it has landed.
     property bool _complete: false
+    // The registry the anchor went to, kept so the frame unregisters from the
+    // same one even when it has been taken out of the tree by then. A typed
+    // property, so it reads null once that registry is gone.
+    property Item _anchorRegistry: null
+    property string _registeredAnchor: ""
+
+    function _registerSearchAnchor() {
+        if (root._anchorRegistry !== null || root.extensionId.length === 0)
+            return;
+        for (let p = root.parent; p; p = p.parent) {
+            if (typeof p.registerSearchAnchor === "function") {
+                p.registerSearchAnchor(root.extensionId, root);
+                root._anchorRegistry = p;
+                root._registeredAnchor = root.extensionId;
+                return;
+            }
+        }
+    }
+
+    function _unregisterSearchAnchor() {
+        if (root._anchorRegistry !== null && typeof root._anchorRegistry.unregisterSearchAnchor === "function")
+            root._anchorRegistry.unregisterSearchAnchor(root._registeredAnchor, root);
+        root._anchorRegistry = null;
+        root._registeredAnchor = "";
+    }
 
     function _load() {
         if (root.failed || root.domain === null) {
@@ -69,7 +103,10 @@ ColumnLayout {
     Component.onCompleted: {
         root._complete = true;
         root._load();
+        // Later, once the frame is in its slot and the slot on its page.
+        Qt.callLater(root._registerSearchAnchor);
     }
+    Component.onDestruction: root._unregisterSearchAnchor()
     onFailedChanged: root._scheduleLoad()
     onQmlSourceChanged: root._scheduleLoad()
     onDomainChanged: root._scheduleLoad()

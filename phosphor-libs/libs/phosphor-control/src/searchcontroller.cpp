@@ -115,7 +115,7 @@ void SearchController::setLimit(int n)
     recompute();
 }
 
-// The three content mutators below route through invalidate() rather than
+// The content mutators below route through invalidate() rather than
 // setting m_indexDirty themselves: content added while a query is live (the
 // normal case for registerProvider on async provider warm-up) must refresh the
 // visible list, not sit stale until the next keystroke.
@@ -136,6 +136,13 @@ void SearchController::registerProvider(ISearchProvider* provider)
 {
     if (provider && !m_providers.contains(provider)) {
         m_providers.push_back(provider);
+        invalidate();
+    }
+}
+
+void SearchController::unregisterProvider(ISearchProvider* provider)
+{
+    if (m_providers.removeAll(provider) > 0) {
         invalidate();
     }
 }
@@ -329,11 +336,12 @@ QVector<SearchEntry> SearchController::buildIndex()
 
     for (const ISearchProvider* provider : m_providers) {
         // No null check: registerProvider rejects nullptr and dedupes, and
-        // there is no removal path, so an entry here is always non-null. A
-        // check would read as protection against the dangling-provider case the
-        // header warns about ("not owned; must outlive this"), which it cannot
-        // detect — ISearchProvider is not a QObject, so there is nothing to
-        // QPointer. Provider lifetime stays the caller's contract.
+        // unregisterProvider removes the entry outright, so an entry here is
+        // always non-null. A check would read as protection against the
+        // dangling-provider case the header warns about (a provider gone
+        // without unregisterProvider), which it cannot detect:
+        // ISearchProvider is not a QObject, so there is nothing to QPointer.
+        // Provider lifetime stays the caller's contract.
         const QVector<SearchEntry> provided = provider->searchEntries();
         for (SearchEntry e : provided) {
             if (!classifyMode(e)) {

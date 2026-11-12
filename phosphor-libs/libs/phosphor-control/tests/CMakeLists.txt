@@ -96,12 +96,14 @@ if(NOT PHOSPHOR_CONTROL_BUILD_SHARED)
     return()
 endif()
 #
-# Every test Facet module is fake_module/fakemodule.cpp built once per variant.
-# A variant differs only in its generated fake_module_config.h (FAKE_MODE, see
-# the source) and metadata.json, both in a per-variant directory on the
-# target's include path. The metadata goes through
-# phosphor_add_facet_module_metadata, and the plugin embeds what it generates.
-# Each library lands at ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
+# Every test Facet module but notamodule is fake_module/fakemodule.cpp built
+# once per variant. A variant differs in its generated fake_module_config.h
+# (FAKE_MODE, see the source), its metadata.json, both in a per-variant
+# directory on the target's include path, and the catalogs it translates its
+# metadata from (TS_FILES). The metadata goes through
+# phosphor_add_facet_module_metadata, and the plugin embeds the
+# facet_metadata.json it generates. Each library lands at
+# ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
 set(PHOSPHOR_CONTROL_FIXTURE_DIR ${CMAKE_CURRENT_BINARY_DIR}/fixtures)
 # The tests copy fixtures here before loading them, not under /tmp, which may
 # be mounted noexec.
@@ -257,11 +259,14 @@ phosphorcontrol_add_fake_module(orphankid MODE 0 METADATA [=[{
 phosphorcontrol_add_fake_module(stray MODE 0 METADATA [=[{
     "Id": "stray", "ApiVersion": 1, "Name": "Stray", "Category": "no-such-category",
     "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
-# A module that defines a category of its own.
+# A module that defines a category of its own. Its search entry has the title
+# of translated's: "owncat" sorts before "translated" by id, while its games
+# category comes after apps, where translated goes, in the sidebar.
 phosphorcontrol_add_fake_module(owncat MODE 0 METADATA [=[{
     "Id": "owncat", "ApiVersion": 1, "Name": "Own Category", "Category": "games",
     "Categories": [ { "Id": "games", "Name": "Games", "Icon": "games-icon", "Order": 55 } ],
-    "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
+    "Pages": [ { "Id": "page", "Name": "Page", "Anchors": ["shared"] } ],
+    "Search": [ { "Page": "page", "Anchor": "shared", "Title": "Pointer speed" } ] }]=])
 _fake_with_good_pages(missingpage 1 "Missing Page")
 _fake_with_good_pages(extrapage 2 "Extra Page")
 _fake_with_good_pages(wrongid 3 "Wrong Id")
@@ -361,7 +366,8 @@ phosphorcontrol_add_fake_module(targetsbad MODE 0 METADATA [=[{
 phosphorcontrol_add_fake_module(extender2 MODE 0 METADATA [=[{
     "Id": "extender2", "ApiVersion": 1, "Name": "Extender Two",
     "Pages": [ { "Id": "own", "Name": "Own" } ],
-    "Extensions": [ { "Id": "aaa", "Target": "good:general", "Slot": "top", "Name": "Aaa" } ] }]=])
+    "Extensions": [ { "Id": "aaa", "Target": "good:general", "Slot": "top", "Name": "Aaa",
+                      "Keywords": ["ext-word"] } ] }]=])
 # Its id is taken by an application page in the test, so it is never placed,
 # and its extension must not reach good:general.
 phosphorcontrol_add_fake_module(clashext MODE 0 METADATA [=[{
@@ -417,22 +423,32 @@ _fake_with_config(configempty 41 "Config Empty")
 _fake_with_config(confignested 42 "Config Nested")
 _fake_with_config(configthenbreaks 43 "Config Then Breaks")
 
-# Metadata localized from a catalog at build time, with a search entry.
+# Metadata localized from a catalog at build time, with a setting and an
+# advanced-only section to search for, and a second page for the module's
+# keywords and name to find.
 phosphorcontrol_add_fake_module(translated MODE 0
     TS_FILES ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/translated_de.ts
     METADATA [=[{
     "Id": "translated", "ApiVersion": 1, "Name": "Translated", "Keywords": ["module-word"],
-    "Pages": [ { "Id": "speed", "Name": "Speed", "Keywords": ["fast", "quick"], "Anchors": ["pointer"] } ],
-    "Search": [ { "Page": "speed", "Anchor": "pointer", "Title": "Pointer speed", "Keywords": ["fast"] } ] }]=])
+    "Pages": [ { "Id": "speed", "Name": "Speed", "Keywords": ["fast", "quick"], "Anchors": ["pointer", "accel"] },
+               { "Id": "extra", "Name": "Extra" } ],
+    "Search": [ { "Page": "speed", "Anchor": "pointer", "Title": "Pointer speed", "Keywords": ["fast"] },
+                { "Page": "speed", "Anchor": "accel", "Kind": "Section", "Title": "Acceleration",
+                  "AdvancedOnly": true } ] }]=])
 
-# Dynamic search providers: one well-behaved, one pointing elsewhere, one
-# registered without the metadata flag, and one in a registration that breaks
-# the contract otherwise.
+# Dynamic search providers: two well-behaved, one pointing elsewhere, one
+# registered without the metadata flag, one in a registration that breaks the
+# contract otherwise, and the providers module again in a library that cannot
+# be loaded.
 # Their one page is "general", like the page-contract variants, so the same
 # keeps-nothing checks cover the ones that break the contract.
 set(_provider_pages [=[ "Pages": [ { "Id": "general", "Name": "General", "Anchors": ["list"] } ] ]=])
-phosphorcontrol_add_fake_module(providers MODE 45 METADATA
+set(_providers_metadata
     "{ \"Id\": \"providers\", \"ApiVersion\": 1, \"Name\": \"Providers\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(providers MODE 45 METADATA "${_providers_metadata}")
+phosphorcontrol_add_fake_module(providersunloadable MODE 44 METADATA "${_providers_metadata}")
+phosphorcontrol_add_fake_module(providerstwo MODE 45 METADATA
+    "{ \"Id\": \"providerstwo\", \"ApiVersion\": 1, \"Name\": \"Providers Two\", \"SearchProviders\": true,${_provider_pages} }")
 phosphorcontrol_add_fake_module(strayprovider MODE 46 METADATA
     "{ \"Id\": \"strayprovider\", \"ApiVersion\": 1, \"Name\": \"Stray\", \"SearchProviders\": true,${_provider_pages} }")
 phosphorcontrol_add_fake_module(undeclaredprovider MODE 45 METADATA
@@ -441,6 +457,11 @@ phosphorcontrol_add_fake_module(providersbroken MODE 47 METADATA
     "{ \"Id\": \"providersbroken\", \"ApiVersion\": 1, \"Name\": \"Providers Broken\", \"SearchProviders\": true,${_provider_pages} }")
 phosphorcontrol_add_fake_module(badproviders MODE 49 METADATA
     "{ \"Id\": \"badproviders\", \"ApiVersion\": 1, \"Name\": \"Bad Providers\", \"SearchProviders\": true,${_provider_pages} }")
+# Providers that are QObjects: two the context refuses, and one a test deletes.
+phosphorcontrol_add_fake_module(providerobjects MODE 51 METADATA
+    "{ \"Id\": \"providerobjects\", \"ApiVersion\": 1, \"Name\": \"Provider Objects\", \"SearchProviders\": true,${_provider_pages} }")
+phosphorcontrol_add_fake_module(providerobject MODE 53 METADATA
+    "{ \"Id\": \"providerobject\", \"ApiVersion\": 1, \"Name\": \"Provider Object\", \"SearchProviders\": true,${_provider_pages} }")
 # Says it has providers and registers none.
 phosphorcontrol_add_fake_module(providersnone MODE 0 METADATA
     "{ \"Id\": \"providersnone\", \"ApiVersion\": 1, \"Name\": \"Providers None\", \"SearchProviders\": true,${_provider_pages} }")

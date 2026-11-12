@@ -36,10 +36,11 @@ class StagingDomain;
 ///
 /// The context only records. Once registerInto returns, Facet checks the
 /// whole registration and binds it all, or, when anything was refused or a
-/// declared page or extension is missing, keeps none of it: no page is bound
-/// and no domain joins Apply. Ownership follows the same split. On success a controller or
-/// domain with no QObject parent is adopted by the ApplicationController. On
-/// failure nothing is adopted, so parent what you create to the module's root
+/// declared page or extension is missing, keeps none of it: no page is bound,
+/// no domain joins Apply and no search provider is asked for its entries.
+/// Ownership follows the same split. On success a controller or domain with
+/// no QObject parent is adopted by the ApplicationController. On failure
+/// nothing is adopted, so parent what you create to the module's root
 /// object.
 ///
 /// configBackend() is the one call that acts at once: the backend is shared
@@ -77,14 +78,28 @@ public:
     bool registerDomain(StagingDomain* domain);
 
     /// Register a dynamic search source, for content the metadata cannot
-    /// list (rules, layouts, shaders). It joins the host's SearchController
-    /// (FacetHost::setSearchController) once the registration is kept, and
-    /// must then outlive that controller. A module is never unloaded, so a
-    /// provider its root object owns does. Its entries' page ids are
-    /// this module's pages, or pages its extensions are on. Refused, and
-    /// recorded as a module error, for a null provider, one registered twice,
-    /// or a module whose metadata does not say `"SearchProviders": true`,
-    /// which is what makes Facet load it for a search.
+    /// list (rules, layouts, shaders). Once the registration is kept, the
+    /// host asks it for its entries each time its SearchController
+    /// (FacetHost::setSearchController) rebuilds the index, and the first
+    /// time right away, while a crash still counts against this module's
+    /// load. That goes on as long as the FacetHost lives, so the provider
+    /// must live as long. A module is never unloaded, so a provider its root
+    /// object owns does. Make it once per root object, not in each
+    /// registerInto: a second FacetHost in the process that loads the same
+    /// file gets the same root object, and its registerInto must not free the
+    /// provider the first host still asks. A provider that is also a QObject
+    /// and is deleted anyway is no longer asked.
+    ///
+    /// Each entry is on one of this module's pages or a page one of its
+    /// extensions targets, or is an action, which has no page. The host
+    /// leaves out, with a warning, an entry on any other page. It also
+    /// leaves out, quietly, one on a page whose module failed or was turned
+    /// off after a crash, which shows that module's placeholder.
+    ///
+    /// Refused, and recorded as a module error, for a null provider, one
+    /// registered twice, one that is a QObject living in another thread, or
+    /// a module whose metadata does not say `"SearchProviders": true`, which
+    /// is what makes Facet load it for a search.
     bool registerSearchProvider(ISearchProvider* provider);
 
     /// Register the section for the extension @p localExtensionId the
@@ -171,6 +186,14 @@ private:
         QUrl qmlSource;
     };
 
+    struct SearchProviderRegistration
+    {
+        ISearchProvider* provider = nullptr;
+        /// The provider as a QObject, when it is one, so its deletion shows.
+        QPointer<QObject> object;
+        bool isObject = false;
+    };
+
     /// How @p domain is already registered, for the refusal message, or empty
     /// when it is not.
     [[nodiscard]] QString registeredAs(const StagingDomain* domain) const;
@@ -181,7 +204,7 @@ private:
     QList<ExtensionRegistration> m_extensions;
     QSet<QString> m_registeredPages;
     QSet<QString> m_registeredExtensions;
-    QList<ISearchProvider*> m_searchProviders;
+    QList<SearchProviderRegistration> m_searchProviders;
     QList<QPointer<StagingDomain>> m_domains;
     QStringList m_errors;
 };

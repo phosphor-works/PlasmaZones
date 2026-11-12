@@ -56,8 +56,8 @@ library provides:
 | `PhosphorControl::LocalizedContext`       | QML i18n context routing `i18n()`/`i18nc()`/`i18np()` through Qt translation, for Qt-only consumers without KF6 |
 | `PhosphorControl::IFacetModule`           | The interface a Facet module's root object implements (`registerInto(FacetContext&)`), IID `org.phosphor_works.Facet.Module/1` |
 | `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, the categories it defines, pages and their anchors, extension points, extensions, search entries, and whether it registers search providers), parsed and validated per locale |
-| `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, and the domain and QML of each section it adds to another module's page. It also hands out one config backend per file, shared by every module that writes it |
-| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened |
+| `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, the domain and QML of each section it adds to another module's page, and its search providers (`registerSearchProvider`). It also hands out one config backend per file, shared by every module that writes it |
+| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened, or, for a module with search providers, the first time a search query is not blank. With a `SearchController` it lists every module's pages and search entries before they load |
 | `PhosphorControl::FacetSlotModel`         | The sections in one slot of one page, for `FacetSlot`: reads `extensionsFor` again on `extensionsChanged` and keeps the row of a section that stays |
 | `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI: metadata, registration, staging, search providers, extension targets and anchor stability. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
 | `phosphor-facet-metadata`                 | Build tool behind `phosphor_add_facet_module_metadata()`: validates a module's metadata, adds `Key[<lang>]` translations from its `.ts` files, and writes its anchor list and lupdate strings |
@@ -287,13 +287,26 @@ The copies are staged as `module.so` and `target-000.so` onwards, and every
 problem names a module by the path it was given.
 
 **Search before loading.** Facet indexes every module from its metadata at
-start (`FacetHost::setSearchController`): each page with its `Keywords` and the
-module's, each `Search` entry (a setting or section at one of the page's
-`Anchors`), and each active extension as a section of the page it is on, at
-the anchor `<module>:<extension>`. A module with content only code can list
-registers an `ISearchProvider` through `FacetContext::registerSearchProvider`
-and declares `"SearchProviders": true`; Facet loads it the first time the
-query is not empty.
+start (`FacetHost::setSearchController`): each page with its `Keywords`, the
+module's `Keywords` and the module's name, each `Search` entry (a setting or
+section at one of the page's `Anchors`), and each active extension as a
+section of the page it is on, at the anchor `<module>:<extension>`, which the
+section's `FacetExtensionFrame` registers with the page's reveal registry.
+Entries list in the order of their page in the sidebar, which decides ties and
+what a result limit cuts. A page whose module failed or was turned off after a
+crash keeps only its own page result, which opens the placeholder that says
+why.
+
+Content that only code can list, such as rules, layouts or shaders, comes from
+an `ISearchProvider` the module registers through
+`FacetContext::registerSearchProvider`, with `"SearchProviders": true` in its
+metadata. Facet loads every such module whenever the query is not blank and it
+has not loaded yet, which covers a query typed before start and a module
+installed while one stands. It asks each provider for its entries once while
+the module's load is recorded, so a provider that crashes then disables its
+module, and again on each index rebuild for as long as the `FacetHost` lives.
+A provider's entries go on the module's own pages or the pages its extensions
+target, and Facet leaves out the rest with a warning.
 
 Modules that keep settings in one file share its backend:
 `FacetContext::configBackend(path, create)` creates the backend for the first
