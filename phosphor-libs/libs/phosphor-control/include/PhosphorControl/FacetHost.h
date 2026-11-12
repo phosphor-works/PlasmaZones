@@ -30,7 +30,9 @@ class IBackend;
 namespace PhosphorControl {
 
 class ApplicationController;
+class FacetConfigBackends;
 class FacetContext;
+class FacetLoadRecord;
 class ISearchProvider;
 class SearchController;
 class StagingDomain;
@@ -281,8 +283,6 @@ private:
     // For sharedConfigBackend.
     friend class FacetContext;
     struct Module;
-    struct LoadRecord;
-    class ConfigBackends;
     class ExtensionSearch;
     /// An extension resolved onto its target page.
     struct ActiveExtension
@@ -348,29 +348,6 @@ private:
     bool canLoadNow(const QString& moduleId, QString* errorString) const;
     void transition(Module& module, ModuleState state, const QString& reason, bool retryable = true);
     void disableAfterCrash(Module& module);
-    /// How far a write of the load record goes before it counts as done.
-    /// Both replace the record atomically, so a reader sees the old record
-    /// or the new one and never a part of one.
-    enum class RecordWrite : quint8 {
-        /// The new record's data reaches the disk before it replaces the old
-        /// one (QSaveFile). For the writes that change the disabled list.
-        Durable,
-        /// The new record replaces the old one without waiting for the disk,
-        /// which survives a crash of the process but not a power loss. For
-        /// the pair of writes around every module load, which only have to
-        /// outlive a crash of this process. A record that is a symbolic link
-        /// is written durably through it, as Durable writes it.
-        ProcessCrashSafe,
-    };
-    [[nodiscard]] LoadRecord readLoadRecord() const;
-    bool writeLoadRecord(const LoadRecord& record, RecordWrite mode = RecordWrite::Durable) const;
-    /// Write @p moduleId into the load record as loading. False when it was
-    /// not written (no record, or the write failed).
-    bool recordLoading(const QString& moduleId);
-    /// Take the loading module back out of the record, when recordLoading
-    /// put it there (@p recorded).
-    void clearLoading(bool recorded);
-    bool persistDisabled(RecordWrite mode = RecordWrite::Durable);
     void resolveExtensions();
     /// Resolve again after a module came or went: attach what became active,
     /// tell the pages whose sections changed, announce a changed refused
@@ -389,10 +366,9 @@ private:
     QPointer<SearchController> m_search;
     bool m_searchProvidersLoaded = false;
     std::unique_ptr<PhosphorRegistry::PluginCatalog> m_catalog;
-    QString m_sentinelPath;
-    /// Where config files are made instead of where they are
-    /// (setConfigRedirect), or empty.
-    QString m_configRedirect;
+    /// The load record (setSentinelPath) and the modules it keeps disabled
+    /// after a crash.
+    std::unique_ptr<FacetLoadRecord> m_loadRecord;
     QLocale m_locale;
     /// Sorts names in m_locale. Built once start() has fixed the locale.
     QCollator m_collator;
@@ -416,7 +392,6 @@ private:
     /// Set when loadExtenders was called while a module was loading, and so
     /// loaded nothing. Cleared by loadOwedExtenders, at the end of that load.
     bool m_extendersOwed = false;
-    QSet<QString> m_disabled;
     QHash<QString, std::shared_ptr<Module>> m_modules;
     QHash<QString, FacetCategoryMetadata> m_categories;
     QSet<QString> m_registeredCategoryNodes;
@@ -424,10 +399,11 @@ private:
     QHash<QString, QList<ActiveExtension>> m_extensionsByPage;
     QList<RefusedExtension> m_refusedExtensions;
     QSet<QString> m_warnedExtensions;
-    /// The config backends modules share. A child of the
-    /// ApplicationController, which destroys it, so this is null once the
-    /// controller is gone and is checked before every use.
-    QPointer<ConfigBackends> m_configBackends;
+    /// The config backends modules share, and where they are made
+    /// (setConfigRedirect). A child of the ApplicationController, which
+    /// destroys it, so this is null once the controller is gone and is
+    /// checked before every use.
+    QPointer<FacetConfigBackends> m_configBackends;
 };
 
 } // namespace PhosphorControl

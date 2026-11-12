@@ -182,6 +182,10 @@ set(phosphorcontrol_SRCS
     src/facetmodulemetadata.cpp
     src/facetcontext.cpp
     src/facethost.cpp
+    # FacetHost's load record and its shared config backends, private to the
+    # library (facetloadrecord_p.h, facetconfigbackends_p.h).
+    src/facetloadrecord.cpp
+    src/facetconfigbackends.cpp
     src/facetslotmodel.cpp
 )
 
