@@ -542,16 +542,21 @@ public:
      *
      * Backend: reads Rendering/Backend (the renderingGroup()/backendKey()
      * accessors), falling back to the legacy plasmazonesrc INI (v1 key) when
-     * the JSON config is absent, unparseable, or doesn't carry the key — in
-     * practice the pre-migration window, since a successful migration renames
-     * the INI away. Returns a normalized token ("auto", "vulkan", "opengl").
+     * the JSON config is absent, unparseable, or doesn't carry the key. Read
+     * after the migration, as the daemon reads it, that means a start whose
+     * migration failed, since a successful one renames the INI away. Returns
+     * a normalized token ("auto", "vulkan", "opengl").
      *
      * GPU pin: reads Rendering/Gpu with no INI fallback (the key postdates
      * the v1 INI format, so an INI can never carry it). Returns "auto" or a
      * normalized "vendor:device" hex pair.
      *
      * Safe to call before QCoreApplication exists (raw file access, no
-     * config backend construction). Used by the daemon and editor mains.
+     * config backend construction). Only the daemon's main calls it. A v1
+     * config.json keeps its backend under Rendering/RenderingBackend, which
+     * this reads as "auto" until ensureJsonConfig() has moved it to
+     * Rendering/Backend, so read the backend after the migration. The GPU pin
+     * is in no migration and can be read before it.
      */
     struct RenderingBootConfig
     {

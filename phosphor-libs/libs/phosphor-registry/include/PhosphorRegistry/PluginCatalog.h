@@ -120,8 +120,17 @@ struct PHOSPHORREGISTRY_EXPORT RefusedPlugin
 /// (`install`, `mv`), never by writing over it in place, which changes the
 /// code the process is running.
 ///
-/// A plugin whose load() failed is offered again, with a new pluginAdded,
-/// once its file changes.
+/// A plugin on offer that is not loaded is offered again, with a new
+/// pluginAdded for an id already in plugins(), once the file behind it is no
+/// longer the one it was last offered with: rewritten, replaced by a rename
+/// over it, overridden by a copy found earlier, or removed while another copy
+/// of the same id takes its place. A failed load() counts as
+/// an offer of the file as it was then, so a plugin whose load failed is
+/// offered again only once its file changes after that. A file is told apart
+/// by its device, inode, size and modification time. A scan that finds every
+/// such file as it was emits neither pluginAdded nor pluginRemoved. A loaded
+/// plugin is never offered again this way, since it keeps the code it was
+/// loaded from.
 ///
 /// Calling scan() from a slot that a scan's own signals reach defers the
 /// rescan until the running one has finished.
@@ -186,8 +195,9 @@ public:
     void setMaxFilesPerScanForTest(int cap);
 
 Q_SIGNALS:
-    /// A plugin id came on offer, or a plugin whose load failed changed on
-    /// disk.
+    /// A plugin id came on offer, or the file of a plugin on offer that is
+    /// not loaded changed (see the class notes). A slot can therefore see an
+    /// id it already knows, and should read plugin() again.
     void pluginAdded(const QString& id);
     /// A plugin id left the offer: its file is gone or now refused.
     void pluginRemoved(const QString& id);
@@ -199,7 +209,8 @@ private:
     struct Loaded;
     struct Vetted;
 
-    /// What a file was when a load of it failed, to notice when it changes.
+    /// What a file was when it was offered, or when a load of it failed, to
+    /// notice when it changes.
     struct FileIdentity
     {
         quint64 device = 0;
@@ -230,8 +241,9 @@ private:
     QHash<QString, PluginMetadata> m_plugins;
     QList<RefusedPlugin> m_refused;
     QHash<QString, std::shared_ptr<Loaded>> m_loaded;
-    /// Plugins whose load failed, with the file as it was then.
-    QHash<QString, FileIdentity> m_failed;
+    /// Every plugin on offer that is not loaded, with its file as it was when
+    /// it was last offered or a load of it last failed.
+    QHash<QString, FileIdentity> m_offered;
     /// Warn-once keys. A key is dropped when its file stops producing that
     /// warning, so a regression warns again.
     QSet<QString> m_warned;

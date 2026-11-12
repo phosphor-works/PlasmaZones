@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphortiles_export.h>
+#include "phosphortiles_export.h"
 
 #include <PhosphorLayoutApi/ILayoutSourceRegistry.h>
 #include <PhosphorTiles/AlgorithmPreviewParams.h>

@@ -37,8 +37,10 @@ public:
 
     /// Read the file at @p jsonPath, run the chain, and — if the version
     /// advanced — atomically write the result back. Returns @c true on
-    /// success, on "nothing to do", or on "file doesn't exist" (fresh
-    /// install). Returns @c false only on parse or write errors.
+    /// success, on "nothing to do", or on a fresh install: a file that does
+    /// not exist or holds only white space, which @c JsonBackend reads as an
+    /// empty document. Neither is rewritten. Returns @c false only on open,
+    /// parse or write errors.
     ///
     /// Not safe against concurrent writers — the read-migrate-write
     /// sequence has no file lock. Assumes single-process single-user

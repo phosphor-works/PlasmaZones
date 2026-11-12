@@ -14,6 +14,7 @@
 
 #include <QCollator>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -24,10 +25,13 @@
 #include <QSaveFile>
 #include <QScopeGuard>
 #include <QStandardPaths>
+#include <QTemporaryFile>
 #include <QThread>
+#include <QTimeZone>
 #include <QVariantMap>
 
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 #include <utility>
 
@@ -444,6 +448,25 @@ void FacetHost::start()
     // record keeps it disabled across starts until it is retried.
     if (m_sentinelPath.isEmpty()) {
         qCInfo(lcFacetHost) << "FacetHost: no state directory, so a module that crashes Facet is not remembered";
+    } else {
+        // A process killed between naming a record write's temporary file and
+        // renaming it over the record leaves that file behind. A minute is far
+        // longer than a write takes, so a second instance writing right now
+        // keeps its file. QTemporaryFile's suffix is six letters or digits,
+        // and the match is case-sensitive, so a user's copy such as
+        // "facet-loading.v1.bak" is left alone.
+        const QFileInfo recordInfo(m_sentinelPath);
+        QDir recordDir = recordInfo.absoluteDir();
+        const QDateTime cutoff = QDateTime::currentDateTimeUtc().addSecs(-60);
+        const QString suffixChar = QStringLiteral("[A-Za-z0-9]");
+        const QFileInfoList strays =
+            recordDir.entryInfoList({recordInfo.fileName() + QLatin1Char('.') + suffixChar.repeated(6)},
+                                    QDir::Files | QDir::Hidden | QDir::System | QDir::CaseSensitive);
+        for (const QFileInfo& stray : strays) {
+            if (stray.lastModified(QTimeZone::UTC) < cutoff) {
+                recordDir.remove(stray.fileName());
+            }
+        }
     }
     LoadRecord record = readLoadRecord();
     if (!record.loading.isEmpty()) {
@@ -686,10 +709,10 @@ void FacetHost::onPluginAdded(const QString& moduleId)
                    false);
         return;
     }
-    // Offered again: its file changed after a failed load, or it was removed
-    // and installed again. Its placeholders are already in the sidebar and
-    // cannot move, so it can be tried again only when its metadata still
-    // matches them and all of them are there.
+    // Offered again: its file changed while its library was not loaded, or it
+    // was removed and installed again. Its placeholders are already in the
+    // sidebar and cannot move, so it can be tried again only when its
+    // metadata still matches them and all of them are there.
     const std::optional<PhosphorRegistry::PluginMetadata> plugin = m_catalog->plugin(moduleId);
     const auto allPlaced = [this, &existing] {
         for (const FacetPageMetadata& page : existing->metadata.pages) {
@@ -2012,7 +2035,7 @@ FacetHost::LoadRecord FacetHost::readLoadRecord() const
     return record;
 }
 
-bool FacetHost::writeLoadRecord(const LoadRecord& record) const
+bool FacetHost::writeLoadRecord(const LoadRecord& record, RecordWrite mode) const
 {
     if (m_sentinelPath.isEmpty()) {
         return false;
@@ -2027,11 +2050,52 @@ bool FacetHost::writeLoadRecord(const LoadRecord& record) const
         json.insert(RecordDisabledKey, QJsonArray::fromStringList(record.disabled));
     }
     QDir().mkpath(QFileInfo(m_sentinelPath).absolutePath());
-    // Atomic replace, because the file also holds the disabled list, which a
-    // write cut short by a crash must not lose.
+    const QByteArray bytes = QJsonDocument(json).toJson(QJsonDocument::Compact);
+    // Atomic replace in both modes, because the file also holds the disabled
+    // list, which a write cut short by a crash must not lose.
+    //
+    // A record that is a symbolic link takes the QSaveFile path: it writes
+    // through the link to its target, where a rename would put a regular file
+    // in place of the link and leave the target stale.
+    const QFileInfo existing(m_sentinelPath);
+    if (mode == RecordWrite::ProcessCrashSafe && !existing.isSymLink()) {
+        // QSaveFile refuses to replace a record that is not writable, and so
+        // does this path, so both modes fail on the same file.
+        if (existing.exists() && !existing.isWritable()) {
+            qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_sentinelPath;
+            return false;
+        }
+        // QSaveFile::commit() syncs the file to disk (an fdatasync), which
+        // costs milliseconds on the GUI thread for each write around a
+        // module load. Once written and renamed into place the record is in
+        // the kernel, which is all a crash of this process needs. A power
+        // loss can then lose the write or leave an empty record, which
+        // forgets the disabled list: each module on it is loaded once more
+        // and, if it still crashes Facet, disabled again.
+        //
+        // fileName() gives the file a name in the record's directory when
+        // Qt opened it unnamed, and is empty when it cannot.
+        //
+        // QTemporaryFile creates the file owner-only. An existing record keeps
+        // its own permissions, as QSaveFile keeps them.
+        QTemporaryFile file(m_sentinelPath + QStringLiteral(".XXXXXX"));
+        const bool written = file.open() && (!existing.exists() || file.setPermissions(existing.permissions()))
+            && file.write(bytes) == bytes.size() && file.flush();
+        const QString temporaryName = written ? file.fileName() : QString();
+        if (!temporaryName.isEmpty()
+            && std::rename(QFile::encodeName(temporaryName).constData(), QFile::encodeName(m_sentinelPath).constData())
+                == 0) {
+            // The name is the record's now. Removing the temporary file's
+            // name on destruction would remove nothing, or whatever took the
+            // old name since.
+            file.setAutoRemove(false);
+            return true;
+        }
+        qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_sentinelPath;
+        return false;
+    }
     QSaveFile file(m_sentinelPath);
-    if (!file.open(QIODevice::WriteOnly) || file.write(QJsonDocument(json).toJson(QJsonDocument::Compact)) < 0
-        || !file.commit()) {
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) < 0 || !file.commit()) {
         qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_sentinelPath;
         return false;
     }
@@ -2049,7 +2113,9 @@ bool FacetHost::recordLoading(const QString& moduleId)
     record.process = processIdentity(record.pid);
     record.disabled = QStringList(m_disabled.cbegin(), m_disabled.cend());
     std::sort(record.disabled.begin(), record.disabled.end());
-    return writeLoadRecord(record);
+    // The disabled list is written unchanged, so this write only has to
+    // outlive a crash of the module about to load.
+    return writeLoadRecord(record, RecordWrite::ProcessCrashSafe);
 }
 
 void FacetHost::clearLoading(bool recorded)
@@ -2061,14 +2127,14 @@ void FacetHost::clearLoading(bool recorded)
     }
     // A record left naming the module would make the next start disable a
     // module that loaded fine, so try once more before giving up.
-    if (!persistDisabled() && !persistDisabled()) {
+    if (!persistDisabled(RecordWrite::ProcessCrashSafe) && !persistDisabled(RecordWrite::ProcessCrashSafe)) {
         qCWarning(lcFacetHost).noquote() << "FacetHost: the load record" << m_sentinelPath << "still names module"
                                          << m_loadingModule
                                          << "as loading; the next start will treat it as having crashed";
     }
 }
 
-bool FacetHost::persistDisabled()
+bool FacetHost::persistDisabled(RecordWrite mode)
 {
     if (m_sentinelPath.isEmpty()) {
         return false;
@@ -2076,7 +2142,7 @@ bool FacetHost::persistDisabled()
     LoadRecord record;
     record.disabled = QStringList(m_disabled.cbegin(), m_disabled.cend());
     std::sort(record.disabled.begin(), record.disabled.end());
-    return writeLoadRecord(record);
+    return writeLoadRecord(record, mode);
 }
 
 } // namespace PhosphorControl

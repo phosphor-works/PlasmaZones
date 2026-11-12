@@ -175,9 +175,13 @@ add_compile_definitions(QT_NO_CAST_FROM_ASCII)
 
 # KDE Frameworks integration.
 # ON (default): full KDE integration - KWin effect, KCM, KGlobalAccel shortcuts,
-#               PlasmaActivities, KConfigXT for KCM defaults.
-# OFF: portable Qt-only build - daemon + editor only, no KDE dependencies.
-#      Shortcuts use XDG Portal or D-Bus trigger fallback.
+#               PlasmaActivities when it is found.
+# OFF: portable build without the KWin effect, the KCM, KGlobalAccel or
+#      PlasmaActivities. It is not free of KDE dependencies: ECM is required
+#      in both modes (find_package(ECM) above), the settings app is built in
+#      both and requires KF6 Kirigami (plasmazones/src/settings/CMakeLists.txt),
+#      and the editor's and settings app's QML import org.kde.kirigami at run
+#      time. Shortcuts use XDG Portal or D-Bus trigger fallback.
 option(USE_KDE_FRAMEWORKS "Build with KDE Frameworks integration" ON)
 
 # Opt-in build for the in-progress phosphor-shell desktop shell and its

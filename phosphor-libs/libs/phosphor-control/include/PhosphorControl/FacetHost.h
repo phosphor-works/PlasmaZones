@@ -183,11 +183,13 @@ public:
     /// changed since. A failure that loading again cannot fix (invalid
     /// metadata, a taken id, a node or page that could not be placed, a
     /// root object that is not an IFacetModule, a file that changed or went
-    /// away) is not retryable. When the catalog offers the file again, a
-    /// module whose metadata is unchanged, whose pages are all placed and
-    /// whose library was never loaded can be loaded again, and one that was
-    /// never placed (invalid metadata, a taken id, no node) is read and
-    /// placed afresh.
+    /// away) is not retryable. The catalog offers a module's file again when
+    /// it is installed again after a removal, and when it changes on disk
+    /// (rewritten, or replaced by a rename over it) while its library is not
+    /// loaded. Then a module whose metadata is unchanged, whose pages are all
+    /// placed and whose library was never loaded can be loaded again, and one
+    /// that was never placed (invalid metadata, a taken id, no node) is read
+    /// and placed afresh, so fixing its metadata on disk is enough.
     /// Anything else needs a restart. That includes a module that failed
     /// with its library loaded: the process keeps running that code, so the
     /// file offered again cannot be tried.
@@ -327,15 +329,29 @@ private:
     bool canLoadNow(const QString& moduleId, QString* errorString) const;
     void transition(Module& module, ModuleState state, const QString& reason, bool retryable = true);
     void disableAfterCrash(Module& module);
+    /// How far a write of the load record goes before it counts as done.
+    /// Both replace the record atomically, so a reader sees the old record
+    /// or the new one and never a part of one.
+    enum class RecordWrite : quint8 {
+        /// The new record's data reaches the disk before it replaces the old
+        /// one (QSaveFile). For the writes that change the disabled list.
+        Durable,
+        /// The new record replaces the old one without waiting for the disk,
+        /// which survives a crash of the process but not a power loss. For
+        /// the pair of writes around every module load, which only have to
+        /// outlive a crash of this process. A record that is a symbolic link
+        /// is written durably through it, as Durable writes it.
+        ProcessCrashSafe,
+    };
     [[nodiscard]] LoadRecord readLoadRecord() const;
-    bool writeLoadRecord(const LoadRecord& record) const;
+    bool writeLoadRecord(const LoadRecord& record, RecordWrite mode = RecordWrite::Durable) const;
     /// Write @p moduleId into the load record as loading. False when it was
     /// not written (no record, or the write failed).
     bool recordLoading(const QString& moduleId);
     /// Take the loading module back out of the record, when recordLoading
     /// put it there (@p recorded).
     void clearLoading(bool recorded);
-    bool persistDisabled();
+    bool persistDisabled(RecordWrite mode = RecordWrite::Durable);
     void resolveExtensions();
     /// Resolve again after a module came or went: attach what became active,
     /// tell the pages whose sections changed, announce a changed refused

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorengine_export.h>
+#include "phosphorengine_export.h"
 #include <QString>
 #include <QVariantMap>
 

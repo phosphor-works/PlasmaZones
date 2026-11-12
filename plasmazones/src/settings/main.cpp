@@ -91,18 +91,12 @@ bool activateRunningInstance(const QString& address)
 
 int main(int argc, char* argv[])
 {
-    // Opt out of MangoHud's implicit Vulkan layer injection. MangoHud's
-    // implicit_layer manifest attaches whenever MANGOHUD=1 is in the
-    // environment (e.g. set globally for games), and its NVIDIA stat-polling
-    // thread costs ~30% CPU continuously inside this process — we are a
-    // settings UI, not a game client. MANGOHUD is unset and DISABLE_MANGOHUD
-    // is set:
-    // MANGOHUD=0 alone is not enough on all manifest versions; the explicit
-    // DISABLE_MANGOHUD opt-out is honored regardless of MANGOHUD's value.
-    // Must run before QApplication construction (which initializes the
-    // QtQuick render path and may load the Vulkan ICD chain).
-    qunsetenv("MANGOHUD");
-    qputenv("DISABLE_MANGOHUD", "1");
+    // No MangoHud opt-out here, unlike plasmazonesd. MangoHud attaches as an
+    // implicit Vulkan layer, and this app renders through OpenGL unless a
+    // Vulkan RHI is forced, so the layer never loads in the default case. An
+    // opt-out set in this process's environment would also reach every
+    // program QDesktopServices::openUrl starts (file manager, editor,
+    // browser), and openUrl takes no environment to strip it from.
 
     // QApplication (not QGuiApplication): the org.kde.desktop QtQuick Controls
     // style (qqc2-desktop-style) renders every control through a QtWidgets

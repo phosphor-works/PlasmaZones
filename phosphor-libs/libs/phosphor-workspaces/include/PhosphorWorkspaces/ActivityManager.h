@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorworkspaces_export.h>
+#include "phosphorworkspaces_export.h"
 #include <QObject>
 #include <QString>
 #include <QStringList>

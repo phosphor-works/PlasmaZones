@@ -29,18 +29,24 @@ struct Schema;
 ///   - A uniform @c changed() signal that consumers can wire directly to UI updates
 ///
 /// @code
+///   const QString window = QStringLiteral("Window");
+///   const QString width = QStringLiteral("Width");
+///
 ///   Schema schema;
 ///   schema.version = 1;
-///   schema.groups["Window"] = {
-///       {QStringLiteral("Width"),  600,       QMetaType::Int},
-///       {QStringLiteral("Height"), 400,       QMetaType::Int},
-///       {QStringLiteral("Title"),  QStringLiteral("Hello")},
+///   schema.groups[window] = {
+///       {width, 600, QMetaType::Int},
+///       {QStringLiteral("Height"), 400, QMetaType::Int},
+///       {QStringLiteral("Title"), QStringLiteral("Hello"), QMetaType::QString},
 ///   };
 ///
-///   auto store = std::make_unique<Store>(std::move(backend), schema);
-///   int w = store->read<int>("Window", "Width"); // returns 600 if unset
-///   store->write("Window", "Width", 800);
-///   store->reset("Window", "Width"); // back to 600
+///   // The store borrows the backend, so declare the backend first: it is
+///   // then destroyed after the store.
+///   auto backend = std::make_unique<JsonBackend>(configPath);
+///   Store store(backend.get(), schema);
+///   int w = store.read<int>(window, width); // 600 while unset
+///   store.write(window, width, 800);
+///   store.reset(window, width); // back to 600
 /// @endcode
 class PHOSPHORCONFIG_EXPORT Store : public QObject
 {

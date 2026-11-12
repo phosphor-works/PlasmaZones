@@ -5,7 +5,7 @@
 
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorGeometry/GeometryUtils.h>
-#include <phosphorengine_export.h>
+#include "phosphorengine_export.h"
 
 #include <QRect>
 #include <QString>

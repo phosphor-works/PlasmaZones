@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphortiles_export.h>
+#include "phosphortiles_export.h"
 
 // EdgeGaps is the per-side gap shape shared between manual layout and tiling;
 // it lives in libs/phosphor-layout-api so neither side has to depend on the

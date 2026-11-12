@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphortiles_export.h>
+#include "phosphortiles_export.h"
 #include "AutotileConstants.h"
 // TilingParams, TilingScreenInfo, WindowInfo, buildWindowInfos and EdgeGaps used
 // to be declared inline in this header. They now live in TilingParams.h

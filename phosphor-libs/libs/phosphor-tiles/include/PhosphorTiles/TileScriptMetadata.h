@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphortiles_export.h>
+#include "phosphortiles_export.h"
 #include <PhosphorLayoutApi/AlgorithmMetadata.h>
 
 #include <QRect>

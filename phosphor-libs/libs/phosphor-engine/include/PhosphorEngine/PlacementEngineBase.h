@@ -5,7 +5,7 @@
 
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorEngine/IPlacementEngine.h>
-#include <phosphorengine_export.h>
+#include "phosphorengine_export.h"
 
 #include <QList>
 #include <QObject>

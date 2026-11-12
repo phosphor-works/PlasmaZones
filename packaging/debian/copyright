@@ -41,11 +41,15 @@ License: LGPL-2.1-or-later
 # while the sources said otherwise.
 #
 # phosphor-libs/data/schemas/*.json matters most here: it has no header (JSON has no
-# comment syntax) but is RCC-embedded into PhosphorShaders, PhosphorZones and
-# PhosphorAnimation, so declaring it GPL-3 asserts GPL over content compiled
-# into LGPL shared libraries. That is the hazard CLAUDE.md names when it says
-# never to "fix" a lib header to GPL-3, expressed in packaging metadata rather
-# than in a header.
+# comment syntax), and some of it is RCC-embedded into LGPL shared libraries
+# (layout.schema.json into PhosphorZones, shader-metadata.schema.json into
+# PhosphorShaders, curve.schema.json and animation-metadata.schema.json into
+# PhosphorAnimation). Declaring those GPL-3 asserts GPL over content compiled
+# into an LGPL library. That is the hazard CLAUDE.md names when it says never
+# to "fix" a lib header to GPL-3, expressed in packaging metadata rather than
+# in a header. The rest of the directory is the libraries' author-time
+# contract, validated by scripts/validate-json-schemas.py and compiled into no
+# library, and is LGPL like the tier it belongs to.
 # cmake/ is MIXED, so its LGPL members are named one by one rather than
 # globbed: format-qml.cmake, PhosphorCPack.cmake, PhosphorTranslations.cmake,
 # post-install-sycoca.sh and uninstall.cmake.in are GPL-3 and must keep

@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 
 using namespace PhosphorRegistry;
@@ -612,6 +613,66 @@ private Q_SLOTS:
         QCOMPARE(added.last().first().toString(), QStringLiteral("fake-plugin-retry"));
         QString error;
         QVERIFY2(catalog->load(QStringLiteral("fake-plugin-retry"), &error), qPrintable(error));
+    }
+
+    void aPluginNeverLoadedIsOfferedAgainWhenItsFileIsReplaced()
+    {
+        // A consumer that turned the plugin down on its metadata alone never
+        // calls load(). When a fixed build is moved over the file, as a
+        // package upgrade does, the catalog has to say so, or the consumer
+        // goes on judging the metadata it read first.
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        const QString plugins = root.filePath(QStringLiteral("plugins"));
+        const QString path = stagePlugin(plugins, QStringLiteral("fake-plugin"));
+        QVERIFY(!path.isEmpty());
+        auto catalog = makeCatalog({{plugins, PluginOrigin::User}});
+        QSignalSpy added(catalog.get(), &PluginCatalog::pluginAdded);
+        QSignalSpy removed(catalog.get(), &PluginCatalog::pluginRemoved);
+        catalog->scan();
+        QCOMPARE(added.count(), 1);
+        QVERIFY(!catalog->plugin(QStringLiteral("fake-plugin"))->metaData.contains(QLatin1String("Extra")));
+
+        // Same id, other metadata, staged outside the search path and renamed
+        // over the old file in one step.
+        const QString next = stagePlugin(root.filePath(QStringLiteral("staging")), QStringLiteral("fake-plugin-extra"),
+                                         QStringLiteral("fake-plugin.so"));
+        QVERIFY(!next.isEmpty());
+        QCOMPARE(std::rename(QFile::encodeName(next).constData(), QFile::encodeName(path).constData()), 0);
+        catalog->scan();
+
+        QCOMPARE(added.count(), 2);
+        QCOMPARE(added.last().first().toString(), QStringLiteral("fake-plugin"));
+        QCOMPARE(removed.count(), 0);
+        const auto metadata = catalog->plugin(QStringLiteral("fake-plugin"));
+        QVERIFY(metadata.has_value());
+        QVERIFY(metadata->metaData.value(QLatin1String("Extra")).toBool());
+        QVERIFY(!catalog->isLoaded(QStringLiteral("fake-plugin")));
+        QVERIFY(!isMapped(canonical(path)));
+
+        // Offered once for the change, not again for a file that stays put.
+        catalog->scan();
+        QCOMPARE(added.count(), 2);
+    }
+
+    void aScanThatFindsNothingChangedEmitsNothing()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        QVERIFY(!stagePlugin(root.path(), QStringLiteral("fake-plugin")).isEmpty());
+        QVERIFY(!stagePlugin(root.path(), QStringLiteral("fake-plugin-secondary")).isEmpty());
+        auto catalog = makeCatalog({{root.path(), PluginOrigin::User}});
+        catalog->scan();
+        QCOMPARE(catalog->plugins().size(), 2);
+
+        QSignalSpy added(catalog.get(), &PluginCatalog::pluginAdded);
+        QSignalSpy removed(catalog.get(), &PluginCatalog::pluginRemoved);
+        QSignalSpy completed(catalog.get(), &PluginCatalog::scanCompleted);
+        catalog->scan();
+        catalog->scan();
+        QCOMPARE(completed.count(), 2);
+        QCOMPARE(added.count(), 0);
+        QCOMPARE(removed.count(), 0);
     }
 
     void aWithdrawnPluginCannotBeLoadedUntilItIsBack()

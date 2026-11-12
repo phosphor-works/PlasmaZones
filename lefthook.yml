@@ -52,12 +52,13 @@ pre-commit:
       # files too; the others are an author-time contract that no runtime
       # loader compiles.
       # Validates the full set rather than just staged files so a schema edit
-      # re-checks every governed document. The script bootstraps a cached venv
-      # with jsonschema on first run (no global install needed), so the gate
-      # always runs; it only exits non-zero if validation fails or the
-      # validator genuinely can't be obtained (e.g. offline first run). A cached
-      # venv on another jsonschema release is rebuilt at the pin, and kept with
-      # a warning when the rebuild cannot run.
+      # re-checks every governed document. A jsonschema that python3 can
+      # already import is used as found. Otherwise the script bootstraps a
+      # cached venv with the pinned jsonschema on first run (no global install
+      # needed), so the gate always runs; it exits non-zero if validation fails
+      # or the validator genuinely can't be obtained (e.g. offline first run),
+      # and never skips. A cached venv on another jsonschema release is rebuilt
+      # at the pin, and kept with a warning when the rebuild cannot run.
       run: python3 scripts/validate-json-schemas.py
     conventions:
       # The CLAUDE.md rules that are decidable by inspection: SPDX headers, the
@@ -78,8 +79,8 @@ pre-commit:
       # own empty-staged-list early return is the backstop for a hand-run or
       # another runner. CI's whole-tree run is the backstop for all of them.
       #
-      # Stdlib-only, so unlike the schema hook there is no venv to bootstrap
-      # and this is always a hard gate.
+      # Stdlib-only, so unlike the schema hook there is no venv to bootstrap.
+      # Both are hard gates.
       glob:
         # `js` is here for the js-pragma rule. Without it a staged .js matches
         # no entry, lefthook passes no files, and the rule that exists to stop

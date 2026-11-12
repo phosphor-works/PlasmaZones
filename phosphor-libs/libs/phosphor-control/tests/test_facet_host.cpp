@@ -9,6 +9,7 @@
 #include <PhosphorControl/StagingDomain.h>
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -17,6 +18,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -29,6 +31,8 @@
 #include <memory>
 #include <optional>
 #include <utility>
+
+#include <unistd.h>
 
 #ifndef PHOSPHOR_CONTROL_FIXTURE_DIR
 #error "PHOSPHOR_CONTROL_FIXTURE_DIR must be defined by tests/CMakeLists.txt"
@@ -688,6 +692,9 @@ private Q_SLOTS:
             QJsonDocument::fromJson(qApp->property("facetLoadRecord").toString().toUtf8()).object();
         QCOMPARE(during.value(QStringLiteral("loading")).toString(), QStringLiteral("recorder"));
         QVERIFY(QDir(second).isEmpty());
+        // Each write replaced the record by a rename, leaving nothing beside it.
+        QCOMPARE(QDir(QFileInfo(record).absolutePath()).entryList(QDir::Files | QDir::Hidden | QDir::System),
+                 QStringList{QStringLiteral("facet-loading")});
     }
 
     void anEmptyLoadRecordPathRemembersNothing()
@@ -701,6 +708,101 @@ private Q_SLOTS:
         h.host->start();
         QVERIFY(h.host->loadModule(QStringLiteral("good")));
         QVERIFY(!QFileInfo::exists(h.sentinel));
+    }
+
+    void aLoadRecordThatIsALinkStaysALink()
+    {
+        QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
+        QVERIFY(state.isValid());
+        const QString target = state.filePath(QStringLiteral("target"));
+        const QString link = state.filePath(QStringLiteral("facet-loading"));
+        // A key FacetHost never writes, so its absence afterwards shows the
+        // writes went through the link to the target.
+        QVERIFY(writeRecord(target, QJsonObject{{QStringLiteral("unrelated"), 1}}));
+        QVERIFY(QFile::link(target, link));
+        Harness h({QStringLiteral("good")}, link);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        QVERIFY(QFileInfo(link).isSymLink());
+        QVERIFY(QFileInfo::exists(target));
+        QCOMPARE(readRecord(target), QJsonObject());
+    }
+
+    void aLoadRecordKeepsItsPermissions()
+    {
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        QVERIFY(writeRecord(h.sentinel, QJsonObject()));
+        QVERIFY(QFile::setPermissions(h.sentinel,
+                                      QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup));
+        // Read back rather than spelled out: Qt also reports the *User bits,
+        // derived from the owner bits for the file's owner.
+        const QFileDevice::Permissions before = QFile::permissions(h.sentinel);
+        QVERIFY(before.testFlag(QFileDevice::ReadGroup));
+        h.host->start();
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        // A temporary file renamed into place would be owner-only.
+        QCOMPARE(QFile::permissions(h.sentinel), before);
+    }
+
+    void anOldTemporaryRecordIsRemovedAtStart()
+    {
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        const QString stale = h.sentinel + QStringLiteral(".aBc123");
+        const QString fresh = h.sentinel + QStringLiteral(".dEf456");
+        // Names QTemporaryFile never gives the record's temporary file: a
+        // shorter suffix, a six-character suffix holding a dot, and the
+        // record's name in another case (with a suffix of its own, so a
+        // case-insensitive filesystem cannot make it the stale file).
+        const QFileInfo sentinelInfo(h.sentinel);
+        const QStringList others{
+            h.sentinel + QStringLiteral(".bak"),
+            h.sentinel + QStringLiteral(".v1.bak"),
+            sentinelInfo.absoluteDir().filePath(sentinelInfo.fileName().toUpper() + QStringLiteral(".gHi789")),
+        };
+        QVERIFY(writeRecord(stale, QJsonObject()));
+        QVERIFY(writeRecord(fresh, QJsonObject()));
+        for (const QString& path : others) {
+            QVERIFY(writeRecord(path, QJsonObject()));
+        }
+        const QDateTime old = QDateTime::currentDateTimeUtc().addSecs(-3600);
+        for (const QString& path : QStringList{stale} + others) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::ReadWrite));
+            QVERIFY(file.setFileTime(old, QFileDevice::FileModificationTime));
+        }
+        h.host->start();
+        QVERIFY(!QFileInfo::exists(stale));
+        // Possibly another instance's write in progress.
+        QVERIFY(QFileInfo::exists(fresh));
+        for (const QString& path : others) {
+            QVERIFY2(QFileInfo::exists(path), qPrintable(path));
+        }
+    }
+
+    void aLoadRecordThatIsNotWritableIsLeftAlone()
+    {
+        if (::geteuid() == 0) {
+            QSKIP("root writes a file whatever its mode");
+        }
+        Harness h({QStringLiteral("good")});
+        QVERIFY2(h.ok, qPrintable(h.error));
+        // A key FacetHost never writes, so a record renamed over this one
+        // would show by its absence.
+        QVERIFY(writeRecord(h.sentinel, QJsonObject{{QStringLiteral("unrelated"), 1}}));
+        QVERIFY(QFile::setPermissions(h.sentinel, QFileDevice::ReadOwner | QFileDevice::ReadGroup));
+        const QFileDevice::Permissions before = QFile::permissions(h.sentinel);
+        const QJsonObject content = readRecord(h.sentinel);
+        h.host->start();
+        // Refused like QSaveFile refuses it, not renamed over: the module
+        // loads unrecorded, and the record keeps its mode and content.
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("could not write the load record")));
+        QVERIFY(h.host->loadModule(QStringLiteral("good")));
+        QCOMPARE(QFile::permissions(h.sentinel), before);
+        QCOMPARE(readRecord(h.sentinel), content);
+        QVERIFY(QFile::setPermissions(h.sentinel, before | QFileDevice::WriteOwner));
     }
 
     void aModuleThatBreaksItsContractKeepsNothing_data()
@@ -1055,22 +1157,34 @@ private Q_SLOTS:
     {
         QTemporaryDir state(stagingTemplate(QStringLiteral("state")));
         QVERIFY(state.isValid());
-        const QString record = state.filePath(QStringLiteral("facet-loading"));
-        QVERIFY(writeRecord(record, QJsonObject{{QStringLiteral("loading"), QStringLiteral("good")}}));
-        QVERIFY(QFile::setPermissions(state.path(), QFileDevice::ReadOwner | QFileDevice::ExeOwner));
-        const auto restore = qScopeGuard([&state] {
-            QFile::setPermissions(state.path(),
-                                  QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
-        });
-        // Root, as in the container CI, writes regardless of the mode.
-        QFile probe(state.filePath(QStringLiteral("probe")));
-        if (probe.open(QIODevice::WriteOnly)) {
-            probe.close();
-            QFile::remove(probe.fileName());
-            QSKIP("the directory is still writable (running as root), so the write cannot be made to fail");
+        // A record whose name takes the whole NAME_MAX of 255 bytes can be
+        // read, but not replaced: the replacement is written under a longer
+        // name beside it first, which fails with ENAMETOOLONG for every user.
+        // A mode bit would not do, since root (the container CI) writes
+        // regardless, and a record under a regular file could not be read
+        // either, which would never reach the guard.
+        // A filesystem with a shorter NAME_MAX (ecryptfs allows 143 bytes)
+        // cannot hold the record at all.
+        if (::pathconf(QFile::encodeName(state.path()).constData(), _PC_NAME_MAX) < 255) {
+            QSKIP("the temporary directory's filesystem cannot hold a 255-byte file name");
         }
+        const QString record = state.filePath(QString(255, QLatin1Char('r')));
+        QVERIFY(writeRecord(record, QJsonObject{{QStringLiteral("loading"), QStringLiteral("good")}}));
+        {
+            // Where O_TMPFILE is missing, QSaveFile names its temporary file
+            // at open(), which already fails. Either step failing is a
+            // replacement that fails.
+            QSaveFile probe(record);
+            const bool replaced = probe.open(QIODevice::WriteOnly) && probe.write("{}") > 0 && probe.commit();
+            QVERIFY2(!replaced, "replacing the record must fail, or the guard is not reached");
+        }
+        QCOMPARE(readRecord(record).value(QStringLiteral("loading")).toString(), QStringLiteral("good"));
         Harness h({QStringLiteral("good")}, record);
         QVERIFY2(h.ok, qPrintable(h.error));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("could not write the load record")));
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("was loading when Facet last stopped, but .* cannot be "
+                                                               "written, so it is not disabled")));
         h.host->start();
         // Disabling it would last forever, since the record that names it
         // cannot be cleared.
@@ -1279,6 +1393,28 @@ private Q_SLOTS:
         QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
 
         QVERIFY(stage(h.modules, QStringLiteral("fixedmetadata"), QStringLiteral("badmetadata")));
+        QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("badmetadata:page")), 10000);
+        QCOMPARE(h.host->state(QStringLiteral("badmetadata")), std::optional<State>(State::Available));
+        QCOMPARE(statesOf(changed, QStringLiteral("badmetadata")), QList<State>{State::Available});
+        QCOMPARE(h.registry()->entry(QStringLiteral("badmetadata")).title, QStringLiteral("Fixed Metadata"));
+        QVERIFY(h.host->loadModule(QStringLiteral("badmetadata")));
+    }
+
+    void aModuleFixedByARenameOverItsFileIsPlaced()
+    {
+        // The same fix, as a package upgrade delivers it: one rename over the
+        // file, so the catalog never sees the module go. Its library was never
+        // loaded, so the catalog offers the changed file again, and the host
+        // reads and places it without a restart.
+        Harness h({QStringLiteral("badmetadata")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        h.host->start();
+        QCOMPARE(h.host->state(QStringLiteral("badmetadata")), std::optional<State>(State::Failed));
+        QSignalSpy changed(h.host.get(), &FacetHost::moduleStateChanged);
+
+        QVERIFY(stage(h.root.path(), QStringLiteral("fixedmetadata"), QStringLiteral("badmetadata-next")));
+        QVERIFY(replaceFile(h.root.filePath(QStringLiteral("badmetadata-next.so")),
+                            h.modules + QStringLiteral("/badmetadata.so")));
         QTRY_VERIFY_WITH_TIMEOUT(h.registry()->hasPage(QStringLiteral("badmetadata:page")), 10000);
         QCOMPARE(h.host->state(QStringLiteral("badmetadata")), std::optional<State>(State::Available));
         QCOMPARE(statesOf(changed, QStringLiteral("badmetadata")), QList<State>{State::Available});

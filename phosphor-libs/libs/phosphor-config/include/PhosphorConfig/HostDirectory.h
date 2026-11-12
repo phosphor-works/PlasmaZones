@@ -96,6 +96,14 @@ struct PHOSPHORCONFIG_EXPORT HostResolution
     /// by it, which is the one case where the owner is sure to be the process
     /// to ask to reload after a write. Under every other rule the owner can
     /// be a different host.
+    ///
+    /// Owning the name is not the same as answering on it. A host takes its
+    /// bus name, and PlasmaZones writes its record, before it registers the
+    /// objects behind the name, so for a moment at start a call to the
+    /// owner fails with `org.freedesktop.DBus.Error.UnknownObject` although
+    /// running is true and the host's fresh record already satisfies rule 1
+    /// of resolve(). A module that asks the host to reload should retry such
+    /// a reply for a short while rather than read it as the host not running.
     bool running = false;
 };
 
@@ -162,6 +170,17 @@ public:
     /// Pid equality is the only link between the record and the bus owner:
     /// nothing else ties the process that owns the name to the host the
     /// record names.
+    ///
+    /// The two pids are counted in different places. The record holds the
+    /// writer's own pid (its getpid()), while @p busOwnerPid is what the bus
+    /// reports (`GetConnectionUnixProcessID`), which the bus takes from the
+    /// kernel's peer credentials and so counts in the bus's own pid
+    /// namespace. For a host in another pid namespace (a container, or a
+    /// Flatpak sandbox, whose bus traffic also passes through a proxy
+    /// process) the two never agree. Rule 1 then never applies, the running
+    /// host's own record is read as one written by another process and
+    /// ignored, and the choice falls to rule 4. This is a limit of the pid
+    /// link, not something resolve() corrects.
     /// @p busOwnerPid is the owner of one bus name, so the descriptors of
     /// one API are expected to share HostDescriptor::busName.
     [[nodiscard]] static HostResolution resolve(const QList<HostDescriptor>& descriptors,

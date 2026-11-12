@@ -12,6 +12,7 @@
 #include "rendering/zoneshaderitem.h"
 #include "version.h"
 #include "rendering/vulkansupport.h"
+#include "replaceincumbent.h"
 #include "waylandsessioncheck.h"
 
 #include <PhosphorConfig/HostDirectory.h>
@@ -266,9 +267,33 @@ bool waitForProcessExit(pid_t pid)
     }
 }
 
+// The incumbent's pid for --replace from the placement host record, when the
+// bus could not name it. believedIncumbentPid() (replaceincumbent.h) decides
+// whether the record still describes a live plasmazonesd. 0 when it does not.
+pid_t recordedIncumbentPid()
+{
+    return PlasmaZones::believedIncumbentPid(
+        PhosphorConfig::HostDirectory(QString(PhosphorProtocol::Service::HostApi)).record(),
+        QString(PlasmaZones::PlacementHostId), QCoreApplication::applicationPid());
+}
+
+// The exit status for a session this daemon does not serve: no usable
+// Wayland display, or no KWin on the session bus. EX_UNAVAILABLE from
+// sysexits.h. plasmazones.service lists it in RestartPreventExitStatus=, so
+// systemd does not restart the daemon for it, and records the start as
+// failed. Not 0, because a start that ends inactive is indistinguishable
+// from a successful one: systemd reports the start job as done and sends no
+// activation failure, and dbus-broker's launcher fails a pending bus
+// activation only when the unit's start job fails or the unit enters
+// "failed". With exit 0, a client call that bus-activated the daemon in
+// such a session waited until its own reply timeout while dbus-broker kept
+// the activation pending. test_daemon_lifecycle_order ties this value to the
+// unit file.
+constexpr int kExitSessionNotServed = 69;
+
 // What the session bus said about org.kde.KWin. Unknown is kept apart from
 // Absent because the two need opposite exits: Absent is a session this daemon
-// does not serve (exit 0, nothing for systemd to retry), Unknown is a bus that
+// does not serve (kExitSessionNotServed, nothing for systemd to retry), Unknown is a bus that
 // could not be asked (exit 1, the same hard failure as no bus at all).
 enum class KWinPresence {
     Present,
@@ -368,11 +393,14 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Exit cleanly (code 0) if there is no usable Wayland display — avoids a
-    // SIGABRT → Restart=on-failure loop. When systemd respawns us during the
-    // logout → SDDM handoff (or autostarts us in a session that has no live
-    // wl_display), Qt's wayland QPA can't create a wl_display, the xcb fallback
-    // also fails, and QGuiApplication's constructor calls qFatal() → abort.
+    // Exit with kExitSessionNotServed, which the unit does not restart, if
+    // there is no usable Wayland display, rather than abort and dump core.
+    // When systemd respawns us during the logout → SDDM handoff (or
+    // autostarts us in a session that has no live wl_display), Qt's wayland
+    // QPA can't create a wl_display, the xcb fallback also fails, and
+    // QGuiApplication's constructor calls qFatal() → abort. The unit ends
+    // failed either way, since it lists both SIGABRT and this status in
+    // RestartPreventExitStatus=.
     // This is a Wayland-only daemon, so "no wayland socket" means "nothing to
     // do". Resolving the socket path handles the empty/unset WAYLAND_DISPLAY
     // case too (Qt's default "wayland-0"), which previously bypassed this guard
@@ -392,10 +420,10 @@ int main(int argc, char* argv[])
             std::fprintf(stderr,
                          "plasmazones: no usable Wayland display (WAYLAND_DISPLAY=\"%s\", "
                          "resolved socket \"%s\") — wayland session not available, "
-                         "exiting cleanly to avoid restart loop\n",
+                         "exiting without asking to be restarted\n",
                          waylandDisplay.constData(),
                          socketPath.isEmpty() ? "<none>" : socketPath.toLocal8Bit().constData());
-            return 0;
+            return kExitSessionNotServed;
         }
     }
 
@@ -443,83 +471,33 @@ int main(int argc, char* argv[])
     // socket is there.
     const PrivateEnvironmentChanges privateEnvChanges = privateEnvironmentChanges(inheritedPrivateEnv);
 
-    // Read the rendering backend preference and probe for the Vulkan loader
-    // library. probeAndSetGraphicsApi() calls QQuickWindow::setGraphicsApi(),
-    // which Qt requires before the first QQuickWindow is constructed, not
-    // before the app object. It runs up here beside the steps in this block
-    // that DO have to precede QGuiApplication: the vulkanInstance
-    // declaration and the DRI_PRIME export. Only the loader probe happens
-    // here. The instance itself is created after the app object exists, by
-    // createAndRegisterVulkanInstance() below, which falls back to OpenGL the
-    // same way when it fails.
     // vulkanInstance is declared BEFORE app so C++ destruction order guarantees
     // it outlives QGuiApplication (and all QQuickWindows that reference it).
-    bool useVulkan = false;
+    // It is created further down, with the rendering backend, once
+    // config.json has been migrated (see the block after ensureJsonConfig()).
 #if QT_CONFIG(vulkan)
     QVulkanInstance vulkanInstance;
 #endif
-    const PlasmaZones::ConfigDefaults::RenderingBootConfig renderingConfig =
-        PlasmaZones::ConfigDefaults::readRenderingConfigFromDisk();
-    {
-        const QString& backend = renderingConfig.backend;
-        useVulkan = PlasmaZones::probeAndSetGraphicsApi(backend);
-        if (!useVulkan && backend == QLatin1String("vulkan")) {
-            // probeAndSetGraphicsApi answers false for a configured "vulkan"
-            // either because the loader library did not load or because this
-            // Qt was built without Vulkan. Only the first is something a
-            // package fixes, so each gets its own message.
-#if QT_CONFIG(vulkan)
-            qCCritical(PlasmaZones::lcDaemon) << "Vulkan library not found — falling back to OpenGL."
-                                              << "Install vulkan-icd-loader or equivalent for your distro.";
-#else
-            qCCritical(PlasmaZones::lcDaemon) << "This Qt build has no Vulkan support — falling back to OpenGL."
-                                              << "The Vulkan rendering backend needs a Qt built with Vulkan enabled.";
-#endif
-        }
-        // The parenthetical reports the probe OUTCOME, not the config string:
-        // a configured "vulkan" whose library failed to load is already on
-        // OpenGL at this point (probeAndSetGraphicsApi set it during the probe).
-        qCInfo(PlasmaZones::lcDaemon) << "Rendering backend:" << backend
-                                      << (useVulkan                                ? "(Vulkan)"
-                                              : backend == QLatin1String("vulkan") ? "(OpenGL fallback)"
-                                              : backend == QLatin1String("opengl") ? "(OpenGL)"
-                                                                                   : "(Qt default)");
-        // GL device choice happens when Mesa opens the DRI screen during
-        // platform init, so DRI_PRIME must be exported before the app object.
-        // Applied on the Vulkan path too: it only steers the GL loader, and
-        // covers the case where Vulkan falls back to OpenGL below.
-        PlasmaZones::applyOpenGlGpuPreference(renderingConfig.gpuDevice);
-    }
+    // The GPU pin, read from disk before the migration below has run. GL
+    // device choice happens when Mesa opens the DRI screen during platform
+    // init, so DRI_PRIME must be exported before the app object, which is
+    // before the migration can run. Reading early is safe for this key:
+    // Rendering.Gpu postdates the v1 schema, and no migration step renames or
+    // moves it, so every config that has it already holds it at its current
+    // place. Applied on the Vulkan path too: it only steers the GL loader, and
+    // covers the case where Vulkan falls back to OpenGL. The backend is NOT
+    // read here: see the block after ensureJsonConfig().
+    const QString gpuDevice = PlasmaZones::ConfigDefaults::readRenderingConfigFromDisk().gpuDevice;
+    PlasmaZones::applyOpenGlGpuPreference(gpuDevice);
 
     QGuiApplication app(argc, argv);
 
-    // Store the instance pointer as a dynamic property (PVulkanInstanceProperty)
-    // so the OverlayService constructor can read it and hand it to its
-    // PhosphorSurfaces::SurfaceManager, which calls setVulkanInstance() on each
-    // QQuickWindow it creates.
-#if QT_CONFIG(vulkan)
-    qRegisterMetaType<QVulkanInstance*>();
-    if (useVulkan) {
-        if (PlasmaZones::createAndRegisterVulkanInstance(vulkanInstance, app, renderingConfig.gpuDevice)) {
-            qCInfo(PlasmaZones::lcDaemon) << "Vulkan instance created successfully";
-        } else {
-            qCCritical(PlasmaZones::lcDaemon)
-                << "Vulkan unavailable (instance creation failed or no enumerable GPU) — falling back to OpenGL."
-                << "Check that Vulkan drivers are installed and match the running kernel module"
-                << "(a GPU driver upgrade without a reboot leaves a userspace/kernel version skew that"
-                << "breaks device enumeration).";
-        }
-    }
-#endif
-
-    // Publish the GPU-preference env var names this process exported (and the
-    // ones it cleared, with values) so spawn sites in plasmazones_core (e.g.
-    // LayoutAdaptor::launchEditor) can scrub and restore child environments
-    // without a link dependency on this target.
-    app.setProperty(PlasmaZones::PGpuExportedVarsProperty, PlasmaZones::exportedGpuPreferenceVariables());
-    app.setProperty(PlasmaZones::PGpuClearedVarsProperty, PlasmaZones::clearedGpuPreferenceVariables());
-    // The same for the daemon-private variables changed above, read by the
-    // same spawn sites through PlasmaZones::childProcessEnvironment().
+    // Publish the daemon-private variables changed above, so spawn sites in
+    // plasmazones_core (e.g. LayoutAdaptor::launchEditor) can undo them for a
+    // child through PlasmaZones::childProcessEnvironment() without a link
+    // dependency on this target. The GPU-preference variables are published
+    // with the rendering backend below, after the Vulkan instance has
+    // exported its own.
     app.setProperty(PlasmaZones::PDaemonEnvIntroducedVarsProperty, privateEnvChanges.introduced);
     app.setProperty(PlasmaZones::PDaemonEnvInheritedVarsProperty, privateEnvChanges.inherited);
 
@@ -583,8 +561,8 @@ int main(int argc, char* argv[])
     // --log-file: redirect Qt message output to a file.
     // Opened here, as soon as the options are parsed and before the --debug
     // filter rules, so everything logged from this point on goes to the file.
-    // What was logged above (the rendering backend, Vulkan and layer-shell
-    // diagnostics) ran before the parser and went to stderr. The static FILE*
+    // What was logged above (the GPU-pin and layer-shell diagnostics) ran
+    // before the parser and went to stderr. The static FILE*
     // and QMutex intentionally leak — they must outlive QCoreApplication for
     // shutdown messages.
     static FILE* logFile = nullptr;
@@ -645,10 +623,11 @@ int main(int argc, char* argv[])
     case KWinPresence::Present:
         break;
     case KWinPresence::Absent:
-        // Exit 0, not 1: outside KWin this is not a failure for systemd to retry.
+        // kExitSessionNotServed, not 1: outside KWin this is not a failure for
+        // systemd to retry, and the unit's RestartPreventExitStatus= says so.
         qCWarning(PlasmaZones::lcDaemon) << "org.kde.KWin is not on the session bus, so this is not a KWin session."
                                          << "plasmazonesd only runs under KWin; exiting.";
-        return 0;
+        return kExitSessionNotServed;
     case KWinPresence::Unknown:
         // Exit 1, not 0: the bus could not be asked, so nothing says this is
         // not a KWin session. waitForKWin() has logged the bus error.
@@ -676,10 +655,13 @@ int main(int argc, char* argv[])
             //
             // Learn the incumbent's pid FIRST, while it still owns the name: once
             // the name is ours the bus no longer knows who held it, and the wait
-            // for that process to exit (below) needs it. Not knowing is not a
-            // failure. When the incumbent let go of the name between the failed
-            // registerService above and this call, the bus answers "no owner",
-            // and the replace goes on without the wait.
+            // for that process to exit (below) needs it. When the incumbent let
+            // go of the name between the failed registerService above and this
+            // call, the bus answers "no owner" while the incumbent is still in
+            // its shutdown saves, so the pid then comes from the host record
+            // (recordedIncumbentPid(), which checks the record still describes
+            // a live plasmazonesd). Not knowing is not a failure: the replace
+            // goes on without the wait.
             pid_t incumbentPid = 0;
             if (QDBusConnectionInterface* const busInterface = bus.interface()) {
                 const QDBusReply<uint> pidReply = busInterface->servicePid(serviceName);
@@ -691,6 +673,14 @@ int main(int argc, char* argv[])
                     // Zero and anything past pid_t would mean a process GROUP to
                     // kill(), and our own pid would never be seen to exit.
                     incumbentPid = pid_t(pidReply.value());
+                }
+            }
+            if (incumbentPid <= 0) {
+                incumbentPid = recordedIncumbentPid();
+                if (incumbentPid > 0) {
+                    qCDebug(PlasmaZones::lcDaemon)
+                        << "--replace: the bus did not name the running instance; the host record names pid"
+                        << incumbentPid;
                 }
             }
 
@@ -768,7 +758,10 @@ int main(int argc, char* argv[])
     // the record still names the file, but only where that session's
     // XDG_CURRENT_DESKTOP names a desktop the descriptor serves (KDE for
     // plasmazones.json) or names none: a host's record does not cross
-    // desktops. The id is PlacementHostId, the one in
+    // desktops. KDE covers every Plasma session, desktop and mobile alike:
+    // startplasma sets XDG_CURRENT_DESKTOP to exactly "KDE" for each of them.
+    // The record is also what --replace falls back on to find the incumbent
+    // (recordedIncumbentPid()). The id is PlacementHostId, the one in
     // data/placement-hosts/plasmazones.json, which the package installs.
     if (!PhosphorConfig::HostDirectory(QString(PhosphorProtocol::Service::HostApi))
              .writeRecord(QString(PlasmaZones::PlacementHostId), PlasmaZones::ConfigDefaults::configFilePath(),
@@ -850,6 +843,77 @@ int main(int argc, char* argv[])
             << "Config migration reported a failure — continuing with whatever the backend can load,"
             << "which may mean defaults for settings the old config held";
     }
+
+    // Read the rendering backend and probe for the Vulkan loader library.
+    // Here, after ensureJsonConfig() and not before QGuiApplication with the
+    // GPU pin, because the key has moved: a v1 config.json holds it as
+    // Rendering.RenderingBackend, which migrateV1ToV2 renames to
+    // Rendering.Backend, so a read ahead of the migration missed it on the
+    // start that migrates and ran that session on the default backend. This
+    // is still early enough: probeAndSetGraphicsApi() calls
+    // QQuickWindow::setGraphicsApi(), which Qt requires before the first
+    // QQuickWindow is constructed, not before the app object, and the first
+    // one is built by the Daemon below. The instance is created right after,
+    // by createAndRegisterVulkanInstance(), which falls back to OpenGL the
+    // same way when it fails. Both now run with the bus name already held, so
+    // a Vulkan driver that hangs device enumeration (a driver upgraded without
+    // a reboot) leaves callers of org.phosphor_works.Placement waiting on
+    // their reply timeout rather than finding no owner.
+    {
+        const QString backend = PlasmaZones::ConfigDefaults::readRenderingConfigFromDisk().backend;
+        const bool useVulkan = PlasmaZones::probeAndSetGraphicsApi(backend);
+        if (!useVulkan && backend == QLatin1String("vulkan")) {
+            // probeAndSetGraphicsApi answers false for a configured "vulkan"
+            // either because the loader library did not load or because this
+            // Qt was built without Vulkan. Only the first is something a
+            // package fixes, so each gets its own message.
+#if QT_CONFIG(vulkan)
+            qCCritical(PlasmaZones::lcDaemon) << "Vulkan library not found — falling back to OpenGL."
+                                              << "Install vulkan-icd-loader or equivalent for your distro.";
+#else
+            qCCritical(PlasmaZones::lcDaemon) << "This Qt build has no Vulkan support — falling back to OpenGL."
+                                              << "The Vulkan rendering backend needs a Qt built with Vulkan enabled.";
+#endif
+        }
+        // The parenthetical reports the probe OUTCOME, not the config string:
+        // a configured "vulkan" whose library failed to load is already on
+        // OpenGL at this point (probeAndSetGraphicsApi set it during the probe).
+        qCInfo(PlasmaZones::lcDaemon) << "Rendering backend:" << backend
+                                      << (useVulkan                                ? "(Vulkan)"
+                                              : backend == QLatin1String("vulkan") ? "(OpenGL fallback)"
+                                              : backend == QLatin1String("opengl") ? "(OpenGL)"
+                                                                                   : "(Qt default)");
+
+        // Store the instance pointer as a dynamic property (PVulkanInstanceProperty)
+        // so the OverlayService constructor can read it and hand it to its
+        // PhosphorSurfaces::SurfaceManager, which calls setVulkanInstance() on each
+        // QQuickWindow it creates.
+#if QT_CONFIG(vulkan)
+        qRegisterMetaType<QVulkanInstance*>();
+        if (useVulkan) {
+            // gpuDevice is the pin DRI_PRIME was exported from, so the Vulkan
+            // pick and the GL one name the same device.
+            if (PlasmaZones::createAndRegisterVulkanInstance(vulkanInstance, app, gpuDevice)) {
+                qCInfo(PlasmaZones::lcDaemon) << "Vulkan instance created successfully";
+            } else {
+                qCCritical(PlasmaZones::lcDaemon)
+                    << "Vulkan unavailable (instance creation failed or no enumerable GPU) — falling back to OpenGL."
+                    << "Check that Vulkan drivers are installed and match the running kernel module"
+                    << "(a GPU driver upgrade without a reboot leaves a userspace/kernel version skew that"
+                    << "breaks device enumeration).";
+            }
+        }
+#endif
+    }
+
+    // Publish the GPU-preference env var names this process exported (and the
+    // ones it cleared, with values) so the spawn sites can scrub and restore
+    // child environments through PlasmaZones::childProcessEnvironment().
+    // After createAndRegisterVulkanInstance(), which exports
+    // QT_VK_PHYSICAL_DEVICE_INDEX, and before the Daemon, whose spawn sites
+    // read them.
+    app.setProperty(PlasmaZones::PGpuExportedVarsProperty, PlasmaZones::exportedGpuPreferenceVariables());
+    app.setProperty(PlasmaZones::PGpuClearedVarsProperty, PlasmaZones::clearedGpuPreferenceVariables());
 
     // Create and start daemon
     Daemon daemon;

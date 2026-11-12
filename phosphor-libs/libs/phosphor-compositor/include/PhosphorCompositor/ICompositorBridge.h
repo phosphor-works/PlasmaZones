@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorcompositor_export.h>
+#include "phosphorcompositor_export.h"
 
 #include <QIcon>
 #include <QRectF>

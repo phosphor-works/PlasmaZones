@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorlayoutapi_export.h>
+#include "phosphorlayoutapi_export.h"
 
 #include <PhosphorLayoutApi/ILayoutSource.h>
 

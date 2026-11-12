@@ -76,6 +76,11 @@ in
         ExecStart = "${cfg.package}/bin/plasmazonesd";
         Restart = "on-failure";
         RestartSec = 3;
+        # As in the packaged plasmazones.service: SIGABRT is Qt's qFatal, and
+        # 69 is the daemon's "not a session it serves" exit (no Wayland or no
+        # KWin), which graphical-session.target reaches under GNOME, Sway or
+        # X11. Neither is retried.
+        RestartPreventExitStatus = "SIGABRT 69";
       };
     };
 

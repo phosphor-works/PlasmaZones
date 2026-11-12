@@ -5,7 +5,7 @@
 
 #include <PhosphorScrollEngine/ScrollEngineTypes.h>
 #include <PhosphorScrollEngine/ScrollTypes.h>
-#include <phosphorscrollengine_export.h>
+#include "phosphorscrollengine_export.h"
 
 #include <QSize>
 #include <QString>

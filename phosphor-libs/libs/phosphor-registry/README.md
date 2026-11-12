@@ -51,9 +51,11 @@ pattern into a single template. All four now store their entries in a
   that code's metadata for its path. Replace a loaded plugin by rename
   (`install`, `mv`), never by writing over it in place, which changes the
   code the process is running.
-- **A failed load is retried when the file changes.** A plugin whose
-  library failed to load stays on offer and is offered again once its
-  file changes, so rebuilding it is enough.
+- **A plugin that is not loaded is offered again when its file changes.**
+  A plugin whose library failed to load, or that was never loaded, stays on
+  offer, and `pluginAdded` announces it again once its file is rewritten,
+  renamed over, shadowed by a higher-priority copy, or removed while another
+  copy takes its place. Rebuilding it is enough. A loaded plugin is never offered again.
 - **Capabilities are advisory for now.** Each factory declares a
   `capabilities()` list. An enforcement layer is a future addition.
 
