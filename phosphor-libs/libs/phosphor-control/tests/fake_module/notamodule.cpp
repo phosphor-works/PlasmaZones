@@ -12,7 +12,7 @@
 class NotAFacetModule : public QObject
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "metadata.json")
+    Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "facet_metadata.json")
 };
 
 #include "notamodule.moc"

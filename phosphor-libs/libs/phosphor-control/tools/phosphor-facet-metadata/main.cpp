@@ -100,8 +100,16 @@ bool readJson(const QString& path, QJsonObject* out)
     return true;
 }
 
+// A file that already holds @p bytes is left alone, timestamp and all. The
+// build reruns the tool whenever the tool is rebuilt, and an unchanged output
+// must not make it recompile and relink the module that embeds it.
 bool write(const QString& path, const QByteArray& bytes)
 {
+    QFile existing(path);
+    if (existing.open(QIODevice::ReadOnly) && existing.size() == bytes.size() && existing.readAll() == bytes) {
+        return true;
+    }
+    existing.close();
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
         fail(QStringLiteral("cannot write %1: %2").arg(path, file.errorString()));

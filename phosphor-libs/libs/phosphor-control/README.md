@@ -55,11 +55,11 @@ library provides:
 | `PhosphorControl::DBusBridge`             | Configured endpoint(s) for daemon calls: sync `call()` / async `asyncCall()`, with explicit-interface variants |
 | `PhosphorControl::LocalizedContext`       | QML i18n context routing `i18n()`/`i18nc()`/`i18np()` through Qt translation, for Qt-only consumers without KF6 |
 | `PhosphorControl::IFacetModule`           | The interface a Facet module's root object implements (`registerInto(FacetContext&)`), IID `org.phosphor_works.Facet.Module/1` |
-| `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, pages and their anchors, extension points, extensions), parsed and validated per locale |
+| `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, the categories it defines, pages and their anchors, extension points, extensions, search entries, and whether it registers search providers), parsed and validated per locale |
 | `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, and the domain and QML of each section it adds to another module's page. It also hands out one config backend per file, shared by every module that writes it |
 | `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened |
 | `PhosphorControl::FacetSlotModel`         | The sections in one slot of one page, for `FacetSlot`: reads `extensionsFor` again on `extensionsChanged` and keeps the row of a section that stays |
-| `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI: registration, staging, search providers, extension targets and anchor stability. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
+| `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI: metadata, registration, staging, search providers, extension targets and anchor stability. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
 | `phosphor-facet-metadata`                 | Build tool behind `phosphor_add_facet_module_metadata()`: validates a module's metadata, adds `Key[<lang>]` translations from its `.ts` files, and writes its anchor list and lupdate strings |
 
 ## Typical use
@@ -150,8 +150,9 @@ records. Facet then checks the whole registration and binds every page
 (`ApplicationController::bindPage`) and domain at once, or, when anything is
 wrong (a page or extension the metadata does not declare, a skipped page or
 extension, one registered twice, a controller with the wrong id, a page or
-section without QML), keeps none of it and fails the module with the
-reason. The one call that does more than record is
+section without QML, a search provider that is null, registered twice or
+registered without `"SearchProviders": true` in the metadata), keeps none of
+it and fails the module with the reason. The one call that does more than record is
 `FacetContext::configBackend` (below): it shares the file's backend at once,
 and the backend stays shared when the registration is not kept. A module that
 did not load keeps its placeholder page, which says why, and offers a retry
@@ -208,26 +209,82 @@ FacetSlot {
 ```
 
 **Building a module.** A module embeds generated metadata rather than its
-source file, so the build can validate it and add translations:
+source file, so the build can validate it and add translations. It links
+`PhosphorControl` and installs into the `facet` seam of a Qt plugin
+directory, `<Qt plugin dir>/phosphor-works/facet/`, where `FacetHost` looks
+by default (`PhosphorRegistry::PluginCatalog` lists the whole search path).
+`KDE_INSTALL_QTPLUGINDIR` below comes from ECM's `KDEInstallDirs6`:
 
 ```cmake
+find_package(PhosphorControl REQUIRED)
+
 qt_add_plugin(facet_module_mine)
 target_sources(facet_module_mine PRIVATE mymodule.cpp)
+target_link_libraries(facet_module_mine PRIVATE PhosphorControl::PhosphorControl)
 phosphor_add_facet_module_metadata(facet_module_mine
     METADATA metadata.json
     TS_FILES translations/facet-module-mine_de.ts translations/facet-module-mine_fr.ts)
+install(TARGETS facet_module_mine DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/phosphor-works/facet)
 ```
 
 ```cpp
 Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "facet_metadata.json")
 ```
 
-Invalid metadata fails the build. The generated `anchors.json` (the target's
-`FACET_ANCHORS_FILE`) goes with each release, and the next release's CI passes
-it to `FacetTestHost::setPreviousAnchors()`, which fails when an anchor other
-modules may extend disappears without a bump of the page's `anchors`
-version. `FACET_STRINGS_FILE` holds the metadata's strings for `lupdate`, in
-context `FacetModule`.
+Invalid metadata fails the build. A warning, such as a key this Facet does
+not know, is printed once and never fails it, so metadata written for a newer
+Facet still builds. A cross build points `PHOSPHOR_FACET_METADATA_EXECUTABLE`
+at a `phosphor-facet-metadata` that runs on the build machine.
+
+The source that names `facet_metadata.json` is rebuilt in the same build
+when the metadata changes. For moc to embed the generated file and nothing
+else, `METADATA` must have another name, and no other `facet_metadata.json`
+may sit beside that source or in the target's source or binary directory.
+The dependency is kept per directory, so two modules built in one directory
+cannot compile the same plugin source file: give each its own path to it,
+such as a symbolic link. `phosphor_add_facet_module_metadata()` stops the
+configure in each of these cases.
+
+The translations come from the module's catalogs: every finished translation
+in context `FacetModule` is added as `Key[<lang>]`. The language is the
+catalog's with `-` turned into `_`, and a regional catalog such as `de_DE` is
+keyed by the bare language (`de`), so a user in `de_AT` gets it too, unless
+that would be wrong or ambiguous, as when another catalog claims that
+language or the region writes it in another script (`zh_TW`). A `Key[<lang>]` written in the metadata by hand wins over
+the catalog. An unfinished translation is left out, while `lrelease` ships it
+unless given `-nounfinished`, so pass that for a module's pages to read in
+the same language as its sidebar entry.
+
+`FACET_STRINGS_FILE` holds the metadata's strings for `lupdate`, in context
+`FacetModule`. The build writes it (the target `<target>_facet_metadata`), so
+the `lupdate` target depends on that:
+
+```cmake
+get_target_property(facetStrings facet_module_mine FACET_STRINGS_FILE)
+qt_add_lupdate(SOURCE_TARGETS facet_module_mine SOURCES ${facetStrings}
+    TS_FILES translations/facet-module-mine_de.ts translations/facet-module-mine_fr.ts
+    LUPDATE_TARGET facet_module_mine_lupdate)
+add_dependencies(facet_module_mine_lupdate facet_module_mine_facet_metadata)
+```
+
+The generated `anchors.json` (the target's `FACET_ANCHORS_FILE`) records each
+page's anchors, its `anchors` version and the version of each of its named
+extension points. It goes with each release, and the next release's CI passes
+it to `FacetTestHost::setPreviousAnchors()`. That fails when a page is gone,
+since other modules may extend it, when an anchor is gone without a bump of
+the page's `anchors` version, when that version went down, and when a named
+extension point is gone or its version went down.
+
+**Testing a module.** `FacetTestHost(path).run()` loads the module headless
+from a private copy and returns every problem it finds, one line each
+(`FacetTestHost.h` lists the checks). Besides what `FacetHost` refuses, it
+reports each metadata warning as `metadata: <warning>`, since the module is
+built against the Facet that checks it, a module whose metadata says
+`"SearchProviders": true` that registers no provider, and a domain that does
+not answer apply or discard exactly once. `addTargetModule()` adds a module
+this one extends, so its extensions are checked against that module's slots.
+The copies are staged as `module.so` and `target-000.so` onwards, and every
+problem names a module by the path it was given.
 
 **Search before loading.** Facet indexes every module from its metadata at
 start (`FacetHost::setSearchController`): each page with its `Keywords` and the

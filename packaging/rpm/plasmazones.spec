@@ -281,6 +281,12 @@ rm -f  %{buildroot}%{_libdir}/libplasmazones*.so
 # through the headers and CMake config removed above. Nothing in the
 # package uses it.
 rm -f  %{buildroot}%{_libdir}/libPhosphorControlTest.so.*
+# phosphor-facet-metadata is the build tool behind the Facet module CMake
+# function, which goes with the CMake configs removed above. It is found by
+# name because its libexec directory differs between distributions, and the
+# directories it leaves empty go too.
+find %{buildroot} -type f -name phosphor-facet-metadata -delete
+find %{buildroot} -depth -type d -empty \( -path '*/libexec/phosphor' -o -path '*/libexec' \) -delete
 
 %post
 # Register newly installed shared libraries with the dynamic linker.

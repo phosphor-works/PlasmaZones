@@ -42,6 +42,12 @@ override_dh_auto_install:
 	# through the headers and CMake config removed above. Nothing in the
 	# package uses it.
 	rm -f  debian/plasmazones/usr/lib/*/libPhosphorControlTest.so.*
+	# phosphor-facet-metadata is the build tool behind the Facet module CMake
+	# function, which goes with the CMake configs removed above. It is found
+	# by name because its libexec directory is up to the install layout, and
+	# the directories it leaves empty go too.
+	find debian/plasmazones -type f -name phosphor-facet-metadata -delete
+	find debian/plasmazones -depth -type d -empty \( -path '*/libexec/phosphor' -o -path '*/libexec' \) -delete
 
 override_dh_auto_test:
 	# Skip tests during package build

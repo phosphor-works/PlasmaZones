@@ -5,7 +5,9 @@
 
 #include <PhosphorControl/FacetModuleMetadata.h>
 
+#include <QDateTime>
 #include <QFile>
+#include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -529,6 +531,49 @@ private Q_SLOTS:
         QCOMPARE(q.value(QStringLiteral("Version")).toInt(), 1);
         QCOMPARE(q.value(QStringLiteral("ExtensionPoints")).toObject(), (QJsonObject{{QStringLiteral("panel"), 5}}));
         QCOMPARE(p.value(QStringLiteral("ExtensionPoints")).toObject(), QJsonObject());
+    }
+
+    void leavesAnUnchangedOutputAlone_data()
+    {
+        QTest::addColumn<QString>("command");
+        QTest::newRow("localize") << QStringLiteral("localize");
+        QTest::newRow("anchors") << QStringLiteral("anchors");
+        QTest::newRow("strings") << QStringLiteral("strings");
+    }
+
+    // The build reruns the tool whenever the tool is rebuilt. An output whose
+    // content is the same keeps its timestamp, so the module that embeds it is
+    // not rebuilt, and one whose content changed is written.
+    void leavesAnUnchangedOutputAlone()
+    {
+        QFETCH(QString, command);
+        QString source;
+        QVERIFY(write(QStringLiteral("m.json"), ValidMetadata, &source));
+        const QString out = m_dir->filePath(QStringLiteral("out"));
+        QString outcome = run(0, {command, source, out});
+        QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
+        const QByteArray first = read(out).toUtf8();
+        QVERIFY(!first.isEmpty());
+
+        const QDateTime past = QDateTime::fromSecsSinceEpoch(QDateTime::currentSecsSinceEpoch() - 86400);
+        {
+            QFile file(out);
+            QVERIFY(file.open(QIODevice::ReadWrite));
+            QVERIFY(file.setFileTime(past, QFileDevice::FileModificationTime));
+        }
+        QCOMPARE(QFileInfo(out).lastModified(), past);
+        outcome = run(0, {command, source, out});
+        QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
+        QCOMPARE(QFileInfo(out).lastModified(), past);
+        QCOMPARE(read(out).toUtf8(), first);
+
+        QVERIFY(write(QStringLiteral("m.json"),
+                      R"({ "Id": "m", "Name": "Changed", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ] })",
+                      &source));
+        outcome = run(0, {command, source, out});
+        QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
+        QVERIFY(QFileInfo(out).lastModified() != past);
+        QVERIFY(read(out).toUtf8() != first);
     }
 
     void passesNonObjectsThroughUnderAllowInvalid()

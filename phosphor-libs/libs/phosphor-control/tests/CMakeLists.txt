@@ -39,10 +39,10 @@ function(phosphorcontrol_add_test name)
     # the application type of the QTEST_MAIN tests a decision of this file
     # instead of a side effect of that library's dependencies. A
     # QGuiApplication needs a platform plugin, hence
-    # QT_QPA_PLATFORM=offscreen below. test_facet_slot, which builds QML
-    # items, is one of the QTEST_MAIN tests; the other Facet tests use
-    # QTEST_GUILESS_MAIN and need no plugin. No test creates its own
-    # application object or touches widgets.
+    # QT_QPA_PLATFORM=offscreen below. test_facet_slot and test_page_host,
+    # which build QML items, use QTEST_MAIN. A test that uses
+    # QTEST_GUILESS_MAIN needs no plugin. No test creates its own application
+    # object or touches widgets.
     target_link_libraries(${name}
         PRIVATE
             PhosphorControl::PhosphorControl
@@ -74,16 +74,23 @@ phosphorcontrol_add_test(test_search_controller)
 phosphorcontrol_add_test(test_sidebar_rows)
 # Parses metadata only, so it needs no fixture module.
 phosphorcontrol_add_test(test_facet_module_metadata)
+# Runs the build tool on files of its own, so it needs no fixture module
+# either.
+phosphorcontrol_add_test(test_facet_metadata_tool)
+target_compile_definitions(test_facet_metadata_tool PRIVATE
+    PHOSPHOR_FACET_METADATA_TOOL="$<TARGET_FILE:phosphor-facet-metadata>")
+add_dependencies(test_facet_metadata_tool phosphor-facet-metadata)
 
 # ─── Facet module fixtures ─────────────────────────────────────────────────────
 #
 # A STATIC build cannot host Facet modules (see PHOSPHOR_CONTROL_BUILD_SHARED):
 # each fixture would carry its own copy of the library, so the host and the
 # module would not even share StagingDomain's metaobject. The fixtures and the
-# tests that load them need the shared library. test_facet_slot below is left
-# out of a static build too: it links the library together with the static
-# QML module, which compiles the same sources, and two static archives of one
-# set of objects in one executable is not a combination this build supports.
+# tests that load them need the shared library. test_facet_slot and
+# test_page_host below are left out of a static build too: each links the
+# library together with the static QML module, which compiles the same
+# sources, and two static archives of one set of objects in one executable is
+# not a combination this build supports.
 if(NOT PHOSPHOR_CONTROL_BUILD_SHARED)
     message(STATUS "phosphor-control: static build, so the Facet module tests are not built")
     return()
@@ -92,8 +99,9 @@ endif()
 # Every test Facet module is fake_module/fakemodule.cpp built once per variant.
 # A variant differs only in its generated fake_module_config.h (FAKE_MODE, see
 # the source) and metadata.json, both in a per-variant directory on the
-# target's include path, where moc finds the metadata file. Each library lands
-# at ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
+# target's include path. The metadata goes through
+# phosphor_add_facet_module_metadata, and the plugin embeds what it generates.
+# Each library lands at ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
 set(PHOSPHOR_CONTROL_FIXTURE_DIR ${CMAKE_CURRENT_BINARY_DIR}/fixtures)
 # The tests copy fixtures here before loading them, not under /tmp, which may
 # be mounted noexec.
@@ -111,11 +119,19 @@ set(phosphorcontrol_fixture_targets "")
 # module's, with TS_FILES as its translations. INVALID lets it through when it
 # is invalid on purpose.
 #
+# Each variant compiles the source through a symbolic link in its own
+# directory. phosphor_add_facet_module_metadata makes the plugin source
+# depend on the generated metadata, and a source file's dependencies are kept
+# per directory, so with one shared path every variant would be rebuilt
+# whenever any variant's metadata changed. The function refuses that.
+#
 # METADATA is one argument. A ';' inside a JSON array's [...] does not split
 # it, because CMake keeps a bracketed run in one list element. A ';' anywhere
 # else does, and so does a misspelt keyword. Either leaves arguments that no
 # keyword claims, which is an error here rather than a variant built from
-# half its metadata.
+# half its metadata. A keyword misspelt after TS_FILES is taken as one of its
+# catalogs instead, which phosphor_add_facet_module_metadata refuses for not
+# being a .ts file.
 #
 # MODE 44 is the variant whose library cannot be loaded, because it calls a
 # function no library defines (see fakemodule.cpp). It is compiled with -fplt
@@ -148,7 +164,13 @@ function(phosphorcontrol_add_fake_module variant)
     if(ARG_INVALID)
         set(invalid ALLOW_INVALID)
     endif()
-    add_library(${target} MODULE ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_SOURCE}
+    # Not in the generated <target>_facet directory: a link there would put
+    # the generated facet_metadata.json beside the source, which the function
+    # refuses as a stray copy from the second configure on. No copy as a
+    # fallback either, since a copy would go stale when the source changes.
+    get_filename_component(sourceName ${ARG_SOURCE} NAME)
+    file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_SOURCE} ${configDir}/${sourceName} SYMBOLIC)
+    add_library(${target} MODULE ${configDir}/${sourceName}
         ${CMAKE_CURRENT_SOURCE_DIR}/fake_module/fake.qrc)
     target_include_directories(${target} PRIVATE ${configDir})
     # PhosphorConfig by name: fakemodule.cpp makes PhosphorConfig::JsonBackend
@@ -284,7 +306,9 @@ phosphorcontrol_add_fake_module(goodnext MODE 0 METADATA [=[{
     ],
     "ExtensionPoints": [ { "Page": "general", "Id": "panel", "Version": 2 },
                          { "Page": "general", "Id": "anchors", "Version": 2 } ] }]=])
-phosphorcontrol_add_fake_module(wrongapi MODE 0 INVALID METADATA [=[{
+# Its metadata is valid: parse() reads ApiVersion without judging it, and the
+# catalog is what refuses the module.
+phosphorcontrol_add_fake_module(wrongapi MODE 0 METADATA [=[{
     "Id": "wrongapi", "ApiVersion": 2, "Name": "Wrong Api", "Pages": [ { "Id": "page", "Name": "Page" } ] }]=])
 phosphorcontrol_add_fake_module(badmetadata MODE 0 INVALID METADATA [=[{
     "Id": "badmetadata", "ApiVersion": 1,
@@ -427,10 +451,6 @@ phosphorcontrol_add_fake_module(providerchecks MODE 48 METADATA [=[{
     "Pages": [ { "Id": "general", "Name": "General", "Anchors": ["list"] } ],
     "Extensions": [ { "Id": "first", "Target": "good:general", "Slot": "top", "Name": "First" } ] }]=])
 
-phosphorcontrol_add_test(test_facet_metadata_tool)
-target_compile_definitions(test_facet_metadata_tool PRIVATE
-    PHOSPHOR_FACET_METADATA_TOOL="$<TARGET_FILE:phosphor-facet-metadata>")
-add_dependencies(test_facet_metadata_tool phosphor-facet-metadata)
 phosphorcontrol_add_test(test_facet_host)
 phosphorcontrol_add_test(test_facet_test_host)
 target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
