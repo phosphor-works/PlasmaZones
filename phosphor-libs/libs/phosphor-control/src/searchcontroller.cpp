@@ -42,6 +42,10 @@ QVariantMap toVariant(const SearchEntry& e)
     return m;
 }
 
+// How many times one answer builds the index while providers keep changing
+// it during the build (recompute).
+constexpr int MaxBuildsPerAnswer = 8;
+
 } // namespace
 
 SearchController::SearchController(ApplicationController* app, QObject* parent)
@@ -152,8 +156,10 @@ void SearchController::unregisterProvider(ISearchProvider* provider)
 void SearchController::invalidate()
 {
     m_indexDirty = true;
-    if (m_updateHolds > 0) {
-        m_rebuildHeld = true;
+    // Held: releaseUpdates() rebuilds once, if nothing has rebuilt since.
+    // During a build (a provider's searchEntries() registering another, say):
+    // the build that runs goes round again (recompute).
+    if (m_updateHolds > 0 || m_building) {
         return;
     }
     // Refresh live results if a query is active; otherwise the rebuild happens
@@ -174,8 +180,10 @@ void SearchController::releaseUpdates()
         qWarning() << "SearchController: releaseUpdates() without holdUpdates() is ignored";
         return;
     }
-    if (--m_updateHolds == 0 && std::exchange(m_rebuildHeld, false)) {
-        invalidate();
+    // Only while the index is still stale: a setQuery() during the hold has
+    // rebuilt it with every change made before it.
+    if (--m_updateHolds == 0 && m_indexDirty && !m_query.trimmed().isEmpty()) {
+        recompute();
     }
 }
 
@@ -358,7 +366,9 @@ QVector<SearchEntry> SearchController::buildIndex()
 
     // A copy, since a provider's searchEntries() may register or unregister
     // providers. One unregistered by an earlier one in this pass is skipped
-    // rather than asked, as it may be gone.
+    // rather than asked, as it may be gone. One registered in this pass is
+    // asked in the next, which recompute runs since the registration marked
+    // the index stale.
     const QVector<ISearchProvider*> providers = m_providers;
     for (ISearchProvider* const provider : providers) {
         // No null check: registerProvider rejects nullptr and dedupes, and
@@ -388,14 +398,35 @@ QVector<SearchEntry> SearchController::buildIndex()
 
 void SearchController::recompute()
 {
-    if (m_indexDirty) {
-        m_index = buildIndex();
-        // Fold every entry's matched fields once here rather than once per
-        // entry per keystroke inside the ranker.
-        for (SearchEntry& e : m_index) {
-            SearchRanker::prefold(e);
+    // Reached from a provider's searchEntries() (a setQuery or setLimit of its
+    // own): the build that runs ranks with the query and limit as they are
+    // once it is done.
+    if (m_building) {
+        return;
+    }
+    // A provider asked in a build can change what the index holds: register
+    // or unregister a provider, add an entry. Its invalidate() marks the index
+    // stale again, so the build runs again until nothing changed during one.
+    // Bounded, so a provider that changes something every time it is asked
+    // cannot hang the query; the index stays stale then, and the next query
+    // builds it again.
+    for (int builds = 0; m_indexDirty; ++builds) {
+        if (builds == MaxBuildsPerAnswer) {
+            qWarning() << "SearchController: the index changed while it was built" << MaxBuildsPerAnswer
+                       << "times in a row, so the last build is used; a search provider changes it whenever it is "
+                          "asked";
+            break;
         }
         m_indexDirty = false;
+        m_building = true;
+        QVector<SearchEntry> index = buildIndex();
+        m_building = false;
+        // Fold every entry's matched fields once here rather than once per
+        // entry per keystroke inside the ranker.
+        for (SearchEntry& e : index) {
+            SearchRanker::prefold(e);
+        }
+        m_index = std::move(index);
     }
 
     const QVector<SearchEntry> ranked = SearchRanker::rank(m_query, m_index, m_limit);

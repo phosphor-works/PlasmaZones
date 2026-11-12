@@ -356,8 +356,9 @@ private:
     /// Load every module that declares search providers and has not loaded
     /// yet, while the query is not blank. Runs from queryChanged, at the end
     /// of start(), and when a module arrives or is offered again. Called
-    /// while it runs, or while another module loads, it is owed instead
-    /// (m_searchProvidersOwed), and paid when that is over.
+    /// while it runs, while another module loads, or while modules take their
+    /// place, it is owed instead (m_searchProvidersOwed), and paid when that
+    /// is over.
     void loadOwedSearchProviders();
     /// Have the search controller rebuild what ModuleSearch lists, now or,
     /// inside a SearchBatch, once the batch is over.
@@ -417,9 +418,12 @@ private:
     std::unique_ptr<ModuleSearch> m_searchProvider;
     /// True while loadOwedSearchProviders runs.
     bool m_loadingSearchProviders = false;
-    /// Set when loadOwedSearchProviders was called while it ran, or while a
-    /// module loaded, and so loaded nothing.
+    /// Set when loadOwedSearchProviders was called while it ran, while a
+    /// module loaded, or while modules took their place, and so loaded
+    /// nothing.
     bool m_searchProvidersOwed = false;
+    /// True while placeModules runs.
+    bool m_placingModules = false;
     /// How many SearchBatch scopes are open, and whether one of them held
     /// back an invalidateSearch().
     int m_searchBatches = 0;

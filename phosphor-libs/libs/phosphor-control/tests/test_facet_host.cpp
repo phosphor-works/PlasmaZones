@@ -175,9 +175,10 @@ struct FixtureState
 
     static void clear()
     {
-        for (const char* name : {"facetLoadRecord", "facetSearchLoadRecord", "fakeConfigFactoryPaths",
-                                 "fakeConfigBackendsDestroyed", "fakeConfigNestedBackend", "fakeConfigOuterBackend",
-                                 "fakeForeignController", "fakeForeignDomain", "fakeProviderObject"}) {
+        for (const char* name :
+             {"facetLoadRecord", "facetSearchLoadRecord", "fakeConfigFactoryPaths", "fakeConfigBackendsDestroyed",
+              "fakeConfigNestedBackend", "fakeConfigOuterBackend", "fakeForeignController", "fakeForeignDomain",
+              "fakeProviderObject", "fakeProvidersAsked"}) {
             qApp->setProperty(name, QVariant());
         }
         qunsetenv("FACET_TEST_LOAD_RECORD");
@@ -660,8 +661,10 @@ private Q_SLOTS:
         QVERIFY(real != placeholder);
         QCOMPARE(h.registry()->entry(QStringLiteral("good:general")).qmlSource,
                  QUrl(QStringLiteral("qrc:/fake/Page.qml")));
-        QCOMPARE(bound.count(), 3);
-        QCOMPARE(h.host->boundPages(QStringLiteral("good")).size(), 3);
+        // Each of good's pages is bound once.
+        const qsizetype goodPages = h.host->metadata(QStringLiteral("good"))->pages.size();
+        QCOMPARE(bound.count(), goodPages);
+        QCOMPARE(h.host->boundPages(QStringLiteral("good")).size(), goodPages);
         QCOMPARE(h.host->moduleDomains(QStringLiteral("good")).size(), 1);
         QVERIFY(h.controller.isTrackedDomain(real));
         QVERIFY(h.controller.isTrackedDomain(h.host->moduleDomains(QStringLiteral("good")).first()));
@@ -1280,7 +1283,7 @@ private Q_SLOTS:
             // A second retry of the loaded module loads nothing again.
             QVERIFY(h.host->retryModule(QStringLiteral("good")));
             QCOMPARE(placeholderChanged.count(), 2);
-            QCOMPARE(bound.count(), 3);
+            QCOMPARE(bound.count(), h.host->metadata(QStringLiteral("good"))->pages.size());
             QCOMPARE(loaded.count(), 1);
         }
         {
@@ -3037,6 +3040,40 @@ private Q_SLOTS:
         search.setQuery(QStringLiteral("Dynamic entity"));
         QCOMPARE(h.host->state(QStringLiteral("providerstwo")), std::optional<State>(State::Loaded));
         QCOMPARE(countResults(search, QStringLiteral("providerstwo:general"), QStringLiteral("rule:42")), 1);
+    }
+
+    void aModuleWithProvidersLoadsForAQueryChangedWhileItTakesItsPlace()
+    {
+        // A slot changes the query as the providers module's node takes its
+        // place, before its page does. It loads once its page is in the
+        // sidebar too, so the page binds to the module's own controller
+        // rather than staying a placeholder.
+        Harness h({QStringLiteral("good")}, QString(), true);
+        QVERIFY2(h.ok, qPrintable(h.error));
+        SearchController search(&h.controller);
+        attachSearch(h, search);
+        h.host->start();
+        search.setQuery(QStringLiteral("Dynamic entity"));
+        bool asked = false;
+        bool pageWasPlaced = true;
+        PageRegistry* const registry = h.registry();
+        connect(registry, &PageRegistry::pageRegistered, &search,
+                [&search, &asked, &pageWasPlaced, registry](const QString& id) {
+                    if (id == QLatin1String("providers")) {
+                        asked = true;
+                        pageWasPlaced = registry->hasPage(QStringLiteral("providers:general"));
+                        search.setQuery(QStringLiteral("Dynamic setting"));
+                    }
+                });
+        QVERIFY(stage(h.modules, QStringLiteral("providers"), QStringLiteral("providers")));
+        QTRY_COMPARE_WITH_TIMEOUT(h.host->state(QStringLiteral("providers")), std::optional<State>(State::Loaded),
+                                  10000);
+        QVERIFY(asked);
+        QVERIFY(!pageWasPlaced);
+        QCOMPARE(h.host->boundPages(QStringLiteral("providers")), QStringList{QStringLiteral("providers:general")});
+        QCOMPARE(h.registry()->entry(QStringLiteral("providers:general")).qmlSource,
+                 QUrl(QStringLiteral("qrc:/fake/Page.qml")));
+        QCOMPARE(countResults(search, QStringLiteral("providers:general"), QStringLiteral("list")), 1);
     }
 
     void aModuleWithProvidersOfferedAgainLoadsForAStandingQuery()

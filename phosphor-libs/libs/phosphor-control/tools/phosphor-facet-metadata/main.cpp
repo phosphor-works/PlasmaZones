@@ -34,9 +34,17 @@
 // while one in zh_TW never gets zh_CN's Simplified Chinese. When two catalogs
 // claim one language and script (de and de_AT), each keeps its own full key.
 // The language part is QLocale's code for it, so a no_NO catalog serves nb
-// users. A usable `Key[<lang>]` the metadata already holds, at the catalog's
-// key or at a less specific form the catalog's would shadow (`Name[de]`),
-// was written by hand and wins.
+// users. An old code for a language written in more than one script (sh)
+// cannot say which script it means: the catalog has to name one (sr_Latn),
+// and is otherwise keyed as it spells itself, which no locale lists, with a
+// warning. A usable `Key[<lang>]` the metadata already holds was written by
+// hand and wins, at the catalog's key and at the forms parse() tries after it
+// for the same users: the language and script when the catalog keeps its own
+// longer key (`Name[de_Latn]` for de_AT beside de), and the bare language
+// when the catalog's script is the language's usual one (`Name[de]`, but not
+// `Name[zh]` for zh_TW). A key written by hand uses QLocale's code for the
+// language, as parse() does (`Name[nb]`): `Name[no]` is never picked, and
+// does not count here.
 
 #include <PhosphorControl/FacetModuleMetadata.h>
 
@@ -374,12 +382,18 @@ std::optional<Catalog> readCatalog(const QString& path)
 // nothing for zh_TW), which is how a translation written by hand for the
 // whole language is spelled. Only the codes come from QLocale, never its
 // name(), which would turn `de` into de_DE. A language QLocale does not know,
-// or one whose explicit script QLocale replaced, gets `full` only.
+// or one whose explicit script QLocale replaced, gets `full` only, spelled as
+// the catalog spells it. So does an old code QLocale reads as a language
+// written in more than one script, when the catalog names no script (sh,
+// which QLocale reads as Serbian in Cyrillic where CLDR means Serbian in
+// Latin): `scriptForms` then lists the forms the catalog could mean, for the
+// warning that asks for one of them.
 struct LanguageKeys
 {
     QString full;
     QString languageScript;
     QString bare;
+    QStringList scriptForms;
 };
 
 LanguageKeys languageKeys(const QString& language)
@@ -387,19 +401,37 @@ LanguageKeys languageKeys(const QString& language)
     const QStringList parts = language.split(QLatin1Char('_'));
     const QLocale locale(language);
     if (locale.language() == QLocale::C || locale.language() == QLocale::AnyLanguage) {
-        return {language, QString(), QString()};
+        return {language, QString(), QString(), {}};
     }
     const QString code = QLocale::languageToCode(locale.language());
     const QString script = QLocale::scriptToCode(locale.script());
     // A script subtag QLocale has no data for (de_Cyrl) makes it fall back
     // to the language's usual script, which is not the catalog's.
-    if (parts.size() > 1 && parts.at(1).size() == 4 && parts.at(1).compare(script, Qt::CaseInsensitive) != 0) {
-        return {language, QString(), QString()};
+    const bool namesScript = parts.size() > 1 && parts.at(1).size() == 4;
+    if (namesScript && parts.at(1).compare(script, Qt::CaseInsensitive) != 0) {
+        return {language, QString(), QString(), {}};
+    }
+    // An old code (no, iw, sh) stands for the script QLocale picks only when
+    // the language it reads is written in that script alone (nb, he).
+    if (!namesScript && parts.first().compare(code, Qt::CaseInsensitive) != 0) {
+        QStringList forms;
+        const QList<QLocale> matches =
+            QLocale::matchingLocales(locale.language(), QLocale::AnyScript, QLocale::AnyTerritory);
+        for (const QLocale& match : matches) {
+            const QString form = code + QLatin1Char('_') + QLocale::scriptToCode(match.script());
+            if (!forms.contains(form)) {
+                forms.append(form);
+            }
+        }
+        if (forms.size() > 1) {
+            std::sort(forms.begin(), forms.end());
+            return {language, QString(), QString(), forms};
+        }
     }
     QStringList canonical = parts;
     canonical.first() = code;
     const bool usualScript = locale.script() == QLocale(locale.language()).script();
-    return {canonical.join(QLatin1Char('_')), code + QLatin1Char('_') + script, usualScript ? code : QString()};
+    return {canonical.join(QLatin1Char('_')), code + QLatin1Char('_') + script, usualScript ? code : QString(), {}};
 }
 
 // A catalog and the language key its translations go under.
@@ -437,6 +469,11 @@ bool localize(QJsonObject root, const QStringList& tsFiles, const QString& out)
         }
         catalogs.push_back(std::move(*catalog));
     }
+    // By path, so the messages below come in the same order however the
+    // build lists the files.
+    std::sort(catalogs.begin(), catalogs.end(), [](const Catalog& a, const Catalog& b) {
+        return a.path < b.path;
+    });
     const QRegularExpression localePattern(QRegularExpression::anchoredPattern(QString(Keys::LocalePattern)));
     std::erase_if(catalogs, [&localePattern](const Catalog& catalog) {
         if (localePattern.match(catalog.language).hasMatch()) {
@@ -450,6 +487,11 @@ bool localize(QJsonObject root, const QStringList& tsFiles, const QString& out)
     QHash<QString, int> claims;
     for (const Catalog& catalog : catalogs) {
         keyed.push_back({&catalog, languageKeys(catalog.language), QString()});
+        if (const QStringList& forms = keyed.back().language.scriptForms; !forms.isEmpty()) {
+            warn(QStringLiteral("%1: %2 is an old code for a language written in more than one script, so its "
+                                "translations go under %2, which no locale lists; name the script, as in %3")
+                     .arg(catalog.path, catalog.language, forms.join(QStringLiteral(" or "))));
+        }
         if (!keyed.back().language.languageScript.isEmpty()) {
             ++claims[keyed.back().language.languageScript];
         }

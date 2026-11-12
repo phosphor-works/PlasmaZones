@@ -22,6 +22,7 @@
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QScopeGuard>
+#include <QScopedValueRollback>
 #include <QThread>
 #include <QVariantMap>
 
@@ -242,8 +243,9 @@ public:
             position.insert(pages.at(i)->id, i);
         }
         QList<QVector<SearchEntry>> byPage(pages.size());
-        // Actions, and an entry whose page is not in the sidebar, which
-        // SearchController drops with a warning.
+        // Actions, which have no page, after every page's entries. Every
+        // other entry is placed on a page in the sidebar: the loops below
+        // leave out one whose page is not there.
         QVector<SearchEntry> rest;
         const auto place = [&position, &byPage, &rest](SearchEntry&& entry) {
             const auto at =
@@ -640,8 +642,9 @@ void FacetHost::start()
             Q_EMIT moduleFailed(finding.id, reason);
         }
     }
-    // A query typed before start(): its modules with providers load now that
-    // the sidebar is complete and announced.
+    // A query typed before start(), or while its modules took their place:
+    // its modules with providers load now that the sidebar is complete and
+    // announced.
     loadOwedSearchProviders();
 }
 
@@ -745,7 +748,8 @@ void FacetHost::addModule(const QString& moduleId, const Module* previous)
     // active, or extend pages itself.
     updateExtensions();
     // With a query standing, a module with search providers loads at once, so
-    // its entries are found.
+    // its entries are found. Also pays a query changed while it took its
+    // place, which placeModules left owed.
     loadOwedSearchProviders();
 }
 
@@ -1010,6 +1014,11 @@ bool FacetHost::registerPlaceholder(const QString& id, const QString& parentId, 
 
 void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
 {
+    // Every page registered announces itself (pageRegistered), and a slot of
+    // that can change the search query while a module has some of its pages
+    // in the sidebar and not yet the others. The providers that query owes
+    // load once the placing is over (loadOwedSearchProviders).
+    const QScopedValueRollback placing(m_placingModules, true);
     PageRegistry* const registry = m_controller->registry();
     std::stable_sort(modules.begin(), modules.end(), [this](const auto& a, const auto& b) {
         return moduleSortsBefore(*a, *b);
@@ -1572,6 +1581,12 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
         finishLoading();
         const bool withdrawn = !m_catalog->plugin(moduleId);
         if (withdrawn) {
+            // The module fails for its removal, so a load that failed for
+            // another reason says that reason here, or it would go unheard.
+            if (reason != FileRemoved) {
+                qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId
+                                              << "was removed while it loaded, and its load failed too:" << reason;
+            }
             withdrawModule(*module);
         } else {
             transition(*module, ModuleState::Failed, reason, retryable);
@@ -1817,7 +1832,10 @@ void FacetHost::transition(Module& module, ModuleState state, const QString& rea
     }
     // What search lists for a module follows its state (ModuleSearch): its
     // providers once loaded, nothing on its pages once failed. Rebuilt
-    // before anyone hears of the change.
+    // before anyone hears of the change, except inside a SearchBatch (a run
+    // of loads for search providers, a module taking its place): there it is
+    // rebuilt once the batch is over, and a query typed meanwhile is answered
+    // from the index as it was.
     invalidateSearch();
     if (m_starting) {
         return;
@@ -1935,8 +1953,11 @@ void FacetHost::loadOwedSearchProviders()
     // One walk at a time, and none while a module loads, since every load is
     // refused then. A call meanwhile, from a slot of a load (a query typed, a
     // module arriving or offered again), is owed: the walk goes round again,
-    // or the load that is running pays it once it is over.
-    if (m_loadingSearchProviders || !m_loadingModule.isEmpty()) {
+    // or the load that is running pays it once it is over. None while modules
+    // take their place either, since a module loaded then would bind pages
+    // that are not in the sidebar yet: start() and addModule pay what that
+    // owes once it is over.
+    if (m_loadingSearchProviders || !m_loadingModule.isEmpty() || m_placingModules) {
         m_searchProvidersOwed = true;
         return;
     }

@@ -89,9 +89,10 @@ public:
 
     /// Hold back the rebuild a live query makes on every change, until the
     /// matching releaseUpdates(), which makes one rebuild when anything
-    /// changed in between. Calls nest. For a run of changes that would
-    /// otherwise rebuild the index once each, such as a module placing its
-    /// pages and setting their keywords. setQuery() still answers at once.
+    /// changed in between and the index was not rebuilt since. Calls nest.
+    /// For a run of changes that would otherwise rebuild the index once each,
+    /// such as a module placing its pages and setting their keywords.
+    /// setQuery() still answers at once, with every change made before it.
     void holdUpdates();
     /// End a holdUpdates(). One without a matching hold is ignored with a
     /// warning.
@@ -129,10 +130,11 @@ private:
     QSet<QString> m_warnedEntryKeys;
 
     bool m_indexDirty = true;
-    /// holdUpdates() calls not yet released, and whether a live query owes a
-    /// rebuild once they are.
+    /// True while buildIndex() runs, when a change only marks the index stale
+    /// and the build goes round again (recompute).
+    bool m_building = false;
+    /// holdUpdates() calls not yet released.
     int m_updateHolds = 0;
-    bool m_rebuildHeld = false;
     QVector<SearchEntry> m_index;
     QVariantList m_resultsVariant;
     QString m_suggestion;

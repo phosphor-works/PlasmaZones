@@ -466,6 +466,57 @@ private Q_SLOTS:
         QTest::newRow("language QLocale reads as another")
             << QStringList{QStringLiteral("no_NO")} << QStringList{QStringLiteral("Name[nb_Latn]")}
             << QStringList{QStringLiteral("nb_NO=no_NO"), QStringLiteral("no_NO=no_NO")};
+        // iw is an old code for Hebrew, written in one script only.
+        QTest::newRow("old code for a language of one script")
+            << QStringList{QStringLiteral("iw")} << QStringList{QStringLiteral("Name[he_Hebr]")}
+            << QStringList{QStringLiteral("he_IL=iw"), QStringLiteral("iw_IL=iw")};
+        // sh is an old code for Serbian, which QLocale reads in Cyrillic.
+        // Named with its script, it serves the users of that script alone.
+        QTest::newRow("old code with its script")
+            << QStringList{QStringLiteral("sh_Latn")} << QStringList{QStringLiteral("Name[sr_Latn]")}
+            << QStringList{QStringLiteral("sr_Latn_RS=sh_Latn"), QStringLiteral("sr_Latn_BA=sh_Latn"),
+                           QStringLiteral("sr_RS=Hello"), QStringLiteral("sr_Cyrl_RS=Hello")};
+    }
+
+    void asksForTheScriptOfAnOldCodeForALanguageOfTwoScripts_data()
+    {
+        QTest::addColumn<QString>("language");
+        QTest::newRow("language alone") << QStringLiteral("sh");
+        QTest::newRow("language and region") << QStringLiteral("sh_RS");
+    }
+
+    void asksForTheScriptOfAnOldCodeForALanguageOfTwoScripts()
+    {
+        // QLocale reads sh as Serbian in Cyrillic, where sh meant Serbian in
+        // Latin, so the catalog does not say which of the two it is for. It
+        // keeps its own key, which serves no user, rather than giving Latin
+        // to readers of Cyrillic.
+        QFETCH(QString, language);
+        QString source;
+        QVERIFY(write(QStringLiteral("m.json"), ValidMetadata, &source));
+        QString ts;
+        QVERIFY(write(QStringLiteral("m_sh.ts"),
+                      catalog(language, {{QStringLiteral("Hello"), QStringLiteral("Zdravo")}}), &ts));
+        QString errors;
+        const QString out = m_dir->filePath(QStringLiteral("out.json"));
+        const QString outcome = run(0, {QStringLiteral("localize"), source, out, ts}, &errors);
+        QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
+        QCOMPARE(errors.trimmed(),
+                 QStringLiteral("phosphor-facet-metadata: warning: %1: %2 is an old code for a language written in "
+                                "more than one script, so its translations go under %2, which no locale lists; name "
+                                "the script, as in sr_Cyrl or sr_Latn")
+                     .arg(ts, language));
+        const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
+        QCOMPARE(keysStartingWith(json, QStringLiteral("Name[")),
+                 QStringList{QStringLiteral("Name[%1]").arg(language)});
+        for (const QString& user : {QStringLiteral("sr_RS"), QStringLiteral("sr_Cyrl_RS"), QStringLiteral("sr_Latn_RS"),
+                                    QStringLiteral("sh"), QStringLiteral("sh_RS")}) {
+            QStringList parseErrors;
+            const FacetModuleMetadata metadata = FacetModuleMetadata::parse(json, QLocale(user), &parseErrors);
+            QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
+            QVERIFY2(metadata.name == QLatin1String("Hello"),
+                     qPrintable(QStringLiteral("%1 got %2").arg(user, metadata.name)));
+        }
     }
 
     void keysEachCatalogByTheLanguageUsersMatch()
@@ -546,6 +597,27 @@ private Q_SLOTS:
             qPrintable(errors));
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
         QCOMPARE(keysStartingWith(json, QStringLiteral("Name[")), QStringList());
+    }
+
+    void warnsAboutCatalogsInPathOrder()
+    {
+        // The build may list the files in any order. The warnings come in
+        // the order of the files' paths whatever it is.
+        QString source;
+        QVERIFY(write(QStringLiteral("m.json"), ValidMetadata, &source));
+        QString a;
+        QString b;
+        QVERIFY(write(QStringLiteral("a.ts"), catalog(QStringLiteral("sr@latin"), {}), &a));
+        QVERIFY(write(QStringLiteral("b.ts"), catalog(QStringLiteral("ca@valencia"), {}), &b));
+        const QString out = m_dir->filePath(QStringLiteral("out.json"));
+        for (const QStringList& order : {QStringList{a, b}, QStringList{b, a}}) {
+            QString errors;
+            const QString outcome = run(0, QStringList{QStringLiteral("localize"), source, out} + order, &errors);
+            QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
+            const qsizetype first = errors.indexOf(a);
+            const qsizetype second = errors.indexOf(b);
+            QVERIFY2(first >= 0 && second > first, qPrintable(errors));
+        }
     }
 
     void printsWarningsWithoutFailing()

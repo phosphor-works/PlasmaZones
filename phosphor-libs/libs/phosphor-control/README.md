@@ -57,7 +57,7 @@ library provides:
 | `PhosphorControl::IFacetModule`           | The interface a Facet module's root object implements (`registerInto(FacetContext&)`), IID `org.phosphor_works.Facet.Module/1` |
 | `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, the categories it defines, pages and their anchors, extension points, extensions, search entries, and whether it registers search providers), parsed and validated per locale |
 | `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, the domain and QML of each section it adds to another module's page, and its search providers (`registerSearchProvider`). It also hands out one config backend per file, shared by every module that writes it |
-| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened, or, for a module with search providers, while a search query is not blank and it has not loaded yet. With a `SearchController` it lists every module's pages and search entries before they load |
+| `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened, and loads every module with search providers that is available (not loaded, failed or turned off after a crash) while a search query is not blank. With a `SearchController` it lists every module's pages and search entries before they load |
 | `PhosphorControl::FacetSlotModel`         | The sections in one slot of one page, for `FacetSlot`: reads `extensionsFor` again on `extensionsChanged` and keeps the row of a section that stays |
 | `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI: metadata, registration, staging, search providers, extension targets and anchor stability. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
 | `phosphor-facet-metadata`                 | Build tool behind `phosphor_add_facet_module_metadata()`: validates a module's metadata, adds `Key[<lang>]` translations from its `.ts` files, and writes its anchor list and lupdate strings |
@@ -259,11 +259,19 @@ languages, so a user in `de_AT` gets the `de_DE` catalog while one in `zh_TW`
 never gets the Simplified Chinese of `zh_CN`. When two catalogs claim one
 language and script (`de` and `de_AT`), each is keyed by its own language,
 with `-` turned into `_`. The language is the code Qt gives it, so a `no_NO`
-catalog serves `nb` users. A `Key[<lang>]` written in the metadata by hand
-wins over the catalog, at the catalog's key or a less specific one
-(`Key[de]`), unless it is empty. An unfinished translation is left out, while
-`lrelease` ships it unless given `-nounfinished`, so pass that for a module's
-pages to read in the same language as its sidebar entry.
+catalog serves `nb` users. An old code for a language written in more than
+one script, such as `sh`, does not say which script it means, so name the
+script (`sr_Latn`). A catalog under such a code alone is kept under that code,
+which no locale lists, and the build warns about it. A `Key[<lang>]` written
+in the metadata by hand wins over the catalog unless it is empty. It wins at
+the catalog's key, at the language and script when the catalog keeps its own
+longer key (`Key[de_Latn]` beside `de` and `de_AT` catalogs), and at the bare
+language when the catalog's script is the language's usual one (`Key[de]`,
+but not `Key[zh]` beside a `zh_TW` catalog). A key written by hand uses the
+code Qt gives the language (`Key[nb]`), since `Key[no]` is never picked. An
+unfinished translation is left out, while `lrelease` ships it unless given
+`-nounfinished`, so pass that for a module's pages to read in the same
+language as its sidebar entry.
 
 `FACET_STRINGS_FILE` holds the metadata's strings for `lupdate`, in context
 `FacetModule`. The build writes it (the target `<target>_facet_metadata`), so

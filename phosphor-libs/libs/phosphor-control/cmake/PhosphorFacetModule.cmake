@@ -34,10 +34,17 @@
 # catalog's language and script (de_DE as de_Latn, zh_TW as zh_Hant), which
 # every locale of that language and script matches, or under the catalog's
 # own language, with '-' turned into '_', when two catalogs claim the same
-# language and script. A usable `Key[<lang>]` already in METADATA, at that key
-# or a less specific one, was written by hand and wins. Only finished
-# translations are used, so a module whose pages and sidebar entry should
-# agree passes -nounfinished to lrelease.
+# language and script. The language is the code Qt gives it (no_NO serves nb
+# users). An old code for a language written in more than one script (sh)
+# must name its script (sr_Latn): alone it is kept under that code, which no
+# locale lists, with a warning. A usable `Key[<lang>]` already in METADATA was
+# written by hand and wins: at the catalog's key, at the language and script
+# when the catalog keeps its own longer key (de_Latn for de_AT beside de),
+# and at the bare language when the catalog's script is the language's usual
+# one (de, but not zh beside a zh_TW catalog). Such a key uses the code Qt
+# gives the language (nb, not no). Only finished translations are used, so a
+# module whose pages and sidebar entry should agree passes -nounfinished to
+# lrelease.
 #
 # The function refuses a setup in which moc could embed some other file
 # named facet_metadata.json: METADATA itself under that name, or such a file
@@ -54,6 +61,14 @@
 
 set(PHOSPHOR_FACET_METADATA_EXECUTABLE "" CACHE FILEPATH
     "A phosphor-facet-metadata that runs on the build machine, used in place of PhosphorControl's own")
+
+# A function runs under the policies in effect where it is defined, so the
+# one below reads GENERATED the same way whatever the caller's
+# cmake_minimum_required() (see the sources walk).
+cmake_policy(PUSH)
+if(POLICY CMP0163)
+    cmake_policy(SET CMP0163 NEW)
+endif()
 
 function(phosphor_add_facet_module_metadata target)
     set(fn "phosphor_add_facet_module_metadata(${target})")
@@ -170,9 +185,12 @@ function(phosphor_add_facet_module_metadata target)
     # be the caller's. A unity build compiles the file inside a unity source
     # that does not carry its OBJECT_DEPENDS, so it is kept out of the batch.
     # A source marked GENERATED is never read, on any configure, since whether
-    # it exists yet depends on whether the build has run. That holds where the
-    # mark is visible from the target's directory: always under policy
-    # CMP0118 NEW, and under OLD only when the mark was set in that directory.
+    # it exists yet depends on whether the build has run. The mark is visible
+    # from the target's directory wherever it was set under policy CMP0163,
+    # which this file sets to NEW for the function. A CMake older than 3.30
+    # has no such policy and sees only a mark set in the target's directory,
+    # so there a source generated in another directory is skipped while it
+    # does not exist yet and read once it does.
     get_target_property(sources ${target} SOURCES)
     set(embedders "")
     foreach(sourceFile IN LISTS sources)
@@ -241,3 +259,5 @@ function(phosphor_add_facet_module_metadata target)
                                "function. Generated sources are not read.")
     endif()
 endfunction()
+
+cmake_policy(POP)
