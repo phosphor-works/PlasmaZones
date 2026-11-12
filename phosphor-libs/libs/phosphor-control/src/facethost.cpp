@@ -1599,10 +1599,11 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
     if (!canLoadNow(moduleId, errorString)) {
         return false;
     }
-    // Turned off after a crash and still Available: a slot reacting to the
-    // module's arrival met it before addModule disabled it. A retry turns it
-    // on before it gets here (retryModule). It is disabled now rather than
-    // loaded, which would run the code that crashed without the user asking.
+    // Turned off after a crash and still Available: the caller is a slot
+    // that runs once its pages are placed but before addModule has disabled
+    // it (a search results update, say). A retry turns it on before it gets
+    // here (retryModule). It is disabled now rather than loaded, which would
+    // run the code that crashed without the user asking.
     if (m_loadRecord->isDisabled(moduleId)) {
         disableAfterCrash(*module);
         // A slot of that may have retried it, which loads it.

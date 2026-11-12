@@ -142,22 +142,30 @@ struct PHOSPHORCONTROL_EXPORT FacetSearchEntryMetadata
 /// `Title` and `Keywords` on a search entry. A locale is written with '_',
 /// never '-': `Name[pt-BR]` is never picked, and parse() warns about it.
 /// phosphor_add_facet_module_metadata() writes the variants into the module's
-/// metadata from its translations when it is built, keyed by the language
-/// and its script (`Name[de_Latn]`, `Name[zh_Hant]`) where only one catalog
+/// metadata from its translations when it is built, keyed by the language and
+/// its script (`Name[de_Latn]`, `Name[zh_Hant]`) where only one catalog
 /// claims them, so every locale of that language and script finds it, and by
 /// the catalog's own language otherwise, in Qt's code for it (`nb`, never
-/// `no`, and `zh` for `zho`). The exception is an old code for a language
-/// written in more than one script, when the catalog names no script: `sh`
-/// keeps its own key, which no locale picks, and the build warns and asks
-/// for the script (`sh_Latn`). The build keeps a usable variant written by
-/// hand, which wins over the catalog's at the catalog's key, at the language
-/// and script when the catalog keeps its own longer key, and at the bare
-/// language when the catalog's script is the language's usual one. A variant
-/// written by hand uses Qt's code for the language too, since `Name[no]` is
-/// never picked. parse() picks the best variant for the locale, following
-/// the locale's UI languages from the most specific form to the bare
-/// language (`de_Latn_AT`, `de_AT`, `de_Latn`, `de`), and skips one that is
-/// empty or not of the key's type. Whether a required key
+/// `no`, and `zh_TW` for `zho_TW`). The bare code of a language Qt has
+/// locales for in more than one script (`zh`, `sr`, `uz`) is never a key,
+/// since every locale of the language lists it whatever its script: a catalog
+/// for it is keyed by the script Qt reads it in (`Name[zh_Hans]`,
+/// `Name[sr_Cyrl]`) even beside a regional catalog, which keeps its own key
+/// (`Name[zh_CN]`), and the build fails when another catalog claims that key
+/// too (`zh_Hans` beside `zh`). A language of one script keeps its bare key
+/// (`Name[de]` beside `Name[de_AT]`). An old code for a language written in
+/// more than one script that names no script is kept under its own key, which
+/// no locale picks: the build warns about `sh` and asks for the script
+/// (`sr_Latn`). The build keeps a usable variant written by hand, which wins
+/// over the catalog's at the catalog's key, at the language and script when
+/// the catalog keeps its own longer key, and at the bare language when the
+/// catalog's script is the language's usual one, so a hand-written `Name[zh]`
+/// counts as Simplified Chinese and holds off a `zh_CN` catalog but not a
+/// `zh_TW` one. A variant written by hand uses Qt's code for the language
+/// too, since `Name[no]` is never picked. parse() picks the best variant for
+/// the locale, following the locale's UI languages from the most specific
+/// form to the bare language (`de_Latn_AT`, `de_AT`, `de_Latn`, `de`), and
+/// skips one that is empty or not of the key's type. Whether a required key
 /// (`Name`, a search entry's `Title`) is there is decided on its base value
 /// alone, so metadata valid in one locale is valid in all of them. The base
 /// values are what lupdate extracts: a string must hold no control character

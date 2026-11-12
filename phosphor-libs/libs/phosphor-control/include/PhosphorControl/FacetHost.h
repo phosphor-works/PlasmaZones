@@ -215,9 +215,11 @@ public:
     /// was turned off after a crash, and for one that cannot load now:
     /// another module is loading, modules are still taking their place in
     /// the sidebar (a pageRegistered slot, in start() or as a module
-    /// arrives), or the call is off the GUI thread. A module the load record keeps turned off after a crash
-    /// that is still Available, as it is for a slot reacting to its arrival,
-    /// becomes DisabledAfterCrash instead of loading.
+    /// arrives), or the call is off the GUI thread. A module the load record
+    /// keeps turned off after a crash that is still Available, as it is for a
+    /// slot that runs once its pages are placed but before addModule has
+    /// disabled it (a search results update, say), becomes DisabledAfterCrash
+    /// instead of loading.
     bool loadModule(const QString& moduleId, QString* errorString = nullptr);
     /// Clear DisabledAfterCrash, or a Failed state that canRetry() allows,
     /// for @p moduleId and load it again. Any other module is handed to
@@ -475,7 +477,8 @@ private:
     /// Whether start() got the extension provider, so FacetSlots show this
     /// host's sections and search may list them.
     bool m_holdsExtensionProvider = false;
-    /// The page a navigation is opening, while onNavigation runs.
+    /// The page openPage is opening, for a navigation or for one owed
+    /// (loadOwedNavigation), while it runs.
     QString m_openingPage;
     /// Counts the navigations the hook saw, so one that went somewhere and
     /// back is still told apart from none.

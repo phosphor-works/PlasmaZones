@@ -32,19 +32,26 @@
 #
 # Translations: each catalog's strings in context "FacetModule" go under the
 # catalog's language and script (de_DE as de_Latn, zh_TW as zh_Hant), which
-# every locale of that language and script matches, or under the catalog's
-# own language, with '-' turned into '_', when two catalogs claim the same
-# language and script. The language is the code Qt gives it (no_NO serves nb
-# users). An old code for a language written in more than one script (sh)
-# must name its script (sr_Latn): alone it is kept under that code, which no
-# locale lists, with a warning. A usable `Key[<lang>]` already in METADATA was
+# every locale of that language and script matches, or under the catalog's own
+# language, with '-' turned into '_', when two catalogs claim the same
+# language and script. A language Qt has locales for in more than one script
+# (zh, sr, uz, pa, az, en) is never keyed by its code alone, which every
+# locale of the language matches whatever its script: a catalog for the bare
+# code goes under the script Qt reads it in (zh as zh_Hans, sr as sr_Cyrl)
+# even beside a regional catalog (zh_CN keeps zh_CN), and a zh catalog beside
+# a zh_Hans one fails the build. A language of one script keeps its bare key
+# (de beside de_AT). The language is the code Qt gives it (no_NO serves nb
+# users). An old code for a language written in more than one script (sh) must
+# name its script (sr_Latn): alone it is kept under that code, which no locale
+# lists, with a warning. A usable `Key[<lang>]` already in METADATA was
 # written by hand and wins: at the catalog's key, at the language and script
-# when the catalog keeps its own longer key (de_Latn for de_AT beside de),
-# and at the bare language when the catalog's script is the language's usual
-# one (de, but not zh beside a zh_TW catalog). Such a key uses the code Qt
-# gives the language (nb, not no). Only finished translations are used, so a
-# module whose pages and sidebar entry should agree passes -nounfinished to
-# lrelease.
+# when the catalog keeps its own longer key (de_Latn for de_AT beside de), and
+# at the bare language when the catalog's script is the language's usual one
+# (de, but not zh beside a zh_TW catalog), so a hand-written zh counts as
+# Simplified Chinese and holds off a zh, zh_CN or zh_Hans catalog. Such a key
+# uses the code Qt gives the language (nb, not no). Only finished translations
+# are used, so a module whose pages and sidebar entry should agree passes
+# -nounfinished to lrelease.
 #
 # The function refuses a setup in which moc could embed some other file
 # named facet_metadata.json: METADATA itself under that name, or such a file

@@ -251,27 +251,37 @@ cannot compile the same plugin source file: give each its own path to it,
 such as a symbolic link. `phosphor_add_facet_module_metadata()` stops the
 configure in each of these cases.
 
-The translations come from the module's catalogs: every finished translation
-in context `FacetModule` is added as `Key[<lang>]`. A catalog is keyed by its
+The translations come from the module's catalogs: every finished translation in
+context `FacetModule` is added as `Key[<lang>]`. A catalog is keyed by its
 language and that language's script, so `de_DE` becomes `Key[de_Latn]` and
 `zh_TW` becomes `Key[zh_Hant]`. Every locale lists that form among its UI
 languages, so a user in `de_AT` gets the `de_DE` catalog while one in `zh_TW`
 never gets the Simplified Chinese of `zh_CN`. When two catalogs claim one
-language and script (`de` and `de_AT`), each is keyed by its own language,
-with `-` turned into `_`. The language is the code Qt gives it, so a `no_NO`
-catalog serves `nb` users. An old code for a language written in more than
-one script, such as `sh`, does not say which script it means, so name the
+language and script (`de` and `de_AT`), each is keyed by its own language, with
+`-` turned into `_`. The exception is a language Qt has locales for in more
+than one script (`zh`, `sr`, `uz`, `pa`, `az`, and `en` for Deseret and
+Shavian), which is never keyed by its code alone, because every locale of the
+language lists that code whatever its script. A catalog for the bare code goes
+under the script Qt reads it in, so `zh` becomes `Key[zh_Hans]` and `sr`
+becomes `Key[sr_Cyrl]`, even beside a regional catalog such as `zh_CN`, which
+keeps `Key[zh_CN]`. A `zh` catalog beside a `zh_Hans` one fails the build as
+two catalogs for `zh_Hans`. A language of one script keeps its bare key
+(`Key[de]` beside `Key[de_AT]`). The language is the code Qt gives it, so a
+`no_NO` catalog serves `nb` users. An old code for a language written in more
+than one script, such as `sh`, does not say which script it means, so name the
 script (`sr_Latn`). A catalog under such a code alone is kept under that code,
-which no locale lists, and the build warns about it. A `Key[<lang>]` written
-in the metadata by hand wins over the catalog unless it is empty. It wins at
-the catalog's key, at the language and script when the catalog keeps its own
-longer key (`Key[de_Latn]` beside `de` and `de_AT` catalogs), and at the bare
-language when the catalog's script is the language's usual one (`Key[de]`,
-but not `Key[zh]` beside a `zh_TW` catalog). A key written by hand uses the
-code Qt gives the language (`Key[nb]`), since `Key[no]` is never picked. An
-unfinished translation is left out, while `lrelease` ships it unless given
-`-nounfinished`, so pass that for a module's pages to read in the same
-language as its sidebar entry.
+which no locale lists, and the build warns about it. A `Key[<lang>]` written in
+the metadata by hand wins over the catalog unless it is empty. It wins at the
+catalog's key, at the language and script when the catalog keeps its own longer
+key (`Key[de_Latn]` beside `de` and `de_AT` catalogs), and at the bare language
+when the catalog's script is the language's usual one (`Key[de]`, but not
+`Key[zh]` beside a `zh_TW` catalog). So a hand-written `Key[zh]` counts as
+Simplified Chinese: it holds off a `zh`, `zh_CN` or `zh_Hans` catalog, while a
+`zh_TW` catalog still serves its users. A key written by hand uses the code Qt
+gives the language (`Key[nb]`), since `Key[no]` is never picked. An unfinished
+translation is left out, while `lrelease` ships it unless given
+`-nounfinished`, so pass that for a module's pages to read in the same language
+as its sidebar entry.
 
 `FACET_STRINGS_FILE` holds the metadata's strings for `lupdate`, in context
 `FacetModule`. The build writes it (the target `<target>_facet_metadata`), so

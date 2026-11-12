@@ -484,6 +484,28 @@ private Q_SLOTS:
         QTest::newRow("three-letter code")
             << QStringList{QStringLiteral("srp")} << QStringList{QStringLiteral("Name[sr_Cyrl]")}
             << QStringList{QStringLiteral("sr_RS=srp"), QStringLiteral("sr_Latn_RS=Hello")};
+        // Every locale of a language written in more than one script lists
+        // the language's bare code, so a catalog for it keeps to the script
+        // QLocale reads it in even beside a regional catalog, which keeps its
+        // own key.
+        QTest::newRow("Chinese and one region")
+            << QStringList{QStringLiteral("zh"), QStringLiteral("zh_CN")}
+            << QStringList{QStringLiteral("Name[zh_CN]"), QStringLiteral("Name[zh_Hans]")}
+            << QStringList{QStringLiteral("zh_CN=zh_CN"), QStringLiteral("zh_SG=zh"), QStringLiteral("zh_TW=Hello"),
+                           QStringLiteral("zh_HK=Hello")};
+        QTest::newRow("Serbian and one region")
+            << QStringList{QStringLiteral("sr"), QStringLiteral("sr_RS")}
+            << QStringList{QStringLiteral("Name[sr_Cyrl]"), QStringLiteral("Name[sr_RS]")}
+            << QStringList{QStringLiteral("sr_RS=sr_RS"), QStringLiteral("sr_Latn_RS=Hello"),
+                           QStringLiteral("sr_Cyrl_BA=sr")};
+        QTest::newRow("three-letter code of Uzbek and one region")
+            << QStringList{QStringLiteral("uzb"), QStringLiteral("uz_UZ")}
+            << QStringList{QStringLiteral("Name[uz_Latn]"), QStringLiteral("Name[uz_UZ]")}
+            << QStringList{QStringLiteral("uz_UZ=uz_UZ"), QStringLiteral("uz_AF=Hello"),
+                           QStringLiteral("uz_Cyrl_UZ=Hello")};
+        QTest::newRow("Punjabi alone") << QStringList{QStringLiteral("pa")}
+                                       << QStringList{QStringLiteral("Name[pa_Guru]")}
+                                       << QStringList{QStringLiteral("pa_IN=pa"), QStringLiteral("pa_PK=Hello")};
     }
 
     void asksForTheScriptOfAnOldCodeForALanguageOfTwoScripts_data()
@@ -532,29 +554,38 @@ private Q_SLOTS:
         QFETCH(QStringList, languages);
         QFETCH(QStringList, keys);
         QFETCH(QStringList, users);
-        QString source;
-        QVERIFY(write(QStringLiteral("m.json"), ValidMetadata, &source));
-        QStringList arguments{QStringLiteral("localize"), source, m_dir->filePath(QStringLiteral("out.json"))};
-        for (const QString& language : std::as_const(languages)) {
-            QString ts;
-            QVERIFY(write(QStringLiteral("m_%1.ts").arg(language),
-                          catalog(language, {{QStringLiteral("Hello"), language}}), &ts));
-            arguments.append(ts);
-        }
-        QString errors;
-        const QString outcome = run(0, arguments, &errors);
-        QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
-        QVERIFY2(errors.isEmpty(), qPrintable(errors));
-        const QJsonObject json = QJsonDocument::fromJson(read(arguments.at(2)).toUtf8()).object();
-        QCOMPARE(keysStartingWith(json, QStringLiteral("Name[")), keys);
-        for (const QString& user : std::as_const(users)) {
-            const QStringList pair = user.split(QLatin1Char('='));
-            QCOMPARE(pair.size(), 2);
-            QStringList parseErrors;
-            const FacetModuleMetadata metadata = FacetModuleMetadata::parse(json, QLocale(pair.first()), &parseErrors);
-            QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
-            QVERIFY2(metadata.name == pair.last(), qPrintable(QStringLiteral("%1 got %2").arg(user, metadata.name)));
-        }
+        localizeForUsers(ValidMetadata, languages, keys, users);
+    }
+
+    void keepsAHandWrittenNameForAWholeLanguageOfTwoScripts_data()
+    {
+        QTest::addColumn<QStringList>("languages");
+        QTest::addColumn<QStringList>("keys");
+        QTest::addColumn<QStringList>("users");
+        // A hand-written Name[zh] is in zh's usual script, Simplified. It
+        // holds off a catalog in that script, which would shadow it for the
+        // catalog's users, and leaves a Traditional one to serve its own.
+        QTest::newRow("catalog for each script")
+            << QStringList{QStringLiteral("zh_CN"), QStringLiteral("zh_TW")}
+            << QStringList{QStringLiteral("Name[zh]"), QStringLiteral("Name[zh_Hant]")}
+            << QStringList{QStringLiteral("zh_CN=by hand"), QStringLiteral("zh_SG=by hand"),
+                           QStringLiteral("zh_TW=zh_TW"), QStringLiteral("zh_HK=zh_TW")};
+        QTest::newRow("catalog for the language")
+            << QStringList{QStringLiteral("zh")} << QStringList{QStringLiteral("Name[zh]")}
+            << QStringList{QStringLiteral("zh_CN=by hand"), QStringLiteral("zh_TW=by hand")};
+        QTest::newRow("catalog for the language and one region")
+            << QStringList{QStringLiteral("zh"), QStringLiteral("zh_CN")} << QStringList{QStringLiteral("Name[zh]")}
+            << QStringList{QStringLiteral("zh_CN=by hand"), QStringLiteral("zh_TW=by hand")};
+    }
+
+    void keepsAHandWrittenNameForAWholeLanguageOfTwoScripts()
+    {
+        QFETCH(QStringList, languages);
+        QFETCH(QStringList, keys);
+        QFETCH(QStringList, users);
+        localizeForUsers(R"({ "Id": "m", "Name": "Hello", "Name[zh]": "by hand",
+                              "Pages": [ { "Id": "p", "Name": "P" } ] })",
+                         languages, keys, users);
     }
 
     void refusesTwoCatalogsForOneLanguage_data()
@@ -567,6 +598,10 @@ private Q_SLOTS:
         // QLocale reads no as nb.
         QTest::newRow("language QLocale reads as another")
             << QStringLiteral("no_NO") << QStringLiteral("nb_NO") << QStringLiteral("nb_NO");
+        // zh alone is keyed by the script QLocale reads it in, which the
+        // other catalog names.
+        QTest::newRow("language of two scripts and its usual script")
+            << QStringLiteral("zh") << QStringLiteral("zh_Hans") << QStringLiteral("zh_Hans");
     }
 
     void refusesTwoCatalogsForOneLanguage()
@@ -813,6 +848,38 @@ private Q_SLOTS:
     }
 
 private:
+    // Localizes @p metadata with one catalog per language in @p languages,
+    // each translating "Hello" as its own language, checks the output's
+    // `Name[` keys are @p keys, and that each `<locale>=<name>` in @p users
+    // gets that name from parse().
+    void localizeForUsers(const QByteArray& metadata, const QStringList& languages, const QStringList& keys,
+                          const QStringList& users)
+    {
+        QString source;
+        QVERIFY(write(QStringLiteral("m.json"), metadata, &source));
+        QStringList arguments{QStringLiteral("localize"), source, m_dir->filePath(QStringLiteral("out.json"))};
+        for (const QString& language : std::as_const(languages)) {
+            QString ts;
+            QVERIFY(write(QStringLiteral("m_%1.ts").arg(language),
+                          catalog(language, {{QStringLiteral("Hello"), language}}), &ts));
+            arguments.append(ts);
+        }
+        QString errors;
+        const QString outcome = run(0, arguments, &errors);
+        QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
+        QVERIFY2(errors.isEmpty(), qPrintable(errors));
+        const QJsonObject json = QJsonDocument::fromJson(read(arguments.at(2)).toUtf8()).object();
+        QCOMPARE(keysStartingWith(json, QStringLiteral("Name[")), keys);
+        for (const QString& user : std::as_const(users)) {
+            const QStringList pair = user.split(QLatin1Char('='));
+            QCOMPARE(pair.size(), 2);
+            QStringList parseErrors;
+            const FacetModuleMetadata parsed = FacetModuleMetadata::parse(json, QLocale(pair.first()), &parseErrors);
+            QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
+            QVERIFY2(parsed.name == pair.last(), qPrintable(QStringLiteral("%1 got %2").arg(user, parsed.name)));
+        }
+    }
+
     // Writes @p text to @p name in the test's directory and sets @p path to
     // it, or returns false with a warning saying why.
     bool write(const QString& name, const QByteArray& text, QString* path)

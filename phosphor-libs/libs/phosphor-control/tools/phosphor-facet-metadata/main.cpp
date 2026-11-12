@@ -32,17 +32,27 @@
 // `Name[zh_Hant]` for zh_TW), which every locale of that language and script
 // lists among its UI languages, so a user in de_AT gets the de_DE catalog
 // while one in zh_TW never gets zh_CN's Simplified Chinese. When two catalogs
-// claim one language and script (de and de_AT), each keeps its own full key.
-// The language part is QLocale's code for it, so a no_NO catalog serves nb
-// users. An old code for a language written in more than one script (sh)
-// cannot say which script it means: the catalog has to name one (sr_Latn),
-// and is otherwise keyed as it spells itself, which no locale lists, with a
-// warning. A usable `Key[<lang>]` the metadata already holds was written by
-// hand and wins, at the catalog's key and at the forms parse() tries after it
-// for the same users: the language and script when the catalog keeps its own
-// longer key (`Name[de_Latn]` for de_AT beside de), and the bare language
-// when the catalog's script is the language's usual one (`Name[de]`, but not
-// `Name[zh]` for zh_TW). A key written by hand uses QLocale's code for the
+// claim one language and script (de and de_AT), each keeps its own full key,
+// with one exception. A language QLocale has locales for in more than one
+// script (zh, sr, uz, pa, az, and en for Deseret and Shavian) is never keyed
+// by its code alone, because every locale of the language lists that code
+// whatever its script. A catalog for the bare code goes under the script
+// QLocale reads it in instead (zh_Hans for zh, sr_Cyrl for sr) while a
+// regional catalog beside it keeps its own key (zh_CN), and a zh catalog
+// beside a zh_Hans one fails the build as two catalogs for zh_Hans. A
+// language of one script keeps its bare key (de beside de_AT). The language
+// part is QLocale's code for it, so a no_NO catalog serves nb users. An old
+// code for a language written in more than one script (sh) cannot say which
+// script it means: the catalog has to name one (sr_Latn), and is otherwise
+// keyed as it spells itself, which no locale lists, with a warning. A usable
+// `Key[<lang>]` the metadata already holds was written by hand and wins, at
+// the catalog's key and at the forms parse() tries after it for the same
+// users: the language and script when the catalog keeps its own longer key
+// (`Name[de_Latn]` for de_AT beside de), and the bare language when the
+// catalog's script is the language's usual one (`Name[de]`, but not
+// `Name[zh]` for zh_TW). So a hand-written `Name[zh]` counts as Simplified
+// Chinese: it holds off a zh, zh_CN or zh_Hans catalog, and a zh_TW catalog
+// still serves its users. A key written by hand uses QLocale's code for the
 // language, as parse() does (`Name[nb]`): `Name[no]` is never picked, and
 // does not count here.
 
@@ -372,13 +382,36 @@ std::optional<Catalog> readCatalog(const QString& path)
     return catalog;
 }
 
+// The language and script forms of @p language that QLocale has locales for
+// (sr_Cyrl and sr_Latn for Serbian), sorted. More than one means the language
+// is written in more than one script in practice, so the language alone does
+// not say which script a text in it is in.
+QStringList scriptForms(QLocale::Language language)
+{
+    const QString code = QLocale::languageToCode(language);
+    QStringList forms;
+    const QList<QLocale> matches = QLocale::matchingLocales(language, QLocale::AnyScript, QLocale::AnyTerritory);
+    for (const QLocale& match : matches) {
+        const QString form = code + QLatin1Char('_') + QLocale::scriptToCode(match.script());
+        if (!forms.contains(form)) {
+            forms.append(form);
+        }
+    }
+    std::sort(forms.begin(), forms.end());
+    return forms;
+}
+
 // The keys a catalog's language can go under. `full` is the language as the
 // catalog spells it, with '-' turned into '_' and the language part in
-// QLocale's code for it (no_NO is nb_NO). `languageScript` is the language
-// and its script (de_Latn for de_DE, zh_Hant for zh_TW, nb_Latn for no_NO),
-// which every locale of that language and script lists among its UI
-// languages, so a user in de_AT matches it as well as one in de_DE. `bare`
-// is the language alone when the script is the language's usual one (de, but
+// QLocale's code for it (no_NO is nb_NO), except that the bare code of a
+// language written in more than one script is never a key: every locale of
+// the language lists it, whatever its script, so a `zh` catalog's full key is
+// zh_Hans, the language's usual script, as QLocale reads `zh`, and a user in
+// zh_TW never gets it. `languageScript` is the language and its script
+// (de_Latn for de_DE, zh_Hant for zh_TW, nb_Latn for no_NO), which every
+// locale of that language and script lists among its UI languages, so a user
+// in de_AT matches it as well as one in de_DE. `bare` is the language alone
+// when the script is the language's usual one (de, and zh for zh_CN, but
 // nothing for zh_TW), which is how a translation written by hand for the
 // whole language is spelled. Only the codes come from QLocale, never its
 // name(), which would turn `de` into de_DE. A language QLocale does not know,
@@ -389,7 +422,7 @@ std::optional<Catalog> readCatalog(const QString& path)
 // Latin): `scriptForms` then lists the forms the catalog could mean, for the
 // warning that asks for one of them. A three-letter ISO 639 code for the
 // language is no old code, and is keyed like the two-letter one (zho_TW as
-// zh_TW, srp as sr).
+// zh_TW, srp as sr_Cyrl).
 struct LanguageKeys
 {
     QString full;
@@ -419,25 +452,18 @@ LanguageKeys languageKeys(const QString& language)
     // names the language as the two-letter one does, and is keyed the same.
     const bool synonym =
         QLocale::codeToLanguage(parts.first(), QLocale::ISO639Part2 | QLocale::ISO639Part3) == locale.language();
-    if (!namesScript && !synonym && parts.first().compare(code, Qt::CaseInsensitive) != 0) {
-        QStringList forms;
-        const QList<QLocale> matches =
-            QLocale::matchingLocales(locale.language(), QLocale::AnyScript, QLocale::AnyTerritory);
-        for (const QLocale& match : matches) {
-            const QString form = code + QLatin1Char('_') + QLocale::scriptToCode(match.script());
-            if (!forms.contains(form)) {
-                forms.append(form);
-            }
-        }
-        if (forms.size() > 1) {
-            std::sort(forms.begin(), forms.end());
-            return {language, QString(), QString(), forms};
-        }
+    const QStringList forms = scriptForms(locale.language());
+    if (!namesScript && !synonym && parts.first().compare(code, Qt::CaseInsensitive) != 0 && forms.size() > 1) {
+        return {language, QString(), QString(), forms};
     }
+    const QString languageScript = code + QLatin1Char('_') + script;
     QStringList canonical = parts;
     canonical.first() = code;
+    // The language alone: QLocale read it in the language's usual script.
+    const bool bareLanguage = parts.size() == 1;
+    const QString full = bareLanguage && forms.size() > 1 ? languageScript : canonical.join(QLatin1Char('_'));
     const bool usualScript = locale.script() == QLocale(locale.language()).script();
-    return {canonical.join(QLatin1Char('_')), code + QLatin1Char('_') + script, usualScript ? code : QString(), {}};
+    return {full, languageScript, usualScript ? code : QString(), {}};
 }
 
 // A catalog and the language key its translations go under.
@@ -452,7 +478,11 @@ struct Keyed
 // and the less specific forms parse() tries after it for the same user
 // (de_Latn and de after de_AT, de after de_Latn). A more specific one, such
 // as a hand-written de_DE beside a catalog keyed de_Latn, still wins for its
-// users without help, so the catalog serves the rest of the language.
+// users without help, so the catalog serves the rest of the language. The
+// bare language counts only when the catalog's script is the language's usual
+// one: a hand-written Name[zh] is taken to be Simplified Chinese, so it holds
+// off a zh, zh_CN or zh_Hans catalog, while a zh_TW catalog, which zh_TW users
+// try before the bare zh, is no rival to it and still serves them.
 QStringList handWrittenKeys(const Keyed& entry)
 {
     QStringList keys{entry.key};
