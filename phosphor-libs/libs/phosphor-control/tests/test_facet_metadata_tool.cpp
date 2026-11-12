@@ -503,9 +503,10 @@ private Q_SLOTS:
             << QStringList{QStringLiteral("Name[uz_Latn]"), QStringLiteral("Name[uz_UZ]")}
             << QStringList{QStringLiteral("uz_UZ=uz_UZ"), QStringLiteral("uz_AF=Hello"),
                            QStringLiteral("uz_Cyrl_UZ=Hello")};
-        QTest::newRow("Punjabi alone") << QStringList{QStringLiteral("pa")}
-                                       << QStringList{QStringLiteral("Name[pa_Guru]")}
-                                       << QStringList{QStringLiteral("pa_IN=pa"), QStringLiteral("pa_PK=Hello")};
+        QTest::newRow("Punjabi and one region")
+            << QStringList{QStringLiteral("pa"), QStringLiteral("pa_IN")}
+            << QStringList{QStringLiteral("Name[pa_Guru]"), QStringLiteral("Name[pa_IN]")}
+            << QStringList{QStringLiteral("pa_IN=pa_IN"), QStringLiteral("pa_PK=Hello")};
     }
 
     void asksForTheScriptOfAnOldCodeForALanguageOfTwoScripts_data()
