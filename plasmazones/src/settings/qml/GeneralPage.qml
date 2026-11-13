@@ -544,8 +544,9 @@ SettingsFlickable {
         // knobs survive here because they apply to ALL windows uniformly
         // rather than matching specific applications. The card's transient
         // row is hidden: snapping and tiling have no transient-window
-        // setting, because placement always leaves dialogs and other
-        // transient windows alone.
+        // setting, because placement leaves dialogs and other transient
+        // windows alone (window_filtering.cpp names the one fullscreen
+        // exemption).
         WindowFilterCard {
             Layout.fillWidth: true
 

@@ -1155,8 +1155,9 @@ public:
     int minimumWindowHeight() const override;
     void setMinimumWindowHeight(int height) override;
 
-    // Animation window filtering — same shape as snapping/tiling
-    // exclusions but stored under `Animations.WindowFiltering`.
+    // Animation window filtering, stored under `Animations.WindowFiltering`:
+    // the Exclusions size thresholds plus transient and NotificationsAndOsd
+    // knobs.
     bool animationExcludeTransientWindows() const override;
     void setAnimationExcludeTransientWindows(bool exclude) override;
     bool animationExcludeNotificationsAndOsd() const override;

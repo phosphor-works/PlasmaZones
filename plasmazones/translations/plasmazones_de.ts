@@ -4508,7 +4508,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/rulecontroller.cpp" line="729"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1116"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1126"/>
         <source>%1 (copy)</source>
         <translation>%1 (Kopie)</translation>
     </message>
@@ -6869,7 +6869,7 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="408"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="617"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="618"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/ThemeFallbackColorControl.qml.cpp" line="177"/>
         <source>Reset</source>
         <translation>Zurücksetzen</translation>
@@ -9624,7 +9624,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="575"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1038"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="267"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="559"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="560"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="103"/>
         <source>Minimum window width</source>
         <translation>Minimale Fensterbreite</translation>
@@ -9642,7 +9642,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1041"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="269"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="569"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="570"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="143"/>
         <source>Minimum window height</source>
         <translation>Minimale Fensterhöhe</translation>
@@ -9659,13 +9659,13 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1046"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="579"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="580"/>
         <source>Configuration</source>
         <translation>Konfiguration</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1047"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="587"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="588"/>
         <source>Backup</source>
         <translation>Sicherung</translation>
     </message>
@@ -9980,7 +9980,7 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1049"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="602"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="603"/>
         <source>Restore</source>
         <translation>Wiederherstellen</translation>
     </message>
@@ -10801,7 +10801,7 @@
     </message>
     <message>
         <location filename="../src/settings/stores/profilestore.cpp" line="315"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1400"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1404"/>
         <source>Could not create the profiles folder.</source>
         <translation>Der Profilordner konnte nicht erstellt werden.</translation>
     </message>
@@ -10811,73 +10811,72 @@
         <translation>Das Profil konnte nicht auf den Datenträger geschrieben werden.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1028"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1081"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1038"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1091"/>
         <source>Please enter a name for the profile.</source>
         <translation>Bitte geben Sie einen Namen für das Profil ein.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1087"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1097"/>
         <source>Another profile is named “%1”, so this one is now “%2”.</source>
         <translation>Ein anderes Profil heißt bereits „%1“, daher heißt dieses jetzt „%2“.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1143"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1153"/>
         <source>A profile cannot inherit from itself or from a profile that inherits from it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1229"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1239"/>
         <source>Could not delete the profile.</source>
         <translation>Das Profil konnte nicht gelöscht werden.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1277"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1287"/>
         <source>Could not apply this profile. Its settings do not match this version.</source>
         <translation>Dieses Profil konnte nicht angewendet werden. Seine Einstellungen passen nicht zu dieser Version.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1300"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1310"/>
         <location filename="../src/settings/stores/shadersetstore.cpp" line="589"/>
         <source>Could not write to that location.</source>
         <translation>An diesen Speicherort konnte nicht geschrieben werden.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1310"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1321"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1325"/>
         <source>Could not read that profile.</source>
         <translation>Dieses Profil konnte nicht gelesen werden.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1329"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1333"/>
         <location filename="../src/settings/stores/shadersetstore.cpp" line="615"/>
         <source>Could not write to %1.</source>
         <translation>Nach %1 konnte nicht geschrieben werden.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1334"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1338"/>
         <source>Exported the profile “%1”.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1345"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1357"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1363"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1349"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1361"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1367"/>
         <source>That file is not a readable profile.</source>
         <translation>Diese Datei ist kein lesbares Profil.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1380"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1384"/>
         <source>Imported profile</source>
         <translation>Importiertes Profil</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1383"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1387"/>
         <source>Could not find a free name for the imported profile.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1405"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1409"/>
         <source>Could not open the profiles folder.</source>
         <translation>Der Profilordner konnte nicht geöffnet werden.</translation>
     </message>
@@ -13995,67 +13994,67 @@
         <translation>Einrasten und Kacheln bleiben deaktiviert, bis Sie ein Layout zuweisen. Eine Regel kann den Standard pro Bildschirm wieder aktivieren.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="557"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="558"/>
         <source>Windows narrower than this are excluded</source>
         <translation>Fenster, die schmaler als dieser Wert sind, werden ausgeschlossen</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="558"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="559"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="545"/>
         <source>Disabled (no width threshold)</source>
         <translation>Deaktiviert (kein Breiten-Schwellenwert)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="567"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="568"/>
         <source>Windows shorter than this are excluded</source>
         <translation>Fenster, die niedriger als dieser Wert sind, werden ausgeschlossen</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="568"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="569"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="555"/>
         <source>Disabled (no height threshold)</source>
         <translation>Deaktiviert (kein Höhen-Schwellenwert)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="589"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="590"/>
         <source>Export all settings to a file</source>
         <translation>Alle Einstellungen in eine Datei exportieren</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="592"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="649"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="593"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="650"/>
         <source>Export Settings</source>
         <translation>Einstellungen exportieren</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="604"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="605"/>
         <source>Import settings from a previously exported file</source>
         <translation>Einstellungen aus einer zuvor exportierten Datei importieren</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="607"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="664"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="608"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="665"/>
         <source>Import Settings</source>
         <translation>Einstellungen importieren</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="618"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="619"/>
         <source>Restore every setting on every page to its default value</source>
         <translation>Jede Einstellung auf jeder Seite auf ihren Standardwert zurücksetzen</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="622"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="623"/>
         <source>Reset to Defaults</source>
         <translation>Auf Standard zurücksetzen</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="650"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="651"/>
         <source>PlasmaZones Config (*.json)</source>
         <translation>PlasmaZones-Konfiguration (*.json)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="650"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="665"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="651"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="666"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="583"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="610"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="626"/>
@@ -14068,17 +14067,17 @@
         <translation>Alle Dateien (*)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="657"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="658"/>
         <source>Settings exported</source>
         <translation>Einstellungen exportiert</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="665"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="666"/>
         <source>PlasmaZones Config (*.json *.conf *.ini *.rc)</source>
         <translation>PlasmaZones-Konfiguration (*.json *.conf *.ini *.rc)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="669"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="670"/>
         <source>Settings imported</source>
         <translation>Einstellungen importiert</translation>
     </message>
@@ -22913,6 +22912,9 @@
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="186"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="162"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="324"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="192"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="214"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="236"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="362"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="388"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="491"/>

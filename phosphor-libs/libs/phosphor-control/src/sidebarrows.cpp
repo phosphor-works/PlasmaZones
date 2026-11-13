@@ -240,7 +240,7 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
                     const bool expanded = asHeader && isExpanded(expandedCategories, child.id);
                     // Whether the subtree should render at all: children
                     // exist, and a kept header is expanded (a collapsed
-                    // header HIDES its subtree — that is not truncation).
+                    // header hides its subtree).
                     const bool wantDescend = !childKids.isEmpty() && (!asHeader || expanded);
                     if (asHeader) {
                         out.append(makeRow(child.id, flatTitleOf(child.id, child.title, flatTitleOverrides),

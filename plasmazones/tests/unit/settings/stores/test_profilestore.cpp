@@ -60,8 +60,13 @@ QJsonObject baseDefaults()
     // work to do when the defaults seed carries the key, so a defaults stub
     // without it would leave that path unexecuted and make
     // machineScopedKeyStaysOutOfProfiles pass even against broken code.
+    //
+    // The window opacity is declared because isActiveModified compares only
+    // keys the defaults blob declares, as it does in production, and the
+    // clamp test compares that key.
     return QJsonObject{
         {QStringLiteral("GroupA"), QJsonObject{{QStringLiteral("k1"), 1}, {QStringLiteral("k2"), QStringLiteral("x")}}},
+        {ConfigDefaults::windowsAppearanceGroup(), QJsonObject{{ConfigDefaults::opacityKey(), 1.0}}},
         {QStringLiteral("GroupB"), QJsonObject{{QStringLiteral("b"), false}}},
         {QStringLiteral("Rendering"), QJsonObject{{QStringLiteral("Gpu"), QStringLiteral("auto")}}},
         // Animations.ShaderProfileTree is declared for the same reason: the
@@ -562,6 +567,41 @@ private Q_SLOTS:
         // A value the clamp does not explain is still a modification.
         m_current[group] = QJsonObject{{key, (floor + ConfigDefaults::windowOpacityMax()) / 2.0}};
         QVERIFY(activeRowModified());
+    }
+
+    /// A current-version profile file can carry a key a later release
+    /// retired. The config no longer declares it, so activating the profile
+    /// cannot apply it (the store skips undeclared keys on import), and it
+    /// must not keep the active row modified.
+    void retiredKeyInAProfileFileIsDropped()
+    {
+        const QUuid id = QUuid::createUuid();
+        QJsonObject delta;
+        delta.insert(QStringLiteral("GroupA"), QJsonObject{{QStringLiteral("k1"), 2}});
+        // A retired key in a group the config still declares, and a whole
+        // group it no longer declares.
+        delta.insert(QStringLiteral("GroupB"),
+                     QJsonObject{{QStringLiteral("b"), true}, {QStringLiteral("retired"), false}});
+        delta.insert(QStringLiteral("Gone"), QJsonObject{{QStringLiteral("k"), 1}});
+        QVERIFY(writeProfileFileFixture(id, 5, delta));
+
+        const QString bracedId = id.toString();
+        QVERIFY(m_store->activateProfile(bracedId));
+        QCOMPARE(groupAInt(m_lastApplied, QStringLiteral("k1")), 2);
+
+        // The live config now holds every declared value the profile sets.
+        m_current = baseDefaults();
+        m_current[QStringLiteral("GroupA")] =
+            QJsonObject{{QStringLiteral("k1"), 2}, {QStringLiteral("k2"), QStringLiteral("x")}};
+        m_current[QStringLiteral("GroupB")] = QJsonObject{{QStringLiteral("b"), true}};
+        bool activeModified = true;
+        for (const QVariant& row : m_store->availableProfiles()) {
+            const QVariantMap map = row.toMap();
+            if (map.value(QStringLiteral("active")).toBool()) {
+                activeModified = map.value(QStringLiteral("modified")).toBool();
+            }
+        }
+        QVERIFY2(!activeModified, "a key the config no longer declares must not keep the active profile modified");
     }
 
     /// configChanges reports each overridden key with the value it had in the

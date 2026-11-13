@@ -80,8 +80,8 @@ SettingsFlickable {
     // value the live preview consumes — exactly the role appSettings holds for
     // split ratio / master count. customParamDefs (the Repeater model) is
     // intentionally not refreshed on edit, so the current values live here
-    // instead. Re-seeded from the saved/default values whenever the algorithm
-    // changes (i.e. customParamDefs re-evaluates), and from a fresh read when
+    // instead. Re-seeded from the saved/default values whenever customParamDefs
+    // re-evaluates (an algorithm switch or a catalog reload), and from a fresh read when
     // the per-algorithm settings move under the page (see _committingSlot).
     property var liveCustomParams: ({})
 

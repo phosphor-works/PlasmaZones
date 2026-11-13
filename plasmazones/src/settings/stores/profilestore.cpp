@@ -952,16 +952,26 @@ bool ProfileStore::isActiveModified(const QHash<QUuid, Record>& all) const
     // A raw compare made a profile captured before a clamp tightened read as
     // modified forever, since activating it stages the stale value and the
     // store clamps it straight back.
+    //
+    // A key the defaults blob does not declare is skipped: the config no
+    // longer holds it (a retired setting a current-version profile file still
+    // carries), so activating the profile cannot apply it, and the live blob,
+    // which carries declared keys only, could never match it.
     if (m_config.currentConfig) {
         const QJsonObject resolved = resolveConfig(uid, all);
         const QJsonObject current = m_config.currentConfig();
+        const QJsonObject defaults = m_config.defaultConfig ? m_config.defaultConfig() : QJsonObject();
         for (auto git = resolved.constBegin(); git != resolved.constEnd(); ++git) {
             if (!git.value().isObject()) {
                 continue;
             }
             const QJsonObject resolvedGroup = git.value().toObject();
             const QJsonObject currentGroup = current.value(git.key()).toObject();
+            const QJsonObject defaultGroup = defaults.value(git.key()).toObject();
             for (auto kit = resolvedGroup.constBegin(); kit != resolvedGroup.constEnd(); ++kit) {
+                if (m_config.defaultConfig && !defaultGroup.contains(kit.key())) {
+                    continue;
+                }
                 if (!configValuesEquivalent(git.key(), kit.key(), kit.value(), currentGroup.value(kit.key()))) {
                     return true;
                 }
@@ -1301,21 +1311,15 @@ bool ProfileStore::exportProfile(const QString& id, const QString& destLocalPath
         return false;
     }
     const QUuid uid(id);
-    // An unparseable id or an unresolvable profiles folder leaves no source to
-    // read. Toast it like the missing-record arm below: the Profiles page shows
-    // no failure banner of its own, so a silent return would read as nothing
-    // happening.
-    const QString sourcePath = profileFilePath(uid);
-    if (sourcePath.isEmpty()) {
-        Q_EMIT toastRequested(PhosphorI18n::tr("Could not read that profile."));
-        return false;
-    }
     // Export the RECORD, not the raw file bytes: a pre-current profile is
     // migrated forward in memory by loadAll, and exporting the stale bytes
     // would hand out a file that stops being importable the moment a future
     // build raises the version floor. The record's delta was captured with
     // the machine-scoped-key skip applied, so re-serialising keeps exports
     // free of machine-scoped keys exactly like the verbatim copy did.
+    // An unparseable id or an unresolvable profiles folder finds no record
+    // either. The toast matters: the Profiles page shows no failure banner of
+    // its own, so a silent return would read as nothing happening.
     const QHash<QUuid, Record> all = loadAll();
     if (!all.contains(uid)) {
         Q_EMIT toastRequested(PhosphorI18n::tr("Could not read that profile."));
