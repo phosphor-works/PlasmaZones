@@ -1113,19 +1113,6 @@ public:
 
     // IWindowExclusionSettings — the per-app / per-class exclusion list
     // accessors retired in v4 (folded into unified Rule store).
-    bool excludeTransientWindows() const override
-    {
-        return m_excludeTransientWindows;
-    }
-    void setExcludeTransientWindows(bool exclude) override
-    {
-        if (m_excludeTransientWindows == exclude) {
-            return;
-        }
-        m_excludeTransientWindows = exclude;
-        Q_EMIT excludeTransientWindowsChanged();
-        Q_EMIT settingsChanged();
-    }
     int minimumWindowWidth() const override
     {
         return m_minimumWindowWidth;
@@ -3285,12 +3272,9 @@ private:
     qreal m_labelFontSizeScale = static_cast<qreal>(ConfigDefaults::labelFontSizeScale());
 
     // The window-exclusion defaults, from ConfigDefaults for the same reason the
-    // animation-filter ones below are. These three were hardcoded, and all three disagreed
-    // with production: excludeTransientWindows read false against a default of TRUE (and
-    // its setter was a no-op, so no test could even move it), and the two minimum sizes
-    // read 0 against 200x150 — so every stub-backed test of the size filter was exercising
+    // animation-filter ones below are. Hardcoded, the two minimum sizes read 0 against
+    // production's 200x150, so every stub-backed test of the size filter was exercising
     // a filter that passes everything.
-    bool m_excludeTransientWindows = ConfigDefaults::excludeTransientWindows();
     int m_minimumWindowWidth = ConfigDefaults::minimumWindowWidth();
     int m_minimumWindowHeight = ConfigDefaults::minimumWindowHeight();
     // Animation-filter defaults routed through ConfigDefaults so a future

@@ -486,6 +486,9 @@ phosphorcontrol_add_fake_module(providerchecks MODE 48 METADATA [=[{
     "Extensions": [ { "Id": "first", "Target": "good:general", "Slot": "top", "Name": "First" } ] }]=])
 
 phosphorcontrol_add_test(test_facet_host)
+# Its page controller stub is simple_page.h, which declares Q_OBJECT in a
+# header: AUTOMOC runs moc on it only when it is one of the target's sources.
+target_sources(test_facet_host PRIVATE simple_page.h)
 phosphorcontrol_add_test(test_facet_test_host)
 target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
 # The anchors files phosphor_add_facet_module_metadata generates, so the test
@@ -506,6 +509,11 @@ if(KF6Kirigami_FOUND)
     phosphorcontrol_add_test(test_page_host)
     target_link_libraries(test_page_host PRIVATE
         PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin PhosphorAnimationQmlplugin Qt6::Quick)
+    # Their shared page controller stub declares Q_OBJECT in a header, which
+    # AUTOMOC runs moc on only when the header is one of the target's sources.
+    foreach(test test_facet_slot test_page_host)
+        target_sources(${test} PRIVATE simple_page.h)
+    endforeach()
 else()
     message(STATUS "phosphor-control: KF6 Kirigami not found, so test_facet_slot and test_page_host are not built")
 endif()

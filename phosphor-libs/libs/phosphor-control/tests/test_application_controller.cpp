@@ -1389,20 +1389,17 @@ private Q_SLOTS:
     {
         ApplicationController app;
         QString parent;
-        for (int i = 0; i <= PageRegistry::MaxParentChainHops + 1; ++i) {
+        for (int i = 0; i <= PageRegistry::MaxParentChainHops; ++i) {
             const QString id = QStringLiteral("n%1").arg(i);
             app.registerPage(new StubPage(id), parent, id, QUrl(QStringLiteral("qrc:/n.qml")));
             parent = id;
         }
-        // A page with exactly MaxParentChainHops ancestors: a complete chain,
-        // and no warning.
-        QTest::failOnWarning(QRegularExpression(QStringLiteral("nested deeper than")));
+        // The deepest page the registry accepts has exactly MaxParentChainHops
+        // ancestors, and its chain resolves in full. The registry refuses
+        // anything deeper (test_page_registry pins that refusal).
         const QStringList chain = app.parentChainFor(QStringLiteral("n%1").arg(PageRegistry::MaxParentChainHops));
         QCOMPARE(chain.size(), PageRegistry::MaxParentChainHops);
         QCOMPARE(chain.first(), QStringLiteral("n0"));
-        // One deeper is truncated, and says so.
-        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("nested deeper than")));
-        app.parentChainFor(QStringLiteral("n%1").arg(PageRegistry::MaxParentChainHops + 1));
     }
 
     void titlePathUsesTheSharedSeparator()

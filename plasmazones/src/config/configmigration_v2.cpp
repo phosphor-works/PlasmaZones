@@ -277,7 +277,9 @@ void ConfigMigration::migrateV1ToV2(QJsonObject& root)
 
     // ── Exclusions (key renames) ────────────────────────────────────────────
     QJsonObject exclusions;
-    moveKey(v1Exclusions, QLatin1String("ExcludeTransientWindows"), exclusions, QLatin1String("TransientWindows"));
+    // v1 "ExcludeTransientWindows" is intentionally not migrated: the global
+    // transient toggle was retired (placement always leaves transient windows
+    // alone, so nothing read it), and the old value is silently dropped.
     moveKey(v1Exclusions, QLatin1String("MinimumWindowWidth"), exclusions, QLatin1String("MinimumWindowWidth"));
     moveKey(v1Exclusions, QLatin1String("MinimumWindowHeight"), exclusions, QLatin1String("MinimumWindowHeight"));
     moveKey(v1Exclusions, QLatin1String("Applications"), exclusions, QLatin1String("Applications"));

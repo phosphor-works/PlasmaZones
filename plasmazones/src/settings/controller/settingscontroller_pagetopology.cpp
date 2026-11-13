@@ -278,7 +278,6 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
              {CD::snappingEffectsGroup(), CD::navigationOsdKey()},
              {CD::snappingEffectsGroup(), CD::osdStyleKey()},
              {CD::snappingEffectsGroup(), CD::overlayDisplayModeKey()},
-             {CD::exclusionsGroup(), CD::transientWindowsKey()},
              {CD::exclusionsGroup(), CD::minimumWindowWidthKey()},
              {CD::exclusionsGroup(), CD::minimumWindowHeightKey()},
          }},

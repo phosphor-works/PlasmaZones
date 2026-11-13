@@ -15,18 +15,20 @@ namespace PlasmaZones {
 
 class ISettings;
 
-/// Q_PROPERTY surface for the "Appearance → Windows" settings page.
+/// Q_PROPERTY surface for the "Appearance → Decorations → General" settings
+/// page.
 ///
-/// Exposed as a child Q_PROPERTY on SettingsController; QML reads
-/// `settingsController.windowAppearancePage.showWindowBorder` etc. The page's
+/// PageHost hands it to WindowAppearancePage.qml as the page's `controller`
+/// (its registry entry passes context), so QML reads
+/// `root.controller.showWindowBorder` etc. The page's
 /// window border / title bar values and the shared inner/outer gap model are
 /// plain config settings on ISettings (Windows.* and Gaps.*), so this controller
 /// forwards each value's READ/WRITE to the matching ISettings getter/setter and
 /// re-emits the ISettings::*Changed NOTIFY to QML. It also carries the CONSTANT
 /// slider bounds (border width/radius, focus fade duration, the decoration idle
-/// timeout, the shared gap range, and the opacity / tint-strength unit ranges)
-/// sourced from the same defaults the schema clamps against so the UI range can
-/// never drift.
+/// timeout, the shared gap range, the opacity / tint-strength unit ranges, and
+/// the decoration window-filtering size range) sourced from the same defaults
+/// the schema clamps against so the UI range can never drift.
 ///
 /// Dirty tracking: the underlying values ARE Q_PROPERTY on Settings, so
 /// SettingsController's meta-object loop already wires their NOTIFY to
@@ -60,7 +62,8 @@ class WindowAppearanceController : public PhosphorControl::PageController
     // Decoration focus cross-fade duration (ms); 0 switches instantly.
     Q_PROPERTY(int focusFadeDuration READ focusFadeDuration WRITE setFocusFadeDuration NOTIFY focusFadeDurationChanged)
     // ── Plain opacity+tint layer (Windows.*) ──────────────────────────────────
-    // Opacity/strength are [0.0, 1.0]; the tint colour shares the border
+    // Opacity/strength are fractions within the CONSTANT bounds below (the
+    // opacity floor stays above zero); the tint colour shares the border
     // colours' theme-fallback shape ("#AARRGGBB" hex, or EMPTY meaning
     // "follow the zone highlight").
     Q_PROPERTY(bool showWindowOpacityTint READ showWindowOpacityTint WRITE setShowWindowOpacityTint NOTIFY
@@ -95,12 +98,18 @@ class WindowAppearanceController : public PhosphorControl::PageController
     Q_PROPERTY(int innerGapMax READ innerGapMax CONSTANT)
     Q_PROPERTY(int outerGapMin READ outerGapMin CONSTANT)
     Q_PROPERTY(int outerGapMax READ outerGapMax CONSTANT)
-    // Opacity / tint strength bounds on the wire [0.0, 1.0] scale; the page's
+    // Opacity / tint strength bounds on the wire fraction scale; the page's
     // percent sliders scale them by 100, mirroring the value bindings.
     Q_PROPERTY(double windowOpacityMin READ windowOpacityMin CONSTANT)
     Q_PROPERTY(double windowOpacityMax READ windowOpacityMax CONSTANT)
     Q_PROPERTY(double windowTintStrengthMin READ windowTintStrengthMin CONSTANT)
     Q_PROPERTY(double windowTintStrengthMax READ windowTintStrengthMax CONSTANT)
+    // Decorations.WindowFiltering spin-box bounds for the page's
+    // WindowFilterCard.
+    Q_PROPERTY(int decorationMinimumWindowWidthMin READ decorationMinimumWindowWidthMin CONSTANT)
+    Q_PROPERTY(int decorationMinimumWindowWidthMax READ decorationMinimumWindowWidthMax CONSTANT)
+    Q_PROPERTY(int decorationMinimumWindowHeightMin READ decorationMinimumWindowHeightMin CONSTANT)
+    Q_PROPERTY(int decorationMinimumWindowHeightMax READ decorationMinimumWindowHeightMax CONSTANT)
 
 public:
     explicit WindowAppearanceController(ISettings& settings, QObject* parent = nullptr);
@@ -241,6 +250,22 @@ public:
     double windowTintStrengthMax() const
     {
         return ConfigDefaults::windowTintStrengthMax();
+    }
+    int decorationMinimumWindowWidthMin() const
+    {
+        return ConfigDefaults::decorationMinimumWindowWidthMin();
+    }
+    int decorationMinimumWindowWidthMax() const
+    {
+        return ConfigDefaults::decorationMinimumWindowWidthMax();
+    }
+    int decorationMinimumWindowHeightMin() const
+    {
+        return ConfigDefaults::decorationMinimumWindowHeightMin();
+    }
+    int decorationMinimumWindowHeightMax() const
+    {
+        return ConfigDefaults::decorationMinimumWindowHeightMax();
     }
 
 Q_SIGNALS:

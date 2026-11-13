@@ -15,11 +15,10 @@ import org.phosphor.animation
  * usage count. Clicking the card emits `showDetails(effect)`. Previews
  * are the detail dialog's job; the card is a text catalogue entry.
  *
- * Pack-agnostic: drives both the animation-shaders browser and the
- * snapping-overlay-shaders browser. The host passes a `bridge` property
- * exposing `shaderEffectUsages(id)` so the "Used in:" chip works for
- * either domain (per-event paths for animations, per-layout names for
- * snapping overlays).
+ * Pack-agnostic: drives the animation, overlay and decoration shader
+ * browsers. The host passes a `bridge` property exposing
+ * `shaderEffectUsages(id)` so the usage chip works for every domain
+ * (per-event paths for animations, per-layout names for overlays).
  *
  * Required:
  *   - `effect`: var — effect map (id, name, description, parameters,
@@ -35,8 +34,12 @@ import org.phosphor.animation
  *      closure that calls `i18ncp(..., count)` with the LIVE count so
  *      the right plural form is picked per locale, and so the chip
  *      stays consistent with the dialog header's wording (animations
- *      use "event"; snapping uses "layout"). Default: a generic
+ *      use "event"; overlays use "layout"). Default: a generic
  *      "%n use" / "%n uses".
+ *   - `usageCountFn`: function(effectId, usages) → int — the count the chip
+ *      shows. At 0 with usages present the chip shows their labels instead,
+ *      and with no usages it is hidden. Default: every usage row. See
+ *      ShaderBrowserPage.usageCountFn.
  */
 ItemDelegate {
     id: root
@@ -60,6 +63,11 @@ ItemDelegate {
     property int usagesRev: 0
     property var usageChipTextFn: function (count) {
         return i18ncp("@info shader usage count", "%n use", "%n uses", count);
+    }
+    /// Above 0 the chip shows usageChipTextFn(count); at 0 with usages
+    /// present it shows the usage rows' own labels.
+    property var usageCountFn: function (effectId, usages) {
+        return usages.length;
     }
     /// Returns a short capability label for the card badge (e.g. "Geometry"),
     /// or "" to render no badge (universal shaders, the default majority). The
@@ -191,6 +199,14 @@ ItemDelegate {
                 // Usage chip — visible only when this shader is assigned
                 // somewhere. Tooltip carries the full list; the detail dialog
                 // renders them inline.
+                //
+                // When usages exist but none of them is a counted one (the
+                // overlay browser's "Global default" row, which is not a
+                // layout), the chip shows those rows' own labels instead of a
+                // count of zero. The labels come from the bridge, so the
+                // wording is the same catalog entry the dialog lists. With the
+                // default usageCountFn the count is zero only when there are
+                // no usages at all, so the other browsers never take this arm.
                 Label {
                     readonly property var _usages: {
                         root.usagesRev; // reactive dep
@@ -200,18 +216,23 @@ ItemDelegate {
 
                         return root.bridge.shaderEffectUsages(id) || [];
                     }
-
-                    visible: _usages.length > 0
-                    text: root.usageChipTextFn(_usages.length)
-                    font: Kirigami.Theme.smallFont
-                    color: Kirigami.Theme.disabledTextColor
-                    ToolTip.visible: chipHover.hovered && _usages.length > 0
-                    ToolTip.text: {
+                    readonly property int _count: _usages.length > 0 ? root.usageCountFn(root.effect.id, _usages) : 0
+                    // Every usage's label, joined. The tooltip always shows it,
+                    // and the chip shows it in the no-counted-usage arm, where
+                    // every usage is an uncounted one.
+                    readonly property string _usageLabels: {
                         var names = [];
                         for (var i = 0; i < _usages.length; i++)
                             names.push(_usages[i].label || _usages[i].path);
                         return names.join(", ");
                     }
+
+                    visible: _usages.length > 0
+                    text: _count > 0 ? root.usageChipTextFn(_count) : _usageLabels
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.disabledTextColor
+                    ToolTip.visible: chipHover.hovered && _usages.length > 0
+                    ToolTip.text: _usageLabels
                     ToolTip.delay: Kirigami.Units.toolTipDelay
 
                     HoverHandler {

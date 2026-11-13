@@ -56,10 +56,6 @@ public:
     // Exclusion Settings
     // ═══════════════════════════════════════════════════════════════════════════
 
-    static bool excludeTransientWindows()
-    {
-        return true;
-    }
     static int minimumWindowWidth()
     {
         return 200;

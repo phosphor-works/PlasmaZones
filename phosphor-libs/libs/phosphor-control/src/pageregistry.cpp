@@ -6,10 +6,15 @@
 #include "PhosphorControl/PageController.h"
 
 #include <QDebug>
+#include <QLoggingCategory>
 
 #include <algorithm>
 
 namespace PhosphorControl {
+
+// The registry's diagnostics: refused registrations, refused binds and broken
+// counterpart declarations.
+Q_STATIC_LOGGING_CATEGORY(lcPageRegistry, "phosphorcontrol.registry")
 
 PageRegistry::PageRegistry(QObject* parent)
     : QObject(parent)
@@ -37,38 +42,51 @@ bool PageRegistry::bindPage(const QString& id, PageController* controller, const
 {
     const auto index = m_indexById.constFind(id);
     if (index == m_indexById.cend()) {
-        qWarning() << "PageRegistry::bindPage: unknown page" << id;
+        qCWarning(lcPageRegistry) << "PageRegistry::bindPage: unknown page" << id;
         return false;
     }
     if (!controller) {
-        qWarning() << "PageRegistry::bindPage: page" << id << "given a null controller";
+        qCWarning(lcPageRegistry) << "PageRegistry::bindPage: page" << id << "given a null controller";
         return false;
     }
-    // registerPage takes the entry's id from the controller, so every entry's
-    // controller reports its own page id. Hold bindPage to the same invariant.
+    // ApplicationController::registerPage takes the entry's id from the
+    // controller, so a page it registered has a controller that reports the
+    // page's id. Hold every bind to that, whoever registered the page.
     if (controller->id() != id) {
-        qWarning() << "PageRegistry::bindPage: page" << id << "given a controller whose id is" << controller->id();
+        qCWarning(lcPageRegistry) << "PageRegistry::bindPage: page" << id << "given a controller whose id is"
+                                  << controller->id();
         return false;
     }
+    // Read through a const reference, and written through a mutable one
+    // only on a path that changes the entry: m_pages[] detaches a list
+    // shared with an allPages() copy, which a refusal or a rebind of what is
+    // already bound has no reason to pay for.
+    const Entry& current = m_pages.at(*index);
+    const bool sameController = current.controller.data() == controller;
+    if (sameController && current.qmlSource == qmlSource) {
+        // Nothing to announce. Still stamped, for a page whose flag was
+        // cleared since: a bound page is part of the Facet module contract,
+        // which passes the page its context when it is created.
+        if (!current.passesContext) {
+            m_pages[*index].passesContext = true;
+        }
+        return true;
+    }
+    if (!sameController && isLiveRegisteredController(controller)) {
+        qCWarning(lcPageRegistry) << "PageRegistry::bindPage: controller already registered for another page, "
+                                     "refusing to bind it to"
+                                  << id;
+        return false;
+    }
+    const bool wasNavigable = !current.qmlSource.isEmpty();
     Entry& entry = m_pages[*index];
-    const bool wasNavigable = !entry.qmlSource.isEmpty();
-    if (entry.controller.data() == controller) {
-        if (entry.qmlSource == qmlSource) {
-            return true;
-        }
-        entry.qmlSource = qmlSource;
-    } else {
-        if (isLiveRegisteredController(controller)) {
-            qWarning() << "PageRegistry::bindPage: controller already registered for another page, refusing to "
-                          "bind it to"
-                       << id;
-            return false;
-        }
+    if (!sameController) {
         m_controllerSet.remove(entry.controller.data());
         m_controllerSet.insert(controller);
         entry.controller = controller;
-        entry.qmlSource = qmlSource;
     }
+    entry.qmlSource = qmlSource;
+    entry.passesContext = true;
     Q_EMIT pageBound(id);
     // A page with QML of its own is navigable, and a virtual node is visible
     // only through its descendants, so gaining or losing a qmlSource changes
@@ -79,6 +97,20 @@ bool PageRegistry::bindPage(const QString& id, PageController* controller, const
     return true;
 }
 
+void PageRegistry::setPassesContext(const QString& id, bool passesContext)
+{
+    const auto index = m_indexById.constFind(id);
+    if (index == m_indexById.cend()) {
+        qCWarning(lcPageRegistry) << "PageRegistry::setPassesContext: unknown page" << id;
+        return;
+    }
+    // No signal: PageHost reads the flag when it creates the page, and only
+    // then (see the header).
+    if (m_pages.at(*index).passesContext != passesContext) {
+        m_pages[*index].passesContext = passesContext;
+    }
+}
+
 bool PageRegistry::registerPage(Entry entry)
 {
     return registerPage(std::move(entry), -1);
@@ -87,16 +119,33 @@ bool PageRegistry::registerPage(Entry entry)
 bool PageRegistry::registerPage(Entry entry, qsizetype siblingPosition)
 {
     if (entry.id.isEmpty()) {
-        qWarning() << "PageRegistry::registerPage: refusing to register page with empty id";
+        qCWarning(lcPageRegistry) << "PageRegistry::registerPage: refusing to register page with empty id";
         return false;
     }
     if (m_indexById.contains(entry.id)) {
-        qWarning() << "PageRegistry::registerPage: duplicate page id" << entry.id << "— ignoring registration";
+        qCWarning(lcPageRegistry) << "PageRegistry::registerPage: duplicate page id" << entry.id
+                                  << "— ignoring registration";
         return false;
     }
-    if (!entry.parentId.isEmpty() && !m_indexById.contains(entry.parentId)) {
-        qWarning() << "PageRegistry::registerPage: page" << entry.id << "references unknown parent" << entry.parentId
-                   << "— ignoring registration";
+    int depth = 0;
+    if (!entry.parentId.isEmpty()) {
+        const auto parent = m_indexById.constFind(entry.parentId);
+        if (parent == m_indexById.cend()) {
+            qCWarning(lcPageRegistry) << "PageRegistry::registerPage: page" << entry.id << "references unknown parent"
+                                      << entry.parentId << "— ignoring registration";
+            return false;
+        }
+        depth = m_depths.at(*parent) + 1;
+    }
+    // Every upward walk over the registry (allowedInMode,
+    // ApplicationController::parentChainFor, Breadcrumbs) follows at most
+    // MaxParentChainHops parent links. Refusing a deeper page here is what
+    // lets each of them reach a root every time, rather than give up on a
+    // page the rail still draws.
+    if (depth > MaxParentChainHops) {
+        qCWarning(lcPageRegistry) << "PageRegistry::registerPage: page" << entry.id << "would sit" << depth
+                                  << "levels below a top-level page, deeper than the" << MaxParentChainHops
+                                  << "allowed — ignoring registration";
         return false;
     }
     // ApplicationController::resetCurrentPage() and any consumer of
@@ -104,7 +153,8 @@ bool PageRegistry::registerPage(Entry entry, qsizetype siblingPosition)
     // reject null at registration so the failure surfaces here rather
     // than at first use.
     if (!entry.controller) {
-        qWarning() << "PageRegistry::registerPage: page" << entry.id << "has null controller — ignoring registration";
+        qCWarning(lcPageRegistry) << "PageRegistry::registerPage: page" << entry.id
+                                  << "has null controller — ignoring registration";
         return false;
     }
     // Detect the same controller being registered under two different ids.
@@ -115,9 +165,9 @@ bool PageRegistry::registerPage(Entry entry, qsizetype siblingPosition)
     // registration stays linear in K (vs. the prior O(K²) walk).
     PageController* const ctrl = entry.controller.data();
     if (isLiveRegisteredController(ctrl)) {
-        qWarning() << "PageRegistry::registerPage: controller already registered — refusing duplicate registration "
-                      "under id"
-                   << entry.id;
+        qCWarning(lcPageRegistry) << "PageRegistry::registerPage: controller already registered — refusing duplicate "
+                                     "registration under id"
+                                  << entry.id;
         return false;
     }
 
@@ -137,6 +187,7 @@ bool PageRegistry::registerPage(Entry entry, qsizetype siblingPosition)
         siblings.insert(siblingPosition, index);
     }
     m_pages.append(std::move(entry));
+    m_depths.append(depth);
     Q_EMIT pageRegistered(id);
     return true;
 }
@@ -145,10 +196,12 @@ void PageRegistry::setPageVisibility(const QString& id, PageVisibility visibilit
 {
     const auto it = m_indexById.constFind(id);
     if (it == m_indexById.constEnd()) {
-        qWarning() << "PageRegistry::setPageVisibility: unknown page id" << id << "— ignoring";
+        qCWarning(lcPageRegistry) << "PageRegistry::setPageVisibility: unknown page id" << id << "— ignoring";
         return;
     }
-    if (m_pages[it.value()].visibility == visibility) {
+    // at(), not [], for the read: the no-op path must not detach a list
+    // shared with an allPages() copy.
+    if (m_pages.at(it.value()).visibility == visibility) {
         return;
     }
     m_pages[it.value()].visibility = visibility;
@@ -250,13 +303,11 @@ bool PageRegistry::allowedInMode(const QString& id, bool advanced) const
     // app's mode gate all send the user to a page they cannot navigate back
     // from. Checking only the own tier made those four disagree with the rail.
     //
-    // registerPage() rejects an entry whose parent is not already registered,
-    // so the parent graph is a DAG and this terminates; the hop cap is a
-    // belt-and-braces guard matching parentChainFor's.
-    // The cap counts parent hops, the same unit parentChainFor uses: a page
-    // with MaxParentChainHops ancestors is checked in full, one level deeper
-    // is not.
-    int hops = 0;
+    // registerPage() refuses a parent that is not registered yet and a page
+    // more than MaxParentChainHops levels down, and no entry is ever removed
+    // or moved, so the parent graph is a forest no deeper than that: every
+    // parentId resolves and the walk reaches a root within MaxParentChainHops
+    // hops.
     while (it != m_indexById.constEnd()) {
         const Entry& e = m_pages.at(it.value());
         if (!modeAllowsIn(e.visibility, advanced)) {
@@ -265,30 +316,11 @@ bool PageRegistry::allowedInMode(const QString& id, bool advanced) const
         if (e.parentId.isEmpty()) {
             return true;
         }
-        if (hops == MaxParentChainHops) {
-            break;
-        }
         it = m_indexById.constFind(e.parentId);
-        ++hops;
     }
-    // Fell out without reaching a root: either the chain is nested deeper than
-    // the cap, or a parentId resolved to nothing (structurally impossible —
-    // registerPage rejects an unknown parent). Fail CLOSED. Answering "visible"
-    // for a page whose ancestry could not be verified is the same lie the
-    // ancestor walk above exists to prevent: it would let search, keyboard
-    // next/prev, the history skip predicate and the mode gate offer a row the
-    // rail cannot draw.
-    //
-    // Warn once per id: this is a startup-time structural error, but the method
-    // runs once per entry per search-index rebuild, once per entry per
-    // keyboard next/prev, and once per candidate per history step, so an
-    // unguarded warning would repeat for the life of the session.
-    if (!m_depthWarned.contains(id)) {
-        m_depthWarned.insert(id);
-        qWarning() << "PageRegistry: could not resolve the ancestor chain for" << id
-                   << (hops >= MaxParentChainHops ? "— nested deeper than the hop cap" : "— a parentId did not resolve")
-                   << "— treating it as hidden";
-    }
+    // Not reached: every parentId resolves (see above). Hidden is the answer
+    // that cannot send search, keyboard next/prev or the mode gate to a row
+    // the rail does not draw.
     return false;
 }
 
@@ -301,88 +333,102 @@ bool PageRegistry::validateCounterparts() const
 {
     bool ok = true;
     for (const Entry& e : m_pages) {
-        if (e.counterpartId.isEmpty()) {
-            continue;
+        ok = counterpartResolves(e) && ok;
+    }
+    return ok;
+}
+
+bool PageRegistry::validateCounterparts(const QStringList& ids) const
+{
+    bool ok = true;
+    for (const QString& id : ids) {
+        const auto it = m_indexById.constFind(id);
+        if (it != m_indexById.constEnd()) {
+            ok = counterpartResolves(m_pages.at(it.value())) && ok;
         }
-        if (e.counterpartId == e.id) {
-            qWarning() << "PageRegistry: page" << e.id << "declares itself as its own counterpart";
-            ok = false;
-            continue;
-        }
-        const auto it = m_indexById.constFind(e.counterpartId);
-        if (it == m_indexById.constEnd()) {
-            qWarning() << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
-                       << "which is not registered — mode flips and deep links will fall back instead of redirecting";
-            ok = false;
-            continue;
-        }
-        const Entry& other = m_pages.at(it.value());
-        // Counterparts are the two modes' faces of ONE surface, so the mapping
-        // has to hold in both directions. A one-way declaration redirects the
-        // outbound flip correctly and then dead-ends the return flip on the
-        // generic fallback — which looks exactly like correct operation from
-        // the outbound side, so nothing else would ever surface it.
-        if (other.counterpartId != e.id) {
-            qWarning() << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
-                       << "but that page declares"
-                       << (other.counterpartId.isEmpty() ? QStringLiteral("none") : other.counterpartId)
-                       << "— counterparts must point back at each other or the return mode flip falls back";
-            ok = false;
-        }
-        // Same tier means the flip lands on something the new mode hides too,
-        // so the redirect cannot help. Always a declaration bug.
-        if (other.visibility == e.visibility) {
-            qWarning() << "PageRegistry: page" << e.id << "and its counterpart" << e.counterpartId
-                       << "share a visibility tier — the counterpart cannot be the other mode's face of this page";
-            ok = false;
-            // Stop here. Every remaining check is downstream of a tier
-            // relationship already known broken, and the reachability block
-            // below would re-derive the same fact and report it as an ANCESTOR
-            // filtering the counterpart out — sending a maintainer hunting for
-            // a filtered category that need not exist. Reciprocity is checked
-            // ABOVE rather than below, because it is orthogonal to tier: a pair
-            // that is both same-tier and one-way has two independent faults and
-            // must report both, or the maintainer fixes one, re-runs, and
-            // discovers the other.
-            continue;
-        }
-        // A counterpart with no QML of its own is a category: the mode gate
-        // would redirect onto a page with no body, the same silent degradation
-        // this validator exists to catch, one level down.
-        if (other.qmlSource.isEmpty()) {
-            qWarning() << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
-                       << "which is not navigable (no QML of its own) — a redirect would land on an empty page";
-            ok = false;
-            // Same reason the same-tier branch stops: a category has no QML of
-            // its own, so if it is also unreachable in the flipped mode the
-            // block below would report a SECOND warning for the one declaration
-            // fault already named here, sending a maintainer looking for a
-            // filtering ancestor on top of a counterpart that cannot be a
-            // redirect target at all.
-            continue;
-        }
-        {
-            // Opposite tiers are necessary but NOT sufficient. The gate this
-            // validator protects asks pageAllowedInCurrentMode(counterpart),
-            // which walks ANCESTORS too, so a counterpart whose own tier is
-            // right but which sits under a filtered category still dead-ends on
-            // the app fallback — exactly the silent degradation this exists to
-            // catch. Check reachability in the mode that hides `e`: a
-            // SimpleOnly page is hidden when advanced, and vice versa.
-            // Which mode hides `e`. For a tiered entry that is its own tier;
-            // for an Always entry (never hidden by its OWN tier, but hideable
-            // by a filtered ancestor) fall back to the counterpart's tier,
-            // which names the mode the pair exists to bridge.
-            const bool modeThatHidesThis = e.visibility != PageVisibility::Always
-                ? (e.visibility == PageVisibility::SimpleOnly)
-                : (other.visibility == PageVisibility::AdvancedOnly);
-            if (!allowedInMode(e.counterpartId, modeThatHidesThis)) {
-                qWarning() << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
-                           << "which is itself unreachable in the mode that hides" << e.id
-                           << "— an ancestor category filters it out, so the redirect falls back anyway";
-                ok = false;
-            }
-        }
+    }
+    return ok;
+}
+
+bool PageRegistry::counterpartResolves(const Entry& e) const
+{
+    if (e.counterpartId.isEmpty()) {
+        return true;
+    }
+    if (e.counterpartId == e.id) {
+        qCWarning(lcPageRegistry) << "PageRegistry: page" << e.id << "declares itself as its own counterpart";
+        return false;
+    }
+    const auto it = m_indexById.constFind(e.counterpartId);
+    if (it == m_indexById.constEnd()) {
+        qCWarning(lcPageRegistry)
+            << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
+            << "which is not registered — mode flips and deep links will fall back instead of redirecting";
+        return false;
+    }
+    bool ok = true;
+    const Entry& other = m_pages.at(it.value());
+    // Counterparts are the two modes' faces of ONE surface, so the mapping
+    // has to hold in both directions. A one-way declaration redirects the
+    // outbound flip correctly and then dead-ends the return flip on the
+    // generic fallback — which looks exactly like correct operation from
+    // the outbound side, so nothing else would ever surface it.
+    if (other.counterpartId != e.id) {
+        qCWarning(lcPageRegistry) << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
+                                  << "but that page declares"
+                                  << (other.counterpartId.isEmpty() ? QStringLiteral("none") : other.counterpartId)
+                                  << "— counterparts must point back at each other or the return mode flip falls back";
+        ok = false;
+    }
+    // Same tier means the flip lands on something the new mode hides too,
+    // so the redirect cannot help. Always a declaration bug.
+    if (other.visibility == e.visibility) {
+        qCWarning(lcPageRegistry)
+            << "PageRegistry: page" << e.id << "and its counterpart" << e.counterpartId
+            << "share a visibility tier — the counterpart cannot be the other mode's face of this page";
+        // Stop here. Every remaining check is downstream of a tier
+        // relationship already known broken, and the reachability block
+        // below would re-derive the same fact and report it as an ANCESTOR
+        // filtering the counterpart out — sending a maintainer hunting for
+        // a filtered category that need not exist. Reciprocity is checked
+        // ABOVE rather than below, because it is orthogonal to tier: a pair
+        // that is both same-tier and one-way has two independent faults and
+        // must report both, or the maintainer fixes one, re-runs, and
+        // discovers the other.
+        return false;
+    }
+    // A counterpart with no QML of its own is a category: the mode gate
+    // would redirect onto a page with no body, the same silent degradation
+    // this validator exists to catch, one level down.
+    if (other.qmlSource.isEmpty()) {
+        qCWarning(lcPageRegistry)
+            << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
+            << "which is not navigable (no QML of its own) — a redirect would land on an empty page";
+        // Same reason the same-tier branch stops: a category has no QML of
+        // its own, so if it is also unreachable in the flipped mode the
+        // block below would report a SECOND warning for the one declaration
+        // fault already named here, sending a maintainer looking for a
+        // filtering ancestor on top of a counterpart that cannot be a
+        // redirect target at all.
+        return false;
+    }
+    // Opposite tiers are necessary but NOT sufficient. The gate this
+    // validator protects asks pageAllowedInCurrentMode(counterpart), which
+    // walks ANCESTORS too, so a counterpart whose own tier is right but which
+    // sits under a filtered category still dead-ends on the app fallback —
+    // exactly the silent degradation this exists to catch. Check
+    // reachability in the mode that hides `e`: a SimpleOnly page is hidden
+    // when advanced, and vice versa. For an Always entry (never hidden by
+    // its OWN tier, but hideable by a filtered ancestor) fall back to the
+    // counterpart's tier, which names the mode the pair exists to bridge.
+    const bool modeThatHidesThis = e.visibility != PageVisibility::Always
+        ? (e.visibility == PageVisibility::SimpleOnly)
+        : (other.visibility == PageVisibility::AdvancedOnly);
+    if (!allowedInMode(e.counterpartId, modeThatHidesThis)) {
+        qCWarning(lcPageRegistry) << "PageRegistry: page" << e.id << "declares counterpart" << e.counterpartId
+                                  << "which is itself unreachable in the mode that hides" << e.id
+                                  << "— an ancestor category filters it out, so the redirect falls back anyway";
+        ok = false;
     }
     return ok;
 }
@@ -521,10 +567,11 @@ const QList<PageRegistry::Entry>& PageRegistry::allPagesRef() const
 }
 
 namespace {
-// QVariantMap key names shipped to QML via topLevelPagesData / childPagesData
-// / pageData. Centralised so QML consumers (Sidebar.qml, Breadcrumbs.qml)
-// and a future test/typed-binding generator can reference the same canonical
-// strings without typos surviving until runtime.
+// The keys of the dicts topLevelPagesData, childPagesData, pageData and
+// allPagesData hand to QML, spelled once for entryToVariant. QML and the
+// tests read them by these literal names, which no build checks, so a
+// rename here is an API change. titleKey() exports the one key C++ outside
+// this file writes (SidebarRows overrides the title).
 //
 // `inline` is omitted because anonymous-namespace symbols already have
 // internal linkage; `constexpr` alone is sufficient.
@@ -537,6 +584,7 @@ constexpr QLatin1String QmlSource{"qmlSource"};
 constexpr QLatin1String IsCollapsible{"isCollapsible"};
 constexpr QLatin1String HasDividerAfter{"hasDividerAfter"};
 constexpr QLatin1String HasQmlSource{"hasQmlSource"};
+constexpr QLatin1String PassesContext{"passesContext"};
 } // namespace EntryKeys
 
 } // namespace
@@ -559,6 +607,7 @@ QVariantMap entryToVariant(const PageRegistry::Entry& e)
     m.insert(EntryKeys::IsCollapsible, e.isCollapsible);
     m.insert(EntryKeys::HasDividerAfter, e.hasDividerAfter);
     m.insert(EntryKeys::HasQmlSource, !e.qmlSource.isEmpty());
+    m.insert(EntryKeys::PassesContext, e.passesContext);
     return m;
 }
 } // namespace

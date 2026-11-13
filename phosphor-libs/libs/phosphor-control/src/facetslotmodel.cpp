@@ -5,6 +5,8 @@
 
 #include "PhosphorControl/ApplicationController.h"
 
+#include "facetextensionentry_p.h"
+
 #include <QSet>
 #include <QUrl>
 
@@ -14,12 +16,12 @@ namespace {
 
 QString entryId(const QVariantMap& entry)
 {
-    return entry.value(QStringLiteral("id")).toString();
+    return entry.value(FacetExtensionEntry::Id).toString();
 }
 
 QObject* entryDomain(const QVariantMap& entry)
 {
-    return entry.value(QStringLiteral("domain")).value<QObject*>();
+    return entry.value(FacetExtensionEntry::Domain).value<QObject*>();
 }
 
 } // namespace
@@ -110,25 +112,25 @@ QVariant FacetSlotModel::data(const QModelIndex& index, int role) const
     case ExtensionIdRole:
         return entryId(entry);
     case ModuleIdRole:
-        return entry.value(QStringLiteral("moduleId")).toString();
+        return entry.value(FacetExtensionEntry::ModuleId).toString();
     case ModuleNameRole:
-        return entry.value(QStringLiteral("moduleName")).toString();
+        return entry.value(FacetExtensionEntry::ModuleName).toString();
     case NameRole:
-        return entry.value(QStringLiteral("name")).toString();
+        return entry.value(FacetExtensionEntry::Name).toString();
     case ModulePageIdRole:
-        return entry.value(QStringLiteral("modulePageId")).toString();
+        return entry.value(FacetExtensionEntry::ModulePageId).toString();
     case QmlSourceRole:
-        return entry.value(QStringLiteral("qmlSource")).toUrl();
+        return entry.value(FacetExtensionEntry::QmlSource).toUrl();
     case DomainRole:
         return QVariant::fromValue<QObject*>(row.domain.data());
     case FailedRole:
-        return entry.contains(QStringLiteral("error"));
+        return entry.contains(FacetExtensionEntry::Error);
     case ModuleFailedRole:
-        return entry.value(QStringLiteral("moduleFailed")).toBool();
+        return entry.value(FacetExtensionEntry::ModuleFailed).toBool();
     case DisabledAfterCrashRole:
-        return entry.value(QStringLiteral("disabledAfterCrash")).toBool();
+        return entry.value(FacetExtensionEntry::DisabledAfterCrash).toBool();
     case ErrorRole:
-        return entry.value(QStringLiteral("error")).toString();
+        return entry.value(FacetExtensionEntry::Error).toString();
     default:
         return QVariant();
     }

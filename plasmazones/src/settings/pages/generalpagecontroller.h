@@ -20,11 +20,13 @@ class ISettings;
 /// Owns the startup-time rendering-backend and GPU-device snapshots that keep
 /// the "restart required" InlineMessage visible across page navigation (the
 /// backend picker's options come from SettingsController::valueOptions and
-/// the schema), the enumerated GPU list for the rendering-device picker,
-/// plus the animation-duration / min-distance / stagger-interval slider
-/// bounds that the animation curve editors consume, plus the
-/// window-filtering bounds (snap-side, animation-side and decoration-side)
-/// that the shared WindowFilterCard reads.
+/// the schema), the enumerated GPU list for the rendering-device picker, the
+/// CONSTANT bounds of the Shader Effects and Audio Spectrum sliders with a
+/// one-shot `cavaAvailable` probe, plus the animation-duration / min-distance
+/// / stagger-interval slider bounds that the animation curve editors consume,
+/// plus the snap-side and animation-side window-filtering bounds that the
+/// shared WindowFilterCard reads. The decoration-side filtering bounds live on
+/// WindowAppearanceController, the controller of the page that hosts them.
 ///
 /// Import/export of the full config stays on SettingsController — those are
 /// top-level app actions that touch every page, not a "General" concern.
@@ -51,6 +53,27 @@ class GeneralPageController : public PhosphorControl::PageController
     // synthetic row disappears once a present device is selected.
     Q_PROPERTY(QVariantList availableGpus READ availableGpus NOTIFY availableGpusChanged)
 
+    // Shader Effects + Audio Spectrum slider bounds. Frame rate and the
+    // audio spectrum drive every shader category, so these cards live on the
+    // General page. Live values bind directly via `appSettings.X`.
+    Q_PROPERTY(int shaderFrameRateMin READ shaderFrameRateMin CONSTANT)
+    Q_PROPERTY(int shaderFrameRateMax READ shaderFrameRateMax CONSTANT)
+    Q_PROPERTY(int audioSpectrumBarCountMin READ audioSpectrumBarCountMin CONSTANT)
+    Q_PROPERTY(int audioSpectrumBarCountMax READ audioSpectrumBarCountMax CONSTANT)
+    Q_PROPERTY(int audioSensitivityMin READ audioSensitivityMin CONSTANT)
+    Q_PROPERTY(int audioSensitivityMax READ audioSensitivityMax CONSTANT)
+    Q_PROPERTY(int audioNoiseReductionMin READ audioNoiseReductionMin CONSTANT)
+    Q_PROPERTY(int audioNoiseReductionMax READ audioNoiseReductionMax CONSTANT)
+    Q_PROPERTY(int audioLowerCutoffHzMin READ audioLowerCutoffHzMin CONSTANT)
+    Q_PROPERTY(int audioLowerCutoffHzMax READ audioLowerCutoffHzMax CONSTANT)
+    Q_PROPERTY(int audioHigherCutoffHzMin READ audioHigherCutoffHzMin CONSTANT)
+    Q_PROPERTY(int audioHigherCutoffHzMax READ audioHigherCutoffHzMax CONSTANT)
+    Q_PROPERTY(int audioExtraSmoothingMin READ audioExtraSmoothingMin CONSTANT)
+    Q_PROPERTY(int audioExtraSmoothingMax READ audioExtraSmoothingMax CONSTANT)
+    // Whether the cava executable was on PATH when this controller was built.
+    // Probed once: installing cava mid-session shows up after a restart.
+    Q_PROPERTY(bool cavaAvailable READ cavaAvailable CONSTANT)
+
     Q_PROPERTY(int animationDurationMin READ animationDurationMin CONSTANT)
     Q_PROPERTY(int animationDurationMax READ animationDurationMax CONSTANT)
     Q_PROPERTY(int animationMinDistanceMin READ animationMinDistanceMin CONSTANT)
@@ -65,8 +88,7 @@ class GeneralPageController : public PhosphorControl::PageController
     // would otherwise silently truncate when the SpinBox clamped the
     // bound `value` to the QML literal. Both the snap-side
     // (GeneralPage's "Window filtering" card) and the animation-side
-    // (AnimationsGeneralPage's filtering knobs) bind through these
-    // since they share this controller.
+    // (AnimationWindowFilterCard's filtering knobs) bind through these.
     Q_PROPERTY(int minimumWindowWidthMin READ minimumWindowWidthMin CONSTANT)
     Q_PROPERTY(int minimumWindowWidthMax READ minimumWindowWidthMax CONSTANT)
     Q_PROPERTY(int minimumWindowHeightMin READ minimumWindowHeightMin CONSTANT)
@@ -75,10 +97,6 @@ class GeneralPageController : public PhosphorControl::PageController
     Q_PROPERTY(int animationMinimumWindowWidthMax READ animationMinimumWindowWidthMax CONSTANT)
     Q_PROPERTY(int animationMinimumWindowHeightMin READ animationMinimumWindowHeightMin CONSTANT)
     Q_PROPERTY(int animationMinimumWindowHeightMax READ animationMinimumWindowHeightMax CONSTANT)
-    Q_PROPERTY(int decorationMinimumWindowWidthMin READ decorationMinimumWindowWidthMin CONSTANT)
-    Q_PROPERTY(int decorationMinimumWindowWidthMax READ decorationMinimumWindowWidthMax CONSTANT)
-    Q_PROPERTY(int decorationMinimumWindowHeightMin READ decorationMinimumWindowHeightMin CONSTANT)
-    Q_PROPERTY(int decorationMinimumWindowHeightMax READ decorationMinimumWindowHeightMax CONSTANT)
 
 public:
     /// Reference parameter, not pointer: the ISettings instance is required
@@ -117,6 +135,67 @@ public:
     QVariantList availableGpus() const
     {
         return m_availableGpus;
+    }
+
+    int shaderFrameRateMin() const
+    {
+        return ConfigDefaults::shaderFrameRateMin();
+    }
+    int shaderFrameRateMax() const
+    {
+        return ConfigDefaults::shaderFrameRateMax();
+    }
+    int audioSpectrumBarCountMin() const
+    {
+        return ConfigDefaults::audioSpectrumBarCountMin();
+    }
+    int audioSpectrumBarCountMax() const
+    {
+        return ConfigDefaults::audioSpectrumBarCountMax();
+    }
+    int audioSensitivityMin() const
+    {
+        return ConfigDefaults::audioSensitivityMin();
+    }
+    int audioSensitivityMax() const
+    {
+        return ConfigDefaults::audioSensitivityMax();
+    }
+    int audioNoiseReductionMin() const
+    {
+        return ConfigDefaults::audioNoiseReductionMin();
+    }
+    int audioNoiseReductionMax() const
+    {
+        return ConfigDefaults::audioNoiseReductionMax();
+    }
+    int audioLowerCutoffHzMin() const
+    {
+        return ConfigDefaults::audioLowerCutoffHzMin();
+    }
+    int audioLowerCutoffHzMax() const
+    {
+        return ConfigDefaults::audioLowerCutoffHzMax();
+    }
+    int audioHigherCutoffHzMin() const
+    {
+        return ConfigDefaults::audioHigherCutoffHzMin();
+    }
+    int audioHigherCutoffHzMax() const
+    {
+        return ConfigDefaults::audioHigherCutoffHzMax();
+    }
+    int audioExtraSmoothingMin() const
+    {
+        return ConfigDefaults::audioExtraSmoothingMin();
+    }
+    int audioExtraSmoothingMax() const
+    {
+        return ConfigDefaults::audioExtraSmoothingMax();
+    }
+    bool cavaAvailable() const
+    {
+        return m_cavaAvailable;
     }
 
     int animationDurationMin() const
@@ -176,22 +255,6 @@ public:
     {
         return ConfigDefaults::animationMinimumWindowHeightMax();
     }
-    int decorationMinimumWindowWidthMin() const
-    {
-        return ConfigDefaults::decorationMinimumWindowWidthMin();
-    }
-    int decorationMinimumWindowWidthMax() const
-    {
-        return ConfigDefaults::decorationMinimumWindowWidthMax();
-    }
-    int decorationMinimumWindowHeightMin() const
-    {
-        return ConfigDefaults::decorationMinimumWindowHeightMin();
-    }
-    int decorationMinimumWindowHeightMax() const
-    {
-        return ConfigDefaults::decorationMinimumWindowHeightMax();
-    }
 
 Q_SIGNALS:
     /// Both startup snapshots were re-baselined (daemon restart observed).
@@ -217,6 +280,9 @@ private:
     /// Raw GpuDeviceList::enumerate() result, cached once per process.
     QVariantList m_enumeratedGpus;
     QVariantList m_availableGpus;
+
+    /// cava executable lookup, done once at construction.
+    bool m_cavaAvailable = false;
 };
 
 } // namespace PlasmaZones

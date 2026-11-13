@@ -124,6 +124,10 @@ SettingsFlickable {
     property bool _committingSlot: false
 
     onSelectedAlgorithmChanged: _seedFromAlgorithm()
+    // A Luau hot-reload re-reads the catalog, and can change the script's
+    // parameter declarations and its own defaults, both of which the seed
+    // reads. Nothing else re-runs it for the algorithm already selected.
+    on_CachedAlgosChanged: _seedFromAlgorithm()
     Component.onCompleted: _seedFromAlgorithm()
 
     // External per-algorithm slot changes (a Discard, a profile switch, an
@@ -200,8 +204,10 @@ SettingsFlickable {
                     // which must not reach this `real` property, so fall back to
                     // the user's configured global ratio rather than a literal.
                     splitRatio: {
+                        // The slider works in percent; the preview takes the
+                        // fraction.
                         if (root.algoSupportsSplitRatio)
-                            return masterRatioSlider.slider.value;
+                            return masterRatioSlider.slider.value / 100;
 
                         const catalogRatio = AlgoCaps.defaultSplitRatio(root.algoCapabilities);
                         return catalogRatio !== undefined ? catalogRatio : appSettings.autotileSplitRatio;
@@ -239,18 +245,23 @@ SettingsFlickable {
                         id: masterRatioSlider
 
                         accessibleName: root.algoCenterLayout ? i18n("Center ratio") : i18n("Master ratio")
-                        from: root.settingsBridge.autotileSplitRatioMin
-                        to: root.settingsBridge.autotileSplitRatioMax
-                        stepSize: 0.05
-                        value: root.algoSettings.splitRatio !== undefined ? root.algoSettings.splitRatio : appSettings.autotileSplitRatio
+                        // Percent units, as on TilingAlgorithmPage: a step of
+                        // 0.05 lands on values like 0.30000000000000004, which
+                        // were written as-is and never compare equal to a
+                        // saved 0.3. Whole percent steps, divided on write.
+                        from: Math.round(root.settingsBridge.autotileSplitRatioMin * 100)
+                        to: Math.round(root.settingsBridge.autotileSplitRatioMax * 100)
+                        stepSize: 5
+                        value: Math.round((root.algoSettings.splitRatio !== undefined ? root.algoSettings.splitRatio : appSettings.autotileSplitRatio) * 100)
                         formatValue: function (v) {
-                            return Math.round(v * 100) + "%";
+                            return i18nc("a whole-number percentage", "%1%", Math.round(v));
                         }
                         onMoved: value => {
+                            const ratio = Math.round(value) / 100;
                             // Per-algorithm slot for the selected algorithm —
                             // the same global path the Algorithm page uses.
                             let m = Object.assign({}, root.algoSettings);
-                            m.splitRatio = value;
+                            m.splitRatio = ratio;
                             root.algoSettings = m;
                             // try/finally: QML has no RAII, and a throw here
                             // would latch the flag permanently, after which
@@ -258,7 +269,7 @@ SettingsFlickable {
                             // a profile switch or an advanced-page edit.
                             root._committingSlot = true;
                             try {
-                                root.settingsBridge.setAlgorithmSplitRatio(root.selectedAlgorithm, value);
+                                root.settingsBridge.setAlgorithmSplitRatio(root.selectedAlgorithm, ratio);
                             } finally {
                                 root._committingSlot = false;
                             }

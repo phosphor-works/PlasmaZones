@@ -97,6 +97,46 @@ private Q_SLOTS:
         QCOMPARE(page.backgroundOpacity(), 0.3);
         QCOMPARE(page.gridSnappingEnabled(), !ConfigDefaults::editorGridSnappingEnabled());
     }
+
+    /// The default* properties are what EditorPage.qml shows as each shortcut
+    /// field's placeholder, so each must name its OWN shortcut's default. Read
+    /// through the meta-object, the way QML reads them, so a property that
+    /// went missing or got wired to a sibling getter fails here.
+    void defaultShortcutProperties_matchConfigDefaults()
+    {
+        IsolatedConfigGuard guard;
+        Settings settings;
+        EditorPageController page(settings);
+        const auto prop = [&page](const char* name) {
+            return page.property(name).toString();
+        };
+        QCOMPARE(prop("defaultDuplicateShortcut"), ConfigDefaults::editorDuplicateShortcut());
+        QCOMPARE(prop("defaultSplitHorizontalShortcut"), ConfigDefaults::editorSplitHorizontalShortcut());
+        QCOMPARE(prop("defaultSplitVerticalShortcut"), ConfigDefaults::editorSplitVerticalShortcut());
+        QCOMPARE(prop("defaultFillShortcut"), ConfigDefaults::editorFillShortcut());
+    }
+
+    /// After a reset every shortcut reads back as the default its placeholder
+    /// advertises, the two split shortcuts included (the narrower slot above
+    /// checks only duplicate and fill).
+    void resetShortcutDefaults_eachShortcutMatchesItsAdvertisedDefault()
+    {
+        IsolatedConfigGuard guard;
+        Settings settings;
+        EditorPageController page(settings);
+        page.setDuplicateShortcut(QStringLiteral("Ctrl+Alt+1"));
+        page.setSplitHorizontalShortcut(QStringLiteral("Ctrl+Alt+2"));
+        page.setSplitVerticalShortcut(QStringLiteral("Ctrl+Alt+3"));
+        page.setFillShortcut(QStringLiteral("Ctrl+Alt+4"));
+        QCOMPARE(page.splitVerticalShortcut(), QStringLiteral("Ctrl+Alt+3"));
+
+        page.resetShortcutDefaults();
+
+        QCOMPARE(page.duplicateShortcut(), page.defaultDuplicateShortcut());
+        QCOMPARE(page.splitHorizontalShortcut(), page.defaultSplitHorizontalShortcut());
+        QCOMPARE(page.splitVerticalShortcut(), page.defaultSplitVerticalShortcut());
+        QCOMPARE(page.fillShortcut(), page.defaultFillShortcut());
+    }
 };
 
 QTEST_MAIN(TestEditorPageController)

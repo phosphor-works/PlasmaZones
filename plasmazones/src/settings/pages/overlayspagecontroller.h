@@ -232,6 +232,13 @@ public:
     /// Sorted by label for deterministic UI order.
     Q_INVOKABLE QVariantList shaderEffectUsages(const QString& effectId) const;
 
+    /// How many LAYOUTS use @p effectId through an override of their own: the
+    /// layout rows of shaderEffectUsages, without its "Global default" row,
+    /// which is not a layout. The browser's "%n layout" chip and the detail
+    /// header count with this, while the dialog still lists the Global
+    /// default row.
+    Q_INVOKABLE int shaderEffectLayoutUsageCount(const QString& effectId) const;
+
 Q_SIGNALS:
     /// Forwarded from `PhosphorShaders::ShaderRegistry::shadersChanged`
     /// so QML can rebind without poking at the registry directly.

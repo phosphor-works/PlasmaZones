@@ -167,7 +167,9 @@ public:
     /// The controller it replaces stops being tracked as a staging domain,
     /// since it no longer has a page; its QObject parent is left alone. A
     /// parentless controller is adopted on success only. Used when a Facet
-    /// module loads into placeholder pages.
+    /// module loads into placeholder pages. Like PageRegistry::bindPage, an
+    /// accepted bind also sets the page's PageRegistry::Entry::passesContext,
+    /// so the page's QML must declare `controller` and `settingsApp`.
     bool bindPage(const QString& id, PageController* controller, const QUrl& qmlSource);
 
     /// Called with the target page id when setCurrentPageId moves to a known

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import "../../js/ExportFileName.js" as ExportFileName
 import "../../js/GroupSortLogic.js" as Core
 import "../../js/LayoutFilterLogic.js" as Logic
 import QtQuick
@@ -140,7 +141,7 @@ SettingsFlickable {
 
     // Seed "<display name>.<suffix>" into a save dialog so an export does
     // not open with an empty filename the user has to type from scratch.
-    // Filesystem-hostile characters are stripped rather than escaped.
+    // The sanitising is shared with the Profiles page (ExportFileName.js).
     function exportFileName(layoutId, suffix) {
         const all = settingsController.layouts || [];
         let name = "";
@@ -150,12 +151,7 @@ SettingsFlickable {
                 break;
             }
         }
-        // The result is spliced into a QUrl string, so URL-significant
-        // characters (#, %) go with the filesystem-hostile set — the accept
-        // path percent-decodes selectedFile, and an unescaped # would parse
-        // as a fragment and silently truncate the seeded name.
-        name = name.replace(/[\/\\:*?"<>|#%]/g, "").trim();
-        return (name.length > 0 ? name : "export") + "." + suffix;
+        return ExportFileName.forDisplayName(name, suffix, "export");
     }
 
     function rebuildModel() {

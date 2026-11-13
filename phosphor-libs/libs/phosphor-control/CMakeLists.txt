@@ -163,6 +163,7 @@ set(phosphorcontrol_public_HDRS
     include/PhosphorControl/FacetContext.h
     include/PhosphorControl/FacetHost.h
     include/PhosphorControl/FacetSlotModel.h
+    include/PhosphorControl/ModulePlaceholderPage.h
 )
 
 set(phosphorcontrol_SRCS
@@ -187,6 +188,7 @@ set(phosphorcontrol_SRCS
     src/facetloadrecord.cpp
     src/facetconfigbackends.cpp
     src/facetslotmodel.cpp
+    src/moduleplaceholderpage.cpp
 )
 
 # NOTE: three near-identical targets (PhosphorControl C++ lib +
