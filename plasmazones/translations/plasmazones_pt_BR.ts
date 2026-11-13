@@ -53,67 +53,67 @@
     </message>
 </context>
 <context>
-    <name>FacetExtensionFrame</name>
+    <name>ExtensionFrame</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="126"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="126"/>
         <source>From %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="154"/>
-        <source>This section is turned off, because Facet closed unexpectedly the last time it loaded the module it comes from.</source>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="154"/>
+        <source>This section is turned off, because %1 closed unexpectedly the last time it loaded the module it comes from.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="156"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="156"/>
         <source>This section could not be shown, because the module it comes from did not load.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="158"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="158"/>
         <source>This section could not be shown, because its QML did not load.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="159"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="159"/>
         <source>This section could not be shown.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetExtensionFrame.qml" line="166"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="166"/>
         <source>Open Module Page</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
-    <name>FacetModulePage</name>
+    <name>ModulePage</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="60"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="60"/>
         <source>%1 is turned off</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="62"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="62"/>
         <source>%1 could not be loaded</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="63"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="63"/>
         <source>%1 is not loaded yet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="65"/>
-        <source>Facet closed unexpectedly the last time it loaded this module, so it stays off until you load it again.</source>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="65"/>
+        <source>%1 closed unexpectedly the last time it loaded this module, so it stays off until you load it again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="69"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="69"/>
         <source>Try Again</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/FacetModulePage.qml" line="69"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="69"/>
         <source>Load</source>
         <translation type="unfinished"></translation>
     </message>
@@ -194,34 +194,34 @@
     </message>
 </context>
 <context>
-    <name>PhosphorControl::FacetHost</name>
+    <name>PhosphorControl::ModuleHost</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="68"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="68"/>
         <source>Window Management</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="70"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="70"/>
         <source>Appearance</source>
         <translation type="unfinished">Aparência</translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="72"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="72"/>
         <source>Desktop</source>
         <translation type="unfinished">Área de trabalho</translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="73"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="73"/>
         <source>Input</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="74"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="74"/>
         <source>Apps</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/src/facethost.cpp" line="75"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="75"/>
         <source>System</source>
         <translation type="unfinished">Sistema</translation>
     </message>

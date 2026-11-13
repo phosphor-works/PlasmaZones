@@ -3,14 +3,14 @@
 #pragma once
 
 // The keys of a section's entry in ApplicationController::extensionsFor(),
-// which FacetHost writes and FacetSlotModel reads. One spelling for both, so
+// which ModuleHost writes and ExtensionSlotModel reads. One spelling for both, so
 // a key renamed on one side cannot leave the other reading a key nobody
-// writes. Private: QML reads the entry through FacetSlotModel's roles, whose
+// writes. Private: QML reads the entry through ExtensionSlotModel's roles, whose
 // names are a separate contract.
 
 #include <QLatin1String>
 
-namespace PhosphorControl::FacetExtensionEntry {
+namespace PhosphorControl::ModuleExtensionEntry {
 
 /// The section's scoped id, `<module>:<extension>`.
 inline constexpr QLatin1String Id("id");
@@ -30,4 +30,4 @@ inline constexpr QLatin1String DisabledAfterCrash("disabledAfterCrash");
 /// Present exactly when the section cannot be shown, holding why.
 inline constexpr QLatin1String Error("error");
 
-} // namespace PhosphorControl::FacetExtensionEntry
+} // namespace PhosphorControl::ModuleExtensionEntry

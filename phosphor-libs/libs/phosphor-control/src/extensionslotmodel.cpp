@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "PhosphorControl/FacetSlotModel.h"
+#include "PhosphorControl/ExtensionSlotModel.h"
 
 #include "PhosphorControl/ApplicationController.h"
 
-#include "facetextensionentry_p.h"
+#include "moduleextensionentry_p.h"
 
 #include <QSet>
 #include <QUrl>
@@ -16,27 +16,27 @@ namespace {
 
 QString entryId(const QVariantMap& entry)
 {
-    return entry.value(FacetExtensionEntry::Id).toString();
+    return entry.value(ModuleExtensionEntry::Id).toString();
 }
 
 QObject* entryDomain(const QVariantMap& entry)
 {
-    return entry.value(FacetExtensionEntry::Domain).value<QObject*>();
+    return entry.value(ModuleExtensionEntry::Domain).value<QObject*>();
 }
 
 } // namespace
 
-FacetSlotModel::FacetSlotModel(QObject* parent)
+ExtensionSlotModel::ExtensionSlotModel(QObject* parent)
     : QAbstractListModel(parent)
 {
 }
 
-ApplicationController* FacetSlotModel::settingsApp() const
+ApplicationController* ExtensionSlotModel::settingsApp() const
 {
     return m_settingsApp.data();
 }
 
-void FacetSlotModel::setSettingsApp(ApplicationController* settingsApp)
+void ExtensionSlotModel::setSettingsApp(ApplicationController* settingsApp)
 {
     if (m_settingsApp == settingsApp) {
         return;
@@ -61,12 +61,12 @@ void FacetSlotModel::setSettingsApp(ApplicationController* settingsApp)
     refresh();
 }
 
-QString FacetSlotModel::pageId() const
+QString ExtensionSlotModel::pageId() const
 {
     return m_pageId;
 }
 
-void FacetSlotModel::setPageId(const QString& pageId)
+void ExtensionSlotModel::setPageId(const QString& pageId)
 {
     if (m_pageId == pageId) {
         return;
@@ -76,12 +76,12 @@ void FacetSlotModel::setPageId(const QString& pageId)
     refresh();
 }
 
-QString FacetSlotModel::slotId() const
+QString ExtensionSlotModel::slotId() const
 {
     return m_slot;
 }
 
-void FacetSlotModel::setSlotId(const QString& slot)
+void ExtensionSlotModel::setSlotId(const QString& slot)
 {
     if (m_slot == slot) {
         return;
@@ -91,17 +91,17 @@ void FacetSlotModel::setSlotId(const QString& slot)
     refresh();
 }
 
-int FacetSlotModel::count() const
+int ExtensionSlotModel::count() const
 {
     return static_cast<int>(m_rows.size());
 }
 
-int FacetSlotModel::rowCount(const QModelIndex& parent) const
+int ExtensionSlotModel::rowCount(const QModelIndex& parent) const
 {
     return parent.isValid() ? 0 : count();
 }
 
-QVariant FacetSlotModel::data(const QModelIndex& index, int role) const
+QVariant ExtensionSlotModel::data(const QModelIndex& index, int role) const
 {
     if (!checkIndex(index, CheckIndexOption::IndexIsValid | CheckIndexOption::ParentIsInvalid)) {
         return QVariant();
@@ -112,31 +112,31 @@ QVariant FacetSlotModel::data(const QModelIndex& index, int role) const
     case ExtensionIdRole:
         return entryId(entry);
     case ModuleIdRole:
-        return entry.value(FacetExtensionEntry::ModuleId).toString();
+        return entry.value(ModuleExtensionEntry::ModuleId).toString();
     case ModuleNameRole:
-        return entry.value(FacetExtensionEntry::ModuleName).toString();
+        return entry.value(ModuleExtensionEntry::ModuleName).toString();
     case NameRole:
-        return entry.value(FacetExtensionEntry::Name).toString();
+        return entry.value(ModuleExtensionEntry::Name).toString();
     case ModulePageIdRole:
-        return entry.value(FacetExtensionEntry::ModulePageId).toString();
+        return entry.value(ModuleExtensionEntry::ModulePageId).toString();
     case QmlSourceRole:
-        return entry.value(FacetExtensionEntry::QmlSource).toUrl();
+        return entry.value(ModuleExtensionEntry::QmlSource).toUrl();
     case DomainRole:
         return QVariant::fromValue<QObject*>(row.domain.data());
     case FailedRole:
-        return entry.contains(FacetExtensionEntry::Error);
+        return entry.contains(ModuleExtensionEntry::Error);
     case ModuleFailedRole:
-        return entry.value(FacetExtensionEntry::ModuleFailed).toBool();
+        return entry.value(ModuleExtensionEntry::ModuleFailed).toBool();
     case DisabledAfterCrashRole:
-        return entry.value(FacetExtensionEntry::DisabledAfterCrash).toBool();
+        return entry.value(ModuleExtensionEntry::DisabledAfterCrash).toBool();
     case ErrorRole:
-        return entry.value(FacetExtensionEntry::Error).toString();
+        return entry.value(ModuleExtensionEntry::Error).toString();
     default:
         return QVariant();
     }
 }
 
-QHash<int, QByteArray> FacetSlotModel::roleNames() const
+QHash<int, QByteArray> ExtensionSlotModel::roleNames() const
 {
     return {
         {ExtensionIdRole, QByteArrayLiteral("extensionId")},
@@ -153,7 +153,7 @@ QHash<int, QByteArray> FacetSlotModel::roleNames() const
     };
 }
 
-void FacetSlotModel::refresh()
+void ExtensionSlotModel::refresh()
 {
     if (m_refreshing) {
         m_refreshPending = true;
@@ -174,7 +174,7 @@ void FacetSlotModel::refresh()
     m_refreshing = false;
 }
 
-void FacetSlotModel::applyList(const QList<QVariantMap>& next)
+void ExtensionSlotModel::applyList(const QList<QVariantMap>& next)
 {
     const int countBefore = count();
 

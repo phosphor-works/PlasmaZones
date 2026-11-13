@@ -9,22 +9,22 @@
 
 namespace PhosphorControl {
 
-/// Checks one Facet module without a window, for the module's own CI. Lives
+/// Checks one control module without a window, for the module's own CI. Lives
 /// in the PhosphorControl::PhosphorControlTest library.
 ///
 /// run() copies the module library, and every target module
-/// (addTargetModule()), into a private search path, hosts them in a FacetHost
+/// (addTargetModule()), into a private search path, hosts them in a ModuleHost
 /// over a fresh ApplicationController, loads the module, and checks that:
 ///   - the catalog accepts it (IID, ApiVersion, a valid "Id")
-///   - its metadata is valid, and parses without a warning: a key this Facet
+///   - its metadata is valid, and parses without a warning: a key this PhosphorControl
 ///     does not know, a search entry of a kind it does not know, or a
 ///     `Key[<lang>]` whose locale is not written in letters, digits and '_'
 ///     (`Name[pt-BR]`, which no locale picks) is reported as
-///     `metadata: <warning>`, since the module is built against the Facet
+///     `metadata: <warning>`, since the module is built against the PhosphorControl
 ///     that checks it
 ///   - it loads, and registerInto registers exactly the pages and extensions
 ///     its metadata declares, each page with a controller of the matching id
-///     and an absolute QML source (the rules FacetContext enforces)
+///     and an absolute QML source (the rules ModuleContext enforces)
 ///   - every page was bound, and every headless domain and every extension's
 ///     domain is still there, which code the module runs while it loads
 ///     could delete, at once or with a deleteLater()
@@ -60,33 +60,33 @@ namespace PhosphorControl {
 /// is the module's or another target's, which is left out.
 ///
 /// The apply and discard round runs on freshly loaded, clean state, which is
-/// not how Facet drives a domain: Facet applies dirty domains only. It
+/// not how the host drives a domain: it applies dirty domains only. It
 /// catches a domain that answers twice or not at all, not one whose dirty
 /// path misbehaves, so cover that in the module's own tests.
 ///
 /// run() does not write the settings files the module opens through
-/// FacetContext::configBackend, as long as the module's factory opens the
+/// ModuleContext::configBackend, as long as the module's factory opens the
 /// path it is handed. It makes each of them under its staging
-/// directory instead (FacetHost::setConfigRedirect), so the module starts
+/// directory instead (ModuleHost::setConfigRedirect), so the module starts
 /// from an empty file and its defaults, and the files go when run() returns.
 /// Anything else a domain's apply() writes (a file the module opens by
 /// itself, a call to a daemon) still goes where the module sends it, so
 /// point that at a scratch target first.
 ///
 /// Needs a QCoreApplication (or QGuiApplication) running on this thread.
-class PHOSPHORCONTROLTEST_EXPORT FacetTestHost
+class PHOSPHORCONTROLTEST_EXPORT ModuleTestHost
 {
 public:
     static constexpr int DefaultResultTimeoutMs = 2000;
 
-    explicit FacetTestHost(QString modulePath);
+    explicit ModuleTestHost(QString modulePath);
 
     /// How long to wait for a domain's applyResult or discardResult. Zero or
     /// negative restores DefaultResultTimeoutMs.
     void setResultTimeoutMs(int ms);
     /// Where run() stages its copies: a fresh directory
-    /// `<directory>/facet-test-XXXXXX/`, removed when run() returns, whose
-    /// `facet/` holds the module as `module.so` and the target modules as
+    /// `<directory>/module-test-XXXXXX/`, removed when run() returns, whose
+    /// `control/` holds the module as `module.so` and the target modules as
     /// `target-000.so` onwards, whatever their files are called. A relative
     /// @p directory is taken against the working directory of run().
     /// Default: QDir::tempPath(). Pick a directory on a filesystem that allows
@@ -102,7 +102,7 @@ public:
     void addTargetModule(const QString& modulePath);
 
     /// The anchors.json of the module's previous release
-    /// (phosphor_add_facet_module_metadata's FACET_ANCHORS_FILE), which
+    /// (phosphor_add_control_module_metadata's MODULE_ANCHORS_FILE), which
     /// holds each page's anchors, its anchors version and the versions of its
     /// named extension points.
     void setPreviousAnchors(const QString& anchorsPath);

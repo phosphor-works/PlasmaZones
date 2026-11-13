@@ -9,8 +9,8 @@ import org.phosphor.control
 import "LoaderHelpers.js" as PhosphorLoaderHelpers
 
 /**
- * One section another module adds to a page, as FacetSlot lists it. The
- * required properties are FacetSlotModel's roles.
+ * One section another module adds to a page, as ExtensionSlot lists it. The
+ * required properties are ExtensionSlotModel's roles.
  *
  * Shows a caption naming the module the section comes from, then the
  * section's QML. The section is created with `domain` (the extension's
@@ -18,14 +18,14 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * (QtObject, and it may be required) and can read it in
  * Component.onCompleted. It gets `settingsApp` assigned once it is created,
  * if it declares that, and the frame's settingsApp does not change after
- * that while the section stays (FacetSlot builds its frames only once it has
+ * that while the section stays (ExtensionSlot builds its frames only once it has
  * one, and PageHost and every page hand it the same one). When the
  * module did not load, or the section cannot be shown, a card says so in the
  * section's place, so the rest of the page still works. The host's own reason
  * goes below the card, except for a module turned off after a crash, where
  * the card says it all.
  *
- * The frame is the search anchor FacetHost's results name for the section,
+ * The frame is the search anchor ModuleHost's results name for the section,
  * `<module>:<extension>` (its extensionId). It registers under that anchor
  * with the nearest ancestor that has registerSearchAnchor(anchorId, item),
  * the call a page's reveal registry takes (PageHost hands that page the
@@ -101,7 +101,7 @@ ColumnLayout {
             reloadTimer.restart();
     }
 
-    objectName: "facet-extension:" + root.extensionId
+    objectName: "module-extension:" + root.extensionId
     spacing: Kirigami.Units.smallSpacing
     Component.onCompleted: {
         root._complete = true;
@@ -133,7 +133,7 @@ ColumnLayout {
     Loader {
         id: sectionLoader
 
-        objectName: "facet-extension-section"
+        objectName: "module-extension-section"
         Layout.fillWidth: true
         visible: !root.failed && !root._domainGone && sectionLoader.status === Loader.Ready
         onLoaded: {
@@ -145,13 +145,13 @@ ColumnLayout {
     Kirigami.InlineMessage {
         id: errorCard
 
-        objectName: "facet-extension-error"
+        objectName: "module-extension-error"
         Layout.fillWidth: true
         visible: root.failed || root._qmlFailed || root._domainGone
         type: root.disabledAfterCrash ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
         text: {
             if (root.disabledAfterCrash)
-                return qsTr("This section is turned off, because Facet closed unexpectedly the last time it loaded the module it comes from.");
+                return qsTr("This section is turned off, because %1 closed unexpectedly the last time it loaded the module it comes from.").arg(Qt.application.displayName);
             if (root.moduleFailed)
                 return qsTr("This section could not be shown, because the module it comes from did not load.");
             if (root._qmlFailed)
@@ -160,7 +160,7 @@ ColumnLayout {
         }
         actions: [
             Kirigami.Action {
-                objectName: "facet-extension-open-module"
+                objectName: "module-extension-open-module"
                 visible: root.moduleFailed && root.modulePageId.length > 0
                 icon.name: "go-next"
                 text: qsTr("Open Module Page")
@@ -172,9 +172,9 @@ ColumnLayout {
     // The host's own account of the failure, for a bug report, so it can be
     // selected and copied. Not translated: it names files, ids and contract
     // rules. Left out for a module turned off after a crash, as on
-    // FacetModulePage: the card above already says that, translated.
+    // ModulePage: the card above already says that, translated.
     Kirigami.SelectableLabel {
-        objectName: "facet-extension-reason"
+        objectName: "module-extension-reason"
         Layout.fillWidth: true
         visible: root.failed && !root.disabledAfterCrash && root.error.length > 0
         text: root.error

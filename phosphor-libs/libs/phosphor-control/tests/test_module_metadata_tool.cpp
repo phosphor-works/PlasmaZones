@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// phosphor-facet-metadata, run as the build runs it.
+// phosphor-control-metadata, run as the build runs it.
 
-#include <PhosphorControl/FacetModuleMetadata.h>
+#include <PhosphorControl/ModuleMetadata.h>
 
 #include <QDateTime>
 #include <QFile>
@@ -20,11 +20,11 @@
 #include <utility>
 
 // The tool's path, from tests/CMakeLists.txt.
-#ifndef PHOSPHOR_FACET_METADATA_TOOL
-#error "PHOSPHOR_FACET_METADATA_TOOL must name the phosphor-facet-metadata executable"
+#ifndef PHOSPHOR_CONTROL_METADATA_TOOL
+#error "PHOSPHOR_CONTROL_METADATA_TOOL must name the phosphor-control-metadata executable"
 #endif
 
-using PhosphorControl::FacetModuleMetadata;
+using PhosphorControl::ModuleMetadata;
 
 namespace {
 
@@ -35,7 +35,7 @@ QByteArray catalog(const QString& language, const QList<std::pair<QString, QStri
 {
     QString text = QStringLiteral(
                        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<TS version=\"2.1\" language=\"%1\">"
-                       "<context><name>FacetModule</name>\n")
+                       "<context><name>PhosphorControlModule</name>\n")
                        .arg(language);
     for (const auto& [source, translation] : messages) {
         text += QStringLiteral("<message><source>%1</source><translation>%2</translation></message>\n")
@@ -58,7 +58,7 @@ QStringList keysStartingWith(const QJsonObject& json, const QString& prefix)
 
 } // namespace
 
-class TestFacetMetadataTool : public QObject
+class TestModuleMetadataTool : public QObject
 {
     Q_OBJECT
 
@@ -96,13 +96,15 @@ private Q_SLOTS:
         const QString outcome = run(0, {QStringLiteral("strings"), source, out});
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QString text = read(out);
-        QVERIFY2(text.contains(QStringLiteral("//: Facet module metadata: name of module\n"
-                                              "QT_TRANSLATE_NOOP(\"FacetModule\", \"Say \\\"hi\\\" \\\\ now\")\n")),
+        QVERIFY2(text.contains(
+                     QStringLiteral("//: control module metadata: name of module\n"
+                                    "QT_TRANSLATE_NOOP(\"PhosphorControlModule\", \"Say \\\"hi\\\" \\\\ now\")\n")),
                  qPrintable(text));
-        QVERIFY2(text.contains(QStringLiteral("QT_TRANSLATE_NOOP(\"FacetModule\", \"one\\ttwo\\nthree\")")),
+        QVERIFY2(text.contains(QStringLiteral("QT_TRANSLATE_NOOP(\"PhosphorControlModule\", \"one\\ttwo\\nthree\")")),
                  qPrintable(text));
         // lupdate reads the file as UTF-8, so other text is written as it is.
-        QVERIFY2(text.contains(QStringLiteral("QT_TRANSLATE_NOOP(\"FacetModule\", \"Grüße\")")), qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("QT_TRANSLATE_NOOP(\"PhosphorControlModule\", \"Grüße\")")),
+                 qPrintable(text));
         // Each string once, however often it appears.
         QCOMPARE(text.count(QStringLiteral("\"k\"")), 1);
     }
@@ -122,9 +124,10 @@ private Q_SLOTS:
         const QString outcome = run(0, {QStringLiteral("--allow-invalid"), QStringLiteral("strings"), source, out});
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QString text = read(out);
-        QVERIFY2(text.contains(QStringLiteral("QT_TRANSLATE_NOOP(\"FacetModule\", \"a\\rb\\001c\\177\")")),
+        QVERIFY2(text.contains(QStringLiteral("QT_TRANSLATE_NOOP(\"PhosphorControlModule\", \"a\\rb\\001c\\177\")")),
                  qPrintable(text));
-        QVERIFY2(text.contains(QStringLiteral("//: Facet module metadata: name of page \"p q\"\n")), qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("//: control module metadata: name of page \"p q\"\n")),
+                 qPrintable(text));
         const QStringList lines = text.split(QLatin1Char('\n'), Qt::SkipEmptyParts);
         for (const QString& line : lines) {
             QVERIFY2(line.startsWith(QLatin1String("//")) || line.startsWith(QLatin1String("QT_TRANSLATE_NOOP(")),
@@ -145,9 +148,10 @@ private Q_SLOTS:
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QString text = read(out);
         QCOMPARE(text.count(QStringLiteral("QT_TRANSLATE_NOOP(")), 1);
-        QVERIFY2(text.contains(QStringLiteral("//: Facet module metadata: name of module; a search keyword of module; "
-                                              "name of page \"p\"\n")),
-                 qPrintable(text));
+        QVERIFY2(
+            text.contains(QStringLiteral("//: control module metadata: name of module; a search keyword of module; "
+                                         "name of page \"p\"\n")),
+            qPrintable(text));
     }
 
     void translatesEveryLocalizableField()
@@ -180,7 +184,8 @@ private Q_SLOTS:
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         const QString text = read(strings);
         for (const QString& string : sources + QStringList{QStringLiteral("About")}) {
-            QVERIFY2(text.contains(QStringLiteral("\"FacetModule\", \"%1\")").arg(string)), qPrintable(string));
+            QVERIFY2(text.contains(QStringLiteral("\"PhosphorControlModule\", \"%1\")").arg(string)),
+                     qPrintable(string));
         }
 
         const QString out = m_dir->filePath(QStringLiteral("out.json"));
@@ -194,8 +199,8 @@ private Q_SLOTS:
 
         QStringList parseErrors;
         QStringList warnings;
-        const FacetModuleMetadata metadata =
-            FacetModuleMetadata::parse(json, QLocale(QStringLiteral("fr_FR")), &parseErrors, &warnings);
+        const ModuleMetadata metadata =
+            ModuleMetadata::parse(json, QLocale(QStringLiteral("fr_FR")), &parseErrors, &warnings);
         QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.name, QStringLiteral("fr-Module"));
@@ -295,7 +300,7 @@ private Q_SLOTS:
         const QJsonObject json = QJsonDocument::fromJson(read(out).toUtf8()).object();
         QCOMPARE(keysStartingWith(json, QStringLiteral("Name[")), nameKeys);
         QStringList errors;
-        const FacetModuleMetadata parsed = FacetModuleMetadata::parse(json, QLocale(QStringLiteral("fr_FR")), &errors);
+        const ModuleMetadata parsed = ModuleMetadata::parse(json, QLocale(QStringLiteral("fr_FR")), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(parsed.name, name);
         QCOMPARE(parsed.keywords, keywords);
@@ -308,7 +313,7 @@ private Q_SLOTS:
         QTest::addColumn<QByteArray>("message");
         QTest::addColumn<bool>("used");
         QTest::newRow("finished") << QByteArray(
-            "<context><name>FacetModule</name><message><source>Hello</source>"
+            "<context><name>PhosphorControlModule</name><message><source>Hello</source>"
             "<translation>Bonjour</translation></message></context>")
                                   << true;
         QTest::newRow("another context") << QByteArray(
@@ -316,35 +321,35 @@ private Q_SLOTS:
             "<translation>Bonjour</translation></message></context>")
                                          << false;
         QTest::newRow("unfinished") << QByteArray(
-            "<context><name>FacetModule</name><message><source>Hello</source>"
+            "<context><name>PhosphorControlModule</name><message><source>Hello</source>"
             "<translation type=\"unfinished\">Bonjour</translation></message>"
             "</context>") << false;
         QTest::newRow("vanished") << QByteArray(
-            "<context><name>FacetModule</name><message><source>Hello</source>"
+            "<context><name>PhosphorControlModule</name><message><source>Hello</source>"
             "<translation type=\"vanished\">Bonjour</translation></message>"
             "</context>") << false;
         QTest::newRow("obsolete") << QByteArray(
-            "<context><name>FacetModule</name><message><source>Hello</source>"
+            "<context><name>PhosphorControlModule</name><message><source>Hello</source>"
             "<translation type=\"obsolete\">Bonjour</translation></message>"
             "</context>") << false;
         QTest::newRow("disambiguated") << QByteArray(
-            "<context><name>FacetModule</name><message><source>Hello"
+            "<context><name>PhosphorControlModule</name><message><source>Hello"
             "</source><comment>greeting</comment><translation>Bonjour"
             "</translation></message></context>")
                                        << false;
         QTest::newRow("plural") << QByteArray(
-            "<context><name>FacetModule</name><message numerus=\"yes\"><source>"
+            "<context><name>PhosphorControlModule</name><message numerus=\"yes\"><source>"
             "Hello</source><translation><numerusform>Bonjour</numerusform>"
             "</translation></message></context>")
                                 << false;
         // Marked plural, with a plain translation: the mark alone rules it
         // out.
         QTest::newRow("plural without forms") << QByteArray(
-            "<context><name>FacetModule</name><message numerus=\"yes\"><source>Hello</source>"
+            "<context><name>PhosphorControlModule</name><message numerus=\"yes\"><source>Hello</source>"
             "<translation>Bonjour</translation></message></context>")
                                               << false;
         QTest::newRow("length variants") << QByteArray(
-            "<context><name>FacetModule</name><message><source>Hello</source><translation "
+            "<context><name>PhosphorControlModule</name><message><source>Hello</source><translation "
             "variants=\"yes\"><lengthvariant>Bonjour</lengthvariant><lengthvariant>Bjr"
             "</lengthvariant></translation></message></context>")
                                          << false;
@@ -390,11 +395,11 @@ private Q_SLOTS:
         QString source;
         QVERIFY(write(QStringLiteral("m.json"), ValidMetadata, &source));
         const QByteArray hello("<message><source>Hello</source><translation>Bonjour</translation></message>");
-        // In another context and in FacetModule's own.
+        // In another context and in PhosphorControlModule's own.
         QString ts;
         QVERIFY(write(QStringLiteral("m_fr.ts"),
                       "<TS version=\"2.1\" language=\"fr\"><context><name>Other</name>" + other
-                          + "</context><context><name>FacetModule</name>" + other + hello + "</context></TS>",
+                          + "</context><context><name>PhosphorControlModule</name>" + other + hello + "</context></TS>",
                       &ts));
         const QString out = m_dir->filePath(QStringLiteral("out.json"));
         QString errors;
@@ -411,11 +416,12 @@ private Q_SLOTS:
         QVERIFY(write(QStringLiteral("m.json"),
                       R"({ "Id": "m", "Name": "Tab\there", "Pages": [ { "Id": "p", "Name": "P" } ] })", &source));
         QString ts;
-        QVERIFY(write(QStringLiteral("m_fr.ts"),
-                      "<TS version=\"2.1\" language=\"fr\"><context><name>FacetModule</name><message><source>Tab"
-                      "<byte value=\"x9\"/>here</source><translation>Onglet<byte value=\"9\"/>ici</translation>"
-                      "</message></context></TS>",
-                      &ts));
+        QVERIFY(
+            write(QStringLiteral("m_fr.ts"),
+                  "<TS version=\"2.1\" language=\"fr\"><context><name>PhosphorControlModule</name><message><source>Tab"
+                  "<byte value=\"x9\"/>here</source><translation>Onglet<byte value=\"9\"/>ici</translation>"
+                  "</message></context></TS>",
+                  &ts));
         const QString out = m_dir->filePath(QStringLiteral("out.json"));
         const QString outcome = run(0, {QStringLiteral("localize"), source, out, ts});
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
@@ -533,7 +539,7 @@ private Q_SLOTS:
         const QString outcome = run(0, {QStringLiteral("localize"), source, out, ts}, &errors);
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
         QCOMPARE(errors.trimmed(),
-                 QStringLiteral("phosphor-facet-metadata: warning: %1: %2 is an old code for a language written in "
+                 QStringLiteral("phosphor-control-metadata: warning: %1: %2 is an old code for a language written in "
                                 "more than one script, so its translations go under %2, which no locale lists; name "
                                 "the script, as in sr_Cyrl or sr_Latn")
                      .arg(ts, language));
@@ -543,7 +549,7 @@ private Q_SLOTS:
         for (const QString& user : {QStringLiteral("sr_RS"), QStringLiteral("sr_Cyrl_RS"), QStringLiteral("sr_Latn_RS"),
                                     QStringLiteral("sh"), QStringLiteral("sh_RS")}) {
             QStringList parseErrors;
-            const FacetModuleMetadata metadata = FacetModuleMetadata::parse(json, QLocale(user), &parseErrors);
+            const ModuleMetadata metadata = ModuleMetadata::parse(json, QLocale(user), &parseErrors);
             QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
             QVERIFY2(metadata.name == QLatin1String("Hello"),
                      qPrintable(QStringLiteral("%1 got %2").arg(user, metadata.name)));
@@ -666,7 +672,7 @@ private Q_SLOTS:
 
     void printsWarningsWithoutFailing()
     {
-        // A key this Facet does not know may be one a newer Facet does, so
+        // A key this PhosphorControl does not know may be one a newer PhosphorControl does, so
         // it is a warning, which localize prints once for the build and
         // which fails nothing.
         QString source;
@@ -677,7 +683,8 @@ private Q_SLOTS:
         QString outcome =
             run(0, {QStringLiteral("localize"), source, m_dir->filePath(QStringLiteral("o.json"))}, &errors);
         QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
-        QCOMPARE(errors, QStringLiteral("phosphor-facet-metadata: warning: %1: unknown key \"Colour\"\n").arg(source));
+        QCOMPARE(errors,
+                 QStringLiteral("phosphor-control-metadata: warning: %1: unknown key \"Colour\"\n").arg(source));
         for (const QString& command : {QStringLiteral("strings"), QStringLiteral("anchors")}) {
             outcome = run(0, {command, source, m_dir->filePath(QStringLiteral("o.txt"))}, &errors);
             QVERIFY2(outcome.isEmpty(), qPrintable(outcome));
@@ -875,7 +882,7 @@ private:
             const QStringList pair = user.split(QLatin1Char('='));
             QCOMPARE(pair.size(), 2);
             QStringList parseErrors;
-            const FacetModuleMetadata parsed = FacetModuleMetadata::parse(json, QLocale(pair.first()), &parseErrors);
+            const ModuleMetadata parsed = ModuleMetadata::parse(json, QLocale(pair.first()), &parseErrors);
             QVERIFY2(parseErrors.isEmpty(), qPrintable(parseErrors.join(QLatin1Char('\n'))));
             QVERIFY2(parsed.name == pair.last(), qPrintable(QStringLiteral("%1 got %2").arg(user, parsed.name)));
         }
@@ -906,7 +913,7 @@ private:
     static QString run(int expected, const QStringList& arguments, QString* errors = nullptr)
     {
         QProcess process;
-        process.start(QStringLiteral(PHOSPHOR_FACET_METADATA_TOOL), arguments);
+        process.start(QStringLiteral(PHOSPHOR_CONTROL_METADATA_TOOL), arguments);
         if (!process.waitForStarted(10000)) {
             return QStringLiteral("did not start: %1").arg(process.errorString());
         }
@@ -932,5 +939,5 @@ private:
     std::optional<QTemporaryDir> m_dir;
 };
 
-QTEST_GUILESS_MAIN(TestFacetMetadataTool)
-#include "test_facet_metadata_tool.moc"
+QTEST_GUILESS_MAIN(TestModuleMetadataTool)
+#include "test_module_metadata_tool.moc"

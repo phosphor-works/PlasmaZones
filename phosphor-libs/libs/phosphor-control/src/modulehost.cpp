@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "PhosphorControl/FacetHost.h"
+#include "PhosphorControl/ModuleHost.h"
 
-#include "facetconfigbackends_p.h"
-#include "facetextensionentry_p.h"
-#include "facetloadrecord_p.h"
+#include "moduleconfigbackends_p.h"
+#include "moduleextensionentry_p.h"
+#include "moduleloadrecord_p.h"
 
 #include "PhosphorControl/ApplicationController.h"
-#include "PhosphorControl/FacetContext.h"
-#include "PhosphorControl/FacetModule.h"
+#include "PhosphorControl/ModuleContext.h"
+#include "PhosphorControl/ControlModule.h"
 #include "PhosphorControl/ISearchProvider.h"
 #include "PhosphorControl/ModulePlaceholderPage.h"
 #include "PhosphorControl/PageController.h"
@@ -34,8 +34,8 @@
 
 namespace PhosphorControl {
 
-// Declared in facetloadrecord_p.h, which logs under it too.
-Q_LOGGING_CATEGORY(lcFacetHost, "phosphorcontrol.facethost")
+// Declared in moduleloadrecord_p.h, which logs under it too.
+Q_LOGGING_CATEGORY(lcModuleHost, "phosphorcontrol.modulehost")
 
 namespace {
 const QString CategoryPrefix = QStringLiteral("@category/");
@@ -43,7 +43,7 @@ const QString DefaultCategory = QStringLiteral("apps");
 
 // The reason for a module one of whose placeholders could not be
 // registered. Placeholders are placed once, so loading it cannot work until
-// Facet restarts.
+// the app restarts.
 const QString PageNotPlaced = QStringLiteral("a page of it could not take its place in the sidebar");
 
 // The reason for a module the catalog stopped offering (withdrawModule).
@@ -52,9 +52,9 @@ const QString FileRemoved = QStringLiteral("its file was removed or is no longer
 // The reason for a module whose file now carries other metadata than its
 // placeholders were built from.
 const QString MetadataChanged =
-    QStringLiteral("its metadata changed on disk after Facet started, so it can be used only after a restart");
+    QStringLiteral("its metadata changed on disk after the app started, so it can be used only after a restart");
 
-// The categories every Facet has. Their names are marked for extraction here
+// The categories every host has. Their names are marked for extraction here
 // and translated when start() builds the sidebar, through whatever
 // translators the application has installed by then.
 struct BaseCategory
@@ -65,33 +65,34 @@ struct BaseCategory
     int order;
 };
 constexpr BaseCategory BaseCategories[] = {
-    {"window-management", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "Window Management"),
+    {"window-management", QT_TRANSLATE_NOOP("PhosphorControl::ModuleHost", "Window Management"),
      "preferences-system-windows", 10},
-    {"appearance", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "Appearance"), "preferences-desktop-theme-global",
+    {"appearance", QT_TRANSLATE_NOOP("PhosphorControl::ModuleHost", "Appearance"), "preferences-desktop-theme-global",
      20},
-    {"desktop", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "Desktop"), "preferences-desktop", 30},
-    {"input", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "Input"), "preferences-desktop-peripherals", 40},
-    {"apps", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "Apps"), "preferences-desktop-default-applications", 50},
-    {"system", QT_TRANSLATE_NOOP("PhosphorControl::FacetHost", "System"), "preferences-system", 60},
+    {"desktop", QT_TRANSLATE_NOOP("PhosphorControl::ModuleHost", "Desktop"), "preferences-desktop", 30},
+    {"input", QT_TRANSLATE_NOOP("PhosphorControl::ModuleHost", "Input"), "preferences-desktop-peripherals", 40},
+    {"apps", QT_TRANSLATE_NOOP("PhosphorControl::ModuleHost", "Apps"), "preferences-desktop-default-applications", 50},
+    {"system", QT_TRANSLATE_NOOP("PhosphorControl::ModuleHost", "System"), "preferences-system", 60},
 };
 
 // Stands in for a page whose module has not loaded, and for the structural
 // category and module nodes. The module page placeholders show
-// FacetModulePage.qml, which reads the ModulePlaceholderPage members to say
+// ModulePage.qml, which reads the ModulePlaceholderPage members to say
 // why the module is not there and to offer a retry.
-class FacetPlaceholderPage final : public ModulePlaceholderPage
+class ModuleHostPlaceholderPage final : public ModulePlaceholderPage
 {
     Q_OBJECT
 
 public:
-    FacetPlaceholderPage(const QString& id, FacetHost* host, QString moduleId, QString moduleName, QObject* parent)
+    ModuleHostPlaceholderPage(const QString& id, ModuleHost* host, QString moduleId, QString moduleName,
+                              QObject* parent)
         : ModulePlaceholderPage(id, parent)
         , m_host(host)
         , m_moduleId(std::move(moduleId))
         , m_moduleName(std::move(moduleName))
     {
         if (m_host && !m_moduleId.isEmpty()) {
-            connect(m_host, &FacetHost::moduleStateChanged, this, [this](const QString& changed) {
+            connect(m_host, &ModuleHost::moduleStateChanged, this, [this](const QString& changed) {
                 if (changed == m_moduleId) {
                     Q_EMIT moduleStateChanged();
                 }
@@ -106,11 +107,11 @@ public:
     }
     bool failed() const override
     {
-        return m_host && m_host->state(m_moduleId) == FacetHost::ModuleState::Failed;
+        return m_host && m_host->state(m_moduleId) == ModuleHost::ModuleState::Failed;
     }
     bool disabledAfterCrash() const override
     {
-        return m_host && m_host->state(m_moduleId) == FacetHost::ModuleState::DisabledAfterCrash;
+        return m_host && m_host->state(m_moduleId) == ModuleHost::ModuleState::DisabledAfterCrash;
     }
     QString reason() const override
     {
@@ -123,7 +124,7 @@ public:
     bool canRetry() const override
     {
         return m_host
-            && (m_host->canRetry(m_moduleId) || m_host->state(m_moduleId) == FacetHost::ModuleState::Available);
+            && (m_host->canRetry(m_moduleId) || m_host->state(m_moduleId) == ModuleHost::ModuleState::Available);
     }
 
     void retry() override
@@ -134,17 +135,17 @@ public:
     }
 
 private:
-    QPointer<FacetHost> m_host;
+    QPointer<ModuleHost> m_host;
     QString m_moduleId;
     QString m_moduleName;
 };
 
 } // namespace
 
-struct FacetHost::Module
+struct ModuleHost::Module
 {
     /// As parsed. Where the host puts the module never changes it.
-    FacetModuleMetadata metadata;
+    ModuleMetadata metadata;
     /// The metadata as scanned, to notice a module that changed on disk
     /// between start() and its first load.
     QJsonObject rawMetadata;
@@ -170,7 +171,7 @@ struct FacetHost::Module
     QList<QPointer<StagingDomain>> domains;
     /// Its search providers, kept when it loaded. One that is a QObject and
     /// was deleted since is skipped.
-    QList<FacetContext::SearchProviderRegistration> searchProviders;
+    QList<ModuleContext::SearchProviderRegistration> searchProviders;
     struct Extension
     {
         QPointer<StagingDomain> domain;
@@ -201,10 +202,10 @@ struct FacetHost::Module
 //
 // The host owns it and takes it out of the controller as it goes, so nothing
 // here runs once the host is gone.
-class FacetHost::ModuleSearch final : public ISearchProvider
+class ModuleHost::ModuleSearch final : public ISearchProvider
 {
 public:
-    explicit ModuleSearch(const FacetHost& host)
+    explicit ModuleSearch(const ModuleHost& host)
         : m_host(host)
     {
     }
@@ -252,7 +253,7 @@ public:
         });
 
         for (const Module* module : std::as_const(modules)) {
-            for (const FacetSearchEntryMetadata& item : module->metadata.search) {
+            for (const ModuleSearchEntryMetadata& item : module->metadata.search) {
                 SearchEntry entry;
                 entry.kind = item.section ? SearchEntry::Kind::Section : SearchEntry::Kind::Setting;
                 entry.pageId = pageId(module->metadata.id, item.page);
@@ -269,7 +270,7 @@ public:
             }
         }
 
-        // Only when this host's sections are the ones FacetSlots show.
+        // Only when this host's sections are the ones ExtensionSlots show.
         if (m_host.m_holdsExtensionProvider) {
             for (auto it = m_host.m_extensionsByPage.cbegin(); it != m_host.m_extensionsByPage.cend(); ++it) {
                 if (!shown(it.key())) {
@@ -277,7 +278,7 @@ public:
                 }
                 for (const ActiveExtension& active : it.value()) {
                     const std::shared_ptr<Module> module = m_host.m_modules.value(active.moduleId);
-                    const FacetExtensionMetadata* const declared =
+                    const ModuleExtensionMetadata* const declared =
                         module ? module->metadata.extension(active.localId) : nullptr;
                     SearchEntry entry;
                     entry.kind = SearchEntry::Kind::Section;
@@ -296,11 +297,11 @@ public:
             }
             // The pages its metadata says it extends, and of those the pages
             // where one of its extensions is active, while this host's
-            // sections are the ones FacetSlots show. On a page it extends
+            // sections are the ones ExtensionSlots show. On a page it extends
             // where none is, a refused extension's target say, its entries
             // would lead the user to nothing of the module's.
             QSet<QString> declared;
-            for (const FacetExtensionMetadata& extension : module->metadata.extensions) {
+            for (const ModuleExtensionMetadata& extension : module->metadata.extensions) {
                 declared.insert(extension.target);
             }
             QSet<QString> extended;
@@ -314,7 +315,7 @@ public:
                     }
                 }
             }
-            for (const FacetContext::SearchProviderRegistration& registration : module->searchProviders) {
+            for (const ModuleContext::SearchProviderRegistration& registration : module->searchProviders) {
                 if (registration.isObject && !registration.object) {
                     continue;
                 }
@@ -331,8 +332,8 @@ public:
                         const QString key = module->metadata.id + QLatin1Char('\x1f') + entry.pageId;
                         if (!m_warned.contains(key)) {
                             m_warned.insert(key);
-                            qCWarning(lcFacetHost).noquote()
-                                << "FacetHost: module" << module->metadata.id << "lists search entries on page"
+                            qCWarning(lcModuleHost).noquote()
+                                << "ModuleHost: module" << module->metadata.id << "lists search entries on page"
                                 << entry.pageId << "which is neither its own nor one it extends; they are left out";
                         }
                         continue;
@@ -357,7 +358,7 @@ public:
     }
 
 private:
-    const FacetHost& m_host;
+    const ModuleHost& m_host;
     /// The module and page pairs already warned about.
     mutable QSet<QString> m_warned;
 };
@@ -367,9 +368,9 @@ private:
 // too (holdUpdates()), for what changes the index without the host asking: a
 // page taking its place, its keywords. So a run of loads, or a module taking
 // its place, rebuilds the index of a live query once.
-struct FacetHost::SearchBatch
+struct ModuleHost::SearchBatch
 {
-    explicit SearchBatch(FacetHost& host)
+    explicit SearchBatch(ModuleHost& host)
         : m_host(host)
         , m_search(host.m_search)
     {
@@ -390,7 +391,7 @@ struct FacetHost::SearchBatch
     Q_DISABLE_COPY_MOVE(SearchBatch)
 
 private:
-    FacetHost& m_host;
+    ModuleHost& m_host;
     /// The controller this holds, so the release pairs with the hold by
     /// construction. The host's own m_search would do as well, since it never
     /// changes once start() has begun (setSearchController refuses it), and
@@ -398,42 +399,42 @@ private:
     QPointer<SearchController> m_search;
 };
 
-PhosphorRegistry::PluginSeam FacetHost::seam()
+PhosphorRegistry::PluginSeam ModuleHost::seam()
 {
-    return PhosphorRegistry::PluginSeam{QStringLiteral("facet"), QStringLiteral(PhosphorFacetModule_iid),
-                                        FacetModuleApiVersion};
+    return PhosphorRegistry::PluginSeam{QStringLiteral("control"), QStringLiteral(PhosphorControlModule_iid),
+                                        ControlModuleApiVersion};
 }
 
-QString FacetHost::pageId(const QString& moduleId, const QString& localPageId)
+QString ModuleHost::pageId(const QString& moduleId, const QString& localPageId)
 {
     return moduleId + QLatin1Char(':') + localPageId;
 }
 
-QString FacetHost::categoryNodeId(const QString& categoryId)
+QString ModuleHost::categoryNodeId(const QString& categoryId)
 {
     return CategoryPrefix + categoryId;
 }
 
-QUrl FacetHost::placeholderPageSource()
+QUrl ModuleHost::placeholderPageSource()
 {
-    return QUrl(QStringLiteral("qrc:/qt/qml/org/phosphor/control/qml/FacetModulePage.qml"));
+    return QUrl(QStringLiteral("qrc:/qt/qml/org/phosphor/control/qml/ModulePage.qml"));
 }
 
-FacetHost::FacetHost(ApplicationController* controller, QObject* parent)
+ModuleHost::ModuleHost(ApplicationController* controller, QObject* parent)
     : QObject(parent)
     , m_controller(controller)
     , m_catalog(std::make_unique<PhosphorRegistry::PluginCatalog>(seam()))
-    , m_loadRecord(std::make_unique<FacetLoadRecord>())
+    , m_loadRecord(std::make_unique<ModuleLoadRecord>())
 {
     if (!m_controller) {
-        qFatal("FacetHost: controller must not be null");
+        qFatal("ModuleHost: controller must not be null");
     }
     // First, so the backends are the controller's child ahead of everything
-    // it adopts from a module (FacetConfigBackends says why).
-    m_configBackends = new FacetConfigBackends(m_controller);
+    // it adopts from a module (ModuleConfigBackends says why).
+    m_configBackends = new ModuleConfigBackends(m_controller);
 }
 
-FacetHost::~FacetHost()
+ModuleHost::~ModuleHost()
 {
     // First, so a live query's results drop this host's entries at once and
     // the controller never asks a provider of a module this host loaded once
@@ -462,35 +463,36 @@ FacetHost::~FacetHost()
     }
 }
 
-void FacetHost::setSearchPaths(const QList<PhosphorRegistry::PluginSearchPath>& paths)
+void ModuleHost::setSearchPaths(const QList<PhosphorRegistry::PluginSearchPath>& paths)
 {
     if (m_started) {
-        qCWarning(lcFacetHost) << "FacetHost: setSearchPaths after start() is ignored";
+        qCWarning(lcModuleHost) << "ModuleHost: setSearchPaths after start() is ignored";
         return;
     }
     m_catalog->setSearchPaths(paths);
 }
 
-void FacetHost::setSentinelPath(const QString& path)
+void ModuleHost::setSentinelPath(const QString& path)
 {
     if (m_started) {
-        qCWarning(lcFacetHost) << "FacetHost: setSentinelPath after start() is ignored";
+        qCWarning(lcModuleHost) << "ModuleHost: setSentinelPath after start() is ignored";
         return;
     }
     m_loadRecord->setPath(path);
 }
 
-void FacetHost::setConfigRedirect(const QString& directory)
+void ModuleHost::setConfigRedirect(const QString& directory)
 {
     if (m_started) {
-        qCWarning(lcFacetHost) << "FacetHost: setConfigRedirect after start() is ignored";
+        qCWarning(lcModuleHost) << "ModuleHost: setConfigRedirect after start() is ignored";
         return;
     }
     // Absolute, like the load record's path. Empty stays empty: no redirect.
     const QString absolute = directory.isEmpty() ? QString() : QDir(directory).absolutePath();
     if (!absolute.isEmpty() && QDir(absolute).isRoot()) {
         // Every file would land back where it already is.
-        qCWarning(lcFacetHost) << "FacetHost: setConfigRedirect to the filesystem root would redirect nothing, ignored";
+        qCWarning(lcModuleHost)
+            << "ModuleHost: setConfigRedirect to the filesystem root would redirect nothing, ignored";
         return;
     }
     if (m_configBackends) {
@@ -498,41 +500,41 @@ void FacetHost::setConfigRedirect(const QString& directory)
     }
 }
 
-void FacetHost::setLocale(const QLocale& locale)
+void ModuleHost::setLocale(const QLocale& locale)
 {
     if (m_started) {
-        qCWarning(lcFacetHost) << "FacetHost: setLocale after start() is ignored";
+        qCWarning(lcModuleHost) << "ModuleHost: setLocale after start() is ignored";
         return;
     }
     m_locale = locale;
 }
 
-void FacetHost::setLiveReload(bool enabled)
+void ModuleHost::setLiveReload(bool enabled)
 {
     if (m_started) {
-        qCWarning(lcFacetHost) << "FacetHost: setLiveReload after start() is ignored";
+        qCWarning(lcModuleHost) << "ModuleHost: setLiveReload after start() is ignored";
         return;
     }
     m_catalog->setLiveReload(enabled);
 }
 
-void FacetHost::setSearchController(SearchController* search)
+void ModuleHost::setSearchController(SearchController* search)
 {
     if (m_started) {
-        qCWarning(lcFacetHost) << "FacetHost: setSearchController after start() is ignored";
+        qCWarning(lcModuleHost) << "ModuleHost: setSearchController after start() is ignored";
         return;
     }
     m_search = search;
 }
 
-void FacetHost::start()
+void ModuleHost::start()
 {
     if (m_started) {
-        qCWarning(lcFacetHost) << "FacetHost: start() called twice";
+        qCWarning(lcModuleHost) << "ModuleHost: start() called twice";
         return;
     }
     if (!m_controller) {
-        qCWarning(lcFacetHost) << "FacetHost: start() called after the ApplicationController was destroyed";
+        qCWarning(lcModuleHost) << "ModuleHost: start() called after the ApplicationController was destroyed";
         return;
     }
     m_started = true;
@@ -546,10 +548,10 @@ void FacetHost::start()
 
     for (const BaseCategory& base : BaseCategories) {
         const QString id = QString::fromLatin1(base.id);
-        m_categories.insert(id,
-                            FacetCategoryMetadata{id,
-                                                  QCoreApplication::translate("PhosphorControl::FacetHost", base.name),
-                                                  QString::fromLatin1(base.icon), base.order});
+        m_categories.insert(
+            id,
+            ModuleCategoryMetadata{id, QCoreApplication::translate("PhosphorControl::ModuleHost", base.name),
+                                   QString::fromLatin1(base.icon), base.order});
     }
 
     m_loadRecord->restore();
@@ -577,7 +579,7 @@ void FacetHost::start()
 
     // A disabled module that is not installed now stays on the list, so it
     // comes back disabled if it is installed again (at the next start or
-    // while Facet runs). The list grows only by modules that crashed Facet.
+    // while the app runs). The list grows only by modules that crashed the app.
 
     {
         // Every page taking its place, each page's keywords and the host's
@@ -599,8 +601,8 @@ void FacetHost::start()
                 return extensionsFor(pageId, slot);
             });
         if (!m_holdsExtensionProvider) {
-            qCWarning(lcFacetHost) << "FacetHost: another component answers extensionsFor, so no FacetSlot shows "
-                                      "this host's sections, and search does not list them";
+            qCWarning(lcModuleHost) << "ModuleHost: another component answers extensionsFor, so no ExtensionSlot shows "
+                                       "this host's sections, and search does not list them";
         }
         if (m_search) {
             for (const std::shared_ptr<Module>& module : std::as_const(parsed)) {
@@ -608,18 +610,18 @@ void FacetHost::start()
             }
             m_searchProvider = std::make_unique<ModuleSearch>(*this);
             m_search->registerProvider(m_searchProvider.get());
-            connect(m_search.data(), &SearchController::queryChanged, this, &FacetHost::loadOwedSearchProviders);
+            connect(m_search.data(), &SearchController::queryChanged, this, &ModuleHost::loadOwedSearchProviders);
         }
     }
 
-    connect(m_catalog.get(), &PhosphorRegistry::PluginCatalog::pluginAdded, this, &FacetHost::onPluginAdded);
-    connect(m_catalog.get(), &PhosphorRegistry::PluginCatalog::pluginRemoved, this, &FacetHost::onPluginRemoved);
+    connect(m_catalog.get(), &PhosphorRegistry::PluginCatalog::pluginAdded, this, &ModuleHost::onPluginAdded);
+    connect(m_catalog.get(), &PhosphorRegistry::PluginCatalog::pluginRemoved, this, &ModuleHost::onPluginRemoved);
     m_holdsNavigationHook = m_controller->setNavigationHook(this, [this](const QString& pageId) {
         onNavigation(pageId);
     });
     if (!m_holdsNavigationHook) {
-        qCWarning(lcFacetHost) << "FacetHost: another component holds the navigation hook, so opening a page loads "
-                                  "neither its module nor the modules that extend it; call loadModule() instead";
+        qCWarning(lcModuleHost) << "ModuleHost: another component holds the navigation hook, so opening a page loads "
+                                   "neither its module nor the modules that extend it; call loadModule() instead";
     }
 
     // Announce what start() found, now that every placeholder and the hook
@@ -661,7 +663,7 @@ void FacetHost::start()
     loadOwedSearchProviders();
 }
 
-std::shared_ptr<FacetHost::Module> FacetHost::parseModule(const QString& moduleId)
+std::shared_ptr<ModuleHost::Module> ModuleHost::parseModule(const QString& moduleId)
 {
     const std::optional<PhosphorRegistry::PluginMetadata> plugin = m_catalog->plugin(moduleId);
     if (!plugin) {
@@ -672,9 +674,9 @@ std::shared_ptr<FacetHost::Module> FacetHost::parseModule(const QString& moduleI
     QStringList errors;
     QStringList warnings;
     // Only from start() on, which has fixed the locale.
-    module->metadata = FacetModuleMetadata::parse(plugin->metaData, *m_locale, &errors, &warnings);
+    module->metadata = ModuleMetadata::parse(plugin->metaData, *m_locale, &errors, &warnings);
     for (const QString& warning : std::as_const(warnings)) {
-        qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId << "metadata:" << warning;
+        qCInfo(lcModuleHost).noquote() << "ModuleHost: module" << moduleId << "metadata:" << warning;
     }
     if (!errors.isEmpty()) {
         // Recorded on the module before it is in m_modules, so transition()
@@ -683,16 +685,16 @@ std::shared_ptr<FacetHost::Module> FacetHost::parseModule(const QString& moduleI
         module->state = ModuleState::Failed;
         module->reason = QStringLiteral("invalid metadata: %1").arg(errors.join(QStringLiteral("; ")));
         module->retryable = false;
-        qCWarning(lcFacetHost).noquote() << "FacetHost: module" << moduleId << "failed:" << module->reason;
+        qCWarning(lcModuleHost).noquote() << "ModuleHost: module" << moduleId << "failed:" << module->reason;
         return module;
     }
     mergeCategories(*module);
     return module;
 }
 
-void FacetHost::mergeCategories(const Module& module)
+void ModuleHost::mergeCategories(const Module& module)
 {
-    for (const FacetCategoryMetadata& category : module.metadata.categories) {
+    for (const ModuleCategoryMetadata& category : module.metadata.categories) {
         const auto existing = m_categories.constFind(category.id);
         if (existing == m_categories.cend()) {
             m_categories.insert(category.id, category);
@@ -701,13 +703,13 @@ void FacetHost::mergeCategories(const Module& module)
         // The first definition stands: the built-in categories, then modules
         // in id order. Say so when a later one disagrees.
         if (existing->name != category.name || existing->icon != category.icon || existing->order != category.order) {
-            qCInfo(lcFacetHost).noquote() << "FacetHost: module" << module.metadata.id << "defines category"
-                                          << category.id << "differently from an earlier definition, which stands";
+            qCInfo(lcModuleHost).noquote() << "ModuleHost: module" << module.metadata.id << "defines category"
+                                           << category.id << "differently from an earlier definition, which stands";
         }
     }
 }
 
-void FacetHost::addModule(const QString& moduleId, const Module* previous)
+void ModuleHost::addModule(const QString& moduleId, const Module* previous)
 {
     const std::shared_ptr<Module> module = parseModule(moduleId);
     if (!module) {
@@ -774,7 +776,7 @@ void FacetHost::addModule(const QString& moduleId, const Module* previous)
     loadOwedSearchProviders();
 }
 
-void FacetHost::onPluginAdded(const QString& moduleId)
+void ModuleHost::onPluginAdded(const QString& moduleId)
 {
     if (!m_controller) {
         return;
@@ -848,7 +850,7 @@ void FacetHost::onPluginAdded(const QString& moduleId)
     // metadata still matches them and all of them are there.
     const std::optional<PhosphorRegistry::PluginMetadata> plugin = m_catalog->plugin(moduleId);
     const auto allPlaced = [this, &existing] {
-        for (const FacetPageMetadata& page : existing->metadata.pages) {
+        for (const ModulePageMetadata& page : existing->metadata.pages) {
             if (!m_controller->registry()->hasPage(pageId(existing->metadata.id, page.id))) {
                 return false;
             }
@@ -863,7 +865,7 @@ void FacetHost::onPluginAdded(const QString& moduleId)
     }
     if (plugin && plugin->metaData == existing->rawMetadata) {
         if (m_loadRecord->isDisabled(moduleId)) {
-            // Removing and reinstalling a module that crashed Facet does not
+            // Removing and reinstalling a module that crashed the app does not
             // turn it back on; only a retry does.
             disableAfterCrash(*existing);
         } else {
@@ -874,7 +876,7 @@ void FacetHost::onPluginAdded(const QString& moduleId)
     }
 }
 
-void FacetHost::onPluginRemoved(const QString& moduleId)
+void ModuleHost::onPluginRemoved(const QString& moduleId)
 {
     if (!m_controller) {
         return;
@@ -884,8 +886,8 @@ void FacetHost::onPluginRemoved(const QString& moduleId)
         return;
     }
     if (module->state == ModuleState::Loaded) {
-        qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId
-                                      << "was removed; it keeps running the code it loaded until Facet restarts";
+        qCInfo(lcModuleHost).noquote() << "ModuleHost: module" << moduleId
+                                       << "was removed; it keeps running the code it loaded until the app restarts";
         return;
     }
     if (moduleId == m_loadingModule) {
@@ -895,15 +897,15 @@ void FacetHost::onPluginRemoved(const QString& moduleId)
         // load that succeeds, which would then run with its extensions
         // inactive. A load that fails withdraws it then (loadModule's
         // failLoad), as this would have.
-        qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId
-                                      << "was removed while it loaded; the load goes on, and what it loads keeps "
-                                         "running until Facet restarts";
+        qCInfo(lcModuleHost).noquote() << "ModuleHost: module" << moduleId
+                                       << "was removed while it loaded; the load goes on, and what it loads keeps "
+                                          "running until the app restarts";
         return;
     }
     withdrawModule(*module);
 }
 
-void FacetHost::withdrawModule(Module& module)
+void ModuleHost::withdrawModule(Module& module)
 {
     // Its sections leave the pages they extend, and the extensions aimed at
     // its pages go quiet, as for a module that was never installed. Done
@@ -916,7 +918,7 @@ void FacetHost::withdrawModule(Module& module)
     transition(module, ModuleState::Failed, FileRemoved, false);
 }
 
-bool FacetHost::moduleSortsBefore(const Module& a, const Module& b) const
+bool ModuleHost::moduleSortsBefore(const Module& a, const Module& b) const
 {
     if (a.metadata.order != b.metadata.order) {
         return a.metadata.order < b.metadata.order;
@@ -928,7 +930,7 @@ bool FacetHost::moduleSortsBefore(const Module& a, const Module& b) const
     return a.metadata.id < b.metadata.id;
 }
 
-bool FacetHost::categorySortsBefore(const FacetCategoryMetadata& a, const FacetCategoryMetadata& b) const
+bool ModuleHost::categorySortsBefore(const ModuleCategoryMetadata& a, const ModuleCategoryMetadata& b) const
 {
     if (a.order != b.order) {
         return a.order < b.order;
@@ -940,8 +942,8 @@ bool FacetHost::categorySortsBefore(const FacetCategoryMetadata& a, const FacetC
     return a.id < b.id;
 }
 
-qsizetype FacetHost::siblingSlot(const QString& parentId,
-                                 const std::function<bool(const QString& siblingId)>& sortsAfter) const
+qsizetype ModuleHost::siblingSlot(const QString& parentId,
+                                  const std::function<bool(const QString& siblingId)>& sortsAfter) const
 {
     const QList<PageRegistry::Entry> siblings = m_controller->registry()->childPages(parentId);
     for (qsizetype i = 0; i < siblings.size(); ++i) {
@@ -952,12 +954,12 @@ qsizetype FacetHost::siblingSlot(const QString& parentId,
     return -1;
 }
 
-void FacetHost::ensureCategoryNode(const QString& categoryId)
+void ModuleHost::ensureCategoryNode(const QString& categoryId)
 {
     if (m_registeredCategoryNodes.contains(categoryId)) {
         return;
     }
-    const FacetCategoryMetadata category = m_categories.value(categoryId);
+    const ModuleCategoryMetadata category = m_categories.value(categoryId);
     // Among the top-level entries, before the first category that sorts
     // after this one. The host application's own top-level pages are not
     // categories and keep their place.
@@ -973,7 +975,7 @@ void FacetHost::ensureCategoryNode(const QString& categoryId)
     entry.title = category.name;
     entry.iconSource = category.icon;
     entry.isCollapsible = true;
-    auto placeholder = std::make_unique<FacetPlaceholderPage>(entry.id, this, QString(), QString(), nullptr);
+    auto placeholder = std::make_unique<ModuleHostPlaceholderPage>(entry.id, this, QString(), QString(), nullptr);
     entry.controller = placeholder.get();
     if (!m_controller->registry()->registerPage(std::move(entry), slot)) {
         return;
@@ -984,9 +986,9 @@ void FacetHost::ensureCategoryNode(const QString& categoryId)
     m_registeredCategoryNodes.insert(categoryId);
 }
 
-bool FacetHost::registerPlaceholder(const QString& id, const QString& parentId, const QString& title,
-                                    const QString& icon, const QUrl& qmlSource, bool isCollapsible,
-                                    const Module& module, const FacetPageMetadata* page, qsizetype pageSlot)
+bool ModuleHost::registerPlaceholder(const QString& id, const QString& parentId, const QString& title,
+                                     const QString& icon, const QUrl& qmlSource, bool isCollapsible,
+                                     const Module& module, const ModulePageMetadata* page, qsizetype pageSlot)
 {
     PageRegistry::Entry entry;
     entry.id = id;
@@ -994,7 +996,7 @@ bool FacetHost::registerPlaceholder(const QString& id, const QString& parentId, 
     entry.title = title;
     entry.iconSource = icon;
     entry.qmlSource = qmlSource;
-    // FacetModulePage, like the module page that replaces it, is created
+    // ModulePage, like the module page that replaces it, is created
     // with its context set (PageRegistry::Entry::passesContext).
     entry.passesContext = !qmlSource.isEmpty();
     entry.isCollapsible = isCollapsible;
@@ -1009,7 +1011,7 @@ bool FacetHost::registerPlaceholder(const QString& id, const QString& parentId, 
     }
     // Not tracked as a staging domain: it is never dirty.
     auto placeholder =
-        std::make_unique<FacetPlaceholderPage>(id, this, module.metadata.id, module.metadata.name, nullptr);
+        std::make_unique<ModuleHostPlaceholderPage>(id, this, module.metadata.id, module.metadata.name, nullptr);
     entry.controller = placeholder.get();
     qsizetype slot = pageSlot;
     if (!page) {
@@ -1032,7 +1034,7 @@ bool FacetHost::registerPlaceholder(const QString& id, const QString& parentId, 
     }
     // Parented to the ApplicationController, so it lives until the
     // controller is destroyed, and is not deleted when bindPage replaces it.
-    // The page built from it (FacetModulePage.qml) holds it as `controller`
+    // The page built from it (ModulePage.qml) holds it as `controller`
     // until PageHost's Loader has torn that page down, which nothing here can
     // observe, and QML that kept a reference has no way to be told it went.
     // One per placeholder registered, so what it keeps is bounded by the
@@ -1041,7 +1043,7 @@ bool FacetHost::registerPlaceholder(const QString& id, const QString& parentId, 
     return true;
 }
 
-void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
+void ModuleHost::placeModules(QList<std::shared_ptr<Module>> modules)
 {
     // Every page registered announces itself (pageRegistered), and a slot of
     // that can change the search query while a module has some of its pages
@@ -1058,9 +1060,9 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
     // The same for its pages: binding into a page id the host already uses
     // would take that page over.
     for (auto it = modules.begin(); it != modules.end();) {
-        const FacetModuleMetadata& metadata = (*it)->metadata;
+        const ModuleMetadata& metadata = (*it)->metadata;
         QString taken = registry->hasPage(metadata.id) ? metadata.id : QString();
-        for (const FacetPageMetadata& page : metadata.pages) {
+        for (const ModulePageMetadata& page : metadata.pages) {
             if (taken.isEmpty() && registry->hasPage(pageId(metadata.id, page.id))) {
                 taken = pageId(metadata.id, page.id);
             }
@@ -1091,8 +1093,8 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
         if (batch.contains(parent) || (target && target->nodeRegistered)) {
             module->nodeParent = parent;
         } else {
-            qCInfo(lcFacetHost).noquote() << "FacetHost: module" << module->metadata.id << "nests under" << parent
-                                          << "which is not available; it goes under its category";
+            qCInfo(lcModuleHost).noquote() << "ModuleHost: module" << module->metadata.id << "nests under" << parent
+                                           << "which is not available; it goes under its category";
         }
     }
     // Break nesting cycles, and only them. In each cycle, the member that
@@ -1121,8 +1123,8 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
                 Module* const breaker = *std::min_element(cycle.cbegin(), cycle.cend(), [&rank](auto* a, auto* b) {
                     return rank.value(a) < rank.value(b);
                 });
-                qCInfo(lcFacetHost).noquote() << "FacetHost: module" << breaker->metadata.id
-                                              << "is in a nesting cycle; it goes under its category";
+                qCInfo(lcModuleHost).noquote() << "ModuleHost: module" << breaker->metadata.id
+                                               << "is in a nesting cycle; it goes under its category";
                 breaker->nodeParent.clear();
             }
             for (Module* visited : std::as_const(path)) {
@@ -1146,8 +1148,9 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
         if (module->nodeParent.isEmpty()) {
             QString category = module->metadata.category.isEmpty() ? DefaultCategory : module->metadata.category;
             if (!m_categories.contains(category)) {
-                qCInfo(lcFacetHost).noquote() << "FacetHost: module" << module->metadata.id << "names unknown category"
-                                              << category << "- it goes under" << DefaultCategory;
+                qCInfo(lcModuleHost).noquote()
+                    << "ModuleHost: module" << module->metadata.id << "names unknown category" << category
+                    << "- it goes under" << DefaultCategory;
                 category = DefaultCategory;
             }
             module->category = category;
@@ -1157,14 +1160,14 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
         // category, or under another module's page. Its local descendants
         // go with it. The rest are registered under the module node.
         QSet<QString>& foreign = foreignPages[module.get()];
-        const QList<FacetPageMetadata>& pages = module->metadata.pages;
+        const QList<ModulePageMetadata>& pages = module->metadata.pages;
         for (qsizetype i = 0; i < pages.size(); ++i) {
-            const FacetPageMetadata& page = pages.at(i);
+            const ModulePageMetadata& page = pages.at(i);
             const bool crossModule = page.parent.contains(QLatin1Char(':'));
             bool inCategory = !page.category.isEmpty();
             if (inCategory && !m_categories.contains(page.category)) {
-                qCInfo(lcFacetHost).noquote()
-                    << "FacetHost: page" << pageId(module->metadata.id, page.id) << "names unknown category"
+                qCInfo(lcModuleHost).noquote()
+                    << "ModuleHost: page" << pageId(module->metadata.id, page.id) << "names unknown category"
                     << page.category << "- it stays under its module";
                 inCategory = false;
             }
@@ -1179,14 +1182,14 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
             }
         }
     }
-    QList<FacetCategoryMetadata> categories;
+    QList<ModuleCategoryMetadata> categories;
     for (const QString& id : std::as_const(usedCategories)) {
         categories.append(m_categories.value(id));
     }
     std::sort(categories.begin(), categories.end(), [this](const auto& a, const auto& b) {
         return categorySortsBefore(a, b);
     });
-    for (const FacetCategoryMetadata& category : std::as_const(categories)) {
+    for (const ModuleCategoryMetadata& category : std::as_const(categories)) {
         ensureCategoryNode(category.id);
     }
 
@@ -1214,7 +1217,7 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
         }
         module.nodeRegistered = true;
         const QSet<QString>& foreign = foreignPages.value(&module);
-        for (const FacetPageMetadata& page : std::as_const(module.metadata.pages)) {
+        for (const ModulePageMetadata& page : std::as_const(module.metadata.pages)) {
             if (foreign.contains(page.id)) {
                 continue;
             }
@@ -1257,7 +1260,7 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
         QHash<QString, qsizetype> holder;
         for (qsizetype i = 0; i < waiting.size(); ++i) {
             const ForeignRoot& root = waiting.at(i);
-            const QList<FacetPageMetadata>& pages = root.module->metadata.pages;
+            const QList<ModulePageMetadata>& pages = root.module->metadata.pages;
             QSet<QString> subtree{pages.at(root.pageIndex).id};
             holder.insert(pageId(root.module->metadata.id, pages.at(root.pageIndex).id), i);
             for (qsizetype p = root.pageIndex + 1; p < pages.size() && subtree.contains(pages.at(p).parent); ++p) {
@@ -1282,8 +1285,8 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
     };
     const auto placeForeign = [&](const ForeignRoot& root, const QString& parent) {
         Module& module = *root.module;
-        const QList<FacetPageMetadata>& pages = module.metadata.pages;
-        const FacetPageMetadata& rootPage = pages.at(root.pageIndex);
+        const QList<ModulePageMetadata>& pages = module.metadata.pages;
+        const ModulePageMetadata& rootPage = pages.at(root.pageIndex);
         // A page that falls back under its own module goes after the
         // module's other pages and before the modules nested under it, like
         // the module's own pages.
@@ -1299,7 +1302,7 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
             // one. Everything else there comes first: module nodes, the
             // target page's own child pages, the application's pages. A start
             // places these pages in module order, each after those already
-            // there, so this puts a page of a module that arrives while Facet
+            // there, so this puts a page of a module that arrives while the app
             // runs where a restart would.
             const QString parentOwner = owningModule(parent);
             slot = siblingSlot(parent, [this, &module, &parentOwner](const QString& siblingId) {
@@ -1317,7 +1320,7 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
         // The root's local descendants follow it in the pre-ordered list.
         QSet<QString> subtree{rootPage.id};
         for (qsizetype i = root.pageIndex + 1; i < pages.size(); ++i) {
-            const FacetPageMetadata& page = pages.at(i);
+            const ModulePageMetadata& page = pages.at(i);
             if (!subtree.contains(page.parent)) {
                 break;
             }
@@ -1340,7 +1343,7 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
     while (!pending.isEmpty()) {
         QList<ForeignRoot> waiting;
         for (const ForeignRoot& root : std::as_const(pending)) {
-            const FacetPageMetadata& page = root.module->metadata.pages.at(root.pageIndex);
+            const ModulePageMetadata& page = root.module->metadata.pages.at(root.pageIndex);
             const QString scoped = pageId(root.module->metadata.id, page.id);
             if (page.parent.isEmpty()) {
                 placeForeign(root, categoryNodeId(page.category));
@@ -1362,8 +1365,8 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
                 waiting.append(root);
                 continue;
             }
-            qCInfo(lcFacetHost).noquote() << "FacetHost: page" << scoped << "goes under" << page.parent
-                                          << "which is not available; it stays under its module";
+            qCInfo(lcModuleHost).noquote() << "ModuleHost: page" << scoped << "goes under" << page.parent
+                                           << "which is not available; it stays under its module";
             placeForeign(root, root.module->metadata.id);
         }
         if (waiting.size() == pending.size()) {
@@ -1375,9 +1378,9 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
             // targets.
             const qsizetype breaker = cycleBreaker(waiting);
             const ForeignRoot root = waiting.takeAt(breaker);
-            const FacetPageMetadata& page = root.module->metadata.pages.at(root.pageIndex);
-            qCInfo(lcFacetHost).noquote()
-                << "FacetHost: page" << pageId(root.module->metadata.id, page.id) << "goes under" << page.parent
+            const ModulePageMetadata& page = root.module->metadata.pages.at(root.pageIndex);
+            qCInfo(lcModuleHost).noquote()
+                << "ModuleHost: page" << pageId(root.module->metadata.id, page.id) << "goes under" << page.parent
                 << "in a cycle of pages placed under each other; it stays under its module";
             placeForeign(root, root.module->metadata.id);
         }
@@ -1385,7 +1388,7 @@ void FacetHost::placeModules(QList<std::shared_ptr<Module>> modules)
     }
 }
 
-void FacetHost::validateCounterpartsOf(const QList<std::shared_ptr<Module>>& modules) const
+void ModuleHost::validateCounterpartsOf(const QList<std::shared_ptr<Module>>& modules) const
 {
     QSet<QString> placed;
     for (const std::shared_ptr<Module>& module : modules) {
@@ -1400,7 +1403,7 @@ void FacetHost::validateCounterpartsOf(const QList<std::shared_ptr<Module>>& mod
     // sidebar that names one of theirs: an application that checks its own
     // pages (PageRegistry::validateCounterparts) before start() cannot have
     // seen such a counterpart resolve. The rest are left alone, so a module
-    // that arrives while Facet runs does not warn about the application's
+    // that arrives while the app runs does not warn about the application's
     // pages again.
     PageRegistry* const registry = m_controller->registry();
     QStringList ids;
@@ -1413,7 +1416,7 @@ void FacetHost::validateCounterpartsOf(const QList<std::shared_ptr<Module>>& mod
     registry->validateCounterparts(ids);
 }
 
-QString FacetHost::owningModule(const QString& pageId) const
+QString ModuleHost::owningModule(const QString& pageId) const
 {
     if (pageId.startsWith(CategoryPrefix)) {
         return QString();
@@ -1433,7 +1436,7 @@ QString FacetHost::owningModule(const QString& pageId) const
     return candidate;
 }
 
-bool FacetHost::navigatedElsewhere(const QString& landing, quint64 navigations, const QString& pageId) const
+bool ModuleHost::navigatedElsewhere(const QString& landing, quint64 navigations, const QString& pageId) const
 {
     // Away and back to the page being left still counts: the controller drops
     // the outer navigation either way.
@@ -1441,7 +1444,7 @@ bool FacetHost::navigatedElsewhere(const QString& landing, quint64 navigations, 
     return now != pageId && (now != landing || m_navigations != navigations);
 }
 
-void FacetHost::onNavigation(const QString& pageId)
+void ModuleHost::onNavigation(const QString& pageId)
 {
     // The hook runs before the controller moves, so the current page is still
     // the one being left. A slot reacting to a load that navigates elsewhere
@@ -1464,7 +1467,7 @@ void FacetHost::onNavigation(const QString& pageId)
     openPage(pageId, landing, navigations);
 }
 
-void FacetHost::openPage(const QString& pageId, const QString& landing, quint64 navigations)
+void ModuleHost::openPage(const QString& pageId, const QString& landing, quint64 navigations)
 {
     // Loads below finish their own pages through this navigation, not on
     // their own (showSectionsOn).
@@ -1480,8 +1483,8 @@ void FacetHost::openPage(const QString& pageId, const QString& landing, quint64 
         QString error;
         if (!loadModule(owner, &error)) {
             // The placeholder page says why and offers a retry.
-            qCWarning(lcFacetHost).noquote()
-                << "FacetHost: opening" << pageId << "could not load module" << owner << "-" << error;
+            qCWarning(lcModuleHost).noquote()
+                << "ModuleHost: opening" << pageId << "could not load module" << owner << "-" << error;
         }
         if (navigatedElsewhere(landing, navigations, pageId)) {
             return;
@@ -1490,7 +1493,7 @@ void FacetHost::openPage(const QString& pageId, const QString& landing, quint64 
     loadExtenders(pageId, landing, navigations);
 }
 
-void FacetHost::loadOwedNavigation()
+void ModuleHost::loadOwedNavigation()
 {
     // A placing nested in another (a slot that rescanned) leaves the debt to
     // the outer one, whose pages are not all in the sidebar yet.
@@ -1508,7 +1511,7 @@ void FacetHost::loadOwedNavigation()
     openPage(shown, shown, m_navigations);
 }
 
-void FacetHost::loadExtenders(const QString& pageId, const QString& landing, quint64 navigations)
+void ModuleHost::loadExtenders(const QString& pageId, const QString& landing, quint64 navigations)
 {
     // The sections they would add are shown by whoever answers
     // extensionsFor, and that is not this host, so their code would run for
@@ -1551,8 +1554,8 @@ void FacetHost::loadExtenders(const QString& pageId, const QString& landing, qui
         }
         QString error;
         if (!loadModule(moduleId, &error)) {
-            qCWarning(lcFacetHost).noquote()
-                << "FacetHost: opening" << pageId << "could not load module" << moduleId << "-" << error;
+            qCWarning(lcModuleHost).noquote()
+                << "ModuleHost: opening" << pageId << "could not load module" << moduleId << "-" << error;
         }
         if (navigatedElsewhere(landing, navigations, pageId)) {
             return;
@@ -1560,7 +1563,7 @@ void FacetHost::loadExtenders(const QString& pageId, const QString& landing, qui
     }
 }
 
-void FacetHost::loadOwedExtenders()
+void ModuleHost::loadOwedExtenders()
 {
     // Every load comes through here once its outcome is settled, whatever
     // started it, and so does every module once it has taken its place
@@ -1569,7 +1572,7 @@ void FacetHost::loadOwedExtenders()
     // on screen now gets what extends it, as opening it would have given
     // it. A page whose own module was refused gets nothing: loadExtenders
     // skips it, and its placeholder offers to load the module
-    // (FacetPlaceholderPage::canRetry). The loads made here come through
+    // (ModuleHostPlaceholderPage::canRetry). The loads made here come through
     // here in turn, so a page one of their slots opens is paid the same way.
     if (!m_extendersOwed || !m_controller) {
         return;
@@ -1579,9 +1582,9 @@ void FacetHost::loadOwedExtenders()
     loadExtenders(shown, shown, m_navigations);
 }
 
-void FacetHost::showSectionsOn(const Module& owner)
+void ModuleHost::showSectionsOn(const Module& owner)
 {
-    // Every step below is about sections a FacetSlot shows, and no FacetSlot
+    // Every step below is about sections a ExtensionSlot shows, and no ExtensionSlot
     // shows this host's.
     if (!m_holdsExtensionProvider) {
         return;
@@ -1622,7 +1625,7 @@ void FacetHost::showSectionsOn(const Module& owner)
     }
 }
 
-bool FacetHost::canLoadNow(const QString& moduleId, QString* errorString) const
+bool ModuleHost::canLoadNow(const QString& moduleId, QString* errorString) const
 {
     const auto fail = [errorString](const QString& message) {
         if (errorString) {
@@ -1655,7 +1658,7 @@ bool FacetHost::canLoadNow(const QString& moduleId, QString* errorString) const
     return true;
 }
 
-bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
+bool ModuleHost::loadModule(const QString& moduleId, QString* errorString)
 {
     const auto fail = [errorString](const QString& message) {
         if (errorString) {
@@ -1723,8 +1726,8 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
             // The module fails for its removal, so a load that failed for
             // another reason says that reason here, or it would go unheard.
             if (reason != FileRemoved) {
-                qCInfo(lcFacetHost).noquote() << "FacetHost: module" << moduleId
-                                              << "was removed while it loaded, and its load failed too:" << reason;
+                qCInfo(lcModuleHost).noquote() << "ModuleHost: module" << moduleId
+                                               << "was removed while it loaded, and its load failed too:" << reason;
             }
             withdrawModule(*module);
         } else {
@@ -1746,9 +1749,9 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
         // hands out the same deleted object.
         return failLoad(loadError, !m_catalog->isLoaded(moduleId));
     }
-    auto* const facetModule = qobject_cast<IFacetModule*>(root);
-    if (!facetModule) {
-        return failLoad(QStringLiteral("its root object does not implement IFacetModule"), false);
+    auto* const controlModule = qobject_cast<IControlModule*>(root);
+    if (!controlModule) {
+        return failLoad(QStringLiteral("its root object does not implement IControlModule"), false);
     }
     // The placeholders were built from the metadata read at start(). Code
     // loaded from a file that changed since then expects other pages, and
@@ -1760,18 +1763,18 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
         return failLoad(offered ? MetadataChanged : FileRemoved, false);
     }
 
-    FacetContext context(this, module->metadata);
-    facetModule->registerInto(context);
+    ModuleContext context(this, module->metadata);
+    controlModule->registerInto(context);
 
     // Check the whole registration before anything takes effect. The load
     // record still names the module, for the search providers asked below.
     QStringList errors = context.m_errors;
-    for (const FacetPageMetadata& page : std::as_const(module->metadata.pages)) {
+    for (const ModulePageMetadata& page : std::as_const(module->metadata.pages)) {
         if (!context.m_registeredPages.contains(page.id)) {
             errors.append(QStringLiteral("did not register page %1").arg(page.id));
         }
     }
-    for (const FacetExtensionMetadata& extension : std::as_const(module->metadata.extensions)) {
+    for (const ModuleExtensionMetadata& extension : std::as_const(module->metadata.extensions)) {
         if (!context.m_registeredExtensions.contains(extension.id)) {
             errors.append(QStringLiteral("did not register extension %1").arg(extension.id));
         }
@@ -1796,7 +1799,7 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
             errors.append(QStringLiteral("registered a domain the application already tracks"));
         }
     }
-    for (const FacetContext::SearchProviderRegistration& provider : std::as_const(context.m_searchProviders)) {
+    for (const ModuleContext::SearchProviderRegistration& provider : std::as_const(context.m_searchProviders)) {
         if (provider.isObject && !provider.object) {
             errors.append(QStringLiteral("a search provider was deleted during registration"));
         }
@@ -1824,7 +1827,7 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
     // Its later answers are not covered. Without a search controller nothing
     // ever asks.
     if (m_search) {
-        for (const FacetContext::SearchProviderRegistration& provider : std::as_const(context.m_searchProviders)) {
+        for (const ModuleContext::SearchProviderRegistration& provider : std::as_const(context.m_searchProviders)) {
             // One asked before it can delete another.
             if (!provider.isObject || provider.object) {
                 provider.provider->searchEntries();
@@ -1876,8 +1879,8 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
         if (!page.controller) {
             // Deleted by module code that ran after the checks. The page
             // keeps its placeholder.
-            qCWarning(lcFacetHost).noquote()
-                << "FacetHost: module" << moduleId << "deleted the controller of page" << scoped << "while it loaded";
+            qCWarning(lcModuleHost).noquote()
+                << "ModuleHost: module" << moduleId << "deleted the controller of page" << scoped << "while it loaded";
             continue;
         }
         if (m_controller->bindPage(scoped, page.controller.data(), page.qmlSource)) {
@@ -1887,15 +1890,15 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
             // canLoadNow's thread check, which cover every other reason the
             // registry refuses a bind. Say so loudly if it ever is, since
             // what was bound before it stays bound.
-            qCCritical(lcFacetHost).noquote() << "FacetHost: module" << moduleId << "page" << scoped
-                                              << "passed every check and was still refused by the registry";
+            qCCritical(lcModuleHost).noquote() << "ModuleHost: module" << moduleId << "page" << scoped
+                                               << "passed every check and was still refused by the registry";
         }
     }
     // Asked from now on (ModuleSearch), once the transition below has had the
     // index rebuilt.
     module->searchProviders = context.m_searchProviders;
     // Its sections shown on pages whose module is loaded join them: Apply,
-    // dirty mark and reset. transition() then tells those pages' FacetSlots.
+    // dirty mark and reset. transition() then tells those pages' ExtensionSlots.
     attachExtensions(*module);
     m_loadingModule.clear();
     transition(*module, ModuleState::Loaded, QString());
@@ -1904,11 +1907,11 @@ bool FacetHost::loadModule(const QString& moduleId, QString* errorString)
     if (m_searchProvidersOwed) {
         loadOwedSearchProviders();
     }
-    qCInfo(lcFacetHost).noquote() << "FacetHost: loaded module" << moduleId;
+    qCInfo(lcModuleHost).noquote() << "ModuleHost: loaded module" << moduleId;
     return true;
 }
 
-bool FacetHost::retryModule(const QString& moduleId, QString* errorString)
+bool ModuleHost::retryModule(const QString& moduleId, QString* errorString)
 {
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     if (!module) {
@@ -1929,15 +1932,15 @@ bool FacetHost::retryModule(const QString& moduleId, QString* errorString)
     // for it, and the module is on screen. Only the next start may disable
     // it again, unless a later write of the record succeeds.
     if (module->state == ModuleState::DisabledAfterCrash && !m_loadRecord->enable(moduleId)) {
-        qCWarning(lcFacetHost).noquote() << "FacetHost: module" << moduleId
-                                         << "is retried, but the load record could not be written, so the next start "
-                                            "may disable it again";
+        qCWarning(lcModuleHost).noquote() << "ModuleHost: module" << moduleId
+                                          << "is retried, but the load record could not be written, so the next start "
+                                             "may disable it again";
     }
     transition(*module, ModuleState::Available, QString());
     return loadModule(moduleId, errorString);
 }
 
-bool FacetHost::canRetry(const QString& moduleId) const
+bool ModuleHost::canRetry(const QString& moduleId) const
 {
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     if (!module) {
@@ -1957,7 +1960,7 @@ bool FacetHost::canRetry(const QString& moduleId) const
     return false;
 }
 
-void FacetHost::transition(Module& module, ModuleState state, const QString& reason, bool retryable)
+void ModuleHost::transition(Module& module, ModuleState state, const QString& reason, bool retryable)
 {
     if (module.state == state && module.reason == reason && module.retryable == retryable) {
         return;
@@ -1967,7 +1970,7 @@ void FacetHost::transition(Module& module, ModuleState state, const QString& rea
     module.retryable = retryable;
     const quint64 transitions = ++module.transitions;
     if (state == ModuleState::Failed) {
-        qCWarning(lcFacetHost).noquote() << "FacetHost: module" << module.metadata.id << "failed:" << reason;
+        qCWarning(lcModuleHost).noquote() << "ModuleHost: module" << module.metadata.id << "failed:" << reason;
     }
     // What search lists for a module follows its state (ModuleSearch): its
     // providers once loaded, nothing on its pages once failed. Rebuilt
@@ -1995,9 +1998,9 @@ void FacetHost::transition(Module& module, ModuleState state, const QString& rea
     notifyExtendedPages(module.metadata.id);
 }
 
-void FacetHost::attachExtensions(Module& module)
+void ModuleHost::attachExtensions(Module& module)
 {
-    // No FacetSlot shows this host's sections, so none joins Apply or its
+    // No ExtensionSlot shows this host's sections, so none joins Apply or its
     // page's dirty mark: a section that is never shown must not leave the
     // application dirty with nothing on screen to clean it from.
     if (!m_holdsExtensionProvider) {
@@ -2033,9 +2036,9 @@ void FacetHost::attachExtensions(Module& module)
     }
 }
 
-void FacetHost::notifyExtendedPages(const QString& moduleId)
+void ModuleHost::notifyExtendedPages(const QString& moduleId)
 {
-    // The FacetSlots read another component's provider, which this host's
+    // The ExtensionSlots read another component's provider, which this host's
     // modules do not change.
     if (!m_controller || !m_holdsExtensionProvider) {
         return;
@@ -2055,7 +2058,7 @@ void FacetHost::notifyExtendedPages(const QString& moduleId)
     }
 }
 
-void FacetHost::indexModule(const Module& module)
+void ModuleHost::indexModule(const Module& module)
 {
     // A module that was never placed may share a page id with a page of the
     // host application's, whose keywords are not this module's to set.
@@ -2072,7 +2075,7 @@ void FacetHost::indexModule(const Module& module)
     if (!module.metadata.name.isEmpty()) {
         moduleWords.append(module.metadata.name);
     }
-    for (const FacetPageMetadata& page : module.metadata.pages) {
+    for (const ModulePageMetadata& page : module.metadata.pages) {
         const QString scoped = pageId(module.metadata.id, page.id);
         if (registry->hasPage(scoped)) {
             m_search->setPageKeywords(scoped, page.keywords + moduleWords);
@@ -2080,7 +2083,7 @@ void FacetHost::indexModule(const Module& module)
     }
 }
 
-void FacetHost::invalidateSearch()
+void ModuleHost::invalidateSearch()
 {
     if (!m_search) {
         return;
@@ -2092,7 +2095,7 @@ void FacetHost::invalidateSearch()
     m_search->invalidate();
 }
 
-void FacetHost::loadOwedSearchProviders()
+void ModuleHost::loadOwedSearchProviders()
 {
     if (!m_search || !m_controller || m_search->query().trimmed().isEmpty()) {
         return;
@@ -2133,14 +2136,14 @@ void FacetHost::loadOwedSearchProviders()
         for (const QString& moduleId : std::as_const(owed)) {
             QString error;
             if (!loadModule(moduleId, &error)) {
-                qCWarning(lcFacetHost).noquote()
-                    << "FacetHost: module" << moduleId << "has search providers but did not load -" << error;
+                qCWarning(lcModuleHost).noquote()
+                    << "ModuleHost: module" << moduleId << "has search providers but did not load -" << error;
             }
         }
     } while (m_searchProvidersOwed && m_controller && m_search);
 }
 
-void FacetHost::resolveExtensions()
+void ModuleHost::resolveExtensions()
 {
     m_extensionsByPage.clear();
     m_refusedExtensions.clear();
@@ -2149,7 +2152,7 @@ void FacetHost::resolveExtensions()
         if (!module.nodeRegistered || !module.installed) {
             continue; // invalid metadata, not placed or removed: nothing of it is shown
         }
-        for (const FacetExtensionMetadata& extension : module.metadata.extensions) {
+        for (const ModuleExtensionMetadata& extension : module.metadata.extensions) {
             const QString scoped = pageId(module.metadata.id, extension.id);
             const QString targetModuleId = extension.target.section(QLatin1Char(':'), 0, 0);
             const QString targetLocalPage = extension.target.section(QLatin1Char(':'), 1);
@@ -2210,12 +2213,13 @@ void FacetHost::resolveExtensions()
         const auto warned = m_warnedExtensions.constFind(refused.id);
         if (warned == m_warnedExtensions.cend() || *warned != refused.reason) {
             m_warnedExtensions.insert(refused.id, refused.reason);
-            qCWarning(lcFacetHost).noquote() << "FacetHost: skipping extension" << refused.id << "-" << refused.reason;
+            qCWarning(lcModuleHost).noquote()
+                << "ModuleHost: skipping extension" << refused.id << "-" << refused.reason;
         }
     }
 }
 
-QHash<QString, QStringList> FacetHost::extensionIdsByPage() const
+QHash<QString, QStringList> ModuleHost::extensionIdsByPage() const
 {
     QHash<QString, QStringList> ids;
     for (auto it = m_extensionsByPage.cbegin(); it != m_extensionsByPage.cend(); ++it) {
@@ -2224,7 +2228,7 @@ QHash<QString, QStringList> FacetHost::extensionIdsByPage() const
     return ids;
 }
 
-void FacetHost::updateExtensions()
+void ModuleHost::updateExtensions()
 {
     if (!m_controller) {
         return;
@@ -2246,7 +2250,7 @@ void FacetHost::updateExtensions()
                        [](const RefusedExtension& a, const RefusedExtension& b) {
                            return a.id == b.id && a.reason == b.reason;
                        });
-    // Only the pages whose sections changed: a FacetSlot rebuilds what it
+    // Only the pages whose sections changed: a ExtensionSlot rebuilds what it
     // shows on every notice.
     QSet<QString> pages(QSet<QString>(before.keyBegin(), before.keyEnd()));
     pages.unite(QSet<QString>(after.keyBegin(), after.keyEnd()));
@@ -2259,7 +2263,7 @@ void FacetHost::updateExtensions()
     std::sort(changed.begin(), changed.end());
     // ModuleSearch lists the active extensions as sections, so a live query
     // shows the change before the pages are told. Neither happens for a host
-    // whose sections no FacetSlot shows (m_holdsExtensionProvider).
+    // whose sections no ExtensionSlot shows (m_holdsExtensionProvider).
     if (!m_holdsExtensionProvider) {
         changed.clear();
     }
@@ -2280,9 +2284,9 @@ void FacetHost::updateExtensions()
     }
 }
 
-QString FacetHost::firstPlacedPage(const Module& module) const
+QString ModuleHost::firstPlacedPage(const Module& module) const
 {
-    for (const FacetPageMetadata& page : module.metadata.pages) {
+    for (const ModulePageMetadata& page : module.metadata.pages) {
         const QString scoped = pageId(module.metadata.id, page.id);
         if (m_controller->registry()->hasPage(scoped)) {
             return scoped;
@@ -2291,7 +2295,7 @@ QString FacetHost::firstPlacedPage(const Module& module) const
     return QString();
 }
 
-QVariantList FacetHost::extensionsFor(const QString& pageId, const QString& slot) const
+QVariantList ModuleHost::extensionsFor(const QString& pageId, const QString& slot) const
 {
     QVariantList list;
     // A page whose own module is not loaded shows its placeholder instead of
@@ -2323,62 +2327,62 @@ QVariantList FacetHost::extensionsFor(const QString& pageId, const QString& slot
                 continue;
             }
             if (!registered->domain) {
-                entry.insert(FacetExtensionEntry::Error, QStringLiteral("the section's staging domain was deleted"));
+                entry.insert(ModuleExtensionEntry::Error, QStringLiteral("the section's staging domain was deleted"));
                 break;
             }
-            entry.insert(FacetExtensionEntry::QmlSource, registered->qmlSource);
-            entry.insert(FacetExtensionEntry::Domain, QVariant::fromValue<QObject*>(registered->domain.data()));
+            entry.insert(ModuleExtensionEntry::QmlSource, registered->qmlSource);
+            entry.insert(ModuleExtensionEntry::Domain, QVariant::fromValue<QObject*>(registered->domain.data()));
             break;
         }
         case ModuleState::DisabledAfterCrash:
-            entry.insert(FacetExtensionEntry::ModuleFailed, true);
-            entry.insert(FacetExtensionEntry::DisabledAfterCrash, true);
-            entry.insert(FacetExtensionEntry::Error, module->reason);
+            entry.insert(ModuleExtensionEntry::ModuleFailed, true);
+            entry.insert(ModuleExtensionEntry::DisabledAfterCrash, true);
+            entry.insert(ModuleExtensionEntry::Error, module->reason);
             break;
         case ModuleState::Failed:
-            entry.insert(FacetExtensionEntry::ModuleFailed, true);
-            entry.insert(FacetExtensionEntry::Error, module->reason);
+            entry.insert(ModuleExtensionEntry::ModuleFailed, true);
+            entry.insert(ModuleExtensionEntry::Error, module->reason);
             break;
         }
-        entry.insert(FacetExtensionEntry::Id, FacetHost::pageId(extension.moduleId, extension.localId));
-        entry.insert(FacetExtensionEntry::ModuleId, extension.moduleId);
-        entry.insert(FacetExtensionEntry::ModuleName, module->metadata.name);
-        entry.insert(FacetExtensionEntry::Name, extension.name);
-        entry.insert(FacetExtensionEntry::ModulePageId, firstPlacedPage(*module));
+        entry.insert(ModuleExtensionEntry::Id, ModuleHost::pageId(extension.moduleId, extension.localId));
+        entry.insert(ModuleExtensionEntry::ModuleId, extension.moduleId);
+        entry.insert(ModuleExtensionEntry::ModuleName, module->metadata.name);
+        entry.insert(ModuleExtensionEntry::Name, extension.name);
+        entry.insert(ModuleExtensionEntry::ModulePageId, firstPlacedPage(*module));
         list.append(entry);
     }
     return list;
 }
 
-QList<FacetHost::RefusedExtension> FacetHost::refusedExtensions() const
+QList<ModuleHost::RefusedExtension> ModuleHost::refusedExtensions() const
 {
     return m_refusedExtensions;
 }
 
-QStringList FacetHost::extensionsOn(const QString& pageId) const
+QStringList ModuleHost::extensionsOn(const QString& pageId) const
 {
     QStringList ids;
     const QList<ActiveExtension> extensions = m_extensionsByPage.value(pageId);
     for (const ActiveExtension& extension : extensions) {
-        ids.append(FacetHost::pageId(extension.moduleId, extension.localId));
+        ids.append(ModuleHost::pageId(extension.moduleId, extension.localId));
     }
     return ids;
 }
 
-void FacetHost::disableAfterCrash(Module& module)
+void ModuleHost::disableAfterCrash(Module& module)
 {
     transition(module, ModuleState::DisabledAfterCrash,
-               QStringLiteral("it was loading when Facet last stopped unexpectedly"));
+               QStringLiteral("it was loading when the app last stopped unexpectedly"));
 }
 
-QStringList FacetHost::moduleIds() const
+QStringList ModuleHost::moduleIds() const
 {
     QStringList ids = m_modules.keys();
     std::sort(ids.begin(), ids.end());
     return ids;
 }
 
-std::optional<FacetHost::ModuleState> FacetHost::state(const QString& moduleId) const
+std::optional<ModuleHost::ModuleState> ModuleHost::state(const QString& moduleId) const
 {
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     if (!module) {
@@ -2387,13 +2391,13 @@ std::optional<FacetHost::ModuleState> FacetHost::state(const QString& moduleId) 
     return module->state;
 }
 
-QString FacetHost::stateReason(const QString& moduleId) const
+QString ModuleHost::stateReason(const QString& moduleId) const
 {
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     return module ? module->reason : QStringLiteral("no module %1").arg(moduleId);
 }
 
-std::optional<FacetModuleMetadata> FacetHost::metadata(const QString& moduleId) const
+std::optional<ModuleMetadata> ModuleHost::metadata(const QString& moduleId) const
 {
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     if (!module) {
@@ -2402,12 +2406,12 @@ std::optional<FacetModuleMetadata> FacetHost::metadata(const QString& moduleId) 
     return module->metadata;
 }
 
-QList<PhosphorRegistry::RefusedPlugin> FacetHost::refusedModules() const
+QList<PhosphorRegistry::RefusedPlugin> ModuleHost::refusedModules() const
 {
     return m_catalog->refused();
 }
 
-QList<StagingDomain*> FacetHost::moduleDomains(const QString& moduleId) const
+QList<StagingDomain*> ModuleHost::moduleDomains(const QString& moduleId) const
 {
     QList<StagingDomain*> domains;
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
@@ -2419,14 +2423,14 @@ QList<StagingDomain*> FacetHost::moduleDomains(const QString& moduleId) const
     return domains;
 }
 
-QList<FacetHost::ModuleExtension> FacetHost::moduleExtensions(const QString& moduleId) const
+QList<ModuleHost::ModuleExtension> ModuleHost::moduleExtensions(const QString& moduleId) const
 {
     QList<ModuleExtension> extensions;
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     if (!module) {
         return extensions;
     }
-    for (const FacetExtensionMetadata& declared : module->metadata.extensions) {
+    for (const ModuleExtensionMetadata& declared : module->metadata.extensions) {
         const auto registered = module->extensions.constFind(declared.id);
         if (registered != module->extensions.cend()) {
             extensions.append(ModuleExtension{declared.id, registered->qmlSource, registered->domain.data()});
@@ -2436,8 +2440,8 @@ QList<FacetHost::ModuleExtension> FacetHost::moduleExtensions(const QString& mod
 }
 
 PhosphorConfig::IBackend*
-FacetHost::sharedConfigBackend(const QString& path,
-                               const std::function<std::unique_ptr<PhosphorConfig::IBackend>(const QString&)>& create)
+ModuleHost::sharedConfigBackend(const QString& path,
+                                const std::function<std::unique_ptr<PhosphorConfig::IBackend>(const QString&)>& create)
 {
     // The backends went with the ApplicationController.
     if (!m_configBackends) {
@@ -2446,10 +2450,10 @@ FacetHost::sharedConfigBackend(const QString& path,
     return m_configBackends->shared(path, create);
 }
 
-PhosphorConfig::IBackend* FacetHost::configBackend(const QString& path) const
+PhosphorConfig::IBackend* ModuleHost::configBackend(const QString& path) const
 {
     // No backends once the ApplicationController is gone. And no module can
-    // have opened a relative path (FacetContext::configBackend refuses one),
+    // have opened a relative path (ModuleContext::configBackend refuses one),
     // while resolving it against the working directory could name a file
     // one did open.
     if (!m_configBackends || !QDir::isAbsolutePath(path)) {
@@ -2458,12 +2462,12 @@ PhosphorConfig::IBackend* FacetHost::configBackend(const QString& path) const
     return m_configBackends->find(path);
 }
 
-QList<ISearchProvider*> FacetHost::searchProviders(const QString& moduleId) const
+QList<ISearchProvider*> ModuleHost::searchProviders(const QString& moduleId) const
 {
     QList<ISearchProvider*> providers;
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     if (module) {
-        for (const FacetContext::SearchProviderRegistration& provider : module->searchProviders) {
+        for (const ModuleContext::SearchProviderRegistration& provider : module->searchProviders) {
             if (!provider.isObject || provider.object) {
                 providers.append(provider.provider);
             }
@@ -2472,7 +2476,7 @@ QList<ISearchProvider*> FacetHost::searchProviders(const QString& moduleId) cons
     return providers;
 }
 
-QStringList FacetHost::boundPages(const QString& moduleId) const
+QStringList ModuleHost::boundPages(const QString& moduleId) const
 {
     const std::shared_ptr<Module> module = m_modules.value(moduleId);
     return module ? module->boundPages : QStringList();
@@ -2480,4 +2484,4 @@ QStringList FacetHost::boundPages(const QString& moduleId) const
 
 } // namespace PhosphorControl
 
-#include "facethost.moc"
+#include "modulehost.moc"

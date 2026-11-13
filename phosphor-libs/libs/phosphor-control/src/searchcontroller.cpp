@@ -204,7 +204,7 @@ QVector<SearchEntry> SearchController::buildIndex()
     // Tree order, the order the sidebar draws: the ranker breaks score ties
     // by index position and then truncates, so equal-scoring pages list and
     // drop in this order. Registration order would diverge from the rail
-    // whenever a host registers out of tree order (FacetHost places a module
+    // whenever a host registers out of tree order (ModuleHost places a module
     // after the modules it depends on). Pointers into the registry, so no
     // Entry is copied: both walks below only READ, and neither mutates the
     // registry while the pointers are live.

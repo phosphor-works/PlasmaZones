@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
-// The config backends FacetHost shares among its modules
-// (FacetContext::configBackend). Private to the library.
+// The config backends ModuleHost shares among its modules
+// (ModuleContext::configBackend). Private to the library.
 
 #include <QHash>
 #include <QObject>
@@ -30,15 +30,15 @@ namespace PhosphorControl {
 /// checks it before every use.
 ///
 /// GUI thread only, like the host.
-class FacetConfigBackends final : public QObject
+class ModuleConfigBackends final : public QObject
 {
 public:
     using Factory = std::function<std::unique_ptr<PhosphorConfig::IBackend>(const QString&)>;
 
-    explicit FacetConfigBackends(QObject* parent);
+    explicit ModuleConfigBackends(QObject* parent);
 
     /// Make every file a backend is created for under @p directory, an
-    /// absolute path that is not the filesystem root (FacetHost::
+    /// absolute path that is not the filesystem root (ModuleHost::
     /// setConfigRedirect checks it), instead of where it is. Empty redirects
     /// nothing.
     void setRedirect(const QString& directory);

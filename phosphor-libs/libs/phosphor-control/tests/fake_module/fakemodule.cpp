@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// The source of the Facet test modules, all but notamodule.cpp's.
+// The source of the test control modules, all but notamodule.cpp's.
 // tests/CMakeLists.txt builds it once per variant, each with its own
 // fake_module_config.h, which sets FAKE_MODE, and its own metadata, which
-// phosphor_add_facet_module_metadata turns into the facet_metadata.json the
+// phosphor_add_control_module_metadata turns into the module_metadata.json the
 // plugin embeds, translated from the variant's TS_FILES when it has any.
 // "Pages" below means context.metadata().pages, which is parents-first, not
 // declaration order.
@@ -20,8 +20,8 @@
 //   9  every domain emits discardResult twice per discard()
 //  10  every domain deletes itself (deleteLater) in apply()
 //  12  copy the load record's content, read inside registerInto, into the
-//      application property facetLoadRecord. The record's path comes from
-//      the FACET_TEST_LOAD_RECORD environment variable.
+//      application property moduleLoadRecord. The record's path comes from
+//      the MODULE_TEST_LOAD_RECORD environment variable.
 //  13  every domain emits a second applyResult from the event loop
 //  14  every domain reports a failed apply()
 //  16  register the first page with no QML source
@@ -76,7 +76,7 @@
 //      is not the module's, and the setting entry of 45
 //  47  like 45, and also register a null domain
 //      The providers of 45 to 49 and of 53 are made once, by the first
-//      registerInto, as FacetContext::registerSearchProvider asks. 51 makes
+//      registerInto, as ModuleContext::registerSearchProvider asks. 51 makes
 //      its two on every registerInto: the host refuses both, one is deleted
 //      at once, and the other, in another thread, is left until the process
 //      ends.
@@ -111,7 +111,7 @@
 //
 // The first search provider asked for its entries, of any mode, copies the
 // load record's content at that moment into the application property
-// facetSearchLoadRecord, when the FACET_TEST_LOAD_RECORD environment variable
+// moduleSearchLoadRecord, when the MODULE_TEST_LOAD_RECORD environment variable
 // names the record. Every search provider adds one to the application property
 // fakeProvidersAsked each time it is asked.
 //
@@ -128,8 +128,8 @@
 
 #include "fake_module_config.h"
 
-#include <PhosphorControl/FacetContext.h>
-#include <PhosphorControl/FacetModule.h>
+#include <PhosphorControl/ModuleContext.h>
+#include <PhosphorControl/ControlModule.h>
 #include <PhosphorControl/ISearchProvider.h>
 #include <PhosphorControl/PageController.h>
 #include <PhosphorControl/StagingDomain.h>
@@ -337,16 +337,16 @@ private:
 };
 
 // What the load record holds the first time a provider is asked for its
-// entries, copied into facetSearchLoadRecord (see the mode list).
+// entries, copied into moduleSearchLoadRecord (see the mode list).
 void recordSearchLoadRecord()
 {
-    const QString path = qEnvironmentVariable("FACET_TEST_LOAD_RECORD");
-    if (path.isEmpty() || qApp->property("facetSearchLoadRecord").isValid()) {
+    const QString path = qEnvironmentVariable("MODULE_TEST_LOAD_RECORD");
+    if (path.isEmpty() || qApp->property("moduleSearchLoadRecord").isValid()) {
         return;
     }
     QFile record(path);
     const QByteArray content = record.open(QIODevice::ReadOnly) ? record.readAll() : QByteArray();
-    qApp->setProperty("facetSearchLoadRecord", QString::fromUtf8(content));
+    qApp->setProperty("moduleSearchLoadRecord", QString::fromUtf8(content));
 }
 
 class FakeProvider : public PhosphorControl::ISearchProvider
@@ -367,7 +367,7 @@ private:
     QVector<PhosphorControl::SearchEntry> m_entries;
 };
 
-// A provider that is a QObject too, for the checks FacetContext and the host
+// A provider that is a QObject too, for the checks ModuleContext and the host
 // make on one.
 class ObjectProvider : public QObject, public FakeProvider
 {
@@ -395,7 +395,7 @@ public:
     }
 };
 
-// The factory the config modes hand to FacetContext::configBackend. It
+// The factory the config modes hand to ModuleContext::configBackend. It
 // appends the file it was asked to open to the application property
 // fakeConfigFactoryPaths, so a test can count the calls and read their
 // argument.
@@ -412,14 +412,14 @@ std::unique_ptr<PhosphorConfig::IBackend> makeConfigBackend(const QString& file)
 
 } // namespace
 
-class FakeFacetModule : public QObject, public PhosphorControl::IFacetModule
+class FakeControlModule : public QObject, public PhosphorControl::IControlModule
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "facet_metadata.json")
-    Q_INTERFACES(PhosphorControl::IFacetModule)
+    Q_PLUGIN_METADATA(IID PhosphorControlModule_iid FILE "module_metadata.json")
+    Q_INTERFACES(PhosphorControl::IControlModule)
 
 public:
-    void registerInto(PhosphorControl::FacetContext& context) override
+    void registerInto(PhosphorControl::ModuleContext& context) override
     {
 #if FAKE_MODE == 44
         // Never reached: the library this call is in does not load.
@@ -441,9 +441,9 @@ public:
             }
         }
         if (FAKE_MODE == 12) {
-            QFile record(qEnvironmentVariable("FACET_TEST_LOAD_RECORD"));
+            QFile record(qEnvironmentVariable("MODULE_TEST_LOAD_RECORD"));
             const QByteArray content = record.open(QIODevice::ReadOnly) ? record.readAll() : QByteArray();
-            qApp->setProperty("facetLoadRecord", QString::fromUtf8(content));
+            qApp->setProperty("moduleLoadRecord", QString::fromUtf8(content));
         }
         const auto& pages = context.metadata().pages;
         QObject* firstPage = nullptr;
@@ -591,8 +591,8 @@ public:
             const QString path =
                 FAKE_MODE == 31 ? QStringLiteral("relative.json") : qEnvironmentVariable("FAKE_CONFIG_PATH");
             PhosphorConfig::IBackend* nested = nullptr;
-            PhosphorControl::FacetContext::ConfigBackendFactory create = [&context, &path,
-                                                                          &nested](const QString& file) {
+            PhosphorControl::ModuleContext::ConfigBackendFactory create = [&context, &path,
+                                                                           &nested](const QString& file) {
                 if (FAKE_MODE == 42) {
                     nested = context.configBackend(path, &makeConfigBackend);
                 }

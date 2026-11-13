@@ -1,36 +1,37 @@
 # SPDX-FileCopyrightText: 2026 fuddlesworth
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-# phosphor_add_facet_module_metadata(<target> METADATA <metadata.json>
-#                                    [TS_FILES <file.ts>...] [ALLOW_INVALID])
+# phosphor_add_control_module_metadata(<target> METADATA <metadata.json>
+#                                      [TS_FILES <file.ts>...] [ALLOW_INVALID])
 #
-# Generates a Facet module's metadata for the plugin <target>, with the
-# phosphor-facet-metadata tool, into ${CMAKE_CURRENT_BINARY_DIR}/<target>_facet/:
+# Generates a control module's metadata for the plugin <target>, with the
+# phosphor-control-metadata tool, into ${CMAKE_CURRENT_BINARY_DIR}/<target>_module/:
 #
-#   facet_metadata.json  the metadata with `Key[<lang>]` added for every string
-#                        a catalog translates. The plugin embeds it with
-#                        Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid
-#                        FILE "facet_metadata.json"). The directory goes first
-#                        on the target's include path, where moc looks after
-#                        the directory of the file that names it.
-#   anchors.json         each page's anchors and anchors version, and the
-#                        version of each of its named extension points. Attach
-#                        it to the module's releases: FacetTestHost checks the
-#                        next release against it (setPreviousAnchors).
-#   facet_strings.cpp    the translatable strings, in context "FacetModule",
-#                        for lupdate. Not compiled.
+#   module_metadata.json  the metadata with `Key[<lang>]` added for every
+#                         string a catalog translates. The plugin embeds it
+#                         with Q_PLUGIN_METADATA(IID PhosphorControlModule_iid
+#                         FILE "module_metadata.json"). The directory goes
+#                         first on the target's include path, where moc looks
+#                         after the directory of the file that names it.
+#   anchors.json          each page's anchors and anchors version, and the
+#                         version of each of its named extension points.
+#                         Attach it to the module's releases: ModuleTestHost
+#                         checks the next release against it
+#                         (setPreviousAnchors).
+#   module_strings.cpp    the translatable strings, in context
+#                         "PhosphorControlModule", for lupdate. Not compiled.
 #
 # Call it after the target's sources are added. The paths are the target's
-# FACET_METADATA_FILE, FACET_ANCHORS_FILE and FACET_STRINGS_FILE properties,
-# and the custom target <target>_facet_metadata writes them (an lupdate target
-# that reads FACET_STRINGS_FILE depends on it).
+# MODULE_METADATA_FILE, MODULE_ANCHORS_FILE and MODULE_STRINGS_FILE properties,
+# and the custom target <target>_module_metadata writes them (an lupdate target
+# that reads MODULE_STRINGS_FILE depends on it).
 #
 # Invalid metadata fails the build, unless ALLOW_INVALID is given (for tests
-# that load invalid modules on purpose). A warning, such as a key this Facet
+# that load invalid modules on purpose). A warning, such as a key this PhosphorControl
 # does not know, is printed once and never fails it, so metadata written for
-# a newer Facet still builds.
+# a newer PhosphorControl still builds.
 #
-# Translations: each catalog's strings in context "FacetModule" go under the
+# Translations: each catalog's strings in context "PhosphorControlModule" go under the
 # catalog's language and script (de_DE as de_Latn, zh_TW as zh_Hant), which
 # every locale of that language and script matches, or under the catalog's own
 # language, with '-' turned into '_', when two catalogs claim the same
@@ -54,20 +55,20 @@
 # -nounfinished to lrelease.
 #
 # The function refuses a setup in which moc could embed some other file
-# named facet_metadata.json: METADATA itself under that name, or such a file
+# named module_metadata.json: METADATA itself under that name, or such a file
 # beside a source that names it or in the target's source or binary
-# directory. A plugin source that names facet_metadata.json gets a
+# directory. A plugin source that names module_metadata.json gets a
 # dependency on the generated file, so it is rebuilt in the same build when
 # the metadata changes. That dependency is kept per directory, so two
 # modules in one directory cannot compile the same plugin source file: give
 # each its own path to it, for example a symbolic link.
 #
-# PHOSPHOR_FACET_METADATA_EXECUTABLE, when set, names a phosphor-facet-metadata
+# PHOSPHOR_CONTROL_METADATA_EXECUTABLE, when set, names a phosphor-control-metadata
 # that runs on the build machine, used in place of PhosphorControl's own, for a
 # cross build.
 
-set(PHOSPHOR_FACET_METADATA_EXECUTABLE "" CACHE FILEPATH
-    "A phosphor-facet-metadata that runs on the build machine, used in place of PhosphorControl's own")
+set(PHOSPHOR_CONTROL_METADATA_EXECUTABLE "" CACHE FILEPATH
+    "A phosphor-control-metadata that runs on the build machine, used in place of PhosphorControl's own")
 
 # A function runs under the policies in effect where it is defined, so the
 # one below reads GENERATED the same way whatever the caller's
@@ -77,8 +78,8 @@ if(POLICY CMP0163)
     cmake_policy(SET CMP0163 NEW)
 endif()
 
-function(phosphor_add_facet_module_metadata target)
-    set(fn "phosphor_add_facet_module_metadata(${target})")
+function(phosphor_add_control_module_metadata target)
+    set(fn "phosphor_add_control_module_metadata(${target})")
     # PARSE_ARGV keeps an empty argument, which the caller may pass for an
     # empty TS_FILES list, and does not split one that holds a ';'.
     cmake_parse_arguments(PARSE_ARGV 1 ARG "ALLOW_INVALID" "METADATA" "TS_FILES")
@@ -100,22 +101,22 @@ function(phosphor_add_facet_module_metadata target)
         message(FATAL_ERROR "${fn}: METADATA is required")
     endif()
     get_filename_component(metadataName "${ARG_METADATA}" NAME)
-    if(metadataName STREQUAL "facet_metadata.json")
-        message(FATAL_ERROR "${fn}: METADATA must not be called facet_metadata.json, the name of the generated "
+    if(metadataName STREQUAL "module_metadata.json")
+        message(FATAL_ERROR "${fn}: METADATA must not be called module_metadata.json, the name of the generated "
                             "file the plugin embeds, or moc may embed it instead. Rename it, for example to "
                             "metadata.json.")
     endif()
-    if(PHOSPHOR_FACET_METADATA_EXECUTABLE)
-        if(NOT EXISTS "${PHOSPHOR_FACET_METADATA_EXECUTABLE}" OR IS_DIRECTORY "${PHOSPHOR_FACET_METADATA_EXECUTABLE}")
-            message(FATAL_ERROR "${fn}: PHOSPHOR_FACET_METADATA_EXECUTABLE is ${PHOSPHOR_FACET_METADATA_EXECUTABLE}, "
+    if(PHOSPHOR_CONTROL_METADATA_EXECUTABLE)
+        if(NOT EXISTS "${PHOSPHOR_CONTROL_METADATA_EXECUTABLE}" OR IS_DIRECTORY "${PHOSPHOR_CONTROL_METADATA_EXECUTABLE}")
+            message(FATAL_ERROR "${fn}: PHOSPHOR_CONTROL_METADATA_EXECUTABLE is ${PHOSPHOR_CONTROL_METADATA_EXECUTABLE}, "
                                 "which is not a file")
         endif()
-        set(tool "${PHOSPHOR_FACET_METADATA_EXECUTABLE}")
+        set(tool "${PHOSPHOR_CONTROL_METADATA_EXECUTABLE}")
     else()
         # One name in the tree that builds PhosphorControl (an alias) and in a
         # project that finds it installed (an imported target, visible only in
         # the directory that called find_package and below it).
-        set(tool PhosphorControl::phosphor-facet-metadata)
+        set(tool PhosphorControl::phosphor-control-metadata)
         if(NOT TARGET ${tool})
             message(FATAL_ERROR "${fn}: there is no target named ${tool} in this directory or a parent. "
                                 "Call find_package(PhosphorControl) here or in a parent directory first.")
@@ -140,15 +141,15 @@ function(phosphor_add_facet_module_metadata target)
         set(flags --allow-invalid)
     endif()
 
-    set(outDir "${CMAKE_CURRENT_BINARY_DIR}/${target}_facet")
-    set(metadataOut "${outDir}/facet_metadata.json")
+    set(outDir "${CMAKE_CURRENT_BINARY_DIR}/${target}_module")
+    set(metadataOut "${outDir}/module_metadata.json")
     set(anchorsOut "${outDir}/anchors.json")
-    set(stringsOut "${outDir}/facet_strings.cpp")
+    set(stringsOut "${outDir}/module_strings.cpp")
     # One command, so invalid metadata stops it at the first run and is
     # reported once. The tool rewrites a file only when its content changed,
     # and the stamp is the declared output, so a rerun forced by a rebuilt
     # tool leaves everything downstream alone on either generator.
-    set(stamp "${outDir}/facet_metadata.stamp")
+    set(stamp "${outDir}/module_metadata.stamp")
     add_custom_command(OUTPUT "${stamp}"
         BYPRODUCTS "${metadataOut}" "${anchorsOut}" "${stringsOut}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${outDir}"
@@ -157,17 +158,17 @@ function(phosphor_add_facet_module_metadata target)
         COMMAND ${tool} ${flags} strings "${source}" "${stringsOut}"
         COMMAND ${CMAKE_COMMAND} -E touch "${stamp}"
         DEPENDS "${source}" ${catalogs} ${tool}
-        COMMENT "Generating Facet module metadata for ${target}"
+        COMMENT "Generating control module metadata for ${target}"
         VERBATIM)
-    add_custom_target(${target}_facet_metadata DEPENDS "${stamp}")
-    add_dependencies(${target} ${target}_facet_metadata)
+    add_custom_target(${target}_module_metadata DEPENDS "${stamp}")
+    add_dependencies(${target} ${target}_module_metadata)
     # moc reads the file while generating the plugin's metadata section, so
     # it must exist before AUTOMOC runs, and a change to it must re-run moc.
-    set_property(TARGET ${target} APPEND PROPERTY AUTOGEN_TARGET_DEPENDS ${target}_facet_metadata "${metadataOut}")
+    set_property(TARGET ${target} APPEND PROPERTY AUTOGEN_TARGET_DEPENDS ${target}_module_metadata "${metadataOut}")
     set_target_properties(${target} PROPERTIES
-        FACET_METADATA_FILE "${metadataOut}"
-        FACET_ANCHORS_FILE "${anchorsOut}"
-        FACET_STRINGS_FILE "${stringsOut}")
+        MODULE_METADATA_FILE "${metadataOut}"
+        MODULE_ANCHORS_FILE "${anchorsOut}"
+        MODULE_STRINGS_FILE "${stringsOut}")
     target_include_directories(${target} BEFORE PRIVATE "${outDir}")
 
     # CMAKE_INCLUDE_CURRENT_DIR puts the target's own directories ahead of
@@ -175,8 +176,8 @@ function(phosphor_add_facet_module_metadata target)
     get_target_property(targetSourceDir ${target} SOURCE_DIR)
     get_target_property(targetBinaryDir ${target} BINARY_DIR)
     foreach(dir IN ITEMS "${targetSourceDir}" "${targetBinaryDir}")
-        if(EXISTS "${dir}/facet_metadata.json")
-            message(FATAL_ERROR "${fn}: ${dir}/facet_metadata.json could be embedded instead of the generated "
+        if(EXISTS "${dir}/module_metadata.json")
+            message(FATAL_ERROR "${fn}: ${dir}/module_metadata.json could be embedded instead of the generated "
                                 "metadata. Remove it.")
         endif()
     endforeach()
@@ -184,7 +185,7 @@ function(phosphor_add_facet_module_metadata target)
     # A plugin class declared in a .cpp includes its moc output (<name>.moc),
     # which is not a declared build output, so without help ninja sees the
     # regenerated file only on the next build. The .cpp that names
-    # facet_metadata.json therefore depends on the generated file. A class
+    # module_metadata.json therefore depends on the generated file. A class
     # declared in a header needs nothing: its moc output reaches the build
     # through mocs_compilation.cpp, which AUTOGEN declares.
     #
@@ -233,7 +234,7 @@ function(phosphor_add_facet_module_metadata target)
             endforeach()
         endif()
         foreach(candidate IN LISTS candidates)
-            file(STRINGS "${candidate}" mentions REGEX "\"facet_metadata\\.json\"")
+            file(STRINGS "${candidate}" mentions REGEX "\"module_metadata\\.json\"")
             if(NOT mentions)
                 continue()
             endif()
@@ -241,27 +242,27 @@ function(phosphor_add_facet_module_metadata target)
             # moc looks next to the file before the include path, so a copy
             # there would be embedded instead of the generated one.
             get_filename_component(candidateDir "${candidate}" DIRECTORY)
-            if(EXISTS "${candidateDir}/facet_metadata.json")
-                message(FATAL_ERROR "${fn}: ${candidateDir}/facet_metadata.json would be embedded instead of the "
+            if(EXISTS "${candidateDir}/module_metadata.json")
+                message(FATAL_ERROR "${fn}: ${candidateDir}/module_metadata.json would be embedded instead of the "
                                     "generated metadata. Remove it.")
             endif()
             if(candidate STREQUAL sourceFile AND isCpp)
-                get_property(owner SOURCE "${sourceFile}" TARGET_DIRECTORY ${target} PROPERTY PHOSPHOR_FACET_MODULE)
+                get_property(owner SOURCE "${sourceFile}" TARGET_DIRECTORY ${target} PROPERTY PHOSPHOR_CONTROL_MODULE)
                 if(owner AND NOT owner STREQUAL target)
-                    message(FATAL_ERROR "${fn}: ${sourceFile} also builds the Facet module ${owner} in the same "
+                    message(FATAL_ERROR "${fn}: ${sourceFile} also builds the control module ${owner} in the same "
                                         "directory. Its dependency on the generated metadata is kept per directory, "
                                         "so each module would be rebuilt whenever the other's metadata changes. "
                                         "Give each module its own path to the file, for example a symbolic link "
                                         "made with file(CREATE_LINK ... SYMBOLIC).")
                 endif()
-                set_property(SOURCE "${sourceFile}" TARGET_DIRECTORY ${target} PROPERTY PHOSPHOR_FACET_MODULE ${target})
+                set_property(SOURCE "${sourceFile}" TARGET_DIRECTORY ${target} PROPERTY PHOSPHOR_CONTROL_MODULE ${target})
                 set_property(SOURCE "${sourceFile}" TARGET_DIRECTORY ${target} APPEND PROPERTY OBJECT_DEPENDS "${metadataOut}")
                 set_property(SOURCE "${sourceFile}" TARGET_DIRECTORY ${target} PROPERTY SKIP_UNITY_BUILD_INCLUSION ON)
             endif()
         endforeach()
     endforeach()
     if(NOT embedders)
-        message(AUTHOR_WARNING "${fn}: none of the target's sources names \"facet_metadata.json\", so the plugin "
+        message(AUTHOR_WARNING "${fn}: none of the target's sources names \"module_metadata.json\", so the plugin "
                                "does not embed the generated metadata. Add the sources before calling this "
                                "function. Generated sources are not read.")
     endif()

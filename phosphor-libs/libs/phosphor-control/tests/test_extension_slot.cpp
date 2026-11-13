@@ -1,17 +1,18 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// FacetSlot and FacetExtensionFrame against a stubbed extension provider, so
+// ExtensionSlot and ExtensionFrame against a stubbed extension provider, so
 // the QML is exercised without loading any module.
 
 #include "simple_page.h"
 
 #include <PhosphorControl/ApplicationController.h>
-#include <PhosphorControl/FacetSlotModel.h>
+#include <PhosphorControl/ExtensionSlotModel.h>
 
 #include <QAbstractItemModelTester>
 #include <QCoreApplication>
 #include <QFile>
+#include <QGuiApplication>
 #include <QHash>
 #include <QPointer>
 #include <QQmlComponent>
@@ -77,7 +78,7 @@ QQuickItem* findItem(QQuickItem* root, const QString& objectName)
 // The item a frame's Loader created, or null.
 QQuickItem* loadedSection(QQuickItem* frame)
 {
-    QQuickItem* const loader = findItem(frame, QStringLiteral("facet-extension-section"));
+    QQuickItem* const loader = findItem(frame, QStringLiteral("module-extension-section"));
     return loader ? loader->property("item").value<QQuickItem*>() : nullptr;
 }
 
@@ -90,11 +91,11 @@ QObject* seenAtCompletion(QQuickItem* frame)
 }
 
 // The extension ids @p model lists, in order.
-QStringList extensionIds(const FacetSlotModel* model)
+QStringList extensionIds(const ExtensionSlotModel* model)
 {
     QStringList ids;
     for (int row = 0; row < model->rowCount(); ++row) {
-        ids.append(model->data(model->index(row), FacetSlotModel::ExtensionIdRole).toString());
+        ids.append(model->data(model->index(row), ExtensionSlotModel::ExtensionIdRole).toString());
     }
     return ids;
 }
@@ -143,7 +144,7 @@ public:
     }
 };
 
-class TestFacetSlot : public QObject
+class TestExtensionSlot : public QObject
 {
     Q_OBJECT
 
@@ -183,7 +184,7 @@ private Q_SLOTS:
         // location, which its message text carries as `<url>:<line>`: a .qml
         // or .js file, or <Unknown File> for a component built from data. A
         // section created with a property it does not declare is reported
-        // against FacetExtensionFrame.qml, at its setSource call: the
+        // against ExtensionFrame.qml, at its setSource call: the
         // section's Loader is synchronous here, since nothing in this test
         // creates a frame inside an asynchronous incubation. Also on a
         // TypeError a script reports, and on the warning injectIfAssignable
@@ -222,21 +223,21 @@ private Q_SLOTS:
         QVERIFY(slot->isVisible());
         QCOMPARE(slot->property("count").toInt(), 2);
 
-        QQuickItem* const okFrame = findItem(slot, QStringLiteral("facet-extension:extender:ok"));
+        QQuickItem* const okFrame = findItem(slot, QStringLiteral("module-extension:extender:ok"));
         QVERIFY(okFrame);
         QQuickItem* const loaded = loadedSection(okFrame);
         QVERIFY2(loaded, "the section's QML was not loaded");
         QCOMPARE(loaded->property("domain").value<QObject*>(), &m_domain);
         QCOMPARE(loaded->property("settingsApp").value<QObject*>(), m_controller.get());
-        QVERIFY(!shown(okFrame, QStringLiteral("facet-extension-error")));
-        QVERIFY(!shown(okFrame, QStringLiteral("facet-extension-reason")));
+        QVERIFY(!shown(okFrame, QStringLiteral("module-extension-error")));
+        QVERIFY(!shown(okFrame, QStringLiteral("module-extension-reason")));
 
-        QQuickItem* const brokenFrame = findItem(slot, QStringLiteral("facet-extension:extender:broken"));
+        QQuickItem* const brokenFrame = findItem(slot, QStringLiteral("module-extension:extender:broken"));
         QVERIFY(brokenFrame);
         QVERIFY(!loadedSection(brokenFrame));
-        QVERIFY(shown(brokenFrame, QStringLiteral("facet-extension-error")));
-        QVERIFY(shown(brokenFrame, QStringLiteral("facet-extension-reason")));
-        QCOMPARE(findItem(brokenFrame, QStringLiteral("facet-extension-reason"))->property("text").toString(),
+        QVERIFY(shown(brokenFrame, QStringLiteral("module-extension-error")));
+        QVERIFY(shown(brokenFrame, QStringLiteral("module-extension-reason")));
+        QCOMPARE(findItem(brokenFrame, QStringLiteral("module-extension-reason"))->property("text").toString(),
                  QStringLiteral("it failed to load"));
 
         // Another page changing does not touch this slot; its own page does.
@@ -251,7 +252,7 @@ private Q_SLOTS:
     void sectionsAppearWhenSettingsAppArrivesLate()
     {
         // A page that does not pass context gets its settingsApp from PageHost
-        // only once it is built, so a FacetSlot bound to page.settingsApp
+        // only once it is built, so a ExtensionSlot bound to page.settingsApp
         // starts without one.
         m_listed = {section(QStringLiteral("extender:ok"), QStringLiteral("Section.qml"))};
         QQuickItem* const slot = createSlot(nullptr);
@@ -262,7 +263,7 @@ private Q_SLOTS:
         slot->setProperty("settingsApp", QVariant::fromValue<QObject*>(m_controller.get()));
         QCOMPARE(slot->property("count").toInt(), 1);
         QVERIFY(slot->isVisible());
-        QVERIFY(loadedSection(findItem(slot, QStringLiteral("facet-extension:extender:ok"))));
+        QVERIFY(loadedSection(findItem(slot, QStringLiteral("module-extension:extender:ok"))));
     }
 
     void aSectionThatStaysKeepsItsFrame()
@@ -270,7 +271,7 @@ private Q_SLOTS:
         m_listed = {section(QStringLiteral("extender:a"), QStringLiteral("Section.qml"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        const QPointer<QQuickItem> frame = findItem(slot, QStringLiteral("facet-extension:extender:a"));
+        const QPointer<QQuickItem> frame = findItem(slot, QStringLiteral("module-extension:extender:a"));
         QVERIFY(frame);
         const QPointer<QQuickItem> loaded = loadedSection(frame);
         QVERIFY(loaded);
@@ -283,7 +284,7 @@ private Q_SLOTS:
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         QVERIFY2(frame, "the frame of a section that stayed was rebuilt");
         QVERIFY2(loaded, "the QML of a section that stayed was reloaded");
-        QCOMPARE(findItem(slot, QStringLiteral("facet-extension:extender:a")), frame.data());
+        QCOMPARE(findItem(slot, QStringLiteral("module-extension:extender:a")), frame.data());
     }
 
     void aSectionCanRequireItsDomain()
@@ -291,12 +292,12 @@ private Q_SLOTS:
         m_listed = {section(QStringLiteral("extender:required"), QStringLiteral("Required.qml"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        QQuickItem* const frame = findItem(slot, QStringLiteral("facet-extension:extender:required"));
+        QQuickItem* const frame = findItem(slot, QStringLiteral("module-extension:extender:required"));
         QVERIFY(frame);
         QQuickItem* const loaded = loadedSection(frame);
         QVERIFY2(loaded, "a section declaring a required domain did not load");
         QCOMPARE(loaded->property("seenAtCompletion").value<QObject*>(), &m_domain);
-        QVERIFY(!shown(frame, QStringLiteral("facet-extension-error")));
+        QVERIFY(!shown(frame, QStringLiteral("module-extension-error")));
         // Built once, not once per property the frame received.
         QCoreApplication::processEvents();
         QCOMPARE(m_buildLog.builds, 1);
@@ -309,16 +310,16 @@ private Q_SLOTS:
         m_listed = {failed(QStringLiteral("extender:flip"), QStringLiteral("it did not load"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        const QPointer<QQuickItem> frame = findItem(slot, QStringLiteral("facet-extension:extender:flip"));
+        const QPointer<QQuickItem> frame = findItem(slot, QStringLiteral("module-extension:extender:flip"));
         QVERIFY(frame);
-        QVERIFY(shown(frame, QStringLiteral("facet-extension-error")));
+        QVERIFY(shown(frame, QStringLiteral("module-extension-error")));
 
         m_listed = {section(QStringLiteral("extender:flip"), QStringLiteral("Required.qml"))};
         m_controller->notifyExtensionsChanged(QStringLiteral("good:general"));
         QTRY_VERIFY(loadedSection(frame));
         QVERIFY(frame);
         QCOMPARE(seenAtCompletion(frame), &m_domain);
-        QVERIFY(!shown(frame, QStringLiteral("facet-extension-error")));
+        QVERIFY(!shown(frame, QStringLiteral("module-extension-error")));
         QCoreApplication::processEvents();
         QCOMPARE(m_buildLog.builds, 1);
     }
@@ -328,7 +329,7 @@ private Q_SLOTS:
         m_listed = {section(QStringLiteral("extender:moved"), QStringLiteral("Required.qml"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        const QPointer<QQuickItem> frame = findItem(slot, QStringLiteral("facet-extension:extender:moved"));
+        const QPointer<QQuickItem> frame = findItem(slot, QStringLiteral("module-extension:extender:moved"));
         QVERIFY(frame);
         QCOMPARE(seenAtCompletion(frame), &m_domain);
 
@@ -350,7 +351,7 @@ private Q_SLOTS:
         QQmlComponent component(engine);
         component.setData(
             "import org.phosphor.control\n"
-            "FacetSlot { pageId: settingsApp ? settingsApp.currentPageId : \"\" }\n",
+            "ExtensionSlot { pageId: settingsApp ? settingsApp.currentPageId : \"\" }\n",
             QUrl());
         m_root.reset(component.createWithInitialProperties(
             {{QStringLiteral("settingsApp"), QVariant::fromValue<QObject*>(m_controller.get())},
@@ -366,7 +367,7 @@ private Q_SLOTS:
         QCOMPARE(m_controller->currentPageId(), QStringLiteral("extender:own"));
         // It shows what the page it ended on lists, which is nothing.
         QCOMPARE(slot->property("count").toInt(), 0);
-        QVERIFY(!findItem(slot, QStringLiteral("facet-extension:extender:after")));
+        QVERIFY(!findItem(slot, QStringLiteral("module-extension:extender:after")));
     }
 
     void aFrameLoadsOnceWhateverOrderItsPropertiesChangeIn_data()
@@ -460,15 +461,15 @@ private Q_SLOTS:
         m_listed = {section(QStringLiteral("extender:orphan"), QStringLiteral("Required.qml"), domain.get())};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        QQuickItem* const frame = findItem(slot, QStringLiteral("facet-extension:extender:orphan"));
+        QQuickItem* const frame = findItem(slot, QStringLiteral("module-extension:extender:orphan"));
         QVERIFY(frame);
         QVERIFY(loadedSection(frame));
         QCOMPARE(m_buildLog.builds, 1);
 
         domain.reset();
-        QTRY_VERIFY(shown(frame, QStringLiteral("facet-extension-error")));
-        QVERIFY(!shown(frame, QStringLiteral("facet-extension-section")));
-        QCOMPARE(findItem(frame, QStringLiteral("facet-extension-error"))->property("text").toString(),
+        QTRY_VERIFY(shown(frame, QStringLiteral("module-extension-error")));
+        QVERIFY(!shown(frame, QStringLiteral("module-extension-section")));
+        QCOMPARE(findItem(frame, QStringLiteral("module-extension-error"))->property("text").toString(),
                  QStringLiteral("This section could not be shown."));
         QCoreApplication::processEvents();
         QCOMPARE(m_buildLog.builds, 1);
@@ -482,13 +483,13 @@ private Q_SLOTS:
         m_listed = {broken};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        QQuickItem* const frame = findItem(slot, QStringLiteral("facet-extension:extender:gone"));
+        QQuickItem* const frame = findItem(slot, QStringLiteral("module-extension:extender:gone"));
         QVERIFY(frame);
-        QQuickItem* const card = findItem(frame, QStringLiteral("facet-extension-error"));
+        QQuickItem* const card = findItem(frame, QStringLiteral("module-extension-error"));
         QVERIFY(card && card->isVisible());
         QCOMPARE(card->property("text").toString(), QStringLiteral("This section could not be shown."));
         QCOMPARE(card->property("type").toInt(), MessageError);
-        QObject* const open = frame->findChild<QObject*>(QStringLiteral("facet-extension-open-module"));
+        QObject* const open = frame->findChild<QObject*>(QStringLiteral("module-extension-open-module"));
         QVERIFY(open);
         QVERIFY(!open->property("visible").toBool());
     }
@@ -500,16 +501,16 @@ private Q_SLOTS:
         m_listed = {section(QStringLiteral("extender:bad-qml"), QStringLiteral("Broken.qml"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        QQuickItem* const frame = findItem(slot, QStringLiteral("facet-extension:extender:bad-qml"));
+        QQuickItem* const frame = findItem(slot, QStringLiteral("module-extension:extender:bad-qml"));
         QVERIFY(frame);
         QVERIFY(!loadedSection(frame));
-        QVERIFY(shown(frame, QStringLiteral("facet-extension-error")));
-        QQuickItem* const card = findItem(frame, QStringLiteral("facet-extension-error"));
+        QVERIFY(shown(frame, QStringLiteral("module-extension-error")));
+        QQuickItem* const card = findItem(frame, QStringLiteral("module-extension-error"));
         QCOMPARE(card->property("text").toString(),
                  QStringLiteral("This section could not be shown, because its QML did not load."));
         QCOMPARE(card->property("type").toInt(), MessageError);
         // Nothing to report from the host: the module loaded.
-        QVERIFY(!shown(frame, QStringLiteral("facet-extension-reason")));
+        QVERIFY(!shown(frame, QStringLiteral("module-extension-reason")));
     }
 
     void aModuleThatDidNotLoadIsNamedOnTheCard()
@@ -517,9 +518,9 @@ private Q_SLOTS:
         m_listed = {failed(QStringLiteral("extender:broken"), QStringLiteral("it failed to load"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        QQuickItem* const frame = findItem(slot, QStringLiteral("facet-extension:extender:broken"));
+        QQuickItem* const frame = findItem(slot, QStringLiteral("module-extension:extender:broken"));
         QVERIFY(frame);
-        QQuickItem* const card = findItem(frame, QStringLiteral("facet-extension-error"));
+        QQuickItem* const card = findItem(frame, QStringLiteral("module-extension-error"));
         QVERIFY(card && card->isVisible());
         QCOMPARE(card->property("text").toString(),
                  QStringLiteral("This section could not be shown, because the module it comes from did not load."));
@@ -533,19 +534,22 @@ private Q_SLOTS:
         m_listed = {disabled};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        QQuickItem* const frame = findItem(slot, QStringLiteral("facet-extension:extender:off"));
+        QQuickItem* const frame = findItem(slot, QStringLiteral("module-extension:extender:off"));
         QVERIFY(frame);
-        QVERIFY(shown(frame, QStringLiteral("facet-extension-error")));
+        QVERIFY(shown(frame, QStringLiteral("module-extension-error")));
         // The translated card says the module was turned off after a crash,
         // as a warning rather than an error. The host's English reason would
         // only repeat it, as on the module's own page.
-        QQuickItem* const card = findItem(frame, QStringLiteral("facet-extension-error"));
+        QQuickItem* const card = findItem(frame, QStringLiteral("module-extension-error"));
+        // The card names the running app, whatever it is called.
+        QVERIFY(!QGuiApplication::applicationDisplayName().isEmpty());
         QCOMPARE(card->property("text").toString(),
-                 QStringLiteral("This section is turned off, because Facet closed unexpectedly the last time it "
-                                "loaded the module it comes from."));
+                 QStringLiteral("This section is turned off, because %1 closed unexpectedly the last time it "
+                                "loaded the module it comes from.")
+                     .arg(QGuiApplication::applicationDisplayName()));
         QCOMPARE(card->property("type").toInt(), MessageWarning);
-        QVERIFY(!shown(frame, QStringLiteral("facet-extension-reason")));
-        QObject* const open = frame->findChild<QObject*>(QStringLiteral("facet-extension-open-module"));
+        QVERIFY(!shown(frame, QStringLiteral("module-extension-reason")));
+        QObject* const open = frame->findChild<QObject*>(QStringLiteral("module-extension-open-module"));
         QVERIFY(open);
         QVERIFY(open->property("visible").toBool());
         QVERIFY(QMetaObject::invokeMethod(open, "trigger"));
@@ -577,7 +581,7 @@ private Q_SLOTS:
             "    function registerSearchAnchor(anchorId, item) { anchorLog.add(anchorId, item) }\n"
             "    function unregisterSearchAnchor(anchorId, item) { anchorLog.remove(anchorId, item) }\n"
             "    Item {\n"
-            "        FacetSlot { objectName: \"slot\"; settingsApp: appController;\n"
+            "        ExtensionSlot { objectName: \"slot\"; settingsApp: appController;\n"
             "                    pageId: \"good:general\"; slot: \"top\" }\n"
             "    }\n"
             "}\n",
@@ -593,8 +597,8 @@ private Q_SLOTS:
 
         // Each frame under its section's anchor, a card standing in for a
         // section that cannot be shown too.
-        QQuickItem* const okFrame = findItem(slot, QStringLiteral("facet-extension:extender:ok"));
-        QQuickItem* const brokenFrame = findItem(slot, QStringLiteral("facet-extension:extender:broken"));
+        QQuickItem* const okFrame = findItem(slot, QStringLiteral("module-extension:extender:ok"));
+        QQuickItem* const brokenFrame = findItem(slot, QStringLiteral("module-extension:extender:broken"));
         QVERIFY(okFrame);
         QVERIFY(brokenFrame);
         QTRY_COMPARE(log.registered.size(), 2);
@@ -635,11 +639,11 @@ private Q_SLOTS:
                     section(QStringLiteral("extender:b"), QStringLiteral("Section.qml"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        auto* const model = slot->findChild<FacetSlotModel*>();
+        auto* const model = slot->findChild<ExtensionSlotModel*>();
         QVERIFY(model);
         QAbstractItemModelTester tester(model, QAbstractItemModelTester::FailureReportingMode::QtTest);
-        const QPointer<QQuickItem> a = findItem(slot, QStringLiteral("facet-extension:extender:a"));
-        const QPointer<QQuickItem> b = findItem(slot, QStringLiteral("facet-extension:extender:b"));
+        const QPointer<QQuickItem> a = findItem(slot, QStringLiteral("module-extension:extender:a"));
+        const QPointer<QQuickItem> b = findItem(slot, QStringLiteral("module-extension:extender:b"));
         QVERIFY(a);
         QVERIFY(b);
 
@@ -657,7 +661,7 @@ private Q_SLOTS:
                     section(QStringLiteral("extender:a"), QStringLiteral("Section.qml"))};
         QQuickItem* const slot = createSlot(m_controller.get());
         QVERIFY(slot);
-        auto* const model = slot->findChild<FacetSlotModel*>();
+        auto* const model = slot->findChild<ExtensionSlotModel*>();
         QVERIFY(model);
         QAbstractItemModelTester tester(model, QAbstractItemModelTester::FailureReportingMode::QtTest);
         QCOMPARE(slot->property("count").toInt(), 2);
@@ -767,7 +771,7 @@ private:
     QQuickItem* createSlot(ApplicationController* settingsApp)
     {
         QQmlComponent component(makeEngine());
-        component.setData("import org.phosphor.control\nFacetSlot {}\n", QUrl());
+        component.setData("import org.phosphor.control\nExtensionSlot {}\n", QUrl());
         m_root.reset(component.createWithInitialProperties(
             {{QStringLiteral("settingsApp"), QVariant::fromValue<QObject*>(settingsApp)},
              {QStringLiteral("pageId"), QStringLiteral("good:general")},
@@ -779,9 +783,9 @@ private:
         return placeOnPage(m_root.get());
     }
 
-    // A FacetExtensionFrame of a section of "Extender" whose module page is
+    // A ExtensionFrame of a section of "Extender" whose module page is
     // extender:own, created with @p properties over a loaded section's
-    // defaults, as FacetSlot creates one from a row.
+    // defaults, as ExtensionSlot creates one from a row.
     QQuickItem* createFrame(const QVariantMap& properties)
     {
         QVariantMap all{
@@ -792,7 +796,7 @@ private:
         };
         all.insert(properties);
         QQmlComponent component(makeEngine());
-        component.setData("import org.phosphor.control\nFacetExtensionFrame {}\n", QUrl());
+        component.setData("import org.phosphor.control\nExtensionFrame {}\n", QUrl());
         m_root.reset(component.createWithInitialProperties(all));
         if (!m_root) {
             qWarning().noquote() << component.errorString();
@@ -813,5 +817,5 @@ private:
     std::unique_ptr<QObject> m_root;
 };
 
-QTEST_MAIN(TestFacetSlot)
-#include "test_facet_slot.moc"
+QTEST_MAIN(TestExtensionSlot)
+#include "test_extension_slot.moc"

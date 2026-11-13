@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "PhosphorControl/FacetTestHost.h"
+#include "PhosphorControl/ModuleTestHost.h"
 
 #include "PhosphorControl/ApplicationController.h"
-#include "PhosphorControl/FacetHost.h"
+#include "PhosphorControl/ModuleHost.h"
 #include "PhosphorControl/ISearchProvider.h"
 #include "PhosphorControl/PageController.h"
 #include "PhosphorControl/PageRegistry.h"
@@ -95,9 +95,8 @@ std::optional<bool> qmlSourceExists(const QUrl& source)
 // The page a search entry on @p pageId lands on, read from the metadata of
 // the module that owns it: the module under test, or a target module the
 // host knows. Null when that module is not here or has no such page.
-const FacetPageMetadata* pageOf(const FacetHost& host, const QString& pageId, const QString& moduleId,
-                                const FacetModuleMetadata& metadata,
-                                QHash<QString, std::optional<FacetModuleMetadata>>& targets)
+const ModulePageMetadata* pageOf(const ModuleHost& host, const QString& pageId, const QString& moduleId,
+                                 const ModuleMetadata& metadata, QHash<QString, std::optional<ModuleMetadata>>& targets)
 {
     const qsizetype colon = pageId.indexOf(QLatin1Char(':'));
     if (colon < 0) {
@@ -117,25 +116,25 @@ const FacetPageMetadata* pageOf(const FacetHost& host, const QString& pageId, co
 
 // The search entries of the module's providers that do not resolve, and a
 // module whose metadata promises providers it never registered.
-QStringList checkSearchProviders(const FacetHost& host, const QString& moduleId, const FacetModuleMetadata& metadata)
+QStringList checkSearchProviders(const ModuleHost& host, const QString& moduleId, const ModuleMetadata& metadata)
 {
     QStringList problems;
     const QList<ISearchProvider*> providers = host.searchProviders(moduleId);
     if (metadata.searchProviders && providers.isEmpty()) {
-        // Facet loads such a module the first time the user searches, for
+        // The host loads such a module the first time the user searches, for
         // nothing.
         problems.append(
             QStringLiteral("its metadata says \"SearchProviders\": true, but it registered no search "
                            "provider"));
     }
     // The pages it extends, each with the anchors of its own sections there:
-    // FacetHost indexes an extension's section at `<module>:<extension>`, and
-    // the section's FacetExtensionFrame registers that anchor with the page.
+    // ModuleHost indexes an extension's section at `<module>:<extension>`, and
+    // the section's ExtensionFrame registers that anchor with the page.
     QHash<QString, QSet<QString>> extended;
-    for (const FacetExtensionMetadata& extension : metadata.extensions) {
+    for (const ModuleExtensionMetadata& extension : metadata.extensions) {
         extended[extension.target].insert(moduleId + QLatin1Char(':') + extension.id);
     }
-    QHash<QString, std::optional<FacetModuleMetadata>> targets;
+    QHash<QString, std::optional<ModuleMetadata>> targets;
     for (const ISearchProvider* provider : providers) {
         const QVector<SearchEntry> entries = provider->searchEntries();
         for (const SearchEntry& entry : entries) {
@@ -144,7 +143,7 @@ QStringList checkSearchProviders(const FacetHost& host, const QString& moduleId,
                 continue;
             }
             const bool ownPage = entry.pageId.startsWith(moduleId + QLatin1Char(':'));
-            const FacetPageMetadata* const page = pageOf(host, entry.pageId, moduleId, metadata, targets);
+            const ModulePageMetadata* const page = pageOf(host, entry.pageId, moduleId, metadata, targets);
             if (ownPage ? !page : !extended.contains(entry.pageId)) {
                 problems.append(QStringLiteral("search entry %1 (%2) is not on one of the module's pages or a page "
                                                "it extends")
@@ -179,7 +178,7 @@ QStringList checkSearchProviders(const FacetHost& host, const QString& moduleId,
 // Every page of the previous release that is gone, every anchor that is gone
 // without a bump of its page's anchors version, and every named extension
 // point that is gone or whose version went down.
-QStringList checkAnchors(const QString& path, const FacetModuleMetadata& metadata)
+QStringList checkAnchors(const QString& path, const ModuleMetadata& metadata)
 {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -202,7 +201,7 @@ QStringList checkAnchors(const QString& path, const FacetModuleMetadata& metadat
     QStringList problems;
     const QJsonObject pages = previous.value(QLatin1String("Pages")).toObject();
     for (auto it = pages.constBegin(); it != pages.constEnd(); ++it) {
-        const FacetPageMetadata* const page = metadata.page(it.key());
+        const ModulePageMetadata* const page = metadata.page(it.key());
         if (!page) {
             problems.append(
                 QStringLiteral("page %1 of the previous release is gone; other modules may extend it").arg(it.key()));
@@ -246,32 +245,32 @@ QStringList checkAnchors(const QString& path, const FacetModuleMetadata& metadat
 
 } // namespace
 
-FacetTestHost::FacetTestHost(QString modulePath)
+ModuleTestHost::ModuleTestHost(QString modulePath)
     : m_modulePath(std::move(modulePath))
 {
 }
 
-void FacetTestHost::setResultTimeoutMs(int ms)
+void ModuleTestHost::setResultTimeoutMs(int ms)
 {
     m_resultTimeoutMs = ms > 0 ? ms : DefaultResultTimeoutMs;
 }
 
-void FacetTestHost::setStagingDirectory(const QString& directory)
+void ModuleTestHost::setStagingDirectory(const QString& directory)
 {
     m_stagingDirectory = directory;
 }
 
-void FacetTestHost::addTargetModule(const QString& modulePath)
+void ModuleTestHost::addTargetModule(const QString& modulePath)
 {
     m_targetPaths.append(modulePath);
 }
 
-void FacetTestHost::setPreviousAnchors(const QString& anchorsPath)
+void ModuleTestHost::setPreviousAnchors(const QString& anchorsPath)
 {
     m_previousAnchorsPath = anchorsPath;
 }
 
-QStringList FacetTestHost::run()
+QStringList ModuleTestHost::run()
 {
     QStringList problems;
     if (!QFileInfo(m_modulePath).isFile()) {
@@ -288,11 +287,11 @@ QStringList FacetTestHost::run()
     const QString stagingRoot =
         QDir(m_stagingDirectory.isEmpty() ? QDir::tempPath() : m_stagingDirectory).absolutePath();
     QDir().mkpath(stagingRoot);
-    QTemporaryDir root(stagingRoot + QStringLiteral("/facet-test-XXXXXX"));
+    QTemporaryDir root(stagingRoot + QStringLiteral("/module-test-XXXXXX"));
     if (!root.isValid()) {
         return {QStringLiteral("cannot create a temporary directory under %1").arg(stagingRoot)};
     }
-    const QString searchPath = root.filePath(QStringLiteral("facet"));
+    const QString searchPath = root.filePath(QStringLiteral("control"));
     QDir().mkpath(searchPath);
     // PluginCatalog refuses a plugin, or a directory, that others can write.
     const QFileDevice::Permissions mode = QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner
@@ -321,13 +320,13 @@ QStringList FacetTestHost::run()
     const QJsonObject moduleMetaData =
         QPluginLoader(stagedModule).metaData().value(QLatin1String("MetaData")).toObject();
     const QString moduleId = moduleMetaData.value(QLatin1String("Id")).toString();
-    // What a newer Facet may know (an unknown key, a search entry of an
+    // What a newer PhosphorControl may know (an unknown key, a search entry of an
     // unknown kind) is a warning to the host. Here it is built against the
-    // same Facet as the module, so it is a typo or a version mismatch.
+    // same PhosphorControl as the module, so it is a typo or a version mismatch.
     // Its errors are the host's to report: the module fails to load.
     QStringList metadataErrors;
     QStringList metadataWarnings;
-    FacetModuleMetadata::parse(moduleMetaData, QLocale::c(), &metadataErrors, &metadataWarnings);
+    ModuleMetadata::parse(moduleMetaData, QLocale::c(), &metadataErrors, &metadataWarnings);
     for (const QString& warning : std::as_const(metadataWarnings)) {
         problems.append(QStringLiteral("metadata: %1").arg(warning));
     }
@@ -365,9 +364,9 @@ QStringList FacetTestHost::run()
     }
 
     ApplicationController controller;
-    FacetHost host(&controller);
+    ModuleHost host(&controller);
     host.setSearchPaths({{searchPath, PhosphorRegistry::PluginOrigin::Development}});
-    host.setSentinelPath(root.filePath(QStringLiteral("facet-loading")));
+    host.setSentinelPath(root.filePath(QStringLiteral("control-loading")));
     // Under root, which is declared before the controller and so outlives
     // it: the controller owns the backends, and a JsonBackend writes into
     // this directory once more when it is destroyed.
@@ -383,7 +382,7 @@ QStringList FacetTestHost::run()
     }
     if (!host.moduleIds().contains(moduleId)) {
         if (!moduleRefused) {
-            problems.append(QStringLiteral("no Facet module found in %1").arg(m_modulePath));
+            problems.append(QStringLiteral("no control module found in %1").arg(m_modulePath));
         }
         return problems;
     }
@@ -407,14 +406,14 @@ QStringList FacetTestHost::run()
         QPointer<StagingDomain> domain;
     };
     QList<Checked> domains;
-    const std::optional<FacetModuleMetadata> metadata = host.metadata(moduleId);
+    const std::optional<ModuleMetadata> metadata = host.metadata(moduleId);
     if (!metadata) {
         problems.append(QStringLiteral("module %1 has no metadata after it loaded").arg(moduleId));
         return problems;
     }
     problems.append(checkSearchProviders(host, moduleId, *metadata));
     const QString ownPrefix = moduleId + QLatin1Char(':');
-    for (const FacetHost::RefusedExtension& refused : host.refusedExtensions()) {
+    for (const ModuleHost::RefusedExtension& refused : host.refusedExtensions()) {
         if (refused.id.startsWith(ownPrefix)) {
             problems.append(QStringLiteral("extension %1 is refused: %2").arg(refused.id, refused.reason));
         }
@@ -423,13 +422,13 @@ QStringList FacetTestHost::run()
         problems.append(checkAnchors(m_previousAnchorsPath, *metadata));
     }
     const QStringList bound = host.boundPages(moduleId);
-    for (const FacetPageMetadata& page : metadata->pages) {
-        const QString scoped = FacetHost::pageId(moduleId, page.id);
+    for (const ModulePageMetadata& page : metadata->pages) {
+        const QString scoped = ModuleHost::pageId(moduleId, page.id);
         if (!bound.contains(scoped)) {
             // Its controller went while the module loaded, or the registry
-            // refused it, and Facet keeps the placeholder, which cannot load
+            // refused it, and the host keeps the placeholder, which cannot load
             // the module again.
-            problems.append(QStringLiteral("page %1 was not bound, so Facet keeps its placeholder").arg(scoped));
+            problems.append(QStringLiteral("page %1 was not bound, so the host keeps its placeholder").arg(scoped));
             continue;
         }
         const PageRegistry::Entry entry = controller.registry()->entry(scoped);
@@ -444,7 +443,7 @@ QStringList FacetTestHost::run()
         }
     }
     // A null entry is a domain the module registered that is gone, deleted
-    // while the module loaded, or that the application refused. Facet
+    // while the module loaded, or that the application refused. The host
     // applies neither, so whatever it staged is lost.
     const QList<StagingDomain*> headless = host.moduleDomains(moduleId);
     for (qsizetype i = 0; i < headless.size(); ++i) {
@@ -463,8 +462,8 @@ QStringList FacetTestHost::run()
     }
     // Every extension registered, whether or not its target is installed
     // here: a target is usually another module, which this run never loads.
-    for (const FacetHost::ModuleExtension& extension : host.moduleExtensions(moduleId)) {
-        const QString scoped = FacetHost::pageId(moduleId, extension.id);
+    for (const ModuleHost::ModuleExtension& extension : host.moduleExtensions(moduleId)) {
+        const QString scoped = ModuleHost::pageId(moduleId, extension.id);
         if (qmlSourceExists(extension.qmlSource) == false) {
             problems.append(QStringLiteral("extension %1's QML source %2 does not exist")
                                 .arg(scoped, extension.qmlSource.toString()));
@@ -478,7 +477,7 @@ QStringList FacetTestHost::run()
 
     for (const Checked& checked : std::as_const(domains)) {
         if (checked.domain && checked.domain->isDirty()) {
-            // Facet would show unsaved changes the moment the page opens.
+            // The host would show unsaved changes the moment the page opens.
             problems.append(QStringLiteral("%1 is dirty right after loading").arg(checked.name));
         }
     }

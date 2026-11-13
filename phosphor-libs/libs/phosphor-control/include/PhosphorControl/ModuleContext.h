@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
-#include "PhosphorControl/FacetModuleMetadata.h"
+#include "PhosphorControl/ModuleMetadata.h"
 #include "phosphorcontrol_export.h"
 
 #include <QList>
@@ -22,19 +22,19 @@ class IBackend;
 
 namespace PhosphorControl {
 
-class FacetHost;
+class ModuleHost;
 class ISearchProvider;
 class PageController;
 class StagingDomain;
 
-/// What Facet hands a module while it loads (IFacetModule::registerInto).
+/// What the host hands a module while it loads (IControlModule::registerInto).
 ///
 /// Page ids are scoped: a module declares `snapping/behavior` in its metadata,
-/// and Facet knows the page as `placement:snapping/behavior`, so two modules
+/// and the host knows the page as `placement:snapping/behavior`, so two modules
 /// can never collide. A module builds each PageController with
 /// pageId(localId) and registers it under its local id.
 ///
-/// The context only records. Once registerInto returns, Facet checks the
+/// The context only records. Once registerInto returns, the host checks the
 /// whole registration and binds it all, or, when anything was refused or a
 /// declared page or extension is missing, keeps none of it: no page is bound,
 /// no domain joins Apply and no search provider is asked for its entries.
@@ -49,13 +49,13 @@ class StagingDomain;
 ///
 /// The context exists only for the duration of registerInto. Do not keep a
 /// reference to it.
-class PHOSPHORCONTROL_EXPORT FacetContext
+class PHOSPHORCONTROL_EXPORT ModuleContext
 {
 public:
-    Q_DISABLE_COPY_MOVE(FacetContext)
+    Q_DISABLE_COPY_MOVE(ModuleContext)
 
     [[nodiscard]] QString moduleId() const;
-    [[nodiscard]] const FacetModuleMetadata& metadata() const;
+    [[nodiscard]] const ModuleMetadata& metadata() const;
 
     /// The scoped id of the module's page @p localPageId.
     [[nodiscard]] QString pageId(const QString& localPageId) const;
@@ -80,12 +80,12 @@ public:
     /// Register a dynamic search source, for content the metadata cannot
     /// list (rules, layouts, shaders). Once the registration is kept, the
     /// host asks it for its entries each time its SearchController
-    /// (FacetHost::setSearchController) rebuilds the index, and the first
+    /// (ModuleHost::setSearchController) rebuilds the index, and the first
     /// time right away, while a crash still counts against this module's
-    /// load. That goes on as long as the FacetHost lives, so the provider
+    /// load. That goes on as long as the ModuleHost lives, so the provider
     /// must live as long. A module is never unloaded, so a provider its root
     /// object owns does. Make it once per root object, not in each
-    /// registerInto: a second FacetHost in the process that loads the same
+    /// registerInto: a second ModuleHost in the process that loads the same
     /// file gets the same root object, and its registerInto must not free the
     /// provider the first host still asks. A provider that is also a QObject
     /// and is deleted anyway is no longer asked.
@@ -99,11 +99,11 @@ public:
     /// Refused, and recorded as a module error, for a null provider, one
     /// registered twice, one that is a QObject living in another thread, or
     /// a module whose metadata does not say `"SearchProviders": true`, which
-    /// is what makes Facet load it for a search.
+    /// is what makes the host load it for a search.
     bool registerSearchProvider(ISearchProvider* provider);
 
     /// Register the section for the extension @p localExtensionId the
-    /// metadata declares: its staging domain and the QML the page's FacetSlot
+    /// metadata declares: its staging domain and the QML the page's ExtensionSlot
     /// shows. Once the section is shown (its target page offers the slot, and
     /// the page's own module has loaded), the domain joins Apply, Discard and
     /// the dirty flag and counts toward that page, for good. Until then it
@@ -123,7 +123,7 @@ public:
     /// is the file the module named but not always the string it passed:
     /// symbolic links are followed and `.` and `..` are resolved, so every
     /// spelling of one file arrives here as the same path. A host that
-    /// redirects config files (FacetHost::setConfigRedirect, as FacetTestHost
+    /// redirects config files (ModuleHost::setConfigRedirect, as ModuleTestHost
     /// does) passes that path moved under its redirect directory.
     using ConfigBackendFactory = std::function<std::unique_ptr<PhosphorConfig::IBackend>(const QString& path)>;
     /// The config backend for the file at @p path, an absolute path, shared
@@ -154,7 +154,7 @@ public:
     ///   yet, and a reparse drops it.
     ///
     /// The backend lives as long as the ApplicationController, which owns it,
-    /// so a domain can still be applied through it after the FacetHost is
+    /// so a domain can still be applied through it after the ModuleHost is
     /// gone. It does not outlive the module's own objects, though. The
     /// controller destroys the backends first and the page controllers and
     /// domains it adopted from modules after them, and an object parented to
@@ -170,8 +170,8 @@ public:
     PhosphorConfig::IBackend* configBackend(const QString& path, const ConfigBackendFactory& create);
 
 private:
-    friend class FacetHost;
-    FacetContext(FacetHost* host, const FacetModuleMetadata& metadata);
+    friend class ModuleHost;
+    ModuleContext(ModuleHost* host, const ModuleMetadata& metadata);
 
     struct PageRegistration
     {
@@ -199,8 +199,8 @@ private:
     /// when it is not.
     [[nodiscard]] QString registeredAs(const StagingDomain* domain) const;
 
-    FacetHost* m_host;
-    const FacetModuleMetadata& m_metadata;
+    ModuleHost* m_host;
+    const ModuleMetadata& m_metadata;
     QList<PageRegistration> m_pages;
     QList<ExtensionRegistration> m_extensions;
     QSet<QString> m_registeredPages;

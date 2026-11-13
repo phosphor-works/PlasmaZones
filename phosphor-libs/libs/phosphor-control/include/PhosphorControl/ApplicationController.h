@@ -166,7 +166,7 @@ public:
     /// id() is not @p id), and track the controller like a registered page.
     /// The controller it replaces stops being tracked as a staging domain,
     /// since it no longer has a page; its QObject parent is left alone. A
-    /// parentless controller is adopted on success only. Used when a Facet
+    /// parentless controller is adopted on success only. Used when a control
     /// module loads into placeholder pages. Like PageRegistry::bindPage, an
     /// accepted bind also sets the page's PageRegistry::Entry::passesContext,
     /// so the page's QML must declare `controller` and `settingsApp`.
@@ -174,7 +174,7 @@ public:
 
     /// Called with the target page id when setCurrentPageId moves to a known
     /// page other than the current one, before the move is recorded and
-    /// before currentPageIdChanged is emitted. FacetHost uses it to load a
+    /// before currentPageIdChanged is emitted. ModuleHost uses it to load a
     /// page's module synchronously, so the page host sees the real page. When
     /// the hook (or anything it reaches) navigates on its own, that newer
     /// navigation stands and the one that called the hook is dropped.
@@ -189,13 +189,13 @@ public:
     /// Count @p domain as part of page @p pageId: dirtyPageIds() lists the
     /// page while the domain is dirty, and resetCurrentPage() on the page
     /// resets the domain too. Used for a section another module adds to the
-    /// page (a Facet extension). Refused, with a warning, for a domain that is
+    /// page (a module extension). Refused, with a warning, for a domain that is
     /// not tracked (registerDomain) or a page that is not registered. The
     /// attachment lasts while the domain is tracked.
     void attachDomainToPage(StagingDomain* domain, const QString& pageId);
 
     /// The sections other modules add to slot @p slot of page @p pageId, for
-    /// the QML FacetSlot. Each entry is a map with id, moduleId, moduleName,
+    /// the QML ExtensionSlot. Each entry is a map with id, moduleId, moduleName,
     /// name and modulePageId (a page of the section's module, empty when it
     /// has none in the sidebar), plus either qmlSource and domain for a
     /// section that can be shown, or error for one that cannot, with
@@ -211,7 +211,7 @@ public:
     /// Remove the provider if @p owner installed it. A no-op otherwise. It
     /// does not notify, since only the owner knows which pages had sections.
     void clearExtensionProvider(const QObject* owner);
-    /// Tell FacetSlots on page @p pageId to read extensionsFor again.
+    /// Tell ExtensionSlots on page @p pageId to read extensionsFor again.
     void notifyExtensionsChanged(const QString& pageId);
 
     /** Navigate to the previous / next navigable page (one with a

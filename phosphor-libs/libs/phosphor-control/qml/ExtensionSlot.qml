@@ -15,7 +15,7 @@ import org.phosphor.control
  * puts one before or after each anchor it lists in its metadata, or at a
  * named extension point:
  *
- *     FacetSlot {
+ *     ExtensionSlot {
  *         Layout.fillWidth: true
  *         settingsApp: page.settingsApp
  *         pageId: "placement:snapping"
@@ -23,7 +23,7 @@ import org.phosphor.control
  *     }
  *
  * Each section the host resolved for that slot is shown in a
- * FacetExtensionFrame, in the order the extensions ask for. A slot with no
+ * ExtensionFrame, in the order the extensions ask for. A slot with no
  * sections takes no space. settingsApp may arrive after the slot is built,
  * as it does on a page that does not pass context (PageHost assigns that
  * page its settingsApp once the page is created), and the sections appear
@@ -44,7 +44,7 @@ ColumnLayout {
     spacing: Kirigami.Units.largeSpacing
 
     Repeater {
-        model: FacetSlotModel {
+        model: ExtensionSlotModel {
             id: sections
 
             settingsApp: root.settingsApp
@@ -52,7 +52,7 @@ ColumnLayout {
             slot: root.slot
         }
 
-        delegate: FacetExtensionFrame {
+        delegate: ExtensionFrame {
             Layout.fillWidth: true
             settingsApp: root.settingsApp
         }

@@ -6,28 +6,28 @@
 
 namespace PhosphorControl {
 
-class FacetContext;
+class ModuleContext;
 
-/// The `ApiVersion` a Facet module's metadata declares, and the version the
-/// PhosphorFacetModule_iid below ends in. Both change together.
-inline constexpr int FacetModuleApiVersion = 1;
+/// The `ApiVersion` a control module's metadata declares, and the version the
+/// PhosphorControlModule_iid below ends in. Both change together.
+inline constexpr int ControlModuleApiVersion = 1;
 
-/// The root object of a Facet module.
+/// The root object of a control module.
 ///
-/// A Facet module is a Qt plugin in the `facet` seam: its root QObject
+/// A control module is a Qt plugin in the `control` seam: its root QObject
 /// implements this interface and declares
-/// `Q_PLUGIN_METADATA(IID PhosphorFacetModule_iid FILE "facet_metadata.json")`,
-/// the metadata phosphor_add_facet_module_metadata() generates from the
+/// `Q_PLUGIN_METADATA(IID PhosphorControlModule_iid FILE "module_metadata.json")`,
+/// the metadata phosphor_add_control_module_metadata() generates from the
 /// module's own metadata file and its translations. The metadata describes
-/// the module and its pages (FacetModuleMetadata), so Facet can put them in
+/// the module and its pages (ModuleMetadata), so the host can put them in
 /// the sidebar before the module loads. The module loads the first time one
 /// of its pages is opened, or a page it adds a section to (its metadata's
 /// `Extensions`), or, when its metadata says `"SearchProviders": true`, once a
 /// search query is not blank.
-class IFacetModule
+class IControlModule
 {
 public:
-    virtual ~IFacetModule() = default;
+    virtual ~IControlModule() = default;
 
     /// Register this module's page controllers, headless staging domains and
     /// extension sections. Every page and every extension the metadata
@@ -40,18 +40,18 @@ public:
     /// same root object. So create the controllers and domains inside this
     /// call, parented to the root object, rather than once up front.
     ///
-    /// There are two exceptions. FacetContext::configBackend shares the
+    /// There are two exceptions. ModuleContext::configBackend shares the
     /// file's backend at once, and the backend stays shared when the
     /// registration is not kept, so a retry gets the same one back. A search
-    /// provider (FacetContext::registerSearchProvider) is made once per root
+    /// provider (ModuleContext::registerSearchProvider) is made once per root
     /// object, not in each call, since a host may still be asking the one an
     /// earlier call registered.
-    virtual void registerInto(FacetContext& context) = 0;
+    virtual void registerInto(ModuleContext& context) = 0;
 };
 
 } // namespace PhosphorControl
 
-/// The interface id of a Facet module. Its last component is
-/// PhosphorControl::FacetModuleApiVersion.
-#define PhosphorFacetModule_iid "org.phosphor_works.Facet.Module/1"
-Q_DECLARE_INTERFACE(PhosphorControl::IFacetModule, PhosphorFacetModule_iid)
+/// The interface id of a control module. Its last component is
+/// PhosphorControl::ControlModuleApiVersion.
+#define PhosphorControlModule_iid "org.phosphor_works.PhosphorControl.Module/1"
+Q_DECLARE_INTERFACE(PhosphorControl::IControlModule, PhosphorControlModule_iid)

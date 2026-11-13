@@ -971,7 +971,7 @@ private Q_SLOTS:
         QList<PluginSearchPath> paths;
         {
             MessageCapture capture(warnings);
-            paths = PluginCatalog::defaultSearchPaths(QStringLiteral("facet"));
+            paths = PluginCatalog::defaultSearchPaths(QStringLiteral("control"));
         }
         if (saved.isNull()) {
             qunsetenv(PluginCatalog::DevelopmentPathVariable);
@@ -981,26 +981,26 @@ private Q_SLOTS:
 
         // The relative entry is skipped, not resolved against whatever the
         // working directory happens to be.
-        QCOMPARE(countContaining(warnings, QStringLiteral("relative/facet")), 1);
+        QCOMPARE(countContaining(warnings, QStringLiteral("relative/control")), 1);
         QVERIFY(paths.size() > 3);
-        QCOMPARE(paths.at(0).directory, QStringLiteral("/build/one/facet"));
+        QCOMPARE(paths.at(0).directory, QStringLiteral("/build/one/control"));
         QCOMPARE(paths.at(0).origin, PluginOrigin::Development);
-        QCOMPARE(paths.at(1).directory, QStringLiteral("/build/two/facet"));
+        QCOMPARE(paths.at(1).directory, QStringLiteral("/build/two/control"));
         QCOMPARE(paths.at(1).origin, PluginOrigin::Development);
         QCOMPARE(paths.at(2).origin, PluginOrigin::User);
         QCOMPARE(paths.at(2).directory,
                  QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-                     + QStringLiteral("/phosphor-works/plugins/facet"));
+                     + QStringLiteral("/phosphor-works/plugins/control"));
 
         // Qt lists its plugin directories by their canonical paths.
         const QString qtPlugins =
-            canonical(QLibraryInfo::path(QLibraryInfo::PluginsPath)) + QStringLiteral("/phosphor-works/facet");
+            canonical(QLibraryInfo::path(QLibraryInfo::PluginsPath)) + QStringLiteral("/phosphor-works/control");
         const QString appDir =
-            QDir::cleanPath(QCoreApplication::applicationDirPath() + QStringLiteral("/phosphor-works/facet"));
+            QDir::cleanPath(QCoreApplication::applicationDirPath() + QStringLiteral("/phosphor-works/control"));
         bool sawQtPlugins = false;
         for (qsizetype i = 3; i < paths.size(); ++i) {
             QCOMPARE(paths.at(i).origin, PluginOrigin::System);
-            QVERIFY(paths.at(i).directory.endsWith(QStringLiteral("/phosphor-works/facet")));
+            QVERIFY(paths.at(i).directory.endsWith(QStringLiteral("/phosphor-works/control")));
             QVERIFY(paths.at(i).directory != appDir);
             sawQtPlugins = sawQtPlugins || paths.at(i).directory == qtPlugins;
         }

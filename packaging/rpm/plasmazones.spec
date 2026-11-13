@@ -277,15 +277,15 @@ rm -rf %{buildroot}%{_includedir}/Phosphor*
 rm -rf %{buildroot}%{_libdir}/cmake/Phosphor*
 rm -f  %{buildroot}%{_libdir}/libPhosphor*.so
 rm -f  %{buildroot}%{_libdir}/libplasmazones*.so
-# PhosphorControlTest is FacetTestHost, which a Facet module's CI links
+# PhosphorControlTest is ModuleTestHost, which a control module's CI links
 # through the headers and CMake config removed above. Nothing in the
 # package uses it.
 rm -f  %{buildroot}%{_libdir}/libPhosphorControlTest.so.*
-# phosphor-facet-metadata is the build tool behind the Facet module CMake
+# phosphor-control-metadata is the build tool behind the control module CMake
 # function, which goes with the CMake configs removed above. It is found by
 # name because its libexec directory differs between distributions, and the
 # directories it leaves empty go too.
-find %{buildroot} -type f -name phosphor-facet-metadata -delete
+find %{buildroot} -type f -name phosphor-control-metadata -delete
 find %{buildroot} -depth -type d -empty \( -path '*/libexec/phosphor' -o -path '*/libexec' \) -delete
 
 %post

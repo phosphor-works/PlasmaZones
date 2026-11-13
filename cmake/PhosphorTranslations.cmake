@@ -33,7 +33,7 @@ find_package(Qt6LinguistTools QUIET)
 # wholesale: those are LGPL components with their own consumers, and most of
 # them ship untranslated by design. The one exception is phosphor-control,
 # whose QML IS the settings app's chrome — see the qsTr glob below — and
-# whose C++ reports Save/Discard errors and names the Facet categories. If another
+# whose C++ reports Save/Discard errors and names the built-in module categories. If another
 # library starts carrying user-facing text, it has to be added deliberately,
 # and this comment is the reason it will not happen by accident.
 #
@@ -51,7 +51,7 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.h"
     # phosphor-control's C++ carries user-facing text too: the async
     # Save/Discard errors ApplicationController reports through tr(), and
-    # the built-in Facet category names FacetHost marks with
+    # the built-in category names ModuleHost marks with
     # QT_TRANSLATE_NOOP. It cannot use PhosphorI18n::tr() (GPL tree), so it
     # uses Qt's own markers under its class contexts, which lupdate reads
     # natively, the same way the qsTr glob below serves its QML.
