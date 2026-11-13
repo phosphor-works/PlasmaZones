@@ -86,8 +86,9 @@ NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString,
 /// Settings::setWorkspacesNamedEntries' stamp pairing, because both lists come
 /// from disk: the daemon's rewrites (namedWorkspaceRenamedInKWin,
 /// namedWorkspaceMoved) edit an entry in place and never reorder, add or
-/// remove one, and a settings save stamps an id on every entry, so nothing it
-/// writes stays id-less.
+/// remove one, and the settings page stamps an id on every entry whenever it
+/// writes the list, so any add, remove or reorder it makes leaves nothing
+/// id-less.
 QHash<QString, QString> continuedIdlessIdentities(const QList<std::pair<QString, QString>>& baselineIdless,
                                                   const QVariantList& side)
 {

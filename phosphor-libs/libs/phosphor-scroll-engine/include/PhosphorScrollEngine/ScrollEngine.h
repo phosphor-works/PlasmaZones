@@ -1464,10 +1464,10 @@ private:
     /// return, because updateViewForFocus leaves a fully visible column alone.
     /// A background key resolves everything against itself (see @p unseen):
     /// its gap rules, its override map and its own strip's column count for
-    /// smart gaps. The
-    /// screen's CURRENT key resolves exactly as layoutParamsForScreen does
-    /// (gaps asked for desktop 0, "what the screen shows now"), so under a
-    /// sticky pin the pinned key gets the gaps the apply used.
+    /// smart gaps. The screen's CURRENT key resolves exactly as
+    /// layoutParamsForScreen does (gaps asked for desktop 0, "what the screen
+    /// shows now"), so under a sticky pin the pinned key gets the gaps the
+    /// apply used.
     ///
     /// @param unseen What a background key with no override map of its own
     /// reads. Only a context the screen has shown has one (applyPerScreenConfig

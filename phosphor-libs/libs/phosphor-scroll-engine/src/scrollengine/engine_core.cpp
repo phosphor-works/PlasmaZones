@@ -800,9 +800,10 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
     const int anchorBeforeInsert = state->strip().viewAnchor();
     const bool detachedBeforeInsert = state->strip().viewDetached();
     // And how far that view hung past either end of the strip, with whether
-    // the centering policy put it there, for the hand-back below (C115, C116).
+    // the centering policy put it there, for the hand-back below (C115, C116,
+    // C125).
     const ScrollStrip::ViewOverhang overhangBeforeInsert = state->strip().viewOverhang(params);
-    const bool policyCenteredBeforeInsert = state->strip().isCenteringActiveColumn(params);
+    const bool policyCenteredBeforeInsert = !detachedBeforeInsert && state->strip().isCenteringActiveColumn(params);
     const StashedColumn& sc = stash.at(colIdx);
     bool inserted = false;
     // A stashed sibling already present re-locates the live column — the
@@ -982,11 +983,17 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
     // first or last column hangs past the strip's leading or trailing end on
     // purpose (centerActiveColumn stores it unclamped), and a late arrival
     // under the user's view keeps it as a viewCarried entry would (C115). An
-    // overhang the centering POLICY made is not kept: the lone-column rule
-    // centers a strip of one column, and once a neighbour lands the rule no
-    // longer holds, so a view it centered would leave dead space before the
-    // first column (C116); the Always policy re-centers on the next layout
-    // pass whatever is handed back here.
+    // overhang an ATTACHED view had under Always or the lone-column rule is
+    // the policy's and is not kept: the lone-column rule centers a strip of
+    // one column, and once a neighbour lands the rule no longer holds, so a
+    // view it centered would leave dead space before the first column (C116),
+    // and Always re-centers an attached view on the next layout pass. A
+    // DETACHED view's overhang is the user's pan, which updateViewForFocus
+    // never re-derives, so it is kept under every policy (C125). An overhang
+    // the OnOverflow policy made is kept as the user's too: it is the same
+    // anchor the centerColumn verb stores, and nothing tells the two apart,
+    // so a late insert can leave that dead space until the next focus change
+    // (C124).
     const bool stashedViewApplies = stashStrip.viewCarried && stashStrip.axis == params.axis.axis();
     if (focusRestoredEarlier) {
         if (!focusBeforeInsert.isEmpty() && state->strip().containsWindow(focusBeforeInsert)) {

@@ -238,8 +238,8 @@ void WorkspaceReconciler::onScreenRenamed(const QString& fromScreenId, const QSt
     // effect has already re-spelled the output: until the rename, the new
     // spelling can only have come from the effect (its report, or the screen
     // it reported that a verb resolved to). The daemon's own spelling of an
-    // output changes in the same synchronous screen-add or screen-remove
-    // emission that delivers this rename. The effect's messages arrive in
+    // output changes inside the same synchronous add or remove of a sibling
+    // output that delivers this rename. The effect's messages arrive in
     // order on one connection, so no answer under the old spelling can
     // follow. Creates are re-homed whatever, since KWin answers every one of
     // them.

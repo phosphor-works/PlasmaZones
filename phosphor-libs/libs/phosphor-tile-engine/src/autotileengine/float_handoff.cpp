@@ -431,12 +431,11 @@ void AutotileEngine::handoffReceive(const HandoffContext& ctx)
         } else {
             m_windowMinSizes.remove(windowId);
         }
-        // A background destination reflows when its desktop is shown, as the
-        // success arm below memoes it, and leaves the context in view alone.
+        // The refused insert left destKey's state untouched, so a background
+        // destination needs no reflow and the context in view is left alone.
+        // Only a refusal into the context in view retiles it.
         if (destInView) {
             retileAfterOperation(ctx.toScreenId, true);
-        } else {
-            m_dirtyBackgroundContexts.insert(destKey);
         }
         return;
     }

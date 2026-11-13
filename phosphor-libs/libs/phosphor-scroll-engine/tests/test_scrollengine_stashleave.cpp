@@ -559,6 +559,7 @@ private Q_SLOTS:
         QObject owner;
         const QRect shorter = Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent));
         ScrollEngine* engine = movedStripEngine(&owner, shorter, kD);
+        QVERIFY(engine);
         for (const QString& windowId : {kA, kB, kD}) {
             engine->windowOpened(windowId, kS2, 0, 0);
         }
@@ -588,6 +589,7 @@ private Q_SLOTS:
         QObject owner;
         const QRect shorter = Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent));
         ScrollEngine* engine = movedStripEngine(&owner, shorter, kA);
+        QVERIFY(engine);
         QVariantMap loneCentered;
         loneCentered.insert(ScrollPerScreenKeys::alwaysCenterSingleColumn(), true);
         engine->applyPerScreenConfig(kS2, loneCentered);
@@ -601,6 +603,41 @@ private Q_SLOTS:
         QCOMPARE(target->strip().columnCount(), 4);
         QCOMPARE(target->strip().activeWindowId(), kA);
         QCOMPARE(target->strip().viewAnchor(), 0);
+    }
+
+    // Under the Always policy a view the user panned is DETACHED, and the
+    // policy never re-centers it. Its overhang before the first column is the
+    // pan's, so a late claim keeps it as it keeps any user overhang, rather
+    // than clamping it as the policy's (C125).
+    void lateClaimKeepsAPannedOverhangUnderAlways()
+    {
+        QObject owner;
+        const QRect shorter = Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent));
+        ScrollEngine* engine = movedStripEngine(&owner, shorter, kA);
+        QVERIFY(engine);
+        QVariantMap always;
+        always.insert(ScrollPerScreenKeys::centerFocusedColumn(), static_cast<int>(CenterFocusedColumn::Always));
+        engine->applyPerScreenConfig(kS2, always);
+        for (const QString& windowId : {kA, kB, kD}) {
+            engine->windowOpened(windowId, kS2, 0, 0);
+        }
+        const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS2));
+        QVERIFY(target);
+        QCOMPARE(target->strip().columnCount(), 3);
+        QCOMPARE(target->strip().activeWindowId(), kA);
+        // Centered on a 900 px view: the 450 px first column starts 225 px in.
+        QCOMPARE(target->strip().viewAnchor(), 225);
+        // A partial pan back toward the strip: still 125 px of dead space.
+        engine->scrollViewByPx(100, kS2);
+        QVERIFY(target->strip().viewDetached());
+        const int panned = target->strip().viewAnchor();
+        QCOMPARE(panned, 125);
+
+        engine->windowOpened(kC, kS2, 0, 0); // claims its slot before d
+        QCOMPARE(target->strip().columnCount(), 4);
+        QCOMPARE(target->strip().activeWindowId(), kA);
+        QVERIFY(target->strip().viewDetached());
+        QCOMPARE(target->strip().viewAnchor(), panned);
     }
 
     // A mode round trip across a rotation drops the stashed view, which was
@@ -965,7 +1002,8 @@ private:
 
     /// A four-column strip on S1 focused on @p focused, recorded for S2's
     /// desktop 1 on an S2 of @p targetRect and released, with S2 then showing
-    /// desktop 1. Nothing has arrived on S2 yet.
+    /// desktop 1. Nothing has arrived on S2 yet. Null when nothing was
+    /// recorded.
     static ScrollEngine* movedStripEngine(QObject* owner, const QRect& targetRect, const QString& focused)
     {
         ScrollEngine* engine = makeProviderEngine(owner, {kS1, kS2}, [targetRect](const QString& screenId) {
@@ -980,6 +1018,7 @@ private:
         engine->windowFocused(focused, kS1);
         if (!engine->stashStripForOutputMove(kS1, kS2, 1, riders)) {
             qWarning("movedStripEngine: nothing was recorded");
+            return nullptr;
         }
         for (const QString& windowId : riders) {
             engine->handoffRelease(windowId);
