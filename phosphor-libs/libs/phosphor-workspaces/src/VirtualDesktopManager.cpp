@@ -758,11 +758,28 @@ bool VirtualDesktopManager::perScreenModeActive() const
     return false;
 }
 
-void VirtualDesktopManager::updateScreenDesktop(const QString& screenId, int desktop)
+QString VirtualDesktopManager::liveScreenIdFor(const QString& screenId) const
 {
-    if (screenId.isEmpty() || desktop < 1) {
+    return m_renamedScreenIds.value(screenId, screenId);
+}
+
+QString VirtualDesktopManager::takeReportedScreenId(const QString& screenId)
+{
+    if (const auto alias = m_renamedScreenIds.constFind(screenId); alias != m_renamedScreenIds.constEnd()) {
+        return alias.value();
+    }
+    m_renamedScreenIds.removeIf([&screenId](QHash<QString, QString>::iterator alias) {
+        return alias.value() == screenId;
+    });
+    return screenId;
+}
+
+void VirtualDesktopManager::updateScreenDesktop(const QString& reportedScreenId, int desktop)
+{
+    if (reportedScreenId.isEmpty() || desktop < 1) {
         return;
     }
+    const QString screenId = takeReportedScreenId(reportedScreenId);
     if (m_screenDesktops.value(screenId, -1) == desktop) {
         return;
     }
@@ -773,6 +790,11 @@ void VirtualDesktopManager::updateScreenDesktop(const QString& screenId, int des
 void VirtualDesktopManager::removeScreenDesktop(const QString& screenId)
 {
     m_screenDesktops.remove(screenId);
+    // The output is gone, and with it any report its old spelling could
+    // still carry.
+    m_renamedScreenIds.removeIf([&screenId](QHash<QString, QString>::iterator alias) {
+        return alias.value() == screenId;
+    });
 }
 
 bool VirtualDesktopManager::hasScreenDesktopReport(const QString& screenId) const
@@ -793,6 +815,18 @@ void VirtualDesktopManager::renameScreen(const QString& oldId, const QString& ne
     if (newId.isEmpty() || oldId == newId) {
         return;
     }
+    // The effect may still report under the old spelling (see the header), so
+    // it stays an alias of the new id. Whatever was aliased to the old id
+    // follows it, and the new id, live again, is nobody's old spelling now.
+    if (!oldId.isEmpty()) {
+        m_renamedScreenIds.remove(newId);
+        for (auto it = m_renamedScreenIds.begin(); it != m_renamedScreenIds.end(); ++it) {
+            if (it.value() == oldId) {
+                it.value() = newId;
+            }
+        }
+        m_renamedScreenIds.insert(oldId, newId);
+    }
     const auto from = m_screenDesktops.constFind(oldId);
     if (from == m_screenDesktops.constEnd()) {
         return; // nothing recorded under the dead id
@@ -812,11 +846,12 @@ void VirtualDesktopManager::renameScreen(const QString& oldId, const QString& ne
     Q_EMIT screenDesktopSeeded(newId, desktop);
 }
 
-void VirtualDesktopManager::seedScreenDesktop(const QString& screenId, int desktop)
+void VirtualDesktopManager::seedScreenDesktop(const QString& reportedScreenId, int desktop)
 {
-    if (screenId.isEmpty() || desktop < 1) {
+    if (reportedScreenId.isEmpty() || desktop < 1) {
         return;
     }
+    const QString screenId = takeReportedScreenId(reportedScreenId);
     m_screenDesktops.insert(screenId, desktop);
     Q_EMIT screenDesktopSeeded(screenId, desktop);
 }

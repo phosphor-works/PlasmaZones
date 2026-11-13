@@ -93,6 +93,14 @@ struct World
     {
         return controller->reconciler();
     }
+    /// A screen-id rename as the daemon delivers it: its own handler re-keys
+    /// the manager's row first, then the screen manager announces the rename.
+    void renameScreen(const QString& from, const QString& to)
+    {
+        vdm.renameScreen(from, to);
+        screens.setIdentifier(from, to);
+        Q_EMIT screenManager->screenIdentifierChanged(from, to);
+    }
 };
 
 const QString ScreenA = QStringLiteral("PZTEST:A:1");
@@ -338,6 +346,40 @@ private Q_SLOTS:
         QVERIFY(!world.controller->takeDesktopSwitchOsdSuppression(ScreenA, 1));
     }
 
+    /// The user switches on to another screen's workspace before a snap-back
+    /// is answered. That report is a landing, not the snap-back's answer, so
+    /// the snap-back still owes one: when it lands on the workspace it aimed
+    /// at, that switch stays as quiet as the first.
+    void foreignLandingBeforeTheSnapBackAnswer_keepsTheAnswerQuiet()
+    {
+        World world;
+        world.addScreen(ScreenA, 0);
+        world.addScreen(ScreenB, 1920);
+        world.vdm.commit({QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d3"), QStringLiteral("d4")});
+        world.build();
+        world.controller->start();
+        world.vdm.updateScreenDesktop(ScreenA, 1);
+        world.vdm.updateScreenDesktop(ScreenB, 3);
+        QVERIFY(world.reconciler().isAdopted());
+
+        world.vdm.updateScreenDesktop(ScreenA, 3); // B's d3: corrected toward d1
+        QCOMPARE(world.reconciler().inFlightSetCurrentTarget(ScreenA), QStringLiteral("d1"));
+        QVERIFY(world.controller->takeDesktopSwitchOsdSuppression(ScreenA, 3));
+
+        // KWin's own next-desktop press takes A on to d4, B's as well. The
+        // adaptor relays the report first, then the manager records it.
+        world.controller->noteScreenDesktopReport(ScreenA, 4);
+        world.vdm.updateScreenDesktop(ScreenA, 4);
+        QVERIFY(world.controller->takeDesktopSwitchOsdSuppression(ScreenA, 4));
+
+        // The snap-back lands: quiet, it is not a switch the user made.
+        world.controller->noteScreenDesktopReport(ScreenA, 1);
+        world.vdm.updateScreenDesktop(ScreenA, 1);
+        QVERIFY(world.controller->takeDesktopSwitchOsdSuppression(ScreenA, 1));
+        // Consumed: the user's own later switch back to d1 gets its card.
+        QVERIFY(!world.controller->takeDesktopSwitchOsdSuppression(ScreenA, 1));
+    }
+
     /// A screen-id rename carries the snap-back state with it: a correction
     /// refused inside the cooldown is not let through early by the rename,
     /// and the retry waiting for the cooldown runs under the new id instead
@@ -371,6 +413,44 @@ private Q_SLOTS:
         QTRY_COMPARE_WITH_TIMEOUT(switches.count(), 2, 2500);
         QCOMPARE(switches.last().at(0).toString(), renamed);
         QCOMPARE(switches.last().at(1).toString(), QStringLiteral("d1"));
+    }
+
+    /// The effect can answer a switch under an output's old spelling after the
+    /// daemon has renamed it (the two learn of the rename over different
+    /// channels). That answer belongs to the switch the rename re-keyed to the
+    /// new id, whether it is a forced report of the desktop already shown or
+    /// the switch itself, and it leaves no row under the dead id.
+    void answerUnderTheOldScreenSpelling_retiresTheRekeyedSwitch()
+    {
+        World world;
+        world.addScreen(ScreenA, 0);
+        world.vdm.commit({QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d3")});
+        world.registry.upsert(QStringLiteral("w"), onDesktop(2));
+        world.build();
+        world.controller->start();
+        world.vdm.updateScreenDesktop(ScreenA, 1);
+        QVERIFY(world.reconciler().isAdopted());
+
+        const QString renamed = ScreenA + QStringLiteral("/DP-1");
+        world.controller->focusWorkspaceAt(ScreenA, 0); // d1, already shown
+        QCOMPARE(world.reconciler().inFlightSetCurrentTarget(ScreenA), QStringLiteral("d1"));
+        world.renameScreen(ScreenA, renamed);
+        QCOMPARE(world.reconciler().inFlightSetCurrentTarget(renamed), QStringLiteral("d1"));
+
+        // The forced answer, under the old spelling.
+        world.controller->noteScreenDesktopReport(ScreenA, 1);
+        world.vdm.updateScreenDesktop(ScreenA, 1);
+        QVERIFY(world.reconciler().inFlightSetCurrentTarget(renamed).isEmpty());
+
+        // A switch, answered by the switch itself under the old spelling.
+        world.controller->focusWorkspaceAt(renamed, 1);
+        QCOMPARE(world.reconciler().inFlightSetCurrentTarget(renamed), QStringLiteral("d2"));
+        world.controller->noteScreenDesktopReport(ScreenA, 2);
+        world.vdm.updateScreenDesktop(ScreenA, 2);
+        QVERIFY(world.reconciler().inFlightSetCurrentTarget(renamed).isEmpty());
+        QCOMPARE(world.reconciler().currentDesktopIdOf(renamed), QStringLiteral("d2"));
+        QVERIFY(!world.vdm.hasScreenDesktopReport(ScreenA));
+        QVERIFY(world.reconciler().currentDesktopIdOf(ScreenA).isEmpty());
     }
 
     /// The rule resolver finds the declaration by its entry id (any spelling

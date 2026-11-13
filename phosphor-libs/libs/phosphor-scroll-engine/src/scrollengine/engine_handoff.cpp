@@ -111,9 +111,6 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
     if (ctx.toDesktop > 0) {
         key.desktop = ctx.toDesktop;
     }
-    // A column a move recorded for it on another desktop of this screen is
-    // one it did not reach, as for insertOpenedWindow's arrival (C41).
-    forgetMovedColumnsElsewhere(windowId, key);
     // Defence-in-depth single-owner guard: the daemon releases the source
     // first on every current path, but a window still tracked in ANOTHER
     // scroll context here would end up held by two states with the reverse
@@ -184,6 +181,12 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
         }
         Q_EMIT placementChanged(staleKey.screenId);
     }
+    // A column a move recorded for it on another desktop of this screen is
+    // one it did not reach, as for insertOpenedWindow's arrival (C41). After
+    // the migration above, which takes the window out of the contexts it is
+    // leaving, so the memberships the record keeps a tile for are only the
+    // ones the window holds on (C74).
+    forgetMovedColumnsElsewhere(windowId, key);
     ScrollState* state = stateForKey(key, true);
     if (!state) {
         return;

@@ -12,12 +12,16 @@
  */
 
 #include "wta_convenience_fixture.h"
+#include "dbus/tilingadaptor/tilingadaptor.h"
 #include "dbus/windowtrackingadaptor/lifecyclerelay.h"
 
+#include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorPlacement/SnapStateResolver.h>
 #include <PhosphorProtocol/WindowTypes.h>
+#include <PhosphorWorkspaces/VirtualDesktopManager.h>
 
+#include <QCoreApplication>
 #include <QScopeGuard>
 
 class TestWtaRouting : public QObject, protected WtaConvenienceFixture
@@ -673,10 +677,139 @@ private Q_SLOTS:
 
         drive(PhosphorEngine::RestoreReason::Open);
         QCOMPARE(routedToDp2(), 1);
-        QVERIFY(wta->hasRoutedOpen(w));
+        QVERIFY(wta->hasSnapOpenPlacement(w));
 
         drive(PhosphorEngine::RestoreReason::PendingSweep);
         QCOMPARE(routedToDp2(), 1);
+    }
+
+    // The tiling channel latches the open's routing verdict too, and an open
+    // queued before the daemon was ready can reach it first (the panel-ready
+    // flush) while the snap channel's open resolve was refused by the
+    // readiness gate. The pending sweep that follows is then still the
+    // window's first snap placement, and it alone applies a RouteToScreen
+    // onto a snapping monitor: the tiling channel leaves that target to the
+    // snap path (C60).
+    void testPendingSweepAfterATilingLatchedOpenStillRoutes()
+    {
+        PhosphorScreens::FakePhysicalScreenSource fake;
+        fake.addScreen(QStringLiteral("DP-1"), QRect(0, 0, 1920, 1080), QStringLiteral("DP-1"));
+        fake.addScreen(QStringLiteral("DP-2"), QRect(1920, 0, 1920, 1080), QStringLiteral("DP-2"));
+        PhosphorScreens::ScreenManager screenMgr(
+            PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
+        screenMgr.start();
+        QTRY_VERIFY(screenMgr.isPanelGeometryReady());
+
+        QObject parent;
+        auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
+                                              &parent);
+        const auto snap =
+            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
+        snap->setEngineSettings(m_settings);
+        wta->service()->setSnapState(snap->snapState());
+        wta->service()->setSnapEngine(snap.get());
+        wta->setEngines(snap.get(), nullptr, nullptr);
+        auto* snapAdaptor = new SnapAdaptor(snap.get(), wta, m_settings, &parent);
+
+        auto* registry = new PhosphorEngine::WindowRegistry(&parent);
+        wta->setWindowRegistry(registry);
+        wta->setWindowMetadata(QStringLiteral("sweep2"), QStringLiteral("sweepapp"), QString(), QString(), QString(), 0,
+                               0, QString(), 0, QVariantMap());
+
+        using namespace PhosphorRules;
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.enabled = true;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("sweepapp"));
+        RuleAction route;
+        route.type = QString(ActionType::RouteToScreen);
+        route.params.insert(QString(ActionParam::TargetScreenId), QStringLiteral("DP-2"));
+        rule.actions = {route};
+        RuleStore store(ConfigDefaults::rulesFilePath(), &parent);
+        QVERIFY(store.addRule(rule));
+        wta->setRuleStore(&store);
+        const auto teardown = qScopeGuard([wta, snapAdaptor] {
+            snapAdaptor->clearEngine();
+            wta->setRuleStore(nullptr);
+            wta->setWindowRegistry(nullptr);
+            wta->service()->setSnapEngine(nullptr);
+            wta->service()->setSnapState(nullptr);
+        });
+
+        const QString w = QStringLiteral("sweepapp|sweep2");
+        wta->setFrameGeometry(w, 100, 100, 800, 600);
+        QSignalSpy geomSpy(wta, &WindowTrackingAdaptor::applyGeometryRequested);
+        const auto routedToDp2 = [&geomSpy]() {
+            return std::count_if(geomSpy.cbegin(), geomSpy.cend(), [](const QList<QVariant>& call) {
+                return call.at(6).toString() == QStringLiteral("DP-2");
+            });
+        };
+
+        // The tiling channel's routing pass runs first and latches the
+        // verdict. DP-2 runs snapping, so it redirects nothing and moves
+        // nothing.
+        QVERIFY(wta->applyOpenRoutingForTiling(w, QStringLiteral("DP-1")).isEmpty());
+        QCOMPARE(routedToDp2(), 0);
+        QVERIFY(!wta->hasSnapOpenPlacement(w));
+
+        int x = 0;
+        int y = 0;
+        int width = 0;
+        int height = 0;
+        bool shouldSnap = false;
+        snapAdaptor->resolveWindowRestore(
+            w, QStringLiteral("DP-1"), false, static_cast<int>(PhosphorEngine::WindowKind::Unknown),
+            static_cast<int>(PhosphorEngine::RestoreReason::PendingSweep), 0, 0, x, y, width, height, shouldSnap);
+        QCOMPARE(routedToDp2(), 1);
+        QVERIFY(wta->hasSnapOpenPlacement(w));
+    }
+
+    // A screen unplugged since the last announce stamped it decides nothing
+    // when the desktop list is renumbered (C64). Its stamp named a desktop
+    // the removal below takes away, which reads as a screen owed an announce
+    // for the desktop it was showing; no output shows anything there, and
+    // the announce would void every live output's in-flight applies.
+    void testRenumberIgnoresTheStampOfAnUnpluggedScreen()
+    {
+        PhosphorScreens::FakePhysicalScreenSource fake;
+        fake.addScreen(QStringLiteral("DP-1"), QRect(0, 0, 1920, 1080), QStringLiteral("DP-1"));
+        fake.addScreen(QStringLiteral("DP-2"), QRect(1920, 0, 1920, 1080), QStringLiteral("DP-2"));
+        PhosphorScreens::ScreenManager screenMgr(
+            PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
+        screenMgr.start();
+        PhosphorWorkspaces::VirtualDesktopManager vdm{nullptr};
+        vdm.updateScreenDesktop(QStringLiteral("DP-1"), 3);
+        vdm.updateScreenDesktop(QStringLiteral("DP-2"), 2);
+
+        QObject parent;
+        auto* wta =
+            new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, &vdm, nullptr, &parent);
+        auto* scroll = new PhosphorScrollEngine::ScrollEngine(nullptr, nullptr, &parent);
+        auto* tiling = new TilingAdaptor(&screenMgr, &parent);
+        tiling->setLifecycleEngines(QVector<PhosphorEngine::IPlacementEngine*>{scroll});
+        tiling->setWindowTrackingAdaptor(wta);
+        const auto teardown = qScopeGuard([tiling] {
+            tiling->clearEngine();
+            tiling->setWindowTrackingAdaptor(nullptr);
+        });
+        QSignalSpy spy(tiling, &TilingAdaptor::managedScreensChanged);
+
+        // A set change stamps both screens, so only a removed desktop a
+        // screen was showing can owe the effect anything after it.
+        tiling->notifyEngineScreensChanged(false);
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 1);
+        const QVariantMap stamps = spy.at(0).at(2).toMap();
+        QCOMPARE(stamps.value(QStringLiteral("DP-1")).toInt(), 3);
+        QCOMPARE(stamps.value(QStringLiteral("DP-2")).toInt(), 2);
+
+        fake.removeScreen(QStringLiteral("DP-2"));
+        QVERIFY(!screenMgr.effectiveScreenIds().contains(QStringLiteral("DP-2")));
+
+        // Desktop 2 of four goes: DP-2's stamp is the only one it removes.
+        tiling->reannounceAfterRenumber(PhosphorEngine::DesktopRemap::removal(2, 4));
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 1);
     }
 
     // The open path may have asked the effect for a free SIZE moments ago,
@@ -1051,6 +1184,33 @@ private Q_SLOTS:
         bool otherMatched = true;
         QVERIFY(wta->applyOpenRoutingForTiling(other, QStringLiteral("DP-1"), &otherMatched).isEmpty());
         QVERIFY2(!otherMatched, "no rule → no ownership on the tiling channel either");
+    }
+
+    // The column record of move-column-to-workspace names only windows the
+    // verb moves. The window being dragged is refused by the verb and stays
+    // in its strip, so a tile recorded for it would wait for an arrival that
+    // never comes (C75).
+    void testColumnStashLeavesOutTheWindowTheVerbRefuses()
+    {
+        QObject owner;
+        auto* scroll = new PhosphorScrollEngine::ScrollEngine(nullptr, nullptr, &owner);
+        scroll->setActiveScreens({QStringLiteral("S1")});
+        scroll->setCurrentDesktopForScreen(QStringLiteral("S1"), 1);
+        const QString dragged = QStringLiteral("app|column-drag");
+        scroll->windowOpened(dragged, QStringLiteral("S1"), 0, 0);
+        QVERIFY(scroll->isWindowTracked(dragged));
+        m_wta->setEngines(m_snapEngine, nullptr, scroll);
+        const auto detach = qScopeGuard([this] {
+            m_wta->setInteractiveDragWindow(QString());
+            m_wta->setEngines(m_snapEngine, nullptr, nullptr);
+        });
+
+        m_wta->setInteractiveDragWindow(dragged);
+        QVERIFY(!m_wta->stashScrollColumnForWorkspaceMove(QStringLiteral("S1"), {dragged}, 2));
+
+        // Control: dropped, the same column is recorded.
+        m_wta->setInteractiveDragWindow(QString());
+        QVERIFY(m_wta->stashScrollColumnForWorkspaceMove(QStringLiteral("S1"), {dragged}, 2));
     }
 
     void testGuardedHandoff_refusalRehomesIntoSource()

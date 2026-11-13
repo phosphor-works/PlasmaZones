@@ -30,6 +30,7 @@
 #include <PhosphorTiles/TilingState.h>
 
 #include "dbus/tilingadaptor/tilingadaptor.h"
+#include "dbus/windowtrackingadaptor/internal.h"
 #include "helpers/AutotileTestHelpers.h"
 
 #include <optional>
@@ -723,6 +724,53 @@ private Q_SLOTS:
         QCoreApplication::processEvents();
 
         QVERIFY2(!f.engine.isWindowTracked(kWindow), "out of view: the switch to its desktop re-announces it");
+    }
+
+    // A workspace move of a window held on a desktop the screen is not
+    // showing hands guardedHandoff that desktop as the re-home desktop
+    // (WorkspaceMoveWire::sourceDesktop). When the target refuses, the window
+    // goes back to the context it was released from, not the one in view:
+    // the real window never left its desktop (C33, C62). The target here is
+    // an engine that runs no screen, so it refuses every receive.
+    void autotile_refusedHandoffRehomesOnTheBackgroundDesktop()
+    {
+        AutotileFixture f;
+        f.openOn(2, {kWindow});
+        f.engine.setCurrentDesktopForScreen(kScreen, 1);
+        QCOMPARE(f.engine.heldKeyForWindow(kWindow).value_or(kNoKey).desktop, 2);
+
+        PhosphorScrollEngine::ScrollEngine refusing{nullptr, nullptr};
+        PhosphorEngine::IPlacementEngine::HandoffContext ctx;
+        ctx.windowId = kWindow;
+        ctx.toScreenId = kScreen2;
+        ctx.fromEngineId = f.engine.engineId();
+        QVERIFY(!WindowTrackingInternal::guardedHandoff(&f.engine, &refusing, ctx, kScreen, /*recoverDesktop=*/2));
+
+        QCOMPARE(f.engine.heldKeyForWindow(kWindow).value_or(kNoKey).desktop, 2);
+        QVERIFY2(!f.engine.tilingStateForScreen(kScreen)->containsWindow(kWindow),
+                 "the desktop in view must not tile a window that is not on it");
+    }
+
+    void scrolling_refusedHandoffRehomesOnTheBackgroundDesktop()
+    {
+        ScrollFixture f;
+        f.registry.canonicalizeWindowId(kWindow);
+        f.registry.upsert(kInstance, onDesktop(2));
+        f.engine.setCurrentDesktopForScreen(kScreen, 2);
+        f.engine.setActiveScreens({kScreen});
+        f.engine.windowOpened(kWindow, kScreen);
+        QCoreApplication::processEvents();
+        f.engine.setCurrentDesktopForScreen(kScreen, 1);
+        QCOMPARE(f.engine.heldKeyForWindow(kWindow).value_or(kNoKey).desktop, 2);
+
+        PhosphorScrollEngine::ScrollEngine refusing{nullptr, nullptr};
+        PhosphorEngine::IPlacementEngine::HandoffContext ctx;
+        ctx.windowId = kWindow;
+        ctx.toScreenId = kScreen2;
+        ctx.fromEngineId = f.engine.engineId();
+        QVERIFY(!WindowTrackingInternal::guardedHandoff(&f.engine, &refusing, ctx, kScreen, /*recoverDesktop=*/2));
+
+        QCOMPARE(f.engine.heldKeyForWindow(kWindow).value_or(kNoKey).desktop, 2);
     }
 };
 

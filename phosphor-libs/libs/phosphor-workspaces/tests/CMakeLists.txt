@@ -32,7 +32,8 @@ endif()
 
 # The workspace-map, reconciler, ledger and VirtualDesktopManager suites.
 # Headless: the WorkspaceMap is a pure value type, and the WorkspaceReconciler's
-# and the manager's inputs are plain calls (no D-Bus, no KWin), so the suites
+# and the manager's inputs are plain calls (no bus traffic, no KWin; the
+# manager's suite builds D-Bus messages but never sends one), so the suites
 # drive scripted notification sequences directly. The reconciler's ledger
 # expiry and destroy debounce run on timers, so those suites need a running
 # event loop, which a QCoreApplication supplies without a platform plugin.

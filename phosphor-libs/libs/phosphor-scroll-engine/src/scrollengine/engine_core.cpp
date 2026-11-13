@@ -466,6 +466,7 @@ ScrollEngine::buildStashFromState(const ScrollState* state,
     // Both halves or neither: an anchor restored without its detachment is
     // handed straight back to the centering policy (StashedStrip::viewDetached).
     out.viewDetached = state->strip().viewDetached();
+    out.viewCarried = true;
     // Stamped so the restore can tell whether that anchor still means
     // anything. The state's RESOLVED axis is the right source: it advances on
     // every relayout, where the applied basis only advances on an emitted
@@ -978,7 +979,9 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
         // clamp for exactly that reason), so there is no way to tell a good
         // one from a stale one after a flip. Drop it: the focus restore above
         // still lands, and the centering policy re-derives a view around it.
-        if (stashStrip.axis == params.axis.axis()) {
+        // An entry that carries no view at all (StashedStrip::viewCarried)
+        // takes the same arm: its anchor field is a default, not a view.
+        if (stashStrip.viewCarried && stashStrip.axis == params.axis.axis()) {
             state->strip().restoreViewAnchor(stashStrip.viewAnchor, params);
             // After the anchor, and only in this arm: the focus call above
             // cleared the latch, restoreViewAnchor deliberately leaves it

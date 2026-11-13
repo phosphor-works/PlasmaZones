@@ -30,6 +30,7 @@ const QString kS2 = QStringLiteral("S2");
 const QString kA = QStringLiteral("app|a");
 const QString kB = QStringLiteral("app|b");
 const QString kC = QStringLiteral("app|c");
+const QString kD = QStringLiteral("app|d");
 /// The default column on the suite's 1200 px main extent.
 constexpr int kDefaultMain = 600;
 /// One adjustColumnWidth(10.0) on a default column: 600 + 10% of 1200.
@@ -513,11 +514,191 @@ private Q_SLOTS:
     // A strip moved to a monitor whose work area is as long as its own keeps
     // the view the user had panned to. On a monitor of another length the
     // anchor would name another view, so the focus goes alone and the policy
-    // places the view (C44).
+    // places the view (C44). The record then carries no view at all: with
+    // the focus on the last column, the rebuilt strip holds the anchor
+    // focusWindow derives for it, not a zero that would put that column at
+    // the leading edge with nothing behind it (C72).
     void outputMoveCarriesThePannedViewOnlyToAnEqualLength()
     {
-        QCOMPARE(movedStripViewDetached(Ax::defaultScreenRect()), true);
-        QCOMPARE(movedStripViewDetached(Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent))), false);
+        const QRect shorter = Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent));
+        const MovedView sameLength = movedStripView(Ax::defaultScreenRect(), kA, 300);
+        QVERIFY(sameLength.built);
+        QCOMPARE(sameLength.detached, true);
+        const MovedView otherLength = movedStripView(shorter, kA, 300);
+        QVERIFY(otherLength.built);
+        QCOMPARE(otherLength.detached, false);
+
+        const MovedView lastFocused = movedStripView(shorter, kD, 0);
+        QVERIFY(lastFocused.built);
+        QCOMPARE(lastFocused.focused, kD);
+        // The derived view keeps the last column off the leading edge, so the
+        // compare below cannot pass on a zero anchor.
+        QVERIFY(lastFocused.derivedAnchor != 0);
+        QCOMPARE(lastFocused.anchor, lastFocused.derivedAnchor);
+    }
+
+    // A record that carries no view keeps carrying none across a restart.
+    // The save writes no anchor for it, and the staged entry restores the
+    // focus with the view the policy derives, as the in-session record does
+    // (C72).
+    void outputMoveRecordWithoutAViewSurvivesARestart()
+    {
+        QObject owner;
+        const QRect shorter = Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent));
+        const auto geometry = [shorter](const QString& screenId) {
+            return screenId == kS2 ? shorter : Ax::defaultScreenRect();
+        };
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1, kS2}, geometry);
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        engine->setCurrentDesktopForScreen(kS2, 2);
+        const QStringList riders{kA, kB, kC, kD};
+        for (const QString& windowId : riders) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kD, kS1);
+        QVERIFY(engine->stashStripForOutputMove(kS1, kS2, 1, riders));
+        for (const QString& windowId : riders) {
+            engine->handoffRelease(windowId);
+            engine->releaseWindowOffScreen(windowId, kS2);
+        }
+        const QJsonObject blob = engine->serializeStripState();
+        const QJsonObject entry = blob.value(kS2 + QLatin1String("|1|")).toObject();
+        QCOMPARE(entry.value(QLatin1String("columns")).toArray().size(), 4);
+        QCOMPARE(entry.value(QLatin1String("focusedWindow")).toString(), kD);
+        QVERIFY(!entry.contains(QLatin1String("viewAnchor")));
+
+        ScrollEngine* restarted = makeProviderEngine(&owner, {kS1, kS2}, geometry);
+        restarted->setCurrentDesktopForScreen(kS1, 1);
+        restarted->setCurrentDesktopForScreen(kS2, 1);
+        restarted->restoreStripState(blob);
+        for (const QString& windowId : riders) {
+            restarted->windowOpened(windowId, kS2, 0, 0);
+        }
+        const auto* target = static_cast<ScrollState*>(restarted->stateForScreen(kS2));
+        QVERIFY(target);
+        QCOMPARE(target->strip().columnCount(), 4);
+        QCOMPARE(target->strip().activeWindowId(), kD);
+        const int derived = derivedAnchorFor(target->strip(), shorter, kD);
+        QVERIFY(derived != 0);
+        QCOMPARE(target->strip().viewAnchor(), derived);
+    }
+
+    // The equal-length gate measures the target side in the context the strip
+    // lands in, not the one the target monitor shows at the press (C73). S2
+    // shows desktop 2, whose outer gaps shorten its work area, and the strip
+    // moves to S2's desktop 1, which has none and is as long as S1's.
+    void outputMoveMeasuresTheDestinationContext()
+    {
+        int s2Shown = 2;
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1, kS2});
+        engine->setContextGapProvider([&s2Shown](const QString& screenId, int desktop, const QString&) {
+            QVariantMap gaps;
+            if (screenId == kS2 && (desktop > 0 ? desktop : s2Shown) == 2) {
+                gaps.insert(QStringLiteral("OuterGap"), 50);
+            }
+            return gaps;
+        });
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        engine->setCurrentDesktopForScreen(kS2, 2);
+        const QStringList riders{kA, kB, kC, kD};
+        for (const QString& windowId : riders) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kA, kS1);
+        engine->scrollViewByPx(300, kS1);
+        const auto* source = static_cast<ScrollState*>(engine->stateForScreen(kS1));
+        QVERIFY(source && source->strip().viewDetached());
+        QVERIFY(engine->stashStripForOutputMove(kS1, kS2, 1, riders));
+        for (const QString& windowId : riders) {
+            engine->handoffRelease(windowId);
+            engine->releaseWindowOffScreen(windowId, kS2);
+        }
+
+        s2Shown = 1;
+        engine->setCurrentDesktopForScreen(kS2, 1);
+        for (const QString& windowId : riders) {
+            engine->windowOpened(windowId, kS2, 0, 0);
+        }
+        const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS2));
+        QVERIFY(target);
+        QCOMPARE(target->strip().columnCount(), 4);
+        QVERIFY2(target->strip().viewDetached(), "the panned view must reach a destination of the same length");
+    }
+
+    // A window on two desktops is adopted into the second while its moved
+    // column is still waiting for a column-mate on the first. The adoption is
+    // no arrival elsewhere for that record: the window still holds the
+    // desktop the move went to, and its tile there is how the column-mate
+    // finds the column (C74).
+    void adoptionKeepsTheMoveRecordOfAHeldDesktop()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1});
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        for (const QString& windowId : {kA, kB, kC}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kA, kS1);
+        engine->consumeWindowIntoColumn(kS1); // b joins a's column
+        QVERIFY(engine->stashColumnForDesktopMove(kS1, {kA, kB}, 2));
+        engine->handoffRelease(kA);
+        engine->handoffRelease(kB);
+
+        // a lands on desktop 2 first, then also goes on desktop 1, where the
+        // membership pass adopts it.
+        engine->setCurrentDesktopForScreen(kS1, 2);
+        engine->windowOpened(kA, kS1, 0, 0);
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        const PhosphorEngine::MembershipReconcileResult adopted =
+            engine->reconcileWindowMemberships(kA, spanOn({1, 2}));
+        QCOMPARE(adopted.adopted.size(), 1);
+
+        // b lands on desktop 2 and joins a's column there.
+        engine->setCurrentDesktopForScreen(kS1, 2);
+        engine->windowOpened(kB, kS1, 0, 0);
+        const int aColumn = engine->columnIndexForWindow(kS1, kA);
+        QVERIFY(aColumn >= 0);
+        QCOMPARE(engine->columnIndexForWindow(kS1, kB), aColumn);
+    }
+
+    // The move record is persisted as one (C77). A move still pending at a
+    // restart that keeps the window ids is refused after it, and the arrival
+    // back on the source desktop gives the record up as it does in session:
+    // a later move of a alone lands at the default width.
+    void refusedColumnMoveLeavesNoRecordAcrossARestart()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1});
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        for (const QString& windowId : {kA, kB, kC}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kA, kS1);
+        engine->consumeWindowIntoColumn(kS1); // b joins a's column
+        engine->adjustColumnWidth(10.0, kS1);
+        QCOMPARE(Ax::mainLen(engine->lastManagedRect(kA)), kWidenedMain);
+        QVERIFY(engine->stashColumnForDesktopMove(kS1, {kA, kB}, 2));
+        engine->handoffRelease(kA);
+        engine->handoffRelease(kB);
+        const QJsonObject blob = engine->serializeStripState();
+        const QJsonArray recorded =
+            blob.value(kS1 + QLatin1String("|2|")).toObject().value(QLatin1String("columns")).toArray();
+        QCOMPARE(recorded.size(), 1);
+        QVERIFY(recorded.at(0).toObject().value(QLatin1String("arrivesAsMove")).toBool(false));
+
+        ScrollEngine* restarted = makeProviderEngine(&owner, {kS1});
+        restarted->setCurrentDesktopForScreen(kS1, 1);
+        restarted->restoreStripState(blob);
+        // Refused: both windows are placed again on desktop 1.
+        restarted->windowOpened(kC, kS1, 0, 0);
+        restarted->windowOpened(kA, kS1, 0, 0);
+        restarted->windowOpened(kB, kS1, 0, 0);
+
+        restarted->handoffRelease(kA);
+        restarted->setCurrentDesktopForScreen(kS1, 2);
+        restarted->windowOpened(kA, kS1, 0, 0);
+        QCOMPARE(Ax::mainLen(restarted->lastManagedRect(kA)), kDefaultMain);
     }
 
     // A strip that leaves scrolling a second time before every window came
@@ -546,32 +727,59 @@ private Q_SLOTS:
     }
 
 private:
-    /// A four-column strip on S1 with the view panned off its focus, moved as
-    /// a workspace to an S2 of @p targetRect, its windows re-arriving there.
-    /// Whether the rebuilt strip still holds the panned (detached) view.
-    static bool movedStripViewDetached(const QRect& targetRect)
+    /// What a strip moved to another monitor holds once its windows re-arrived.
+    struct MovedView
     {
+        bool built = false;
+        bool detached = false;
+        QString focused;
+        int anchor = 0;
+        /// The anchor focusWindow derives on the rebuilt strip for the
+        /// focused window, reached from the first column (derivedAnchorFor).
+        int derivedAnchor = 0;
+    };
+
+    /// The anchor focusWindow derives on a copy of @p strip, laid out on
+    /// @p targetRect, for @p windowId reached from the first column, whose
+    /// view sits at the strip's start whatever came before.
+    static int derivedAnchorFor(const ScrollStrip& strip, const QRect& targetRect, const QString& windowId)
+    {
+        ScrollLayoutParams params = ScrollTestUtils::engineParams();
+        params.workArea = targetRect;
+        ScrollStrip probe = strip;
+        probe.focusWindow(kA, params);
+        probe.focusWindow(windowId, params);
+        return probe.viewAnchor();
+    }
+
+    /// A four-column strip on S1 focused on @p focused, its view panned by
+    /// @p panPx (0 for none), moved as a workspace to an S2 of @p targetRect,
+    /// its windows re-arriving there.
+    static MovedView movedStripView(const QRect& targetRect, const QString& focused, int panPx)
+    {
+        MovedView view;
         QObject owner;
         ScrollEngine* engine = makeProviderEngine(&owner, {kS1, kS2}, [targetRect](const QString& screenId) {
             return screenId == kS2 ? targetRect : Ax::defaultScreenRect();
         });
         engine->setCurrentDesktopForScreen(kS1, 1);
         engine->setCurrentDesktopForScreen(kS2, 2);
-        const QString kD = QStringLiteral("app|d");
         const QStringList riders{kA, kB, kC, kD};
         for (const QString& windowId : riders) {
             engine->windowOpened(windowId, kS1, 0, 0);
         }
-        engine->windowFocused(kA, kS1);
-        engine->scrollViewByPx(300, kS1);
-        const auto* source = static_cast<ScrollState*>(engine->stateForScreen(kS1));
-        if (!source || !source->strip().viewDetached()) {
-            qWarning("movedStripViewDetached: the pan did not detach the source view");
-            return false;
+        engine->windowFocused(focused, kS1);
+        if (panPx != 0) {
+            engine->scrollViewByPx(panPx, kS1);
+            const auto* source = static_cast<ScrollState*>(engine->stateForScreen(kS1));
+            if (!source || !source->strip().viewDetached()) {
+                qWarning("movedStripView: the pan did not detach the source view");
+                return view;
+            }
         }
         if (!engine->stashStripForOutputMove(kS1, kS2, 1, riders)) {
-            qWarning("movedStripViewDetached: nothing was recorded");
-            return false;
+            qWarning("movedStripView: nothing was recorded");
+            return view;
         }
         for (const QString& windowId : riders) {
             engine->handoffRelease(windowId);
@@ -582,7 +790,16 @@ private:
             engine->windowOpened(windowId, kS2, 0, 0);
         }
         const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS2));
-        return target && target->strip().viewDetached();
+        if (!target || target->strip().columnCount() != riders.size()) {
+            qWarning("movedStripView: the strip was not rebuilt on the target");
+            return view;
+        }
+        view.built = true;
+        view.detached = target->strip().viewDetached();
+        view.focused = target->strip().activeWindowId();
+        view.anchor = target->strip().viewAnchor();
+        view.derivedAnchor = derivedAnchorFor(target->strip(), targetRect, view.focused);
+        return view;
     }
 
     /// a, b and c on desktop 1 of S1, b's column widened.

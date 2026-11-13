@@ -172,30 +172,30 @@ void Daemon::onDesktopsRenumbered(const PhosphorEngine::DesktopRemap& remap)
     if (readoptEvictees) {
         m_tilingAdaptor->noteRenumberEvictees(m_windowTrackingAdaptor->knownWindowIds(), removedDesktops);
     }
-    // Re-announce the managed set as a desktop switch when the renumber cost
-    // the effect the last one (F692). The effect re-reads its per-output
-    // report cache into the new numbering on KWin's own renumber, and its
-    // staleness gate drops WHOLE any switch announce whose per-screen desktop
-    // stamps disagree with that cache. A switch this change caused (an output
-    // that showed a removed desktop) was announced from the
-    // screenDesktopChanged handler in the OLD numbering and is dropped there,
-    // which leaves the effect owing that output an announce (its
-    // SwitchAnnounceLedger) that the re-seed below does not send when the
-    // managed set did not change. The adaptor coalesces onto the next
-    // event-loop turn and stamps each screen's desktop at emit time, so this
-    // announce carries the new numbering, is accepted and settles the ledger.
-    // An output that showed a removed desktop is owed one even with no switch
-    // announce behind it (C57): KWin moves it to the successor, which usually
-    // takes the removed number, so the effect's per-output report is a repeat
-    // it never sends and no screenDesktopChanged handler announces anything.
-    // Not for every renumber (C32): with no switch behind it the effect reads
-    // the announce as an edge-less switch and voids every output's in-flight
-    // applies, so the adaptor sends it only when the renumber moved a desktop
-    // its last switch announce stamped, or removed one a screen was showing
-    // (reannounceAfterRenumber). Queued HERE,
-    // ahead of every engine change, because a tile batch relayed while an
-    // announce is queued is held and sent right behind it, and no batch of
-    // this pass may be in flight ahead of it. Not at start-up (m_running
+    // Re-announce the managed set as a desktop switch when the renumber may
+    // have cost the effect the last one (F692). The effect re-reads its
+    // per-output report cache into the new numbering on KWin's own renumber,
+    // and its staleness gate drops WHOLE any switch announce whose per-screen
+    // desktop stamps disagree with that cache. A switch announce still in
+    // flight when KWin renumbered arrives stamped in the OLD numbering and is
+    // dropped there, which leaves the effect owing the switched output an
+    // announce (its SwitchAnnounceLedger) that the re-seed below does not
+    // send when the managed set did not change. The adaptor coalesces onto
+    // the next event-loop turn and stamps each screen's desktop at emit time,
+    // so this announce carries the new numbering, is accepted and settles the
+    // ledger. An output that showed a removed desktop is owed one even with
+    // no switch announce behind it (C57): KWin moves it to the successor,
+    // which usually takes the removed number, so the effect's per-output
+    // report is a repeat it never sends and no screenDesktopChanged handler
+    // announces anything. Not for every renumber (C32): with no switch
+    // behind it the effect reads the announce as an edge-less switch and
+    // voids every output's in-flight applies, so the adaptor sends it only
+    // when the renumber moved a desktop its last switch announce stamped
+    // (whether that announce was lost the daemon cannot tell, C61), or
+    // removed one a screen was showing (reannounceAfterRenumber). Queued
+    // HERE, ahead of every engine change, because a tile batch relayed while
+    // an announce is queued is held and sent right behind it, and no batch
+    // of this pass may be in flight ahead of it. Not at start-up (m_running
     // false): no switch has been announced yet that this could correct.
     if (m_running && m_tilingAdaptor) {
         m_tilingAdaptor->reannounceAfterRenumber(remap);

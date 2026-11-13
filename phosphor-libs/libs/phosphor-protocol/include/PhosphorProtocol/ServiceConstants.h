@@ -826,9 +826,12 @@ inline constexpr QLatin1String Interface("org.phosphor_works.PlasmaZones.Editor"
 //       the destination output (empty keeps the window where it is). The
 //       compositor judges the arrival's visibility and focus on the
 //       destination output. An empty id with a number below 1 is the
-//       output-only form, which joins the desktop the destination shows; an
-//       id or number naming no desktop runs neither leg and the window is
-//       placed again where it is. Besides the workspace verbs, an engine's
+//       output-only form, which joins the desktop the destination shows,
+//       and does nothing when the output is unknown (an unknown output
+//       otherwise drops only the output leg); an id or number naming no
+//       desktop runs neither leg and the window is placed again where it is.
+//       A window on all desktops takes neither leg of a move with a desktop
+//       leg and is not placed again. Besides the workspace verbs, an engine's
 //       crossing sends it when it has to carry the window to another output
 //       itself. It replaces the pair of signals the branch first used (a
 //       desktop move by id, and a separate output move), which made the

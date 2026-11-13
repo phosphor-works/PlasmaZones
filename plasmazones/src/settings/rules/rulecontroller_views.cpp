@@ -66,9 +66,14 @@ QString translatedProseList(const QStringList& items)
     for (qsizetype i = 1; i + 1 < items.size(); ++i) {
         joined = PhosphorI18n::tr("%1, %2", "a list built so far, then its next item").arg(joined, items.at(i));
     }
-    if (items.size() > 1) {
-        joined =
-            PhosphorI18n::tr("%1 and %2", "a list built so far, then its last item").arg(joined, items.constLast());
+    // A pair and the end of a longer list are separate messages, because a
+    // language may join them differently (English style guides differ on a
+    // comma before the "and" of three or more items).
+    if (items.size() == 2) {
+        joined = PhosphorI18n::tr("%1 and %2", "a list of exactly two items").arg(joined, items.constLast());
+    } else if (items.size() > 2) {
+        joined = PhosphorI18n::tr("%1 and %2", "a list of three or more items built so far, then its last item")
+                     .arg(joined, items.constLast());
     }
     return joined;
 }

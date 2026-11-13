@@ -1997,6 +1997,9 @@ void TestWorkspaceReconciler::screenRenamed_recordsAlreadyUnderTheNewIdWin()
     QCOMPARE(rec.map().ownerOf(id(1)), renamed);
     QCOMPARE(rec.currentDesktopIdOf(renamed), id(3));
     QCOMPARE(rec.inFlightSetCurrentTarget(renamed), id(1));
+    // The kept switch owes no answer for the dropped one, which the effect
+    // answers under the old spelling if at all, so its own first answer
+    // under the new id retires it.
     QVERIFY(rec.onScreenDesktopReport(renamed, 1));
     QVERIFY(rec.inFlightSetCurrentTarget(renamed).isEmpty());
 }

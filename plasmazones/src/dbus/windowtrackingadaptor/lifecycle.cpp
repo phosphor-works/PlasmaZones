@@ -19,9 +19,11 @@
 #include "core/utils/dbusvariantutils.h"
 #include "dbus/dbushelpers.h"
 
+#include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
+#include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorEngine/WindowRegistry.h>
 // Complete type required for the m_ruleEvaluator->evictCached calls below.
 #include <PhosphorRules/RuleEvaluator.h>
@@ -549,6 +551,7 @@ void WindowTrackingAdaptor::windowClosed(const QString& windowId, int windowKind
     // here is what lets a reused window id route again on its next open.
     m_openRoutes.remove(shadowId);
     m_openRoutePass.remove(shadowId);
+    m_snapOpenPlacements.remove(shadowId);
 
     // Drop registry state last: consumers subscribed to windowDisappeared may
     // rely on other WTS state still being present during their cleanup.
@@ -926,9 +929,51 @@ void WindowTrackingAdaptor::releaseSnapOutsideLiveContext(const QString& rawWind
     // monitor's physical id, and against that every membership on one of its
     // virtual screens reads as off-screen and would be released with the rest
     // (C42). resolveBusScreen picks the virtual screen the frame is in.
-    const QString liveScreen = resolveBusScreen(screenId, windowId);
+    QString liveScreen = resolveBusScreen(screenId, windowId);
     if (liveScreen.isEmpty()) {
         return;
+    }
+    // A physical id whose frame did not pick the virtual screen: with no
+    // frame shadow yet (or one not on that monitor) resolveBusScreen guesses
+    // one from the cursor or takes the first, and a guess can name the
+    // sibling of the virtual screen the window is held on, which would
+    // release its real membership (C63). The snap engine's own hold on that
+    // monitor answers instead: the virtual screen whose shown context holds
+    // the window, else the one its held key names. Holding it on none of
+    // them, the window loses nothing there and the guess stands, so a stale
+    // membership elsewhere is still released. Held on more than one of them,
+    // which one it is on is unknown, and nothing is released.
+    const QString reportedId = PhosphorScreens::ScreenIdentity::idForName(screenId);
+    PhosphorScreens::ScreenManager* const screens = m_service->screenManager();
+    if (screens && liveScreen != reportedId && PhosphorIdentity::VirtualScreenId::isVirtual(liveScreen)
+        && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(liveScreen, reportedId)) {
+        const QRect frame = frameGeometry(windowId);
+        const QString framed = frame.isValid() ? Utils::effectiveScreenIdAt(screens, frame.center()) : QString();
+        if (framed != liveScreen) {
+            QStringList holders;
+            for (const QString& child : screens->virtualScreenIdsFor(reportedId)) {
+                const auto* const state =
+                    static_cast<const PhosphorSnapEngine::SnapState*>(std::as_const(*snap).stateForScreen(child));
+                if (state && (state->isWindowSnapped(windowId) || state->isFloating(windowId))) {
+                    holders.append(child);
+                }
+            }
+            if (holders.isEmpty()) {
+                if (const std::optional<PhosphorEngine::PlacementStateKey> held = snap->heldKeyForWindow(windowId);
+                    held && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(held->screenId, reportedId)) {
+                    holders.append(held->screenId);
+                }
+            }
+            if (holders.size() > 1) {
+                qCDebug(lcDbusWindow) << "releaseSnapOutsideLiveContext:" << windowId << "reported on" << screenId
+                                      << "is held on" << holders
+                                      << "and none is known to be its own, releasing nothing";
+                return;
+            }
+            if (!holders.isEmpty()) {
+                liveScreen = holders.constFirst();
+            }
+        }
     }
     const PhosphorEngine::DesktopSpan span =
         m_desktopSpanQuery ? m_desktopSpanQuery(windowId) : PhosphorEngine::DesktopSpan{};

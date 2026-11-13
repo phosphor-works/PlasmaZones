@@ -657,7 +657,7 @@ void ScreenChangeHandler::sendSettleReport()
                 self->applySettleVerdicts(reply.isValid() ? reply.value() : PhosphorProtocol::OutputSettleVerdictList{},
                                           crossings, skipped, sources);
                 // Crossings deferred while the report was in flight.
-                self->replayDeferredCrossings();
+                self->finishScreenChange();
             });
 }
 
@@ -797,6 +797,22 @@ void ScreenChangeHandler::replayDeferredCrossings()
         }
         replayCrossing(w, it.value());
     }
+}
+
+void ScreenChangeHandler::finishScreenChange()
+{
+    if (m_stopped || isScreenChangeInProgress()) {
+        return;
+    }
+    replayDeferredCrossings();
+    // A parked window whose move to another output committed while the change
+    // ran was not drained at its commit: the output arm leaves a drain to the
+    // settle, which places what KWin moved (C56). Nothing in the settle spends
+    // a park, so without this the window waited for an unrelated desktop
+    // switch to be placed, and was placed then whatever had happened since
+    // (C86). The drain re-judges every park on the output each window now
+    // sits on and spends only the ones in view.
+    m_effect->snapHandler()->slotDesktopChangedRestoreArrivals();
 }
 
 void ScreenChangeHandler::replayCrossing(KWin::EffectWindow* w, const QString& oldScreenId)

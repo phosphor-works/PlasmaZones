@@ -542,10 +542,15 @@ public:
     /// @p windowIds, under (@p targetStripScreenId, @p desktop, current
     /// activity). The arrivals on the target strip rejoin their columns in
     /// the stashed order, with width, display, tab, height owner and per-tile
-    /// heights. A fresh record also carries the strip's focus, view anchor
-    /// (restored only on the axis it was captured on) and blueprint
+    /// heights. A fresh record also carries the strip's focus and blueprint
     /// spent-ness, since the whole strip moves; an entry already stashed for
     /// the destination keeps its own and gains the columns after its own.
+    /// The view (anchor and pan) goes with the focus only when the
+    /// destination context's work area has the source's main-axis length on
+    /// the same axis, since the anchor is pixels into a strip whose column
+    /// extents follow the work area. Otherwise the record carries no view
+    /// (StashedStrip::viewCarried) and the centering policy places one
+    /// around the restored focus.
     ///
     /// Both ids are exact strip keys (a "<phys>/vs:N" id on a split
     /// monitor). A sticky pin on either screen keys that side by the pin.
@@ -1420,7 +1425,10 @@ private:
                                   bool movedColumnsOnly = false);
     /// The arrival half of the move record: @p windowId was placed under @p arrivalKey, so a column a move
     /// recorded for it under any other key is one it never reached (the move was refused, or the window was
-    /// moved on), and it gives that column up (forgetStashedWindowWhere with movedColumnsOnly).
+    /// moved on), and it gives that column up (forgetStashedWindowWhere with movedColumnsOnly). A key the
+    /// window still holds a membership in keeps the tile: a window on several desktops arrives in each, and
+    /// its column-mates still to arrive there find their column through it. Call it after the window has left
+    /// the contexts it is leaving.
     void forgetMovedColumnsElsewhere(const QString& windowId, const PhosphorEngine::PlacementStateKey& arrivalKey);
     /// pruneStaleWindows' sweep of the stash on aliveness, and the restart-move arm.
     void sweepStripStashForAliveness(const QSet<QString>& aliveWindowIds);

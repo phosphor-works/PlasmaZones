@@ -690,14 +690,18 @@ void WorkspaceController::snapBackScreen(const QString& screenId)
 
 void WorkspaceController::scheduleSnapBackRetry(const QString& screenId, qint64 delayMs)
 {
-    m_snapBackRetryPending.insert(screenId);
-    QTimer::singleShot(delayMs, this, [this, screenId]() {
-        // Only the retry that still holds the flag runs: one superseded by a
-        // screen-id rename finds its flag gone and leaves the screen to the
-        // retry armed under the new id.
-        if (!m_snapBackRetryPending.remove(screenId)) {
+    const quint64 sequence = ++m_snapBackRetrySequence;
+    m_snapBackRetryPending.insert(screenId, sequence);
+    QTimer::singleShot(delayMs, this, [this, screenId, sequence]() {
+        // Only the retry that still owns the screen's entry runs. One whose
+        // entry was dropped (an unplug, a screen-id rename re-arming under
+        // the new id) or re-armed since (the id renamed back, a new refusal)
+        // finds another sequence or none, and leaves the screen to that one.
+        const auto pending = m_snapBackRetryPending.constFind(screenId);
+        if (pending == m_snapBackRetryPending.constEnd() || pending.value() != sequence) {
             return;
         }
+        m_snapBackRetryPending.erase(pending);
         snapBackScreen(screenId);
     });
 }
@@ -716,7 +720,8 @@ bool WorkspaceController::takeDesktopSwitchOsdSuppression(const QString& screenI
         // The screen landed on another screen's workspace: owner-wins takes
         // it straight back, so a card naming that workspace would announce a
         // switch the user never keeps. An owed answer stays owed: it is the
-        // snap-back this very report just provoked, and its answer is still
+        // snap-back this very report just provoked, or one the user switched
+        // on past before it was answered, and either way its answer is still
         // to come.
         return true;
     }
@@ -729,18 +734,30 @@ bool WorkspaceController::takeDesktopSwitchOsdSuppression(const QString& screenI
     return isAnswer;
 }
 
-void WorkspaceController::noteScreenDesktopReport(const QString& screenId, int desktop)
+void WorkspaceController::noteScreenDesktopReport(const QString& reportedScreenId, int desktop)
 {
     if (desktop <= 0) {
         return;
     }
-    // A snap-back's answer naming another desktop means the correction did
-    // not happen (refused, deferred, or switched straight back), and it is
-    // usually the desktop the output already shows, which never reaches
-    // takeDesktopSwitchOsdSuppression. Left owed, the marker would silence
-    // the card of a later switch the user makes to that desktop by hand.
+    // Under the id VirtualDesktopManager will record it under: an answer the
+    // effect gives under a renamed output's old spelling is the answer to the
+    // switch the rename re-keyed to the new id.
+    const QString screenId = m_vdm->liveScreenIdFor(reportedScreenId);
+    // Offered before VirtualDesktopManager records the report, so its row
+    // still holds the desktop the output showed until now.
+    const bool unchanged =
+        m_vdm->hasScreenDesktopReport(screenId) && m_vdm->currentDesktopForScreen(screenId) == desktop;
+    // A snap-back answered by a report of the desktop the output already
+    // shows did not happen (refused, deferred, or switched straight back).
+    // VirtualDesktopManager swallows that report, so it never reaches
+    // takeDesktopSwitchOsdSuppression, and left owed the marker would silence
+    // the card of a later switch the user makes to the target by hand. Only
+    // an unchanged report is settled here. A changed one reaches
+    // takeDesktopSwitchOsdSuppression, which keeps the marker for a landing
+    // on another screen's workspace: the user switched on again before the
+    // snap-back was answered, and its answer is still to come.
     if (const auto owed = m_snapBackAnswerOwed.constFind(screenId);
-        owed != m_snapBackAnswerOwed.constEnd() && owed.value() != m_vdm->desktopIdAt(desktop)) {
+        unchanged && owed != m_snapBackAnswerOwed.constEnd() && owed.value() != m_vdm->desktopIdAt(desktop)) {
         m_snapBackAnswerOwed.erase(owed);
     }
     if (m_reconciler.inFlightSetCurrentTarget(screenId).isEmpty()) {
@@ -749,7 +766,7 @@ void WorkspaceController::noteScreenDesktopReport(const QString& screenId, int d
     // A changed report is announced by VirtualDesktopManager and reaches the
     // reconciler through the screenDesktopChanged arm; feeding it here too
     // would record it twice.
-    if (!m_vdm->hasScreenDesktopReport(screenId) || m_vdm->currentDesktopForScreen(screenId) != desktop) {
+    if (!unchanged) {
         return;
     }
     m_reconciler.onScreenDesktopReport(screenId, desktop);

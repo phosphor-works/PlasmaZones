@@ -2767,7 +2767,8 @@ private:
     /// An edit to the Workspaces.Named list is merged per entry with what the
     /// store holds now (mergeNamedEntriesForReload in settings.cpp), against
     /// @p namedBaseline, the list that edit was made against, so a rewrite
-    /// another process made to an entry the user did not touch survives.
+    /// another process made to an entry the user did not touch survives. The
+    /// merge also re-homes m_namedEntryStampOrigins onto what disk holds.
     void reapplyLocalEdits(const QList<LocalEdit>& edits, const QVariantList& namedBaseline);
     /// The Workspaces.Named list in m_baseline: what a local edit to it was
     /// made against, for reapplyLocalEdits.
@@ -2933,6 +2934,15 @@ private:
     // switch never touches it: the palette-following zone colours store the
     // empty sentinel and resolve in their getters, so nothing is written.
     QHash<QString, QVariantMap> m_baseline;
+
+    // Which id-less Workspaces.Named entry of the baseline each id the
+    // settings page stamped replaced: stamped id → that entry's name.
+    // Recorded by setWorkspacesNamedEntries, which still sees the list from
+    // before the stamp, so a rename written together with the stamp cannot
+    // hide the pairing. Re-homed onto disk's names by every preserving
+    // reload's merge (reapplyLocalEdits), and cleared by a full reload and a
+    // successful save, after which no stamp is unsaved.
+    QHash<QString, QString> m_namedEntryStampOrigins;
 
     // Raised (RAII, via QScopedValueRollback) around eventFilter()'s
     // palette-change NOTIFY fan-out; surfaced through

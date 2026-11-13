@@ -948,7 +948,9 @@ public:
     /// the window into the destination's store (F581, F811): released through
     /// SnapEngine::releaseWindowOutsideSpan, with the placement re-capture and the "unsnapped" relay a membership
     /// pass drives. @p screenId is the effect's report and goes through resolveBusScreen first, so a split
-    /// monitor's physical id keeps the window's membership on the virtual screen its frame is in.
+    /// monitor's physical id keeps the window's membership on the virtual screen its frame is in. When no frame
+    /// picks one, the virtual screen of that monitor the snap engine holds the window on is kept instead, and
+    /// nothing is released when it holds the window on more than one of them.
     void releaseSnapOutsideLiveContext(const QString& windowId, const QString& screenId);
 
     /// Re-capture EVERY open window's live placement into the unified store
@@ -1287,10 +1289,15 @@ public:
     /// @p screenId. The snap open chain resolves and claims on it.
     QString openRouteLandingScreen(const QString& windowId, const QString& screenId) const;
 
-    /// Whether a routing pass already ran for @p windowId's open (its verdict is latched until the window
-    /// closes), matched or not. The snap open path reads it to tell a pending sweep that IS a window's first
-    /// placement from one re-driving a window whose open was already placed and routed.
-    bool hasRoutedOpen(const QString& windowId) const;
+    /// Whether the snap channel's open path (SnapAdaptor::resolveWindowRestore) already ran its first-placement
+    /// pass for @p windowId's open: the landing screen, the placement claim and the RouteToScreen tail. Held until
+    /// the window closes. The snap open path reads it to tell a pending sweep that IS the window's first snap
+    /// placement from one re-driving a window that pass already placed. The routing latch cannot answer this:
+    /// the tiling channel latches it too, and a window whose tiling announce was flushed before the snap
+    /// channel's sweep still needs the snap pass.
+    bool hasSnapOpenPlacement(const QString& windowId) const;
+    /// Record that the snap channel's first-placement pass ran for @p windowId's open (see hasSnapOpenPlacement).
+    void markSnapOpenPlacement(const QString& windowId);
 
     /// The routing pass shared by the two open channels: send @p windowId to
     /// the workspace or desktop @p resolved names, ONCE per open. The first
@@ -1805,8 +1812,26 @@ public:
      */
     void stashScrollStripsForWorkspaceMove(const QStringList& rawWindowIds, const QString& targetScreenId,
                                            int targetDesktop);
+    /**
+     * @brief The scroll half of move-column-to-workspace.
+     *
+     * Records the column @p windowIds form on the strip @p stripScreenId for
+     * @p targetDesktop (ScrollEngine::stashColumnForDesktopMove), leaving out
+     * every window moveWindowToWorkspaceVerb refuses (sticky, or the window
+     * being dragged), so the record names only windows that arrive. The
+     * caller checks that @p targetDesktop runs scrolling on the strip.
+     *
+     * Call it BEFORE the first moveWindowToWorkspaceVerb for the column, as
+     * for stashScrollStripsForWorkspaceMove. Returns whether a column was
+     * recorded.
+     */
+    bool stashScrollColumnForWorkspaceMove(const QString& stripScreenId, const QStringList& windowIds,
+                                           int targetDesktop);
 
 private:
+    /// Whether moveWindowToWorkspaceVerb refuses @p windowId (a canonical id) outright: a sticky window or the
+    /// window being dragged. The scroll stash helpers apply the same gate, so a record names only windows that move.
+    bool refusesWorkspaceMove(const QString& windowId) const;
     /**
      * @brief The engine owning @p mode, or null when that engine is absent.
      *
@@ -2179,6 +2204,9 @@ private:
     /// reader on that pass takes it, and clearOpenWorkspaceRoute drops what
     /// no reader took at the pass's exit. Keyed by shadowWindowId.
     QHash<QString, OpenRouteVerdict> m_openRoutePass;
+    /// Windows whose open the snap channel already placed as a first placement (see hasSnapOpenPlacement).
+    /// Keyed by shadowWindowId. Dropped by windowClosed and pruneStaleWindows with the routing latch.
+    QSet<QString> m_snapOpenPlacements;
     bool m_startupLeaveSweepDone = false; // True once pruneStaleWindows ran its once-per-daemon leave release
 
     // Evacuee park helpers (evacuees.cpp).

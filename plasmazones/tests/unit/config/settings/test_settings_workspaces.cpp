@@ -769,6 +769,107 @@ private Q_SLOTS:
                  QStringLiteral("Meta+Ctrl+F1"));
     }
 
+    /// The settings page renames an id-less entry and stamps its id in one
+    /// write, so no name links the stamped entry to its id-less self in the
+    /// baseline and on disk. The pairing recorded at the write does, and the
+    /// daemon's move of the entry survives the rename.
+    void reloadPreservingLocalEdits_renameWithStampKeepsTheDaemonMove()
+    {
+        IsolatedConfigGuard guard;
+        const QString x = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries({namedEntry(QVariant(), QStringLiteral("Web"))});
+        QVERIFY(settings.save());
+
+        settings.setWorkspacesNamedEntries({namedEntry(x, QStringLiteral("Browser"))});
+        writeNamedFromAnotherProcess({namedEntry(QVariant(), QStringLiteral("Web"), QString(), 2)});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("Browser@2")}));
+        QCOMPARE(entryIds(merged), (QStringList{x}));
+    }
+
+    /// Two id-less entries swap names over several writes, the first of which
+    /// stamps both. Each stamped entry pairs with the entry it replaced, not
+    /// with the one whose name it now carries, so the daemon's move of the
+    /// workspace that was "A" lands on the row the user renamed to "B".
+    void reloadPreservingLocalEdits_nameSwapPairsEachStampWithItsOwnEntry()
+    {
+        IsolatedConfigGuard guard;
+        const QString x = QUuid::createUuid().toString();
+        const QString y = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries(
+            {namedEntry(QVariant(), QStringLiteral("A")), namedEntry(QVariant(), QStringLiteral("B"))});
+        QVERIFY(settings.save());
+
+        settings.setWorkspacesNamedEntries({namedEntry(x, QStringLiteral("Swap")), namedEntry(y, QStringLiteral("B"))});
+        settings.setWorkspacesNamedEntries({namedEntry(x, QStringLiteral("Swap")), namedEntry(y, QStringLiteral("A"))});
+        settings.setWorkspacesNamedEntries({namedEntry(x, QStringLiteral("B")), namedEntry(y, QStringLiteral("A"))});
+        writeNamedFromAnotherProcess(
+            {namedEntry(QVariant(), QStringLiteral("A"), QString(), 2), namedEntry(QVariant(), QStringLiteral("B"))});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("B@2"), QStringLiteral("A@-1")}));
+        QCOMPARE(entryIds(merged), (QStringList{x, y}));
+    }
+
+    /// An entry with no id that the user edited (and the page stamped) was
+    /// renamed in KWin meanwhile, which the daemon wrote back id-less under
+    /// the new name. It stays one workspace carrying both changes. A second
+    /// move on disk after that reload still finds it, because the recorded
+    /// pairing moved to disk's name with the baseline.
+    void reloadPreservingLocalEdits_kwinRenameOfAnEditedEntryDoesNotDuplicate()
+    {
+        IsolatedConfigGuard guard;
+        const QString x = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries({namedEntry(QVariant(), QStringLiteral("Web"))});
+        QVERIFY(settings.save());
+
+        QVariantMap withChord = namedEntry(x, QStringLiteral("Web"));
+        withChord[ConfigDefaults::namedEntryFocusShortcutField()] = QStringLiteral("Meta+Ctrl+F1");
+        settings.setWorkspacesNamedEntries({withChord});
+        writeNamedFromAnotherProcess({namedEntry(QVariant(), QStringLiteral("Site"))});
+
+        settings.reloadPreservingLocalEdits();
+        QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("Site@-1")}));
+        QCOMPARE(entryIds(merged), (QStringList{x}));
+        QCOMPARE(merged.constFirst().toMap().value(ConfigDefaults::namedEntryFocusShortcutField()).toString(),
+                 QStringLiteral("Meta+Ctrl+F1"));
+
+        writeNamedFromAnotherProcess({namedEntry(QVariant(), QStringLiteral("Site"), QString(), 2)});
+        settings.reloadPreservingLocalEdits();
+        merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("Site@2")}));
+        QCOMPARE(entryIds(merged), (QStringList{x}));
+        QCOMPARE(merged.constFirst().toMap().value(ConfigDefaults::namedEntryFocusShortcutField()).toString(),
+                 QStringLiteral("Meta+Ctrl+F1"));
+    }
+
+    /// The daemon rewrites an entry's output and position together, so the
+    /// merge keeps them together: a local edit to the output keeps the local
+    /// position with it rather than pairing it with the daemon's.
+    void reloadPreservingLocalEdits_mergesOutputAndPositionAsOneField()
+    {
+        IsolatedConfigGuard guard;
+        const QString a = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A"), QStringLiteral("DP-1"), 2)});
+        QVERIFY(settings.save());
+
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A"), QStringLiteral("HDMI-A-1"), 2)});
+        writeNamedFromAnotherProcess({namedEntry(a, QStringLiteral("A"), QStringLiteral("DP-1"), 3)});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantMap merged = settings.workspacesNamedEntries().constFirst().toMap();
+        QCOMPARE(merged.value(ConfigDefaults::namedEntryOutputField()).toString(), QStringLiteral("HDMI-A-1"));
+        QCOMPARE(merged.value(ConfigDefaults::namedEntryPositionField()).toInt(), 2);
+    }
+
     /// A row the user added under a name another process gave an existing
     /// entry meanwhile yields to that entry, wherever the added row sits.
     void reloadPreservingLocalEdits_collidingLocalAdditionYieldsToDisk()

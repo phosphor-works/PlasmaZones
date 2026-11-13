@@ -617,8 +617,10 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // must not untile the incoming one (F793). Here and not on the report, whose
     // dedup misses for reasons that are no switch at all (F886). The reverse
     // also happens: when the desktop an output shows is removed, KWin moves the
-    // output to the successor, which takes the removed desktop's number, so
-    // the report dedups while the context did change. The mark still goes on,
+    // output to the desktop that followed it, which takes the removed one's
+    // number, so the report dedups while the context did change. (Removing the
+    // last desktop moves the output to the new last one, under another number,
+    // and that report goes out.) The mark still goes on,
     // since a batch built for the removed desktop's context must not untile
     // the successor's tiles, and the announce that settles it is the daemon's
     // renumber re-announce (Daemon::onDesktopsRenumbered). KWin's
@@ -640,9 +642,10 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
                         m_tilingHandler->noteContextSwitched(screenId);
                     }
                 };
-                // A first desktop for an output (no old one) leaves no
-                // context whose batches could land on the new one (C57).
-                const bool switched = oldDesktop && oldDesktop != newDesktop;
+                // KWin always names the old desktop here: its own currentChanged
+                // handler (VirtualDesktopManager's plasma-desktop sync) reads
+                // the old desktop's id unguarded.
+                const bool switched = oldDesktop != newDesktop;
                 if (output) {
                     reportOne(output, newDesktop, switched);
                     return;

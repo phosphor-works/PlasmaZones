@@ -517,6 +517,29 @@ private Q_SLOTS:
         f.wta->releaseSnapOutsideLiveContext(windowId, kLeft);
         QVERIFY(f.snap->zoneForWindow(windowId).isEmpty());
     }
+
+    // The same report with no frame shadow to pick the virtual screen: the
+    // bus resolve falls back to the monitor's first virtual screen, the
+    // sibling of the one the window is snapped on. The snap engine's own hold
+    // decides instead, and the membership stays (C63).
+    void liveContextReleaseOnAPhysicalIdWithNoFrameKeepsTheHeldVirtualScreen()
+    {
+        FloatBackFixture f;
+        QVERIFY(f.screenMgr->setVirtualScreenConfig(kRight, TestHelpers::makeSplitConfig(kRight)));
+        const QString vs1 = QStringLiteral("DP-2/vs:1");
+        QCOMPARE(f.screenMgr->virtualScreenIdsFor(kRight).constFirst(), QStringLiteral("DP-2/vs:0"));
+        f.layouts->assignLayout(vs1, 1, QString(), f.layout);
+        f.snap->setCurrentDesktopForScreen(vs1, 1);
+        const QString windowId = f.registerWindow(QStringLiteral("split-frameless"));
+        f.snap->commitSnap(windowId, f.zone(0), vs1);
+        QVERIFY(f.wta->frameGeometry(windowId).isNull());
+        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId), QStringLiteral("DP-2/vs:0"));
+
+        f.wta->releaseSnapOutsideLiveContext(windowId, kRight);
+
+        QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
+        QCOMPARE(f.snap->zoneForWindow(windowId), f.zone(0));
+    }
 };
 
 QTEST_MAIN(TestWtaBusBoundary)

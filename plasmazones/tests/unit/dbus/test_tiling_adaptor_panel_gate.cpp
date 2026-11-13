@@ -620,10 +620,11 @@ private Q_SLOTS:
         QCOMPARE(spy.first().at(1).toBool(), true);
     }
 
-    // A renumber re-announces a desktop switch only when the effect is owed
-    // one: it moved a desktop the last switch announce stamped (the effect's
-    // staleness gate dropped that announce), or it removed the desktop a
-    // screen was showing (C57). Any other renumber sends nothing: the effect
+    // A renumber re-announces a desktop switch only when the effect is or may
+    // be owed one: it moved a desktop the last switch announce stamped (the
+    // effect's staleness gate drops that announce if it arrived after KWin's
+    // renumber, which the daemon cannot tell, C61), or it removed the desktop
+    // a screen was showing (C57). Any other renumber sends nothing: the effect
     // would read the announce as a switch it never saw and void every
     // output's in-flight applies (C32). An announce that is no switch settles
     // what a dropped one owed.

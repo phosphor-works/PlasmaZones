@@ -39,16 +39,21 @@ inline QLatin1String kFocused()
 /// could run vertically.
 ///
 /// No schema version bump: this file's format is deliberately version-free
-/// and additive (see the header note), and five keys have already landed
-/// exactly this way — presetFraction, windowedFullscreen, unclaimedSessions,
-/// viewDetached and blueprintCursor. Absent-key-means-default IS the migration mechanism
-/// here, and it is not the ad-hoc per-key migration the project rule forbids:
-/// that rule governs Settings/ConfigDefaults keys, which this is not.
+/// and additive (see the header note), and other keys have landed exactly
+/// this way — presetFraction, windowedFullscreen, unclaimedSessions,
+/// viewDetached, blueprintCursor and arrivesAsMove among them.
+/// Absent-key-means-default IS the migration mechanism here, and it is not
+/// the ad-hoc per-key migration the project rule forbids: that rule governs
+/// Settings/ConfigDefaults keys, which this is not.
 inline QLatin1String kAxis()
 {
     return QLatin1String("axis");
 }
 
+/// The view anchor. Written only for an entry that carries a view
+/// (StashedStrip::viewCarried), and its presence is what the reader takes as
+/// that bit: every blob written before the bit existed wrote the key for every
+/// entry, each of which carried a view, so absent reads "no view".
 inline QLatin1String kViewAnchor()
 {
     return QLatin1String("viewAnchor");
@@ -111,6 +116,13 @@ inline QLatin1String kActiveWindow()
 inline QLatin1String kMaximizedToEdges()
 {
     return QLatin1String("maximizedToEdges");
+}
+/// StashedColumn::arrivesAsMove. ADDITIVE on kAxis's terms and written only
+/// when set, so an older blob and a column of the context's own strip both
+/// read false.
+inline QLatin1String kArrivesAsMove()
+{
+    return QLatin1String("arrivesAsMove");
 }
 inline QLatin1String kWindowId()
 {
@@ -319,13 +331,20 @@ QJsonObject ScrollEngine::serializeStripState() const
             if (col.maximizedToEdges) {
                 c.insert(kMaximizedToEdges(), true);
             }
+            if (col.arrivesAsMove) {
+                c.insert(kArrivesAsMove(), true);
+            }
             columns.append(c);
         }
         QJsonObject obj;
         obj.insert(kColumns(), columns);
         obj.insert(kFocused(), stash.focusedWindowId);
-        obj.insert(kViewAnchor(), stash.viewAnchor);
-        obj.insert(kViewDetached(), stash.viewDetached);
+        // The pair rides only with a view to carry: a pan latch with no
+        // anchor behind it means nothing (StashedStrip::viewCarried).
+        if (stash.viewCarried) {
+            obj.insert(kViewAnchor(), stash.viewAnchor);
+            obj.insert(kViewDetached(), stash.viewDetached);
+        }
         obj.insert(kAxis(), static_cast<int>(stash.axis));
         obj.insert(kBlueprintCursor(), stash.blueprintCursor);
         return obj;
@@ -567,8 +586,11 @@ void ScrollEngine::restoreStripState(const QJsonObject& state)
         // out-of-range viewOffset by design), so the bound is only a sanity range
         // wide enough for any real strip — it stops a hand-edited INT_MIN/MAX
         // from overflowing the viewOffset arithmetic it later feeds.
-        stash.viewAnchor = qBound(-1000000, obj.value(kViewAnchor()).toInt(0), 1000000);
-        stash.viewDetached = obj.value(kViewDetached()).toBool(false);
+        stash.viewCarried = obj.contains(kViewAnchor());
+        if (stash.viewCarried) {
+            stash.viewAnchor = qBound(-1000000, obj.value(kViewAnchor()).toInt(0), 1000000);
+            stash.viewDetached = obj.value(kViewDetached()).toBool(false);
+        }
         // Absent reads 0, which is what every pre-key blob means. Bounded for
         // the same boundary-hardening reason as the anchor: the cursor feeds
         // qMax against the live column count and then indexes a blueprint.
@@ -600,6 +622,8 @@ void ScrollEngine::restoreStripState(const QJsonObject& state)
             col.heightOwnerId = colObj.value(kHeightOwner()).toString();
             // Additive key: an older blob reads false.
             col.maximizedToEdges = colObj.value(kMaximizedToEdges()).toBool(false);
+            // Additive key: an older blob reads false.
+            col.arrivesAsMove = colObj.value(kArrivesAsMove()).toBool(false);
             const QJsonArray tiles = colObj.value(kTiles()).toArray();
             for (const QJsonValue& tileVal : tiles) {
                 if (col.tiles.size() >= kMaxRestoredTilesPerColumn) {

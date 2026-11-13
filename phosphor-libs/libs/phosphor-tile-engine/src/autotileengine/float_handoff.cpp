@@ -312,22 +312,31 @@ void AutotileEngine::performToggleFloat(PhosphorTiles::TilingState* state, const
 // Cross-engine handoff (see IPlacementEngine.h for contract)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// NOTE: autotile ignores ctx.toDesktop — arrivals always land in the
-// CURRENT desktop's TilingState. Cross-desktop moves onto an autotile
-// desktop must use the reactive catch-scan path instead (the cross-mode
-// dispatcher's reactiveAutotileDesktopArrival branch does exactly that).
+// ctx.toDesktop names the destination context when it is not the one the
+// screen shows, as the scroll twin reads it. The cross-mode dispatcher never
+// names one for an autotile TARGET (a cross-desktop move onto an autotile
+// desktop is its reactive desktop arrival, adopted by the catch-scan). The
+// one caller that does is a refused handoff's re-home of a window this engine
+// held on a background desktop (guardedHandoff's recoverDesktop): landed in
+// the state in view instead, it was tiled on a desktop the real window is not
+// on (C62).
 void AutotileEngine::handoffReceive(const HandoffContext& ctx)
 {
     if (ctx.windowId.isEmpty() || ctx.toScreenId.isEmpty() || !isAutotileScreen(ctx.toScreenId)) {
         return;
     }
     qCInfo(PhosphorTileEngine::lcTileEngine)
-        << "AutotileEngine::handoffReceive:" << ctx.windowId << "to" << ctx.toScreenId << "from" << ctx.fromEngineId
-        << "wasFloating=" << ctx.wasFloating;
+        << "AutotileEngine::handoffReceive:" << ctx.windowId << "to" << ctx.toScreenId << "desktop" << ctx.toDesktop
+        << "from" << ctx.fromEngineId << "wasFloating=" << ctx.wasFloating;
 
     const QString windowId = canonicalizeWindowId(ctx.windowId);
 
-    PhosphorTiles::TilingState* state = tilingStateForScreen(ctx.toScreenId);
+    TilingStateKey destKey = currentKeyForScreen(ctx.toScreenId);
+    if (ctx.toDesktop > 0) {
+        destKey.desktop = ctx.toDesktop;
+    }
+    const bool destInView = destKey == currentKeyForScreen(ctx.toScreenId);
+    PhosphorTiles::TilingState* state = tilingStateForKey(destKey);
     if (!state) {
         return;
     }
@@ -337,7 +346,6 @@ void AutotileEngine::handoffReceive(const HandoffContext& ctx)
     // announcement needed on this return: the float bit is untouched (we
     // return before setFloating), so what subscribers last heard remains
     // accurate.
-    const auto destKey = currentKeyForScreen(ctx.toScreenId);
     // Membership at the DESTINATION, not "its key happens to be that one": a
     // window present on several desktops is legitimately tracked elsewhere as
     // well, and that is not evidence it has yet been adopted here.
@@ -349,7 +357,11 @@ void AutotileEngine::handoffReceive(const HandoffContext& ctx)
         // re-validate (same contract as windowMinSizeUpdated).
         if ((ctx.minSize.width() > 0 || ctx.minSize.height() > 0)
             && storeWindowMinSize(windowId, ctx.minSize.width(), ctx.minSize.height())) {
-            scheduleRetileForScreen(ctx.toScreenId);
+            if (destInView) {
+                scheduleRetileForScreen(ctx.toScreenId);
+            } else {
+                m_dirtyBackgroundContexts.insert(destKey);
+            }
         }
         return;
     }
@@ -455,8 +467,14 @@ void AutotileEngine::handoffReceive(const HandoffContext& ctx)
 
     // Trigger a retile so a non-floating arrival actually lands in a tile;
     // floating arrivals retile too because their displacement may free a
-    // slot for the remaining tiled set.
-    retileAfterOperation(ctx.toScreenId, true);
+    // slot for the remaining tiled set. An arrival in a background context
+    // leaves the state in view alone and is memoed like handoffRelease's
+    // background release, retiled when its desktop is shown.
+    if (destInView) {
+        retileAfterOperation(ctx.toScreenId, true);
+    } else {
+        m_dirtyBackgroundContexts.insert(destKey);
+    }
 }
 
 void AutotileEngine::handoffRelease(const QString& windowId)

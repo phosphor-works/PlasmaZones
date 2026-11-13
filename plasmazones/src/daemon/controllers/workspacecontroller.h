@@ -80,7 +80,8 @@ public:
     /// one column on arrival. Called with the exact strip screen id, the ids
     /// that will actually move, and the destination desktop number, AFTER the
     /// sticky filter and BEFORE the first move is emitted. The daemon backs it
-    /// with ScrollEngine::stashColumnForDesktopMove, and only when the
+    /// with WindowTrackingAdaptor::stashScrollColumnForWorkspaceMove, which
+    /// also leaves out a window the move verb refuses, and only when the
     /// destination context runs scrolling. Unset, every window moves on its
     /// own.
     void setColumnStashHandler(
@@ -101,9 +102,11 @@ public:
     /// report that answers a snap-back this controller issued. An owed
     /// snap-back answer is consumed by the first report that lands on one of
     /// the screen's own workspaces, whether it matches or not, and dropped by
-    /// noteScreenDesktopReport for any report naming another desktop, so a
-    /// stale marker can never swallow a later switch. Safe to call before or
-    /// after the controller has seen the same report.
+    /// noteScreenDesktopReport for an unchanged report naming another desktop
+    /// (the snap-back refused), so a stale marker can never swallow a later
+    /// switch. A landing on another screen's workspace keeps it: the
+    /// snap-back's answer is still to come. Safe to call before or after the
+    /// controller has seen the same report.
     bool takeDesktopSwitchOsdSuppression(const QString& screenId, int desktop);
 
     /// Every per-output report the compositor sent, changed or not, offered
@@ -114,10 +117,13 @@ public:
     /// reconciler only in that case and only while a switch for the screen
     /// is in flight, so the answer retires the entry instead of leaving it
     /// to block the screen until it expires. A changed report reaches the
-    /// reconciler through VirtualDesktopManager as usual. Any report naming a
-    /// desktop other than an owed snap-back's target is that snap-back's
-    /// answer that it did not happen, and drops the owed marker.
-    void noteScreenDesktopReport(const QString& screenId, int desktop);
+    /// reconciler through VirtualDesktopManager as usual. An unchanged report
+    /// naming a desktop other than an owed snap-back's target is that
+    /// snap-back's answer that it did not happen, and drops the owed marker.
+    /// A changed one is left to takeDesktopSwitchOsdSuppression. A report
+    /// under a renamed output's old spelling counts for its new id
+    /// (VirtualDesktopManager::liveScreenIdFor).
+    void noteScreenDesktopReport(const QString& reportedScreenId, int desktop);
 
     // ── Verbs (Phase 2). screenId is the PHYSICAL id of the acting screen, in
     // the id space the KWin effect reports (the daemon extracts it from its
@@ -293,9 +299,10 @@ private:
     /// cooldown has passed, so the screen is not left on a foreign desktop.
     void snapBackScreen(const QString& screenId);
     /// Arm the cooldown retry of snapBackScreen for @p screenId after
-    /// @p delayMs, marking it in m_snapBackRetryPending. The retry runs only
-    /// while that mark is still there, so dropping the mark (a screen-id
-    /// rename re-arming under the new id, an unplug) cancels it.
+    /// @p delayMs, recording its sequence in m_snapBackRetryPending. The retry
+    /// runs only while the screen's entry still holds that sequence, so
+    /// dropping the entry (a screen-id rename re-arming under the new id, an
+    /// unplug) or re-arming it cancels this one.
     void scheduleSnapBackRetry(const QString& screenId, qint64 delayMs);
 
     PhosphorWorkspaces::VirtualDesktopManager* m_vdm;
@@ -399,8 +406,11 @@ private:
     quint64 m_windowMoveSequence = 0;
     /// Per-screen snap-back cooldown stamps (m_clock milliseconds).
     QHash<QString, qint64> m_lastSnapBackMs;
-    /// Screens whose cooldown-refused snap-back has a retry scheduled.
-    QSet<QString> m_snapBackRetryPending;
+    /// screenId → the sequence of the retry scheduled for its cooldown-refused
+    /// snap-back, so a superseded retry's timer cannot run in its successor's
+    /// place.
+    QHash<QString, quint64> m_snapBackRetryPending;
+    quint64 m_snapBackRetrySequence = 0;
     /// screenId → the desktop id a snap-back sent it to, until the report
     /// answering it arrives (takeDesktopSwitchOsdSuppression).
     QHash<QString, QString> m_snapBackAnswerOwed;

@@ -49,10 +49,16 @@ struct NamedEntryIndex
     QStringList order;
 };
 
+/// The identity of an id-less entry nothing pairs with: its name.
+QString nameIdentity(const QString& name)
+{
+    return QLatin1String("name:") + name;
+}
+
 /// Index @p list by identity: an entry's persistent id, or for an entry that
-/// has none yet (a hand-edited list never re-saved) the id @p stampedIds
-/// gives its name, else its name.
-NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString, QString>& stampedIds)
+/// has none yet (a hand-edited list never re-saved) the identity
+/// @p idlessIdentities gives its name, else its name.
+NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString, QString>& idlessIdentities)
 {
     NamedEntryIndex index;
     for (const QVariant& value : list) {
@@ -60,7 +66,7 @@ NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString,
         QString identity = entry.value(ConfigDefaults::namedEntryIdField()).toString();
         if (identity.isEmpty()) {
             const QString name = namedEntryName(entry);
-            identity = stampedIds.value(name, QLatin1String("name:") + name);
+            identity = idlessIdentities.value(name, nameIdentity(name));
         }
         if (!index.byIdentity.contains(identity)) {
             index.byIdentity.insert(identity, entry);
@@ -68,6 +74,51 @@ NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString,
         }
     }
     return index;
+}
+
+/// The identity each id-less entry of @p side continues from the baseline,
+/// keyed by its name. @p baselineIdless holds the baseline's id-less entries
+/// in list order as (name, identity). An entry keeps the identity of the
+/// baseline entry with its name. When the entries left over on both sides are
+/// equally many, they pair up in list order: that is how an entry that never
+/// had an id reads after the daemon renamed it in place (a rename made in
+/// KWin), which no name can match.
+QHash<QString, QString> continuedIdlessIdentities(const QList<std::pair<QString, QString>>& baselineIdless,
+                                                  const QVariantList& side)
+{
+    QHash<QString, QString> identities;
+    QHash<QString, QString> baseByName;
+    for (const auto& [name, identity] : baselineIdless) {
+        baseByName.insert(name, identity);
+    }
+    QStringList unmatchedSide;
+    QSet<QString> matchedBase;
+    for (const QVariant& value : side) {
+        const QVariantMap entry = value.toMap();
+        if (!entry.value(ConfigDefaults::namedEntryIdField()).toString().isEmpty()) {
+            continue;
+        }
+        const QString name = namedEntryName(entry);
+        const auto it = baseByName.constFind(name);
+        if (it != baseByName.cend()) {
+            identities.insert(name, *it);
+            matchedBase.insert(name);
+        } else {
+            unmatchedSide.append(name);
+        }
+    }
+    QStringList unmatchedBaseIdentities;
+    for (const auto& [name, identity] : baselineIdless) {
+        if (!matchedBase.contains(name)) {
+            unmatchedBaseIdentities.append(identity);
+        }
+    }
+    if (unmatchedSide.size() == unmatchedBaseIdentities.size()) {
+        for (qsizetype i = 0; i < unmatchedSide.size(); ++i) {
+            identities.insert(unmatchedSide.at(i), unmatchedBaseIdentities.at(i));
+        }
+    }
+    return identities;
 }
 
 /// Whether @p mine differs from @p base in anything but the id. A local copy
@@ -90,18 +141,32 @@ bool namedEntryEditedBeyondId(const QVariantMap& base, const QVariantMap& mine)
 ///
 /// Identity is the entry id. The settings page stamps a fresh id on every
 /// id-less entry when it writes the list, while the file still holds that
-/// entry id-less, so an id-less entry in the baseline or on disk is matched
-/// to the local entry of the same name whose id the baseline does not know
-/// (C19). Without that, the stamp read as "removed and re-added", which lost
-/// a daemon rewrite of the entry or kept a copy of it beside its renamed self.
+/// entry id-less, so a stamped local entry has to be matched to its id-less
+/// self in the baseline and on disk. Without that, the stamp read as
+/// "removed and re-added", which lost a daemon rewrite of the entry or kept a
+/// copy of it beside its renamed self.
+///  - Baseline: @p stampOrigins (Settings::m_namedEntryStampOrigins) names
+///    the baseline entry each stamped id replaced, recorded when the stamp was
+///    written, so a rename made in the same write, or names swapped over
+///    several writes, cannot mislead it. A stamped id with no recorded origin
+///    falls back to the baseline id-less entry of its current name.
+///  - Disk: an id-less disk entry continues the id-less baseline entry of its
+///    name, or the leftovers pair up in list order when equally many
+///    (continuedIdlessIdentities), which catches a rename made in KWin.
 ///
 /// Per identity:
 ///  - removed locally: stays removed.
 ///  - on both sides: merged per field, so a local chord edit keeps a daemon
-///    move of the same entry; a field both sides changed keeps the local value.
+///    move of the same entry, and a field both sides changed keeps the local
+///    value. The output and the position are one field here, because the
+///    daemon's move rewrites them together: a local edit to either keeps the
+///    local pair whole, else both come from disk.
 ///  - gone from disk: removed elsewhere, so it stays gone, unless the user
 ///    edited it (an id stamp alone is not an edit), which keeps the local one.
 ///  - added on either side: kept.
+///
+/// The result carries the stamp origins re-homed onto disk's names, the
+/// baseline the next preserving reload merges against.
 ///
 /// Row order follows the local list when the user reordered rows, else disk,
 /// with each local addition after the entry it follows locally.
@@ -113,36 +178,82 @@ bool namedEntryEditedBeyondId(const QVariantMap& base, const QVariantMap& mine)
 /// name is still taken after that is dropped. The store's
 /// validator would otherwise keep whichever comes first in the list, which
 /// can drop a declaration that exists on disk.
-QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVariantList& local,
-                                        const QVariantList& disk)
+struct NamedEntriesMerge
+{
+    QVariantList entries;
+    QHash<QString, QString> stampOrigins;
+};
+
+NamedEntriesMerge mergeNamedEntriesForReload(const QVariantList& baseline, const QVariantList& local,
+                                             const QVariantList& disk, const QHash<QString, QString>& stampOrigins)
 {
     // Nothing moved on disk since the edit was made: the local list is the
-    // answer exactly, its row order included.
+    // answer exactly, its row order included, and the baseline the origins
+    // name stays the baseline.
     if (disk == baseline) {
-        return local;
+        return {local, stampOrigins};
     }
 
-    // Ids the settings page stamped since the baseline, keyed by the entry's
-    // name: a local id the baseline does not carry.
+    // The baseline's id-less entries, by name, and the ids it carries.
     QSet<QString> baseIds;
+    QSet<QString> baseIdlessNames;
     for (const QVariant& value : baseline) {
-        const QString id = value.toMap().value(ConfigDefaults::namedEntryIdField()).toString();
-        if (!id.isEmpty()) {
+        const QVariantMap entry = value.toMap();
+        const QString id = entry.value(ConfigDefaults::namedEntryIdField()).toString();
+        if (id.isEmpty()) {
+            baseIdlessNames.insert(namedEntryName(entry));
+        } else {
             baseIds.insert(id);
         }
     }
+    // Ids the settings page stamped since the baseline (a local id the
+    // baseline does not carry), keyed by the name of the id-less baseline
+    // entry each replaced: the recorded origin, else the entry's current name.
     QHash<QString, QString> stampedIds;
+    QList<std::pair<QString, QString>> unrecorded; // (id, current name)
     for (const QVariant& value : local) {
         const QVariantMap entry = value.toMap();
         const QString id = entry.value(ConfigDefaults::namedEntryIdField()).toString();
-        if (!id.isEmpty() && !baseIds.contains(id)) {
-            stampedIds.insert(namedEntryName(entry), id);
+        if (id.isEmpty() || baseIds.contains(id)) {
+            continue;
+        }
+        const auto origin = stampOrigins.constFind(id);
+        if (origin != stampOrigins.cend()) {
+            if (baseIdlessNames.contains(*origin) && !stampedIds.contains(*origin)) {
+                stampedIds.insert(*origin, id);
+            }
+        } else {
+            unrecorded.append({id, namedEntryName(entry)});
+        }
+    }
+    for (const auto& [id, name] : std::as_const(unrecorded)) {
+        if (baseIdlessNames.contains(name) && !stampedIds.contains(name)) {
+            stampedIds.insert(name, id);
+        }
+    }
+
+    QList<std::pair<QString, QString>> baselineIdless;
+    for (const QVariant& value : baseline) {
+        const QVariantMap entry = value.toMap();
+        if (entry.value(ConfigDefaults::namedEntryIdField()).toString().isEmpty()) {
+            const QString name = namedEntryName(entry);
+            baselineIdless.append({name, stampedIds.value(name, nameIdentity(name))});
         }
     }
 
     const NamedEntryIndex base = indexNamedEntries(baseline, stampedIds);
-    const NamedEntryIndex mine = indexNamedEntries(local, stampedIds);
-    const NamedEntryIndex theirs = indexNamedEntries(disk, stampedIds);
+    const NamedEntryIndex mine = indexNamedEntries(local, {});
+    const NamedEntryIndex theirs = indexNamedEntries(disk, continuedIdlessIdentities(baselineIdless, disk));
+
+    // A stamped entry disk still holds id-less now answers to disk's name for
+    // it, which is the baseline the next merge sees.
+    QHash<QString, QString> rehomedOrigins;
+    for (const QString& id : std::as_const(stampedIds)) {
+        const auto it = theirs.byIdentity.constFind(id);
+        if (it != theirs.byIdentity.cend() && it->value(ConfigDefaults::namedEntryIdField()).toString().isEmpty()) {
+            rehomedOrigins.insert(id, namedEntryName(*it));
+        }
+    }
 
     QStringList baseCommon;
     for (const QString& identity : base.order) {
@@ -182,6 +293,9 @@ QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVar
         }
     }
 
+    const QStringList placementFields{ConfigDefaults::namedEntryOutputField(),
+                                      ConfigDefaults::namedEntryPositionField()};
+
     // The merged entries, each with where its name came from: the local list
     // (an addition, or a rename the user made) or disk.
     struct Merged
@@ -219,11 +333,29 @@ QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVar
             continue;
         }
         // On both sides: disk's fields, with every field the user changed
-        // taken from the local copy.
+        // taken from the local copy. The output and the position travel
+        // together (see above), so a local edit to either takes both.
         QVariantMap entry = *theirsIt;
+        bool placementEdited = false;
+        for (const QString& field : placementFields) {
+            placementEdited = placementEdited || mineIt->value(field) != baseIt->value(field);
+        }
         for (auto field = mineIt->cbegin(); field != mineIt->cend(); ++field) {
+            if (placementFields.contains(field.key())) {
+                continue;
+            }
             if (field.value() != baseIt->value(field.key())) {
                 entry.insert(field.key(), field.value());
+            }
+        }
+        if (placementEdited) {
+            for (const QString& field : placementFields) {
+                const auto local = mineIt->constFind(field);
+                if (local != mineIt->cend()) {
+                    entry.insert(field, *local);
+                } else {
+                    entry.remove(field);
+                }
             }
         }
         const bool renamed = namedEntryName(*mineIt) != namedEntryName(*baseIt);
@@ -251,7 +383,7 @@ QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVar
         }
         out.append(m.entry);
     }
-    return out;
+    return {out, rehomedOrigins};
 }
 
 std::unique_ptr<PhosphorConfig::IBackend> migrateAndCreateOwnedBackend()
@@ -679,9 +811,11 @@ void Settings::reloadFromDisk(bool preserveLocalEdits, const AnnouncedState* bef
 
     // The store now mirrors disk, so refresh the committed baseline that
     // per-page Discard reverts to and isKeyModified() compares against. The
-    // preserving mode captured it before re-applying the kept edits.
+    // preserving mode captured it before re-applying the kept edits. With no
+    // edit left, no stamped id is unsaved, so no stamp origin is needed.
     if (!preserveLocalEdits) {
         captureBaseline();
+        m_namedEntryStampOrigins.clear();
     }
     announceConfigUnreadableIfMoved();
 }
@@ -928,8 +1062,10 @@ void Settings::reapplyLocalEdits(const QList<LocalEdit>& edits, const QVariantLi
     const QVariantList namedOnDisk = m_store->readVariant(namedGroup, namedKey).toList();
     for (const LocalEdit& edit : edits) {
         if (edit.group == namedGroup && edit.key == namedKey) {
-            m_store->write(namedGroup, namedKey,
-                           mergeNamedEntriesForReload(namedBaseline, edit.value.toList(), namedOnDisk));
+            NamedEntriesMerge merge =
+                mergeNamedEntriesForReload(namedBaseline, edit.value.toList(), namedOnDisk, m_namedEntryStampOrigins);
+            m_store->write(namedGroup, namedKey, merge.entries);
+            m_namedEntryStampOrigins = std::move(merge.stampOrigins);
         } else {
             m_store->write(edit.group, edit.key, edit.value);
         }
@@ -1042,6 +1178,8 @@ bool Settings::save()
     // just written become the base of any later repaired-file merge.
     captureBaseline();
     m_memberBase = captureMemberState();
+    // Disk now carries every id the settings page stamped.
+    m_namedEntryStampOrigins.clear();
     return true;
 }
 

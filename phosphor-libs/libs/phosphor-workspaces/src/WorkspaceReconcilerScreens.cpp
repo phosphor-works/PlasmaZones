@@ -233,8 +233,11 @@ void WorkspaceReconciler::onScreenRenamed(const QString& fromScreenId, const QSt
     rekey(m_setCurrentRefusals, fromScreenId, toScreenId);
     // At most one switch is open per screen (openSetCurrentIndex): one the
     // new id already has keeps the screen, and the old id's is dropped rather
-    // than renamed beside it. Creates are re-homed whatever, since KWin
-    // answers every one of them.
+    // than renamed beside it. The kept switch owes nothing for the dropped
+    // one: the effect resolves a request only by the exact spelling it names
+    // and answers under that same spelling, or not at all, so the dropped
+    // request's answer never arrives under the new id. Creates are re-homed
+    // whatever, since KWin answers every one of them.
     const bool toHasSwitch = openSetCurrentIndex(toScreenId) >= 0;
     for (int i = m_ledger.size() - 1; i >= 0; --i) {
         PendingOp& op = m_ledger[i];

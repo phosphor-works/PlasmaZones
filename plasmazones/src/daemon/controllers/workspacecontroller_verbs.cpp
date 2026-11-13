@@ -270,7 +270,10 @@ void WorkspaceController::moveColumnToWorkspace(const QString& screenId, const Q
         // when it arrives, so the column survives the move only through the
         // scroll engine's stash record, which the arrivals claim to rejoin
         // one column. It reads the live column, so it is recorded before the
-        // first move releases anything.
+        // first move releases anything. The handler leaves out a window the
+        // move verb refuses at the time it runs, the one being dragged
+        // (WindowTrackingAdaptor::stashScrollColumnForWorkspaceMove), which
+        // this controller cannot see (C75).
         if (m_columnStashHandler) {
             m_columnStashHandler(stripScreenId, moving, desktop);
         }

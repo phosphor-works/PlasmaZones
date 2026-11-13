@@ -1369,7 +1369,9 @@ bool SnapHandler::drainDesktopArrivalFor(const QString& windowId, KWin::EffectWi
     // still name the output the window is leaving, so a drain now would judge
     // the wrong output's desktop and re-drive the restore on the wrong screen
     // (C56). The park is kept, and the commit drains it
-    // (PlasmaZonesEffect::wireOutputChangeHandlers). A size-only difference is
+    // (PlasmaZonesEffect::wireOutputChangeHandlers), or the end of the screen
+    // change it committed during (ScreenChangeHandler::finishScreenChange).
+    // A size-only difference is
     // no move, as in PlasmaZonesEffect::pendingWindowScreenId.
     if (const KWin::Window* const kw = window->window(); kw && kw->moveResizeOutput() != kw->output()) {
         const QRectF pending = kw->moveResizeGeometry();

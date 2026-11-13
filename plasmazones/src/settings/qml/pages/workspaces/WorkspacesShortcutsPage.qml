@@ -310,6 +310,11 @@ SettingsFlickable {
                                 // not among the options (they are valued by
                                 // id), so the combo would also clamp it to
                                 // "None". It shows the entry's name instead.
+                                // Only the closed combo does: currentIndex
+                                // and currentText stay on "None", so the open
+                                // popup highlights that row, because no row
+                                // stands for the entry until the Named page
+                                // writes the list and gives it an id.
                                 displayText: {
                                     var live = slotDelegate.resolved;
                                     if (live && (live[root._f.id] || "") === "")

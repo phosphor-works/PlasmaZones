@@ -106,22 +106,7 @@ void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId
     // shadowWindowId() maps instanceId to the registry's canonical composite
     // and is the identity for an id that is already composite.
     const QString windowId = shadowWindowId(rawWindowId);
-    // Sticky (on-all-desktops) windows: the effect REFUSES a desktop move for
-    // them outright (PlasmaZonesEffect::applyWorkspaceMove returns for
-    // isOnAllDesktops), so running
-    // the handoff would re-key the daemon's engine state onto a desktop the
-    // real window never moves to. The window is already present on every
-    // workspace, which is what the verb was asking for. m_service is non-null
-    // post-construction (class invariant).
-    if (m_service->isWindowSticky(windowId)) {
-        qCDebug(lcDbusWindow) << "workspace move: refusing sticky window" << windowId;
-        return;
-    }
-    // The window an interactive drag is moving: the drop decides where it
-    // goes, and moving it under the pointer mid-drag would fight the drag the
-    // way every other placement verb is kept from doing (F773).
-    if (isInteractiveDragWindow(windowId)) {
-        qCDebug(lcDbusWindow) << "workspace move: refusing the window being dragged" << windowId;
+    if (refusesWorkspaceMove(windowId)) {
         return;
     }
 
@@ -235,6 +220,52 @@ void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId
     crossModeMoveImpl(sourceEngine, windowId, landingScreen, targetDesktop, direction, /*allowSameEngine=*/true, wire);
 }
 
+bool WindowTrackingAdaptor::refusesWorkspaceMove(const QString& windowId) const
+{
+    // Sticky (on-all-desktops) windows: the effect REFUSES a desktop move for
+    // them outright (PlasmaZonesEffect::applyWorkspaceMove returns for
+    // isOnAllDesktops), so running the handoff would re-key the daemon's
+    // engine state onto a desktop the real window never moves to. The window
+    // is already present on every workspace, which is what the verb was
+    // asking for. m_service is non-null post-construction (class invariant).
+    if (m_service->isWindowSticky(windowId)) {
+        qCDebug(lcDbusWindow) << "workspace move: refusing sticky window" << windowId;
+        return true;
+    }
+    // The window an interactive drag is moving: the drop decides where it
+    // goes, and moving it under the pointer mid-drag would fight the drag the
+    // way every other placement verb is kept from doing (F773).
+    if (isInteractiveDragWindow(windowId)) {
+        qCDebug(lcDbusWindow) << "workspace move: refusing the window being dragged" << windowId;
+        return true;
+    }
+    return false;
+}
+
+bool WindowTrackingAdaptor::stashScrollColumnForWorkspaceMove(const QString& stripScreenId,
+                                                              const QStringList& windowIds, int targetDesktop)
+{
+    auto* const scroll = qobject_cast<PhosphorScrollEngine::ScrollEngine*>(m_scrollEngine.data());
+    if (!scroll || stripScreenId.isEmpty() || targetDesktop < 1) {
+        return false;
+    }
+    // Only what the verb will move: a window it refuses stays in the strip,
+    // and a tile recorded for it would wait for an arrival that never comes,
+    // with the column rebuilt around a member it does not have (C75). The ids
+    // go to the engine as the strip enumerated them.
+    QStringList moving;
+    moving.reserve(windowIds.size());
+    for (const QString& windowId : windowIds) {
+        if (!windowId.isEmpty() && !refusesWorkspaceMove(shadowWindowId(windowId))) {
+            moving.append(windowId);
+        }
+    }
+    if (moving.isEmpty()) {
+        return false;
+    }
+    return scroll->stashColumnForDesktopMove(stripScreenId, moving, targetDesktop);
+}
+
 void WindowTrackingAdaptor::stashScrollStripsForWorkspaceMove(const QStringList& rawWindowIds,
                                                               const QString& targetScreenId, int targetDesktop)
 {
@@ -253,7 +284,7 @@ void WindowTrackingAdaptor::stashScrollStripsForWorkspaceMove(const QStringList&
     };
     for (const QString& raw : rawWindowIds) {
         const QString windowId = shadowWindowId(raw);
-        if (windowId.isEmpty() || m_service->isWindowSticky(windowId) || isInteractiveDragWindow(windowId)) {
+        if (windowId.isEmpty() || refusesWorkspaceMove(windowId)) {
             continue;
         }
         QString sourceStrip = scroll->heldScreenForWindow(windowId);

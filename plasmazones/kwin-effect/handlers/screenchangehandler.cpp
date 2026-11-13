@@ -19,6 +19,7 @@
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
 #include <QPointer>
+#include <QScopeGuard>
 
 Q_LOGGING_CATEGORY(lcScreenChange, "kwin.effect.plasmazones.screenchange", QtWarningMsg)
 
@@ -138,6 +139,11 @@ void ScreenChangeHandler::applyScreenGeometryChange()
                            << "- previous:" << m_lastVirtualScreenGeometry << "- current:" << currentGeometry;
 
     m_pendingScreenChange = false;
+    // A change that ends inside this call (no settle report sent, no reapply
+    // started) has no reply left to finish it.
+    const auto finish = qScopeGuard([this]() {
+        finishScreenChange();
+    });
 
     // Only reposition windows when the virtual screen SIZE changed.
     // Position-only changes (e.g. exiting KDE panel edit mode) should not move windows.
@@ -256,7 +262,7 @@ void ScreenChangeHandler::fetchAndApplyWindowGeometries()
         } else {
             // A crossing deferred while this reapply was in flight has no
             // settle of its own left to replay it.
-            self->replayDeferredCrossings();
+            self->finishScreenChange();
         }
     });
 }

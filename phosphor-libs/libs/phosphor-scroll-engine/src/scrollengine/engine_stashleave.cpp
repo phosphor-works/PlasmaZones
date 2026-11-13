@@ -150,10 +150,18 @@ void ScrollEngine::forgetMovedColumnsElsewhere(const QString& windowId, const Pl
     // Only move records go: a mode-round-trip column under another desktop
     // stays the window's while it spans that desktop (the membership
     // reconcile owns that question).
+    //
+    // Nor under a context the window still holds a membership in. A window on
+    // several desktops arrives in each (adoptIntoContext keeps the others),
+    // so an adoption here says nothing about a move that landed there, and
+    // the window's tile in that record is what its column-mates still to
+    // arrive find their column through (C74). Callers run this once the
+    // window has left every context it is leaving, so a membership read here
+    // is one it keeps.
     forgetStashedWindowWhere(
         windowId,
-        [&arrivalKey](const PlacementStateKey& key) {
-            return key != arrivalKey;
+        [this, &windowId, &arrivalKey](const PlacementStateKey& key) {
+            return key != arrivalKey && !m_states.hasMembership(windowId, key);
         },
         /*movedColumnsOnly=*/true);
 }
@@ -385,13 +393,17 @@ bool ScrollEngine::stashStripForOutputMove(const QString& sourceStripScreenId, c
     // The anchor is main-axis pixels into a strip whose column extents follow
     // the work area (a proportional width is a share of it), so it names the
     // same view only on a target whose work area has the same main-axis
-    // length. Otherwise the focus goes alone and the centering policy derives
-    // a view around it, as for the axis flip (C44). Both lengths are read for
-    // the strip's own column count, so smart gaps cannot tell them apart.
+    // length. Otherwise the focus goes alone, with the entry marked as
+    // carrying no view (StashedStrip::viewCarried), and the centering policy
+    // derives a view around it, as for the axis flip (C44, C72). Both lengths
+    // are read for the strip's own column count, so smart gaps cannot tell
+    // them apart, and each for the context the strip stands in: the target
+    // side is the destination key, whose gap rules can differ from the
+    // desktop the target monitor shows now (C73).
     const StashedStrip captured = buildStashFromState(state);
     const int columnCount = int(live.size());
     const ScrollLayoutParams sourceParams = layoutParamsForKey(sourceKey, columnCount);
-    const ScrollLayoutParams targetParams = layoutParamsForScreen(targetStripScreenId, columnCount);
+    const ScrollLayoutParams targetParams = layoutParamsForKey(destKey, columnCount);
     const bool sameMainLength = sourceParams.axis.axis() == targetParams.axis.axis()
         && sourceParams.axis.mainSize(sourceParams.workArea) == targetParams.axis.mainSize(targetParams.workArea);
     bool fresh = false;
@@ -403,6 +415,7 @@ bool ScrollEngine::stashStripForOutputMove(const QString& sourceStripScreenId, c
             if (sameMainLength) {
                 entry.viewAnchor = captured.viewAnchor;
                 entry.viewDetached = captured.viewDetached;
+                entry.viewCarried = captured.viewCarried;
             }
         }
         entry.blueprintCursor = captured.blueprintCursor;

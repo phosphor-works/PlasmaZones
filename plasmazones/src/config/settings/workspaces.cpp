@@ -6,10 +6,13 @@
 #include "config/configdefaults.h"
 #include "core/platform/logging.h"
 
+#include <QHash>
+#include <QSet>
 #include <QUuid>
 
 #include <array>
 #include <iterator>
+#include <utility>
 
 namespace PlasmaZones {
 
@@ -38,6 +41,64 @@ P_STORE_GET(bool, workspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebind
 P_STORE_SET_BOOL(setWorkspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebindKWinDesktopShortcutsKey,
                  workspacesRebindKWinShortcutsChanged)
 
+namespace {
+/// The id-less entry of @p before that each id first appearing in @p after
+/// replaced, as stamped id → that entry's name: what the settings page's
+/// stamp (SettingsController::withWorkspaceEntryIds) turned an id-less entry
+/// into. A stamped entry pairs with the replaced entry of its own name first.
+/// The rest pair up in list order when equally many are left on both sides,
+/// which is a rename written together with the stamp.
+QHash<QString, QString> namedEntryStampOriginsOfWrite(const QVariantList& before, const QVariantList& after)
+{
+    const QString idField = ConfigDefaults::namedEntryIdField();
+    const QString nameField = ConfigDefaults::namedEntryNameField();
+    QSet<QString> beforeIds;
+    QStringList beforeIdless;
+    for (const QVariant& value : before) {
+        const QVariantMap entry = value.toMap();
+        const QString id = entry.value(idField).toString();
+        if (id.isEmpty()) {
+            beforeIdless.append(entry.value(nameField).toString());
+        } else {
+            beforeIds.insert(id);
+        }
+    }
+    QSet<QString> afterIdless;
+    QList<std::pair<QString, QString>> stamped; // (id, name)
+    for (const QVariant& value : after) {
+        const QVariantMap entry = value.toMap();
+        const QString id = entry.value(idField).toString();
+        if (id.isEmpty()) {
+            afterIdless.insert(entry.value(nameField).toString());
+        } else if (!beforeIds.contains(id)) {
+            stamped.append({id, entry.value(nameField).toString()});
+        }
+    }
+    // An entry still id-less after the write was not stamped.
+    QStringList replaced;
+    for (const QString& name : std::as_const(beforeIdless)) {
+        if (!afterIdless.contains(name)) {
+            replaced.append(name);
+        }
+    }
+    QHash<QString, QString> origins;
+    QList<std::pair<QString, QString>> unmatched;
+    for (const auto& [id, name] : std::as_const(stamped)) {
+        if (replaced.removeOne(name)) {
+            origins.insert(id, name);
+        } else {
+            unmatched.append({id, name});
+        }
+    }
+    if (unmatched.size() == replaced.size()) {
+        for (qsizetype i = 0; i < unmatched.size(); ++i) {
+            origins.insert(unmatched.at(i).first, replaced.at(i));
+        }
+    }
+    return origins;
+}
+} // namespace
+
 // Named-workspace declarations: whole-replace QVariantList composite, same
 // write shape as the trigger lists (read-back compare so a semantically
 // identical list swallows no signal).
@@ -59,6 +120,22 @@ void Settings::setWorkspacesNamedEntries(const QVariantList& entries)
     m_store->write(ConfigDefaults::workspacesNamedGroup(), ConfigDefaults::entriesKey(), entries);
     const QVariantList after =
         m_store->readVariant(ConfigDefaults::workspacesNamedGroup(), ConfigDefaults::entriesKey()).toList();
+    // Which id-less entry each id stamped here replaced, recorded now: only
+    // this write sees both lists, and a rename made in it leaves no name a
+    // later merge could pair by (m_namedEntryStampOrigins).
+    const QHash<QString, QString> origins = namedEntryStampOriginsOfWrite(before, after);
+    for (auto it = origins.cbegin(); it != origins.cend(); ++it) {
+        m_namedEntryStampOrigins.insert(it.key(), it.value());
+    }
+    if (!m_namedEntryStampOrigins.isEmpty()) {
+        QSet<QString> afterIds;
+        for (const QVariant& value : after) {
+            afterIds.insert(value.toMap().value(ConfigDefaults::namedEntryIdField()).toString());
+        }
+        m_namedEntryStampOrigins.removeIf([&afterIds](const QHash<QString, QString>::iterator& it) {
+            return !afterIds.contains(it.key());
+        });
+    }
     if (before == after) {
         return;
     }

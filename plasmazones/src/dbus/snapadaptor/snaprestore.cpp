@@ -311,14 +311,23 @@ void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& s
     // routing itself runs once per open (a second channel's call for the same
     // open only re-reads the verdict).
     //
-    // A pending sweep is a first placement only for a window whose open no
-    // pass has routed yet. The sweep re-drives every visible window the daemon
-    // does not track, so it also reaches one whose open went through here and
-    // left it floating or free. Treated as a first placement, that window was
-    // resolved on its workspace's owner monitor and taken by its RouteToScreen
-    // again, wherever the refused or undone move left it (C31).
+    // A pending sweep is a first placement only for a window whose open this
+    // channel has not placed yet. The sweep re-drives every visible window
+    // the daemon does not track as snapped, so it also reaches one whose open
+    // went through here and left it floating or free. Treated as a first
+    // placement, that window was resolved on its workspace's owner monitor
+    // and taken by its RouteToScreen again, wherever the refused or undone
+    // move left it (C31). The routing latch cannot tell the two apart: the
+    // tiling channel's announce latches it as well, and when that announce
+    // was flushed first (an open queued before the daemon was ready) this
+    // sweep is still the open's first snap pass, the one that claims on the
+    // landing screen and applies a RouteToScreen the tiling channel leaves
+    // to this path (C60).
     const bool firstPlacement =
-        isOpen || (reason == PhosphorEngine::RestoreReason::PendingSweep && !m_adaptor->hasRoutedOpen(windowId));
+        isOpen || (reason == PhosphorEngine::RestoreReason::PendingSweep && !m_adaptor->hasSnapOpenPlacement(windowId));
+    if (firstPlacement) {
+        m_adaptor->markSnapOpenPlacement(windowId);
+    }
     // The screen the open chain places the window on. A route to a declared
     // workspace sends the window to that workspace's owner monitor, so the
     // chain resolves there (snap_spawn); placing it on the spawn screen would

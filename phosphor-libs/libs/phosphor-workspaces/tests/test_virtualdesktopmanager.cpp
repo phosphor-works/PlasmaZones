@@ -92,6 +92,7 @@ private Q_SLOTS:
     void renameScreen_movesTheRowAsASeed();
     void renameScreen_existingTargetWinsAndStaysQuiet();
     void renameScreen_ignoresUnknownAndDegenerateIds();
+    void renameScreen_oldSpellingReportsCountForTheNewIdUntilItReports();
 
     // The list commit (F302).
     void commit_refusesListsKWinCannotSend();
@@ -386,6 +387,48 @@ void TestVirtualDesktopManager::renameScreen_ignoresUnknownAndDegenerateIds()
     QVERIFY(!vdm.hasScreenDesktopReport(QStringLiteral("HDMI-A-1/X")));
     QVERIFY(vdm.hasScreenDesktopReport(QStringLiteral("DP-2")));
     QCOMPARE(vdm.currentDesktopForScreen(QStringLiteral("DP-2")), 4);
+}
+
+// The daemon learns a rename from its own QScreen set and the effect
+// re-spells on KWin's screenAdded/screenRemoved, with no order between the
+// two, so the effect can still report under the old spelling after the
+// rename. Such a report is the renamed output's: recorded under the new id,
+// with no row coming back under the dead one. The effect's first report under
+// the new id ends that, since its reports arrive in the order it sent them.
+void TestVirtualDesktopManager::renameScreen_oldSpellingReportsCountForTheNewIdUntilItReports()
+{
+    VirtualDesktopManager vdm;
+    const QString oldId = QStringLiteral("DP-2");
+    const QString newId = QStringLiteral("DP-2/DELL-U2415");
+    vdm.updateScreenDesktop(oldId, 3);
+    vdm.renameScreen(oldId, newId);
+    QCOMPARE(vdm.liveScreenIdFor(oldId), newId);
+
+    QSignalSpy seeded(&vdm, &VirtualDesktopManager::screenDesktopSeeded);
+    QSignalSpy changed(&vdm, &VirtualDesktopManager::screenDesktopChanged);
+    vdm.updateScreenDesktop(oldId, 4);
+    QVERIFY(!vdm.hasScreenDesktopReport(oldId));
+    QCOMPARE(vdm.currentDesktopForScreen(newId), 4);
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(changed.last().at(0).toString(), newId);
+    vdm.seedScreenDesktop(oldId, 2);
+    QVERIFY(!vdm.hasScreenDesktopReport(oldId));
+    QCOMPARE(seeded.count(), 1);
+    QCOMPARE(seeded.last().at(0).toString(), newId);
+
+    // The effect has re-spelled the output: the old spelling is no alias any
+    // more.
+    vdm.updateScreenDesktop(newId, 5);
+    QCOMPARE(vdm.liveScreenIdFor(oldId), oldId);
+
+    // A rename back makes the old spelling live again, and the new one its
+    // alias, with nothing left aliased to a live id.
+    vdm.renameScreen(newId, oldId);
+    QCOMPARE(vdm.liveScreenIdFor(newId), oldId);
+    QCOMPARE(vdm.liveScreenIdFor(oldId), oldId);
+    // Gone with the output it named.
+    vdm.removeScreenDesktop(oldId);
+    QCOMPARE(vdm.liveScreenIdFor(newId), newId);
 }
 
 void TestVirtualDesktopManager::commit_refusesListsKWinCannotSend()

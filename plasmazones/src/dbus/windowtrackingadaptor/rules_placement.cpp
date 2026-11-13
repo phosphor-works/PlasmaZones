@@ -423,9 +423,14 @@ void WindowTrackingAdaptor::republishOpenRoute(const QString& windowId)
     }
 }
 
-bool WindowTrackingAdaptor::hasRoutedOpen(const QString& windowId) const
+bool WindowTrackingAdaptor::hasSnapOpenPlacement(const QString& windowId) const
 {
-    return m_openRoutes.contains(shadowWindowId(windowId));
+    return m_snapOpenPlacements.contains(shadowWindowId(windowId));
+}
+
+void WindowTrackingAdaptor::markSnapOpenPlacement(const QString& windowId)
+{
+    m_snapOpenPlacements.insert(shadowWindowId(windowId));
 }
 
 QString WindowTrackingAdaptor::openRouteLandingScreen(const QString& windowId, const QString& screenId) const

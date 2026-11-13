@@ -791,16 +791,18 @@ void Daemon::initializeWorkspaces()
 
     // The column-preserving half of move-column-to-workspace: only when the
     // destination context (that strip, the target desktop, this activity)
-    // runs scrolling, since only a scrolling arrival claims the record.
+    // runs scrolling, since only a scrolling arrival claims the record. The
+    // adaptor leaves out every window its move verb will refuse, so the
+    // record names only windows that actually move.
     controller->setColumnStashHandler(
         [this](const QString& stripScreenId, const QStringList& windowIds, int targetDesktop) {
             auto* scroll = qobject_cast<PhosphorScrollEngine::ScrollEngine*>(m_scrollEngine.get());
-            if (!scroll
+            if (!scroll || !m_windowTrackingAdaptor
                 || routedModeForContext(stripScreenId, targetDesktop, currentActivity())
                     != PhosphorZones::AssignmentEntry::Mode::Scrolling) {
                 return false;
             }
-            return scroll->stashColumnForDesktopMove(stripScreenId, windowIds, targetDesktop);
+            return m_windowTrackingAdaptor->stashScrollColumnForWorkspaceMove(stripScreenId, windowIds, targetDesktop);
         });
 
     // The strip-preserving half of move-workspace-to-monitor. The adaptor
