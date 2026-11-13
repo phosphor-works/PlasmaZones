@@ -13,6 +13,7 @@
 #include <PhosphorIpc/IpcRouter.h>
 
 #include <QByteArray>
+#include <QCoreApplication>
 #include <QEventLoop>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -78,6 +79,10 @@ public:
     {
         return connectionId();
     }
+    Q_INVOKABLE qint64 whichProcess() const
+    {
+        return connectionPid();
+    }
     // Defers and drops the pending reply before the method returns.
     Q_INVOKABLE int startAndDrop()
     {
@@ -130,6 +135,10 @@ public:
     quint64 connectionOutsideCall() const
     {
         return connectionId();
+    }
+    qint64 processOutsideCall() const
+    {
+        return connectionPid();
     }
 
     std::vector<IpcPendingReply> jobs;
@@ -226,6 +235,7 @@ private Q_SLOTS:
     void sendEvent_overLimit_closesConnection();
     void sendEvent_reportsTheLineBytes();
     void connectionClosed_onceWithId_idsNotReused();
+    void connectionPid_isTheConnectingProcess();
     void connectionClosed_onStopAndDestruction();
     void connectionClosed_slotDropsPendingReplies();
     void connectionClosed_onMalformedClose();
@@ -738,6 +748,31 @@ void TestPhosphorIpcDeferred::sendEvent_reportsTheLineBytes()
     QVERIFY(!fx.router.sendEvent(~quint64(0), QStringLiteral("jobs"), QStringLiteral("output"), QJsonArray(), &bytes));
     QCOMPARE(bytes, 0);
     QVERIFY(framesWithin(client).isEmpty());
+}
+
+void TestPhosphorIpcDeferred::connectionPid_isTheConnectingProcess()
+{
+    RouterFixture fx;
+    QVERIFY(fx.valid());
+    JobTarget jobs;
+    QVERIFY(fx.router.registerTarget(QStringLiteral("jobs"), &jobs));
+    QVERIFY(fx.router.start(fx.sockPath));
+
+    // The client is this process, so the kernel names this process.
+    QLocalSocket client;
+    QVERIFY(connectClient(client, fx.sockPath));
+    send(client, makeCallReq(1, QStringLiteral("jobs"), QStringLiteral("whichProcess")));
+    const QList<QJsonObject> frames = readLines(client, 1);
+    QCOMPARE(frames.size(), 1);
+    QCOMPARE(typeOf(frames.first()), QStringLiteral("reply"));
+    QCOMPARE(static_cast<qint64>(frames.first().value(QStringLiteral("result")).toDouble()),
+             QCoreApplication::applicationPid());
+
+    // Outside a call, and in a call from no connection, there is no client.
+    QCOMPARE(jobs.processOutsideCall(), qint64(0));
+    IpcRouter::InvokeOutcome outcome = IpcRouter::InvokeOutcome::CallFailed;
+    QCOMPARE(fx.router.invoke(QStringLiteral("jobs"), QStringLiteral("whichProcess"), {}, &outcome).toLongLong(), 0LL);
+    QCOMPARE(outcome, IpcRouter::InvokeOutcome::Ok);
 }
 
 void TestPhosphorIpcDeferred::connectionClosed_onceWithId_idsNotReused()

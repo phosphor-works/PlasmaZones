@@ -50,7 +50,7 @@ subcommands.
 | `PhosphorIpc::IpcProtocol` | Wire-format constants + parser/serialiser. Shared between the library (server) and the `phosphorctl` binary (client). |
 | `PhosphorIpc::IpcEngine` | Bridge between an application-owned `IpcRouter` and QML-side `IpcTarget` instances. |
 | `PhosphorIpc::IpcSchemaGenerator` | `QMetaObject` → JSON Schema. Used by the schema response and by the CLI for client-side argument validation. |
-| `PhosphorIpc::IpcCallContext` | Mixin for a C++ target. `sendErrorReply(message)` fails the running wire call with `CALL_FAILED`, like `QDBusContext` does for D-Bus. `deferReply()` defers the answer to an `IpcPendingReply`, and `connectionId()` names the client connection that made the call. |
+| `PhosphorIpc::IpcCallContext` | Mixin for a C++ target. `sendErrorReply(message)` fails the running wire call with `CALL_FAILED`, like `QDBusContext` does for D-Bus. `deferReply()` defers the answer to an `IpcPendingReply`, `connectionId()` names the client connection that made the call, and `connectionPid()` the process that opened it. |
 | `PhosphorIpc::IpcPendingReply` | Move-only handle to a deferred call. `finish(result)` or `fail(...)` answers it once, and dropping it unanswered fails it with `CALL_ABANDONED`. |
 
 ## Wire protocol
@@ -324,6 +324,12 @@ process and never reused, also across routers. While a call runs,
 `IpcCallContext::connectionId()` returns the id of the connection that
 made it, and 0 for a call that came from no connection (a direct
 `IpcRouter::invoke`) or outside a call.
+
+`IpcCallContext::connectionPid()` returns the process ID of the client that
+made the call. The router reads it from the kernel (`SO_PEERCRED`) once,
+when it accepts the connection, so it names the process that connected and
+a client cannot claim another. It is 0 where `connectionId()` is 0, and on
+a platform other than Linux or when the kernel gives no answer.
 
 `IpcRouter::sendEvent(connectionId, target, signal, args)` writes one
 event to that connection, whether it subscribed to anything or not. It is

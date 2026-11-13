@@ -66,6 +66,12 @@ quint64 IpcCallContext::connectionId() const
     return running ? running->connectionId : 0;
 }
 
+qint64 IpcCallContext::connectionPid() const
+{
+    const Call* running = call();
+    return running ? running->connectionPid : 0;
+}
+
 IpcPendingReply IpcCallContext::deferReply()
 {
     Call* running = call();
