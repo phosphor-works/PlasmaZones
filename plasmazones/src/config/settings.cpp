@@ -79,10 +79,12 @@ NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString,
 /// The identity each id-less entry of @p side continues from the baseline,
 /// keyed by its name. @p baselineIdless holds the baseline's id-less entries
 /// in list order as (name, identity). An entry keeps the identity of the
-/// baseline entry with its name. When the entries left over on both sides are
-/// equally many, they pair up in list order: that is how an entry that never
-/// had an id reads after the daemon renamed it in place (a rename made in
-/// KWin), which no name can match.
+/// baseline entry with its name. When exactly one entry is left over on each
+/// side, those two pair up: that is how an entry that never had an id reads
+/// after the daemon renamed it in place (a rename made in KWin), which no name
+/// can match. More than one leftover stays unpaired, because nothing says
+/// which is which and list order is not evidence: pairing them wrongly would
+/// hand one workspace's edits to another.
 QHash<QString, QString> continuedIdlessIdentities(const QList<std::pair<QString, QString>>& baselineIdless,
                                                   const QVariantList& side)
 {
@@ -113,10 +115,8 @@ QHash<QString, QString> continuedIdlessIdentities(const QList<std::pair<QString,
             unmatchedBaseIdentities.append(identity);
         }
     }
-    if (unmatchedSide.size() == unmatchedBaseIdentities.size()) {
-        for (qsizetype i = 0; i < unmatchedSide.size(); ++i) {
-            identities.insert(unmatchedSide.at(i), unmatchedBaseIdentities.at(i));
-        }
+    if (unmatchedSide.size() == 1 && unmatchedBaseIdentities.size() == 1) {
+        identities.insert(unmatchedSide.constFirst(), unmatchedBaseIdentities.constFirst());
     }
     return identities;
 }
@@ -151,16 +151,17 @@ bool namedEntryEditedBeyondId(const QVariantMap& base, const QVariantMap& mine)
 ///    several writes, cannot mislead it. A stamped id with no recorded origin
 ///    falls back to the baseline id-less entry of its current name.
 ///  - Disk: an id-less disk entry continues the id-less baseline entry of its
-///    name, or the leftovers pair up in list order when equally many
+///    name, or the one leftover on each side pairs up
 ///    (continuedIdlessIdentities), which catches a rename made in KWin.
 ///
 /// Per identity:
 ///  - removed locally: stays removed.
 ///  - on both sides: merged per field, so a local chord edit keeps a daemon
 ///    move of the same entry, and a field both sides changed keeps the local
-///    value. The output and the position are one field here, because the
-///    daemon's move rewrites them together: a local edit to either keeps the
-///    local pair whole, else both come from disk.
+///    value. The output and the position are one field here, because a
+///    position is a slice index on one monitor and means nothing apart from
+///    it: a local edit to either keeps the pair the user saw, else both come
+///    from disk.
 ///  - gone from disk: removed elsewhere, so it stays gone, unless the user
 ///    edited it (an id stamp alone is not an edit), which keeps the local one.
 ///  - added on either side: kept.
@@ -333,8 +334,8 @@ NamedEntriesMerge mergeNamedEntriesForReload(const QVariantList& baseline, const
             continue;
         }
         // On both sides: disk's fields, with every field the user changed
-        // taken from the local copy. The output and the position travel
-        // together (see above), so a local edit to either takes both.
+        // taken from the local copy. The output and the position are one
+        // field (see above), so a local edit to either takes both.
         QVariantMap entry = *theirsIt;
         bool placementEdited = false;
         for (const QString& field : placementFields) {
@@ -350,12 +351,7 @@ NamedEntriesMerge mergeNamedEntriesForReload(const QVariantList& baseline, const
         }
         if (placementEdited) {
             for (const QString& field : placementFields) {
-                const auto local = mineIt->constFind(field);
-                if (local != mineIt->cend()) {
-                    entry.insert(field, *local);
-                } else {
-                    entry.remove(field);
-                }
+                entry.insert(field, mineIt->value(field));
             }
         }
         const bool renamed = namedEntryName(*mineIt) != namedEntryName(*baseIt);

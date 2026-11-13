@@ -46,8 +46,12 @@ namespace {
 /// replaced, as stamped id → that entry's name: what the settings page's
 /// stamp (SettingsController::withWorkspaceEntryIds) turned an id-less entry
 /// into. A stamped entry pairs with the replaced entry of its own name first.
-/// The rest pair up in list order when equally many are left on both sides,
-/// which is a rename written together with the stamp.
+/// When exactly one is left on each side, those two pair up: the page writes
+/// one action per commit, so that is a rename written together with the
+/// stamp. More than one leftover stays unpaired. Then @p before is not the
+/// list the page edited (a clean backend reparsed a file KWin renamed entries
+/// in, under a page holding an older list), and list order would pair the
+/// wrong entries and later hand one workspace's daemon move to another.
 QHash<QString, QString> namedEntryStampOriginsOfWrite(const QVariantList& before, const QVariantList& after)
 {
     const QString idField = ConfigDefaults::namedEntryIdField();
@@ -90,10 +94,8 @@ QHash<QString, QString> namedEntryStampOriginsOfWrite(const QVariantList& before
             unmatched.append({id, name});
         }
     }
-    if (unmatched.size() == replaced.size()) {
-        for (qsizetype i = 0; i < unmatched.size(); ++i) {
-            origins.insert(unmatched.at(i).first, replaced.at(i));
-        }
+    if (unmatched.size() == 1 && replaced.size() == 1) {
+        origins.insert(unmatched.constFirst().first, replaced.constFirst());
     }
     return origins;
 }

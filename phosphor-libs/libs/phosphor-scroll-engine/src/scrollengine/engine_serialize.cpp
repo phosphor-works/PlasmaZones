@@ -52,8 +52,8 @@ inline QLatin1String kAxis()
 
 /// The view anchor. Written only for an entry that carries a view
 /// (StashedStrip::viewCarried), and its presence is what the reader takes as
-/// that bit: every blob written before the bit existed wrote the key for every
-/// entry, each of which carried a view, so absent reads "no view".
+/// that bit: every released blob wrote the key for every entry, each of which
+/// carried a view, so absent reads "no view".
 inline QLatin1String kViewAnchor()
 {
     return QLatin1String("viewAnchor");

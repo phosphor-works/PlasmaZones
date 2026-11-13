@@ -319,10 +319,21 @@ void AutotileEngine::performToggleFloat(PhosphorTiles::TilingState* state, const
 // one caller that does is a refused handoff's re-home of a window this engine
 // held on a background desktop (guardedHandoff's recoverDesktop): landed in
 // the state in view instead, it was tiled on a desktop the real window is not
-// on (C62).
+// on (C62). Such a context is gated on its OWN mode, not on the screen's:
+// isAutotileScreen speaks for the desktop shown, and a screen showing a
+// snapping or scrolling desktop refused the re-home of a window its autotile
+// background desktop holds, stranding it in no engine (C101).
 void AutotileEngine::handoffReceive(const HandoffContext& ctx)
 {
-    if (ctx.windowId.isEmpty() || ctx.toScreenId.isEmpty() || !isAutotileScreen(ctx.toScreenId)) {
+    if (ctx.windowId.isEmpty() || ctx.toScreenId.isEmpty()) {
+        return;
+    }
+    TilingStateKey destKey = currentKeyForScreen(ctx.toScreenId);
+    if (ctx.toDesktop > 0) {
+        destKey.desktop = ctx.toDesktop;
+    }
+    const bool destInView = destKey == currentKeyForScreen(ctx.toScreenId);
+    if (destInView ? !isAutotileScreen(ctx.toScreenId) : !contextRunsAutotile(destKey)) {
         return;
     }
     qCInfo(PhosphorTileEngine::lcTileEngine)
@@ -331,11 +342,6 @@ void AutotileEngine::handoffReceive(const HandoffContext& ctx)
 
     const QString windowId = canonicalizeWindowId(ctx.windowId);
 
-    TilingStateKey destKey = currentKeyForScreen(ctx.toScreenId);
-    if (ctx.toDesktop > 0) {
-        destKey.desktop = ctx.toDesktop;
-    }
-    const bool destInView = destKey == currentKeyForScreen(ctx.toScreenId);
     PhosphorTiles::TilingState* state = tilingStateForKey(destKey);
     if (!state) {
         return;

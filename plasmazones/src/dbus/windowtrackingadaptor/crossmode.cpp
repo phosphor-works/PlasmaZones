@@ -107,6 +107,8 @@ void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId
     // and is the identity for an id that is already composite.
     const QString windowId = shadowWindowId(rawWindowId);
     if (refusesWorkspaceMove(windowId)) {
+        qCDebug(lcDbusWindow) << "workspace move: refusing" << windowId
+                              << (isInteractiveDragWindow(windowId) ? "(being dragged)" : "(on all desktops)");
         return;
     }
 
@@ -228,18 +230,14 @@ bool WindowTrackingAdaptor::refusesWorkspaceMove(const QString& windowId) const
     // engine state onto a desktop the real window never moves to. The window
     // is already present on every workspace, which is what the verb was
     // asking for. m_service is non-null post-construction (class invariant).
-    if (m_service->isWindowSticky(windowId)) {
-        qCDebug(lcDbusWindow) << "workspace move: refusing sticky window" << windowId;
-        return true;
-    }
+    //
     // The window an interactive drag is moving: the drop decides where it
     // goes, and moving it under the pointer mid-drag would fight the drag the
     // way every other placement verb is kept from doing (F773).
-    if (isInteractiveDragWindow(windowId)) {
-        qCDebug(lcDbusWindow) << "workspace move: refusing the window being dragged" << windowId;
-        return true;
-    }
-    return false;
+    //
+    // Silent: the verb logs its refusal, and the stash helpers that share
+    // this gate only filter what they record.
+    return m_service->isWindowSticky(windowId) || isInteractiveDragWindow(windowId);
 }
 
 bool WindowTrackingAdaptor::stashScrollColumnForWorkspaceMove(const QString& stripScreenId,

@@ -95,7 +95,26 @@ void ScrollEngine::handoffRelease(const QString& rawWindowId)
 void ScrollEngine::handoffReceive(const HandoffContext& ctx)
 {
     const QString windowId = canonicalizeForLookup(ctx.windowId);
-    if (windowId.isEmpty() || !m_scrollingScreens.contains(ctx.toScreenId)) {
+    if (windowId.isEmpty() || ctx.toScreenId.isEmpty()) {
+        return;
+    }
+    // The context the window is received into: the one in view, or the
+    // desktop the caller names. m_scrollingScreens speaks only for the context
+    // in view, so a background desktop is judged by the mode it runs as the
+    // daemon resolves it, as readoptParked judges one (C101). A refused
+    // workspace move re-homes its window into the background desktop it was
+    // released from, and refusing that because the desktop in view snaps or
+    // tiles left the window tracked by no engine. Unset resolver: every
+    // context scrolls, readoptParked's reading.
+    PhosphorEngine::PlacementStateKey key = currentKeyForScreen(ctx.toScreenId);
+    if (ctx.toDesktop > 0) {
+        key.desktop = ctx.toDesktop;
+    }
+    const bool receivedInView = key == currentKeyForScreen(ctx.toScreenId);
+    const bool contextScrolls = receivedInView
+        ? m_scrollingScreens.contains(ctx.toScreenId)
+        : (!m_scrollingModeResolver || m_scrollingModeResolver(key.screenId, key.desktop, key.activity));
+    if (!contextScrolls) {
         return;
     }
     m_closedFullscreenHolds.remove(windowId); // any re-entry ends the closed-hold answer
@@ -104,13 +123,9 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
     dropClosedWindowFromDragPreview(windowId);
     // The window has left every other screen: a column stashed for it on one
     // is given up, as insertOpenedWindow does for an arrival (F648).
-    forgetStashedWindowWhere(windowId, [&ctx](const PhosphorEngine::PlacementStateKey& key) {
-        return key.screenId != ctx.toScreenId;
+    forgetStashedWindowWhere(windowId, [&ctx](const PhosphorEngine::PlacementStateKey& stashKey) {
+        return stashKey.screenId != ctx.toScreenId;
     });
-    PhosphorEngine::PlacementStateKey key = currentKeyForScreen(ctx.toScreenId);
-    if (ctx.toDesktop > 0) {
-        key.desktop = ctx.toDesktop;
-    }
     // Defence-in-depth single-owner guard: the daemon releases the source
     // first on every current path, but a window still tracked in ANOTHER
     // scroll context here would end up held by two states with the reverse
@@ -309,8 +324,9 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
             state->strip().restateWindowHeightIntent(windowId, *migratedHeight);
         }
         m_states.addMembership(windowId, key);
-        const bool isCurrentContext = key == currentKeyForScreen(ctx.toScreenId);
-        if (isCurrentContext) {
+        // A background arrival lays out nothing: the strip in view is not the
+        // one that changed, and the switch to the receiving desktop retiles it.
+        if (receivedInView) {
             state->strip().focusWindow(windowId, params);
             applyLayout(ctx.toScreenId, false);
         }

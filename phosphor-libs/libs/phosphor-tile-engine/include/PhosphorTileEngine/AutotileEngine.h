@@ -1436,6 +1436,11 @@ private:
     /// Retile @p screenId if its current context was mutated while in the
     /// background (see m_dirtyBackgroundContexts).
     void retileIfDirtyBackground(const QString& screenId);
+    /// Whether the context @p key runs autotile, as the daemon resolves it
+    /// (m_contextModeResolver), else by the raw assignment, and with neither
+    /// wired, yes. isAutotileScreen speaks only for the context a screen
+    /// shows; this is the answer for a context it does not.
+    bool contextRunsAutotile(const PhosphorEngine::TilingStateKey& key) const;
     void removeWindow(const QString& windowId);
 
     /// Algorithm lifecycle REMOVE hook + state removal for a tracked window,

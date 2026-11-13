@@ -1370,14 +1370,26 @@ bool SnapHandler::drainDesktopArrivalFor(const QString& windowId, KWin::EffectWi
     // the wrong output's desktop and re-drive the restore on the wrong screen
     // (C56). The park is kept, and the commit drains it
     // (PlasmaZonesEffect::wireOutputChangeHandlers), or the end of the screen
-    // change it committed during (ScreenChangeHandler::finishScreenChange).
-    // A size-only difference is
-    // no move, as in PlasmaZonesEffect::pendingWindowScreenId.
-    if (const KWin::Window* const kw = window->window(); kw && kw->moveResizeOutput() != kw->output()) {
+    // change it committed during (ScreenChangeHandler::finishScreenChange). A
+    // size-only difference is no move, as in
+    // PlasmaZonesEffect::pendingWindowScreenId.
+    const KWin::Window* const kw = window->window();
+    if (kw && kw->moveResizeOutput() != kw->output()) {
         const QRectF pending = kw->moveResizeGeometry();
         if (pending.isValid() && pending.topLeft().toPoint() != window->frameGeometry().topLeft().toPoint()) {
             return false; // Still on its way to the output it lands on.
         }
+    }
+    // KWin's placeholder output, which stands in while no real output is
+    // connected, shows a desktop like any other (KWin adds it as an output
+    // and VirtualDesktopManager gives it a current desktop), so a window KWin
+    // evacuated there can read as arrived. The daemon has no screen for it and
+    // the restore would only take its miss path (callResolveWindowRestore),
+    // spending the park for nothing (C90). Kept until a real output takes the
+    // window back, whose screen change ends in a drain.
+    if (const KWin::LogicalOutput* const out = kw ? kw->moveResizeOutput() : window->screen();
+        out && out->isPlaceholder()) {
+        return false;
     }
     // Measured against the window's OWN output, the one it landed on once the
     // move above committed. The shared helper in

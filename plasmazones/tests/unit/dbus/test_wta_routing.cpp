@@ -24,6 +24,95 @@
 #include <QCoreApplication>
 #include <QScopeGuard>
 
+namespace {
+/// The snap open path the pending-sweep slots drive: two monitors side by
+/// side, a local adaptor with a real SnapEngine and SnapAdaptor, a window of
+/// "sweepapp" on DP-1 at a known frame, and a bare RouteToScreen rule (no
+/// SnapToZone) sending that app to DP-2. Members are destroyed in reverse
+/// declaration order, after the destructor body detaches what the adaptor
+/// borrows.
+struct RouteToDp2Rig
+{
+    RouteToDp2Rig(PhosphorZones::LayoutRegistry* layouts, StubZoneDetectorConvenience* detector,
+                  StubSettingsConvenience* settings, const QString& instance)
+        : windowId(QStringLiteral("sweepapp|") + instance)
+    {
+        fake.addScreen(QStringLiteral("DP-1"), QRect(0, 0, 1920, 1080), QStringLiteral("DP-1"));
+        fake.addScreen(QStringLiteral("DP-2"), QRect(1920, 0, 1920, 1080), QStringLiteral("DP-2"));
+        screenMgr = std::make_unique<PhosphorScreens::ScreenManager>(
+            PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
+        screenMgr->start();
+        wta = new WindowTrackingAdaptor(layouts, detector, screenMgr.get(), settings, nullptr, nullptr, &parent);
+        snap = std::make_unique<SnapEngine>(layouts, wta->service(), detector, nullptr, nullptr);
+        snap->setEngineSettings(settings);
+        wta->service()->setSnapState(snap->snapState());
+        wta->service()->setSnapEngine(snap.get());
+        wta->setEngines(snap.get(), nullptr, nullptr);
+        snapAdaptor = new SnapAdaptor(snap.get(), wta, settings, &parent);
+        wta->setWindowRegistry(&registry);
+        wta->setWindowMetadata(instance, QStringLiteral("sweepapp"), QString(), QString(), QString(), 0, 0, QString(),
+                               0, QVariantMap());
+
+        using namespace PhosphorRules;
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.enabled = true;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("sweepapp"));
+        RuleAction route;
+        route.type = QString(ActionType::RouteToScreen);
+        route.params.insert(QString(ActionParam::TargetScreenId), QStringLiteral("DP-2"));
+        rule.actions = {route};
+        store = std::make_unique<PhosphorRules::RuleStore>(ConfigDefaults::rulesFilePath(), nullptr);
+        ruleAdded = store->addRule(rule);
+        wta->setRuleStore(store.get());
+
+        wta->setFrameGeometry(windowId, 100, 100, 800, 600);
+        geomSpy = std::make_unique<QSignalSpy>(wta, &WindowTrackingAdaptor::applyGeometryRequested);
+    }
+    ~RouteToDp2Rig()
+    {
+        snapAdaptor->clearEngine();
+        wta->setRuleStore(nullptr);
+        wta->setWindowRegistry(nullptr);
+        wta->setEngines(nullptr, nullptr, nullptr);
+        wta->service()->setSnapEngine(nullptr);
+        wta->service()->setSnapState(nullptr);
+    }
+
+    /// The effect's resolveWindowRestore for the window on DP-1, for @p reason.
+    void resolve(PhosphorEngine::RestoreReason reason)
+    {
+        int x = 0;
+        int y = 0;
+        int width = 0;
+        int height = 0;
+        bool shouldSnap = false;
+        snapAdaptor->resolveWindowRestore(windowId, QStringLiteral("DP-1"), false,
+                                          static_cast<int>(PhosphorEngine::WindowKind::Unknown),
+                                          static_cast<int>(reason), 0, 0, x, y, width, height, shouldSnap);
+    }
+    /// How many placements so far sent the window to DP-2.
+    qsizetype routedToDp2() const
+    {
+        return std::count_if(geomSpy->cbegin(), geomSpy->cend(), [](const QList<QVariant>& call) {
+            return call.at(6).toString() == QStringLiteral("DP-2");
+        });
+    }
+
+    const QString windowId;
+    PhosphorScreens::FakePhysicalScreenSource fake;
+    std::unique_ptr<PhosphorScreens::ScreenManager> screenMgr;
+    PhosphorEngine::WindowRegistry registry;
+    std::unique_ptr<PhosphorRules::RuleStore> store;
+    QObject parent;
+    WindowTrackingAdaptor* wta = nullptr; // parent-owned
+    std::unique_ptr<SnapEngine> snap;
+    SnapAdaptor* snapAdaptor = nullptr; // parent-owned
+    std::unique_ptr<QSignalSpy> geomSpy;
+    bool ruleAdded = false;
+};
+} // namespace
+
 class TestWtaRouting : public QObject, protected WtaConvenienceFixture
 {
     Q_OBJECT
@@ -611,76 +700,17 @@ private Q_SLOTS:
     // the user put it back), and the sweep must not send it to DP-2 again.
     void testPendingSweepAfterARoutedOpenRoutesNothing()
     {
-        PhosphorScreens::FakePhysicalScreenSource fake;
-        fake.addScreen(QStringLiteral("DP-1"), QRect(0, 0, 1920, 1080), QStringLiteral("DP-1"));
-        fake.addScreen(QStringLiteral("DP-2"), QRect(1920, 0, 1920, 1080), QStringLiteral("DP-2"));
-        PhosphorScreens::ScreenManager screenMgr(
-            PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
-        screenMgr.start();
+        RouteToDp2Rig rig(m_layoutManager, m_zoneDetector, m_settings, QStringLiteral("sweep1"));
         // The snap open path refuses until the panel geometry is in.
-        QTRY_VERIFY(screenMgr.isPanelGeometryReady());
+        QTRY_VERIFY(rig.screenMgr->isPanelGeometryReady());
+        QVERIFY(rig.ruleAdded);
 
-        QObject parent;
-        auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
-                                              &parent);
-        const auto snap =
-            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
-        snap->setEngineSettings(m_settings);
-        wta->service()->setSnapState(snap->snapState());
-        wta->service()->setSnapEngine(snap.get());
-        wta->setEngines(snap.get(), nullptr, nullptr);
-        auto* snapAdaptor = new SnapAdaptor(snap.get(), wta, m_settings, &parent);
+        rig.resolve(PhosphorEngine::RestoreReason::Open);
+        QCOMPARE(rig.routedToDp2(), 1);
+        QVERIFY(rig.wta->hasSnapOpenPlacement(rig.windowId));
 
-        auto* registry = new PhosphorEngine::WindowRegistry(&parent);
-        wta->setWindowRegistry(registry);
-        wta->setWindowMetadata(QStringLiteral("sweep1"), QStringLiteral("sweepapp"), QString(), QString(), QString(), 0,
-                               0, QString(), 0, QVariantMap());
-
-        using namespace PhosphorRules;
-        Rule rule;
-        rule.id = QUuid::createUuid();
-        rule.enabled = true;
-        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("sweepapp"));
-        RuleAction route;
-        route.type = QString(ActionType::RouteToScreen);
-        route.params.insert(QString(ActionParam::TargetScreenId), QStringLiteral("DP-2"));
-        rule.actions = {route};
-        RuleStore store(ConfigDefaults::rulesFilePath(), &parent);
-        QVERIFY(store.addRule(rule));
-        wta->setRuleStore(&store);
-        const auto teardown = qScopeGuard([wta, snapAdaptor] {
-            snapAdaptor->clearEngine();
-            wta->setRuleStore(nullptr);
-            wta->setWindowRegistry(nullptr);
-            wta->service()->setSnapEngine(nullptr);
-            wta->service()->setSnapState(nullptr);
-        });
-
-        const QString w = QStringLiteral("sweepapp|sweep1");
-        wta->setFrameGeometry(w, 100, 100, 800, 600);
-        QSignalSpy geomSpy(wta, &WindowTrackingAdaptor::applyGeometryRequested);
-        const auto drive = [&](PhosphorEngine::RestoreReason reason) {
-            int x = 0;
-            int y = 0;
-            int width = 0;
-            int height = 0;
-            bool shouldSnap = false;
-            snapAdaptor->resolveWindowRestore(w, QStringLiteral("DP-1"), false,
-                                              static_cast<int>(PhosphorEngine::WindowKind::Unknown),
-                                              static_cast<int>(reason), 0, 0, x, y, width, height, shouldSnap);
-        };
-        const auto routedToDp2 = [&geomSpy]() {
-            return std::count_if(geomSpy.cbegin(), geomSpy.cend(), [](const QList<QVariant>& call) {
-                return call.at(6).toString() == QStringLiteral("DP-2");
-            });
-        };
-
-        drive(PhosphorEngine::RestoreReason::Open);
-        QCOMPARE(routedToDp2(), 1);
-        QVERIFY(wta->hasSnapOpenPlacement(w));
-
-        drive(PhosphorEngine::RestoreReason::PendingSweep);
-        QCOMPARE(routedToDp2(), 1);
+        rig.resolve(PhosphorEngine::RestoreReason::PendingSweep);
+        QCOMPARE(rig.routedToDp2(), 1);
     }
 
     // The tiling channel latches the open's routing verdict too, and an open
@@ -692,76 +722,20 @@ private Q_SLOTS:
     // snap path (C60).
     void testPendingSweepAfterATilingLatchedOpenStillRoutes()
     {
-        PhosphorScreens::FakePhysicalScreenSource fake;
-        fake.addScreen(QStringLiteral("DP-1"), QRect(0, 0, 1920, 1080), QStringLiteral("DP-1"));
-        fake.addScreen(QStringLiteral("DP-2"), QRect(1920, 0, 1920, 1080), QStringLiteral("DP-2"));
-        PhosphorScreens::ScreenManager screenMgr(
-            PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
-        screenMgr.start();
-        QTRY_VERIFY(screenMgr.isPanelGeometryReady());
-
-        QObject parent;
-        auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
-                                              &parent);
-        const auto snap =
-            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
-        snap->setEngineSettings(m_settings);
-        wta->service()->setSnapState(snap->snapState());
-        wta->service()->setSnapEngine(snap.get());
-        wta->setEngines(snap.get(), nullptr, nullptr);
-        auto* snapAdaptor = new SnapAdaptor(snap.get(), wta, m_settings, &parent);
-
-        auto* registry = new PhosphorEngine::WindowRegistry(&parent);
-        wta->setWindowRegistry(registry);
-        wta->setWindowMetadata(QStringLiteral("sweep2"), QStringLiteral("sweepapp"), QString(), QString(), QString(), 0,
-                               0, QString(), 0, QVariantMap());
-
-        using namespace PhosphorRules;
-        Rule rule;
-        rule.id = QUuid::createUuid();
-        rule.enabled = true;
-        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("sweepapp"));
-        RuleAction route;
-        route.type = QString(ActionType::RouteToScreen);
-        route.params.insert(QString(ActionParam::TargetScreenId), QStringLiteral("DP-2"));
-        rule.actions = {route};
-        RuleStore store(ConfigDefaults::rulesFilePath(), &parent);
-        QVERIFY(store.addRule(rule));
-        wta->setRuleStore(&store);
-        const auto teardown = qScopeGuard([wta, snapAdaptor] {
-            snapAdaptor->clearEngine();
-            wta->setRuleStore(nullptr);
-            wta->setWindowRegistry(nullptr);
-            wta->service()->setSnapEngine(nullptr);
-            wta->service()->setSnapState(nullptr);
-        });
-
-        const QString w = QStringLiteral("sweepapp|sweep2");
-        wta->setFrameGeometry(w, 100, 100, 800, 600);
-        QSignalSpy geomSpy(wta, &WindowTrackingAdaptor::applyGeometryRequested);
-        const auto routedToDp2 = [&geomSpy]() {
-            return std::count_if(geomSpy.cbegin(), geomSpy.cend(), [](const QList<QVariant>& call) {
-                return call.at(6).toString() == QStringLiteral("DP-2");
-            });
-        };
+        RouteToDp2Rig rig(m_layoutManager, m_zoneDetector, m_settings, QStringLiteral("sweep2"));
+        QTRY_VERIFY(rig.screenMgr->isPanelGeometryReady());
+        QVERIFY(rig.ruleAdded);
 
         // The tiling channel's routing pass runs first and latches the
         // verdict. DP-2 runs snapping, so it redirects nothing and moves
         // nothing.
-        QVERIFY(wta->applyOpenRoutingForTiling(w, QStringLiteral("DP-1")).isEmpty());
-        QCOMPARE(routedToDp2(), 0);
-        QVERIFY(!wta->hasSnapOpenPlacement(w));
+        QVERIFY(rig.wta->applyOpenRoutingForTiling(rig.windowId, QStringLiteral("DP-1")).isEmpty());
+        QCOMPARE(rig.routedToDp2(), 0);
+        QVERIFY(!rig.wta->hasSnapOpenPlacement(rig.windowId));
 
-        int x = 0;
-        int y = 0;
-        int width = 0;
-        int height = 0;
-        bool shouldSnap = false;
-        snapAdaptor->resolveWindowRestore(
-            w, QStringLiteral("DP-1"), false, static_cast<int>(PhosphorEngine::WindowKind::Unknown),
-            static_cast<int>(PhosphorEngine::RestoreReason::PendingSweep), 0, 0, x, y, width, height, shouldSnap);
-        QCOMPARE(routedToDp2(), 1);
-        QVERIFY(wta->hasSnapOpenPlacement(w));
+        rig.resolve(PhosphorEngine::RestoreReason::PendingSweep);
+        QCOMPARE(rig.routedToDp2(), 1);
+        QVERIFY(rig.wta->hasSnapOpenPlacement(rig.windowId));
     }
 
     // A screen unplugged since the last announce stamped it decides nothing

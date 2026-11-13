@@ -415,11 +415,12 @@ private Q_SLOTS:
         QCOMPARE(switches.last().at(1).toString(), QStringLiteral("d1"));
     }
 
-    /// The effect can answer a switch under an output's old spelling after the
+    /// The effect can still report under an output's old spelling after the
     /// daemon has renamed it (the two learn of the rename over different
-    /// channels). That answer belongs to the switch the rename re-keyed to the
-    /// new id, whether it is a forced report of the desktop already shown or
-    /// the switch itself, and it leaves no row under the dead id.
+    /// channels). A forced answer to a switch sent under the old spelling
+    /// retires the switch the rename re-keyed to the new id, and a changed
+    /// report under the old spelling is recorded under the new id. Neither
+    /// leaves a row under the dead id.
     void answerUnderTheOldScreenSpelling_retiresTheRekeyedSwitch()
     {
         World world;
@@ -442,12 +443,12 @@ private Q_SLOTS:
         world.vdm.updateScreenDesktop(ScreenA, 1);
         QVERIFY(world.reconciler().inFlightSetCurrentTarget(renamed).isEmpty());
 
-        // A switch, answered by the switch itself under the old spelling.
-        world.controller->focusWorkspaceAt(renamed, 1);
-        QCOMPARE(world.reconciler().inFlightSetCurrentTarget(renamed), QStringLiteral("d2"));
+        // A changed report under the old spelling (the user's own switch,
+        // made before the effect re-spelled the output) is recorded under the
+        // new id.
         world.controller->noteScreenDesktopReport(ScreenA, 2);
         world.vdm.updateScreenDesktop(ScreenA, 2);
-        QVERIFY(world.reconciler().inFlightSetCurrentTarget(renamed).isEmpty());
+        QCOMPARE(world.vdm.currentDesktopForScreen(renamed), 2);
         QCOMPARE(world.reconciler().currentDesktopIdOf(renamed), QStringLiteral("d2"));
         QVERIFY(!world.vdm.hasScreenDesktopReport(ScreenA));
         QVERIFY(world.reconciler().currentDesktopIdOf(ScreenA).isEmpty());

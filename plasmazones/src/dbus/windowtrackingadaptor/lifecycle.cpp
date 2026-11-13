@@ -19,7 +19,6 @@
 #include "core/utils/dbusvariantutils.h"
 #include "dbus/dbushelpers.h"
 
-#include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
@@ -929,7 +928,8 @@ void WindowTrackingAdaptor::releaseSnapOutsideLiveContext(const QString& rawWind
     // monitor's physical id, and against that every membership on one of its
     // virtual screens reads as off-screen and would be released with the rest
     // (C42). resolveBusScreen picks the virtual screen the frame is in.
-    QString liveScreen = resolveBusScreen(screenId, windowId);
+    bool guessed = false;
+    QString liveScreen = resolveBusScreen(screenId, windowId, &guessed);
     if (liveScreen.isEmpty()) {
         return;
     }
@@ -943,36 +943,30 @@ void WindowTrackingAdaptor::releaseSnapOutsideLiveContext(const QString& rawWind
     // them, the window loses nothing there and the guess stands, so a stale
     // membership elsewhere is still released. Held on more than one of them,
     // which one it is on is unknown, and nothing is released.
-    const QString reportedId = PhosphorScreens::ScreenIdentity::idForName(screenId);
     PhosphorScreens::ScreenManager* const screens = m_service->screenManager();
-    if (screens && liveScreen != reportedId && PhosphorIdentity::VirtualScreenId::isVirtual(liveScreen)
-        && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(liveScreen, reportedId)) {
-        const QRect frame = frameGeometry(windowId);
-        const QString framed = frame.isValid() ? Utils::effectiveScreenIdAt(screens, frame.center()) : QString();
-        if (framed != liveScreen) {
-            QStringList holders;
-            for (const QString& child : screens->virtualScreenIdsFor(reportedId)) {
-                const auto* const state =
-                    static_cast<const PhosphorSnapEngine::SnapState*>(std::as_const(*snap).stateForScreen(child));
-                if (state && (state->isWindowSnapped(windowId) || state->isFloating(windowId))) {
-                    holders.append(child);
-                }
+    if (guessed && screens) {
+        const QString reportedId = PhosphorScreens::ScreenIdentity::idForName(screenId);
+        QStringList holders;
+        for (const QString& child : screens->virtualScreenIdsFor(reportedId)) {
+            const auto* const state =
+                static_cast<const PhosphorSnapEngine::SnapState*>(std::as_const(*snap).stateForScreen(child));
+            if (state && (state->isWindowSnapped(windowId) || state->isFloating(windowId))) {
+                holders.append(child);
             }
-            if (holders.isEmpty()) {
-                if (const std::optional<PhosphorEngine::PlacementStateKey> held = snap->heldKeyForWindow(windowId);
-                    held && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(held->screenId, reportedId)) {
-                    holders.append(held->screenId);
-                }
+        }
+        if (holders.isEmpty()) {
+            if (const std::optional<PhosphorEngine::PlacementStateKey> held = snap->heldKeyForWindow(windowId);
+                held && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(held->screenId, reportedId)) {
+                holders.append(held->screenId);
             }
-            if (holders.size() > 1) {
-                qCDebug(lcDbusWindow) << "releaseSnapOutsideLiveContext:" << windowId << "reported on" << screenId
-                                      << "is held on" << holders
-                                      << "and none is known to be its own, releasing nothing";
-                return;
-            }
-            if (!holders.isEmpty()) {
-                liveScreen = holders.constFirst();
-            }
+        }
+        if (holders.size() > 1) {
+            qCDebug(lcDbusWindow) << "releaseSnapOutsideLiveContext:" << windowId << "reported on" << screenId
+                                  << "is held on" << holders << "and none is known to be its own, releasing nothing";
+            return;
+        }
+        if (!holders.isEmpty()) {
+            liveScreen = holders.constFirst();
         }
     }
     const PhosphorEngine::DesktopSpan span =

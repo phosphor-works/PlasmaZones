@@ -507,6 +507,9 @@ private Q_SLOTS:
         f.snap->commitSnap(windowId, f.zone(0), vs1);
         f.setFrame(windowId, QRect(3000, 100, 400, 300)); // the right half of DP-2
         QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
+        bool guessed = true;
+        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId, &guessed), vs1);
+        QVERIFY2(!guessed, "the frame picked the virtual screen");
 
         f.wta->releaseSnapOutsideLiveContext(windowId, kRight);
 
@@ -533,7 +536,9 @@ private Q_SLOTS:
         const QString windowId = f.registerWindow(QStringLiteral("split-frameless"));
         f.snap->commitSnap(windowId, f.zone(0), vs1);
         QVERIFY(f.wta->frameGeometry(windowId).isNull());
-        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId), QStringLiteral("DP-2/vs:0"));
+        bool guessed = false;
+        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId, &guessed), QStringLiteral("DP-2/vs:0"));
+        QVERIFY(guessed);
 
         f.wta->releaseSnapOutsideLiveContext(windowId, kRight);
 

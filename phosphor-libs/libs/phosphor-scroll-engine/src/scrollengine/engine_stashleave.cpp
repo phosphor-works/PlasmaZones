@@ -399,11 +399,17 @@ bool ScrollEngine::stashStripForOutputMove(const QString& sourceStripScreenId, c
     // are read for the strip's own column count, so smart gaps cannot tell
     // them apart, and each for the context the strip stands in: the target
     // side is the destination key, whose gap rules can differ from the
-    // desktop the target monitor shows now (C73).
+    // desktop the target monitor shows now (C73). A destination the target
+    // has never shown has no override map yet, so its screen-level rules
+    // (strip axis, smart gaps) come from the map of the desktop it shows now
+    // rather than from the global defaults (C95). A rule scoped to the shown
+    // desktop alone is borrowed with them, which is the residual: nothing in
+    // the engine knows the destination's own rules until it is shown.
     const StashedStrip captured = buildStashFromState(state);
     const int columnCount = int(live.size());
     const ScrollLayoutParams sourceParams = layoutParamsForKey(sourceKey, columnCount);
-    const ScrollLayoutParams targetParams = layoutParamsForKey(destKey, columnCount);
+    const ScrollLayoutParams targetParams =
+        layoutParamsForKey(destKey, columnCount, UnseenContextOverrides::ScreenCurrent);
     const bool sameMainLength = sourceParams.axis.axis() == targetParams.axis.axis()
         && sourceParams.axis.mainSize(sourceParams.workArea) == targetParams.axis.mainSize(targetParams.workArea);
     bool fresh = false;

@@ -259,12 +259,11 @@ void PlasmaZonesEffect::applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualD
     // lands on.
     //
     // With an output leg the successor is picked BEFORE the legs, while the
-    // window still sits on the output it is leaving and onto the destination
-    // (C55): activateNextWindow picks on the window's committed output, which
-    // after sendToOutput names the destination when the size is unchanged and
-    // still the source while a size change waits for the client, so a
-    // hand-off after the legs focused either monitor depending on the window's
-    // size. Handing off first also keeps sendToOutput from making the
+    // window still sits on the output it is leaving (C55): activateNextWindow
+    // picks on the window's committed output, which after sendToOutput names
+    // the destination when the size is unchanged and still the source while a
+    // size change waits for the client, so a hand-off after the legs focused
+    // either monitor depending on the window's size. Handing off first also keeps sendToOutput from making the
     // destination the active output, which it does only for the active
     // window. Two costs, both kept: with Next Focus Prefers Mouse the window
     // is still under the pointer, so KWin skips it and takes the focus chain's

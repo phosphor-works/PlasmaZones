@@ -1466,8 +1466,22 @@ private:
     /// screen's CURRENT key resolves exactly as layoutParamsForScreen does
     /// (gaps asked for desktop 0, "what the screen shows now"), so under a
     /// sticky pin the pinned key gets the gaps the apply used.
-    ScrollLayoutParams layoutParamsForKey(const PhosphorEngine::PlacementStateKey& key,
-                                          int columnCountOverride = -1) const;
+    ///
+    /// @param unseen What a background key with no override map of its own
+    /// reads. Only a context the screen has shown has one (applyPerScreenConfig
+    /// files the map under the screen's current key), so a desktop the screen
+    /// never showed reads the global defaults by default. ScreenCurrent reads
+    /// the screen's current map instead: its per-monitor settings (strip axis,
+    /// column sizing) hold for every desktop of the screen, at the price of
+    /// also borrowing the shown desktop's own rules and template. For a caller
+    /// predicting the params a context the screen has not shown yet will lay
+    /// out against (stashStripForOutputMove).
+    enum class UnseenContextOverrides : quint8 {
+        Defaults,
+        ScreenCurrent,
+    };
+    ScrollLayoutParams layoutParamsForKey(const PhosphorEngine::PlacementStateKey& key, int columnCountOverride = -1,
+                                          UnseenContextOverrides unseen = UnseenContextOverrides::Defaults) const;
 
     /// Auto-resolve the strip axis from a FINAL work area. Private because
     /// callers must not pass a rect that has not been through the outer-gap

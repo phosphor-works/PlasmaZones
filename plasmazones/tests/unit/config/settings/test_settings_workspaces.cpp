@@ -816,6 +816,34 @@ private Q_SLOTS:
         QCOMPARE(entryIds(merged), (QStringList{x, y}));
     }
 
+    /// A clean backend reparses the file right before a write. When KWin
+    /// renamed two id-less entries meanwhile and the page, still holding the
+    /// older list, writes them reordered and stamped, no name pairs the
+    /// stamped ids with the renamed entries and list order would pair them the
+    /// wrong way round. They stay unpaired, so a later daemon move of one
+    /// renamed workspace is not handed to the other workspace's row.
+    void reloadPreservingLocalEdits_staleReorderDoesNotPairByListOrder()
+    {
+        IsolatedConfigGuard guard;
+        const QString x = QUuid::createUuid().toString();
+        const QString y = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries(
+            {namedEntry(QVariant(), QStringLiteral("A")), namedEntry(QVariant(), QStringLiteral("B"))});
+        QVERIFY(settings.save());
+
+        writeNamedFromAnotherProcess(
+            {namedEntry(QVariant(), QStringLiteral("A2")), namedEntry(QVariant(), QStringLiteral("B2"))});
+        settings.setWorkspacesNamedEntries({namedEntry(y, QStringLiteral("B")), namedEntry(x, QStringLiteral("A"))});
+        writeNamedFromAnotherProcess(
+            {namedEntry(QVariant(), QStringLiteral("A2"), QString(), 2), namedEntry(QVariant(), QStringLiteral("B2"))});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("B@-1"), QStringLiteral("A@-1")}));
+        QCOMPARE(entryIds(merged), (QStringList{y, x}));
+    }
+
     /// An entry with no id that the user edited (and the page stamped) was
     /// renamed in KWin meanwhile, which the daemon wrote back id-less under
     /// the new name. It stays one workspace carrying both changes. A second
@@ -850,9 +878,9 @@ private Q_SLOTS:
                  QStringLiteral("Meta+Ctrl+F1"));
     }
 
-    /// The daemon rewrites an entry's output and position together, so the
-    /// merge keeps them together: a local edit to the output keeps the local
-    /// position with it rather than pairing it with the daemon's.
+    /// A position is a slice index on one monitor, so the merge keeps an
+    /// entry's output and position together: a local edit to the output keeps
+    /// the local position with it rather than pairing it with the daemon's.
     void reloadPreservingLocalEdits_mergesOutputAndPositionAsOneField()
     {
         IsolatedConfigGuard guard;

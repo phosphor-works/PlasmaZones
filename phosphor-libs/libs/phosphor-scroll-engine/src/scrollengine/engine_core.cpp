@@ -964,10 +964,28 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
     // left long ago. From then on the view to hand back is the one the user
     // had before THIS insert stole it, which is the same job for a late
     // arrival as the stash did for the burst.
+    //
+    // Raw only while the entry's own view is the one in force. Then the strip
+    // being rebuilt is the strip that view was captured on, so an anchor out
+    // of range for the columns that have landed so far is in range once the
+    // rest land. An entry whose view was not restored (none carried, or one
+    // captured on the other axis) has only the view the policy derived when
+    // its focus landed, on whatever part of the strip stood then. Handed back
+    // raw over a longer strip it undid insertWindowAt's re-clamp, and a focus
+    // that landed first ended at the leading edge with dead space after it
+    // (C94). That hand-back is clamped at the trailing edge, as the drag
+    // settle is: dead space past the strip's end goes, and a leading
+    // overhang the centering mutators store stays. A late arrival on such an
+    // entry is an ordinary positional insert under the user's view, and
+    // insertWindowAt clamps those too.
+    const bool stashedViewApplies = stashStrip.viewCarried && stashStrip.axis == params.axis.axis();
     if (focusRestoredEarlier) {
         if (!focusBeforeInsert.isEmpty() && state->strip().containsWindow(focusBeforeInsert)) {
             state->strip().focusWindow(focusBeforeInsert, params);
             state->strip().restoreViewAnchor(anchorBeforeInsert, params);
+            if (!stashedViewApplies) {
+                state->strip().clampViewIntoStrip(params);
+            }
             state->strip().setViewDetached(detachedBeforeInsert);
         }
     } else if (!stashStrip.focusedWindowId.isEmpty() && state->strip().containsWindow(stashStrip.focusedWindowId)) {
@@ -981,7 +999,7 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
         // still lands, and the centering policy re-derives a view around it.
         // An entry that carries no view at all (StashedStrip::viewCarried)
         // takes the same arm: its anchor field is a default, not a view.
-        if (stashStrip.viewCarried && stashStrip.axis == params.axis.axis()) {
+        if (stashedViewApplies) {
             state->strip().restoreViewAnchor(stashStrip.viewAnchor, params);
             // After the anchor, and only in this arm: the focus call above
             // cleared the latch, restoreViewAnchor deliberately leaves it

@@ -90,20 +90,22 @@ public:
     /// case, nor when @p oldId is unknown or either id is empty or the two are
     /// equal.
     ///
-    /// The old spelling also stays an alias of the new id until the effect
-    /// reports under the new one. The daemon learns the rename from its own
-    /// QScreen set and the effect re-spells on KWin's screenAdded/screenRemoved,
-    /// two channels with no order between them, so the effect can still answer
-    /// under the old spelling after this call. updateScreenDesktop and
-    /// seedScreenDesktop record such a report under the new id
-    /// (liveScreenIdFor). The effect's reports arrive in the order it sent
-    /// them, so its first report under the new id is the last one the old
-    /// spelling could precede, and it drops the alias. A rename back to the
-    /// old spelling and removeScreenDesktop of the new id drop it as well.
+    /// The old spelling also stays an alias of the new id until a report
+    /// under the new id arrives after the rename, or the output goes. The
+    /// daemon learns the rename from its own QScreen set and the effect
+    /// re-spells on KWin's screenAdded/screenRemoved, two channels with no
+    /// order between them, so the effect can still answer under the old
+    /// spelling after this call. updateScreenDesktop and seedScreenDesktop
+    /// record such a report under the new id (liveScreenIdFor). The effect's
+    /// reports arrive in the order it sent them, so none under the old
+    /// spelling follows one under the new id, and that report drops the
+    /// alias. When the effect re-spelled before this call, the alias waits for
+    /// the next such report and translates nothing meanwhile. A rename back to
+    /// the old spelling and removeScreenDesktop of the new id drop it as well.
     void renameScreen(const QString& oldId, const QString& newId);
     /// The id a per-output report naming @p screenId is recorded under: the
-    /// new id while @p screenId is the old spelling of a renamed output the
-    /// effect has not reported under its new spelling yet, else @p screenId.
+    /// new id while @p screenId is an aliased old spelling of a renamed
+    /// output (renameScreen), else @p screenId.
     QString liveScreenIdFor(const QString& screenId) const;
 
     /// Ask KWin to switch to the desktop at this 1-based position. Asynchronous

@@ -180,12 +180,7 @@ bool AutotileEngine::readoptParked(const QString& windowId, const QString& parke
             // mode decides (F1102): the daemon's answer, which an assignment
             // with tiling off, disabled or opted out there fails (F1137), else
             // the raw assignment.
-            const bool contextTiles = m_contextModeResolver
-                ? m_contextModeResolver(screen, key.desktop, key.activity)
-                : (!m_layoutManager
-                   || m_layoutManager->modeForScreen(screen, key.desktop, key.activity)
-                       == PhosphorZones::AssignmentEntry::Mode::Autotile);
-            if (!contextTiles) {
+            if (!contextRunsAutotile(key)) {
                 continue;
             }
             if (isAutotileScreen(screen)) {

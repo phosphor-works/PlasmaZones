@@ -18,6 +18,7 @@
 #include <PhosphorTiles/SplitTree.h>
 #include <PhosphorEngine/PerScreenKeys.h>
 #include <PhosphorTiles/AutotileConstants.h>
+#include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include "tileenginelogging.h"
@@ -52,6 +53,16 @@ bool AutotileEngine::isEnabled() const noexcept
 bool AutotileEngine::isAutotileScreen(const QString& screenId) const
 {
     return m_autotileScreens.contains(screenId);
+}
+
+bool AutotileEngine::contextRunsAutotile(const TilingStateKey& key) const
+{
+    if (m_contextModeResolver) {
+        return m_contextModeResolver(key.screenId, key.desktop, key.activity);
+    }
+    return !m_layoutManager
+        || m_layoutManager->modeForScreen(key.screenId, key.desktop, key.activity)
+        == PhosphorZones::AssignmentEntry::Mode::Autotile;
 }
 
 bool AutotileEngine::isActiveOnScreen(const QString& screenId) const

@@ -33,7 +33,7 @@ ScrollLayoutParams ScrollEngine::layoutParamsForScreen(const QString& screenId, 
 }
 
 ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::PlacementStateKey& key,
-                                                    int columnCountOverride) const
+                                                    int columnCountOverride, UnseenContextOverrides unseen) const
 {
     const QString& screenId = key.screenId;
     // Which context these params describe. The screen-only spelling (desktop
@@ -137,7 +137,17 @@ ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::Placem
     // down: smart gaps is now a per-screen rule slot too, and its gate runs
     // before the rest of the effective* reads. One fetch still serves them
     // all — the later reads take this same map.
-    const QVariantMap overrides = m_perScreenOverrides.value(contextKey);
+    //
+    // A context the producer never resolved a map for (applyPerScreenConfig
+    // files one for a screen's current context only) reads the global
+    // defaults, unless the caller asks for the screen's current map instead
+    // (UnseenContextOverrides::ScreenCurrent).
+    QVariantMap overrides;
+    if (const auto own = m_perScreenOverrides.constFind(contextKey); own != m_perScreenOverrides.cend()) {
+        overrides = *own;
+    } else if (unseen == UnseenContextOverrides::ScreenCurrent) {
+        overrides = m_perScreenOverrides.value(currentKey);
+    }
     // The Auto axis basis, captured BEFORE smart gaps may zero the outer
     // gaps. Smart-gap zeroing is CONTENT-driven — it reads the strip's live
     // column count — and folding it into the axis basis coupled the resolved

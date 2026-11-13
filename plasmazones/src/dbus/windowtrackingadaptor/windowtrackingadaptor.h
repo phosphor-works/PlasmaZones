@@ -1905,7 +1905,11 @@ public:
     /// it, and a split monitor's physical id maps to the virtual screen
     /// @p windowId's frame is in, else the cursor's, else its first. Empty for a
     /// screen the daemon does not know; @p reported as is without a ScreenManager.
-    QString resolveBusScreen(const QString& reported, const QString& windowId = QString()) const;
+    /// @p guessed, when given, is set to whether the answer is one of those two
+    /// fallbacks for a split monitor's physical id (no frame picked the virtual
+    /// screen), and to false for every other answer.
+    QString resolveBusScreen(const QString& reported, const QString& windowId = QString(),
+                             bool* guessed = nullptr) const;
     int desktopCount() const; ///< virtual desktops, 0 without a VirtualDesktopManager
     /// The effective screen @p windowId's frame is on, else the one an engine tracks it on.
     QString liveScreenForWindow(const QString& windowId) const;

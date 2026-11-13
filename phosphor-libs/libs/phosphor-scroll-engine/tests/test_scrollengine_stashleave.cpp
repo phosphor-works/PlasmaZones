@@ -18,6 +18,8 @@
 #include <QJsonObject>
 #include <QtTest>
 
+#include <memory>
+
 using namespace PhosphorScrollEngine;
 
 using ScrollTestUtils::makeProviderEngine;
@@ -535,6 +537,51 @@ private Q_SLOTS:
         // compare below cannot pass on a zero anchor.
         QVERIFY(lastFocused.derivedAnchor != 0);
         QCOMPARE(lastFocused.anchor, lastFocused.derivedAnchor);
+
+        // The same when the focused window lands FIRST (C94). Its own arrival
+        // derives a view on a one-column strip, and every later arrival hands
+        // that view back over a longer strip: kept raw, it would leave the
+        // last column at the leading edge with dead space after it.
+        const MovedView focusedFirst = movedStripView(shorter, kD, 0, {kD, kA, kB, kC});
+        QVERIFY(focusedFirst.built);
+        QCOMPARE(focusedFirst.focused, kD);
+        QVERIFY(focusedFirst.derivedAnchor != 0);
+        QCOMPARE(focusedFirst.anchor, focusedFirst.derivedAnchor);
+    }
+
+    // A mode round trip across a rotation drops the stashed view, which was
+    // captured on the other axis. When the focus lands first the rebuilt
+    // strip still ends on the view the policy derives for it, as a record
+    // with no view does (C94).
+    void rotatedRoundTripDerivesTheViewWhenTheFocusLandsFirst()
+    {
+        QObject owner;
+        auto geometry = std::make_shared<QRect>(Ax::defaultScreenRect());
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1}, [geometry](const QString&) {
+            return *geometry;
+        });
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        for (const QString& windowId : {kA, kB, kC, kD}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kD, kS1);
+        engine->setActiveScreens({});
+
+        // Rotated: the same main-axis length, on the other axis.
+        *geometry = Ax::t(QRect(0, 0, ScrollTestUtils::kCrossExtent, ScrollTestUtils::kMainExtent));
+        engine->setActiveScreens({kS1});
+        for (const QString& windowId : {kD, kA, kB, kC}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        const auto* state = static_cast<ScrollState*>(engine->stateForScreen(kS1));
+        QVERIFY(state && state->hasResolvedAxis());
+        const StripAxis rotated = Ax::stripAxis().transposed();
+        QCOMPARE(state->resolvedAxis().axis(), rotated.axis());
+        QCOMPARE(state->strip().columnCount(), 4);
+        QCOMPARE(state->strip().activeWindowId(), kD);
+        const int derived = derivedAnchorFor(state->strip(), *geometry, kD, rotated);
+        QVERIFY(derived != 0);
+        QCOMPARE(state->strip().viewAnchor(), derived);
     }
 
     // A record that carries no view keeps carrying none across a restart.
@@ -624,6 +671,82 @@ private Q_SLOTS:
         QVERIFY(target);
         QCOMPARE(target->strip().columnCount(), 4);
         QVERIFY2(target->strip().viewDetached(), "the panned view must reach a destination of the same length");
+    }
+
+    // The destination desktop has never been shown on S2, so no override map
+    // names it yet. The gate reads S2's screen-level rules from the desktop
+    // S2 shows, here smart gaps, which drop the outer gaps around a lone
+    // column. The global defaults would keep them and read a shorter work
+    // area than the source's, and the view would be dropped (C95).
+    void outputMoveReadsTheTargetRulesForAnUnseenDesktop()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1, kS2});
+        engine->setContextGapProvider([](const QString&, int, const QString&) {
+            QVariantMap gaps;
+            gaps.insert(QStringLiteral("OuterGap"), 50);
+            return gaps;
+        });
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        engine->setCurrentDesktopForScreen(kS2, 2);
+        QVariantMap smartGaps;
+        smartGaps.insert(ScrollPerScreenKeys::smartGaps(), true);
+        engine->applyPerScreenConfig(kS1, smartGaps);
+        engine->applyPerScreenConfig(kS2, smartGaps);
+        engine->windowOpened(kA, kS1, 0, 0);
+        QVERIFY(engine->stashStripForOutputMove(kS1, kS2, 1, {kA}));
+        engine->handoffRelease(kA);
+        engine->releaseWindowOffScreen(kA, kS2);
+
+        const QJsonObject entry = engine->serializeStripState().value(kS2 + QLatin1String("|1|")).toObject();
+        QCOMPARE(entry.value(QLatin1String("focusedWindow")).toString(), kA);
+        QVERIFY2(entry.contains(QLatin1String("viewAnchor")), "a destination of the same length carries the view");
+    }
+
+    // A refused workspace move re-homes its window into the background
+    // desktop it was released from. That desktop scrolls while the one S1
+    // shows does not, and the receive is judged by the receiving desktop's
+    // own mode, so the window is held there again instead of by no engine
+    // (C101). A desktop that does not scroll by the daemon's resolution, or
+    // the desktop in view of a screen this engine does not scroll, still
+    // refuses it.
+    void backgroundReceiveFollowsTheReceivingDesktopsMode()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1});
+        engine->setCurrentDesktopForScreen(kS1, 2);
+        engine->windowOpened(kA, kS1, 0, 0);
+        engine->handoffRelease(kA);
+        QVERIFY(!engine->isWindowTracked(kA));
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        engine->setActiveScreens({});
+
+        PhosphorEngine::IPlacementEngine::HandoffContext ctx;
+        ctx.windowId = kA;
+        ctx.fromEngineId = QStringLiteral("snap");
+        ctx.toScreenId = kS1;
+
+        // The desktop in view does not scroll: refused.
+        engine->handoffReceive(ctx);
+        QVERIFY(!engine->isWindowTracked(kA));
+
+        // Desktop 2 is given another mode: refused.
+        ctx.toDesktop = 2;
+        engine->setScrollingModeResolver([](const QString&, int desktop, const QString&) {
+            return desktop != 2;
+        });
+        engine->handoffReceive(ctx);
+        QVERIFY(!engine->isWindowTracked(kA));
+
+        // Desktop 2 scrolls: held there.
+        engine->setScrollingModeResolver([](const QString&, int, const QString&) {
+            return true;
+        });
+        engine->handoffReceive(ctx);
+        const std::optional<PhosphorEngine::PlacementStateKey> held = engine->heldKeyForWindow(kA);
+        QVERIFY(held.has_value());
+        QCOMPARE(held->screenId, kS1);
+        QCOMPARE(held->desktop, 2);
     }
 
     // A window on two desktops is adopted into the second while its moved
@@ -742,10 +865,12 @@ private:
     /// The anchor focusWindow derives on a copy of @p strip, laid out on
     /// @p targetRect, for @p windowId reached from the first column, whose
     /// view sits at the strip's start whatever came before.
-    static int derivedAnchorFor(const ScrollStrip& strip, const QRect& targetRect, const QString& windowId)
+    static int derivedAnchorFor(const ScrollStrip& strip, const QRect& targetRect, const QString& windowId,
+                                StripAxis axis = Ax::stripAxis())
     {
         ScrollLayoutParams params = ScrollTestUtils::engineParams();
         params.workArea = targetRect;
+        params.axis = axis;
         ScrollStrip probe = strip;
         probe.focusWindow(kA, params);
         probe.focusWindow(windowId, params);
@@ -754,8 +879,10 @@ private:
 
     /// A four-column strip on S1 focused on @p focused, its view panned by
     /// @p panPx (0 for none), moved as a workspace to an S2 of @p targetRect,
-    /// its windows re-arriving there.
-    static MovedView movedStripView(const QRect& targetRect, const QString& focused, int panPx)
+    /// its windows re-arriving there in @p arrivals order (strip order when
+    /// empty).
+    static MovedView movedStripView(const QRect& targetRect, const QString& focused, int panPx,
+                                    const QStringList& arrivals = {})
     {
         MovedView view;
         QObject owner;
@@ -786,7 +913,7 @@ private:
             engine->releaseWindowOffScreen(windowId, kS2);
         }
         engine->setCurrentDesktopForScreen(kS2, 1);
-        for (const QString& windowId : riders) {
+        for (const QString& windowId : arrivals.isEmpty() ? riders : arrivals) {
             engine->windowOpened(windowId, kS2, 0, 0);
         }
         const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS2));
