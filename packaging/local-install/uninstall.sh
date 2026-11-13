@@ -139,6 +139,13 @@ if [ "$REMOVE_CONFIG" = true ]; then
     # directory while leaving every saved layout behind.
     rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/plasmazones"
     rm -rf "$HOME/.config/plasmazones"
+    # The record of which placement host last ran, which plasmazonesd writes
+    # under the XDG state directory. Only that file goes: the phosphor-works
+    # directory is shared with the suite's other apps, so it is removed only
+    # when nothing else is left in it.
+    PHOSPHOR_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/phosphor-works"
+    rm -f "$PHOSPHOR_STATE_DIR/placement-host.json"
+    rmdir "$PHOSPHOR_STATE_DIR" 2>/dev/null || true  # Only removes if empty
     echo "Configuration removed."
 else
     # Remove manifest and uninstall script but keep user data

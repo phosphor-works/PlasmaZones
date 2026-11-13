@@ -26,6 +26,13 @@
 
 namespace PlasmaZones {
 
+namespace {
+/// The largest width or height a loaded ScreenPixelSizes entry may carry: the
+/// same bound DBusScreenAdaptor::setPixelSizeFromKWin holds a compositor report
+/// to, so no seed can claim a size no report could have.
+constexpr int MaxScreenPixelExtent = 65535;
+} // namespace
+
 bool WindowTrackingAdaptor::isPersistedContextDisabled(const QString& screenId, int virtualDesktop,
                                                        const QString& activity) const
 {
@@ -37,18 +44,17 @@ bool WindowTrackingAdaptor::isPersistedContextDisabled(const QString& screenId, 
         return false;
     }
     if (!m_contextResolver) {
-        // Pre-`setContextResolver` path — the first call lands from
-        // this adaptor's ctor (loadState()) before Daemon hands the
-        // resolver over. Returns "nothing is disabled" so the
-        // historical "load everything when no settings backend is
-        // wired" behaviour is preserved.
+        // Pre-`setContextResolver` path: before Daemon hands the resolver
+        // over (and in fixtures that never wire one) nothing is disabled,
+        // so every gate keeps the record. Records load unfiltered either
+        // way; loadState never asks this predicate.
         return false;
     }
     // Routes through `handleForPersisted` which resolves the screen's
-    // mode via the bound IModeProvider — every consumer (snap-side
-    // ShouldTrackPredicate, the WindowPlacementStore serialize keep-predicate,
-    // and the save/load filters) ends up applying the cascade keyed on
-    // the mode the screen is actually running.
+    // mode via the bound IModeProvider — every consumer (the snap engine's
+    // restore gate, the WindowPlacementStore serialize keep-predicate,
+    // the instant-restore cache, the re-apply and the resnap filter) ends
+    // up applying the cascade keyed on the mode the screen is running.
     return m_contextResolver->isDisabled(m_contextResolver->handleForPersisted(screenId, virtualDesktop, activity));
 }
 
@@ -87,32 +93,6 @@ void WindowTrackingAdaptor::saveState()
         tracking->writeString(ConfigKeys::activeLayoutIdKey(), m_layoutManager->activeLayout()->id().toString());
     }
 
-    // Snap zone assignments and pending-restore queues are no longer persisted
-    // as separate keys — a snapped window's restore state is one WindowPlacement
-    // record (state="snapped", engineData.zoneIds). The runtime SnapState maps are
-    // re-populated by resolveWindowRestore re-committing from the store on open.
-    tracking->deleteKey(ConfigKeys::windowZoneAssignmentsFullKey());
-    tracking->deleteKey(ConfigKeys::pendingRestoreQueuesKey());
-
-    // Clean up obsolete keys from old formats. Reached only when at
-    // least one dirty bit is set (the DirtyNone early-return above
-    // skips this path), so we always flush the deletions along with
-    // the rest of the write. On subsequent saves the keys are already
-    // gone so deleteKey is a cheap no-op.
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowScreenAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowDesktopAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowLayoutAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowZoneNumbersKey());
-    tracking->deleteKey(ConfigKeys::obsoleteWindowZoneAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoleteWindowScreenAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoleteWindowDesktopAssignmentsKey());
-
-    // Pre-tile (float-back) geometry is no longer persisted separately — it lives
-    // in the unified WindowPlacement record's shared freeGeometryByScreen (the single
-    // float-back store). Drop the obsolete keys.
-    tracking->deleteKey(ConfigKeys::preTileGeometriesFullKey());
-    tracking->deleteKey(ConfigKeys::preTileGeometriesKey());
-
     // Save last used zone info (from service)
     if (dirty & D::DirtyLastUsedZone) {
         tracking->writeString(ConfigKeys::lastUsedZoneIdKey(), m_service->lastUsedZoneId());
@@ -127,51 +107,25 @@ void WindowTrackingAdaptor::saveState()
         // live companions through unchanged to avoid blanking them.
     }
 
-    // Float state is ephemeral (session-only) — do NOT persist across restarts.
-    // Clear any stale entry from older versions so restored sessions start clean.
-    tracking->deleteKey(ConfigKeys::obsoleteFloatingWindowsKey());
-
-    // Disabled-context filter (discussion #461 item 2) for the pre-float maps:
-    // a window floated on a since-disabled monitor would otherwise restore
-    // there on unfloat. PreFloat has no desktop dimension (it's appId-keyed),
-    // so we pass desktop=0 — the helper short-circuits the desktop gate on
-    // 0 and the monitor-disabled list is the load-bearing check anyway.
-    // Build the set of dropped appIds from the screen map so the zone map
-    // can drop its paired entries without re-doing the screen lookup.
-    // Pre-float zone/screen assignments are no longer persisted separately — a
-    // floated window's pre-float zones live in its WindowPlacement record
-    // (engineData.preFloatZones), restored into SnapState on reopen.
-    tracking->deleteKey(ConfigKeys::preFloatZoneAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::preFloatScreenAssignmentsKey());
-
     // Save user-snapped classes
-    QJsonArray userSnappedArray;
     if (dirty & D::DirtyUserSnapped) {
+        QJsonArray userSnappedArray;
         for (const QString& windowClass : m_service->userSnappedClasses()) {
             userSnappedArray.append(windowClass);
         }
         tracking->writeJson(ConfigKeys::userSnappedClassesKey(), userSnappedArray);
     }
 
-    // Autotile window orders and pending restores are no longer persisted as
-    // separate keys — an autotiled window's position is one WindowPlacement record
-    // (state="autotiled", engineData.position), captured by the common save-time
-    // snapshot and close hook, exactly like snap. Drop the obsolete keys.
-    tracking->deleteKey(ConfigKeys::autotileWindowOrdersKey());
-    tracking->deleteKey(ConfigKeys::autotilePendingRestoresKey());
-
-    // Obsolete float-restore queue — replaced by the unified WindowPlacementStore.
-    // Drop any stale key left by an older build.
-    tracking->deleteKey(ConfigKeys::floatRestoreQueuesKey());
-
     // Unified WindowPlacementStore — the single source of truth for per-window
     // restore state (snapped / floated). The keep predicate reuses the single
     // disabled-context gate, so a record on a disabled monitor/desktop never
     // persists. refreshOpenWindowPlacements() (top of saveState) has already
-    // re-captured open floating windows' live geometry into the store.
+    // re-captured open floating windows' live geometry into the store. Each
+    // float-back rect is written relative to its output (F814), so the next
+    // login finds it on the same monitor however the monitors are arranged.
     if (dirty & D::DirtyWindowPlacements) {
-        const QJsonObject placements =
-            m_service->placementStore().serialize([this](const PhosphorEngine::WindowPlacement& p) {
+        const QJsonObject placements = m_service->placementStore().serialize(
+            [this](const PhosphorEngine::WindowPlacement& p) {
                 // Persist only records with something to restore. A contentless
                 // {floating, no geometry, no zones} residue carries nothing yet and,
                 // at MaxPerApp per app, would crowd out a real placement in the next
@@ -180,6 +134,9 @@ void WindowTrackingAdaptor::saveState()
                 // content-bearing here.)
                 return p.hasRestorableContent()
                     && !isPersistedContextDisabled(p.screenId, p.virtualDesktop, p.activity);
+            },
+            [service = m_service](const QString& screenId) {
+                return service->outputOrigin(screenId);
             });
         if (!placements.isEmpty()) {
             tracking->writeJson(ConfigKeys::windowPlacementsKey(), placements);
@@ -212,6 +169,28 @@ void WindowTrackingAdaptor::saveState()
         }
     }
 
+    // The desktop ids the session last saw (the daemon's start-up desktop sweep). KWin's ids are UUIDs, no comma.
+    if (dirty & D::DirtyKnownDesktops) {
+        if (m_knownDesktopIds.isEmpty()) {
+            tracking->deleteKey(ConfigKeys::knownDesktopIdsKey());
+        } else {
+            tracking->writeString(ConfigKeys::knownDesktopIdsKey(), m_knownDesktopIds.join(QLatin1Char(',')));
+        }
+    }
+
+    // Each monitor's last reported size, as identifier -> [width, height].
+    if (dirty & D::DirtyScreenPixelSizes) {
+        if (m_screenPixelSizes.isEmpty()) {
+            tracking->deleteKey(ConfigKeys::screenPixelSizesKey());
+        } else {
+            QJsonObject sizes;
+            for (auto it = m_screenPixelSizes.constBegin(); it != m_screenPixelSizes.constEnd(); ++it) {
+                sizes.insert(it.key(), QJsonArray{it.value().width(), it.value().height()});
+            }
+            tracking->writeJson(ConfigKeys::screenPixelSizesKey(), sizes);
+        }
+    }
+
     tracking.reset(); // release group before write
 
     // Async I/O: snapshot the in-memory JSON root (COW copy) and hand off
@@ -233,8 +212,8 @@ void WindowTrackingAdaptor::saveState()
         // Fallback synchronous path.
         //
         // Reachable in two cases:
-        //   1. m_sessionBackend is not a PhosphorConfig::JsonBackend —
-        //      tests that wire a memory-only backend.
+        //   1. m_sessionBackend is not a PhosphorConfig::JsonBackend (none
+        //      today: createSessionBackend builds one).
         //   2. The production shutdown path: `saveStateOnShutdown` resets
         //      `m_persistenceWorker` before calling `saveState()`, so the
         //      async branch is unavailable on the very last save.
@@ -243,19 +222,24 @@ void WindowTrackingAdaptor::saveState()
         // write and re-mark the committed bits for retry. The mask has
         // already been taken (above), which means a silent failure here
         // silently loses the committed bits — same behavior as
-        // pre-Phase-3 code. Log a one-time warning on first hit so any
-        // unexpected production regression (steady-state saves landing
-        // here instead of the shutdown one-shot) is obvious in logs.
-        if (!m_syncFallbackWarned) {
-            qCWarning(lcDbusWindow) << "saveState: using synchronous fallback backend; failed writes cannot be retried "
-                                       "(expected for the one shutdown save and for unit tests with a memory backend)";
+        // pre-Phase-3 code. A backend that is not a JsonBackend warns once;
+        // the shutdown save is expected and logs at debug.
+        if (jsonBackend) {
+            // The shutdown save: saveStateOnShutdown reset the worker first.
+            qCDebug(lcDbusWindow) << "saveState: shutdown save written synchronously";
+        } else if (!m_syncFallbackWarned) {
+            qCWarning(lcDbusWindow) << "saveState: using synchronous fallback backend; failed writes cannot be retried";
             m_syncFallbackWarned = true;
         }
         m_sessionBackend->sync();
     }
+    // userSnappedArray is only filled when the DirtyUserSnapped bit was set, so
+    // logging its size unconditionally reported "0 user-snapped classes" for
+    // every save that did not touch them — a count the reader would take for
+    // the real one. Report the live figure instead.
     qCInfo(lcDbusWindow) << "Saved state: dirty=" << Qt::hex << dirty << Qt::dec
                          << "placements=" << m_service->placementStore().size()
-                         << "userSnapped=" << userSnappedArray.size();
+                         << "userSnapped=" << m_service->userSnappedClasses().size();
 }
 
 void WindowTrackingAdaptor::requestReapplyWindowGeometries()
@@ -331,8 +315,8 @@ void WindowTrackingAdaptor::loadState()
                                    m_service->lastUsedDesktop());
     }
 
-    // Float state is ephemeral (session-only) — skip loading.
-    // Any stale FloatingWindows entries from older versions are cleaned up in saveState().
+    // No FloatingWindows key to load: a float comes back from its record's floating
+    // slot. saveState() deletes any stale entry an older version left.
 
     // Pre-float zone/screen assignments are no longer loaded — a floated window's
     // pre-float zones are restored from its WindowPlacement record on reopen.
@@ -359,13 +343,22 @@ void WindowTrackingAdaptor::loadState()
 
     // Restore the unified WindowPlacementStore — the single source of truth for
     // per-window restore state.
+    bool placementsMigrated = false;
     {
         const QString placementsStr = readVal(ConfigKeys::windowPlacementsKey(), QString());
         if (!placementsStr.isEmpty()) {
             QJsonParseError parseError;
             const QJsonDocument doc = QJsonDocument::fromJson(placementsStr.toUtf8(), &parseError);
             if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
-                m_service->placementStore().deserialize(doc.object());
+                // Back to absolute against the outputs the service knows now; an
+                // older absolute file is converted once by the store's format
+                // migration (WindowPlacementStore::FormatVersion) and written
+                // back below, so the conversion never runs a second time.
+                placementsMigrated = PhosphorEngine::WindowPlacementStore::formatVersionOf(doc.object())
+                    < PhosphorEngine::WindowPlacementStore::FormatVersion;
+                m_service->placementStore().deserialize(doc.object(), [service = m_service](const QString& screenId) {
+                    return service->outputOrigin(screenId);
+                });
             } else {
                 qCWarning(lcDbusWindow) << "Failed to parse saved window placements:" << parseError.errorString();
             }
@@ -390,6 +383,34 @@ void WindowTrackingAdaptor::loadState()
                 m_loadedScrollStripState = doc.object();
             } else {
                 qCWarning(lcDbusWindow) << "Failed to parse saved scroll strips:" << parseError.errorString();
+            }
+        }
+    }
+    m_knownDesktopIds =
+        readVal(ConfigKeys::knownDesktopIdsKey(), QString()).split(QLatin1Char(','), Qt::SkipEmptyParts);
+
+    // The monitor sizes the last session saw. Session state is a file a user
+    // can edit, so an entry that is not two positive integers within the
+    // range the compositor report is held to is dropped rather than seeded.
+    m_screenPixelSizes.clear();
+    {
+        const QString sizesStr = readVal(ConfigKeys::screenPixelSizesKey(), QString());
+        if (!sizesStr.isEmpty()) {
+            QJsonParseError parseError;
+            const QJsonDocument doc = QJsonDocument::fromJson(sizesStr.toUtf8(), &parseError);
+            if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+                const QJsonObject sizes = doc.object();
+                for (auto it = sizes.constBegin(); it != sizes.constEnd(); ++it) {
+                    const QJsonArray pair = it.value().toArray();
+                    const int width = pair.size() == 2 ? pair.at(0).toInt(0) : 0;
+                    const int height = pair.size() == 2 ? pair.at(1).toInt(0) : 0;
+                    if (!it.key().isEmpty() && width > 0 && height > 0 && width <= MaxScreenPixelExtent
+                        && height <= MaxScreenPixelExtent) {
+                        m_screenPixelSizes.insert(it.key(), QSize(width, height));
+                    }
+                }
+            } else {
+                qCWarning(lcDbusWindow) << "Failed to parse saved screen pixel sizes:" << parseError.errorString();
             }
         }
     }
@@ -421,7 +442,7 @@ void WindowTrackingAdaptor::loadState()
     }
 
     const int placementCount = m_service ? m_service->placementStore().size() : 0;
-    qCInfo(lcDbusWindow) << "Loaded state from KConfig: windowPlacements=" << placementCount;
+    qCInfo(lcDbusWindow) << "Loaded session state: windowPlacements=" << placementCount;
     if (placementCount > 0) {
         m_hasPendingRestores = true;
         tryEmitPendingRestoresAvailable();
@@ -429,9 +450,60 @@ void WindowTrackingAdaptor::loadState()
 
     // In-memory state now mirrors the disk file — nothing is dirty until
     // the next mutation lands. Without this clear, the first saveState()
-    // after startup would re-serialize every field we just loaded.
+    // after startup would re-serialize every field we just loaded. A migrated
+    // placements blob is the exception: its converted form has to reach disk.
     if (m_service) {
         m_service->clearDirty();
+        if (placementsMigrated) {
+            m_service->markDirty(PhosphorPlacement::WindowTrackingService::DirtyWindowPlacements);
+        }
+    }
+}
+
+void WindowTrackingAdaptor::setKnownDesktopIds(const QStringList& ids)
+{
+    if (ids == m_knownDesktopIds) {
+        return;
+    }
+    m_knownDesktopIds = ids;
+    if (m_service) {
+        m_service->markDirty(PhosphorPlacement::WindowTrackingService::DirtyKnownDesktops);
+    }
+}
+
+void WindowTrackingAdaptor::recordScreenPixelSizes(const QHash<QString, QSize>& sizes)
+{
+    bool changed = false;
+    for (auto it = sizes.constBegin(); it != sizes.constEnd(); ++it) {
+        if (it.key().isEmpty() || it.value().isEmpty()) {
+            continue;
+        }
+        const auto held = m_screenPixelSizes.constFind(it.key());
+        if (held != m_screenPixelSizes.constEnd() && *held == it.value()) {
+            continue;
+        }
+        m_screenPixelSizes.insert(it.key(), it.value());
+        changed = true;
+    }
+    if (changed && m_service) {
+        m_service->markDirty(PhosphorPlacement::WindowTrackingService::DirtyScreenPixelSizes);
+    }
+}
+
+void WindowTrackingAdaptor::renameScreenPixelSize(const QString& oldId, const QString& newId)
+{
+    if (oldId.isEmpty() || newId.isEmpty() || oldId == newId) {
+        return;
+    }
+    const auto held = m_screenPixelSizes.constFind(oldId);
+    if (held == m_screenPixelSizes.constEnd()) {
+        return;
+    }
+    const QSize size = *held;
+    m_screenPixelSizes.erase(held);
+    m_screenPixelSizes.insert(newId, size);
+    if (m_service) {
+        m_service->markDirty(PhosphorPlacement::WindowTrackingService::DirtyScreenPixelSizes);
     }
 }
 

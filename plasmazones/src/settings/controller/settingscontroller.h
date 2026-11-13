@@ -4,35 +4,15 @@
 // Central controller for the standalone settings application.
 // Manages page navigation, layout CRUD (via D-Bus), screen info, and owns
 // the shared Settings instance. Per-page Q_PROPERTY surfaces are split out
-// into page-scoped sub-controllers (EditorPageController, …) hung off this
+// into page-scoped sub-controllers (GeneralPageController, …) hung off this
 // class via child Q_PROPERTYs so QML reads `settingsController.<page>.<prop>`.
 //
-// FILE-SIZE EXCEPTION (sanctioned), CEILING 1370 LINES: what remains here after that
-// split is the root object QML binds to. Its Q_PROPERTY surface IS the QML contract, so
-// moving another group of properties out means either a new child controller every page
-// URL and binding has to be rewritten for, or a second root QML cannot see. The
-// implementation is already split across settingscontroller_*.cpp, same shape as
-// daemon.h.
-//
-// The number above is a real budget, not a description of wherever the file happens to
-// sit: the exception is for the QML contract, so a new declaration that pushes past it
-// buys its room by removing another (a retired Q_INVOKABLE, a property moved to a child
-// controller). It does NOT license a comment block — those belong on the definition in
-// the matching settingscontroller_*.cpp when they will not fit here.
-//
-// The 1370 above supersedes the general 1150 hard ceiling in CLAUDE.md for this
-// file, the same way the repo's other sanctioned file-size exceptions do, so
-// sitting between the two figures is not a review finding here.
-//
-// Raise history, because each raise has to say what bought the room. From 1215 when the
-// per-screen selector stores grew their per-card has/clear pairs (chip-invoked
-// Q_INVOKABLEs belonging on the root the chips call by method name). Then to 1370 for
-// the named-parameter-presets work: four ShaderPresetBridge members, one per family,
-// plus the Q_PROPERTY accessors QML binds them through. That IS the QML contract this
-// exception exists for, since every preset surface reads
-// `settingsController.<family>Presets`, so it cannot move to a child controller without
-// rewriting the binding at every call site. Splitting this class by page group is the
-// follow-up the ceiling is asking for.
+// What remains here after that split is the root object QML binds to. Its Q_PROPERTY
+// surface IS the QML contract, so moving another group of properties out means either a
+// new child controller every page URL and binding has to be rewritten for, or a second
+// root QML cannot see. The implementation is split across settingscontroller_*.cpp,
+// same shape as daemon.h. Long comment blocks belong on the definition in the matching
+// settingscontroller_*.cpp when they will not fit here.
 
 #pragma once
 
@@ -40,6 +20,7 @@
 #include "phosphor_i18n.h"
 #include "config/settings.h"
 #include "common/daemoncontroller.h"
+#include "settings/controller/screenstatescache.h"
 #include "settings/utils/screenhelper.h"
 #include "core/types/constants.h"
 #include "core/types/enums.h"
@@ -62,6 +43,8 @@ struct ImportResult;
 namespace PhosphorSurfaceShaders {
 class SurfaceShaderRegistry;
 }
+
+class QFileSystemWatcher;
 
 namespace PhosphorPointerShaders {
 class PointerShaderRegistry;
@@ -88,6 +71,7 @@ class ShaderPreviewController;
 class RegistryShaderPreviewBackend;
 }
 
+#include <QDateTime>
 #include <QHash>
 #include <QObject>
 #include <QSet>
@@ -111,7 +95,6 @@ class RegistryShaderPreviewBackend;
 #include "settings/pages/profilepagecontroller.h"
 #include "settings/pages/snappingzonescontroller.h"
 #include "settings/pages/snappingbehaviorcontroller.h"
-#include "settings/pages/snappingeffectscontroller.h"
 #include "settings/pages/overlayspagecontroller.h"
 #include "settings/pages/snappingzoneselectorcontroller.h"
 #include "settings/pages/decorationpagecontroller.h"
@@ -141,6 +124,13 @@ class SettingsController : public QObject
     Q_PROPERTY(bool advancedMode READ advancedMode WRITE setAdvancedMode NOTIFY advancedModeChanged)
     Q_PROPERTY(QString activeDirtyScope READ activeDirtyScope NOTIFY activeDirtyScopeChanged)
     Q_PROPERTY(Settings* settings READ settings CONSTANT)
+    /// The config file a save or reset failure names when it could not be read.
+    Q_PROPERTY(QString configFilePath READ configFilePath CONSTANT)
+    /// config.json could not be read, so the pages show a stand-in (defaults,
+    /// for an app started on a broken file), Reset is refused and Save writes
+    /// only the parts kept outside that file, until it is repaired. The shell
+    /// shows a persistent warning for it.
+    Q_PROPERTY(bool configUnreadable READ configUnreadable NOTIFY configUnreadableChanged)
     Q_PROPERTY(DaemonController* daemonController READ daemonController CONSTANT)
     // Whether this build carries the Phosphor shell (BUILD_PHOSPHOR_SHELL).
     // Pages that list the shell's own surfaces (the `shell.phosphor.*`
@@ -167,6 +157,14 @@ class SettingsController : public QObject
 
     // Screen management
     Q_PROPERTY(QVariantList screens READ screens NOTIFY screensChanged)
+    // The daemon's getScreenStates answer (each screen's current desktop,
+    // activity, resolved assignment and, while it tiles, its tiled-window
+    // count). Seeded by one blocking call at construction, then re-read
+    // asynchronously on the daemon's screenStatesChanged, on screen,
+    // assignment, active-layout and activity changes, when the window regains
+    // focus and when the Rules page comes into view, while the daemon runs.
+    // The Rules page's monitor tiles evaluate their conditions against it.
+    Q_PROPERTY(QVariantList screenStates READ screenStates NOTIFY screenStatesChanged)
 
     // Per-monitor scope: which screen the per-monitor setting groups are
     // currently editing. Empty = "All Monitors" (edit the global default).
@@ -175,19 +173,20 @@ class SettingsController : public QObject
     // each page tracked independently.
     Q_PROPERTY(QString scopeScreenName READ scopeScreenName WRITE setScopeScreenName NOTIFY scopeScreenNameChanged)
 
-    // Editor page — properties live on EditorPageController, exposed here as a
-    // child QObject so QML reads `settingsController.editorPage.duplicateShortcut`.
-    Q_PROPERTY(EditorPageController* editorPage READ editorPage CONSTANT)
-
-    // Snapping/Tiling/Scrolling behavior pages — trigger surfaces moved to per-page controllers.
+    // Per-page sub-controllers still read off this object. A page whose
+    // registry entry passes context receives its own controller from PageHost
+    // as `controller`. Such a page has no property here unless code outside
+    // the page also reads its controller: generalPage, overlaysPage,
+    // tilingAlgorithmPage and profilesPage stay for those readers (other
+    // pages, cards and Main.qml), while the Editor, Tiling → Window and
+    // Decorations → General pages have none.
+    //
+    // Snapping/Scrolling behavior pages — trigger surfaces moved to per-page controllers.
     Q_PROPERTY(SnappingBehaviorController* snappingBehaviorPage READ snappingBehaviorPage CONSTANT)
-    Q_PROPERTY(TilingBehaviorController* tilingBehaviorPage READ tilingBehaviorPage CONSTANT)
     Q_PROPERTY(ScrollingBehaviorController* scrollingBehaviorPage READ scrollingBehaviorPage CONSTANT)
     Q_PROPERTY(SnappingZoneSelectorController* snappingZoneSelectorPage READ snappingZoneSelectorPage CONSTANT)
     Q_PROPERTY(SnappingZonesController* snappingZonesPage READ snappingZonesPage CONSTANT)
-    Q_PROPERTY(SnappingEffectsController* snappingEffectsPage READ snappingEffectsPage CONSTANT)
     Q_PROPERTY(OverlaysPageController* overlaysPage READ overlaysPage CONSTANT)
-    Q_PROPERTY(WindowAppearanceController* windowAppearancePage READ windowAppearancePage CONSTANT)
     Q_PROPERTY(TilingAlgorithmController* tilingAlgorithmPage READ tilingAlgorithmPage CONSTANT)
     Q_PROPERTY(GeneralPageController* generalPage READ generalPage CONSTANT)
     Q_PROPERTY(AnimationsPageController* animationsPage READ animationsPage CONSTANT)
@@ -202,12 +201,14 @@ class SettingsController : public QObject
     Q_PROPERTY(ShaderPresetBridge* pointerPresets READ pointerPresets CONSTANT)
     Q_PROPERTY(ShaderPresetBridge* overlayPresets READ overlayPresets CONSTANT)
     // Rules page — the unified rule surface. The controller owns one
-    // RuleModel and talks to the daemon's org.plasmazones.Rules
+    // RuleModel and talks to the daemon's org.phosphor_works.Placement.Rules
     // adaptor; QML reads `settingsController.rulesPage.model`.
     Q_PROPERTY(RuleController* rulesPage READ rulesPage CONSTANT)
 
-    // Profiles page — settings-profile CRUD + inheritance. QML reads the store
-    // via `settingsController.profilesPage.bridge`.
+    // Profiles page controller — settings-profile CRUD + inheritance. The
+    // Profiles page itself receives it from PageHost as `controller`; the
+    // window chrome (Main.qml's unsaved-changes footer and the sidebar's
+    // ProfileSwitcherHeader) reads it here.
     Q_PROPERTY(ProfilePageController* profilesPage READ profilesPage CONSTANT)
 
     // PhosphorControl ApplicationController hosting the PageRegistry that
@@ -329,7 +330,7 @@ public:
     Q_INVOKABLE void discardPage(const QString& page);
 
     /// The per-page config-key manifest: page id → the (group, key) pairs that
-    /// page owns. Phase-1 scope is the KConfig-backed settings pages; pages not
+    /// page owns. Scope is the config-store-backed settings pages; pages not
     /// listed here revert through their own staged machinery rather than the
     /// config manifest (see resetPage / discardPage), not because they lack
     /// Reset/Discard. Public + static so the manifest (and its hand-maintained
@@ -337,15 +338,135 @@ public:
     /// without a SettingsController instance.
     static const QHash<QString, Settings::ConfigKeyList>& pageOwnedConfigKeys();
 
-    /// The mode enable master switches: manifest-owned for dirty/save/discard
-    /// but excluded from per-page Reset (a page Reset must not flip its mode).
+    /// The feature enable master switches behind a sidebar toggle (the three
+    /// placement modes and dynamic workspaces): manifest-owned for
+    /// dirty/save/discard but excluded from per-page Reset (a page Reset must
+    /// not switch its feature off or on).
     static const Settings::ConfigKeyList& resetExemptModeEnableKeys();
+
+    /// Consent this machine's user gave through a confirmation rather than a
+    /// settings row: manifest-owned for dirty/save/discard, excluded from
+    /// per-page Reset (the page shows no row to reset it from). A factory
+    /// reset (defaults()) still clears it, along with everything else.
+    static const Settings::ConfigKeyList& resetExemptConsentKeys();
 
     /// Whether @p page is one of the three per-mode library pages. QML bridge
     /// over the shared PlasmaZones::isLibraryPage predicate
     /// (settingscontroller_pagekeys.h) so the id triple has one home — the
     /// window-scoped layoutOperationFailed fallback in Main.qml keys off it.
     Q_INVOKABLE bool isLibraryPage(const QString& page) const;
+
+    // ── Dynamic workspaces (settingscontroller_workspaces.cpp) ──────────────
+
+    /// Whether this build carries dynamic workspaces at all. A
+    /// USE_KDE_FRAMEWORKS=OFF build compiles the feature out (it needs KConfig
+    /// to touch kwinrc), registers none of its pages, and QML hides every
+    /// other surface that names it on this.
+    Q_PROPERTY(bool workspacesAvailable READ workspacesAvailable CONSTANT)
+    bool workspacesAvailable() const;
+
+    /// Whether KWin runs with per-output virtual desktops on, through the same
+    /// kwinrc reader the daemon's gate uses (common/kwinperoutputdesktops.h).
+    /// The Workspaces page's consent flow consults this before enabling.
+    /// Always false in a build without the feature.
+    Q_INVOKABLE bool kwinPerOutputDesktopsEnabled() const;
+
+    /// Whether dynamic workspaces actually run: the feature is enabled AND
+    /// either KWin's per-output desktops are on or the user consented to
+    /// PlasmaZones turning them on. Enabled without either, the daemon leaves
+    /// the feature dormant, so the Workspaces banner and the rule editor's
+    /// workspace picker read this rather than the enable flag. Follows the
+    /// in-memory settings (pending edits included) and the user's kwinrc,
+    /// which is watched while the app runs.
+    Q_PROPERTY(bool workspacesActive READ workspacesActive NOTIFY workspacesActiveChanged)
+    bool workspacesActive() const;
+
+    /// True while KWin's desktop count, as the daemon reports it, sits at
+    /// WorkspaceReconciler::DefaultDesktopCap (the Workspaces banner: the
+    /// daemon stops appending a trailing empty and refuses named creates
+    /// there). The daemon can learn a LOWER ceiling from the compositor at
+    /// runtime; that learned value is not on the wire, so this compares
+    /// against the default only. False while the count did not come from the
+    /// daemon. Moves only with virtualDesktopCount.
+    Q_PROPERTY(bool workspacesAtCap READ workspacesAtCap NOTIFY virtualDesktopsChanged)
+    bool workspacesAtCap() const;
+
+    /// C++ constants mirrored for QML, which has no other way to read them:
+    /// WorkspaceReconciler::DefaultDesktopCap (the authoring bound on a
+    /// declaration's Position; the daemon clamps a position to the
+    /// workspace's slice on its own side), ConfigDefaults::WorkspaceSlotCount,
+    /// ConfigDefaults::WorkspaceNameMaxLength (the Add and rename fields
+    /// bound a name against it so the user is refused at the field instead
+    /// of the validator dropping the entry) and
+    /// ConfigDefaults::WorkspaceNamedEntryMaxCount (the Add form refuses past
+    /// it).
+    Q_PROPERTY(int workspacesDesktopCap READ workspacesDesktopCap CONSTANT)
+    Q_PROPERTY(int workspaceSlotCount READ workspaceSlotCount CONSTANT)
+    Q_PROPERTY(int workspaceNameMaxLength READ workspaceNameMaxLength CONSTANT)
+    Q_PROPERTY(int workspaceNamedEntryMaxCount READ workspaceNamedEntryMaxCount CONSTANT)
+    int workspacesDesktopCap() const;
+    int workspaceSlotCount() const;
+    int workspaceNameMaxLength() const;
+    int workspaceNamedEntryMaxCount() const;
+
+    /// The field names inside one Workspaces.Named entry map, keyed by role:
+    /// `id`, `name`, `output`, `position`, `focusShortcut`, `moveShortcut`,
+    /// each mapped to its ConfigDefaults::namedEntry*Field() spelling, so QML
+    /// never repeats the config's field names as literals.
+    Q_PROPERTY(QVariantMap namedEntryFields READ namedEntryFields CONSTANT)
+    QVariantMap namedEntryFields() const;
+
+    /// The declared named workspaces in list order, each a map of the entry's
+    /// id and name fields (namedEntryFields' `id` and `name` keys). The id is
+    /// empty for an entry no writer has stamped yet. The one derivation of
+    /// the declared list the slot picker, the rule editor's workspace picker
+    /// and the rule summaries share.
+    Q_PROPERTY(QVariantList namedWorkspaces READ namedWorkspaces NOTIFY namedWorkspacesChanged)
+    QVariantList namedWorkspaces() const;
+    /// The current name of the declared workspace carrying @p entryId, or
+    /// empty when none does (the caller then shows the name it stored).
+    Q_INVOKABLE QString namedWorkspaceName(const QString& entryId) const;
+
+    /// The shared workspace-name rule (PlasmaZones::checkWorkspaceName) for
+    /// QML, on the RAW field text: `{accepted: bool, verdict: "accepted" |
+    /// "empty" | "tooLong" | "forbiddenCharacter", name: canonical name, set
+    /// only when accepted}`. Duplicate names are the caller's to compare.
+    Q_INVOKABLE QVariantMap checkWorkspaceName(const QString& raw) const;
+    /// A fresh persistent id for a new named entry (braced QUuid).
+    Q_INVOKABLE QString newWorkspaceEntryId() const;
+    /// @p entries with a fresh id stamped on every entry that has no usable
+    /// one; entries that carry an id keep it. The page writes the whole list
+    /// through this, since the validator keeps ids but never mints them.
+    Q_INVOKABLE QVariantList withWorkspaceEntryIds(const QVariantList& entries) const;
+
+    /// @p chord in Qt's canonical PortableText spelling (modifiers in Meta,
+    /// Ctrl, Alt, Shift order), the spelling the config stores and the daemon
+    /// registers. Empty for an empty or unparseable chord. Recorders write
+    /// this, and every chord compare goes through it.
+    Q_INVOKABLE QString canonicalShortcut(const QString& chord) const;
+    /// Whether @p chord is already taken by another global PlasmaZones
+    /// shortcut, pending edits included: every Settings chord property and
+    /// every named workspace's focus and move chord. @p selfKey names the
+    /// field being recorded so it does not conflict with itself: the Settings
+    /// property name (e.g. "workspaceMoveSlot3Shortcut"), or for a named
+    /// entry's chord the key namedEntryShortcutKey returns; empty when the
+    /// field is not stored yet. Answers `{conflict: false}` or
+    /// `{conflict: true, owner: <property name or entry key>, label:
+    /// <the taken action's display label>}`. The daemon dispatches a chord to
+    /// the first registration only, so a conflicting chord would never fire.
+    Q_INVOKABLE QVariantMap workspaceShortcutConflict(const QString& chord, const QString& selfKey) const;
+    /// The selfKey for named @p entry's chord field @p field
+    /// (namedEntryFields' `focusShortcut` or `moveShortcut` value).
+    Q_INVOKABLE QString namedEntryShortcutKey(const QVariantMap& entry, const QString& field) const;
+    /// Session-wide global-shortcut suspension for the chord recorders
+    /// (PhosphorShortcuts/GlobalShortcutBlock.h). Block when a recorder starts
+    /// capturing and unblock on every way the capture ends. Holds are
+    /// counted, so each true needs exactly one false, and the block lifts when
+    /// the last hold is given back. When canBlockGlobalShortcuts() is false, a
+    /// chord another program already grabs cannot be recorded, and the
+    /// recorder should say so.
+    Q_INVOKABLE bool canBlockGlobalShortcuts() const;
+    Q_INVOKABLE bool setGlobalShortcutsBlocked(bool blocked);
 
     /// The default snapping layout and default scrolling template:
     /// manifest-owned for dirty/save/discard but excluded from per-page Reset.
@@ -433,6 +554,10 @@ public:
     Q_INVOKABLE QVariantList localLayoutPreviews() const;
 
     // Screen accessors
+    QVariantList screenStates() const
+    {
+        return m_screenStatesCache.states();
+    }
     QVariantList screens() const
     {
         return m_screenHelper.screens();
@@ -543,21 +668,14 @@ public:
     Q_INVOKABLE QString urlToLocalFile(const QUrl& url) const;
 
     // ── Page sub-controllers ─────────────────────────────────────────────
-    EditorPageController* editorPage() const
-    {
-        return m_editorPage;
-    }
     SnappingBehaviorController* snappingBehaviorPage() const;
-    TilingBehaviorController* tilingBehaviorPage() const;
     ScrollingBehaviorController* scrollingBehaviorPage() const;
     SnappingZoneSelectorController* snappingZoneSelectorPage() const
     {
         return m_snappingZoneSelectorPage;
     }
     SnappingZonesController* snappingZonesPage() const;
-    SnappingEffectsController* snappingEffectsPage() const;
     OverlaysPageController* overlaysPage() const;
-    WindowAppearanceController* windowAppearancePage() const;
     TilingAlgorithmController* tilingAlgorithmPage() const;
     GeneralPageController* generalPage() const
     {
@@ -575,8 +693,6 @@ public:
     {
         return m_rulesPage;
     }
-    // Defined out of line: this header is past the size ceiling, and four
-    // one-line getters are not worth pushing it further over.
     ShaderPresetBridge* animationPresets() const;
     ShaderPresetBridge* surfacePresets() const;
     ShaderPresetBridge* pointerPresets() const;
@@ -610,13 +726,13 @@ public:
     Q_INVOKABLE QVariantList getScreenStates() const;
     /// The live scrolling strip of @p screenId as zone maps for LayoutThumbnail
     /// (relativeGeometry + zoneNumber per tile, plus the StripPreviewKey tab
-    /// fields on a tabbed column's tile), from org.plasmazones.Scrolling. Empty
+    /// fields on a tabbed column's tile), from org.phosphor_works.Placement.Scrolling. Empty
     /// when the screen has no strip right now (not scrolling, no windows,
     /// daemon down) — the Monitors page falls back to a static strip.
     Q_INVOKABLE QVariantList getScrollingStripPreview(const QString& screenId) const;
     /// How far @p screenId has worked through its scrolling template's seed
     /// blueprint, as {"total": int, "used": int}, fetched from
-    /// org.plasmazones.Scrolling. An EMPTY map when the screen is not
+    /// org.phosphor_works.Placement.Scrolling. An EMPTY map when the screen is not
     /// scrolling, has no template blueprint, or the daemon is down — the
     /// Monitors page renders the progress line only for a non-empty answer,
     /// so an absent daemon reads as "nothing to say" rather than "no starting
@@ -770,15 +886,27 @@ public:
     Q_INVOKABLE void save();
     Q_INVOKABLE void defaults();
 
-    /// Why a `resetPage` refused, carried by `pageResetFailed`. These are
-    /// stable tokens the shell branches on to pick wording, not user-facing
-    /// text: i18n lives in QML in this tree.
+    /// Why a reset or save refused, carried by `pageResetFailed` and
+    /// `configWriteFailed`. These are stable tokens the shell branches on to
+    /// pick wording, not user-facing text: i18n lives in QML in this tree.
     static constexpr QLatin1String ReasonDaemonUnreachable{"daemon-unreachable"};
     static constexpr QLatin1String ReasonOverridesNotCleared{"overrides-not-cleared"};
     /// The cleared configuration could not be written, so nothing was reset.
     /// Raised by the global `defaults()` with an EMPTY page id — a factory reset
     /// is not scoped to a page.
     static constexpr QLatin1String ReasonResetNotWritten{"reset-not-written"};
+    /// The config file could not be read, so it was not overwritten. Carried
+    /// by `pageResetFailed` (a factory reset) and `configWriteFailed`.
+    static constexpr QLatin1String ReasonConfigUnreadable{"config-unreadable"};
+    /// The config file could be read but the write failed. Carried by
+    /// `configWriteFailed`.
+    static constexpr QLatin1String ReasonConfigNotWritten{"config-not-written"};
+
+    QString configFilePath() const;
+    bool configUnreadable() const
+    {
+        return m_configUnreadable;
+    }
 
 Q_SIGNALS:
     void activePageChanged();
@@ -810,9 +938,11 @@ Q_SIGNALS:
     /// it: a refused path, a vanished file, and a non-settings file are one
     /// `false` wanting different words, which only this signal carries.
     void settingsTransferFailed(const QString& reason);
-    /// Emitted when `resetPage` refuses. resetPage returns void and stages
-    /// nothing on that path, so without this the page reconciles CLEAN and the
-    /// refusal is indistinguishable from a page already at its defaults. Two
+    /// Emitted when `resetPage` refuses, and (with an empty page id) when the
+    /// factory reset `defaults()` does, for `ReasonResetNotWritten` or
+    /// `ReasonConfigUnreadable`. resetPage returns void and stages nothing on
+    /// that path, so without this the page reconciles CLEAN and the refusal is
+    /// indistinguishable from a page already at its defaults. Its two
     /// branches emit it for unrelated reasons the shell must word differently:
     ///   * `ReasonDaemonUnreachable` — a value resetPage must READ first is
     ///     unavailable, currently the daemon's quick-layout slot map.
@@ -822,6 +952,16 @@ Q_SIGNALS:
     /// @p reason is one of the Reason* constants above, NOT user-facing text:
     /// the shell wires i18n in QML and branches on the token.
     void pageResetFailed(const QString& page, const QString& reason);
+    /// Emitted when `save()` could not write the config file. The values stay
+    /// staged and the footer stays lit; this is the word that says why.
+    /// @p reason is ReasonConfigUnreadable or ReasonConfigNotWritten.
+    void configWriteFailed(const QString& reason);
+    void configUnreadableChanged();
+    /// The PlasmaZones service started, found config.json unreadable and
+    /// moved it aside (ConfigMigration's Quarantine), so it and this app now
+    /// run without it (on defaults, or on what it migrated from a legacy INI
+    /// file). @p backupPath is where the old file went.
+    void configQuarantined(const QString& backupPath);
     /// Emitted when `discardPage` refuses — the Discard analogue of
     /// pageResetFailed. The animation branch reconciles value-based, so a
     /// refused revert leaves the page BADGED with no other word. The only
@@ -831,6 +971,11 @@ Q_SIGNALS:
     /// object at all — so this is effectively a wiring-bug signal there.
     void pageDiscardFailed(const QString& page, const QString& reason);
     void screensChanged();
+    void workspacesActiveChanged();
+    /// The declared named-workspace list moved (forwarded from
+    /// Settings::workspacesNamedEntriesChanged).
+    void namedWorkspacesChanged();
+    void screenStatesChanged();
     void scopeScreenNameChanged();
     /// Emitted whenever any per-screen override map changes (set or clear,
     /// any domain). The monitor scope map re-polls hasPerScreen*Settings()
@@ -852,9 +997,9 @@ Q_SIGNALS:
      * @brief Fresh running-windows list has arrived from the daemon.
      *
      * Emitted in response to requestRunningWindows(). The @p windows list
-     * is a QVariantList of {windowClass, appName, caption, desktopFile}
-     * maps ready for QML consumption. Also updates cachedRunningWindows()
-     * so later queries can read the last-seen value synchronously.
+     * is a QVariantList of {windowClass, rawWindowClass, appName, caption,
+     * desktopFile} maps ready for QML consumption (RulePickerOptions::runningWindows). Also updates
+     * cachedRunningWindows() so later queries can read the last-seen value synchronously.
      */
     void runningWindowsAvailable(const QVariantList& windows);
 
@@ -888,8 +1033,28 @@ Q_SIGNALS:
     // see ctor for rationale (QMetaMethod::fromSignal vs indexOfSlot).
     void _settingsPropertyNotifyForwarder();
 
+public Q_SLOTS:
+    /// Coalesce the requests to re-read each screen's state (the daemon's
+    /// screenStatesChanged, screens, assignments, active layouts, the current
+    /// activity, the window regaining focus, the Rules page coming into view)
+    /// into one refreshScreenStates() through m_screenStatesCache. Public so
+    /// the Rules page can ask.
+    void scheduleScreenStatesRefresh();
+
 private Q_SLOTS:
     void onExternalSettingsChanged();
+    /// The daemon's editorSettingsChanged: at least one Editor.* key moved.
+    /// They all live in the config store, so the edit-preserving store reload
+    /// adopts them whether or not this process has unsaved edits, without the
+    /// full reload (rules, layouts, screens) onExternalSettingsChanged runs.
+    /// When other keys moved too, settingsChanged follows and its handler
+    /// adopts everything, so this one is queued a turn and skipped then.
+    void onExternalEditorSettingsChanged();
+    /// The daemon's LayoutRegistry.daemonReady: its startup, including the
+    /// config migration that may move an unreadable config.json aside, is
+    /// done. If this app is holding a stand-in for an unreadable file, look
+    /// at it again now.
+    void onDaemonReady();
     void onSettingsPropertyChanged();
     /// Dirty-marks like onSettingsPropertyChanged but for edits whose value
     /// no page manifest can see (the per-screen overrides): latches the
@@ -906,6 +1071,18 @@ private Q_SLOTS:
     // all: the string-based connect resolves through the meta-object, which
     // carries private slots and public ones alike.
     void scheduleLayoutLoad();
+    /// Ask the daemon, asynchronously, for the primary screen's logical scale
+    /// and cache it for recalcLocalLayouts. Runs at construction, when the
+    /// daemon comes up, when Qt's primary screen changes, and on the daemon's
+    /// Screen.screenGeometryChanged (which also fires when a scale settles).
+    /// A reply that changes the scale reloads the layouts, but only when some
+    /// local layout counts device pixels, since no other layout reads it.
+    void refreshPrimaryScreenScale();
+    /// Ask the daemon, asynchronously, for getScreenStates and hand the reply
+    /// to m_screenStatesCache, which publishes it as `screenStates` when it
+    /// differs and keeps the last answer when the call fails. Does nothing
+    /// while the daemon is not running, so no trigger D-Bus-activates it.
+    void refreshScreenStates();
     void onVirtualDesktopsChanged();
     void onActivitiesChanged();
     void onScreenLayoutChanged(const QString& screenId, const QString& layoutId, int virtualDesktop);
@@ -928,14 +1105,34 @@ private:
     QString latestWhatsNewVersion() const;
     /// Reads the bundled release history into m_whatsNewEntries. Ctor-only.
     void loadWhatsNew();
-    /// Install the RuleController's label resolvers (settingscontroller_rulelookups.cpp).
-    /// Called once from the ctor after m_rulesPage and the registries it reads exist.
+    /// Install the RuleController's label resolvers and its two zone
+    /// enumerators (settingscontroller_rulelookups.cpp). Called once from the
+    /// ctor after m_rulesPage and the layout registry exist. The overlay shader
+    /// registry is built after it, which its resolver null-guards; the zone
+    /// enumerators run at install and publish at once.
     void installRuleLabelLookups();
     /// Re-emit the rule model's label-derived roles; connected to every
-    /// upstream change a resolver reads (screens, activities, layouts, desktop
-    /// names, the three shader registries).
+    /// upstream change a resolver reads (screens, activities, layouts, zone
+    /// options, desktop names, named workspaces, the three shader
+    /// registries).
     void refreshRuleLabels();
+    /// Connect the dynamic-workspaces inputs (settingscontroller_workspaces.cpp):
+    /// the named-list forward, and the enable flag, consent latch and kwinrc
+    /// watch that feed workspacesActive. Ctor-only.
+    void wireWorkspaces();
+    /// Recompute workspacesActive from its inputs, announcing a change.
+    void refreshWorkspacesActive();
     void setNeedsSave(bool needs);
+    /// Reload the config store from disk keeping every unsaved edit
+    /// (Settings::reloadPreservingLocalEdits) with dirty tracking suppressed,
+    /// then let value truth re-decide the dirty pages. Shared by both
+    /// external-change slots.
+    void adoptExternalConfigKeepingEdits();
+    /// Re-read Settings::configUnreadable() into the property, announcing a
+    /// change, and note the quarantine copies that exist when it turns on.
+    /// Connected to Settings::configUnreadableChanged, which every path that
+    /// reads or writes config.json emits through.
+    void refreshConfigUnreadable();
     /// Reload deferred by onExternalSettingsChanged() while edits were
     /// pending — fire it once the app is fully clean again. Connected to
     /// dirtyPagesChanged in the ctor: that is the one signal every
@@ -1076,7 +1273,6 @@ private:
     ScrollingBehaviorController* m_scrollingBehaviorPage = nullptr;
     SnappingZoneSelectorController* m_snappingZoneSelectorPage = nullptr;
     SnappingZonesController* m_snappingZonesPage = nullptr;
-    SnappingEffectsController* m_snappingEffectsPage = nullptr;
     WindowAppearanceController* m_windowAppearancePage = nullptr;
     GeneralPageController* m_generalPage = nullptr;
     /// Parented to `this` so Qt manages lifetime. Every consumer is also a child
@@ -1170,12 +1366,22 @@ private:
     bool m_saving = false;
     bool m_loading = false;
     /// A daemon settingsChanged broadcast arrived while local edits were
-    /// pending, so onExternalSettingsChanged() deferred the reload instead
-    /// of clobbering them. Drained (one queued reload) by
+    /// pending. onExternalSettingsChanged() adopted the untouched config keys
+    /// at once and deferred the full reload (rules, layouts, staging) instead
+    /// of clobbering the edits. Drained (one queued reload) by
     /// maybeDrainPendingExternalReload() when the app next transitions to
     /// fully clean; cleared without a reload by save(), whose whole-schema
     /// flush supersedes the external state the reload would have adopted.
     bool m_pendingExternalReload = false;
+    /// An editorSettingsChanged adoption is queued for the next event-loop
+    /// turn; onExternalSettingsChanged clears it, since it adopts a superset.
+    bool m_editorAdoptionQueued = false;
+    bool m_configUnreadable = false;
+    /// The quarantine copies of config.json that existed when it was found
+    /// unreadable, so onDaemonReady can tell which one a daemon start made.
+    QHash<QString, QDateTime> m_quarantineCopiesWhenUnreadable;
+    /// The quarantine copies of @p configPath with their change times.
+    static QHash<QString, QDateTime> quarantineCopyStamps(const QString& configPath);
     /// Coalesces onSettingsPropertyChanged()'s queued dirty-set reconcile
     /// (one per event-loop turn) so a value edited back to its committed
     /// state drops out of m_dirtyPages instead of stranding needsSave().
@@ -1203,6 +1409,22 @@ private:
     // settingscontroller_layouts.cpp.
     int m_pendingDaemonLayoutCalls = 0;
     std::optional<QVariantList> m_withheldLocalLayouts;
+
+    // The primary screen's logical scale as the daemon last reported it, and
+    // the screen it was reported for. recalcLocalLayouts uses the scale only
+    // while that screen is still the primary one, and zero otherwise (zero
+    // keeps each layout's last scale). Written only by the reply to the newest
+    // refreshPrimaryScreenScale request, which m_primaryScreenScaleRequest
+    // numbers so a slower, older reply cannot overwrite a newer one.
+    qreal m_primaryScreenScale = 0.0;
+    QString m_primaryScreenScaleId;
+    quint64 m_primaryScreenScaleRequest = 0;
+
+    // The same wait the layout reload and ScreenHelper's refresh coalesce
+    // over: long enough to fold one burst of daemon signals into one call.
+    static constexpr int ScreenStatesCoalesceMs = 50;
+    // The last getScreenStates answer and its refresh bookkeeping.
+    ScreenStatesCache m_screenStatesCache{ScreenStatesCoalesceMs};
 
     // Daemon-independent layout source — see localLayoutPreviews() doc.
     // PhosphorZones::LayoutRegistry opens its own assignments backend + scans the standard
@@ -1274,7 +1496,8 @@ private:
     /// @c ZonesLayoutSource::previewFromLayout gets a populated
     /// @c lastRecalcGeometry() — without this, fixed-geometry layouts
     /// report @c referenceAspectRatio == 0 and zones render as zero-size
-    /// rects.
+    /// rects. Reads the scale cached by refreshPrimaryScreenScale and makes
+    /// no D-Bus call of its own, because it runs on every local reload.
     void recalcLocalLayouts();
 
     // Virtual desktop / activity state
@@ -1284,6 +1507,11 @@ private:
     /// REFUSES or DESTROYS on the strength of the count must gate on this.
     bool m_virtualDesktopCountFromDaemon = false;
     QStringList m_virtualDesktopNames;
+    /// workspacesActive as last announced (refreshWorkspacesActive).
+    bool m_workspacesActive = false;
+    /// Follows the user's kwinrc for KWin's per-output flag. Child QObject;
+    /// null in a build without dynamic workspaces.
+    QFileSystemWatcher* m_kwinConfigWatcher = nullptr;
     bool m_activitiesAvailable = false;
     QVariantList m_activities;
     QString m_currentActivity;

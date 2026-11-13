@@ -16,6 +16,7 @@
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include <QDBusConnection>
+#include <QDBusContext>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QDBusPendingCallWatcher>
@@ -23,14 +24,79 @@
 #include <QDBusServiceWatcher>
 #include <QFile>
 #include <QFileInfo>
-#include <QLatin1StringView>
+#include <QGuiApplication>
 #include <QTimer>
 #include <QUuid>
 
 #include <algorithm>
-#include <array>
+
+#include <sys/socket.h>
+#include <wayland-client-core.h>
 
 namespace PlasmaZones {
+
+namespace {
+
+/// This process's own Wayland connection, or null off Wayland (the
+/// offscreen platform, or before the platform is up).
+wl_display* ownWaylandConnection()
+{
+    auto* const app = qobject_cast<QGuiApplication*>(QCoreApplication::instance());
+    auto* const wayland = app ? app->nativeInterface<QNativeInterface::QWaylandApplication>() : nullptr;
+    return wayland ? wayland->display() : nullptr;
+}
+
+/// The pid at the other end of the socket @p fd, from the kernel's peer
+/// credentials, or 0 when it gives none.
+uint peerPid(int fd)
+{
+    ucred credentials{};
+    socklen_t size = sizeof(credentials);
+    if (fd < 0 || getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &credentials, &size) != 0 || size != sizeof(credentials)
+        || credentials.pid <= 0) {
+        return 0;
+    }
+    return static_cast<uint>(credentials.pid);
+}
+
+/// The parent of @p pid, from the PPid line of /proc/<pid>/status, which the
+/// kernel shows for an undumpable process too, or 0. Nothing else of the
+/// process is read. The line is the kernel's "PPid:" and decimal digits, and
+/// anything else in it answers 0.
+uint parentPid(uint pid)
+{
+    QFile status(QStringLiteral("/proc/%1/status").arg(pid));
+    if (!status.open(QIODevice::ReadOnly)) {
+        return 0;
+    }
+    // Read up to a bound rather than until atEnd(): a /proc file stats as a
+    // regular file of size 0, so QFile reports it at its end before the first
+    // read. PPid is the seventh line, well inside the bound.
+    constexpr qint64 MaxBytes = 4096;
+    const QByteArray contents = status.read(MaxBytes);
+    for (const QByteArray& line : contents.split('\n')) {
+        if (!line.startsWith("PPid:")) {
+            continue;
+        }
+        const QByteArray field = line.mid(5).trimmed();
+        const bool digits = !field.isEmpty() && std::all_of(field.cbegin(), field.cend(), [](char c) {
+            return c >= '0' && c <= '9';
+        });
+        bool ok = false;
+        const uint parent = digits ? field.toUInt(&ok) : 0;
+        return ok ? parent : 0;
+    }
+    return 0;
+}
+
+/// The file name of the executable @p pid runs, empty when its
+/// /proc/<pid>/exe does not read (an undumpable process).
+QString executableName(uint pid)
+{
+    return QFileInfo(QFile::symLinkTarget(QStringLiteral("/proc/%1/exe").arg(pid))).fileName();
+}
+
+} // namespace
 
 OverlayAdaptor::OverlayAdaptor(IOverlayService* overlay, PhosphorZones::IZoneDetector* detector,
                                PhosphorZones::IZoneLayoutRegistry* layoutRegistry,
@@ -80,7 +146,7 @@ OverlayAdaptor::OverlayAdaptor(IOverlayService* overlay, PhosphorZones::IZoneDet
     // GetConnectionUnixProcessID round-trip from inside the D-Bus method
     // handler. Watcher armed for both directions so a kwin restart re-fires
     // the pre-warm; the existing per-sender unregistration watchers
-    // installed by @ref validateExeAndTrust handle trust eviction on the
+    // installed by @ref trustIfCompositor handle trust eviction on the
     // way out.
     m_kwinWatcher = new QDBusServiceWatcher(QStringLiteral("org.kde.KWin"), QDBusConnection::sessionBus(),
                                             QDBusServiceWatcher::WatchForRegistration, this);
@@ -196,6 +262,9 @@ int OverlayAdaptor::getMinimumZoneDisplaySizePx()
 bool OverlayAdaptor::showSnapAssist(const QString& screenId, const PhosphorProtocol::EmptyZoneList& emptyZones,
                                     const PhosphorProtocol::SnapAssistCandidateList& candidates)
 {
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return false;
+    }
     if (!m_overlayService) {
         qCWarning(lcDbus) << "showSnapAssist: overlay service not wired";
         return false;
@@ -210,17 +279,29 @@ bool OverlayAdaptor::showSnapAssist(const QString& screenId, const PhosphorProto
     }
     // When the effect sends a physical screen ID for a subdivided monitor,
     // resolve to the correct virtual screen so snap assist appears on the
-    // right side.  Use the first empty zone's center to determine which
-    // virtual screen to target.
+    // right side. The first empty zone's center decides which virtual screen
+    // is the target. The zones are local to the monitor, not global
+    // (WindowTrackingService::getEmptyZones translates them to its origin),
+    // so the center is moved onto the monitor before the lookup, and the
+    // zones are rebased onto the virtual screen's origin, where its overlay
+    // is anchored.
     QString resolvedScreen = screenId;
+    PhosphorProtocol::EmptyZoneList zones = emptyZones;
     if (!PhosphorIdentity::VirtualScreenId::isVirtual(screenId)) {
         auto* mgr = m_screenManager;
-        if (mgr && mgr->hasVirtualScreens(screenId) && !emptyZones.isEmpty()) {
-            const PhosphorProtocol::EmptyZoneEntry& first = emptyZones.first();
-            QPoint center(first.x + first.width / 2, first.y + first.height / 2);
-            QString vsId = mgr->effectiveScreenAt(center);
-            if (!vsId.isEmpty()) {
+        const QRect monitor = mgr && mgr->hasVirtualScreens(screenId) ? mgr->screenGeometry(screenId) : QRect();
+        if (monitor.isValid()) {
+            const PhosphorProtocol::EmptyZoneEntry& first = zones.first();
+            const QPoint center = monitor.topLeft() + QPoint(first.x + first.width / 2, first.y + first.height / 2);
+            const QString vsId = mgr->effectiveScreenAt(center);
+            const QRect vsGeometry = vsId.isEmpty() ? QRect() : mgr->screenGeometry(vsId);
+            if (vsGeometry.isValid()) {
                 resolvedScreen = vsId;
+                const QPoint shift = monitor.topLeft() - vsGeometry.topLeft();
+                for (PhosphorProtocol::EmptyZoneEntry& zone : zones) {
+                    zone.x += shift.x();
+                    zone.y += shift.y();
+                }
             }
         }
     }
@@ -228,8 +309,11 @@ bool OverlayAdaptor::showSnapAssist(const QString& screenId, const PhosphorProto
     // Defer actual work so we return immediately — the KWin effect blocks on this D-Bus
     // call; returning quickly prevents compositor freeze during overlay creation.
     // Note: Return value means "request accepted for deferred processing", not "overlay shown".
-    QTimer::singleShot(0, m_overlayService, [this, resolvedScreen, emptyZones, candidates]() {
-        m_overlayService->showSnapAssist(resolvedScreen, emptyZones, candidates);
+    // The service is captured rather than this adaptor: the timer's context is
+    // the service, so the lambda runs only while the service lives, and the
+    // adaptor may already be gone by then.
+    QTimer::singleShot(0, m_overlayService, [overlay = m_overlayService, resolvedScreen, zones, candidates]() {
+        overlay->showSnapAssist(resolvedScreen, zones, candidates);
     });
     return true;
 }
@@ -253,16 +337,20 @@ bool OverlayAdaptor::setSnapAssistThumbnail(const QString& compositorHandle, int
     if (!m_overlayService) {
         return false;
     }
-    // Hard byte cap matching a 1024² ARGB32 image (4 MiB) plus framing
-    // overhead, generous for the 256² steady state (256 KiB). Note: by the
-    // time this slot runs, QtDBus has already deserialised the QByteArray —
+    // Hard byte cap: an ARGB32 image at the shared per-axis ceiling
+    // (PhosphorProtocol::Service::SnapAssistThumbnailMaxDimension on both
+    // axes, four bytes a pixel) plus framing overhead, generous for the 256²
+    // steady state (256 KiB). Derived from the protocol constant so this
+    // pre-auth cap and the dimension checks behind it move together. Note: by
+    // the time this slot runs, QtDBus has already deserialised the QByteArray —
     // the marshaller cost is paid regardless. What this guard actually
     // bounds is (a) downstream validation cost in OverlayService against
     // an authenticated kwin-effect bug producing a too-large buffer, and
     // (b) the daemon's QImage.copy() walk if the buffer slipped past auth.
     // A finer-grained dimension/byte-count match runs in
     // OverlayService::setSnapAssistThumbnail.
-    static constexpr int MaxPixelBytes = 4 * 1024 * 1024 + 64;
+    static constexpr int MaxThumbnailDimension = PhosphorProtocol::Service::SnapAssistThumbnailMaxDimension;
+    static constexpr int MaxPixelBytes = MaxThumbnailDimension * MaxThumbnailDimension * 4 + 64;
     if (pixels.size() > MaxPixelBytes) {
         // Don't log @c compositorHandle — this branch fires before
         // @ref authenticateKwinSender, so the field is attacker-controlled
@@ -351,31 +439,91 @@ bool OverlayAdaptor::setWindowThumbnailDmabuf(const QString& compositorHandle, i
     return m_overlayService->setWindowThumbnailDmabuf(compositorHandle, desc);
 }
 
+void OverlayAdaptor::setCompositorResolverForTesting(CompositorResolver resolver)
+{
+    m_compositorResolver = std::move(resolver);
+}
+
+bool OverlayAdaptor::isKwinWaylandWrapper(QStringView executable)
+{
+    static constexpr QLatin1StringView Wrapper("kwin_wayland_wrapper");
+    // wrapProgram's hidden name for the binary is "." + name + "-wrapped".
+    // A second wrap appends "_" to the name it moves the first script to,
+    // but that file is a script, and the binary keeps the first name.
+    static constexpr QLatin1StringView NixPrefix(".");
+    static constexpr QLatin1StringView NixSuffix("-wrapped");
+    if (executable == Wrapper) {
+        return true;
+    }
+    return executable.size() == NixPrefix.size() + Wrapper.size() + NixSuffix.size() && executable.startsWith(NixPrefix)
+        && executable.endsWith(NixSuffix) && executable.sliced(NixPrefix.size(), Wrapper.size()) == Wrapper;
+}
+
+OverlayAdaptor::Compositor OverlayAdaptor::compositor()
+{
+    if (m_compositorResolver) {
+        return m_compositorResolver();
+    }
+    wl_display* const display = ownWaylandConnection();
+    const int fd = display ? wl_display_get_fd(display) : -1;
+    if (display != m_compositorDisplay || fd != m_compositorFd) {
+        m_compositorDisplay = display;
+        m_compositorFd = fd;
+        m_compositor.pid = peerPid(fd);
+        m_compositor.trustsChildren = m_compositor.pid != 0 && isKwinWaylandWrapper(executableName(m_compositor.pid));
+        qCDebug(lcDbus) << "compositor: pid" << m_compositor.pid << "trusts its children"
+                        << m_compositor.trustsChildren;
+    }
+    return m_compositor;
+}
+
 bool OverlayAdaptor::authenticateKwinSender()
 {
-    // Resolve the sender's bus name via QDBusContext. Direct (non-D-Bus) calls
-    // — e.g. unit tests that invoke the slot via QMetaObject — produce an
-    // empty service string; we accept those because there is no remote peer
-    // to authorise.
-    if (!calledFromDBus()) {
+    // The call's context is on the object this adaptor is exported through,
+    // never on the adaptor itself (DbusHelpers::busContext). A direct
+    // (non-D-Bus) call, as the unit tests make through QMetaObject, has no
+    // remote peer to authorise.
+    const QDBusContext* const context = DbusHelpers::busContext(this);
+    if (!context) {
         return true;
     }
-    const QString sender = message().service();
-    if (sender.isEmpty()) {
-        return true;
+    const QString sender = context->message().service();
+    const auto refuse = [this, &sender] {
+        DbusHelpers::sendBusError(this, QDBusError::AccessDenied,
+                                  QStringLiteral("only the compositor may push snap assist thumbnails"));
+        qCDebug(lcDbus) << "authenticateKwinSender: refused" << sender;
+        return false;
+    };
+    // The thumbnail entries are held to the compositor's process rather than
+    // to the registered bridge (DbusHelpers::admitCompositorReport), which
+    // registration itself is held to (CompositorBridgeAdaptor's identity
+    // check). Both admit the compositor's own connection.
+    return isCompositorPeerOn(context->connection(), sender) ? true : refuse();
+}
+
+bool OverlayAdaptor::isCompositorPeer(const QString& uniqueName)
+{
+    return isCompositorPeerOn(QDBusConnection::sessionBus(), uniqueName);
+}
+
+bool OverlayAdaptor::isCompositorPeerOn(const QDBusConnection& bus, const QString& uniqueName)
+{
+    // Every message the bus daemon routes names its sender, so an empty one
+    // has no identity to check.
+    if (uniqueName.isEmpty()) {
+        return false;
     }
 
-    if (m_trustedKwinSenders.contains(sender)) {
+    if (m_trustedKwinSenders.contains(uniqueName)) {
         return true;
     }
 
     // Slow-path fallback. The pre-warm chain (@ref prewarmKwinTrust →
-    // @ref resolvePidAndTrust → @ref validateExeAndTrust) primes the
+    // @ref resolvePidAndTrust → @ref trustIfCompositor) primes the
     // cache before any thumbnail call lands in steady state, so this
-    // sync block runs only when a thumbnail call races a fresh pre-warm
-    // (e.g. the very first call after a kwin restart). Acceptable cost:
-    // one ~1ms GetConnectionUnixProcessID round-trip; subsequent calls
-    // hit the cache.
+    // sync block runs only when a call races a fresh pre-warm (e.g. the
+    // very first call after a kwin restart). Acceptable cost: one ~1ms
+    // GetConnectionUnixProcessID round-trip; subsequent calls hit the cache.
     //
     // Bounded with the shared @c SyncCallTimeoutMs (500 ms) — the
     // dbus-daemon's @c GetConnectionUnixProcessID is a hash lookup, so
@@ -383,74 +531,64 @@ bool OverlayAdaptor::authenticateKwinSender()
     // expected latency. Qt's default 25 s timeout would freeze the
     // daemon's main thread (and every overlay it drives) under
     // dbus-daemon stress; capping here keeps degradation graceful.
-    QDBusConnection bus = connection();
     QDBusMessage pidMsg = QDBusMessage::createMethodCall(
         QStringLiteral("org.freedesktop.DBus"), QStringLiteral("/org/freedesktop/DBus"),
         QStringLiteral("org.freedesktop.DBus"), QStringLiteral("GetConnectionUnixProcessID"));
-    pidMsg << sender;
+    pidMsg << uniqueName;
     const QDBusMessage pidReplyMsg = bus.call(pidMsg, QDBus::Block, PhosphorProtocol::Service::SyncCallTimeoutMs);
     if (pidReplyMsg.type() != QDBusMessage::ReplyMessage || pidReplyMsg.arguments().isEmpty()) {
-        // Most commonly hit when a thumbnail call beats the pre-warm reply
-        // and KWin disconnects mid-flight (PID has gone, GetConnectionUnixProcessID
+        // Most commonly hit when a call beats the pre-warm reply and KWin
+        // disconnects mid-flight (PID has gone, GetConnectionUnixProcessID
         // returns NameHasNoOwner). Benign and self-healing — kwin's next
         // registration re-fires the pre-warm. Demoted from qCWarning to keep
         // routine session churn out of the warning channel; actual auth
-        // rejections still log at warning level inside @ref validateExeAndTrust.
-        qCDebug(lcDbus) << "authenticateKwinSender: GetConnectionUnixProcessID failed for" << sender << "—"
+        // rejections still log at warning level inside @ref trustIfCompositor.
+        qCDebug(lcDbus) << "isCompositorPeer: GetConnectionUnixProcessID failed for" << uniqueName << "—"
                         << pidReplyMsg.errorMessage();
         return false;
     }
     const uint pid = pidReplyMsg.arguments().constFirst().toUInt();
-    if (pid == 0) {
-        return false;
-    }
-
-    return validateExeAndTrust(sender, pid);
+    return pid != 0 && trustIfCompositor(uniqueName, pid);
 }
 
-bool OverlayAdaptor::validateExeAndTrust(const QString& uniqueName, uint pid)
+bool OverlayAdaptor::trustIfCompositor(const QString& uniqueName, uint pid)
 {
     if (m_trustedKwinSenders.contains(uniqueName)) {
         return true;
     }
 
-    // /proc/<pid>/exe is a kernel-maintained symlink to the actual binary
-    // path; unlike /proc/<pid>/comm it cannot be rewritten from userspace
-    // (no prctl(PR_SET_NAME) equivalent for the exe link). Compare the
-    // basename against the accepted set — full path differs by distro
-    // (/usr/bin vs /usr/lib/qt6/bin etc.) so basename matching is the
-    // portable form.
-    //
-    // Project is Wayland-only (CLAUDE.md), but accept the X11 binary too —
-    // the effect plugin runs inside whichever kwin variant the user is on,
-    // and a bare-metal X11 fallback still produces correctly-built
-    // thumbnails. `kwin_wayland_wrapper` is the launcher shim some distros
-    // ship (Arch / Fedora's session integration); without it auth fails
-    // silently on packaged installs and snap-assist falls back to icons
-    // for the daemon's whole session.
-    //
-    // QLatin1StringView array (rather than function-local static QStringList)
-    // so the basenames are zero-allocation constants resolved at compile
-    // time. The earlier QStringList form paid one-time heap allocations on
-    // first call via static initialisation.
-    static constexpr std::array<QLatin1StringView, 3> AcceptedExeBasenames = {
-        QLatin1StringView("kwin_wayland"),
-        QLatin1StringView("kwin_wayland_wrapper"),
-        QLatin1StringView("kwin_x11"),
-    };
-    const QString exePath = QFile::symLinkTarget(QStringLiteral("/proc/%1/exe").arg(pid));
-    if (exePath.isEmpty()) {
-        qCWarning(lcDbus) << "validateExeAndTrust: cannot resolve /proc/" << pid << "/exe — rejecting" << uniqueName;
+    // The compositor is whatever serves this daemon's own Wayland socket,
+    // named by the kernel's peer credentials, so no other process can claim
+    // it. The sender's executable is never read: kwin_wayland carries a
+    // file capability, which makes it undumpable, and its /proc/<pid>/exe
+    // is unreadable to the daemon, so a check on the sender's executable
+    // refuses the real compositor.
+    const Compositor trusted = compositor();
+    if (trusted.pid == 0) {
+        // Fail closed, and say so once rather than once per call.
+        if (!m_noCompositorLogged) {
+            m_noCompositorLogged = true;
+            qCWarning(lcDbus) << "trustIfCompositor: no Wayland compositor to authenticate against, so no thumbnail "
+                                 "sender or compositor bridge is trusted";
+        }
+        qCDebug(lcDbus) << "trustIfCompositor: no compositor - rejecting" << uniqueName << "pid=" << pid;
         return false;
     }
-    const QString exeBasename = QFileInfo(exePath).fileName();
-    const bool accepted =
-        std::any_of(AcceptedExeBasenames.begin(), AcceptedExeBasenames.end(), [&exeBasename](QLatin1StringView v) {
-            return exeBasename == v;
-        });
-    if (!accepted) {
-        qCWarning(lcDbus) << "validateExeAndTrust: rejecting non-kwin sender" << uniqueName << "pid=" << pid
-                          << "exe=" << exePath;
+    m_noCompositorLogged = false;
+    // Plasma's kwin_wayland_wrapper holds the socket and runs kwin_wayland,
+    // the process the effect lives in, as its only child. A compositor that
+    // is not the wrapper lends its children nothing: kwin itself starts
+    // Xwayland and the input method. A grandchild never passes.
+    const bool isCompositor = pid == trusted.pid;
+    const uint parent = isCompositor ? 0 : parentPid(pid);
+    if (!isCompositor && !(trusted.trustsChildren && parent != 0 && parent == trusted.pid)) {
+        if (!m_refusalLogged) {
+            m_refusalLogged = true;
+            qCWarning(lcDbus) << "trustIfCompositor: rejecting" << uniqueName << "pid=" << pid << "parent=" << parent
+                              << "- the compositor is pid" << trusted.pid << "(further refusals log at debug)";
+        } else {
+            qCDebug(lcDbus) << "trustIfCompositor: rejecting" << uniqueName << "pid=" << pid << "parent=" << parent;
+        }
         return false;
     }
 
@@ -467,7 +605,7 @@ bool OverlayAdaptor::validateExeAndTrust(const QString& uniqueName, uint pid)
         m_trustedKwinSenders.remove(service);
         watcher->deleteLater();
     });
-    qCDebug(lcDbus) << "validateExeAndTrust: admitted" << uniqueName << "pid=" << pid << "exe=" << exePath;
+    qCDebug(lcDbus) << "trustIfCompositor: admitted" << uniqueName << "pid=" << pid << "compositor=" << trusted.pid;
     return true;
 }
 
@@ -528,7 +666,7 @@ void OverlayAdaptor::resolvePidAndTrust(const QString& uniqueName)
         if (pid == 0) {
             return;
         }
-        validateExeAndTrust(uniqueName, pid);
+        trustIfCompositor(uniqueName, pid);
     });
 }
 

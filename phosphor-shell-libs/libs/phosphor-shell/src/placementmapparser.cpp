@@ -4,6 +4,7 @@
 #include <PhosphorShell/PlacementMapParser.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
+#include <PhosphorZones/Zone.h>
 #include <PhosphorZones/ZoneJsonKeys.h>
 
 #include <QJsonArray>
@@ -31,33 +32,17 @@ constexpr QLatin1String ScreenStatesTemplateId("scrollingTemplateId");
 
 // WindowDrag.registerDropProxy payload keys (the phase-3 daemon contract):
 // the miniature's rect and one entry per zone cell, both in screen-local
-// pixels.
-namespace DropProxyKey {
-constexpr QLatin1String Rect("rect");
-constexpr QLatin1String Cells("cells");
-constexpr QLatin1String Id("id");
-} // namespace DropProxyKey
+// pixels. The protocol's own definition, which the daemon's parser reads
+// through as well.
+namespace DropProxyKey = PhosphorProtocol::Service::DropProxyKey;
 
 // Zone::fromJson's ZoneGeometryMode: 0 relative, 1 fixed.
 constexpr int GeometryModeFixed = 1;
 
 // Scrolling.stripModelJson keys: a straight serialisation of the scroll
-// engine's strip (A2 §1.3). Pinned beside the only reader, like the
-// screen-state keys above.
-namespace StripModelKey {
-constexpr QLatin1String Axis("axis");
-constexpr QLatin1String ViewOffsetPx("viewOffsetPx");
-constexpr QLatin1String ViewportPx("viewportPx");
-constexpr QLatin1String StripExtentPx("stripExtentPx");
-constexpr QLatin1String ActiveColumn("activeColumn");
-constexpr QLatin1String Columns("columns");
-constexpr QLatin1String Index("index");
-constexpr QLatin1String StripPosPx("stripPosPx");
-constexpr QLatin1String ExtentPx("extentPx");
-constexpr QLatin1String Tiles("tiles");
-constexpr QLatin1String WindowId("windowId");
-constexpr QLatin1String Minimized("minimized");
-} // namespace StripModelKey
+// engine's strip (A2 §1.3). The protocol's own definition, which the daemon's
+// serializer writes through as well.
+namespace StripModelKey = PhosphorProtocol::Service::StripModelKey;
 
 // Tiling.currentTilesJson keys: one entry per tile in screen pixels, the
 // wire shape of a windowsTileRequested batch.
@@ -104,7 +89,7 @@ qreal hueFor(const QRectF& rect)
     return std::clamp(rect.center().x(), 0.0, 1.0);
 }
 
-QList<Cell> parseSnappingLayout(const QString& layoutJson, const QSize& workAreaSize)
+QList<Cell> parseSnappingLayout(const QString& layoutJson, const QSize& workAreaSize, qreal deviceScale)
 {
     using namespace PhosphorZones::ZoneJsonKeys;
     QList<Cell> cells;
@@ -112,6 +97,11 @@ QList<Cell> parseSnappingLayout(const QString& layoutJson, const QSize& workArea
     if (!doc.isObject()) {
         return cells;
     }
+    // A layout can count its fixed zones in the output's DEVICE pixels, which
+    // the daemon divides by the output's scale before laying them out. The
+    // work area is logical, so the same division has to happen here, or the
+    // zones are drawn and hit-tested the scale's factor too large.
+    const bool devicePixels = doc.object()[FixedGeometryInDevicePixels].toBool(false);
     const QJsonArray zones = doc.object()[Zones].toArray();
     cells.reserve(zones.size());
     for (const QJsonValue& value : zones) {
@@ -122,14 +112,18 @@ QList<Cell> parseSnappingLayout(const QString& layoutJson, const QSize& workArea
         }
         QRectF rect;
         if (zone[GeometryMode].toInt(0) == GeometryModeFixed && zone.contains(FixedGeometry)) {
-            // Fixed zones are in work-area pixels. Without a work-area size
-            // there is no scale, so the zone cannot be placed on the map.
-            if (workAreaSize.isEmpty()) {
+            // Fixed zones are in pixels from the work area's origin. Without
+            // a work-area size there is nothing to normalise against, and a
+            // device-pixel zone without the output's scale has no logical
+            // size yet, so neither can be placed on the map until it is known.
+            if (workAreaSize.isEmpty() || (devicePixels && !(deviceScale > 0.0))) {
                 continue;
             }
-            const QRectF px = readRect(zone[FixedGeometry].toObject());
-            rect = QRectF(px.x() / workAreaSize.width(), px.y() / workAreaSize.height(),
-                          px.width() / workAreaSize.width(), px.height() / workAreaSize.height());
+            const qreal divisor = devicePixels ? deviceScale : 1.0;
+            const QRectF logical =
+                PhosphorZones::Zone::fixedGeometryToLogical(readRect(zone[FixedGeometry].toObject()), divisor);
+            rect = QRectF(logical.x() / workAreaSize.width(), logical.y() / workAreaSize.height(),
+                          logical.width() / workAreaSize.width(), logical.height() / workAreaSize.height());
         } else {
             rect = readRect(zone[RelativeGeometry].toObject());
         }

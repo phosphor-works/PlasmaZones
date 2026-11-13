@@ -21,11 +21,13 @@
 #include <QPoint>
 #include <QScreen>
 #include <QSet>
+#include <QSize>
 #include <QSizeF>
 #include <QTimer>
 
 #include <cmath>
 #include <limits>
+#include <optional>
 
 namespace PhosphorScreens {
 
@@ -40,6 +42,11 @@ constexpr QLatin1String kKeyModel{"model"};
 constexpr QLatin1String kKeyGeometry{"geometry"};
 constexpr QLatin1String kKeyPhysicalSize{"physicalSize"};
 constexpr QLatin1String kKeyDevicePixelRatio{"devicePixelRatio"};
+constexpr QLatin1String kKeyPixelSize{"pixelSize"};
+constexpr QLatin1String kKeyPixelSizeSource{"pixelSizeSource"};
+constexpr QLatin1String kPixelSizeSourceReported{"reported"};
+constexpr QLatin1String kPixelSizeSourceSeeded{"seeded"};
+constexpr QLatin1String kPixelSizeSourceEstimated{"estimated"};
 constexpr QLatin1String kKeyRefreshRate{"refreshRate"};
 constexpr QLatin1String kKeyDepth{"depth"};
 constexpr QLatin1String kKeyScreenId{"screenId"};
@@ -56,6 +63,10 @@ constexpr QLatin1String kKeyY{"y"};
 constexpr QLatin1String kKeyWidth{"width"};
 constexpr QLatin1String kKeyHeight{"height"};
 constexpr QLatin1String kKeyId{"id"};
+
+// The largest side setPixelSizeFromKWin accepts. Past any real output's mode,
+// and inside the int range every pixel-size reader multiplies through.
+constexpr int kMaxReportedPixelExtent = 65535;
 } // namespace
 
 DBusScreenAdaptor::DBusScreenAdaptor(ScreenManager* manager, IConfigStore* store, QObject* parent)
@@ -177,11 +188,11 @@ void DBusScreenAdaptor::wireQGuiApplicationSignals()
         }
     });
 
-    // Wire per-screen signals for currently-connected screens. Cache priming
-    // keyed on m_screenManager happens in setScreenManager() — the manager
-    // may not be wired yet when the constructor runs this loop. The
-    // screen-removed lambda is still installed here so consumer-visible
-    // retraction works from the moment the adaptor exists.
+    // Wire per-screen signals for currently-connected screens. The manager's
+    // virtual-screen ids are primed into m_cachedEffectiveIdsPerScreen by the
+    // constructor, right after this runs. The screen-removed lambda is
+    // installed here so consumer-visible retraction works from the moment the
+    // adaptor exists.
     for (QScreen* screen : QGuiApplication::screens()) {
         wirePerScreenSignals(screen);
     }
@@ -237,25 +248,49 @@ void DBusScreenAdaptor::connectScreenManagerSignals(ScreenManager* mgr)
     // configured the screen's sensor surface, which is not one of the events
     // above — so a getScreenInfo answered during startup would otherwise
     // cache the coarse QScreen fallback (2 for a 1.15 output) and serve it
-    // for the life of the process. Drop the blobs when the scale settles.
-    connect(mgr, &ScreenManager::logicalScaleChanged, this, [this](const PhysicalScreen&) {
+    // for the life of the process. Drop the blobs when the scale settles, and
+    // announce it the way a resolution change is announced: a client that
+    // cached getScreenInfo's scale (the layout editor, the shell's placement
+    // map) has no other signal to re-read on, and the settle arrives after
+    // the screen's own geometry signals at startup.
+    connect(mgr, &ScreenManager::logicalScaleChanged, this, [this](const PhysicalScreen& screen) {
         invalidateScreenInfoCache();
+        const QString physId = screen.identifier.isEmpty() ? screen.name : screen.identifier;
+        emitForEffectiveScreens(physId, [this](const QString& id) {
+            Q_EMIT screenGeometryChanged(id);
+        });
     });
-}
-
-void DBusScreenAdaptor::disconnectScreenManagerSignals(ScreenManager* mgr)
-{
-    if (!mgr) {
-        return;
-    }
-    // Explicit per-signal disconnects that mirror connectScreenManagerSignals —
-    // keeps future ScreenManager signals from being silently severed by a
-    // blanket disconnect(mgr, nullptr, this, nullptr). This policy matches
-    // ScreenManager::stop()'s own disconnect discipline.
-    disconnect(mgr, &ScreenManager::virtualScreensChanged, this, nullptr);
-    disconnect(mgr, &ScreenManager::virtualScreenRegionsChanged, this, nullptr);
-    disconnect(mgr, &ScreenManager::screenIdentifierChanged, this, nullptr);
-    disconnect(mgr, &ScreenManager::logicalScaleChanged, this, nullptr);
+    // A panel added, removed or resized moves the work area under an
+    // unchanged screen rect, so screenGeometryChanged never fires for it. The
+    // manager emits this only when the rect it computed actually moved.
+    connect(mgr, &ScreenManager::availableGeometryChanged, this, [this](const PhysicalScreen& screen, const QRect&) {
+        const QString physId = screen.identifier.isEmpty() ? screen.name : screen.identifier;
+        emitForEffectiveScreens(physId, [this](const QString& id) {
+            Q_EMIT availableGeometryChanged(id);
+        });
+    });
+    // getScreenInfo's cached JSON carries the size in device pixels, which
+    // moves when the host accepts a compositor report (after start-up and on
+    // every mode change or rotation, none of them a QScreen geometry event)
+    // or a seed changes the answer. Drop the blobs and announce it the way
+    // the scale settle above does. A report still pending changes nothing
+    // getScreenInfo answers, so compositorPixelSizeChanged is not followed. A
+    // connector the manager does not track yet has no effective id to
+    // announce, and its own screenAdded follows.
+    connect(mgr, &ScreenManager::acceptedPixelSizeChanged, this, [this](const QString& connectorName) {
+        invalidateScreenInfoCache();
+        if (!m_screenManager) {
+            return;
+        }
+        const PhysicalScreen screen = m_screenManager->physicalScreenFor(connectorName);
+        if (!screen.isValid()) {
+            return;
+        }
+        const QString physId = screen.identifier.isEmpty() ? screen.name : screen.identifier;
+        emitForEffectiveScreens(physId, [this](const QString& id) {
+            Q_EMIT screenGeometryChanged(id);
+        });
+    });
 }
 
 void DBusScreenAdaptor::handleScreenIdentifierChanged(const QString& oldId, const QString& newId)
@@ -386,21 +421,25 @@ QString DBusScreenAdaptor::getScreenInfo(const QString& screenId)
         return cachedIt.value();
     }
 
-    QScreen* screen = nullptr;
     const bool isVirtual = PhosphorIdentity::VirtualScreenId::isVirtual(screenId);
     const QString physId = isVirtual ? PhosphorIdentity::VirtualScreenId::extractPhysicalId(screenId) : screenId;
-    screen = ScreenIdentity::findByIdOrName(physId);
+    QScreen* const screen = ScreenIdentity::findByIdOrName(physId);
     if (!screen) {
         qCWarning(lcPhosphorScreens) << "Screen not found:" << screenId;
         return QString();
     }
 
+    // A virtual screen only the manager can resolve. One it does not know is
+    // not answered with its monitor's info, and nothing is cached, so the
+    // first read after its config lands is a real one.
     QRect geom = screen->geometry();
-    if (m_screenManager && isVirtual) {
-        QRect vsGeom = m_screenManager->screenGeometry(screenId);
-        if (vsGeom.isValid()) {
-            geom = vsGeom;
+    if (isVirtual) {
+        const QRect vsGeom = m_screenManager ? m_screenManager->screenGeometry(screenId) : QRect();
+        if (!vsGeom.isValid()) {
+            qCWarning(lcPhosphorScreens) << "Virtual screen not found:" << screenId;
+            return QString();
         }
+        geom = vsGeom;
     }
 
     QJsonObject info;
@@ -436,7 +475,35 @@ QString DBusScreenAdaptor::getScreenInfo(const QString& screenId)
     // can answer, because only its per-screen layer-shell sensor window
     // carries the fractional-scale-v1 value; without one, this falls back to
     // the same coarse QScreen number it always reported.
-    info[kKeyDevicePixelRatio] = m_screenManager ? m_screenManager->logicalScale(screen) : screen->devicePixelRatio();
+    const qreal scale = m_screenManager ? m_screenManager->logicalScale(screen) : screen->devicePixelRatio();
+    info[kKeyDevicePixelRatio] = scale;
+    // The screen's size in device pixels, for a reader converting a
+    // device-pixel unit (a layout's fixed zones) or matching a size rule.
+    // The manager's answer is the one the daemon's own readers use: the
+    // compositor's report of the output's mode once the host accepted it (a
+    // Wayland client never sees the mode itself, because wl_output's mode
+    // event stays inside the QPA plugin), or until then the host's seed (for
+    // the PlasmaZones daemon, the size last accepted for that monitor, in
+    // this session or an earlier one), with a virtual screen answering its
+    // region's share. With neither, this is estimated as the logical size
+    // times the scale above, rounded, which keeps the layout editor working
+    // before the first report and without a manager. The compositor made the logical size by dividing the mode by
+    // that scale, so the estimate lands on the mode or within a pixel of it,
+    // but only once the scale is the real one: before the output's sensor
+    // maps, the coarse fallback makes it wrong. screenGeometryChanged
+    // announces each later answer. pixelSizeSource says which of the three
+    // the size is, so a reader can tell the size a rule reads (reported or
+    // seeded) from the estimate no rule sees.
+    const std::optional<QSize> knownPixelSize =
+        m_screenManager ? m_screenManager->pixelSize(screenId) : std::optional<QSize>();
+    const QSize pixelSize = knownPixelSize.value_or(QSize(qRound(geom.width() * scale), qRound(geom.height() * scale)));
+    info[kKeyPixelSize] = QJsonObject{{kKeyWidth, pixelSize.width()}, {kKeyHeight, pixelSize.height()}};
+    if (knownPixelSize) {
+        info[kKeyPixelSizeSource] =
+            m_screenManager->isPixelSizeReported(screenId) ? kPixelSizeSourceReported : kPixelSizeSourceSeeded;
+    } else if (!pixelSize.isEmpty()) {
+        info[kKeyPixelSizeSource] = kPixelSizeSourceEstimated;
+    }
     info[kKeyRefreshRate] = screen->refreshRate();
     info[kKeyDepth] = screen->depth();
     info[kKeyScreenId] = screenId;
@@ -481,14 +548,25 @@ QString DBusScreenAdaptor::getPrimaryScreen()
     return physId;
 }
 
+void DBusScreenAdaptor::setCompositorReportGate(CompositorReportGate gate)
+{
+    m_compositorReportGate = std::move(gate);
+}
+
 void DBusScreenAdaptor::setPrimaryScreenFromKWin(const QString& connectorName)
 {
+    if (m_compositorReportGate && !m_compositorReportGate(QLatin1StringView(__func__))) {
+        return;
+    }
     m_primaryScreenOverride = connectorName;
     qCInfo(lcPhosphorScreens) << "Primary screen override set from compositor:" << connectorName;
 }
 
 void DBusScreenAdaptor::setAvailableGeometryFromKWin(const QString& screenName, int x, int y, int width, int height)
 {
+    if (m_compositorReportGate && !m_compositorReportGate(QLatin1StringView(__func__))) {
+        return;
+    }
     if (!m_screenManager) {
         return;
     }
@@ -508,17 +586,16 @@ QString DBusScreenAdaptor::getScreenId(const QString& connectorName)
 
 QRect DBusScreenAdaptor::getAvailableGeometry(const QString& screenId)
 {
-    if (m_screenManager && PhosphorIdentity::VirtualScreenId::isVirtual(screenId)) {
-        return m_screenManager->screenAvailableGeometry(screenId);
+    // A virtual screen only the manager can resolve: findByIdOrName would
+    // answer its whole monitor.
+    if (PhosphorIdentity::VirtualScreenId::isVirtual(screenId)) {
+        return m_screenManager ? m_screenManager->screenAvailableGeometry(screenId) : QRect();
     }
 
-    QScreen* screen = nullptr;
-    if (!screenId.isEmpty()) {
-        screen = ScreenIdentity::findByIdOrName(screenId);
-    }
-    if (!screen) {
-        screen = QGuiApplication::primaryScreen();
-    }
+    // Only an empty id means the primary. A named screen that cannot be found
+    // answers an invalid rect rather than another screen's work area.
+    QScreen* const screen =
+        screenId.isEmpty() ? QGuiApplication::primaryScreen() : ScreenIdentity::findByIdOrName(screenId);
     if (!screen) {
         return QRect();
     }
@@ -533,13 +610,21 @@ QRect DBusScreenAdaptor::getAvailableGeometry(const QString& screenId)
 
 QRect DBusScreenAdaptor::getScreenGeometry(const QString& screenId)
 {
+    // A virtual screen only the manager can resolve: findByIdOrName would
+    // answer its whole monitor.
+    if (PhosphorIdentity::VirtualScreenId::isVirtual(screenId)) {
+        return m_screenManager ? m_screenManager->screenGeometry(screenId) : QRect();
+    }
     if (m_screenManager) {
-        QRect geo = m_screenManager->screenGeometry(screenId);
+        const QRect geo = m_screenManager->screenGeometry(screenId);
         if (geo.isValid()) {
             return geo;
         }
     }
-    QScreen* screen = screenId.isEmpty() ? QGuiApplication::primaryScreen() : ScreenIdentity::findByIdOrName(screenId);
+    // Only an empty id means the primary; a named screen QScreen cannot find
+    // answers an invalid rect.
+    QScreen* const screen =
+        screenId.isEmpty() ? QGuiApplication::primaryScreen() : ScreenIdentity::findByIdOrName(screenId);
     return screen ? screen->geometry() : QRect();
 }
 
@@ -761,6 +846,29 @@ QString DBusScreenAdaptor::rotateVirtualScreens(const QString& physicalScreenId,
     const QString reason = VirtualScreenSwapper::reasonString(result);
     qCDebug(lcPhosphorScreens) << "rotateVirtualScreens:" << physicalScreenId << "cw=" << clockwise << "->" << reason;
     return reason;
+}
+
+void DBusScreenAdaptor::setPixelSizeFromKWin(const QString& screenName, int width, int height)
+{
+    if (m_compositorReportGate && !m_compositorReportGate(QLatin1StringView(__func__))) {
+        return;
+    }
+    if (!m_screenManager) {
+        return;
+    }
+    // 0x0 is the effect's clear, sent when an output goes away. Anything else
+    // has to be a real mode. A malformed report is dropped rather than
+    // treated as a clear, so a bad payload cannot erase a good size.
+    if (width == 0 && height == 0) {
+        m_screenManager->setCompositorPixelSize(screenName, QSize());
+        return;
+    }
+    if (width <= 0 || height <= 0 || width > kMaxReportedPixelExtent || height > kMaxReportedPixelExtent) {
+        qCWarning(lcPhosphorScreens) << "setPixelSizeFromKWin: ignoring implausible size" << width << "x" << height
+                                     << "for" << screenName;
+        return;
+    }
+    m_screenManager->setCompositorPixelSize(screenName, QSize(width, height));
 }
 
 } // namespace PhosphorScreens

@@ -19,15 +19,14 @@ endif()
 # ═══════════════════════════════════════════════════════════════════════════════
 add_subdirectory(shared)
 
-# Wayland layer-shell protocol code generation moved to PhosphorWayland library.
-# PlasmaZones uses PhosphorWayland::LayerSurface via compatibility wrappers in core/.
+# Wayland layer-shell protocol code generation lives in the PhosphorWayland
+# library; nothing in this tier runs wayland-scanner.
 
 # Core library sources
 set(plasmazones_core_SRCS
     phosphor_qml_i18n.h
     phosphor_qml_i18n.cpp
     core/types/constants.h
-    core/types/baselinecleanup.h
     core/platform/logging.h
     core/platform/logging.cpp
     core/utils/translationloader.h
@@ -81,6 +80,8 @@ set(plasmazones_core_SRCS
     common/stripcardserialize.h
     common/screenidresolver.cpp
     common/screenidresolver.h
+    common/kwinperoutputdesktops.cpp
+    common/kwinperoutputdesktops.h
     common/layoutbundlebuilder.cpp
     common/layoutbundlebuilder.h
     core/platform/supportreport.cpp
@@ -88,6 +89,9 @@ set(plasmazones_core_SRCS
     # layersurface moved to PhosphorWayland; shaderregistry/params moved to PhosphorShaders
     core/platform/singleinstanceservice.cpp
     core/platform/singleinstanceservice.h
+    # Header-only: the environment the daemon's spawn sites hand the editor and
+    # the settings app.
+    core/platform/childprocessenvironment.h
     # screen_resolver.{h,cpp} and screenmanager.{h,cpp} + screenmanager/
     # lifted to phosphor-libs/libs/phosphor-screens. Daemon consumers take
     # PhosphorScreens::ScreenManager* via constructor injection -
@@ -110,6 +114,7 @@ set(plasmazones_core_SRCS
     config/settings/storescalars.cpp
     config/settings/shortcuts.cpp
     config/settings/scrolling.cpp
+    config/settings/workspaces.cpp
     config/settings.h
     config/configdefaults.cpp
     config/configbackends.h
@@ -127,6 +132,7 @@ set(plasmazones_core_SRCS
     config/settingsschema_shadertrees.cpp
     config/settingsschema_scrolling.cpp
     config/settingsschema_tiling.cpp
+    config/settingsschema_workspaces.cpp
     config/settingsschemachoices.h
     config/settingsvaluelabels.cpp
     config/settingsvaluelabels.h
@@ -173,6 +179,12 @@ set(plasmazones_core_SRCS
     # snapnavigationtargets moved to phosphor-libs/libs/phosphor-snap-engine/
     dbus/windowtrackingadaptor/windowtrackingadaptor.cpp
     dbus/windowtrackingadaptor/lifecycle.cpp
+    dbus/windowtrackingadaptor/activation.cpp
+    dbus/windowtrackingadaptor/prune.cpp
+    dbus/windowtrackingadaptor/evacuees.cpp
+    dbus/windowtrackingadaptor/screenleave.cpp
+    dbus/windowtrackingadaptor/evacueeledger.h
+    dbus/windowtrackingadaptor/lifecyclerelay.h
     dbus/windowtrackingadaptor/queries.cpp
     dbus/windowtrackingadaptor/enginewiring.cpp
     dbus/windowtrackingadaptor/rules.cpp
@@ -213,6 +225,7 @@ set(plasmazones_core_SRCS
     dbus/tilingadaptor/desktopreconcile.cpp
     dbus/tilingadaptor/tilingadaptor.h
     dbus/snapadaptor/snapadaptor.cpp
+    dbus/snapadaptor/busgate.cpp
     dbus/snapadaptor/commit.cpp
     dbus/snapadaptor/snaprestore.cpp
     dbus/snapadaptor/navigation.cpp
@@ -251,7 +264,7 @@ generate_export_header(plasmazones_core
 # The compatibility wrappers were removed with the move; nothing remains here.
 # PhosphorWayland provides the QPA plugin, protocol code, and LayerSurface implementation.
 
-# All seven TUs below are excluded from unity build:
+# Every TU below is excluded from unity build:
 #   configdefaults.cpp — Settings PCH includes that conflict with unity macros
 #   drag.cpp / drag_protocol.cpp / drop.cpp / dragtimers.cpp /
 #   dragzonespan.cpp / selector_gate.cpp —
@@ -341,44 +354,24 @@ target_include_directories(plasmazones_core SYSTEM PRIVATE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/phosphor-libs/libs/phosphor-shortcuts/include>
 )
 
-# Conditionally link PlasmaActivities/KActivities if available
-if(PlasmaActivities_FOUND)
-    # Check for Plasma 6 target first
-    if(TARGET Plasma::Activities)
-        target_link_libraries(plasmazones_core
-            PUBLIC
-                Plasma::Activities
-        )
-        target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-        message(STATUS "Linking PlasmaActivities via Plasma::Activities target")
-    elseif(TARGET KF6::Activities)
-        target_link_libraries(plasmazones_core
-            PUBLIC
-                KF6::Activities
-        )
-        target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-        message(STATUS "Linking PlasmaActivities via KF6::Activities target")
-    else()
-        # Fallback to library name lookup
-        find_library(PLASMA_ACTIVITIES_LIBRARY NAMES PlasmaActivities KActivities)
-        if(PLASMA_ACTIVITIES_LIBRARY)
-            target_link_libraries(plasmazones_core
-                PUBLIC
-                    ${PLASMA_ACTIVITIES_LIBRARY}
-            )
-            target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-            message(STATUS "Linking PlasmaActivities via library: ${PLASMA_ACTIVITIES_LIBRARY}")
-        else()
-            message(WARNING "PlasmaActivities found but no linkable target/library available")
-        endif()
-    endif()
+# Activities are not linked here: ActivityManager lives in PhosphorWorkspaces,
+# which finds PlasmaActivities itself and keeps the link PRIVATE, and nothing
+# in this target includes an activities header.
+
+# kwinrc read and the consented write of PerOutputVirtualDesktops
+# (common/kwinperoutputdesktops.cpp), the only KConfig user under plasmazones/:
+# the daemon and the settings app reach it through this library and need no
+# link of their own. Dynamic workspaces compile out of the
+# USE_KDE_FRAMEWORKS=OFF build, so the link exists only where the feature
+# does. PRIVATE: no plasmazones_core header exposes a KConfig type.
+if(USE_KDE_FRAMEWORKS)
+    target_link_libraries(plasmazones_core PRIVATE KF6::ConfigCore)
 endif()
 
 target_include_directories(plasmazones_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/plasmazones>  # For shared/ headers (virtualscreenid.h)
         $<INSTALL_INTERFACE:include/plasmazones>
 )
 
@@ -412,7 +405,7 @@ install(TARGETS plasmazones_core
     # NOTE: PlasmaZonesTargets is assigned here but never installed -- there
     # is no install(EXPORT PlasmaZonesTargets) and no PlasmaZonesConfig.cmake
     # anywhere in the tree, so find_package(PlasmaZones) cannot work and the
-    # INSTALL_INTERFACE include dirs below are inert. Kept because dropping
+    # INSTALL_INTERFACE include dirs above are inert. Kept because dropping
     # the keyword changes install() semantics; wire up the config-file pair
     # if the app tier is ever meant to be consumable.
     EXPORT PlasmaZonesTargets
@@ -482,7 +475,7 @@ install(TARGETS plasmazones_rendering
     # NOTE: PlasmaZonesTargets is assigned here but never installed -- there
     # is no install(EXPORT PlasmaZonesTargets) and no PlasmaZonesConfig.cmake
     # anywhere in the tree, so find_package(PlasmaZones) cannot work and the
-    # INSTALL_INTERFACE include dirs below are inert. Kept because dropping
+    # INSTALL_INTERFACE include dirs above are inert. Kept because dropping
     # the keyword changes install() semantics; wire up the config-file pair
     # if the app tier is ever meant to be consumable.
     EXPORT PlasmaZonesTargets
@@ -491,9 +484,13 @@ install(TARGETS plasmazones_rendering
 )
 
 # plasmazones_shaderpreview: shared zone-shader live-preview feed. Used by the
-# settings app (which injects its own IShaderPreviewBackend); deliberately NOT
-# linked by the daemon so the audio (CAVA) + preview deps stay out of the
-# compositor service.
+# settings app (which injects its own IShaderPreviewBackend). The daemon does NOT
+# link it because it hosts no preview, not to keep dependencies out: every one of
+# this target's PUBLIC deps (plasmazones_core, plasmazones_rendering,
+# PhosphorAudio, Qt6::Gui) already reaches plasmazonesd below, CAVA included,
+# since the daemon runs its own CavaSpectrumProvider. The first three are named
+# on it directly. Qt6::Gui is not named, and arrives two ways: through Qt6::Quick,
+# and one hop from the Qt6::GuiPrivate the daemon links further down.
 set(plasmazones_shaderpreview_SRCS
     shaderpreview/ishaderpreviewbackend.h
     shaderpreview/shaderpreviewcontroller.h
@@ -531,7 +528,7 @@ install(TARGETS plasmazones_shaderpreview
     # NOTE: PlasmaZonesTargets is assigned here but never installed -- there
     # is no install(EXPORT PlasmaZonesTargets) and no PlasmaZonesConfig.cmake
     # anywhere in the tree, so find_package(PlasmaZones) cannot work and the
-    # INSTALL_INTERFACE include dirs below are inert. Kept because dropping
+    # INSTALL_INTERFACE include dirs above are inert. Kept because dropping
     # the keyword changes install() semantics; wire up the config-file pair
     # if the app tier is ever meant to be consumable.
     EXPORT PlasmaZonesTargets
@@ -549,11 +546,16 @@ set(plasmazones_daemon_SRCS
     daemon/controllers/shortcutmanager_adhoc.cpp
     daemon/controllers/shortcutmanager_catalog.cpp
     daemon/controllers/shortcutmanager_ids.h
+    daemon/controllers/shortcutmanager_table.cpp
+    daemon/controllers/shortcutmanager_table.h
     daemon/daemon/start.cpp
+    daemon/daemon/desktop_renumber.cpp
+    daemon/daemon/evacuees.cpp
     daemon/daemon/shortcuts_wiring.cpp
     daemon/daemon/autotile_init.cpp
     daemon/daemon/scrolling_init.cpp
     daemon/daemon/scrolling.cpp
+    daemon/daemon/workspaces.cpp
     daemon/daemon/signals.cpp
     daemon/daemon/shader_warmup.cpp
     daemon/daemon/animation_profiles.cpp
@@ -563,12 +565,20 @@ set(plasmazones_daemon_SRCS
     daemon/daemon/init_assignment_apply.cpp
     daemon/daemon/init_dbus_service.cpp
     daemon/daemon/lifecycle.cpp
+    daemon/daemon/bridge_watchdog.cpp
+    daemon/daemon/plasma_workspace.cpp
     daemon/daemon/idle.cpp
     daemon/daemon/navigation.cpp
     daemon/daemon/autotile.cpp
     daemon/daemon/engine_release.cpp
     daemon/daemon/seedorderfilter.cpp
     daemon/daemon/seedorderfilter.h
+    daemon/daemon/enginerouting.cpp
+    daemon/daemon/enginerouting.h
+    daemon/daemon/screenreshapetracker.cpp
+    daemon/daemon/screenreshapetracker.h
+    daemon/daemon/snapgaptracker.cpp
+    daemon/daemon/snapgaptracker.h
     daemon/daemon/osd.cpp
     daemon/daemon/cheatsheet.cpp
     daemon/daemon/stripzones.h
@@ -584,6 +594,7 @@ set(plasmazones_daemon_SRCS
     daemon/controllers/contextresolverwiring.cpp
     daemon/overlayservice.cpp
     daemon/overlayservice/animation_config.cpp
+    daemon/overlayservice/decoration.cpp
     daemon/overlayservice/lifecycle.cpp
     daemon/overlayservice/settings.cpp
     daemon/overlayservice/overlay.cpp
@@ -627,6 +638,10 @@ set(plasmazones_daemon_SRCS
     # Mode tracking and smart toggle (Unified Layout Model)
     daemon/controllers/unifiedlayoutcontroller.cpp
     daemon/controllers/unifiedlayoutcontroller.h
+    # Dynamic per-monitor workspaces
+    daemon/controllers/workspacecontroller.cpp
+    daemon/controllers/workspacecontroller_verbs.cpp
+    daemon/controllers/workspacecontroller.h
     # Shader rendering: ZoneShaderItem from plasmazones_rendering
 )
 
@@ -656,12 +671,23 @@ target_link_libraries(plasmazonesd
         PhosphorShortcuts::PhosphorShortcuts  # ShortcutManager / Registry / backends
         PhosphorAudio::PhosphorAudio  # audio spectrum provider (CAVA)
         PhosphorSurfaces::PhosphorSurfaces  # managed surface lifecycle (engine, keep-alive)
+        # Named directly, not left to plasmazones_core's PUBLIC edge: daemon TUs
+        # include <PhosphorSurface/...> and daemon/overlayservice/decoration.cpp
+        # calls its exported chain-compose helpers, so a future demotion of that
+        # edge to PRIVATE would break them. The other chain hosts (kwin-effect,
+        # phosphor-shell, and the settings app's decoration preview) all name it
+        # explicitly already.
+        PhosphorSurface::PhosphorSurface  # SurfaceChainCompose / registry / DecorationSupportedPaths
+        # Named directly for the same reason: daemon/main.cpp includes
+        # <PhosphorConfig/HostDirectory.h> and calls HostDirectory::writeRecord.
+        PhosphorConfig::PhosphorConfig  # HostDirectory (the placement host record)
         PhosphorServiceIdle::PhosphorServiceIdle  # ext-idle-notify-v1; the daemon owns session-idle detection and pushes it to the KWin effect (a compositor SERVES that protocol, it cannot consume it)
         PhosphorOverlay::PhosphorOverlay  # per-screen shell-host + slot mechanism (Phase 2 onward)
         # Frozen-snapshot per-screen mode + disable/lock cascade façade.
         # The daemon owns a `ContextResolver` over three local adapters
-        # (DaemonWorkspaceStateAdapter / ScreenModeAdapter / SettingsGateAdapter
-        # in daemon/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
+        # (DaemonWorkspaceStateAdapter / DaemonScreenModeAdapter /
+        # DaemonSettingsGateAdapter in
+        # daemon/controllers/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
         # + OverlayService borrow it via `Daemon::contextResolver()`.
         PhosphorContextResolver::PhosphorContextResolver
         # Daemon is headless: runs under QGuiApplication. No Qt6::Widgets
@@ -730,8 +756,8 @@ install(FILES
 # Daemon desktop file: use full Exec path so KWin's fetchRestrictedDBusInterfacesFromPid
 # can match the process (it compares executable path to desktop Exec).
 configure_file(
-    daemon/org.plasmazones.daemon.desktop.in
-    ${CMAKE_CURRENT_BINARY_DIR}/org.plasmazones.daemon.desktop
+    daemon/org.phosphor_works.PlasmaZones.desktop.in
+    ${CMAKE_CURRENT_BINARY_DIR}/org.phosphor_works.PlasmaZones.desktop
     @ONLY
 )
 
@@ -740,8 +766,8 @@ configure_file(
 # running. Installed to ${KDE_INSTALL_DBUSSERVICEDIR}; install() rule is
 # in the install block lower in this file.
 configure_file(
-    daemon/org.plasmazones.service.in
-    ${CMAKE_CURRENT_BINARY_DIR}/org.plasmazones.service
+    daemon/org.phosphor_works.Placement.service.in
+    ${CMAKE_CURRENT_BINARY_DIR}/org.phosphor_works.Placement.service
     @ONLY
 )
 
@@ -772,6 +798,8 @@ set(plasmazones_editor_SRCS
     editor/controller/scrollingtemplate.cpp
     editor/EditorController.h
     editor/helpers/BatchOperationScope.h
+    editor/helpers/EditorOwnedConfig.cpp
+    editor/helpers/EditorOwnedConfig.h
     editor/helpers/ZoneSerialization.cpp
     editor/helpers/ZoneSerialization.h
     editor/helpers/SettingsDbusQueries.cpp
@@ -836,6 +864,8 @@ set(plasmazones_editor_SRCS
     editor/undo/commands/UpdateGapOverrideCommand.h
     editor/undo/commands/UpdateFullScreenGeometryCommand.cpp
     editor/undo/commands/UpdateFullScreenGeometryCommand.h
+    editor/undo/commands/UpdateFixedGeometryUnitCommand.cpp
+    editor/undo/commands/UpdateFixedGeometryUnitCommand.h
     editor/undo/commands/ToggleGeometryModeCommand.cpp
     editor/undo/commands/ToggleGeometryModeCommand.h
     editor/undo/commands/UpdateFixedGeometryCommand.cpp
@@ -849,8 +879,16 @@ set(plasmazones_editor_SRCS
 # Create the executable first
 add_executable(plasmazones-editor ${plasmazones_editor_SRCS})
 
-# ColorUtils.js is a stateless utility imported explicitly by each QML file that uses it;
-# skip its qmldir entry to avoid re-evaluation in every importer (Qt 6.8+ dev warning)
+# ColorUtils.js is imported by relative path from each QML file that uses it, so it needs
+# no qmldir entry. NOT about re-evaluation: the file's own `.pragma library` is what makes
+# it shared, and it declares one inside Qt's 128-byte scan window. ThemeHelpers.js is
+# imported the same way and declares its pragma at the same byte offset, but carries no
+# such CMAKE SOURCE PROPERTY, so the two files are inconsistent. The inconsistency stays,
+# deliberately and in this direction. The property's whole effect is visible in the
+# generated qmldir, which lists ThemeHelpers.js and not ColorUtils.js, and nothing imports
+# either through the module URI. Levelling it either way would change what qmllint and
+# qmlls read, and no gate in this repo runs them, so there is nothing that would catch a
+# regression from the change.
 set_source_files_properties(editor/qml/ColorUtils.js PROPERTIES
     QT_QML_SKIP_QMLDIR_ENTRY TRUE
 )
@@ -862,13 +900,12 @@ set_source_files_properties(editor/qml/ColorUtils.js PROPERTIES
 # resource init) leave it empty or — after `--clean-first` — missing, so
 # cc1plus fires before AUTOMOC recreates it. Set here (after the core /
 # rendering / shaderpreview / daemon targets above, which are unaffected). NOTE: directory
-# COMPILE_OPTIONS apply to EVERY target created after this point in the
-# scope — plasmazones-editor itself just below (an executable, so
-# qt_add_qml_module compiles its QML into the target rather than into
-# sub-targets), but also
-# plasmazones-shader-validate and the add_subdirectory(settings) tree
-# further down. The suppression is harmless for those (it only silences
-# the missing-AUTOMOC-include-dir warning class). Mirrors
+# COMPILE_OPTIONS are read at TARGET-CREATION time, so they apply only to targets
+# created AFTER this point in the scope. plasmazones-editor is declared ABOVE it and
+# therefore does NOT carry the flag (verified in the generated flags.make); what does
+# is plasmazones-shader-validate, plus the add_subdirectory(settings) tree further
+# down. The suppression is harmless for those (it only silences the
+# missing-AUTOMOC-include-dir warning class). Mirrors
 # plasmazones/src/shared/CMakeLists.txt.
 set_property(DIRECTORY APPEND PROPERTY COMPILE_OPTIONS "-Wno-missing-include-dirs")
 
@@ -952,8 +989,11 @@ add_executable(plasmazones-shader-validate
     shadervalidate/packvalidator_overlay.cpp
     shadervalidate/packvalidator_animation.cpp
     shadervalidate/packvalidator_surface.cpp
+    shadervalidate/packvalidator_surface_lints.cpp
+    shadervalidate/packvalidator_surface_buffer_lints.cpp
     shadervalidate/packvalidator_pointer.cpp
     shadervalidate/packvalidatorcommon.cpp
+    shadervalidate/packvalidator_compositor.cpp
 )
 target_link_libraries(plasmazones-shader-validate
     PRIVATE
@@ -980,15 +1020,19 @@ install(TARGETS plasmazones-shader-validate DESTINATION ${KDE_INSTALL_BINDIR})
 #
 # REQUIRES `glslangValidator` (or the newer `glslang` spelling, either name is
 # accepted) on PATH for shader_validate_animations, shader_validate_surface and
-# shader_validate_pointer. Every animation pack's fragment and declared vertex,
+# shader_validate_pointer. On x86-64 Linux the pinned Khronos release is put
+# there (phosphor_put_glslang_on_test_path in cmake/PhosphorDependencies.cmake),
+# so only other hosts need the system's glslang package. Every animation pack's fragment and declared vertex,
 # every surface pack's fragment, buffer passes and own declared vertex, and
 # every pointer pack's stages, are compiled for the compositor's classic-GL
 # branch (default-block uniforms, which QShaderBaker's SPIR-V target rejects by
 # design), so they go out of process through glslang's default GLSL-semantics
-# mode. Those three invocations FAIL rather than skip when the binary is
-# absent: the compositor branch is compiled nowhere else in a headless run (the
-# GPU bake test QSKIPs without a desktop GL 4.5 context), so a silent skip would
-# put the gate back to lints-only. The overlay invocation bakes through
+# mode. Each is compiled in both dialects KWin compiles it in, desktop GLSL 140
+# and GLSL ES 300, and each fragment is linked against the vertex stage the
+# compositor pairs it with. Those three invocations FAIL rather than skip when
+# the binary is absent: the compositor branch is compiled nowhere else in a
+# headless run (the GPU bake test QSKIPs without a desktop GL 4.5 context), so a
+# silent skip would put the gate back to lints-only. The overlay invocation bakes through
 # QShaderBaker alone and needs no such tool.
 if(BUILD_TESTING)
     add_test(NAME shader_validate_bundled
@@ -1036,6 +1080,7 @@ if(BUILD_TESTING)
         # would need to wedge the run.
         set_tests_properties(${_pz_sv} PROPERTIES TIMEOUT 120)
     endforeach()
+    phosphor_put_glslang_on_test_path(shader_validate_animations shader_validate_surface shader_validate_pointer)
 endif()
 
 # Standalone settings app: independent of KDE System Settings, so it runs
@@ -1061,20 +1106,20 @@ endif()
 
 # Desktop file for the editor (org.kde naming for portal integration)
 install(FILES
-    editor/org.plasmazones.editor.desktop
+    editor/org.phosphor_works.PlasmaZones.Editor.desktop
     DESTINATION ${KDE_INSTALL_APPDIR}
 )
 
 # Desktop file for the daemon (for XDG portal registration, NoDisplay=true).
 # Uses configured .desktop with full Exec path for KWin screenshot auth.
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/org.plasmazones.daemon.desktop
+    ${CMAKE_CURRENT_BINARY_DIR}/org.phosphor_works.PlasmaZones.desktop
     DESTINATION ${KDE_INSTALL_APPDIR}
 )
 
 # D-Bus session activation file. Wakes the daemon on first bus call.
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/org.plasmazones.service
+    ${CMAKE_CURRENT_BINARY_DIR}/org.phosphor_works.Placement.service
     DESTINATION ${KDE_INSTALL_DBUSSERVICEDIR}
 )
 
@@ -1082,8 +1127,8 @@ install(FILES
 # editor + settings apps with summary, screenshots, and content rating.
 # Validated by `appstreamcli validate <file>` if `appstream` is installed.
 install(FILES
-    editor/org.plasmazones.editor.metainfo.xml
-    settings/org.plasmazones.settings.metainfo.xml
+    editor/org.phosphor_works.PlasmaZones.Editor.metainfo.xml
+    settings/org.phosphor_works.Facet.metainfo.xml
     DESTINATION ${KDE_INSTALL_METAINFODIR}
 )
 

@@ -21,10 +21,24 @@
 #include "tilinghandler/tilinghandler.h"
 
 #include <core/output.h>
+// The strip clip maps through the viewport the effect is handed, which the
+// effect headers only forward-declare.
+#include <core/renderviewport.h>
 
 namespace PlasmaZones {
 
 KWin::LogicalOutput* PlasmaZonesEffect::scrollManagedOutputFor(KWin::EffectWindow* w) const
+{
+    return scrollManagedFor(w).output;
+}
+
+QPointF PlasmaZonesEffect::scrollViewOffsetFor(KWin::EffectWindow* w) const
+{
+    const ScrollManagedAnswer managed = scrollManagedFor(w);
+    return managed.output ? m_stripViewAnimator->offsetFor(managed.strip) : QPointF();
+}
+
+PlasmaZonesEffect::ScrollManagedAnswer PlasmaZonesEffect::scrollManagedFor(KWin::EffectWindow* w) const
 {
     // Same predicate as scrollClipGeometryFor, stopping one step earlier at the
     // output itself. The paint path wants the output (to compare by identity
@@ -36,25 +50,30 @@ KWin::LogicalOutput* PlasmaZonesEffect::scrollManagedOutputFor(KWin::EffectWindo
     // No null guard on m_tilingHandler (nor on m_navigationHandler below, nor
     // on m_stripViewAnimator in scrollParkedOffscreen): all three are
     // constructed in the effect's ctor init list and never reset, and every
-    // caller of this predicate is a paint-path or input-filter site that only
-    // runs long after construction. A guard here would be dead code that reads
-    // as a live possibility.
+    // caller of this predicate (the paint path, the input filter, the frame
+    // and commit readers, the strip and desktop transitions, the tab
+    // indicators) runs long after construction. A guard here would be dead
+    // code that reads as a live possibility.
     if (!m_tilingHandler->hasScrollingScreens()) {
-        return nullptr;
+        return {};
     }
     if (!w || w->isDeleted() || w->isUserMove() || w->isUserResize()) {
-        return nullptr;
+        return {};
     }
     // Memoised per pass, and ONLY within a pass: prePaintWindow and
     // paintWindow both ask, for every window, on every output pass, and one
-    // pass guarantees the strip state cannot change under the answer. TWO
-    // caller classes run outside any pass and always compute fresh: the
-    // INPUT filter (via scrollClipGeometryFor — a tile batch can land
-    // between passes and is exactly what moves a column across the
-    // boundary), and postPaintScreen's park-reap driver (m_currentPassOutput
-    // is deliberately cleared at its top, so its per-parked-window resolve
-    // is uncached by design — bounded by the parked population, and the
-    // per-pass validity argument would not hold there either). Stale keys
+    // pass guarantees the strip state cannot change under the answer. A
+    // caller outside any pass always computes fresh. Among them: the INPUT
+    // filter (via scrollClipGeometryFor — a tile batch can land between
+    // passes and is exactly what moves a column across the boundary),
+    // postPaintScreen's park-reap driver (m_currentPassOutput is
+    // deliberately cleared at its top, so its per-parked-window resolve is
+    // uncached by design — bounded by the parked population, and the
+    // per-pass validity argument would not hold there either), and the
+    // frame-geometry hook's readers, the column-answer read that gates the
+    // committed-size report and the offered-column centring
+    // (readColumnAnswer, also run from the client's commits and the
+    // catch-up walk) among them. Stale keys
     // for windows that died between passes CAN sit in the map until the
     // next prePaintScreen's clear, but they are never read before that
     // clear (every read is behind the same in-pass gate) and keys are only
@@ -65,11 +84,15 @@ KWin::LogicalOutput* PlasmaZonesEffect::scrollManagedOutputFor(KWin::EffectWindo
             return it.value();
         }
     }
-    KWin::LogicalOutput* managed = nullptr;
+    ScrollManagedAnswer managed;
     const QString windowId = getWindowId(w);
     const QString trackedScreen = m_tilingHandler->scrollTrackedScreenFor(windowId);
     if (!trackedScreen.isEmpty() && !m_navigationHandler->isWindowFloating(windowId)) {
-        managed = outputForScreenId(trackedScreen);
+        managed.output = outputForScreenId(trackedScreen);
+        if (managed.output) {
+            managed.strip = m_tilingHandler->stripKeyFor(trackedScreen);
+            managed.stripRect = m_tilingHandler->stripScreenRect(trackedScreen);
+        }
     }
     if (inPass) {
         m_scrollManagedCache.insert(w, managed);
@@ -92,12 +115,32 @@ QRect PlasmaZonesEffect::scrollClipGeometryFor(KWin::EffectWindow* w) const
     // keep-above overlays — so keying on it clipped any window merely sitting
     // on a scrolling screen, and a modal straddling the boundary had half of
     // itself treated as dead overhang.
-    const KWin::LogicalOutput* managedOutput = scrollManagedOutputFor(w);
-    if (!managedOutput) {
-        return QRect();
+    //
+    // The strip's own screen, so on a split monitor the part of a column over
+    // a sibling virtual screen, which paintWindow clips away
+    // (scrollStripPaintRegion), takes no input either.
+    const ScrollManagedAnswer managed = scrollManagedFor(w);
+    return managed.output ? managed.stripRect : QRect();
+}
+
+KWin::Region PlasmaZonesEffect::scrollStripPaintRegion(KWin::EffectWindow* w, const KWin::RenderViewport& viewport,
+                                                       const KWin::Region& deviceRegion) const
+{
+    // Only a strip on a virtual screen needs it: a whole output's pass already
+    // ends at the monitor edge. Snapshot captures are exempt, as from the
+    // foreign-output cull, because they build their viewport from the window's
+    // own rect and must see all of it.
+    if (m_capturingSnapshot || !w) {
+        return deviceRegion;
     }
-    const KWin::Rect g = managedOutput->geometry();
-    return QRect(g.x(), g.y(), g.width(), g.height());
+    const ScrollManagedAnswer managed = scrollManagedFor(w);
+    if (!managed.output || !managed.stripRect.isValid() || managed.stripRect == QRect(managed.output->geometry())) {
+        return deviceRegion;
+    }
+    // KWin scissors a transformed window to the region it is handed (both the
+    // item renderer and OffscreenEffect do), so a column sliding out of its
+    // virtual screen is cut at the boundary rather than drawn over the sibling.
+    return deviceRegion & viewport.mapToDeviceCoordinatesAligned(KWin::RectF(QRectF(managed.stripRect)));
 }
 
 QPoint PlasmaZonesEffect::scrollVisualTranslationFor(const QString& windowId, const QRectF& frameRect) const
@@ -122,7 +165,7 @@ QPoint PlasmaZonesEffect::scrollVisualTranslationFor(const ScrollVisualPlacement
     // where both constrain paths put a smaller frame on screen (the X11
     // pre-pass does it explicitly; KWin does it for a Wayland client that
     // renegotiated). Clamped at zero to match constrainTileGeometry
-    // (drag_snap.cpp, `qMax(0, ...)`): when a minimum size exceeds the column
+    // (window_geometry_apply.cpp, `qMax(0, ...)`): when a minimum size exceeds the column
     // the window stays anchored at the column's origin rather than shifting
     // past its edge, and the drawn position has to follow the committed one.
     //
@@ -186,8 +229,8 @@ bool PlasmaZonesEffect::scrollParkedOffscreen(KWin::EffectWindow* w, const QStri
         }
         return false;
     }
-    KWin::LogicalOutput* const managed = scrollManagedOutputFor(w);
-    if (!managed) {
+    const ScrollManagedAnswer managed = scrollManagedFor(w);
+    if (!managed.output) {
         // Report and advance the gate. A window that HOLDS a relocation but
         // resolves no managed output is a real transition — a strip retire, or
         // a screen mid-change — and returning silently left the gate holding
@@ -260,14 +303,16 @@ bool PlasmaZonesEffect::scrollParkedOffscreen(KWin::EffectWindow* w, const QStri
     // it is actually drawn. This one gates the park reap, the setTransformed
     // flag and the strip-capture anchor election, so getting it wrong either
     // culls a visible column or keeps a parked one painting forever.
-    const QPointF viewOffset = m_stripViewAnimator->offsetFor(managed);
+    const QPointF viewOffset = m_stripViewAnimator->offsetFor(managed.strip);
     visual.translate(viewOffset);
     if (const auto decoIt = m_windowDecorations.constFind(windowId); decoIt != m_windowDecorations.constEnd()) {
         const qreal pad = decoIt->outerPadding;
         visual.adjust(-pad, -pad, pad, pad);
     }
-    const KWin::Rect g = managed->geometry();
-    const bool parked = !visual.intersects(QRectF(g.x(), g.y(), g.width(), g.height()));
+    // Against the strip's own screen: a column drawn wholly over a virtual
+    // screen's sibling is off its strip, and one that reaches it is clipped to
+    // it (scrollStripPaintRegion).
+    const bool parked = !visual.intersects(QRectF(managed.stripRect));
 
     // Seam diagnostics (docs/strip-identity-seam-plan.md, stage 0). This is the
     // one place both halves of a parked column's drawn position are in hand at

@@ -19,12 +19,10 @@
 
 #include <effect/effecthandler.h>
 #include <core/output.h>
+#include <cursor.h>
 #include <virtualdesktops.h>
 #include <workspace.h>
 
-#include <QDBusConnection>
-#include <QDBusPendingCall>
-#include <QDBusPendingCallWatcher>
 #include <QLoggingCategory>
 #include <QPointer>
 #include <QScopedValueRollback>
@@ -66,13 +64,6 @@ void PlasmaZonesEffect::initRenderingAndRegistries()
     // per-frame toggle keeps both properties: crisp at rest, smooth in
     // motion.
 
-    // Single-worker pool for off-loading user-texture loads. See the
-    // header docstring for `m_shaderManager.m_textureLoaderPool` for the rationale —
-    // serialised loads keep the dedupe cheap and avoid duplicate GPU
-    // uploads if multiple shader transitions reference the same file
-    // in quick succession.
-    m_shaderManager.m_textureLoaderPool.setMaxThreadCount(1);
-
     // Populate per-output clocks from the currently-known output set.
     // Subsequent hotplug events land in onScreenAdded / onScreenRemoved.
     //
@@ -81,9 +72,16 @@ void PlasmaZonesEffect::initRenderingAndRegistries()
     // otherwise be missed — the signal wouldn't have an attached slot
     // yet, and the loop would already have run. With the signals
     // connected first, the worst case is a duplicate `onScreenAdded`
-    // call (once via signal, once via loop). `onScreenAdded` is
-    // idempotent (re-insertion check against m_motionClocksByOutput)
-    // so the duplicate is a no-op.
+    // call (once via signal, once via loop), which is HARMLESS but no
+    // longer a no-op: the motion clock AND the scroll-tab indicator
+    // rebuild are what its re-insertion check skips. The duplicate still
+    // invalidates the EDID and screen-id caches, re-resolves every
+    // output's recorded spelling, rebuilds the connected-id set, prunes
+    // the desktop dedup map, re-marks the output's evacuee records
+    // unclassified (noteOutputAdded) and re-seeds the desktop it shows
+    // (seedScreenDesktop). All of those come out identical on a second
+    // run — the prune drops only keys whose spelling is already stale —
+    // so the ordering stands.
     if (KWin::effects) {
         connect(KWin::effects, &KWin::EffectsHandler::screenAdded, this, &PlasmaZonesEffect::onScreenAdded);
         connect(KWin::effects, &KWin::EffectsHandler::screenRemoved, this, &PlasmaZonesEffect::onScreenRemoved);
@@ -239,30 +237,10 @@ void PlasmaZonesEffect::initRenderingAndRegistries()
                 // a fresh upload to pick up the new contents. The cache
                 // is keyed by absolute path; without this clear a
                 // file-content change with no path change would never
-                // refresh.
-                //
-                // Bump the cache generation rather than draining the
-                // loader pool synchronously. `waitForDone()` on the GL
-                // thread would block the compositor for tens of ms when
-                // a worker is mid-rasterise of a 1024x1024 SVG (the
-                // worst case for `loadUserTextureImage`). Workers
-                // already in flight will complete their CPU rasterise,
-                // but their queued GL upload checks the generation
-                // captured at submission time against
-                // `m_shaderManager.m_textureCacheGeneration` and discards if mismatched
-                // — so no stale (pre-reload) bytes can re-populate the
-                // cleared cache. Clear immediately so the next
-                // `beginShaderTransition` hits the synchronous fallback
-                // path and uploads fresh content.
-                //
-                // The generation bump and the in-flight set are unconditional:
-                // neither frees anything a residual transition points at, and
-                // retiring the in-flight loads is what keeps pre-reload bytes
-                // out of the cache whether or not the cache itself is cleared.
-                // The cache clear rides the same `drained` gate as the shader
-                // cache above, for the userTextures pointers.
-                ++m_shaderManager.m_textureCacheGeneration;
-                m_shaderManager.m_textureLoadsInFlight.clear();
+                // refresh. The next `beginShaderTransition` then loads and
+                // uploads fresh content. The clear rides the same `drained`
+                // gate as the shader cache above, for the userTextures
+                // pointers a residual transition still holds.
                 if (drained) {
                     m_shaderManager.m_textureCache.clear();
                 }
@@ -315,17 +293,19 @@ void PlasmaZonesEffect::initRenderingAndRegistries()
         // and m_surfaceMultipass owns GLTextures, so their destruction issues
         // glDelete* calls that want a current context (the same discipline
         // compiledPack()/surfacePresentShader() apply for off-paint callers).
-        // ensureGlContextCurrent() is that one shared make-current; its only
-        // false case is compositor teardown (!KWin::effects), where GL is being
-        // torn down and the driver reclaims the objects regardless, so the
-        // clears are safe either way. The sibling animation-registry handler
-        // above uses the same helper.
+        // ensureGlContextCurrent() is that one shared make-current; it answers
+        // false for compositor teardown (!KWin::effects) and for a failed
+        // make-current, and in both there is no context to delete against while
+        // the driver reclaims the objects regardless, so the clears are safe
+        // either way. The sibling animation-registry handler above uses the same
+        // helper.
         ensureGlContextCurrent();
         m_compiledPacks.clear();
         m_packBufferScaleCache.clear(); // metadata cache rides the compile cache's lifetime
         m_anyCompiledPackReadsCursor = false; // re-derived as packs recompile
         m_opacityTintFallbackWarned = false; // re-arm the capture-fallback warning with the fresh compiles
-        m_backdropAllocWarned = false; // and the backdrop-allocation one, for the same reason
+        m_backdropAllocWarned = false; // and the two allocation ones, for the same reason
+        m_surfaceTargetAllocWarned = false;
         // INVALIDATED per entry, not erased, which is what the two sibling clear
         // sites already do and for a reason this one shares. A DELETED window's
         // entry is the intended frame for its close leg, and the composite
@@ -480,10 +460,12 @@ void PlasmaZonesEffect::initTimers()
     // daemon emits one signal per per-rule mutation, so without coalescing a
     // 50-rule batch edit fires 50 full-ruleset fetches + parses. 50ms matches
     // the frame-geometry flush above — single edits feel instant, bursts
-    // collapse to a single fetch at the trailing edge.
+    // collapse to a single fetch at the trailing edge. The instant-restore
+    // cache refetches on the same edge, once per burst (F625).
     m_animationRulesRefreshDebounce.setSingleShot(true);
     m_animationRulesRefreshDebounce.setInterval(50);
     connect(&m_animationRulesRefreshDebounce, &QTimer::timeout, this, &PlasmaZonesEffect::loadRuleAnimationsFromDbus);
+    connect(&m_animationRulesRefreshDebounce, &QTimer::timeout, this, &PlasmaZonesEffect::refreshRestoreCache);
 }
 
 void PlasmaZonesEffect::connectWindowAndScreenSignals()
@@ -538,48 +520,61 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // show the outgoing desktop's value for the frames between the switch and the
     // push. Not corrected here: the effect cannot resolve the daemon's
     // assignment cascade, so there is no local value to fold instead.
+    //
+    // Once per event-loop turn, not once per signal: KWin emits desktopChanged
+    // for every output a switch moves, so under global virtual desktops one
+    // switch arrives as one signal per output, and each ran the whole sweep
+    // (F433). The queued sweep runs after the turn's switch signals, before the
+    // frame that shows the switch.
     connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this, [this]() {
-        updateAllDecorations();
+        if (m_desktopSwitchSweepQueued) {
+            return;
+        }
+        m_desktopSwitchSweepQueued = true;
+        QMetaObject::invokeMethod(
+            this,
+            [this]() {
+                m_desktopSwitchSweepQueued = false;
+                updateAllDecorations();
+            },
+            Qt::QueuedConnection);
     });
 
     // Snap restores for windows the daemon relocated to a desktop that was not
     // in view (a RouteToDesktop rule, or the move-to-desktop shortcut). The
     // autotile/scrolling equivalent rides slotScreensChanged's desktop-return
-    // catch-scan; snapping has no membership set to sweep against, so its arm
-    // carries an explicit park list and this is where it is drained.
+    // catch-scan; the effect holds no snap membership to sweep (the daemon
+    // carries a moved window's zone itself), so its arm drains a park list here.
     //
-    // Queued, not run inline. Two other desktopChanged handlers feed the daemon
-    // the state this restore is resolved against, and both land in a LATER event
-    // loop turn: scheduleClientAreaReport defers the work-area push through its
-    // own queued continuation, and the per-output desktop report is pushed
-    // further down this function. Driving the resolve synchronously here put the
-    // D-Bus call on the wire ahead of both, so the daemon answered it against the
-    // OUTGOING desktop's work area and screen mode. Deferring to the same later
-    // turn puts this after them in registration order.
-    connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this, [this]() {
+    // Queued, not run inline. The daemon resolves this restore against the
+    // work area and the screen's desktop, and both reach it after this handler
+    // runs: scheduleClientAreaReport's work-area push is a continuation queued
+    // by a handler registered above, and the per-output desktop report is sent
+    // inline by a handler registered further down this function. Driving the
+    // resolve synchronously here put the D-Bus call on the wire ahead of both,
+    // so the daemon answered it against the OUTGOING desktop's work area and
+    // screen mode. A continuation queued here runs after the inline report and
+    // after the work-area continuation queued before it. Coalesced to one
+    // drain per turn like the sweep above, for the same per-output burst.
+    const auto queueArrivalDrain = [this]() {
+        if (m_desktopArrivalDrainQueued) {
+            return;
+        }
+        m_desktopArrivalDrainQueued = true;
         QMetaObject::invokeMethod(
             this,
             [this]() {
-                if (m_snapHandler) {
-                    m_snapHandler->slotDesktopChangedRestoreArrivals();
-                }
+                m_desktopArrivalDrainQueued = false;
+                m_snapHandler->slotDesktopChangedRestoreArrivals();
             },
             Qt::QueuedConnection);
-    });
+    };
+    connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this, queueArrivalDrain);
 
     // A park can also be held by a window whose desktop is in view but whose
     // ACTIVITY is not, and that case is released by an activity switch rather
     // than a desktop one. Same queued shape and the same drain.
-    connect(KWin::effects, &KWin::EffectsHandler::currentActivityChanged, this, [this]() {
-        QMetaObject::invokeMethod(
-            this,
-            [this]() {
-                if (m_snapHandler) {
-                    m_snapHandler->slotDesktopChangedRestoreArrivals();
-                }
-            },
-            Qt::QueuedConnection);
-    });
+    connect(KWin::effects, &KWin::EffectsHandler::currentActivityChanged, this, queueArrivalDrain);
 
     // Seam diagnostics (docs/strip-identity-seam-plan.md, stage 0). The zero
     // point for the other lcStripDiag sites: everything they report is read as
@@ -587,10 +582,10 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // rather than folded into a neighbouring lambda, so removing the
     // instrumentation is a whole-block delete with no behaviour attached to it.
     //
-    // Registered AFTER three other desktopChanged handlers, and Qt delivers
+    // Registered AFTER the desktopChanged handlers above, and Qt delivers
     // direct connections in registration order, so this line printing first is
-    // a property of those two not logging under this category rather than
-    // something the ordering guarantees. Both are effect-internal and neither
+    // a property of those handlers not logging under this category rather than
+    // something the ordering guarantees. They are effect-internal and none
     // reaches an lcStripDiag site synchronously today. If a future handler
     // ahead of this one ever does, move this connect above them rather than
     // reasoning about the interleaving.
@@ -612,24 +607,71 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // current — which flips merely on cursor movement between monitors on
     // different desktops (#648). This signal does NOT fire on cursor movement,
     // only on an actual desktop change for an output, so it is the deterministic
-    // source. `output == nullptr` is a global all-output switch (per-output mode
-    // off); fan out to every screen so the daemon has one code path.
+    // source. KWin names the output on every emission: a global switch (per-output
+    // mode off) arrives as one emission per output it moved, each naming its own.
+    // The output-less arm reads every output instead, kept so an emission without
+    // one is still answered rather than dropped.
+    //
+    // Each switch KWin made (old != new) is also where the context-switch mark
+    // goes: a tile batch the daemon resolved for the context an output just left
+    // must not untile the incoming one (F793). Here and not on the report, whose
+    // dedup misses for reasons that are no switch at all (F886). The reverse
+    // also happens: when the desktop an output shows is removed, KWin moves the
+    // output to the desktop that followed it, which takes the removed one's
+    // number, so the report dedups while the context did change. (Removing the
+    // last desktop moves the output to the new last one, under another number,
+    // and that report goes out.) The mark still goes on,
+    // since a batch built for the removed desktop's context must not untile
+    // the successor's tiles, and the announce that settles it is the daemon's
+    // renumber re-announce (Daemon::onDesktopsRenumbered). KWin's
+    // placeholder output, which stands in while no real output is connected,
+    // has no screen the daemon knows and is neither reported nor marked (F870).
     connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this,
-            [this](KWin::VirtualDesktop*, KWin::VirtualDesktop* newDesktop, KWin::EffectWindow*,
+            [this](KWin::VirtualDesktop* oldDesktop, KWin::VirtualDesktop* newDesktop, KWin::EffectWindow*,
                    KWin::LogicalOutput* output) {
                 if (!newDesktop) {
                     return;
                 }
+                const auto reportOne = [this](KWin::LogicalOutput* out, KWin::VirtualDesktop* shown, bool switched) {
+                    if (!out || out->isPlaceholder() || !shown) {
+                        return;
+                    }
+                    const QString screenId = outputScreenId(out);
+                    reportScreenDesktop(screenId, static_cast<int>(shown->x11DesktopNumber()));
+                    if (switched && !screenId.isEmpty()) {
+                        m_tilingHandler->noteContextSwitched(screenId);
+                    }
+                };
+                // KWin always names the old desktop here: its own currentChanged
+                // handler (VirtualDesktopManager's plasma-desktop sync) reads
+                // the old desktop's id unguarded.
+                const bool switched = oldDesktop != newDesktop;
                 if (output) {
-                    reportScreenDesktop(outputScreenId(output), static_cast<int>(newDesktop->x11DesktopNumber()));
+                    reportOne(output, newDesktop, switched);
                     return;
                 }
-                for (auto* out : KWin::effects->screens()) {
-                    if (auto* vd = KWin::effects->currentDesktop(out)) {
-                        reportScreenDesktop(outputScreenId(out), static_cast<int>(vd->x11DesktopNumber()));
-                    }
+                for (KWin::LogicalOutput* out : KWin::effects->screens()) {
+                    reportOne(out, KWin::effects->currentDesktop(out), switched);
                 }
             });
+
+    // Live per-output-desktops mode. The bringup report samples this once, but
+    // the compositor property is writable at runtime (System Settings, or the
+    // daemon's own consented kwinrc write followed by a reconfigure). The
+    // daemon gates dynamic workspaces on it: a `false` edge turns the feature
+    // dormant until per-output desktops come back, and a `true` edge re-arms
+    // it. Without this connection the daemon would act on a stale mode until
+    // its next restart. KWin emits the change only after it has switched the
+    // outputs, which is why slotSetScreenDesktopRequested reads the mode
+    // itself rather than relying on this report. The daemon change-gates the
+    // value, so a repeat costs nothing. The connection is made once (this
+    // wiring runs once per effect) and torn down with the effect by QObject's
+    // receiver-side auto-disconnect.
+    if (auto* vdm = KWin::VirtualDesktopManager::self()) {
+        connect(vdm, &KWin::VirtualDesktopManager::perOutputVirtualDesktopsChanged, this, [this] {
+            reportPerOutputDesktopsMode();
+        });
+    }
 
     // The strip view spring is per-OUTPUT while scroll state is
     // per-(screen, desktop, activity), so a desktop switch orphans any
@@ -690,6 +732,9 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
                     return;
                 }
                 lastActivity = newActivity;
+                // Every output's context switched: a tile batch for the old one
+                // must not untile the new one's tiles (F793).
+                m_tilingHandler->noteContextSwitched(QString());
                 const auto outputs = KWin::effects->screens();
                 for (KWin::LogicalOutput* out : outputs) {
                     if (!out) {
@@ -710,6 +755,25 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
             [this](KWin::VirtualDesktop* oldDesktop, KWin::VirtualDesktop* newDesktop, KWin::EffectWindow*,
                    KWin::LogicalOutput* output) {
                 if (!oldDesktop || !newDesktop) {
+                    return;
+                }
+                // No blend for a correction the daemon asked for (the
+                // owner-wins return): a switch the user did not make, which
+                // would cost two output-sized captures on top of the switch
+                // that provoked it. A user switch whose leg is still blending
+                // on this output is the switch being undone, so that leg ends
+                // here too rather than blending toward a desktop the output no
+                // longer shows (F242). The reporting, decoration, strip and
+                // client-area handlers all still run. A user focus verb's
+                // switch is not a correction and blends like any other.
+                if (m_correctiveDesktopSwitch) {
+                    if (output) {
+                        m_desktopTransition.cancelSwitch(output);
+                    } else {
+                        for (KWin::LogicalOutput* const out : KWin::effects->screens()) {
+                            m_desktopTransition.cancelSwitch(out);
+                        }
+                    }
                     return;
                 }
                 // Honour the global animations master toggle, exactly as the two
@@ -802,9 +866,33 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // transition's duration later. It never derefs it, so this is not a crash
     // guard — a freed pointer must simply not linger and be matched against a
     // live desktop.
-    connect(KWin::effects, &KWin::EffectsHandler::desktopRemoved, this, [this](KWin::VirtualDesktop* desktop) {
-        m_desktopTransition.desktopRemoved(desktop);
-    });
+    //
+    // KWin renumbers the desktops after one is removed, inserted or moved. An
+    // output whose desktop was removed is switched to a successor, and that
+    // switch is reported through desktopChanged, already in the new numbering,
+    // before desktopRemoved fires. Every other output keeps its desktop under a
+    // number that may have shifted, which a cache of numbers cannot follow, so
+    // the cache is re-read here, silently: the daemon renumbers its own map,
+    // and a report now could reach it first and be shifted twice. Left stale, a
+    // later switch to the desktop now carrying the cached number was dropped,
+    // and the announce gate compared the daemon's new numbers with the old ones
+    // (F798).
+    const auto resyncReportedDesktops = [this]() {
+        for (KWin::LogicalOutput* const output : KWin::effects->screens()) {
+            const KWin::VirtualDesktop* const vd = output ? KWin::effects->currentDesktop(output) : nullptr;
+            const QString screenId = output ? outputScreenId(output) : QString();
+            if (vd && m_lastScreenDesktop.contains(screenId)) {
+                m_lastScreenDesktop.insert(screenId, static_cast<int>(vd->x11DesktopNumber()));
+            }
+        }
+    };
+    connect(KWin::effects, &KWin::EffectsHandler::desktopRemoved, this,
+            [this, resyncReportedDesktops](KWin::VirtualDesktop* desktop) {
+                m_desktopTransition.desktopRemoved(desktop);
+                resyncReportedDesktops();
+            });
+    connect(KWin::effects, &KWin::EffectsHandler::desktopAdded, this, resyncReportedDesktops);
+    connect(KWin::effects, &KWin::EffectsHandler::desktopMoved, this, resyncReportedDesktops);
 
     // Belt-and-suspenders: windowClosed removes animations, but if a deferred
     // timer re-adds one between windowClosed and windowDeleted, the Item tree
@@ -890,6 +978,9 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
             m_scrollOfferedColumn.remove(cachedId);
         }
         m_trackedScreenPerWindow.remove(w);
+        m_sizeOnlyFrames.remove(w);
+        // Its settle records and deferred crossing, keyed by the same pointer.
+        m_screenChangeHandler->forgetWindow(w);
         // The corpse's frozen strip displacement dies with it. This is THE
         // remover, not a backstop: the entry exists precisely so the corpse
         // paints displaced until this moment, and the pointer keying makes
@@ -897,12 +988,28 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
         // EffectWindow address inheriting a dead corpse's offset would draw a
         // brand-new window a pan away).
         m_scrollCorpseFreeze.remove(w);
-        // Desktop-set stamp, same raw-pointer keying and the same two reasons
-        // as the tracked screen above: keep the hash bounded, and stop a reused
+        // Context stamp, same raw-pointer keying and the same two reasons as
+        // the tracked screen above: keep the hash bounded, and stop a reused
         // address from inheriting a dead window's desktop set (which would make
-        // the arrival arm misread the new window's first desktop edit).
-        m_trackedDesktopsPerWindow.remove(w);
-        m_preStickyDesktopsPerWindow.remove(w);
+        // the handler misread the new window's first desktop edit).
+        m_contextStampPerWindow.remove(w);
+        // A window that dies mid-resize has nothing left to settle.
+        if (m_resizeHold.window == w) {
+            disconnect(m_resizeHold.ackWatch);
+            disconnect(m_resizeHold.commitWatch);
+            const quint64 generation = m_resizeHold.generation + 1;
+            m_resizeHold = ResizeHold{};
+            m_resizeHold.generation = generation;
+        }
+        if (m_dragActivation.tail.window == w) {
+            m_dragActivation.tail = {};
+        }
+        // Nor anything held for its context (EE). The raw keys go for the
+        // stamp's reasons above.
+        m_contextHold.holds.remove(w);
+        m_contextHold.dragLatched.remove(w);
+        m_contextHold.pzCrossings.remove(w);
+        m_contextHold.pinnedDesktops.remove(w);
         // Wired-window guard. The connections themselves die with the window, so
         // this is address-reuse safety, not connection hygiene: a stale entry
         // would make setupWindowConnections REFUSE to wire a new window that
@@ -915,6 +1022,8 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
         // make the next defer for a recycled address disconnect a replay that
         // belongs to the new window.
         m_deferredGeometryReplay.remove(w);
+        // Command stamp: bounded, and a recycled address starts with no stamp.
+        m_daemonGate.commandStamps.forget(w);
         // Spurious-minimize-pair stamp — raw-pointer-keyed like its
         // siblings below, so erase here both to stay bounded and so a
         // reused address can't inherit a stale stamp that would swallow
@@ -937,6 +1046,7 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
         // bogus morph on the new window's first resize).
         m_shaderManager.m_preMaximizeFrame.remove(w);
         m_shaderManager.m_pendingMaximizeMorph.remove(w);
+        m_shaderManager.m_monocleEchoOwed.remove(w);
         // Drop the queued-expiry guard for this raw pointer. KWin reuses
         // EffectWindow heap addresses freely, so a stale entry surviving
         // past windowDeleted would cause the next window allocated at the
@@ -994,17 +1104,30 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
         m_pointerPass.outputGeometryChanged();
     });
 
+    // The pointer pass keeps the cursor image it last read, because reading a
+    // cursor a client supplies paints and reads back the cursor scene; this is
+    // what tells it a new read is due (see PointerDecorationPass::m_cursorImage).
+    // Cursors::currentCursorChanged rather than the effects API's
+    // cursorShapeChanged: KWin's cursorImage() reads the CURRENT cursor, which
+    // is a tablet tool's while a pen is in use, and cursorShapeChanged follows
+    // the mouse alone. This signal fires on a switch between the two and on
+    // every change to the current one's image, which is what KWin's screencast
+    // keys its own cursor copy on. Cursors::self() creates the singleton on
+    // first use and never clears it, so it is never null here.
+    connect(KWin::Cursors::self(), &KWin::Cursors::currentCursorChanged, this, [this]() {
+        m_pointerPass.cursorChanged();
+    });
+
     // Discussion #527 follow-up: latch the screen-change flag the instant KWin
     // tells us an output appeared or disappeared. KWin fires screenAdded /
     // screenRemoved BEFORE the per-window outputChanged signals it emits for
-    // windows it reassigns as part of the layout change, so this beats the
-    // race where outputChanged would reach the autotile-delegation guard in
-    // window_connections.cpp without isScreenChangeInProgress() set — and
-    // when KWin shifts a remaining monitor's x-offset on the second add
-    // (DPMS wake of a dual-monitor setup), oldScreenStillConnected returns
-    // true and is no help on its own. slotScreenLayoutChanged sets the same
-    // pending flag + debounce that virtualScreenGeometryChanged eventually
-    // would, so the existing settle path is unchanged once it catches up.
+    // the windows it moves, so every one of those crossings is deferred to
+    // the settle (window_output_connections.cpp). Connected AFTER
+    // onScreenAdded / onScreenRemoved (initRenderingAndRegistries) on purpose:
+    // for each signal the evacuee records and the returned-output note are
+    // written before this slot runs. The baseline is taken once, at a
+    // cascade's first signal, and KWin emits every add before any removal, so
+    // a removal's records can follow it; both still precede KWin's moves.
     connect(KWin::effects, &KWin::EffectsHandler::screenAdded, m_screenChangeHandler.get(),
             &ScreenChangeHandler::slotScreenLayoutChanged);
     connect(KWin::effects, &KWin::EffectsHandler::screenRemoved, m_screenChangeHandler.get(),
@@ -1013,17 +1136,15 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // (connector names may be reassigned, physical screen geometry changes invalidate
     // virtual screen absolute geometry)
     connect(KWin::effects, &KWin::EffectsHandler::virtualScreenGeometryChanged, this, [this]() {
-        m_idCaches.screenIdCache.clear();
-        m_idCaches.connectedPhysicalIdsValid = false;
+        clearScreenIdCache();
         m_lastEffectiveScreenId.clear();
-        // A rotation or mode change keeps the same connector and EDID id, so
-        // no per-window outputChanged fires — yet ScreenOrientation is a
-        // matchable rule field stamped live from the output geometry, and
-        // every verdict cache keys on (windowId, ruleSet revision) only.
-        // Drop the caches and sweep the borders so orientation-scoped rules
-        // re-resolve, mirroring the daemon-ready re-seed pattern.
-        invalidateAllRuleCaches();
-        scheduleBorderSweep();
+        // No rule-cache drop here. The screen-shape rule fields derive from
+        // each output's pixel size, and the union is the wrong edge for it: a
+        // mode change at a constant logical size keeps the union, and an
+        // arrangement change moves it without touching any size. Each output's
+        // currentModeChanged and transformChanged drive
+        // flushOutputPixelSizes instead (onScreenAdded), which drops the
+        // verdicts once per burst.
     });
 
     // Decorations.Performance.SuppressWhileFullscreen — keep the set of outputs
@@ -1039,7 +1160,7 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     //     stacking order, so the walk answers exactly as before and the set
     //     can only change once windowDeleted has removed it;
     //   • desktopChanged and currentActivityChanged, because the gate is scoped
-    //     to the CURRENT desktop and a fullscreen window parked elsewhere must
+    //     to the desktop each output shows and a fullscreen window parked elsewhere must
     //     not strip the desktop being looked at;
     //   • screenAdded / screenRemoved / virtualScreenGeometryChanged, because a
     //     layout change re-resolves which output a window sits on and can

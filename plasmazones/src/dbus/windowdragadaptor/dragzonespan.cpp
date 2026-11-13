@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "windowdragadaptor.h"
+#include "dbus/dbushelpers.h"
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <QDBusConnection>
-#include <QDBusMessage>
 #include <QDBusServiceWatcher>
 #include <QScreen>
 #include <QUuid>
@@ -19,11 +19,10 @@
  * @brief The two multi-zone modifier handlers: zone span (paint a rectangle of
  * zones) and multi-zone (union two zones under the cursor).
  *
- * Split out of drag.cpp to keep that file inside the file-size ceiling. Both
- * run off a dragMoved tick, both resolve their screen through
- * prepareHandlerContext, and both write the same m_currentMultiZoneGeometry /
- * m_paintedZoneIds state the drop reads, so they belong together and apart
- * from the tick that dispatches them.
+ * Split out of drag.cpp. Both run off a dragMoved tick, both resolve their
+ * screen through prepareHandlerContext, and both write the same
+ * m_currentMultiZoneGeometry / m_paintedZoneIds state the drop reads, so they
+ * belong together and apart from the tick that dispatches them.
  */
 
 namespace PlasmaZones {
@@ -225,7 +224,8 @@ DropProxyRegistry::Resolution WindowDragAdaptor::resolveDropProxyAt(QScreen* scr
         return {};
     }
     // Proxies are registered per physical output (the shell's bar lives on
-    // one), in that output's own pixels. A virtual-screen id resolves to its
+    // one), in that output's logical coordinates with the origin at its
+    // top-left. A virtual-screen id resolves to its
     // physical output, and the cursor is re-based onto the output's origin.
     const QString physicalId = PhosphorIdentity::VirtualScreenId::extractPhysicalId(screenId);
     return m_dropProxies.resolve(physicalId, QPoint(x, y) - screen->geometry().topLeft());
@@ -265,7 +265,19 @@ void WindowDragAdaptor::registerDropProxy(const QString& screenId, const QString
     // A proxy outlives every individual drag, so it is tied to the life of the
     // peer that asked for it. Direct (non-D-Bus) calls — the unit tests invoke
     // this slot through QMetaObject — have no peer, and register unowned.
-    const QString sender = calledFromDBus() ? message().service() : QString();
+    const QString sender = DbusHelpers::busCaller(this);
+    // A proxy another live peer registered is that peer's to replace: a
+    // second peer could otherwise retarget every snap drop on the screen to
+    // zones of its choosing. A peer that dies loses its proxies through the
+    // watcher below, so a restarted shell registers into an empty slot.
+    const QString owner = m_dropProxies.ownerOf(screenId);
+    if (!sender.isEmpty() && !owner.isEmpty() && owner != sender) {
+        qCWarning(lcDbusWindow) << "registerDropProxy: refusing" << sender << "- the proxy on" << screenId
+                                << "belongs to" << owner;
+        DbusHelpers::sendBusError(this, QDBusError::AccessDenied,
+                                  QStringLiteral("The drop proxy on this screen belongs to another peer"));
+        return;
+    }
     if (!m_dropProxies.registerProxy(screenId, proxyJson, sender)) {
         return;
     }
@@ -277,6 +289,18 @@ void WindowDragAdaptor::registerDropProxy(const QString& screenId, const QString
 
 void WindowDragAdaptor::unregisterDropProxy(const QString& screenId)
 {
+    // Only the peer that registered a proxy drops it over the bus: any other
+    // could otherwise switch the shell's placement map off as a drop target.
+    // A direct call (no bus peer) and an unowned proxy are not checked.
+    const QString sender = DbusHelpers::busCaller(this);
+    const QString owner = m_dropProxies.ownerOf(screenId);
+    if (!sender.isEmpty() && !owner.isEmpty() && owner != sender) {
+        qCWarning(lcDbusWindow) << "unregisterDropProxy: refusing" << sender << "- the proxy on" << screenId
+                                << "belongs to" << owner;
+        DbusHelpers::sendBusError(this, QDBusError::AccessDenied,
+                                  QStringLiteral("The drop proxy on this screen belongs to another peer"));
+        return;
+    }
     m_dropProxies.unregisterProxy(screenId);
 }
 

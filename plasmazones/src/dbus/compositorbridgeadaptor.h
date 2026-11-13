@@ -7,35 +7,47 @@
 #include <PhosphorProtocol/BridgeMarshalling.h>
 #include <QObject>
 #include <QDBusAbstractAdaptor>
-#include <QDBusContext>
 #include <QString>
 #include <QStringList>
+
+#include <functional>
+
+class QDBusContext;
 
 namespace PlasmaZones {
 
 /**
  * @brief D-Bus adaptor for the compositor bridge protocol
  *
- * Provides D-Bus interface: org.plasmazones.CompositorBridge
+ * Provides D-Bus interface: org.phosphor_works.Placement.CompositorBridge
  *
- * Compositor-agnostic bridge protocol: the registration handshake and
- * modifier-state reporting. Window manipulation commands do NOT flow over
- * this interface — they ride org.plasmazones.WindowTracking
- * (applyGeometryRequested, applyGeometriesBatch, raiseWindowsRequested, ...),
+ * Compositor-agnostic bridge protocol: the registration handshake, and the
+ * compositor's modifier-state and gesture reports (the latter only for a
+ * bridge that registered the 'gestures' capability). Window manipulation
+ * commands do NOT flow over
+ * this interface — they ride org.phosphor_works.Placement.WindowTracking
+ * (applyGeometryRequested, applyGeometriesBatch, ...),
  * which bridges subscribe to after a successful registration.
  *
- * Inherits @c QDBusContext so reportGesture can identify its caller. The
+ * The bus name registerBridge records is the identity every compositor-only
+ * method on the daemon admits (DbusHelpers::admitCompositorReport, #1155):
+ * reportModifierState and reportGesture here, and the compositor reports on
+ * the other interfaces. Qt sets a call's QDBusContext on the exported object,
+ * not on its adaptor, so the caller is read through DbusHelpers. The
  * registered capability list is daemon-wide state, not a property of whoever
  * is calling, so checking it alone would let any peer on the session bus drive
- * the shell's gesture surfaces; the caller's bus name has to be matched
- * against the bridge that registered.
+ * the shell's gesture surfaces.
+ *
+ * Registration itself is held to the compositor's process (see
+ * setCompositorIdentityCheck), so no other peer can register first and keep
+ * the compositor out.
  *
  * @note This is an EXPERIMENTAL interface — may change before v2.
  */
-class PLASMAZONES_EXPORT CompositorBridgeAdaptor : public QDBusAbstractAdaptor, public QDBusContext
+class PLASMAZONES_EXPORT CompositorBridgeAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.CompositorBridge")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.CompositorBridge")
 
 public:
     explicit CompositorBridgeAdaptor(QObject* parent = nullptr);
@@ -61,9 +73,26 @@ public:
     {
         return !m_bridgeName.isEmpty();
     }
+    /// Whether @p busName is the unique bus name the registered bridge called
+    /// from. Never true for a registration that did not arrive over D-Bus.
+    bool isBridgeService(const QString& busName) const
+    {
+        return !m_bridgeService.isEmpty() && busName == m_bridgeService;
+    }
     bool hasCapability(const QString& cap) const
     {
         return m_capabilities.contains(cap);
+    }
+
+    /// Whether a unique bus name belongs to the compositor's own process.
+    using CompositorIdentityCheck = std::function<bool(const QString& busName)>;
+    /// The check a registration over the bus has to pass: Daemon holds it to
+    /// the process serving its Wayland connection
+    /// (OverlayAdaptor::isCompositorPeer). Unset, every registration over the
+    /// bus is refused. A direct call (the unit tests) is never checked.
+    void setCompositorIdentityCheck(CompositorIdentityCheck check)
+    {
+        m_compositorIdentityCheck = std::move(check);
     }
 
 public Q_SLOTS:
@@ -80,8 +109,10 @@ public Q_SLOTS:
      * @param capabilities List of supported capabilities
      * @return PhosphorProtocol::BridgeRegistrationResult struct: {apiVersion,
      *         bridgeName, sessionId}; sessionId == "REJECTED" signals a
-     *         rejected registration the caller MUST check — protocol-version
-     *         mismatch or invalid input (empty compositorName)
+     *         rejected registration the caller MUST check: invalid input
+     *         (empty compositorName), a protocol version below the minimum,
+     *         a caller that is not the compositor's process, or another
+     *         bridge still on the bus
      *
      * Capabilities:
      *   "borderless"  — bridge manages window decorations (title-bar hiding
@@ -106,6 +137,8 @@ public Q_SLOTS:
      *       daemon-side consumes modifierStateChanged yet — the method
      *       exists for non-KWin bridges that lack a drag channel. The
      *       interface is EXPERIMENTAL; revisit before v2.
+     * @note Compositor-only (DbusHelpers::admitCompositorReport): any other
+     *       bus caller is answered with AccessDenied.
      */
     void reportModifierState(int modifiers, int mouseButtons);
 
@@ -113,7 +146,10 @@ public Q_SLOTS:
      * @brief Report a completed touchpad gesture recognised for the shell
      * @param kind "swipe" or "pinch"
      * @param direction swipe: up/down/left/right; pinch: expanding/contracting
-     * @param fingerCount 3 or 4
+     * @param fingerCount 1 to 5 (the KWin bridge sends 3 or 4)
+     * @note Compositor-only (DbusHelpers::admitCompositorReport): any other
+     *       bus caller is answered with AccessDenied, checked before
+     *       anything else.
      * @note Re-emitted verbatim as gestureReported. The bridge registers
      *       the gestures it forwards under the "gestures" capability; the
      *       daemon keeps no state, it is the relay between the compositor
@@ -128,9 +164,9 @@ Q_SIGNALS:
     // Bridge lifecycle
     //
     // NOTE: this interface deliberately carries NO window-manipulation
-    // command signals. Geometry/focus/stacking commands flow over
-    // org.plasmazones.WindowTracking (applyGeometryRequested,
-    // applyGeometriesBatch, raiseWindowsRequested, ...) — a set of dead,
+    // command signals. Geometry and focus commands flow over
+    // org.phosphor_works.Placement.WindowTracking (applyGeometryRequested,
+    // applyGeometriesBatch, ...) — a set of dead,
     // never-emitted command signals used to live here and misled bridge
     // implementers into subscribing to a channel that never fired.
     // ═══════════════════════════════════════════════════════════════════════════
@@ -140,15 +176,26 @@ Q_SIGNALS:
     void gestureReported(const QString& kind, const QString& direction, uint fingerCount);
 
 private:
+    /// Whether the bus @p context's call arrived on says m_bridgeService has
+    /// no owner any more. False on any other answer, an error or no answer.
+    bool bridgeServiceGone(const QDBusContext* context) const;
+
     QString m_bridgeName;
     QString m_bridgeVersion;
     QStringList m_capabilities;
     // Unique bus name of the peer that registered, empty when the
-    // registration did not arrive over D-Bus. A D-Bus caller is then never
-    // equal to it, so remote gestures stay refused until a bridge registers
+    // registration did not arrive over D-Bus. It is the identity every
+    // compositor-only method admits (DbusHelpers::admitCompositorReport), so
+    // with it empty every such bus call is refused until a bridge registers
     // over the bus. The tests call the slots directly and bypass the
-    // comparison entirely, because it is gated on calledFromDBus().
+    // comparison entirely, because a direct call has no bus caller.
     QString m_bridgeService;
+    /// See setCompositorIdentityCheck.
+    CompositorIdentityCheck m_compositorIdentityCheck;
+    /// The refusal warnings go out once each: a refused peer can call as
+    /// often as it likes, and REJECTED is the per-call answer.
+    bool m_identityRefusalLogged = false;
+    bool m_occupiedRefusalLogged = false;
 };
 
 } // namespace PlasmaZones

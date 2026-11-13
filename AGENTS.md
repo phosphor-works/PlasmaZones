@@ -39,7 +39,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
   authoritative one.
 
 ## License
-- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt, which in practice means `plasmazones/data/**/*.json`, the six `phosphor-libs/data/schemas/*.json` files, and the `manifest.json.in` fixtures under `phosphor-libs/libs/phosphor-registry/tests/` — never add a header to those, it makes the file invalid.
+- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt. JSON is such a format, so no `.json` file needs a header wherever it sits. The usual cases are `plasmazones/data/**/*.json`, the `phosphor-libs/data/schemas/*.json` files, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
 - License identifier depends on the tree:
   - **App tiers** (`plasmazones/**` except its `data/` trees, `phosphor-shell/**`, `phosphor-shell-libs/examples/**`, `scripts/**`): `GPL-3.0-or-later`
   - **Reusable libraries, including their own tests** (`phosphor-libs/libs/phosphor-*/**` and `phosphor-shell-libs/libs/phosphor-*/**`, which subsumes each library's `tests/`): `LGPL-2.1-or-later`
@@ -61,9 +61,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
 - Only emit signals when value actually changes
 - Parent-based ownership for QObjects; `std::unique_ptr`/`QPointer` otherwise; never manual delete
 - Forward declare in headers; group includes: own header → project → KDE → Qt
-- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering` and `plasmazones_shaderpreview` each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT` (56 distinct macros: 38 under `phosphor-libs/libs/`, 18 under `phosphor-shell-libs/libs/`). Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
-- Keep files under 1000 lines, with a 15% grace (hard ceiling 1150). Under 1000 is the target; 1000–1150 is tolerated and not a review finding on its own. Past 1150, split by concern.
-- The ceiling binds NEW files and files being substantially rewritten. Around 61 existing files are already over it (the largest are `plasmazones/kwin-effect/plasmazoneseffect/plasmazoneseffect.h`, `plasmazones/kwin-effect/tilinghandler/tiling.cpp` and `plasmazones/tests/unit/helpers/StubSettings.h`); those are grandfathered. Do not raise an existing overrun as a review finding on its own, and do not split one as a drive-by. Growing one further, or adding a new file over the ceiling, is a finding.
+- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering` and `plasmazones_shaderpreview` each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT`. Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
 - Input validation at system boundaries
 
 ### Qt6 String Literals (CRITICAL)
@@ -99,7 +97,7 @@ Shared placement policy lives in `phosphor-libs/libs/phosphor-engine`. A verdict
 - Extract: `cmake --build build --target update-ts`
 
 ## User-Facing Text (Plain Prose)
-User-facing strings MUST read like plain, human-written prose with no LLM tics. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). SVG `<desc>` elements in `plasmazones/icons/**` count too, since screen readers announce them.
+User-facing strings MUST read like plain, human-written prose with no LLM tics. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
 
 `README.md` is deliberately OUT of scope, along with the other developer-facing repo docs (`CLAUDE.md`, `AGENTS.md`, `docs/**`, `plasmazones/tools/**/README.md`). The README uses em-dashes structurally throughout and pulling it under this rule would need a full punctuation rewrite first. Do not "fix" README em-dashes to satisfy the bullets below.
 
@@ -121,8 +119,8 @@ User-facing strings MUST read like plain, human-written prose with no LLM tics. 
 ### Adding a Setting
 Use the `pz-add-setting` skill, which carries the full worked example. Summary:
 
-1. `plasmazones/src/config/configdefaults_<area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `configdefaults.h` is split by area (`_appearance`, `_gaps`, `_limits`, `_screens`, `_scrolling`, `_scrolling_behavior`, `_scrolling_shortcuts`, `_shaders`).
-2. `plasmazones/src/config/configkeys.h` — group and `xxxKey()` accessors, if new (`configkeys_scrolling.h` for a scrolling group). NOT `configdefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
+1. `plasmazones/src/config/configdefaults_<area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `configdefaults.h` is split by area (`_appearance`, `_gaps`, `_limits`, `_screens`, `_scrolling`, `_scrolling_behavior`, `_scrolling_shortcuts`, `_shaders`, `_workspaces`).
+2. `plasmazones/src/config/configkeys.h` — group and `xxxKey()` accessors, if new (`configkeys_scrolling.h` for a scrolling group, `configkeys_workspaces.h` for a workspaces group). NOT `configdefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
 3. `plasmazones/src/config/settingsschema*.cpp` — register the `{key, default, QMetaType, description, coercion}` KeyDef in its group. **The store takes its default, type and clamping from the schema, not from the getter.** Skip this and the setting silently reads back as the type-default. The description field is user-facing prose and is held to the plain-prose rules below.
 4. `plasmazones/src/core/interfaces/isettings.h` — signal in ISettings.
 5. `plasmazones/src/config/settings.h` — Q_PROPERTY + getter + setter declarations (`override`). **No member variable.**
@@ -145,7 +143,7 @@ An unclamped setter compares, early-returns, writes, then emits. A **clamped** s
 - Rationale: ad-hoc migration code is write-once, test-forever complexity that rots and never gets removed
 
 ### Schema Version Migrations (ConfigSchemaVersion bumps)
-- Schema version migrations (`migrateV1ToV2`, etc.) are the ONE exception — they live in `configmigration.cpp`
+- Schema version migrations (`migrateV1ToV2`, etc.) are the ONE exception — each lives in its own `configmigration_v<N>.cpp`, named for the version it produces; the `MigrationStep` registry and `ensureJsonConfig()` are in `configmigration.cpp`
 - Each version bump gets exactly one migration function + one `MigrationStep` registry entry
 - Migration functions transform the entire JSON root in-place and stamp the new `_version`
 - v1 group/key accessors in `configkeys.h` (prefixed `v1*`) exist ONLY for migration code readability
@@ -161,8 +159,11 @@ In-repo skills under `.claude/skills/` (symlinked into `.agents/skills/`). Invok
 - `pz-build` — configure, build and test. Carries the two `OFF`-by-default flags that make a suite silently run nothing, the warning-vs-error grep, the ctest D-Bus isolation, and the non-unity gate.
 - `pz-add-setting` — the six files a setting touches, in the store-backed shape.
 - `pz-verify-live` — nested-KWin harness for verifying placement and effect changes against a real compositor.
-- `code-audit` — multi-pass audit-and-fix loop.
+- `pz-algorithm-api` — extend the Luau tiling-algorithm API (ctx inputs, outputs, pluau helpers, metadata and capabilities), including the keys `LuauTileAlgorithm` silently drops.
+- `pz-shader-pack` — write, change or preview one shader pack, or change the uniform contract packs read.
+- `code-audit` — audit-then-remediate loop: read-only Phase A passes, then one Phase B fix with confirmation rounds.
 - `shader-theme` — build a cohesive shader theme.
+- `record-lesson` — put what a session learned where the next session will read it.
 
 ## Build & Test
 
@@ -175,8 +176,8 @@ docker build -t plasmazones-build .
 # Build + test (default runs ctest)
 docker run --rm -v "$PWD":/src plasmazones-build
 
-# Build + test with verbose output
-docker run --rm -v "$PWD":/src plasmazones-build ctest --output-on-failure
+# Build, then run a command of your own in place of the default (shown here: the default itself)
+docker run --rm -v "$PWD":/src plasmazones-build ctest --output-on-failure --no-tests=error
 ```
 
 On Linux (native):
@@ -187,19 +188,31 @@ On Linux (native):
 # reads like success. Pass it explicitly or the "always run tests" rule above
 # silently runs nothing. BUILD_TOOLS=ON adds shader-render and friends.
 #
-# TEST-TIME DEPENDENCY: the shader_validate_animations and
-# shader_validate_pointer gates shell out to `glslangValidator` (or the newer
-# `glslang`; either name works) to compile every animation and pointer pack for
-# the compositor's classic-GL branch, and HARD-FAIL when neither is on PATH
-# rather than skipping. Install your distro's glslang package before running
-# ctest. Not needed to build, and not needed with BUILD_TESTING=OFF.
+# TEST-TIME DEPENDENCY: the shader_validate_animations, shader_validate_surface
+# and shader_validate_pointer gates shell out to `glslangValidator` (or the newer
+# `glslang`; either name works) to compile every animation, surface and pointer
+# pack for the compositor's classic-GL branch, and HARD-FAIL when neither is on
+# PATH rather than skipping. On x86-64 Linux the configure fetches the glslang
+# release cmake/PhosphorDependencies.cmake pins and puts it on those tests' PATH,
+# so nothing needs installing. Anywhere else install your distro's glslang
+# package before running ctest. Not needed with BUILD_TESTING=OFF.
+#
+# THIRD-PARTY SOURCES: Luau and valijson are pinned archives in
+# cmake/PhosphorDependencies.cmake (version, URL, SHA-256), not committed
+# files. The first configure downloads them with CPM into .cache/cpm, which
+# every build dir shares. An offline build passes
+# -DPHOSPHOR_DEPS_ARCHIVES=<dir> holding the archives instead, and
+# `cmake -DPHOSPHOR_DEPS_FETCH=<dir> -P cmake/PhosphorDependencies.cmake` fills
+# such a dir. The packaging recipes repeat each pin, and the dep-pins
+# conventions rule fails when one drifts.
 #
 # SECOND TEST-TIME DEPENDENCY: `appstreamcli` (distro package `appstream`).
 # ECM registers the `appstreamtest` test only when it finds appstreamcli AT
 # CONFIGURE TIME, and otherwise just prints a STATUS line. `moon run repo:test`
-# is `ctest -R ^appstreamtest$ --no-tests=error`, so on a machine without it
-# that task fails with "no tests were found" rather than skipping. Install
-# appstream before running repo:test, or reconfigure after installing it.
+# is `ctest --test-dir build -R ^appstreamtest$ --no-tests=error`, so on a
+# machine without it that task fails with "no tests were found" rather than
+# skipping. Install appstream before running repo:test, or reconfigure after
+# installing it.
 #
 # BUILD_PHOSPHOR_SHELL also defaults to OFF, and it gates the whole Phosphor
 # shell tier: phosphor-shell-libs/libs/phosphor-shell*, the bar, control center, launcher, power
@@ -219,18 +232,37 @@ ctest --test-dir build --output-on-failure
 # Lint (pre-commit hooks handle clang-format + qmlformat)
 
 # Conventions. Machine-checks the rules in this file that are decidable by
-# inspection: SPDX headers, the GPL-3 app / LGPL-2.1 libs split, the file-size
-# ceiling (growth-only, baselined in scripts/oversize-baseline.json),
+# inspection: SPDX headers, the GPL-3 app / LGPL-2.1 libs split,
 # PhosphorI18n::tr() over i18n() in C++, ConfigDefaults:: accessors over inline
 # config paths, `.pragma library` inside Qt's 128-byte window in QML .js
-# libraries (see QML Style), and the plain-prose rules on the user-facing
-# strings it can reach. Stdlib only.
+# libraries (see QML Style), the plain-prose rules on the user-facing strings it
+# can reach, that packaging/debian/copyright still declares every file's real
+# license and copyright holders, that a chain-resolved shader param's
+# DESCRIPTION reads identically on every pack that offers it (the twenty
+# roundBottomCorners copies; the check and its data live in
+# scripts/conventions_shared_text.py), and that every packaging recipe repeats
+# the third-party pins of cmake/PhosphorDependencies.cmake exactly (the dep-pins
+# rule, in scripts/conventions_dep_pins.py). Stdlib only, spread over seven
+# files: the entry point plus conventions_dep5.py, conventions_dep_pins.py,
+# conventions_prose.py, conventions_shared_text.py, conventions_selftest.py and
+# conventions_selftest_rules.py.
+#
+# It also enforces one PRECONDITION that is not a rule and that --rules cannot
+# switch off: every path handed to a rule must be readable as text. An unreadable
+# one gets a single `[unreadable]` finding naming the errno instead of being fed
+# to the rules as an empty string, which used to make them report a false cause
+# ("malformed JSON" on well-formed JSON, "missing SPDX" on a file that has one).
 #
 # The prose rule reaches data JSON, tr()/i18n(), settings-schema descriptions,
 # .desktop, AppStream, packaging, .github/workflows/*.yml (through the pkgdesc
-# arm) and algorithm .luau. It does NOT reach
-# CHANGELOG.md entries or icon SVG <desc>, which are in the rule below but
-# stay review-only.
+# arm), algorithm .luau, and CHANGELOG.md entry BODIES (the text after the
+# `**Term**:` lead-in; the bold lead-in itself and the trailing reference link
+# are skipped, and an indented sub-bullet is reached like any other entry). Four
+# things stay review-only even where it does reach: an entry's bold title; the
+# dramatic "Label: payload" colon; the rule-of-three triad and "not just X, but
+# Y", none of which it tests; and a clause-splicing semicolon built from
+# PAST-tense prose, because the verb list its semicolon arm matches on carries no
+# past-tense lexical verbs.
 # Also runs on pre-commit (staged files) and in CI (whole tree).
 python3 scripts/check-conventions.py
 python3 scripts/check-conventions.py --list-rules
@@ -251,7 +283,7 @@ moon run phosphor-libs:test-release      # ctest --test-dir build-release/phosph
 moon query projects --affected      # which tiers a change reaches
 ```
 
-Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests, the shell and the tools on. The moon tasks are the debug ones by default and each has a `-release` twin. Plain CMake users get the same trees with `cmake --preset release && cmake --build --preset release`.
+Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests, the shell and the tools on. The moon tasks are the debug ones by default. Each tier's `build` and `test` and the `repo:configure` step have a `-release` twin; `repo:test` and `repo:install` have none and act on `build/`. Plain CMake users get the same trees with `cmake --preset release && cmake --build --preset release`.
 
 How it maps onto CMake (see `.moon/tasks/cmake.yml`): every tier task runs from the workspace root against the build directory its preset names. `build` invokes the tier's aggregate target, `<tier>-tier`, declared by `phosphor_tier_target()` near the end of each tier CMakeLists (the plasmazones one attaches its translations target after the call); `test` runs ctest scoped to `build/<tier>`. Because the build directory is shared, moon does not cache build outputs and ccache remains the compile cache. A tier gets its own build directory, and with it a moon-cached output, once it can be configured standalone against an installed upstream tier.
 
@@ -261,8 +293,8 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 
 - CMake with `CMAKE_AUTOMOC/AUTORCC/AUTOUIC ON`
 - `qt_add_qml_module()` — ALL QML files must be listed (missing = runtime "not a type" error)
-- `cmake -DUSE_KDE_FRAMEWORKS=ON` (default) or `OFF` for portable Qt-only build
-- KF6 deps when ON: `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme); optional: `Activities`
+- `cmake -DUSE_KDE_FRAMEWORKS=ON` (default) or `OFF` for a portable build without the KWin effect, the KCM and dynamic workspaces (compiled out under the `USE_KDE_FRAMEWORKS` define). `OFF` is not Qt-only: the settings app requires KF6 `Kirigami` in both modes
+- KF6 deps: `Kirigami` always (`plasmazones/src/settings/CMakeLists.txt`); when ON also `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme), `Config` (KConfig reads kwinrc and makes the consented `PerOutputVirtualDesktops` write for dynamic workspaces); optional in either mode: `Activities`, which only `phosphor-libs/libs/phosphor-workspaces` looks up and links
 - Pluggable backends: `PhosphorConfig::IBackend`, `PhosphorShortcuts::IBackend`, `IWallpaperProvider`
 - Standalone settings app (`plasmazones-settings`) + minimal KCM launcher
 
@@ -270,11 +302,10 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 The tree is four product tiers plus repo-level support directories. Each tier has its own `CMakeLists.txt` (entered from the root one) and its own `moon.yml` project.
 ```
 phosphor-libs/           — tier 1: core LGPL libraries
-  libs/phosphor-*/       — engines, rendering, layer-shell, animation, config, service-idle, ...
-  data/schemas/          — JSON schemas the libraries compile in
-  extern/                — vendored Luau + valijson tarballs
+  libs/phosphor-*/       — engines, rendering, layer-shell, animation, config, ipc, service-idle, ...
+  data/schemas/          — JSON schemas for library-owned document formats; the libraries compile most of them in
 phosphor-shell-libs/     — tier 2: shell libraries (BUILD_PHOSPHOR_SHELL)
-  libs/phosphor-*/       — theme, popout, ipc, phosphor-shell*, phosphor-service-* (all but idle)
+  libs/phosphor-*/       — theme, popout, phosphor-shell*, phosphor-service-* (all but idle)
   examples/              — demos and CLI acceptance harnesses
 phosphor-shell/          — tier 3: the shell binary (BUILD_PHOSPHOR_SHELL)
   src/                   — shell process controllers and transports
@@ -296,7 +327,7 @@ plasmazones/             — tier 4: PlasmaZones
   kcm/                   — System Settings module
   kwin-effect/           — KWin effect (C++)
   tests/                 — Unit tests (Qt Test)
-  tools/                 — Developer tools (shader-render); built with -DBUILD_TOOLS=ON
+  tools/                 — Developer tools; built with -DBUILD_TOOLS=ON
   data/layouts/          — Default layout templates (JSON) — snapping
   data/algorithms/       — Bundled Luau tiling algorithms — tiling
   data/scrolling-templates/ — Bundled strip templates — scrolling
@@ -305,12 +336,13 @@ plasmazones/             — tier 4: PlasmaZones
   data/surface/          — Window/shell decoration packs
   data/pointer/          — Pointer shader packs
   data/curves/           — Animation easing curves
+  data/placement-hosts/  — Host descriptor for the placement settings API
   data/schemas/          — Schemas for plasmazones-only documents (whatsnew, scrolling templates)
-cmake/                   — Shared CMake modules
+cmake/                   — Shared CMake modules, including the third-party pins (PhosphorDependencies.cmake)
 scripts/                 — Repo-level checks and dev harnesses
 .moon/                   — moon workspace config (see Build & Test)
 ```
-Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/`, `plasmazones/icons/`, `plasmazones/scripts/` (the installed support script) and `phosphor-libs/extern/` live inside their tiers. `phosphor-shell/` also carries its own `icons/` and `scripts/`.
+Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. `phosphor-shell/` also carries its own `scripts/`. App icons are not in the tree: they install from the pinned branding release (`cmake/PhosphorDependencies.cmake`).
 
 ## Testing
 - Qt Test: `QTEST_MAIN`, `QCOMPARE`, `QVERIFY`
@@ -345,9 +377,20 @@ Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazon
 ## Key Pitfalls
 - Never copy QObjects — Never hardcode colors/spacing — Never use indices for zones
 - Never emit without checking value changed — Never use raw string literals with Qt6
-- Keep files under 1000 lines (15% grace, hard ceiling 1150) — Keep QML for UI, C++ for logic
+- Keep QML for UI, C++ for logic
+
+## Lessons that cost a session
+Cross-cutting traps that each cost audit passes or a whole session. A trap owned by one domain lives in that reviewer's "Known past-bug shapes" instead (see the `record-lesson` skill).
+- **An absence is evidence only if the instrument ran.** A zero grep count, a build with no errors and a suite with no failures look the same when the target, binary or test did not exist (a mistyped `--target`, a stale binary, a `BUILD_TESTING=OFF` dir). Check the exit code and that the thing you measured exists before you trust a clean result.
+- **A test written with its fix proves the fix's premise.** Vacuous assertions have shipped green again and again. Before you count a test as coverage, revert the guard it pins and watch the test fail.
+- **Comments name symbols, never line numbers or counts.** "The other eleven" and "three sub-groups" went stale within a commit and misled the next fix. When a comment's claim has been wrong twice, delete the claim.
+- **A guard below a substitution cannot fire.** If a caller already swapped in a plausible fallback, the callee cannot tell the value is not real. Put the guard where the information still exists, check what every caller actually passes, and delete a guard that cannot fire.
+- **`QHash::value(key, f())` evaluates `f()` on every call.** The default is an ordinary argument, so if `f` inserts into the same container the lookup returns what `f` just wrote. Use `constFind` and resolve only on a miss.
+- **Agents sharing one working tree undo each other.** `git stash`, `reset --hard` and `checkout` run to check a pre-existing failure once wiped other agents' uncommitted work. Mutation checks run in a separate worktree or scratch copy, and nobody runs checkout, restore, stash or reset in a shared tree.
+- **Fractional scale hides one-pixel defects.** `QRectF::toRect()` and `qRound(logical * scale)` move an edge by a pixel at 1.15 or 1.25, which broke exact rect compares in the scroll engine, the snap engine and the editor. Check rect compares and scale-derived sizes at a fractional scale (the nested harness at 1.25).
+- **A new validation gate turns a producer/consumer disagreement into lost data.** Before adding a schema check or gate, check every producer against it. One gate rejected saves that clients still reported as successful.
 
 ## Support
 - Documentation: https://phosphor-works.github.io/plasmazones/
-- Repository: https://github.com/fuddlesworth/PlasmaZones
-- Issues: https://github.com/fuddlesworth/PlasmaZones/issues
+- Repository: https://github.com/phosphor-works/PlasmaZones
+- Issues: https://github.com/phosphor-works/PlasmaZones/issues

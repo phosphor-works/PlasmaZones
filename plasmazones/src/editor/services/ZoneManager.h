@@ -4,7 +4,6 @@
 #pragma once
 
 #include <QObject>
-#include <QPair>
 #include <QRectF>
 #include <QSet>
 #include <QSize>
@@ -19,6 +18,24 @@
 namespace PlasmaZones {
 
 class ZoneAutoFiller;
+
+/**
+ * @brief A zone's geometry as an undo snapshot
+ *
+ * The relative rect every zone carries, and the pixel rect a fixed zone is
+ * authored in. Undo restores a fixed zone's pixel rect verbatim: replaying
+ * only the relative rect through a setter that takes pixels for a fixed zone
+ * collapses it, and converting it back to pixels is lossy whenever the
+ * reference has moved since the capture. The fixed zone's relative copy is
+ * derived data and is re-derived from the restored pixels, while a relative
+ * zone gets its relative rect back verbatim.
+ */
+struct ZoneGeometrySnapshot
+{
+    QString zoneId;
+    QRectF relative;
+    QRectF fixed; ///< Invalid for a relative zone.
+};
 
 /**
  * @brief Manages zone CRUD operations
@@ -39,11 +56,15 @@ public:
     // type in every TU that includes this header without ZoneAutoFiller.h.
     ~ZoneManager() override;
 
-    // PhosphorZones::Zone CRUD operations
+    // Zone CRUD operations
     QString addZone(qreal x, qreal y, qreal width, qreal height);
     void updateZoneGeometry(const QString& zoneId, qreal x, qreal y, qreal width, qreal height);
     /**
-     * @brief Updates zone geometry without emitting signals (for multi-zone drag preview)
+     * @brief Updates zone geometry as a preview (for multi-zone drag)
+     *
+     * Emits zoneGeometryChanged and zonesChanged like updateZoneGeometry, but
+     * not zonesModified, so the move does not count as an edit. Units follow
+     * the zone's mode: pixels for a fixed zone, 0–1 otherwise.
      */
     void updateZoneGeometryDirect(const QString& zoneId, qreal x, qreal y, qreal width, qreal height);
     void updateZoneName(const QString& zoneId, const QString& name);
@@ -59,11 +80,32 @@ public:
     void resizeZonesAtDivider(const QString& zoneId1, const QString& zoneId2, qreal newDividerX, qreal newDividerY,
                               bool isVertical);
     /**
-     * @brief Collect (zoneId, geometry) for all zones that would be affected by a divider resize.
-     * Used by DividerResizeCommand to capture state before resize for undo.
+     * @brief Snapshot the geometry of every zone a divider resize would move.
+     * Used by DividerResizeCommand to capture state before resize for undo:
+     * the relative rect of each zone, and the pixel rect of each fixed one.
      */
-    QVector<QPair<QString, QRectF>> collectGeometriesAtDivider(const QString& zoneId1, const QString& zoneId2,
-                                                               bool isVertical);
+    QVector<ZoneGeometrySnapshot> collectGeometriesAtDivider(const QString& zoneId1, const QString& zoneId2,
+                                                             bool isVertical);
+
+    /**
+     * @brief The geometry of @p zoneId as an undo snapshot, or one with an
+     *        empty zoneId when the zone does not exist
+     */
+    ZoneGeometrySnapshot geometrySnapshot(const QString& zoneId) const;
+
+    /**
+     * @brief Put a zone's geometry back as @p snapshot captured it
+     *
+     * A relative zone gets its relative rect back verbatim. A fixed zone gets
+     * its pixel rect back verbatim and its relative copy re-derived from it
+     * against the current reference, since the reference may have moved since
+     * the capture. Emits zoneGeometryChanged, and zonesModified unless
+     * @p markModified is false (a cancelled preview putting a zone back is no
+     * edit). Unlike updateZoneGeometryDirect it does not clamp, so a fixed zone
+     * parked at a negative offset or past the reference edge goes back there.
+     * A zone that no longer exists is skipped.
+     */
+    void restoreGeometrySnapshot(const ZoneGeometrySnapshot& snapshot, bool markModified = true);
 
     // Auto-fill operations (handled by ZoneAutoFiller)
     /**
@@ -123,9 +165,10 @@ public:
     static bool isFixedMode(const QVariantMap& zone);
 
     /**
-     * @brief Get validated zone by ID with logging on failure
-     * @param zoneId PhosphorZones::Zone ID to look up
-     * @return Optional containing zone data, or empty on failure (logs warning)
+     * @brief Get a zone by ID, or nothing for an empty or unknown ID
+     * @param zoneId Zone ID to look up
+     * @return Optional containing zone data, or empty on failure. Logs
+     *         nothing; a caller that wants a warning writes its own.
      */
     std::optional<QVariantMap> getValidatedZone(const QString& zoneId) const;
 
@@ -165,13 +208,25 @@ public:
 
     /**
      * @brief Sync fixed pixel geometry from relative coords using m_referenceScreenSize
-     * @param zone PhosphorZones::Zone QVariantMap to update (modified in place)
+     * @param zone Zone QVariantMap to update (modified in place)
      */
     void syncFixedFromRelative(QVariantMap& zone) const;
 
     /**
+     * @brief Re-derive every fixed zone's relative copy from its pixel
+     *        geometry against the current reference size
+     *
+     * For a reference that moved under unchanged fixed numbers (a screen or
+     * inset change, or the layout's unit of fixed geometry), emitting a
+     * geometry change per zone. The relative copy is derived data, so this
+     * does not emit zonesModified: a caller acting on a user edit marks the
+     * layout unsaved itself.
+     */
+    void resyncFixedZones();
+
+    /**
      * @brief Sync relative fallback from fixed pixel coords using m_referenceScreenSize
-     * @param zone PhosphorZones::Zone QVariantMap to update (modified in place)
+     * @param zone Zone QVariantMap to update (modified in place)
      */
     void syncRelativeFromFixed(QVariantMap& zone) const;
 
@@ -190,7 +245,7 @@ public:
      *        at. Negative, or past the end, means the top. Only an undo that puts a deleted zone
      *        back where it came from passes a real index; paste, duplicate and the redo of an
      *        add all belong on top.
-     * @return PhosphorZones::Zone ID of the created zone, or empty string on failure
+     * @return Zone ID of the created zone, or empty string on failure
      *
      * Allows pasting zones with all their properties intact. Validates
      * zone data and creates new zone with specified properties.
@@ -200,17 +255,17 @@ public:
 
     /**
      * @brief Get complete zone data by ID (for undo state and QML lookup)
-     * @param zoneId PhosphorZones::Zone ID to retrieve
+     * @param zoneId Zone ID to retrieve
      * @return Complete zone data as QVariantMap, or empty map if not found
      *
-     * This method is Q_INVOKABLE for efficient O(1) lookup from QML,
-     * avoiding expensive O(n) loops in property bindings.
+     * Q_INVOKABLE so QML bindings can look a zone up with one call (a linear
+     * scan in C++) instead of looping over the zones list in JavaScript.
      */
     Q_INVOKABLE QVariantMap getZoneById(const QString& zoneId) const;
 
     /**
      * @brief Set complete zone data (for undo restoration)
-     * @param zoneId PhosphorZones::Zone ID to update
+     * @param zoneId Zone ID to update
      * @param zoneData Complete zone data including all properties
      * @note MUST emit zonesChanged() on success — callers (e.g. applyZoneGeometryMode)
      *       rely on this instead of emitting separately.

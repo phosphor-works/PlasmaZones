@@ -23,7 +23,7 @@ namespace PlasmaZones {
 
 /// Persistence, CRUD, and inheritance resolution for settings profiles. One
 /// instance, hosted as a child QObject of ProfilePageController and handed to
-/// QML as the `profilesBridge`.
+/// QML as that controller's `bridge` property.
 ///
 /// A profile is a single JSON file `<uuid>.json` under
 /// `~/.config/plasmazones/profiles`, holding only what CHANGES from its parent
@@ -183,6 +183,12 @@ public:
     /// descendant of itself).
     Q_INVOKABLE bool setParent(const QString& id, const QString& parentId);
 
+    /// @p id and every profile that inherits from it, directly or further down
+    /// (braced ids). These are exactly the parents setParent refuses for @p id,
+    /// so the Set Parent picker leaves them out instead of offering a choice
+    /// that only fails. Empty for an unknown id.
+    Q_INVOKABLE QStringList selfAndDescendantIds(const QString& id) const;
+
     /// Delete a profile. Its children are rebound to its parent (the deleted
     /// node's grandparent for them), re-flattening their deltas so their
     /// resolved config is unchanged. If the deleted profile was the staged
@@ -234,7 +240,8 @@ Q_SIGNALS:
     /// clears the pointer itself (removeProfile deleting the active profile).
     void committedActiveIdChanged(const QString& id);
 
-    /// User-facing failure reason for the chrome toast.
+    /// User-facing text for the chrome toast: why an action failed, or the
+    /// confirmation of one that has no other visible result (an export).
     void toastRequested(const QString& text);
 
 private:

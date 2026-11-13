@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[Desktop Entry]
+Type=Application
+Name=PlasmaZones Settings
+GenericName=Window Placement Settings
+Comment=Configure window snapping, tiling and scrolling for PlasmaZones
+Icon=org.phosphor_works.Facet
+Exec=plasmazones-settings
+Terminal=false
+Categories=Qt;KDE;Settings;
+Keywords=window;tiling;zones;layout;snap;scrolling;column;template;settings;
+StartupWMClass=plasmazones-settings
+SingleMainWindow=true

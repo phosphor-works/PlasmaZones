@@ -36,7 +36,7 @@ using namespace ShortcutIds;
 // cheatsheetModel(). Kept as a separate id-keyed table (rather than columns
 // on kStaticEntries) so registration stays independent of presentation and
 // the whole classification reads in one place. Category labels are
-// untranslated keys; cheatsheetModel() runs them through PhosphorI18n::tr.
+// untranslated keys; catalogRows() runs them through PhosphorI18n::tr.
 //
 // Mode classification contract (maintainer-decided). A shortcut is tagged
 // with the modes it actually DOES something in, so the sheet never hides a
@@ -71,7 +71,7 @@ struct CatalogMeta
 {
     const char* category;
     // Sort key for the category block, NOT an index: only the relative order
-    // matters, so the values are deliberately sparse (2 and 5-7 are
+    // matters, so the values are deliberately sparse (2 and 6-7 are
     // unallocated) to leave room for a new category between two existing ones
     // without renumbering the table. Gaps are not removed categories.
     int categoryOrder;
@@ -115,7 +115,28 @@ struct CatalogMeta
     // renumbering. The prefix-keyed digit families take a large explicit
     // value so they always land at the end of their category.
     int rowOrder = 0;
+    // Optional tr() disambiguation for shortLabel, for a short label whose
+    // bare source text other parts of the application also translate (a
+    // generic "Move Up" on a list control). Last so the positional
+    // initializers of the prefix arms below need not spell it.
+    const char* shortLabelDisambiguation = nullptr;
 };
+
+/// A translatable source string with its tr() disambiguation, built with
+/// QT_TRANSLATE_NOOP3 so lupdate extracts both.
+struct LabelWithContext
+{
+    const char* source;
+    const char* comment;
+};
+/// In-category sort key of the named-workspace chord rows: after the digit
+/// families (9000), counting up per row in label order (catalogRows).
+constexpr int kNamedChordRowOrder = 9500;
+
+constexpr LabelWithContext kWorkspaceReorderUpLabel = QT_TRANSLATE_NOOP3(
+    "plasmazones", "Move Up", "cheatsheet row moving the current workspace earlier in its monitor's list");
+constexpr LabelWithContext kWorkspaceReorderDownLabel = QT_TRANSLATE_NOOP3(
+    "plasmazones", "Move Down", "cheatsheet row moving the current workspace later in its monitor's list");
 
 // The scrolling verbs do not fit under one heading. A single "Scrolling"
 // block ran to sixty-odd rows, which is a wall rather than a reference, so
@@ -177,10 +198,11 @@ CatalogMeta catalogMetaForId(const QString& id)
         int seq = 0;
         const auto add = [&m, &seq](const char* id, const char* category, int order, const char* mode,
                                     const char* categoryDisambiguation = nullptr, const char* shortLabel = nullptr,
-                                    const char* explanation = nullptr, const char* templatesExplanation = nullptr) {
-            m.insert(
-                QLatin1String(id),
-                {category, order, mode, categoryDisambiguation, shortLabel, explanation, templatesExplanation, seq++});
+                                    const char* explanation = nullptr, const char* templatesExplanation = nullptr,
+                                    const char* shortLabelDisambiguation = nullptr) {
+            m.insert(QLatin1String(id),
+                     {category, order, mode, categoryDisambiguation, shortLabel, explanation, templatesExplanation,
+                      seq++, shortLabelDisambiguation});
         };
         add(kIdOpenEditor, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all");
         add(kIdOpenSettings, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all");
@@ -303,6 +325,42 @@ CatalogMeta catalogMetaForId(const QString& id)
             QT_TRANSLATE_NOOP("plasmazones", "Cycle Focus Forward"));
         add(kIdCycleWindowBackward, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
             QT_TRANSLATE_NOOP("plasmazones", "Cycle Focus Backward"));
+        // ── Dynamic workspaces (mode-neutral). The family holds grabs only
+        // while the feature runs, and catalogRows() leaves parked rows out,
+        // so with the feature off this block does not appear at all. The
+        // chords are assigned on the settings app's workspace shortcuts page,
+        // and the bound ones also stay rebindable in System Settings.
+        // Short labels drop the "Workspace" the group heading already says.
+        add(kIdWorkspaceFocusUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Focus Above"));
+        add(kIdWorkspaceFocusDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Focus Below"));
+        add(kIdWorkspaceMoveWindowUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Move Window Above"));
+        add(kIdWorkspaceMoveWindowDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Move Window Below"));
+        add(kIdWorkspaceMoveColumnUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "scrolling", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Move Column Above"),
+            QT_TRANSLATE_NOOP("plasmazones", "Moves the focused column to the workspace above."));
+        add(kIdWorkspaceMoveColumnDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "scrolling", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Move Column Below"),
+            QT_TRANSLATE_NOOP("plasmazones", "Moves the focused column to the workspace below."));
+        add(kIdWorkspaceReorderUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            kWorkspaceReorderUpLabel.source,
+            QT_TRANSLATE_NOOP("plasmazones", "Moves the current workspace earlier in this monitor's list."), nullptr,
+            kWorkspaceReorderUpLabel.comment);
+        add(kIdWorkspaceReorderDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            kWorkspaceReorderDownLabel.source,
+            QT_TRANSLATE_NOOP("plasmazones", "Moves the current workspace later in this monitor's list."), nullptr,
+            kWorkspaceReorderDownLabel.comment);
+        add(kIdWorkspaceMoveToMonitorLeft, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Move to Left Monitor"),
+            QT_TRANSLATE_NOOP("plasmazones",
+                              "Moves the current workspace and its windows to the monitor on the left."));
+        add(kIdWorkspaceMoveToMonitorRight, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("plasmazones", "Move to Right Monitor"),
+            QT_TRANSLATE_NOOP("plasmazones",
+                              "Moves the current workspace and its windows to the monitor on the right."));
         add(kIdSwapVirtualScreenLeft, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
             QT_TRANSLATE_NOOP("plasmazones", "Swap Screen Left"));
         add(kIdSwapVirtualScreenRight, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
@@ -460,8 +518,8 @@ CatalogMeta catalogMetaForId(const QString& id)
         add(kIdScrollEqualizeColumnWidths, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
             QT_TRANSLATE_NOOP("plasmazones",
-                              "Gives every column fully on screen an equal share of the screen. Columns "
-                              "clipped at an edge are left alone."));
+                              "Gives every column on screen an equal share of the screen. A column "
+                              "clipped at an edge comes fully into view."));
         // ── Window height ──
         add(kIdScrollIncreaseWindowHeight, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment, nullptr,
@@ -574,6 +632,28 @@ CatalogMeta catalogMetaForId(const QString& id)
                 nullptr,
                 9000};
     }
+    if (id.startsWith(QLatin1String(kWorkspaceMoveSlotPrefix))) {
+        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+                5,
+                "all",
+                nullptr,
+                nullptr,
+                QT_TRANSLATE_NOOP("plasmazones",
+                                  "Sends the active window to the named workspace assigned to this slot in "
+                                  "Settings under Workspaces."),
+                nullptr,
+                9000};
+    }
+    if (id.startsWith(QLatin1String(kWorkspaceFocusSlotPrefix))) {
+        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+                5,
+                "all",
+                nullptr,
+                nullptr,
+                QT_TRANSLATE_NOOP("plasmazones", "Switches this monitor to the numbered workspace of its own list."),
+                nullptr,
+                9000};
+    }
     if (id.startsWith(QLatin1String(kScrollFocusTabPrefix))) {
         // Scrolling only, unlike the mode-neutral zone digits above: the
         // ordinal addresses a TAB of the focused column, which is a concept
@@ -588,6 +668,30 @@ CatalogMeta catalogMetaForId(const QString& id)
                                   "it focuses that window in the stack."),
                 nullptr,
                 9000};
+    }
+    // The named-workspace chords are adhoc, bound per declared entry, and the
+    // one adhoc family the catalog lists (catalogRows adds them). Their
+    // registration description already names the workspace, so it is the
+    // row label as is.
+    if (id.startsWith(QLatin1String(kWorkspaceNamedFocusPrefix))) {
+        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+                5,
+                "all",
+                nullptr,
+                nullptr,
+                QT_TRANSLATE_NOOP("plasmazones", "Switches to this named workspace."),
+                nullptr,
+                kNamedChordRowOrder};
+    }
+    if (id.startsWith(QLatin1String(kWorkspaceNamedMovePrefix))) {
+        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+                5,
+                "all",
+                nullptr,
+                nullptr,
+                QT_TRANSLATE_NOOP("plasmazones", "Sends the active window to this named workspace."),
+                nullptr,
+                kNamedChordRowOrder};
     }
     // A shortcut added to the table without catalog metadata still shows up
     // (miscategorised beats invisible), and the log points at the fix.
@@ -630,21 +734,23 @@ QString lastKeyToken(const QString& sequence)
 QVector<QVariantMap> ShortcutManager::catalogRows() const
 {
     QVector<QVariantMap> rows;
+    if (!m_registry) {
+        return rows;
+    }
     rows.reserve(m_entries.size());
-    for (const auto& e : m_entries) {
-        const CatalogMeta meta = catalogMetaForId(e.id);
-        QStringList triggers;
-        if (m_registry) {
-            triggers = m_registry->effectiveTriggers(e.id);
-        }
+    // One row per catalogued id. @p description is the registration
+    // description, the label when the catalog carries no shorter one.
+    const auto appendRow = [this, &rows](const QString& id, const QString& description, int rowOrderOverride) {
+        const CatalogMeta meta = catalogMetaForId(id);
+        QStringList triggers = m_registry->effectiveTriggers(id);
         // Normalize to PortableText where the string parses as a key
         // sequence. KGlobalAccel read-back is PortableText already, but the
         // Portal backend relays the compositor's trigger_description
         // verbatim, which may be native/localized spelling — without
         // normalization the family compression's token compares silently
-        // fail and the sheet shows every family-member row uncompressed. A string that
-        // doesn't parse stays verbatim (better an odd chip than a lost
-        // binding).
+        // fail and the sheet shows every family-member row uncompressed. A
+        // string that doesn't parse stays verbatim (better an odd chip than a
+        // lost binding).
         for (QString& t : triggers) {
             const QKeySequence parsed(t);
             if (!parsed.isEmpty()) {
@@ -652,8 +758,9 @@ QVector<QVariantMap> ShortcutManager::catalogRows() const
             }
         }
         QVariantMap row;
-        row.insert(QStringLiteral("id"), e.id);
-        row.insert(QStringLiteral("label"), meta.shortLabel ? PhosphorI18n::tr(meta.shortLabel) : e.description);
+        row.insert(QStringLiteral("id"), id);
+        row.insert(QStringLiteral("label"),
+                   meta.shortLabel ? PhosphorI18n::tr(meta.shortLabel, meta.shortLabelDisambiguation) : description);
         // Always present (possibly empty) so the QML tooltip binding never
         // reads an undefined role.
         row.insert(QStringLiteral("description"), meta.explanation ? PhosphorI18n::tr(meta.explanation) : QString());
@@ -666,11 +773,37 @@ QVector<QVariantMap> ShortcutManager::catalogRows() const
         row.insert(QStringLiteral("categoryOrder"), meta.categoryOrder);
         // In-category sort key; the catalog table's authoring order. A merged
         // family row keeps its FIRST member's slot.
-        row.insert(QStringLiteral("rowOrder"), meta.rowOrder);
+        row.insert(QStringLiteral("rowOrder"), rowOrderOverride >= 0 ? rowOrderOverride : meta.rowOrder);
         row.insert(QStringLiteral("triggers"), triggers);
         row.insert(QStringLiteral("assigned"), !triggers.isEmpty());
         row.insert(QStringLiteral("mode"), QString::fromLatin1(meta.mode));
         rows.push_back(row);
+    };
+    for (const auto& e : m_entries) {
+        // A parked entry (its feature off, or the workspace focus pair while
+        // KWin keeps the stock chords) holds no grab. Listing it would show a
+        // key that does nothing, or a row of a feature that is not running,
+        // so both the sheet and the shell's catalog leave it out.
+        if (!m_registry->isActive(e.id)) {
+            continue;
+        }
+        appendRow(e.id, e.description, -1);
+    }
+    // The named-workspace chords, ordered by label within their shared slot
+    // after the digit families. bindings() sorts by id, which is an entry id
+    // and means nothing to a reader.
+    QVector<PhosphorShortcuts::Registry::Binding> named;
+    for (const auto& binding : m_registry->bindings()) {
+        if (isCataloguedAdhocId(binding.id)) {
+            named.push_back(binding);
+        }
+    }
+    std::sort(named.begin(), named.end(), [](const auto& a, const auto& b) {
+        return QString::localeAwareCompare(a.description, b.description) < 0;
+    });
+    int namedOrder = kNamedChordRowOrder;
+    for (const auto& binding : std::as_const(named)) {
+        appendRow(binding.id, binding.description, namedOrder++);
     }
     return rows;
 }
@@ -716,11 +849,13 @@ QVariantList ShortcutManager::cheatsheetModel() const
     // When every member of a family is assigned, all members share the same
     // modifier prefix, and each member's final key token is the expected one
     // (its digit / direction), the family collapses into ONE row whose last
-    // chip is a range token ("1-9") or "Arrows". Any deviation — a member
-    // unassigned, a rebind off-pattern — falls back to the individual rows,
-    // because a compressed row would then lie about what the keys do.
+    // chip is a range token ("1-9") or "Arrows". A family with NO member
+    // assigned collapses too, into one unassigned row. Any other deviation —
+    // some members unassigned, a rebind off-pattern — falls back to the
+    // individual rows, because a compressed row would then lie about what the
+    // keys do.
     using FamilySpec = CheatsheetFamily;
-    // ONLY the three digit families and the directional quads compress. Opposed
+    // ONLY the digit families and the directional quads compress. Opposed
     // PAIRS (the bracket/comma rotate and cycle pairs, the scrolling
     // Home/End, U/O, paging-key and letter+Shift pairs) deliberately do
     // NOT: every action keeps its own row, spelled out, so no direction is
@@ -731,11 +866,15 @@ QVariantList ShortcutManager::cheatsheetModel() const
     QStringList digitTokens;
     QStringList quickLayoutIds;
     QStringList snapToZoneIds;
+    QStringList workspaceMoveSlotIds;
+    QStringList workspaceFocusSlotIds;
     QStringList scrollFocusTabIds;
     for (int i = 0; i < kIndexedSlotCount; ++i) {
         digitTokens.append(QString::number(i + 1));
         quickLayoutIds.append(quickLayoutId(i));
         snapToZoneIds.append(snapToZoneId(i));
+        workspaceMoveSlotIds.append(workspaceMoveSlotId(i));
+        workspaceFocusSlotIds.append(workspaceFocusSlotId(i));
         scrollFocusTabIds.append(scrollFocusTabId(i));
     }
     // One spelling of the digit range everywhere: the chip token and the row
@@ -749,9 +888,9 @@ QVariantList ShortcutManager::cheatsheetModel() const
     // templatesDescription variant too: a combinedDescription overwrites
     // BOTH tooltip roles, so a member's templatesExplanation is dropped by
     // the merge and a family needing distinct templates wording must be left
-    // uncompressed rather than given one combined string.  The directional
+    // uncompressed rather than given one combined string. The directional
     // quad members below all have empty explanations today; give the spec a
-    // combinedDescription before adding one. The three digit families are the
+    // combinedDescription before adding one. The digit families are the
     // exception: their prefix-generated per-member explanation is identical
     // across members and reads correctly for the merged range row, so
     // keeping the first member's is right for them.
@@ -768,13 +907,30 @@ QVariantList ShortcutManager::cheatsheetModel() const
         // and the digits address a zone in snapping, a layout slot in tiling
         // and a visible tile in scrolling, so the row itself stays out of any
         // one mode's vocabulary.
-        {snapToZoneIds, digitTokens, PhosphorI18n::tr("Zone %1").arg(digitRange), digitRange},
-        // Ships unbound, so this one does not compress by default. It still
-        // needs a spec: a user who binds all nine on one prefix would
-        // otherwise get nine near-identical rows where the two families above
-        // give one. Its prefix-generated explanation is identical across
-        // members, which is the exception the INVARIANT above sanctions.
-        {scrollFocusTabIds, digitTokens, PhosphorI18n::tr("Focus Tab %1").arg(digitRange), digitRange},
+        // Disambiguated like the quick-layout range: the editor's ordinal zone
+        // names share the bare "Zone %1" source.
+        {snapToZoneIds, digitTokens, PhosphorI18n::tr("Zone %1", "range of zone slots, e.g. 1-9").arg(digitRange),
+         digitRange},
+        // The two workspace slot families are digit families like the two
+        // above, and get the same treatment: without a spec here they show up
+        // as two nine-row walls in the Workspaces group. Both take their
+        // description from a prefix arm, so every member carries the identical
+        // wording and the merged row keeping the first member's is right. The
+        // disambiguations are needed for the same reason quick layouts' is:
+        // the registration table uses these source strings with an ordinal.
+        {workspaceMoveSlotIds, digitTokens,
+         PhosphorI18n::tr("Move Window to Workspace Slot %1", "range of workspace slots, e.g. 1-9").arg(digitRange),
+         digitRange},
+        {workspaceFocusSlotIds, digitTokens,
+         PhosphorI18n::tr("Focus Workspace %1", "range of workspace slots, e.g. 1-9").arg(digitRange), digitRange},
+        // Ships unbound, so by default it folds into one unassigned row. A
+        // user who binds all nine on one prefix gets the one range row the
+        // other digit families give. Its prefix-generated explanation is
+        // identical across members, which is the exception the INVARIANT
+        // above sanctions. Disambiguated against the registration table's
+        // ordinal use of the same source string.
+        {scrollFocusTabIds, digitTokens,
+         PhosphorI18n::tr("Focus Tab %1", "range of tab ordinals, e.g. 1-9").arg(digitRange), digitRange},
         {{QString::fromLatin1(kIdMoveWindowLeft), QString::fromLatin1(kIdMoveWindowRight),
           QString::fromLatin1(kIdMoveWindowUp), QString::fromLatin1(kIdMoveWindowDown)},
          arrowTokens,
@@ -843,8 +999,21 @@ QVector<QVariantMap> ShortcutManager::compressCheatsheetFamilies(QVector<QVarian
                                    << "— skipping compression";
             continue;
         }
+        // A family with no member assigned folds into one unassigned row: the
+        // sheet would otherwise show a wall of empty rows for an unbound slot
+        // family. Every member must be present and not yet consumed, as for
+        // the assigned fold below.
+        bool allUnassigned = true;
+        for (const QString& memberId : family.ids) {
+            const int idx = rowIndexById.value(memberId, -1);
+            if (idx < 0 || consumedIndices.contains(idx)
+                || !rows[idx].value(QLatin1String("triggers")).toStringList().isEmpty()) {
+                allUnassigned = false;
+                break;
+            }
+        }
         QString sharedPrefix;
-        bool compressible = true;
+        bool compressible = !allUnassigned;
         for (int m = 0; m < family.ids.size() && compressible; ++m) {
             const int idx = rowIndexById.value(family.ids[m], -1);
             if (idx < 0) {
@@ -892,7 +1061,7 @@ QVector<QVariantMap> ShortcutManager::compressCheatsheetFamilies(QVector<QVarian
                 break;
             }
         }
-        if (!compressible) {
+        if (!compressible && !allUnassigned) {
             continue;
         }
         // Sentinel default like the member lookups above: a compressibility
@@ -938,7 +1107,12 @@ QVector<QVariantMap> ShortcutManager::compressCheatsheetFamilies(QVector<QVarian
             row.insert(QStringLiteral("description"), family.combinedDescription);
             row.insert(QStringLiteral("templatesDescription"), family.combinedDescription);
         }
-        row.insert(QStringLiteral("triggers"), QStringList{sharedPrefix + QLatin1Char('+') + family.tailToken});
+        if (allUnassigned) {
+            row.insert(QStringLiteral("triggers"), QStringList());
+            row.insert(QStringLiteral("assigned"), false);
+        } else {
+            row.insert(QStringLiteral("triggers"), QStringList{sharedPrefix + QLatin1Char('+') + family.tailToken});
+        }
         consumedIndices.insert(firstIdx);
         for (int m = 1; m < family.ids.size(); ++m) {
             const int memberIdx = rowIndexById.value(family.ids[m], -1);

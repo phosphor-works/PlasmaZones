@@ -114,6 +114,11 @@ private Q_SLOTS:
             QVERIFY(!RuleAction::fromJson(o).has_value()); // no algorithm → rejected
             o.insert(QStringLiteral("algorithm"), QString()); // empty → rejected
             QVERIFY(!RuleAction::fromJson(o).has_value());
+            // Bounded like SetTilingAlgorithm's token: the cap passes, one over fails.
+            o.insert(QStringLiteral("algorithm"), QString(MaxChainPackIdLength, QLatin1Char('a')));
+            QVERIFY(RuleAction::fromJson(o).has_value());
+            o.insert(QStringLiteral("algorithm"), QString(MaxChainPackIdLength + 1, QLatin1Char('a')));
+            QVERIFY(!RuleAction::fromJson(o).has_value());
             o.insert(QStringLiteral("algorithm"), QStringLiteral("bsp"));
             QVERIFY(RuleAction::fromJson(o).has_value()); // algorithm alone → accepted
             QJsonObject blob;
@@ -307,8 +312,8 @@ private Q_SLOTS:
         // asking for the system font, and it is the only way a rule walks one
         // screen back to the default after a global family was picked. The
         // empty row below is load-bearing. Swap the descriptor's
-        // hasStringAllowingEmpty for the ordinary hasNonEmptyString and every
-        // other line in this block still passes while the feature is dead.
+        // hasStringAllowingEmpty for a check that rejects the empty string and
+        // every other line in this block still passes while the feature is dead.
         rejectsMissingValue(ActionType::SetTabIndicatorFontFamily);
         rejects(ActionType::SetTabIndicatorFontFamily, 700); // a number, not a string
         acceptsWithSlot(ActionType::SetTabIndicatorFontFamily, QString(), ActionSlot::TabIndicatorFontFamily);
@@ -735,9 +740,10 @@ private Q_SLOTS:
         // empty: a group with no name names nothing, so empty and
         // whitespace-only are rejected, non-strings are rejected, and the
         // cap is measured on the TRIMMED value (so a padded-to-cap name is
-        // accepted where the font family's padded case is too). Swap the
-        // descriptor's validator for hasStringAllowingEmpty, or drop its
-        // trimmed(), and the rows below catch it.
+        // accepted where the font family's padded case is too), while the
+        // raw string still has a ceiling. Swap the descriptor's validator for
+        // hasStringAllowingEmpty, or for a check that does not trim, and the
+        // rows below catch it.
         {
             rejectsMissingValue(ActionType::OpenTabGroup);
             QJsonObject o;
@@ -764,6 +770,9 @@ private Q_SLOTS:
             acceptsValue(QString(MaxTabGroupNameLength, QLatin1Char('x')));
             const QString paddedGroup = QString(2, QLatin1Char(' ')) + QString(MaxTabGroupNameLength, QLatin1Char('x'));
             acceptsValue(paddedGroup);
+            // Stored verbatim, so padding far past any real name is refused on
+            // the raw length even though the trimmed name is valid.
+            rejectsValue(QString(QString(MaxChainPackIdLength, QLatin1Char(' ')) + QStringLiteral("work")));
             // The descriptor publishes the cap so the editor's text field can
             // bound input at the same number the validator enforces.
             const auto desc = ActionRegistry::instance().descriptor(QString(ActionType::OpenTabGroup));

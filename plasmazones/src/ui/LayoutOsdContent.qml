@@ -124,13 +124,15 @@ Item {
     property bool isTemplate: false
     property bool disabled: false
     property string disabledReason: ""
-    // Icon for the disabled-style overlay card. This card is refusal-only
-    // by design (overlayservice.h documents it: every producer explains why
-    // a requested change had no effect), so the sole writer restates
-    // "dialog-cancel" per show and the grey tint below is unconditional. A
-    // future positive announcement must NOT reuse this card — it renders
-    // its own content type instead (the scrolling mode switch, which
-    // briefly reused it, now shows its strip preview).
+    // Icon for the message-style overlay card. Two writers restate it per
+    // show (OverlayService::showMessageCard): showDisabledOsd writes
+    // "dialog-cancel" for a requested change that had no effect or was
+    // undone, and showInfoOsd writes "dialog-information" for a hint that
+    // reports something done on the user's behalf, not a refusal. The glyph
+    // below is tinted grey only for "dialog-cancel". A layout
+    // or mode announcement must NOT reuse this card — it renders its own
+    // content type instead (the scrolling mode switch, which briefly reused
+    // it, now shows its strip preview).
     property string disabledIcon: "dialog-cancel"
     /// Auto-dismiss request emitted by the dismissTimer / click MouseArea.
     /// The unified shell host re-emits this as its `osdDismissRequested`
@@ -301,9 +303,9 @@ Item {
                 source: root.disabledIcon
                 width: Kirigami.Units.iconSizes.large
                 height: Kirigami.Units.iconSizes.large
-                // Unconditional grey: the card is refusal-only (see the
-                // disabledIcon note above), so the tint always applies.
-                color: Kirigami.Theme.disabledTextColor
+                // Grey for a refusal only; the information glyph keeps the
+                // normal text colour (see the disabledIcon note above).
+                color: root.disabledIcon === "dialog-cancel" ? Kirigami.Theme.disabledTextColor : Kirigami.Theme.textColor
             }
         }
 

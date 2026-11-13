@@ -15,8 +15,10 @@
 #include "core/platform/logging.h"
 #include "phosphor_slot_keys.h"
 #include "phosphor_roles.h"
+#include "qml_property_names.h"
 
 #include <PhosphorOverlay/ShellHost.h>
+#include <PhosphorSurface/DecorationSupportedPaths.h>
 #include <PhosphorLayer/Surface.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>
@@ -79,10 +81,11 @@ void OverlayService::showCheatsheet(const QString& screenId, const QVariantList&
         return;
     }
 
-    QRect screenGeom = resolveScreenGeometry(m_screenManager, resolvedId);
-    if (!screenGeom.isValid()) {
-        screenGeom = screen->geometry();
-    }
+    // ONE lookup, kept in both forms. trueGeom is the verdict assertWindowOnScreen needs, screenGeom
+    // is the rect the window is sized to. Asking twice cost a second virtual-geometry rebuild and,
+    // because that rebuild clears its own warn-once set, a second warning per show.
+    const QRect trueGeom = trueScreenGeometry(m_screenManager, resolvedId);
+    const QRect screenGeom = trueGeom.isValid() ? trueGeom : screen->geometry();
 
     auto* state = ensurePassiveShellFor(resolvedId, screen);
     if (!state || !state->shell || !state->shell->shellSurface() || !state->cheatsheetSlot()) {
@@ -114,9 +117,10 @@ void OverlayService::showCheatsheet(const QString& screenId, const QVariantList&
         auto prevIt = m_screenStates.find(prevScreenId);
         if (prevIt != m_screenStates.end() && prevIt->shell && prevIt->shell->shellSurface()
             && prevIt->cheatsheetSlot()) {
-            m_shellHost->hideSlot(prevScreenId, PhosphorSlotKeys::Cheatsheet(), [this, prevScreenId]() {
-                onCheatsheetSlotHideCompleted(prevScreenId);
-            });
+            m_shellHost->hideSlot(prevScreenId, PhosphorSlotKeys::Cheatsheet(),
+                                  [this, prevScreenId, slotItem = QPointer<QQuickItem>(prevIt->cheatsheetSlot())]() {
+                                      onCheatsheetSlotHideCompleted(currentKeyForSlotItem(slotItem, prevScreenId));
+                                  });
         }
         // Drop the previous surface's keyboard grab on this edge rather than
         // waiting for its fade to finish. The slot stays visible for the whole
@@ -140,10 +144,12 @@ void OverlayService::showCheatsheet(const QString& screenId, const QVariantList&
     // Same SurfaceDecoration host the picker uses, retargeted to the
     // cheatsheet's surface path. Empty resolution = no decoration (card
     // draws natively).
-    applyDecoration(slot, QStringLiteral("popup.cheatsheet"));
+    applyDecoration(slot, PhosphorSurfaceShaders::decorationPopupCheatsheetPath());
 
     if (shellWindow) {
-        assertWindowOnScreen(shellWindow, screen, screenGeom);
+        // trueGeom, not screenGeom: that one is substituted above when the id does not resolve, and
+        // a substituted rect makes assertWindowOnScreen's physical-screen test trivially true.
+        assertWindowOnScreen(shellWindow, screen, trueGeom);
         shellWindow->setWidth(screenGeom.width());
         shellWindow->setHeight(screenGeom.height());
     }
@@ -191,21 +197,27 @@ void OverlayService::hideCheatsheet()
     // or asynchronously — same ordering contract as the picker.
     Q_EMIT cheatsheetDismissed();
 
-    // Hand the keyboard back now, not when the fade finishes. The sheet is the
-    // one overlay that takes keyboard focus for its search field (see the
-    // anyKeyboardGrabbing derivation in shellhost_bridge.cpp), and the slot
-    // stays visible for the whole hide animation — releasing on completion
-    // would eat every keystroke aimed at the window the user just came back
-    // to. m_cheatsheetVisible is already false above, so this recomputes to
-    // kbd-None while leaving the mapped/input-region state untouched.
+    // Withdraw the keyboard request now, not when the fade finishes. The sheet
+    // is the one overlay that takes keyboard focus for its search field (see
+    // the anyKeyboardGrabbing derivation in shellhost_bridge.cpp), and the
+    // slot stays visible for the whole hide animation. A compositor that
+    // honours a runtime release hands focus back at once; KWin does not, and
+    // returns focus when the shell unmaps after the fade (the note at
+    // anyKeyboardGrabbing). m_cheatsheetVisible is already false above, so
+    // this recomputes to kbd-None while leaving the mapped/input-region state
+    // untouched.
     syncPassiveShellSurfaceState(screenId);
 
     auto stateIt = m_screenStates.find(screenId);
     if (stateIt != m_screenStates.end() && stateIt->shell && stateIt->shell->shellSurface()
         && stateIt->cheatsheetSlot()) {
-        m_shellHost->hideSlot(screenId, PhosphorSlotKeys::Cheatsheet(), [this, effectiveId = screenId]() {
-            onCheatsheetSlotHideCompleted(effectiveId);
-        });
+        // Resolved through the slot item at completion time: a rekey can move
+        // the state to a new key while the leg runs (see currentKeyForSlotItem).
+        m_shellHost->hideSlot(
+            screenId, PhosphorSlotKeys::Cheatsheet(),
+            [this, effectiveId = screenId, slotItem = QPointer<QQuickItem>(stateIt->cheatsheetSlot())]() {
+                onCheatsheetSlotHideCompleted(currentKeyForSlotItem(slotItem, effectiveId));
+            });
     }
 }
 
@@ -250,16 +262,18 @@ void OverlayService::onCheatsheetSlotHideCompleted(const QString& effectiveId)
     // Release the backdrop stand-in, matching onOsdSlotHideCompleted: a hidden
     // slot draws none of it, the image is wallpaper-sized, and every show runs
     // applyDecoration again, which rewrites it.
-    writeQmlProperty(it->cheatsheetSlot(), QStringLiteral("backdropTexture"), QVariant());
-    syncPassiveShellSurfaceState(effectiveId);
+    writeQmlProperty(it->cheatsheetSlot(), QString(OverlayQmlPropertyNames::BackdropTexture), QVariant());
     // Symmetric with every other modal's hide completion (snap assist, the
     // picker, the OSD): the zone selector suppresses its restore while an
     // input-grabbing modal owns the screen, so whichever modal was owning it
     // has to hand the screen back on its way out. The sheet cannot currently
     // be up during a drag, so this restores nothing today; leaving it out
     // would make the selector's guard depend on that suppression holding
-    // forever, in a different file.
+    // forever, in a different file. Restore BEFORE the sync, as the siblings
+    // do: synced first with the sheet as the only visible slot, the shell
+    // would unmap and then remap at once for the restored selector.
     restoreZoneSelectorAfterHide(effectiveId);
+    syncPassiveShellSurfaceState(effectiveId);
 }
 
 void OverlayService::onCheatsheetDismissRequested()

@@ -1,17 +1,12 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// FILE-SIZE EXCEPTION: this header is well past the 1150 hard ceiling and grows
-// with each overlay surface. No line count here, because it goes stale within a
-// release; scripts/oversize-baseline.json holds the authoritative figure.
-//
-// The case for it: OverlayService is the single façade every overlay surface goes
-// through (zone overlay, selector, snap assist, OSD, cheatsheet, scrolling drop
-// indicator), so its members are the per-screen state and per-role wiring those
-// surfaces share. The implementation is already split by surface across
-// daemon/overlayservice/*.cpp; splitting the class DECLARATION would scatter the
-// per-screen ownership and teardown-order contract the member ordering encodes,
-// exactly as documented on daemon.h.
+// OverlayService is the single façade every overlay surface goes through (zone
+// overlay, selector, snap assist, OSD, cheatsheet, scrolling drop indicator), so
+// its members are the per-screen state and per-role wiring those surfaces share.
+// The implementation is split by surface across daemon/overlayservice/*.cpp, and
+// the member ordering here encodes the per-screen ownership and teardown-order
+// contract, exactly as documented on daemon.h.
 
 #pragma once
 
@@ -165,8 +160,8 @@ public:
     void setSurfaceShaderRegistry(PhosphorSurfaceShaders::SurfaceShaderRegistry* registry);
     /// Borrowed preset registry, turning an assignment's `presetId` into the
     /// parameters it stands for. Same lifetime contract as the two registries above,
-    /// but OPTIONAL unlike them: with none injected every assignment resolves to its
-    /// own parameters, which is what one carrying no preset already does.
+    /// but OPTIONAL unlike them: with none injected an assignment keeps its own
+    /// parameters UNCLAMPED, since the flatten also enforces a pack's declared range.
     void setPresetRegistry(PhosphorShaders::ShaderPresetRegistry* registry);
     void updateGeometries() override;
 
@@ -333,8 +328,6 @@ public:
     void setExcludedScreens(const QSet<QString>& screenIds);
 
     // Screen management
-    void setupForScreen(QScreen* screen);
-    void removeScreen(QScreen* screen);
     void handleScreenAdded(QScreen* screen);
     void handleScreenRemoved(QScreen* screen);
 
@@ -342,8 +335,8 @@ public:
     /// Wired to both @c ScreenManager::virtualScreensChanged (add /
     /// remove / re-cache of virtual screens under @p physicalScreenId)
     /// and @c ScreenManager::virtualScreenRegionsChanged (swap /
-    /// rotate / boundary resize). The handler is heavy but only runs
-    /// when overlays are visible (active drag), so the cost is bounded.
+    /// rotate / boundary resize). Its teardown half runs on every such signal
+    /// whatever the visibility; only the recreate block checks isVisible().
     void onVirtualScreensChanged(const QString& physicalScreenId);
 
     // PhosphorZones::Zone selector management (IOverlayService interface)
@@ -466,13 +459,17 @@ public:
     /// logs, rather than shipping a card that looks like it failed to load.
     void showScrollingStripOsd(const QString& name, const QVariantList& zones, bool verticalAxis,
                                const QString& emptyCaption, const QString& screenId = QString());
-    /// The card always wears the failure glyph "dialog-cancel". Both callers
-    /// (showContextDisabledOsd and showNotAssignedOsd) explain why a
-    /// requested change had no effect, which is what the glyph says. A
-    /// positive announcement does not belong on this card at all — the
-    /// scrolling mode switch, which briefly did reuse it, now renders its own
-    /// strip preview.
+    /// A short text card wearing the failure glyph "dialog-cancel". Its
+    /// callers (showContextDisabledOsd, showNotAssignedOsd, the workspace
+    /// snap-back hint) explain why a requested change had no effect or was
+    /// undone, which is what the glyph says. A layout or mode announcement
+    /// does not belong on this card at all: the scrolling mode switch, which
+    /// briefly did reuse it, now renders its own strip preview.
     void showDisabledOsd(const QString& reason, const QString& screenId = QString());
+    /// The same card wearing the information glyph "dialog-information": for
+    /// a hint that reports something done on the user's behalf (a workspace
+    /// closed and its window was moved to the current one), not a refusal.
+    void showInfoOsd(const QString& message, const QString& screenId = QString());
 
     /**
      * @brief Pre-create the per-screen passive overlay shell for all connected
@@ -485,15 +482,17 @@ public:
      * first layout switch OSD or keyboard navigation action appears
      * instantly instead of blocking the event loop.
      *
-     * Idempotent for the SAME screen set: the m_notificationsWarmed latch
-     * and the per-screen window guard make a repeat call a no-op for screens
-     * already warmed. A screen that appeared since the last call is still
-     * warmed on the next one, which is the point of calling it again after a
-     * hotplug rather than only once at start.
+     * Called once, from daemon start. A repeat call would be harmless for
+     * screens already warmed, because ShellHost::ensureShell returns a live
+     * shell as it is. Screens that appear later get their shell from the
+     * screenAdded hook that this call installs (ensureOsdScreenAddedConnected).
      */
     void warmUpNotifications();
 
 private:
+    /// The card showDisabledOsd and showInfoOsd share: @p text over the
+    /// layout-OSD outline, wearing @p iconName.
+    void showMessageCard(const QString& text, const QString& screenId, const QString& iconName);
     /**
      * @brief The isAnyModeLocked mode lens the LAYOUT PICKER reads a lock
      * through, for @p screenId.
@@ -546,22 +545,24 @@ private:
      * flashes for shaders whose iTime=0 frame is opaque (popin/morph/
      * pixelate/glitch).
      *
-     * This helper does a sacrificial show+hide on the surface so the
-     * compositor maps the wl_surface, Vulkan initialises the swapchain,
-     * the QSGLayer renders at least one frame, and the surface lands
-     * back in State::Hidden. The post-hide mapped guarantee is
-     * conditional: SurfaceConfig::keepMappedOnHide is effects-gated
-     * (createWarmedOsdSurface), so the wl_surface stays alive across
-     * the prime's hide only while shaders or animations are enabled;
-     * with both off the prime still warms the pipelines but the
-     * wl_surface unmaps after the hide.
+     * This helper shows the surface for one frame so the compositor maps
+     * the wl_surface, the swapchain initialises and the QML scene renders
+     * once, then hands it back to the slot-driven sync. With no slot visible
+     * that sync unmaps it again (the passive shell does not keep mapped on
+     * hide, see createWarmedOsdSurface). What survives the unmap is the QML
+     * scene and the compiled QML, not the swapchain or the scene graph's
+     * GPU resources, so the prime only takes the first-ever scene build off
+     * the first user-triggered show. Each later show from unmapped pays the
+     * remap costs that createWarmedOsdSurface lists.
      *
      * Surfaces are tracked in m_primingSurfaces so a user-triggered show
-     * landing during the prime window can cancel the queued hide via
-     * cancelSurfacePrime() and avoid a race that would visibly hide the
-     * user's freshly-shown content. The QML during prime has mode="" /
-     * no content (loader.sourceComponent==null), so the user sees
-     * nothing during the cycle even if the prime show animation fires.
+     * landing during the prime window can cancel the queued hand-back via
+     * cancelSurfacePrime(). Every slot show path calls it before mapping. The
+     * hand-back itself goes through syncPassiveShellSurfaceStateForSurface, not
+     * a bare Surface::hide(), so a prime that outlives a missed cancel still
+     * leaves a shell with a visible slot mapped. No slot is visible during the
+     * prime and the shell has no root animation (animateRoot=false), so the
+     * cycle paints nothing.
      */
     void primeSurfaceRenderPipeline(PhosphorLayer::Surface* surface);
 
@@ -715,9 +716,8 @@ public Q_SLOTS:
     // slot.visible=false and re-syncs surface state. The C++ slot never
     // destroys the QQuickWindow - that would re-introduce the blocking
     // ~QQuickWindow Vulkan teardown the warm-surface design avoids.
-    // keepMappedOnHide is conditional (createWarmedOsdSurface): mapped
-    // across hides only while shaders or animations are enabled; with
-    // effects off the next syncSurfaceState unmaps the wl_surface.
+    // Once no slot is visible the next syncSurfaceState unmaps the
+    // wl_surface (see createWarmedOsdSurface).
     void hideLayoutPicker() override;
 
     // Shader error reporting from QML
@@ -731,8 +731,8 @@ private Q_SLOTS:
     /// finds the matching m_screenStates entry, and runs an animated
     /// slot-hide via SurfaceAnimator::beginHide on (shellSurface,
     /// osdSlotItem) - only the OSD slot Item's opacity animates to 0;
-    /// the shell wl_surface itself stays mapped across the hide while
-    /// shaders or animations are enabled (effects-gated keepMappedOnHide).
+    /// the shell wl_surface stays mapped for the hide and unmaps after
+    /// it only if no other slot is visible.
     void onOsdDismissRequested();
 
     /// Receiver for the shell's `snapAssistDismissRequested` QML signal
@@ -753,7 +753,7 @@ private Q_SLOTS:
 private:
     // Sync CAVA service state (start/stop/reconfigure) with current settings AND
     // whether the overlay is actually displaying content — CAVA runs only while
-    // the overlay (un-idled) or shader preview is on screen.
+    // the overlay (un-idled) or an audio-reactive decoration is on screen.
     void syncCavaState();
     // Decoration slots (OSD / popups, across screens) that are visible AND carry
     // an audio-reactive surface pack right now. Drives CAVA gating + the
@@ -761,10 +761,9 @@ private:
     // for the common case (no audio decoration), so it adds nothing then.
     QList<QQuickItem*> visibleAudioDecorationSlots() const;
     // Whether the overlay is actively displaying content right now: visible and
-    // not in the warm-idled drag-pause/drag-end state (or the shader preview is
-    // up). The overlay QQuickWindows are kept alive across drags to dodge an
-    // NVIDIA teardown deadlock, so "visible" alone stays true at rest — this is
-    // the predicate that gates the 60 Hz shader render loop + CAVA.
+    // not in the warm-idled mid-drag pause (trigger released). There is no
+    // third term. "visible" alone stays true through such a pause, which is why
+    // this is the predicate that gates the 60 Hz shader render loop + CAVA.
     bool isOverlayDisplaying() const;
     // Defer stopping the render loop + CAVA by a short grace period after the
     // overlay goes idle, so rapid drag thrash keeps everything warm; the
@@ -787,8 +786,6 @@ private:
     void stopObservingLayout(PhosphorZones::Layout* layout);
 
     void createOverlayWindow(QScreen* screen);
-    void destroyOverlayWindow(QScreen* screen);
-    void dismissOverlayWindow(QScreen* screen);
     void updateOverlayWindow(QScreen* screen);
     void recreateOverlayWindowsOnTypeMismatch();
 
@@ -826,17 +823,18 @@ private:
     void validateScreenStateInvariant(const QStringList& targetIds) const;
 
     // Write _idled=true/false on every live overlay window based on which
-    // VS the cursor is currently on. One-overlay-per-VS architecture: all
-    // overlay windows stay alive for their lifetime, and per-window idle
-    // state controls content.visible + Qt.WindowTransparentForInput via
-    // the QML _idled property. Only the cursor's VS is un-idled in
+    // VS the cursor is currently on. One-overlay-per-VS architecture: every
+    // target VS's main-overlay slot stays visible for the drag, and the QML
+    // _idled property controls only whether its content is drawn
+    // (content.visible). It does not touch the input flag, which
+    // syncPassiveShellSurfaceState owns. Only the cursor's VS is un-idled in
     // single-monitor mode; every overlay is un-idled when showOnAllMonitors.
-    // An empty activeEffectiveId idles every overlay (used by
-    // setIdleForDragPause when no VS should be active).
+    // An empty activeEffectiveId idles every overlay (used by refreshFromIdle
+    // when no VS should be active).
     void applyIdleStateForCursor(const QString& activeEffectiveId, bool showOnAllMonitors);
 
     void updateLabelsTextureForWindow(QQuickItem* slot, const QVariantList& patched, QScreen* screen,
-                                      PhosphorZones::Layout* screenLayout);
+                                      PhosphorZones::Layout* screenLayout, const QString& screenId);
     QVariantList buildZonesList(QScreen* screen) const;
     QVariantList buildZonesList(const QString& screenId, QScreen* physScreen) const;
     /// Build the popup / picker layouts list for @p screenId.
@@ -895,10 +893,14 @@ private:
     /// layout lists with that id so gate and rows agree.
     LayoutIncludeFlags resolvePerScreenLayoutInclude(const QString& screenId, QString* resolvedIdOut = nullptr) const;
     // overlayOverride is resolved once per screen by the caller (screen-invariant
-    // across zones) and threaded in, rather than re-resolved per zone.
+    // across zones) and threaded in, rather than re-resolved per zone. So are
+    // fixedReference and fixedScale, the rect a fixed zone is laid out in on
+    // this screen and the output's scale, which normalize a fixed zone's
+    // relative geometry (fixedReference invalid: the stored hint is kept).
     QVariantMap zoneToVariantMap(PhosphorZones::Zone* zone, const QString& screenId, QScreen* physScreen,
                                  const QRect& overlayGeometry, PhosphorZones::Layout* layout,
-                                 const PhosphorZones::ContextOverlayOverride& overlayOverride) const;
+                                 const PhosphorZones::ContextOverlayOverride& overlayOverride,
+                                 const QRectF& fixedReference, qreal fixedScale) const;
 
     /**
      * @brief Resolve the layout for a given screen with fallback chain
@@ -964,14 +966,14 @@ private:
     /// reset, the clear-before-teardown contract the two siblings above state.
     PhosphorShaders::ShaderPresetRegistry* m_presetRegistry = nullptr;
 
-    /// Decoration pack refusals already reported, keyed "<packId>|<reason>".
+    /// Decoration pack refusals already reported, keyed "<surfacePath>|<packId>|<reason>".
     ///
     /// A decoration profile naming an uninstalled or unloadable pack is a
     /// standing condition, and the chain resolve runs on every OSD show, so
     /// the warning is keyed here to fire once rather than once per show.
-    /// The reason is part of the key because a pack can be refused for
+    /// Path and reason are both in the key: one pack can be refused for
     /// different reasons over its lifetime (uninstalled, then reinstalled
-    /// broken), and a bare id would let the first refusal silence the second.
+    /// broken) and on several surfaces, so a bare id would silence all but one.
     /// Cleared whenever the registry is replaced or its contents change, so a
     /// genuinely new breakage after a reinstall is reported again.
     QSet<QString> m_warnedDecorationPacks;
@@ -1274,7 +1276,7 @@ private:
 
     // NOTE on ordering: method declarations (here and below) interleave with
     // the data-member runs, and that is harmless to the teardown-order
-    // contract the file-size exception cites — C++ destruction order is
+    // contract the file header cites — C++ destruction order is
     // defined by NON-STATIC DATA MEMBER order alone, which interspersed
     // function declarations do not participate in. Only the relative order
     // of the data members themselves is load-bearing.
@@ -1291,11 +1293,10 @@ private:
 
     /// Lazily create the per-screen PassiveOverlayShell + return the
     /// state entry (or nullptr if creation failed). The shell is the
-    /// unified host for kbd-None per-content slots (currently OSD;
-    /// subsequent migration steps fold zone-selector / main-overlay /
-    /// snap-assist / picker in). Wires the shell's QML signals
-    /// (osdDismissRequested, …) to the C++ animator-driven slot-hide
-    /// path.
+    /// unified host for every per-content slot. A freshly created shell has
+    /// its QML signals (osdDismissRequested, …) wired to the C++
+    /// animator-driven slot-hide path by wirePassiveShellSlots, the
+    /// post-create callback.
     PerScreenOverlayState* ensurePassiveShellFor(const QString& effectiveId, QScreen* physScreen);
 
     /// PostCreate hook registered with the ShellHost. Caches the per-content
@@ -1340,17 +1341,17 @@ private:
     void pushLayoutOsdContent(QObject* osdSlot, const LayoutOsdContentParams& params);
 
     /// Resolve a surface-decoration pack from the settings' DecorationProfileTree
-    /// (@p surfacePath, e.g. "osd" / "popup.snapAssist" / "popup.zoneSelector" /
-    /// "popup.layoutPicker") and push it onto @p slot's decoration properties
-    /// (Stage d). Shared by every OSD show path (all modes: layout / locked /
-    /// disabled / navigation) and the three transient popup show paths. Clears
-    /// the slot's decorationChain (and decorationOuterPadding) when no pack
-    /// resolves so a stale decoration never renders.
+    /// (@p surfacePath, one of "osd" / "popup.snapAssist" / "popup.zoneSelector" /
+    /// "popup.layoutPicker" / "popup.cheatsheet") and push it onto @p slot's
+    /// decoration properties (Stage d). Shared by pushLayoutOsdContent's five call sites
+    /// (the layout and locked shows share showLayoutOsdImpl), showNavigationOsd's direct
+    /// call, the five popup shows and the retune sweep below. When no pack resolves it clears
+    /// the chain, the padding, the backdrop stand-in, the audio flag and the slot's CAVA show/hide hook.
     void applyDecoration(QObject* slot, const QString& surfacePath);
-    /// Re-apply the decoration chain to every popup slot currently up. A visible popup's
-    /// chain is resolved at show time, so a retune (a tree edit, a preset change, a pack
-    /// reload) has to reach the slots already on screen; OSDs are omitted because they
-    /// auto-dismiss sub-second. One function rather than the same eleven lines thrice.
+    /// Re-apply the decoration chain to every decorated slot currently up, the OSD
+    /// included: the popups key on their flag (three on a recorded screen id too), the OSD on the
+    /// item's own visibility since it has no flag. A chain is resolved at show time, so a retune (a
+    /// tree edit, a preset change, a pack reload) has to reach the slots already up.
     void reapplyVisiblePopupDecorations();
 
     void destroyIfTypeMismatch(const QString& screenId);
@@ -1372,12 +1373,12 @@ private:
     /// onLayoutPickerSlotHideCompleted.
     void onCheatsheetSlotHideCompleted(const QString& effectiveId);
 
-    /// Reset the modal singleton state (snap assist / layout picker /
-    /// cheatsheet) and emit the dismissed signals when the screen that
-    /// owns them is destroyed. Called from every runtime shell-teardown site
-    /// (not the service destructor, where resetting members and emitting
-    /// dismissed signals is moot) — the definition in
-    /// overlayservice/screens.cpp keeps the current list.
+    /// Reset the modal singleton state (snap assist / layout picker / cheatsheet)
+    /// and emit the dismissed signals when the screen that owns them is destroyed,
+    /// plus ONE non-teardown site: initializeOverlay's dead-key repair sweep. Not
+    /// the destructor, where resetting and emitting are both moot. Grep the name;
+    /// the callers live in overlayservice/{screens,rekey,overlay}.cpp. Pass the id
+    /// BY VALUE — the body clears the very members a reference could be bound to.
     void resetModalSingletonsForDestroyedId(const QString& id);
 
     /// Animator-driven slot-hide completion for zone-selector.
@@ -1396,27 +1397,31 @@ private:
     /// animator. Inverse of hideZoneSelectorSlotOnScreen - used by the
     /// snap-assist / picker dismiss paths to restore the selector
     /// after a temporary slot-hide. Idempotent: bails when the slot is
-    /// already visible.
-    void showZoneSelectorSlotOnScreen(const QString& effectiveId, QScreen* physScreen, const QRect& targetGeom);
+    /// already visible on the same screen and geometry.
+    void showZoneSelectorSlotOnScreen(const QString& effectiveId, QScreen* physScreen, QRect targetGeom);
 
     /// Conditionally restore the zone-selector slot on @p effectiveId
     /// after a sibling slot finished hiding. Re-shows iff the drag is
     /// still logically active (@c m_zoneSelectorVisible) AND the screen
     /// retains its captured (physScreen, geometry) state. Centralizes
-    /// the symmetric restore pattern used by every slot-hide completion
+    /// the symmetric restore pattern used by every SIBLING slot-hide completion
     /// (onOsdSlotHideCompleted, onSnapAssistSlotHideCompleted,
-    /// onLayoutPickerSlotHideCompleted).
+    /// onLayoutPickerSlotHideCompleted, onCheatsheetSlotHideCompleted).
     void restoreZoneSelectorAfterHide(const QString& effectiveId);
 
     /// Drive the per-screen shell wl_surface map state from slot
-    /// visibility. The shell's keepMappedOnHide is effects-gated
-    /// (createWarmedOsdSurface): the window is kept mapped on hide only
-    /// while shaders or animations are enabled. Surface::show()/hide()
-    /// flip Qt::WindowTransparentForInput. The flip only happens
-    /// through Surface's state machine, not through slot-level
-    /// animator hides - without this helper the shell never re-enters
-    /// Hidden after first show, and the input region eats every click
-    /// for the daemon's lifetime.
+    /// visibility: mapped while any slot is visible, unmapped once none
+    /// is (see createWarmedOsdSurface). It also sets
+    /// Qt::WindowTransparentForInput, clear only while a modal slot is
+    /// visible. Surface::show()/hide() do not touch that flag for this
+    /// shell, which does not keep mapped on hide. Slot-level animator hides
+    /// touch neither, so without this helper the shell would stay mapped
+    /// after the last slot hides.
+    ///
+    /// Callers must call Surface::show() themselves BEFORE dispatching a
+    /// slot's beginShow. The show edge cancels every animator track on the
+    /// surface, so letting this sync do the mapping after the leg started
+    /// would leave the slot visible at opacity 0.
     ///
     /// It also drives the surface's layer-shell keyboard interactivity, and
     /// that third predicate is NOT derived from slot visibility. It reads
@@ -1432,23 +1437,31 @@ private:
     /// predicate guards the hide.
     void syncPassiveShellSurfaceState(const QString& effectiveId);
 
-    /// Run `syncPassiveShellSurfaceState` for every per-screen state that
-    /// owns @p surface - used after a slot setVisible(true) + beginShow
-    /// pair when the call site doesn't already have the matching effective
-    /// screen id in scope. The body lookup walks the small state map (≤ a
-    /// handful of screens in practice) and forwards the per-screen sync.
-    /// Without this, slot-show paths leave the input region in whatever
-    /// state Surface::show() set it to (cleared = grabbing) until the
-    /// matching slot-hide-completion handler eventually flips it back -
-    /// reading as "OSD eats clicks for its full lifetime" to the user.
-    void syncPassiveShellSurfaceStateForSurface(PhosphorLayer::Surface* surface);
+    /// Run `syncPassiveShellSurfaceState` for the per-screen state that
+    /// owns @p surface - used after a Surface::show() + slot setVisible(true)
+    /// + beginShow sequence when the call site doesn't already have the
+    /// matching effective screen id in scope (the show-first rule above
+    /// applies). The body lookup walks the small state map and forwards the
+    /// per-screen sync. Returns false when no state owns @p surface.
+    bool syncPassiveShellSurfaceStateForSurface(PhosphorLayer::Surface* surface);
+
+    /// The effective screen id whose shell owns @p slotItem now, or
+    /// @p issuedId when no state owns it (the shell is gone). For a slot
+    /// hide completion: the completion captures the key it was issued under,
+    /// and rekeyOverlayState can move the state, shell and slot items to a
+    /// new key while the leg is in flight. Looked up by the issued key, the
+    /// completion would miss, skip its setVisible(false) and leave the slot
+    /// visible, which keeps the shell mapped. The item moves with the
+    /// state, and a later life of the old key has items of its own, so
+    /// resolving through the item finds the migrated state and nothing else.
+    QString currentKeyForSlotItem(const QPointer<QQuickItem>& slotItem, const QString& issuedId) const;
 
     /**
      * @brief Construct the SurfaceAnimator and register per-Role configs.
      *
      * Phase 5 of the phosphor-animation roadmap: a single library-driven
-     * animator drives show/hide across every overlay (LayoutOsd,
-     * NavigationOsd, LayoutPicker, ZoneSelector, SnapAssist) using
+     * animator drives show/hide across every overlay slot (the OSD, picker,
+     * selector, snap assist, cheatsheet, zone overlay and drop indicator) using
      * Profile-resolved curves shared with in-window animations. Called
      * exactly once from the ctor; the animator's lifetime is tied to
      * `*this`.
@@ -1502,7 +1515,7 @@ private:
      * The QPA plugin binds the Wayland output once during LayerSurface/platform
      * window construction. Set QWindow::screen() BEFORE the window is shown.
      */
-    static void assertWindowOnScreen(QWindow* window, QScreen* screen, const QRect& geometry = QRect());
+    static void assertWindowOnScreen(QWindow* window, QScreen* screen, const QRect& geometry);
 
     /**
      * @brief Prepare the layout OSD window for display.
@@ -1516,13 +1529,13 @@ private:
     std::optional<PreparedLayoutOsdWindow> prepareLayoutOsdWindow(const QString& screenId = QString());
 
     /**
-     * @brief Shared show tail for every OSD path (layout, template, disabled,
-     * navigation): size to the screen, map the surface, animate the slot in
-     * and kick the auto-dismiss timer. Callers write their content
-     * properties and the mode string first.
+     * @brief Shared show tail for every OSD path: hide any zone selector on the
+     * screen, size to it, map the surface, animate the slot in and kick the
+     * auto-dismiss timer. Callers write their content properties and the mode
+     * string first. The hide is here, after their bails, not in the prepare step.
      */
     void finishOsdShow(QQuickWindow* window, PhosphorLayer::Surface* surface, QQuickItem* osdSlot,
-                       const QRect& screenGeom);
+                       const QRect& screenGeom, const QString& effectiveScreenId);
 
     /// Parameters for @ref createLayerSurface. Defined in
     /// overlayservice_types.h; aliased here so existing nested-name
@@ -1532,8 +1545,8 @@ private:
     /**
      * @brief Create a PhosphorLayer::Surface for a layer-shell-backed overlay window.
      *
-     * Every overlay, OSD, zone selector, snap assist, layout picker, and shader
-     * preview in OverlayService goes through this single helper. Returns a surface
+     * ONE surface per screen goes through this single helper: the passive shell that
+     * hosts every content slot (see setupSurfaceAnimator), not one surface per slot. Returns a surface
      * that has been warmed up (window created, QML loaded, transport attached) but
      * is hidden - callers decide when to call @c surface->show() or keep it warm
      * for pre-warmed OSDs.
@@ -1543,15 +1556,15 @@ private:
     PhosphorLayer::Surface* createLayerSurface(LayerSurfaceParams params);
 
     /**
-     * @brief Create a warmed OSD-style surface and wire its dismiss signal.
+     * @brief Create a warmed passive-shell surface.
      *
-     * Common pattern for ensurePassiveShellFor (and the LayoutPicker
-     * surface in snapassist.cpp): (1) caller builds a per-instance
+     * Common pattern for ensurePassiveShellFor, its only caller today:
+     * (1) caller builds a per-instance
      * scope-prefixed Role via @ref PhosphorRoles::makePerInstanceRole,
-     * (2) this helper calls createLayerSurface with keepMappedOnHide
-     * gated on effects (kept mapped only while shaders or animations
-     * are enabled; with both off the next syncSurfaceState unmaps the
-     * wl_surface). Dismiss wiring is NOT done here: per-content
+     * (2) this helper calls createLayerSurface with animateRoot=false and
+     * the keepMappedOnHide default (false), so the next syncSurfaceState
+     * with no slot visible unmaps the wl_surface. Dismiss wiring is NOT
+     * done here: per-content
      * auto-dismiss flows through the shell window's per-slot signals
      * (`osdDismissRequested` et al.), which wirePassiveShellSlots
      * connects to the matching OverlayService slot (e.g.
@@ -1658,9 +1671,9 @@ private:
     // overlay goes idle (see scheduleIdleQuiesce). Cancelled if the overlay
     // displays again within the grace window.
     QTimer* m_idleQuiesceTimer = nullptr;
-    // True while the overlay is in the warm-idled state (blanked + _idled, but
-    // its QQuickWindows kept alive). Distinct from m_visible, which stays true
-    // across drags because the windows are never torn down.
+    // True while the overlay is in the warm-idled mid-drag pause (blanked and
+    // _idled, with its slots still visible). Distinct from m_visible, which
+    // stays true through the pause and goes false only in hide(), at drag end.
     bool m_overlayIdled = false;
 
     // PhosphorZones::Zone data version for shader synchronization

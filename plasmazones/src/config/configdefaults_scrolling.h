@@ -13,9 +13,8 @@ namespace PlasmaZones {
 
 // Chain link 6: the scrolling engine's Scrolling defaults (the mode switch,
 // the strip geometry, the column width and window height vocabulary, and
-// the tab and drop indicators). Split out of configdefaults.h to keep that
-// file inside the size ceiling, and split again for the same reason: the
-// Scrolling.Behavior tunables and the Scrolling.ZoneSelector popup live in
+// the tab and drop indicators). Split out of configdefaults.h, and split
+// again: the Scrolling.Behavior tunables and the Scrolling.ZoneSelector popup live in
 // configdefaults_scrolling_behavior.h (link 7) and the Shortcuts.Scrolling
 // chord defaults in configdefaults_scrolling_shortcuts.h (link 8). Every
 // accessor here reaches call sites through the ConfigDefaults leaf as
@@ -193,7 +192,7 @@ public:
     /// value key, since a pixel width can never be smaller than a proportion,
     /// but it bounds the PROPORTION range — the fixed range has its own floor
     /// in scrollingDefaultColumnWidthFixedMin.
-    /// NOTE the D-Bus DocStrings in dbus/org.plasmazones.Scrolling.xml spell
+    /// NOTE the D-Bus DocStrings in dbus/org.phosphor_works.Placement.Scrolling.xml spell
     /// these bounds (and the fixed/height ranges below) as literals, kept in
     /// sync BY HAND — retuning any of them means updating that XML too.
     static constexpr qreal scrollingDefaultColumnWidthProportionMin()

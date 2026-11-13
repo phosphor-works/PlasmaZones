@@ -4,6 +4,7 @@
 #include "EditorController.h"
 #include "EditorLaunchController.h"
 #include "core/resolve/animationbootstrap.h"
+#include "config/configmigration.h"
 #include "config/settings.h"
 #include "core/platform/logging.h"
 #include <PhosphorProtocol/ServiceConstants.h>
@@ -45,7 +46,7 @@ bool activateRunningInstance(const QString& screenId, const QString& layoutId, b
                              const QString& templateId, bool newTemplate)
 {
     // Hand-maintained trio: this arg list, EditorAppAdaptor::handleLaunchRequest,
-    // and dbus/org.plasmazones.EditorApp.xml must agree (the contract test
+    // and dbus/org.phosphor_works.PlasmaZones.Editor.xml must agree (the contract test
     // documents that XML as out of scope). Change all three together.
     return PlasmaZones::SingleInstanceService::forward(
         kEditorIds, QStringLiteral("handleLaunchRequest"),
@@ -81,13 +82,19 @@ int main(int argc, char* argv[])
     // context that fragile third-party QStyle plugins (e.g. Darkly) dereference
     // into a crash on the first paint frame. See discussion #262.
     QApplication app(argc, argv);
+    // Before anything can construct a Settings or run the migration: this
+    // process may start while the daemon runs on the last readable config,
+    // so an unparseable config.json is left in place rather than moved aside
+    // (see ConfigMigration::CorruptConfigHandling).
+    PlasmaZones::ConfigMigration::setCorruptConfigHandling(
+        PlasmaZones::ConfigMigration::CorruptConfigHandling::LeaveInPlace);
     PlasmaZones::loadTranslations(&app);
 
     app.setApplicationName(QStringLiteral("plasmazones-editor"));
     app.setApplicationVersion(PlasmaZones::VERSION_STRING);
     app.setOrganizationName(QStringLiteral("plasmazones"));
-    app.setOrganizationDomain(QStringLiteral("org.plasmazones"));
-    app.setDesktopFileName(QStringLiteral("org.plasmazones.editor"));
+    app.setOrganizationDomain(QStringLiteral("phosphor-works.org"));
+    app.setDesktopFileName(QStringLiteral("org.phosphor_works.PlasmaZones.Editor"));
 
     // Command line options
     QCommandLineParser parser;
@@ -209,10 +216,13 @@ int main(int argc, char* argv[])
         PhosphorAnimation::QtQuickClockManager::setDefaultManager(nullptr);
     });
 
-    // Create the editor controller. This is cheap: wires up services and
-    // loads local KConfig but does not make any blocking D-Bus calls to
-    // the daemon — those happen only when applyLaunchArgs() invokes
-    // loadLayout/createNewLayout.
+    // Create the editor controller. It wires up services and loads the local
+    // JSON config and layouts, and makes only a fixed number of bounded
+    // blocking D-Bus round trips to the daemon: the batched gap and overlay
+    // settings read, and the primary screen's scale for the local layout
+    // recalc. Each is capped by the daemon call timeout and fails fast when
+    // the daemon is not on the bus. The heavy daemon work (loadLayout,
+    // createNewLayout) happens only when applyLaunchArgs() runs.
     EditorController controller;
 
     // The launch controller owns the D-Bus single-instance registration and
@@ -273,7 +283,12 @@ int main(int argc, char* argv[])
     // Without this, the C++ destruction order (engine before controller) can race
     // with deferred-delete processing of QML items that have KDE style helpers,
     // causing a crash in QQmlData::destroyed() (QTBUG-style lifecycle issue).
-    QObject::connect(&app, &QGuiApplication::aboutToQuit, &engine, [&engine]() {
+    QObject::connect(&app, &QGuiApplication::aboutToQuit, &engine, [&engine, &controller]() {
+        // Write any queued editor-settings change first. The pump below can
+        // fire the save timer, whose asynchronous daemon reload might never
+        // leave the process; flushEditorSettingsForShutdown takes the blocking
+        // path and stops the timer.
+        controller.flushEditorSettingsForShutdown();
         // Process any pending deferred deletes before tearing down the engine
         QCoreApplication::processEvents(QEventLoop::AllEvents);
         // Explicitly delete root QML objects while the engine is still alive

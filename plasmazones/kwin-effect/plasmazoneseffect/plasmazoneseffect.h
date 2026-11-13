@@ -1,13 +1,6 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// FILE-SIZE EXCEPTION (sanctioned): PlasmaZonesEffect is the KWin plugin's
-// single entry class — the Effect interface overrides plus every handler
-// back-pointer surface the split-out implementation files
-// (plasmazoneseffect/*.cpp, handlers, autotilehandler) call back through.
-// The implementation is already partitioned; the class declaration is the
-// one place KWin's plugin contract requires to be whole.
-
 #pragma once
 
 #include <PhosphorCompositor/TilingState.h>
@@ -39,11 +32,15 @@
 // state types the members below are declared with. Each is self-contained, so
 // this block sits with the other project includes rather than after the Qt /
 // KDE ones (own header → project → KDE → Qt).
+#include "dragpolicytransition.h"
 #include "effect_state.h"
+#include "pixelsizedecisions.h"
+#include "placementstatement.h"
 #include "compositor/shelloverview.h"
 #include "kwincompat.h" // KWinCompat::PaintResult — the paint hooks' return type per KWin version
 #include "shader_resolve.h"
 #include "types.h"
+#include "windowcontextedge.h"
 
 #include "pointer/pointerdecorationpass.h"
 #include "transitions/desktoptransitionmanager.h"
@@ -57,7 +54,7 @@
 #include <opengl/glshader.h>
 #include <opengl/glshadermanager.h>
 #include <opengl/gltexture.h>
-#include <effect/globals.h> // For ElectricBorder enum
+#include <effect/globals.h>
 #include <scene/borderradius.h>
 
 #include <QObject>
@@ -328,22 +325,37 @@ private Q_SLOTS:
     // Keyboard Navigation handlers
     // Daemon-driven navigation: daemon computes geometry/target and emits these signals
     void slotApplyGeometryRequested(const QString& windowId, int x, int y, int width, int height, const QString& zoneId,
-                                    const QString& screenId, bool sizeOnly);
+                                    const QString& screenId, bool sizeOnly, int purpose);
     void slotActivateWindowRequested(const QString& windowId);
+    void slotFullscreenHandBackRequested(const QString& windowId);
+    /// Move a window to the desktop KWin numbers @p desktop, on the output it
+    /// is on (the desktop shortcut, a RouteToDesktop rule, an engine crossing).
     void slotWindowDesktopMoveRequested(const QString& windowId, int desktop);
+    /// A dynamic-workspace verb's move: the desktop named by its stable id
+    /// (by number when @p desktopId is empty, and no desktop leg at all when
+    /// the number is below 1 too) and, when @p targetScreenId is set, the
+    /// output, carried out as one step by applyWorkspaceMove.
+    void slotWindowWorkspaceMoveRequested(const QString& windowId, const QString& desktopId, int desktop,
+                                          const QString& targetScreenId);
+    /// Per-output desktop switch (dynamic workspaces focus verbs and the
+    /// owner-wins return): effects->setCurrentDesktop(desktop, output), answered
+    /// with this output's live desktop. @p purpose is a
+    /// PhosphorProtocol::ScreenDesktopSwitchPurpose on the wire.
+    void slotSetScreenDesktopRequested(const QString& screenId, const QString& desktopId, int purpose);
     void slotWindowOutputMoveExpected(const QString& windowId, const QString& targetScreenId,
                                       const QString& sourceScreenId);
 
     // Float toggle is entirely daemon-local — no effect-side slot needed.
 
-    // Daemon tells the effect the drag routing has flipped mid-drag (cursor
-    // crossed a virtual-screen boundary that changes autotile↔snap mode).
-    // Effect applies the transition: entering/exiting autotile bypass,
-    // canceling snap overlay, etc.
+    // The daemon's policy changed mid-drag (the cursor reached a screen that
+    // places differently): applyDragPolicyTransition carries it out.
     void slotDragPolicyChanged(const QString& windowId, const PhosphorProtocol::DragPolicy& newPolicy);
+    /// Carry out DragPolicyTransition::plan for a policy just adopted, which replaced @p oldReason.
+    void applyDragPolicyTransition(KWin::EffectWindow* w, const QString& windowId,
+                                   PhosphorProtocol::DragBypassReason oldReason, DragPolicyTransition::Source source);
 
-    // Daemon-driven batch operations (rotate, resnap, vs_reconfigure arrive
-    // over the wire; the effect-local snap_all path calls this slot directly)
+    // Daemon-driven batch operations (rotate, resnap, restate, vs_reconfigure
+    // arrive over the wire; the effect-local snap_all path calls this directly)
     void slotApplyGeometriesBatch(const PhosphorProtocol::WindowGeometryList& geometries, const QString& action);
     void slotRaiseWindowsRequested(const QStringList& windowIds);
 
@@ -365,6 +377,24 @@ private:
     /// so none of the state-pushing D-Bus calls can fire against a daemon
     /// that rejected the bridge handshake.
     void continueDaemonReadySetup();
+
+    /// The shared body of both desktop-move slots: the sticky carve-out, the
+    /// output leg when @p destination is set (first, verified against KWin's
+    /// pending output), the desktop leg (verified), the undo and re-placement
+    /// of a move KWin refused, and the arrival park and focus hand-off, both
+    /// judged on the output the window lands on. With @p desktopLeg a null
+    /// @p target is a desktop that does not exist, placed where the window is;
+    /// without it the move is output-only (applyOutputOnlyMove).
+    void applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualDesktop* target, KWin::LogicalOutput* destination,
+                            const QString& windowId, bool desktopLeg);
+    /// applyWorkspaceMove's output-only arm (@p desktopLeg false): the window
+    /// crosses to @p destination and joins the desktop it shows, as KWin's
+    /// Move to Screen does; a refused move is placed again where it is.
+    void applyOutputOnlyMove(KWin::EffectWindow* w, KWin::LogicalOutput* destination, const QString& windowId);
+    /// Place @p w again where it is after a desktop move that did not happen
+    /// (no such desktop, or a KWin rule kept it): re-announced on a tiling or
+    /// scrolling screen, the arrival restore on a snapping one.
+    void placeAfterRefusedDesktopMove(KWin::EffectWindow* w);
 
 public:
     /**
@@ -408,11 +438,29 @@ public:
 private:
     friend class ShellOverview;
     void setupWindowConnections(KWin::EffectWindow* w);
-    /// Wire the window's virtual-desktop-set handling (departure arm, arrival
-    /// arm, and the m_trackedDesktopsPerWindow stamp both diff against) and
-    /// seed that stamp. Called once per window from setupWindowConnections,
-    /// inside its idempotency guard; defined in window_desktop_connections.cpp.
-    void wireDesktopChangeHandler(KWin::EffectWindow* w);
+    /// Wire and seed the window's desktop and activity handling (window_desktop_connections.cpp); once per
+    /// window, from setupWindowConnections inside its idempotency guard.
+    void wireContextChangeHandlers(KWin::EffectWindow* w);
+    /// The effect's arms for one classified desktop or activity edit, a function of the edge and of the
+    /// window's tracking state (the table is in window_desktop_connections.cpp).
+    void applyWindowContextEdit(KWin::EffectWindow* window, const WindowContextEdge::Edge& edge);
+    /// One desktop or activity edit, start to end: the push, the re-stamp and the arms.
+    void runContextEdit(KWin::EffectWindow* window, ResizeHold::ContextAxis axis);
+    /// The desktop and activity fields the window has now, as a push carries them.
+    static WindowContextFields liveContextFields(KWin::EffectWindow* w);
+    /// window_context_hold.cpp: the context hold (EE), the held stamp's push fields, PZ's own crossing re-desk (F161).
+    bool holdContextEdit(KWin::EffectWindow* window, ResizeHold::ContextAxis axis);
+    void releaseContextHold(KWin::EffectWindow* w, quint8 reasons);
+    void releaseDragContextHold(KWin::EffectWindow* w);
+    WindowContextFields stampContextFields(KWin::EffectWindow* w) const;
+    void armPzCrossing(KWin::EffectWindow* window, const QRect& target);
+    bool reDeskPzCrossing(KWin::EffectWindow* window);
+    /// The rest of setupWindowConnections' per-window wiring, called from it in this order: cross-output and
+    /// virtual-screen moves (window_output_connections.cpp), identity and metadata pushes
+    /// (window_metadata_connections.cpp), and the interactive move/resize pair (window_moveresize_connections.cpp).
+    void wireOutputChangeHandlers(KWin::EffectWindow* w);
+    void wireMetadataHandlers(KWin::EffectWindow* w);
+    void wireUserMoveResizeHandlers(KWin::EffectWindow* w);
 
     /**
      * @brief Push current metadata for a window to the daemon's WindowRegistry.
@@ -451,14 +499,14 @@ private:
      *                     so the rejection reason has a single source of truth
      *                     (this function) and cannot drift from the filter.
      */
-    /// exemptFullscreen waives ONLY the structural fullscreen/transientFor
-    /// terms (threaded into isStructurallyUnmanageableWindowType) — every
-    /// other rejection stays authoritative. Opt-in for callers that carry the
-    /// scrolling windowed-fullscreen exemption (isEligibleForTilingNotify);
-    /// the default keeps all other consumers treating a genuinely fullscreen
-    /// window as unmanageable.
-    bool shouldHandleWindow(KWin::EffectWindow* w, QString* rejectReason = nullptr,
-                            bool exemptFullscreen = false) const;
+    /// exemptFullscreen waives ONLY the structural fullscreen/transientFor terms
+    /// (isStructurallyUnmanageableWindowType), for callers carrying the scrolling
+    /// windowed-fullscreen exemption (isEligibleForTilingNotify). exemptOwnKeepAbove
+    /// waives ONLY the own keep-above reject, for the producers that record a
+    /// window's position with the daemon (F923). Every other rejection stays
+    /// authoritative; the defaults keep both.
+    bool shouldHandleWindow(KWin::EffectWindow* w, QString* rejectReason = nullptr, bool exemptFullscreen = false,
+                            bool exemptOwnKeepAbove = false) const;
 
     /**
      * @brief Autotile-tree eligibility filter. @see shouldHandleWindow for the
@@ -511,7 +559,7 @@ private:
     bool isExcludedByDecorationRule(KWin::EffectWindow* w,
                                     std::optional<PhosphorRules::WindowQuery>* sharedQuery = nullptr) const;
 
-    /// Classify a window's structural kind for the snap-restore consume gate.
+    /// Classify a window's structural kind for the open and close wire calls.
     PhosphorEngine::WindowKind classifyWindowKind(KWin::EffectWindow* w) const;
 
     /**
@@ -668,8 +716,9 @@ private:
      *        surface ("plasmazonesd") by window class.
      *
      * The focus-follows-mouse stacking walks look THROUGH this surface to the
-     * real user window beneath, because it is full-screen, permanently topmost,
-     * and never holds keyboard focus (PR #517 / discussion #461 #3). The
+     * real user window beneath, because it is full-screen, topmost while mapped,
+     * and takes keyboard focus only for the cheatsheet's search field (PR #517 /
+     * discussion #461 #3). The
      * interactive editor is intentionally excluded so FFM treats it as a real
      * occluder and leaves focus on it.
      */
@@ -796,12 +845,11 @@ private:
     /// see the new state immediately instead of waiting for a daemon
     /// broadcast that some paths (drag-out unsnap) never send.
     void clearWindowZone(const QString& windowId);
-    /// Build a window-rule match query for @p w with the effect's runtime
-    /// placement state (floating / snapped / zone) threaded into the free
-    /// `ruleQueryFor` builder. Use this at EVERY rule-evaluation site so
-    /// IsFloating / IsSnapped / Zone resolve uniformly; the free builder stays
-    /// KWin-only and can't reach the effect's caches.
-    PhosphorRules::WindowQuery ruleQuery(KWin::EffectWindow* w) const;
+    /// Build a window-rule match query for @p w with the effect's runtime placement state (floating / snapped /
+    /// zone) threaded into the free `ruleQueryFor` builder. Use this at EVERY rule-evaluation site so IsFloating /
+    /// IsSnapped / Zone resolve uniformly; the free builder stays KWin-only and can't reach the effect's caches.
+    /// @p screenOverride, when set, stands in for the window's screen (a placement leg onto another screen).
+    PhosphorRules::WindowQuery ruleQuery(KWin::EffectWindow* w, const QString& screenOverride = QString()) const;
 
     /// Resolve the animation rule-action verdict for @p w, skipping the per-frame
     /// `ruleQuery(w)` build (≈30 KWin accessor reads) when the evaluator
@@ -848,6 +896,8 @@ private:
     /// re-seed uses this to fall back to the stacking walk when the raw
     /// active window is internally rejected; ordinary callers may ignore it.
     bool notifyWindowActivated(KWin::EffectWindow* w);
+    /// The exact id, else the same instance under another app prefix, else
+    /// the one live window of the id's app when exactly one exists.
     KWin::EffectWindow* findWindowById(const QString& windowId) const;
 
     /// The O(1) reverse-cache half of findWindowById, WITHOUT the fuzzy appId fallback.
@@ -870,10 +920,18 @@ private:
                               const QSize& size, bool freshOpen);
 
     /**
-     * @brief All windows matching windowId (exact or same appId).
+     * @brief The window with windowId's instance, else every window of its app.
      * Used by autotile to disambiguate when multiple windows share an appId (e.g. two Firefox).
      */
     QVector<KWin::EffectWindow*> findAllWindowsById(const QString& windowId) const;
+
+    /// Resolve a daemon batch's window ids to live windows, index-aligned with @p windowIds. An id
+    /// naming a live window (exactly, or by instance) gets that window, or nullptr when
+    /// shouldHandleWindow refuses it (a fullscreen one passes with @p admitFullscreen, for a
+    /// re-statement that keeps it): never a sibling. Only an id naming no live window falls back
+    /// to its app, and only when exactly one unclaimed handled window of that app exists.
+    QVector<KWin::EffectWindow*> resolveDaemonWindowIds(const QStringList& windowIds,
+                                                        bool admitFullscreen = false) const;
 
     // Navigation helpers
     KWin::EffectWindow* getActiveWindow() const;
@@ -887,13 +945,21 @@ private:
      * regardless of which EDID field KWin's Output::serialNumber() returns.
      *
      * Format: "manufacturer:model:serial" — falls back to connector name
-     * when EDID fields are empty.
+     * when EDID fields are empty. @p excluded is left out of the duplicate scan.
      */
-    QString outputScreenId(const KWin::LogicalOutput* output) const;
+    QString outputScreenId(const KWin::LogicalOutput* output, const KWin::LogicalOutput* excluded = nullptr) const;
     /// Report a screen's current virtual desktop to the daemon (Plasma 6.7
     /// per-output virtual desktops). Deduplicates against m_lastScreenDesktop and
-    /// only fires when the daemon service is registered.
-    void reportScreenDesktop(const QString& screenId, int desktop);
+    /// only fires when the daemon service is registered. A report marks no
+    /// context switch: the per-output desktopChanged handler does that, for a
+    /// switch KWin actually made.
+    ///
+    /// @param force skips the dedup, for the answer to a daemon
+    /// setScreenDesktopRequested that switched nothing: the daemon's SetCurrent
+    /// ledger reads that answer, so it is sent even when the value did not
+    /// change. Whether an unchanged value reaches the ledger is the daemon's
+    /// side of the wire.
+    void reportScreenDesktop(const QString& screenId, int desktop, bool force = false);
 
     /// What this effect last told the daemon each screen's desktop is.
     ///
@@ -905,6 +971,9 @@ private:
     {
         return m_lastScreenDesktop;
     }
+    /// Push the compositor's live per-output-virtual-desktops mode. Sent at
+    /// bringup and on every runtime change; the daemon change-gates it.
+    void reportPerOutputDesktopsMode();
     QString getWindowScreenId(KWin::EffectWindow* w) const;
     /// getWindowScreenId for a caller that has already resolved the window id.
     /// The engine-authoritative scroll override is keyed on the window id, so
@@ -912,53 +981,74 @@ private:
     /// passes it here instead of paying the id-cache probe twice. Behaviour is
     /// otherwise identical — the id is the ONLY thing the overloads differ on.
     QString getWindowScreenId(KWin::EffectWindow* w, const QString& windowId) const;
-    /// The KWin output a window sits on by POSITION (centre containment),
-    /// falling back to w->screen() only when no output contains the centre
-    /// (KWin can pick the wrong one of two identical outputs, #724).
+    /// getWindowScreenId, except that while a move KWin has been asked for is
+    /// still in flight (the requested geometry's position differs from the
+    /// committed frame) it answers the screen the window is going to.
+    QString pendingWindowScreenId(KWin::EffectWindow* w) const;
+    /// Tell the daemon its focused window is now on @p screenId (or on its
+    /// pendingWindowScreenId when empty). A no-op for any window but the one
+    /// this effect last reported activated.
+    void reportActiveWindowScreen(KWin::EffectWindow* w, const QString& screenId = QString());
+    /// The KWin output a window sits on by POSITION: KWin's screenAt for the
+    /// frame centre, which answers the output containing it or else the
+    /// nearest one, so a frame partly off every output still resolves by where
+    /// it is (KWin can pick the wrong one of two identical outputs for
+    /// w->screen(), #724). w->screen() answers only when KWin has no output.
     KWin::LogicalOutput* windowOutput(KWin::EffectWindow* w) const;
     /// The KWin output carrying a (physical or virtual) screen id, else nullptr. Counterpart to outputScreenId.
     KWin::LogicalOutput* outputForScreenId(const QString& screenId) const;
+    /// The device-pixel size of screen @p screenId, whose output @p output is
+    /// (outputForScreenId's answer): the output's own size for a physical id,
+    /// and for a virtual id its region's share of that size, taken from the
+    /// m_virtualScreenDefs entry carrying the id. Empty, which leaves the
+    /// screen-shape rule fields unknown, for a null or placeholder output and
+    /// for a virtual id with no definition here.
+    QSize screenPixelSize(const QString& screenId, const KWin::LogicalOutput* output) const;
     /// The output a scroll-strip window is managed by, or nullptr when the
     /// window is not a strip column (or is exempt: user move/resize, floating,
     /// deleted — a close-grabbed column counts as exempt for its whole close
     /// leg — or no screen is scrolling at all).
     /// The paint path compares this against the output currently being painted.
-    /// Answers are memoised per output pass (see m_scrollManagedCache) so the
-    /// prePaintWindow and paintWindow probes for one window cost one predicate
-    /// walk between them.
+    /// Memoised per output pass (m_scrollManagedCache).
     KWin::LogicalOutput* scrollManagedOutputFor(KWin::EffectWindow* w) const;
+    /// scrollManagedOutputFor's whole answer: the output, the strip key and the rect its edges are measured against.
+    struct ScrollManagedAnswer
+    {
+        KWin::LogicalOutput* output = nullptr;
+        QString strip;
+        QRect stripRect;
+    };
+    ScrollManagedAnswer scrollManagedFor(KWin::EffectWindow* w) const;
+    /// The live view offset of @p w's strip, null when @p w is not a strip column.
+    QPointF scrollViewOffsetFor(KWin::EffectWindow* w) const;
     /**
      * @brief The screen rect a scrolling-strip window's rendering AND input
      *        are confined to, or an invalid rect when no confinement applies.
      *
      * Valid only for a scroll-managed, non-floating window that is not in a
-     * user move/resize: the managed output's geometry. paintWindow skips the
-     * window in OUTPUT paint passes whose output is not the managed one
-     * (snapshot captures are exempt via m_capturingSnapshot — the test would
-     * blank a parked column's snapshot), and the overhang input filter treats
-     * hits outside this rect as landing on the clipped-away (invisible)
-     * overhang. One predicate, two consumers — keep them in lockstep.
-     *
-     * Answers an invalid rect immediately when no screen is scrolling, so the
-     * common case costs one bool on the per-window-per-output-per-frame path.
-     *
-     * SCOPE: the confinement is the PHYSICAL output's geometry, so a strip on a
-     * virtual sub-screen is not clipped at the sub-screen boundary. That is
-     * intended — the point is to keep a column off a NEIGHBOURING MONITOR, and
-     * both sub-screens render in the same output pass, so a same-monitor
-     * overhang is drawn and remains interactive either way.
+     * user move/resize: its strip's screen (a virtual screen's region on a
+     * split monitor, else the output). paintWindow skips the window in OUTPUT
+     * passes whose output is not the managed one and clips it to this rect in
+     * its own (scrollStripPaintRegion; snapshot captures are exempt via
+     * m_capturingSnapshot), and the overhang input filter treats hits outside
+     * it as landing on the clipped-away overhang. Keep the consumers in
+     * lockstep. An invalid rect at once when no screen is scrolling, so the
+     * common case costs one bool per window per output per frame.
      */
     QRect scrollClipGeometryFor(KWin::EffectWindow* w) const;
+    /// @p deviceRegion clipped to @p w's strip when that strip is a virtual screen.
+    KWin::Region scrollStripPaintRegion(KWin::EffectWindow* w, const KWin::RenderViewport& viewport,
+                                        const KWin::Region& deviceRegion) const;
     /**
      * @brief Is this strip column parked entirely off its output's viewport
      *        right now — drawn (if at all) where nobody can see it?
      *
      * True only for a scroll-managed window with a strip relocation entry
      * (m_scrollVisualDelta) whose VISUAL rect — the padded band moved by that
-     * delta, plus the live view offset — intersects no part of its managed
-     * output. The visual rect is where a column is drawn AT REST, which is the
-     * one honest visibility test for a parked column; the committed rect is
-     * always off every output (that is what parking IS) and answers nothing.
+     * delta, plus the live view offset — intersects no part of its strip's
+     * screen (a virtual screen's region on a split monitor). The visual rect is where a column is drawn AT REST, which
+     * is the one honest visibility test for a parked column; the committed rect is normally off every output (that is
+     * what parking IS) and answers nothing.
      *
      * The WindowAnimator's term IS folded in: a live per-window leg draws at
      * the animator's current rect rather than the committed frame, so testing
@@ -975,9 +1065,9 @@ private:
      * just above and put the predicate right back at the destination.
      *
      * The consumers, which must stay in lockstep or a column blinks or
-     * burns: prePaintWindow withholds the TRANSFORMED flag (so KWin's own
-     * culling is free to skip the window instead of being forced to paint
-     * it), paintWindow skips the backdrop capture / decoration fold / draw,
+     * burns: prePaintWindow withholds the TRANSFORMED flag AND drops the
+     * opaque region (KWin may skip the window, and a region nothing overdraws
+     * must not cull), paintWindow skips the backdrop capture / fold / draw,
      * the postPaintScreen repaint driver stops driving the window's
      * decoration (the ~30fps backdrop refold and the animated-pack pump),
      * prePaintScreen's tab-anchor election skips a parked column so an
@@ -986,21 +1076,21 @@ private:
      * below-strip snapshot, and the topmost, above which the capture
      * composites sharp) skip one, falling back to the parked members when
      * every column on the output is parked rather than capturing the
-     * whole scene, the desktop-transition capture excludes one from the
-     * outgoing scene, and the tab-strip builder skips one when deciding which
-     * members still warrant a pill. Note the anchor election runs BEFORE the strip view
+     * whole scene, the desktop-transition composite's own pill-anchor
+     * election skips one, and so does the pill-band occlusion probe. Note
+     * prePaintScreen's election above runs BEFORE the strip view
      * animator advances for the frame, so its answer is one advance behind
      * the paint-path sites mid-leg — the failure is the benign,
-     * already-documented one (indicators fall back to their layer slot for a
-     * frame). A column that scrolls back toward the viewport starts
-     * intersecting — the view offset is part of the rect, re-read every pass
-     * — and the paint-path sites wake in the same frame.
+     * already-documented one (one frame with the pills under the second trigger instead of
+     * the first, or under a strip column on an unpark, or none where the skip leaves no anchor).
+     * A column that scrolls back toward the viewport starts intersecting — the
+     * offset is in the rect, re-read every pass — and the sites wake with it.
      *
      * Snapshot captures must NOT consult this: a parked column's offscreen
      * capture (close snapshot, decoration capture) is legitimate work on an
-     * invisible window. Both paint-path callers sit behind the
-     * m_capturingSnapshot exemption already, matching the foreign-output
-     * cull's treatment.
+     * invisible window. The arms that would drop it carry the
+     * m_capturingSnapshot exemption; the TRANSFORMED gates need none, since a
+     * capture sets that flag in its own mask and never runs prePaintWindow.
      */
     bool scrollParkedOffscreen(KWin::EffectWindow* w, const QString& windowId) const;
 
@@ -1105,15 +1195,16 @@ private:
 
     // Move a window to a target geometry, running the configured placement
     // transition (snap / tile / move). Shared chokepoint for snap zones,
-    // autotile tiles, and float restores — not snap-specific despite history.
-    // When allowDuringDrag is true, applies immediately even if window is in user move state (snap-on-hover).
-    // When false and the window is being dragged, defers via windowFinishUserMovedResized signal.
+    // autotile tiles and float restores. Every call is the window's newest
+    // command: it bumps the command stamp, retires a pending deferred replay and
+    // drops a centring target the tiling handler holds (a tile batch applied now
+    // records its own after this returns). allowDuringDrag applies even under a
+    // user move or resize and is for the drag-time size restores only; zone and
+    // tile placements pass false and defer to windowFinishUserMovedResized.
     //
-    // profilePath drives the shader-transition resolve (see ShaderProfileTree). This used to be
-    // hardcoded to one path inside applyWindowGeometry, which fired the same shader for every
-    // motion that flowed through this chokepoint — place, release, resnap, resize, restore, etc.
-    // Callers now pass the logical event path so the shader tree can route each one independently.
-    // Default is WindowPlaceIn (the placement animation every engine's arrival leg rides).
+    // profilePath drives the shader-transition resolve (see ShaderProfileTree):
+    // each caller passes its logical event path so the tree routes each motion
+    // independently. Default is WindowPlaceIn (every engine's arrival leg).
     //
     // originOverride replaces the window's CURRENT frame as the animation's
     // departure rect. Normally the two are the same — a window animates from
@@ -1136,19 +1227,21 @@ private:
     // never visible. Do NOT use this to end an animation somewhere on screen —
     // the window would visibly snap at the end.
     //
-    // demoteMaximizeOnDeferredReplay: the snap-commit callers demote KWin's
-    // maximize (TilingHandler::demoteMaximizeForSnapPlacement) before calling
-    // here, but that demote bails while a user gesture is live — the same
-    // condition that makes this function DEFER the apply. Passing true makes
-    // the deferred replay re-run the demote before its moveResize, paying the
-    // claim the mid-gesture bail skipped; a superseded or dropped replay
-    // drops the demote with it. Read only on the deferral path — the
-    // immediate path assumes the caller already demoted.
+    // statementOnDeferredReplay: preparePlacement writes nothing under a live gesture, which is when
+    // this DEFERS; the replay prepares again with this purpose before its moveResize (deferral only).
+    //
+    // stripOfferOnDeferredReplay: the column a strip batch offers with this apply, which the batch does not
+    // record while the gesture defers it; the replay records it once it has delivered the rect
+    // (recordStripOffer), so the client's answer is read against the column it was sent (deferral only).
     void applyWindowGeometry(KWin::EffectWindow* window, const QRect& geometry, bool allowDuringDrag = false,
                              bool skipAnimation = false,
                              const QString& profilePath = PhosphorAnimation::ProfilePaths::WindowPlaceIn,
                              const QRectF& originOverride = QRectF(), const QRectF& visualTargetOverride = QRectF(),
-                             bool demoteMaximizeOnDeferredReplay = false);
+                             std::optional<PlacementStatement::Purpose> statementOnDeferredReplay = std::nullopt,
+                             std::optional<QRect> stripOfferOnDeferredReplay = std::nullopt);
+    bool fullscreenBailsApply(KWin::EffectWindow* window) const; ///< applyWindowGeometry's (fullscreenBails)
+    quint64 beginGeometryCommand(KWin::EffectWindow* window); ///< bump its command stamp, drop a pending replay
+    void notifyActiveWindowRawFirst(); ///< KWin's raw active window, else the stacking walk's (F523)
     /// The rect applyWindowGeometry will REQUEST of KWin for a tile request:
     /// X11/XWayland frames are constrained to the client's WM_SIZE_HINTS and
     /// centred in the zone; everything else passes through unchanged. The
@@ -1158,7 +1251,7 @@ private:
     /// rect differ by the centring offset).
     ///
     /// "Predict" is the honest word, not "commit" — the implementation
-    /// (drag_snap.cpp) enumerates the two known divergences from what KWin
+    /// (window_geometry_apply.cpp) enumerates the two known divergences from what KWin
     /// finally commits, and why every consumer as written tolerates them. Do
     /// not add an equality comparand without reading that note.
     ///
@@ -1186,18 +1279,11 @@ private:
                           bool skipAnimation = false, std::function<void()> onComplete = nullptr,
                           std::function<void()> onError = nullptr);
 
-    // The effect deliberately reserves NO screen edges. Reserving one turns on
-    // KWin's electric-edge effect, whose glow and its own tile preview would
-    // fight the zone overlay for the same gesture. Quick Tile is disabled
-    // daemon-side via kwriteconfig6 instead, which leaves the edges free
-    // without the effect having to hold them. borderActivated below still
-    // exists to consume any edge activation that does reach us.
+    // PlasmaZones reserves no screen edges and leaves KWin's Quick Tile and
+    // edge-maximize settings alone. Reserving an edge would turn on KWin's edge
+    // glow over the zone overlay, and nothing here changes KWin's configuration.
 
 public Q_SLOTS:
-    // Handle electric border activation - return true to consume the event
-    // and prevent KWin Quick Tile from triggering
-    bool borderActivated(KWin::ElectricBorder border) override;
-
     // ═══════════════════════════════════════════════════════════════════════════════
     // Helper class access methods — consumed across the handler split
     // (ScreenChangeHandler via applyStaggeredOrImmediate,
@@ -1247,7 +1333,7 @@ public:
      *                    item in one pass. For batches whose members must land
      *                    together because something else is already animating
      *                    them as a unit — a scrolling strip carried by the
-     *                    per-output view spring is the case this exists for.
+     *                    per-strip view spring is the case this exists for.
      *                    Staggering those would draw a column that has not
      *                    committed yet at its old rect PLUS the view offset,
      *                    i.e. one full delta the wrong way, until its own timer
@@ -1393,8 +1479,8 @@ private:
 
     // There is deliberately NO hasPlacementSensitiveRuleWork() helper here. One
     // existed with a doc asserting callers gated on it and had none: a copy of the live
-    // gate in rule_invalidation.cpp that had fallen two terms behind
-    // (m_decorationExclusionRuleSet, effectVerdictRuleSet), both of which that file
+    // gate in rule_invalidation.cpp that had fallen behind it by the terms
+    // m_decorationExclusionRuleSet and effectVerdictRuleSet, both of which that file
     // explains are load-bearing. The gate lives at its one call site.
 
     /// Evaluate a config-default appearance scope token against a live window.
@@ -1413,15 +1499,9 @@ private:
     /// keepFloatingAboveDefault, consulted by reconcileRuleWindowLayer.
     ResolvedWindowAppearance resolveEffectiveWindowAppearance(KWin::EffectWindow* w, const QString& windowId) const;
 
-    // The window currently in an interactive RESIZE (set at
-    // windowStartUserMovedResized when isUserResize(), cleared at finish).
-    // windowFinishUserMovedResized does not reliably report isUserResize() at
-    // teardown, so the resize-vs-move discriminator is latched at start. Used to
-    // persist a floating window's new free size the instant the resize ends —
-    // distinct from a move, which the drag→snap pipeline owns (a move can end in
-    // a snap, so it must not be captured as a free geometry here). QPointer
-    // auto-nulls on window destruction.
-    QPointer<KWin::EffectWindow> m_resizingWindow;
+    // The interactive resize and the context edits being held (effect_state.h ResizeHold, ContextHoldState).
+    ResizeHold m_resizeHold;
+    ContextHoldState m_contextHold;
 
     // Policy returned from the daemon's beginDrag for the currently-active
     // drag. Async-populated a few ms after the
@@ -1430,27 +1510,23 @@ private:
     // rather than a dead drag. Cleared at drag end.
     PhosphorProtocol::DragPolicy m_currentDragPolicy;
 
-    // Frame-geometry shadow push state. Effect debounces windowFrameGeometryChanged
-    // signals per-window to ~50ms and pushes the latest geometry to the daemon via
-    // WindowTracking::setFrameGeometry. Populates the daemon's frame-geometry
-    // shadow used by daemon-local shortcut handlers (float toggle, etc.) so they
-    // can read fresh geometry without a round-trip.
+    // Frame-geometry shadow push state. Throttled through the shared single-shot
+    // flush timer (at most one WindowTracking::setFrameGeometry per window per
+    // 50ms); feeds the daemon's frame shadow, which daemon-local shortcut handlers
+    // (float toggle, etc.) read instead of a round-trip.
     //
-    // The window pointer rides along so the debounced flush can run the
-    // shouldHandleWindow exclusion gate ONCE per flush instead of on every
-    // geometry tick — during animated geometry (retiles, morphs, interactive
-    // resize) the per-tick gate was an uncached rule resolve plus a full
-    // ruleQuery build, hundreds of times per second (discussion #816). The
-    // decoration resync deliberately stays PER TICK in the stash lambda (see
-    // window_connections.cpp): it is cheap, and deferring it let a re-decorated
-    // title bar flash for the throttle window. QPointer auto-nulls if the
-    // window dies before the flush; the flush skips those entries.
+    // The window pointer rides along so the flush can run the shouldHandleWindow
+    // gate ONCE per window per flush, after its geometry-scoped verdict eviction,
+    // not on every frame of an interactive move or resize (discussion #816). The
+    // decoration resync stays PER TICK in the stash lambda (window_connections.cpp):
+    // it is cheap, and deferring it let a re-decorated title bar flash. QPointer
+    // auto-nulls if the window dies before the flush; the flush skips those.
     // PendingFrameGeometry moved to effect_state.h.
     QHash<QString, PendingFrameGeometry> m_pendingFrameGeometry;
-    /// Last caption pushed via the caption-only metadata refresh, per window.
-    /// Skips content-identical pushes (spurious captionChanged emissions).
-    /// Raw-pointer-keyed; erased in the windowDeleted cleanup with its
-    /// siblings.
+    /// Last caption sent to the daemon by any metadata push, per window;
+    /// pushCaptionOnly skips a caption equal to it. Raw-pointer-keyed; erased
+    /// in the windowDeleted cleanup with its siblings and cleared on daemon
+    /// loss.
     QHash<KWin::EffectWindow*, QString> m_lastPushedCaption;
     /// Last CONSISTENT shadow margins (expandedGeometry - frameGeometry) per
     /// window, the input surfaceWindowRect() reconstructs the canvas base from.
@@ -1501,8 +1577,8 @@ private:
     /// created, parented to the effect.
     QTimer* m_parkReapTimer = nullptr;
 
-    /// Debounce timer for `Rules.rulesChanged`. Single-shot, 50ms;
-    /// timeout fires `loadRuleAnimationsFromDbus`. Re-armed on every
+    /// Debounce timer for `Rules.rulesChanged`. Single-shot, 50ms; timeout
+    /// fires `loadRuleAnimationsFromDbus` and `refreshRestoreCache`. Re-armed on every
     /// `slotRulesChanged` invocation so a burst of per-rule mutations
     /// (a 50-rule batch edit emits 50 signals) collapses into a single
     /// `getAllRules` fetch at the trailing edge.
@@ -1527,15 +1603,48 @@ private:
     /// called once from the constructor.
     void setupDecorationManager();
 
-    // Interactive-resize latch. windowStartUserMovedResized fires once with
-    // isUserResize() true when an edge drag begins; we capture the pre-resize
-    // frame so windowFinishUserMovedResized can report the before/after geometry
-    // to the daemon for neighbour reflow (GitHub #652). The resize-vs-move
-    // identity is the existing m_resizingWindow latch; this carries only the
-    // baseline geometry it lacks. The daemon's frame shadow can't serve as the
-    // baseline — it updates mid-drag via the debounced setFrameGeometry push.
-    QRect m_resizeStartGeometry;
-    void notifyWindowResized(KWin::EffectWindow* w, const QRect& oldGeometry);
+    // The neighbour-reflow report (GitHub #652): the frame before the resize and
+    // the one it ended at.
+    void notifyWindowResized(KWin::EffectWindow* w, const QRect& oldGeometry, const QRect& newGeometry);
+    /// Settle a held resize (ResizeHold) once: the crossing, the waiting context edits, the reports.
+    void drainResizeHold(const QRect& frame);
+    /// Drain on the client's commit of the resize's size, a newer command or the deadline (F701).
+    void armResizeAckWatch(KWin::EffectWindow* w);
+    /// Settle a held move tail (MoveTailHold) once: its crossing, if any (F751), then the drop's held context edits.
+    void drainMoveTail();
+
+    // The client's answer to its strip column (window_connections.cpp). The strip batch records each column it
+    // delivers through recordStripOffer; readColumnAnswer reads the answer (the report to the engine, then the
+    // offered-column centring) from the frame hook, from the commit watch while an answer is owed, and from the
+    // catch-up walk; noteForeignStripRequest puts back a resize KWin made on its own account, or marks one nobody on
+    // the strip asked for.
+    /// Record @p column as the column the batch delivered to @p w. @p sendsSize: the batch is sending the client a
+    /// new size, which makes its answer owed and arms the commit watch.
+    void recordStripOffer(KWin::EffectWindow* w, const QString& windowId, const QRect& column, bool sendsSize);
+    /// Read @p w's frame as its answer to the column it was offered, if it reads as one.
+    void readColumnAnswer(KWin::EffectWindow* w, const QString& windowId);
+    /// Whether @p live, @p w's frame, reads as its client's answer to @p offer
+    /// (ScrollDecisions::readsAsColumnAnswer, through the live gates). The one
+    /// question the report and the X11 counter-assert share. @p screenId, when
+    /// given, receives the strip's tracked screen once the gates resolved it.
+    bool frameReadsAsColumnAnswer(KWin::EffectWindow* w, const QString& windowId, const ScrollOfferedColumn& offer,
+                                  const QRect& live, QString* screenId = nullptr) const;
+    /// readColumnAnswer's offered-column centring of a Wayland answer @p live
+    /// that is not the column's size. Precondition: @p live has read as the
+    /// answer (frameReadsAsColumnAnswer), so it is settled; nothing here asks
+    /// again.
+    void centreOnColumnAnswer(KWin::EffectWindow* w, const QString& windowId, const ScrollOfferedColumn& offer,
+                              const QRect& live);
+    /// Read the client's commits while @p entry's answer is owed.
+    void armColumnAnswerWatch(KWin::EffectWindow* w, const QString& windowId, ScrollOfferedColumn& entry);
+    /// KWin (or the user) is about to change @p w's geometry outside any effect apply. For a Wayland window a resize
+    /// on KWin's account is put back to the strip's rect from inside the request (ScrollDecisions::putsBackKWinResize,
+    /// under a budget), and one that is not makes the answer Foreign. The user's resize makes any window's answer
+    /// Foreign. An X11 window's other requests are the counter-assert's (ScrollDecisions::x11ForeignSizeVerdict).
+    void noteForeignStripRequest(KWin::EffectWindow* w);
+    /// Read every owed answer, and every read one whose frame has since changed size, once more on the next
+    /// event-loop turn, after a gate that refused one has cleared.
+    void scheduleColumnAnswerCatchUp();
 
     void updateWindowDecoration(const QString& windowId, KWin::EffectWindow* w);
     bool decorationFocused(const QString& windowId, KWin::EffectWindow* w, const WindowDecoration& decoration) const;
@@ -1586,7 +1695,7 @@ private:
     ///        step later) and is exactly why a genuine teardown must not pass it: a
     ///        window removed with it left true is stranded redirected, presenting
     ///        through a shader with no decoration behind it. Genuine teardown
-    ///        (close, delete, undecorate) leaves it false. The three exits in
+    ///        (close, delete, undecorate) leaves it false. The exits in
     ///        updateWindowDecoration where a refresh discovers the window is no
     ///        longer decoratable run the release themselves.
     void removeWindowDecoration(const QString& windowId, KWin::EffectWindow* windowHint = nullptr,
@@ -1601,10 +1710,10 @@ private:
     /// A few other sites erase m_surfaceMultipass directly, and each is deliberate:
     ///   - lifecycle_wiring.cpp's windowDeleted backstop, which runs after the window is gone
     ///     and there is nothing left to animate;
-    ///   - surface_capture.cpp's ensureSurfaceTargets, which on an allocation failure
-    ///     erases the half-built state it just failed to allocate and returns false;
-    ///     its caller abandons the fold immediately, so a transition loses its layer
-    ///     for one frame rather than sampling a freed texture.
+    ///   - surface_capture.cpp's ensureSurfaceTargets, TWICE: an allocation failure, and a
+    ///     pack that lost its buffer passes while sampling an iChannel. Each erases the state
+    ///     it could not build and returns false, and its caller abandons the fold at once, so
+    ///     a transition loses its layer for one frame rather than sampling a freed texture.
     /// Nothing else may. The per-entry loops that walk m_surfaceMultipass on a settings
     /// or registry change INVALIDATE and erase nothing, for the reason their own sites
     /// give: a corpse's entry is the frame its close leg needs. No count, it drifts.
@@ -1879,19 +1988,19 @@ private:
     int m_surfacePresentFinalLoc = -1; ///< uFinal sampler location on the present shader
     int m_surfacePresentOpacityLoc = -1; ///< uOpacity (final modulation) location on the present shader
     bool m_surfacePresentFailed = false; ///< latch a failed present-shader compile
-    /// One-shot latch for the capture-time opacity fallback warning (the
-    /// opacity-tint pack failed to compile). The condition is pack-level and
-    /// the fold runs per window per frame, so an unlatched warning would spam
-    /// the journal at vsync rate. Reset alongside the compile cache on a
-    /// registry hot-reload (effectsChanged) so a fixed pack that breaks again
-    /// warns again.
+    /// One-shot latch for the capture-time opacity fallback warning (the opacity-tint pack
+    /// failed to compile). The condition is pack-level and the fold runs per window per frame,
+    /// so an unlatched warning would spam the journal at vsync rate. Reset alongside the compile
+    /// cache on a registry hot-reload (effectsChanged) so a fixed pack that breaks again warns.
     bool m_opacityTintFallbackWarned = false;
-    /// Once-latched journal warning for a backdrop texture or framebuffer that
-    /// failed to allocate (captureWindowBackdrop). The capture retries every
-    /// paint, so an unlatched warning would spam at vsync rate. Re-armed at every
-    /// compile-cache clear, like its two neighbours: session-permanent meant one
-    /// transient failure silenced every later one.
+    /// Once-latched journal warnings for a backdrop texture or framebuffer that failed to
+    /// allocate (captureWindowBackdrop), and for a surface composite target that did
+    /// (ensureSurfaceTargets). Both retry every paint, so unlatched they would spam at
+    /// vsync rate, and both are re-armed at every compile-cache clear: session-permanent meant
+    /// one transient failure silenced every later one. The second's state is ERASED on the
+    /// failure path, so an effect member is what outlives it; a per-window flag could not.
     bool m_backdropAllocWarned = false;
+    bool m_surfaceTargetAllocWarned = false;
 
     /// Reusable staging buffer for updateShellContentRect's glReadPixels — the
     /// scan runs on the compositor paint path, and a fresh per-scan QByteArray
@@ -1967,16 +2076,17 @@ private:
     /// Every path that DESTROYS a GL object (a shader, a texture, a framebuffer, or a
     /// window's offscreen redirect) has to be able to run off the paint cycle — a file
     /// watcher, a D-Bus reply, a QTimer, a window closing — and glDelete* against no
-    /// current context is undefined. This was asserted in six places and quietly ignored
-    /// in nine, including the hottest one (every time-driven animation's teardown). It is
+    /// current context is undefined. This was asserted at some sites and quietly ignored
+    /// at more, including the hottest one (every time-driven animation's teardown). It is
     /// one call here instead, idempotent and a no-op when the context is already current.
     ///
-    /// False only during compositor teardown, where GL is going away and the driver
-    /// reclaims everything regardless — so callers clear their state either way rather
-    /// than leaking it to avoid a call that cannot matter.
+    /// False for a failed make-current, where there is no context to delete against.
+    /// Callers that DISCARD the result proceed either way; the rest branch on it.
+    /// KWin::effects is not tested: the global outlives every effect, the teardown
+    /// included (see windowOutput).
     bool ensureGlContextCurrent() const
     {
-        return KWin::effects && KWin::effects->makeOpenGLContextCurrent();
+        return KWin::effects->makeOpenGLContextCurrent();
     }
 
     /// Wake every decorated window with one repaint each. Needed whenever a gate above
@@ -2167,7 +2277,7 @@ private:
     /// KWin stock effects syncStockEffectSuppression unloaded because one of
     /// OUR packs owns the event they animate: windowaperture/eyeonscreen for
     /// a `desktop.peek` pack, magiclamp/squash for a window.minimize pack,
-    /// maximize for a window.maximize pack. Only names WE
+    /// maximize for a placeIn or placeOut pack. Only names WE
     /// unloaded are recorded, so clearing the pack (or unloading this effect)
     /// loads back exactly what the user had — never an effect KWin left
     /// disabled in kwinrc. Accepted edge: disabling a builtin in the Desktop Effects
@@ -2218,7 +2328,7 @@ private:
     /// event-contract match, animations enabled):
     ///   desktop.peek       → windowaperture / eyeonscreen
     ///   window.minimize    → magiclamp / squash
-    ///   window.maximize    → maximize
+    ///   placeIn / placeOut → maximize
     /// Unloading is the only suppression that works for all three: the
     /// show-desktop scripts never consult activeFullScreenEffect() (and the
     /// peek deliberately takes no fullscreen claim anyway, see
@@ -2305,13 +2415,13 @@ private:
     /// tree on arrival.
     void seedDecorationTreeBaseline();
 
-    // Constructor wiring, decomposed from the ctor along its original comment
-    // seams (definitions in lifecycle_wiring.cpp, except connectDaemonSubscriptions
-    // which is in lifecycle_wiring_daemon.cpp). Each is called exactly once,
-    // from the ctor, in this declared order. Not part of the public surface —
-    // pure ctor decomposition, so their bodies keep the ordering guarantees the
-    // inline sequence had (notably: connect the screen signals before iterating
-    // the current screens() in initRenderingAndRegistries).
+    // Constructor wiring, decomposed from the ctor along its original comment seams.
+    // Definitions sit in three files: lifecycle_wiring.cpp (the first two and
+    // connectWindowAndScreenSignals), lifecycle_wiring_drag.cpp (connectDragTracker) and
+    // lifecycle_wiring_daemon.cpp (connectDaemonSubscriptions). Each is called exactly
+    // once, from the ctor, in this declared order. Not public — pure ctor decomposition,
+    // so their bodies keep the ordering guarantees the inline sequence had:
+    // initRenderingAndRegistries connects the screen signals before it iterates screens().
     void initRenderingAndRegistries();
     void initTimers();
     void connectDragTracker();
@@ -2355,20 +2465,21 @@ private:
     /// to tiled windows must still reconcile on a snap flip with an empty rule set.
     void invalidateRuleCacheForStateChange(const QString& windowId);
 
-    /// Targeted sibling of invalidateRuleCacheForStateChange for the
-    /// frame-geometry edge: evicts ONLY @p windowId's entry from the three
-    /// per-window verdict caches and re-drives that window's decoration,
-    /// title-bar and layer reconciles directly. The coalesced helper above
-    /// clears the GLOBAL animation match cache per flush — fine for discrete
-    /// placement flips, but the geometry edge fires per 50 ms flush for the
-    /// whole duration of a drag, and a global clear there cold-starts every
-    /// other window's verdict twenty times a second (the same cost argument
-    /// that keeps caption changes from clearing at all). The layer and
-    /// title-bar reconciles are change-gated; updateWindowDecoration re-runs
-    /// its chain resolve but keeps the cached prefix fold when the fold
-    /// inputs have not moved, and the extra damage lands on a window that is
-    /// already repainting every frame of its own motion.
-    void invalidateRuleCachesForWindowGeometry(const QString& windowId, KWin::EffectWindow* w);
+    /// Targeted sibling of invalidateRuleCacheForStateChange for a live match
+    /// field of ONE window (frame geometry, caption): evicts ONLY @p windowId's
+    /// entry from the per-window verdict caches and re-drives that window's
+    /// decoration, title-bar and layer reconciles directly. The coalesced helper
+    /// above clears the GLOBAL animation match cache per flush, but these edges
+    /// fire per 50 ms flush for a whole drag or a chatty title, and a global
+    /// clear there cold-starts every other window's verdict twenty times a
+    /// second. The layer and title-bar reconciles are change-gated;
+    /// updateWindowDecoration keeps the cached prefix fold when its inputs have
+    /// not moved.
+    void invalidateRuleCachesForWindowFields(const QString& windowId, KWin::EffectWindow* w);
+    void recomputeLiveFieldRuleGates(const PhosphorRules::RuleSet& rules);
+    /// Drop @p windowId's cached exclusion verdicts at once, ahead of a placement
+    /// decision taken in the context it just moved into (per window, so mid-drag too).
+    void evictExclusionVerdicts(const QString& windowId);
 
     /// Bulk analog of invalidateRuleCacheForStateChange for placement changes that
     /// affect EVERY window at once — daemon loss (the zone / floating caches are
@@ -2404,8 +2515,8 @@ private:
     /// Called from every exit of the endDrag reply handling (outcome applied,
     /// D-Bus error, rejected payload, daemon timeout) so a drag that carried a
     /// window across screens always ends with its per-screen match inputs
-    /// (ScreenId, ScreenOrientation, ActiveLayout) re-resolved. Empties the set,
-    /// so the second call in a turn does nothing.
+    /// (ScreenId, the screen-shape fields, ActiveLayout) re-resolved. Empties
+    /// the set, so the second call in a turn does nothing.
     void drainDragSuppressedRuleInvalidations();
 
     /// Resolve the per-window-rule SetHideTitleBar override for @p windowId
@@ -2534,9 +2645,9 @@ private:
     // pre-split cold-start behaviour.
     bool m_snapAssistFeatureEnabled = false;
     bool m_snapAssistBehaviorEnabled = false;
-    // Per-output motion clocks. One `CompositorClock` per `LogicalOutput`
-    // so mixed refresh-rate displays (e.g., 60 Hz + 144 Hz) phase-lock
-    // independently — see IMotionClock docs. Populated on construction
+    // Per-output motion clocks. One `CompositorClock` per `LogicalOutput`,
+    // which scopes refreshRate() and requestFrame() to that output but NOT
+    // the clock reading — see its docblock. Populated on construction
     // from `KWin::effects->screens()` and maintained via the
     // screenAdded/screenRemoved signals. A fallback unbound clock is
     // always present for the degenerate no-output / migrated-window
@@ -2566,13 +2677,13 @@ private:
     /// not engage (fails open).
     KWin::LogicalOutput* m_currentPassOutput = nullptr;
     /// The RenderView of the pass named by m_currentPassOutput, latched and
-    /// cleared in the same two places for the same bracket. KWin 6.8 keeps one
+    /// cleared at the same sites for the same bracket. KWin 6.8 keeps one
     /// ItemRenderer per RenderDevice rather than one per scene, and the view is
     /// the only per-output route to that device — so anything drawing a scene
     /// item by hand (currently just the cursor sprite) has to ask this pass's
     /// view which device it is rendering on. Reading the compositor's PRIMARY
     /// device instead would be wrong on a multi-GPU desktop, where an output can
-    /// render on a secondary one. Latched and cleared at the same two sites as
+    /// render on a secondary one. Latched and cleared at the same sites as
     /// m_currentPassOutput. ScreenPrePaintData::screen and ::view are independent
     /// fields, so this is not the same condition as that latch being null; it is
     /// the same bracket.
@@ -2588,10 +2699,10 @@ private:
     /// would then report whatever that second walk said, silently swallowing the
     /// first failure whenever the retry happened to succeed.
     ///
-    /// Set at the sites whose failure ABANDONS a pass, cleared in prePaintScreen beside
-    /// the two latches above. Read by paintScreenImpl (to bail instead of
-    /// re-walking) and by postPaintScreen, which per KWin 6.8's contract still
-    /// runs after a failed paint and must not book a discarded frame as painted.
+    /// Set where a chained paint's failure abandons the PRESENTED frame, plus paintWindowImpl's
+    /// m_capturingSnapshot arm, an offscreen capture that latches anyway through notePaintOk and is
+    /// unreachable under KWin's closed draw chain. Cleared in prePaintScreen beside the latches
+    /// above. Read in paintScreenImpl, at the other pill sites, and in postPaintScreen.
     bool m_currentPassPaintFailed = false;
 
     /// The three paint hooks' actual bodies, version-independent: true when the
@@ -2622,23 +2733,17 @@ private:
         }
         return ok;
     }
-    /// Per-pass memo for scrollManagedOutputFor: prePaintWindow and
-    /// paintWindow each probe the predicate for every window, and its chain
-    /// (id lookup, tiled-bucket scan, float check, output resolve) is not
-    /// free at per-window-per-output-per-frame rate. Cleared in
-    /// prePaintScreen when the pass begins, and consulted/populated ONLY
-    /// while a pass is executing — the input filter shares the predicate but
+    /// Per-pass memo for scrollManagedFor, whose chain is not free at
+    /// per-window-per-output-per-frame rate. Consulted and populated ONLY
+    /// while a pass is executing: the input filter shares the predicate but
     /// runs between passes, where a tile batch may just have moved a column,
-    /// so it always computes fresh. In default clamp mode the answer never
-    /// differs from the window's own output (committed geometry cannot
-    /// cross), so the cache also bounds what that mode pays for a cull that
-    /// cannot fire for it.
+    /// so it always computes fresh.
     ///
     /// Cleared at BOTH ends of the bracket (prePaintScreen before the first
-    /// read, postPaintScreen after the last), so an entry — both key and
-    /// value are raw pointers — never outlives the pass whose windows it
+    /// read, postPaintScreen after the last), so an entry, whose key and
+    /// output are raw pointers, never outlives the pass whose windows it
     /// names. Every read is additionally gated on being inside a pass.
-    mutable QHash<KWin::EffectWindow*, KWin::LogicalOutput*> m_scrollManagedCache;
+    mutable QHash<KWin::EffectWindow*, ScrollManagedAnswer> m_scrollManagedCache;
 
     /// Latched by StripTransitionManager around its capture's paintScreen:
     /// while set, paintWindow skips every window in the above-strip set
@@ -2678,6 +2783,23 @@ private:
     PhosphorAnimation::IMotionClock* clockForOutput(KWin::LogicalOutput* output) const;
     void onScreenAdded(KWin::LogicalOutput* output);
     void onScreenRemoved(KWin::LogicalOutput* output);
+    /// Collapse the pixel-size edges of one event-loop turn onto a single
+    /// queued flushOutputPixelSizes. The edges: an output added, each output's
+    /// currentModeChanged and transformChanged, and an output removed while a
+    /// live output still carries its connector (onScreenRemoved), whose size
+    /// the flush re-reads instead of clearing it at the daemon.
+    void scheduleOutputPixelSizeFlush();
+    /// Read every output's LogicalOutput::pixelSize, send the reports the
+    /// ledger owes (PixelSizeDecisions::Ledger::flush) and, when a size moved,
+    /// drop the rule verdicts once: the screen-shape rule fields derive from
+    /// that size (stampScreenShape) and no verdict cache key moves with it.
+    void flushOutputPixelSizes();
+    /// Send one setPixelSizeFromKWin call. A 0x0 size is the clear.
+    void sendPixelSizeReport(const PixelSizeDecisions::Report& report);
+    /// Report every non-placeholder output's pixel size. continueDaemonReadySetup
+    /// runs it once the bridge is registered: the outputs were added before
+    /// that (onScreenAdded runs at load), and a restarted daemon holds none.
+    void pushOutputPixelSizes();
     /// Per-effect curve registry. Replaces the prior per-process
     /// CurveRegistry::instance() singleton — composition roots own
     /// their own. Declared BEFORE m_windowAnimator so a future
@@ -2696,7 +2818,7 @@ private:
     /// payload is bounded by the fetch cap, not by anything small.
     QByteArray m_motionProfileTreeDigest;
     std::unique_ptr<WindowAnimator> m_windowAnimator;
-    /// Scrolling-strip view motion, one spring per output. Separate from
+    /// Scrolling-strip view motion, one spring per strip. Separate from
     /// m_windowAnimator by GRANULARITY, not by kind: a scroll moves the whole
     /// strip by one amount, and folding that into per-window targets would
     /// make N springs that desync into a shear. The two compose additively at
@@ -2772,8 +2894,8 @@ private:
     /// handler. Keyed by window id, swept in slotWindowClosed with a
     /// windowDeleted backstop for a delete that had no preceding close, so it
     /// is bounded by the live traced population. Nothing re-enters it after the
-    /// close sweep: two of its three insert sites are behind a positive
-    /// scrollManagedOutputFor, which refuses a deleted window, and the third
+    /// close sweep: its insert sites are behind a positive
+    /// scrollManagedOutputFor, which refuses a deleted window, bar one that
     /// needs a live m_scrollVisualDelta entry that slotWindowClosed removes
     /// before the sweep. It was
     /// previously swept only on windowDeleted, and that removal sits behind the
@@ -2854,33 +2976,39 @@ private:
     /// from m_ruleWindowLayerSnapshots: reconcileRuleWindowLayer skips flagged
     /// windows entirely, so the two owners never trade flags mid-hold.
     QHash<QString, WindowLayerSnapshot> m_windowedFsLayerSnapshots;
-    /// Last minimum size reported to the daemon per managed window. KWin
-    /// exposes Window::minSize with no change signal, so the batch consumer
-    /// polls it per applied entry and re-reports through
-    /// Tiling.windowMinSizeUpdated when it moved — clients that set their
-    /// size hints after mapping (Wine games pin theirs to the configured
-    /// resolution once up) otherwise leave the engine modelling a column
-    /// the clamped real frame can never match. Seeded at announce (rolled
-    /// back on a failed BATCH announce; the single-window error arm relies
-    /// on the re-announce re-seeding instead). Dropped on close and the
-    /// deleted backstop, evicted per-window by the min-size discovery leg
-    /// (so the next batch re-asserts the true pair), and cleared wholesale
-    /// on daemon loss AND at bring-up (drainDeadSessionState). NOT dropped by
-    /// cleanupAutotileTracking — the re-announce re-seeds it inline.
+    /// Last minimum size reported to the daemon per managed window. KWin exposes Window::minSize with no change
+    /// signal, so the batch consumer polls it per applied entry and re-reports through Tiling.windowMinSizeUpdated
+    /// when it moved: clients that set their size hints after mapping (Wine games pin theirs to the configured
+    /// resolution once up) otherwise leave the engine modelling a column the clamped real frame can never match.
+    /// Seeded at announce (rolled back on a failed BATCH announce; the single-window error arm relies on the
+    /// re-announce re-seeding instead). Dropped on close and the deleted backstop, written by
+    /// TilingHandler::reportMinSizeIfChanged (the batch poll and the centring pass), and cleared wholesale on
+    /// daemon loss AND at bring-up (drainDeadSessionState). NOT dropped by cleanupAutotileTracking: the tile
+    /// apply re-reports it past this cache whenever the window enters a screen's tiling, because the engines
+    /// drop their copy on a float, an unminimize and a handoff (F911).
     QHash<QString, QSize> m_lastReportedMinSize;
-    /// Per scroll-managed X11 window: the rect the last batch commanded, so
-    /// an EXTERNAL move can be detected and countered. X11 clients can
-    /// reposition themselves through ConfigureRequests KWin honors — a Wine
-    /// game re-asserting its saved window position was seen live undoing
-    /// the strip's parks and straddles (the window crawled back on-screen
-    /// over its neighbour's column, and the engine's emit-on-change gate
-    /// stayed silent because its own rects never moved). Written by the
-    /// batch apply, consumed by TilingHandler::slotWindowFrameGeometryChanged
-    /// (counter-assert RATE-LIMITED to 3 per rolling second, re-armed by
-    /// every fresh batch command — a client that refuses to stay put is
-    /// countered at that ceiling indefinitely, it does not win outright).
-    /// Wayland windows are covered by m_tileTargetZones instead and never
-    /// appear here. Dropped on close, the deleted backstop, float cleanup
+    /// Per scroll-managed X11 window, and per Wayland one maximized to the edges
+    /// or placed outside its output: the rect the last batch commanded, so an
+    /// EXTERNAL move can be detected and countered. X11 clients reposition
+    /// themselves through ConfigureRequests KWin honors (a Wine game
+    /// re-asserting its saved position was seen undoing the strip's parks),
+    /// KWin re-runs its maximize placement over a MaximizeFull column, and
+    /// KWin 6.8 clamps an out-of-view column back on screen on a commit that
+    /// acks or reshapes. Consumed by TilingHandler::slotWindowFrameGeometryChanged
+    /// (RATE-LIMITED to 3 per rolling second where a counter can loop, re-armed
+    /// by every batch command), which for an X11 window also keeps the size it
+    /// last put back (putBackSize) and the size it learned under the command
+    /// (learnedSize, ScrollDecisions::x11ForeignSizeVerdict). Read besides by
+    /// readColumnAnswer and the batch's size-continuity carry, which take an
+    /// X11 frame as the client's answer only at a size this command decided
+    /// (ScrollDecisions::x11SizeAnswersColumn); by noteForeignStripRequest and
+    /// the quick-tile cancel, as the rect to put back; by
+    /// TilingHandler::isKWinMoveOfStripTile, as the strip's rect; by
+    /// TilingHandler::reportStripCommit, for its recorded park; and by the
+    /// offered-column centring, which leaves an out-of-view column's seat to
+    /// the counter-assert. A plain Wayland strip tile is centred within
+    /// m_scrollOfferedColumn; m_tileTargetZones holds no strip entry.
+    /// Dropped on close, the deleted backstop, float cleanup
     /// (both channels), the untrack funnel (cleanupAutotileTracking), the
     /// per-batch disarm when the commit deferred or the fullscreen bail
     /// fired (load-bearing: it disarms the counter rather than recording a
@@ -2897,8 +3025,18 @@ private:
     /// this column, so recording one for a placement that never went out would
     /// make the next batch read it as answered.
     ///
-    /// Wayland only: the single writer sits behind isWaylandClient(), so the
-    /// map is empty for X11 and every consumer of it is inert there.
+    /// Wayland and X11 alike (#1157). Every write goes through recordStripOffer:
+    /// the strip batch; the gesture-end replay of a batch apply the gesture
+    /// deferred, carrying the column that batch offered
+    /// (stripOfferOnDeferredReplay); and the cancels that put a strip tile back
+    /// after KWin's quick tile or axis-only maximize
+    /// (TilingHandler::cancelStripQuickTile, TilingHandler::cancelAxisOnlyMaximize),
+    /// which re-record an entry already there and create none. An X11 answer
+    /// is judged against its size hints' answer to the column
+    /// (constrainTileGeometry), the counter-assert decides a size the batch did
+    /// not command (ScrollDecisions::x11ForeignSizeVerdict), and only a size it
+    /// commanded or learned is read or carried forward
+    /// (ScrollDecisions::x11SizeAnswersColumn).
     ///
     /// The discriminator for size continuity (see the strip apply). A genuine
     /// column change is "this size differs from the one recorded here" — our
@@ -2908,12 +3046,38 @@ private:
     /// its column be offered a stable size without ever freezing one that
     /// simply has not been asked yet.
     ///
-    /// Cleaned up on the same paths as m_scrollCommandedRects, which is the
-    /// right sibling: both are strip-scoped, so both must drop on a float
-    /// round trip and a screen change, where m_lastReportedMinSize
-    /// deliberately persists. A settled size surviving either would place the
-    /// window at a stale size on re-entry.
-    QHash<QString, QRect> m_scrollOfferedColumn;
+    /// Strip-scoped like m_scrollCommandedRects, and dropped with it on every
+    /// untrack and strip exit (TilingHandler::dropScrollCompanions), on close
+    /// and the deleted backstop, and wholesale on daemon loss and at bring-up,
+    /// where m_lastReportedMinSize deliberately persists: a settled size
+    /// surviving a float round trip or a screen change would place the window
+    /// at a stale size on re-entry. It is also dropped on its own where the
+    /// column becomes declared state (maximized to the edges, windowed
+    /// fullscreen, a monocle entry on a strip) and at a scroll handoff's echo
+    /// when the destination batch has not delivered it. Unlike its sibling it
+    /// is NOT dropped by the per-batch disarm when a commit deferred or
+    /// bailed: an entry already there describes a column an earlier batch
+    /// delivered, and the deferred replay records the new one when it goes
+    /// out.
+    ///
+    /// The value also carries where the client's ANSWER to the column stands
+    /// (ScrollDecisions::ColumnAnswer), so every remover above retires it with
+    /// the rect. A batch that sends the client a size makes the answer Owed; the
+    /// first settled frame that reads as an answer (ScrollDecisions::
+    /// readsAsColumnAnswer) is reported to the engine when it differs and makes
+    /// it Read. A commit watch reads the client's commits while the answer is
+    /// owed, because a settle that leaves the frame unchanged emits no frame
+    /// change. A geometry request KWin or the user makes outside an effect apply
+    /// that resizes the window is decided when the request is made
+    /// (noteForeignStripRequest): KWin's is put back to the strip's rect, under
+    /// a budget each delivery re-arms, and leaves the answer as it was; the
+    /// user's, and KWin's when it is not put back, make it Foreign until the
+    /// next delivery.
+    QHash<QString, ScrollOfferedColumn> m_scrollOfferedColumn;
+    /// Hands out ScrollOfferedColumn::answerWatch ids. Never restarted.
+    quint64 m_columnAnswerWatchSeq = 0;
+    /// A catch-up walk of the owed answers is queued (scheduleColumnAnswerCatchUp).
+    bool m_columnAnswerCatchUpQueued = false;
 
     /// Per-output-pass state for the compositor-drawn tab indicators (see
     /// paintScrollTabIndicators). Recomputed by prePaintScreen at the top of
@@ -2944,7 +3108,7 @@ private:
     /// the clip for the pill blit wherever it fires (the anchor trigger, the
     /// above-anchor trigger, paintScreen's post-walk fallback). Set by
     /// paintScreen for the presented walk and by the nested capture walks
-    /// (desktop transition) for theirs, through ScrollTabWalkScope; valid
+    /// for theirs, through ScrollTabWalkScope; valid
     /// only inside that scope. A blit clipped to the TRIGGER WINDOW's region
     /// instead cut away every pill outside the anchor column, because KWin
     /// hands each paintWindow the damage intersected with that window's own
@@ -3098,10 +3262,10 @@ private:
     void beginRestoreSuppression(KWin::EffectWindow* window);
     /// Re-arm a suppressed window's deadline (no-op otherwise), so a decision deferred past it cannot flash.
     void refreshRestoreSuppressionDeadline(KWin::EffectWindow* window);
-    /// Consume (single-shot) and, when valid for a snap-mode screen, apply the
-    /// app's instant snap-restore cache entry. True when teleported. Sole
-    /// caller: the dispatch.
-    bool tryInstantSnapRestore(KWin::EffectWindow* w, const QString& windowId);
+    /// Apply (and consume) the app's newest instant snap-restore entry saved on
+    /// the opener's own output, for an unmanaged @p openerScreenId. True when
+    /// teleported. Sole caller: the dispatch.
+    bool tryInstantSnapRestore(KWin::EffectWindow* w, const QString& windowId, const QString& openerScreenId);
     void endRestoreSuppression(KWin::EffectWindow* window);
     /// endRestoreSuppression for a resolve miss; an in-flight reposition holds.
     void releaseRestoreSuppressionOnMiss(KWin::EffectWindow* window);
@@ -3158,17 +3322,17 @@ private:
     /// snap chokepoint) against rule-layer and stale-config assignments the
     /// pickers cannot intercept.
     bool resolvedShaderAppliesToEvent(const QString& effectId, const QString& profilePath) const;
-    // window.maximize / window.unmaximize shader install + geometry-morph
-    // endpoint wiring. `departureFrame` is the frame rect the window is
-    // leaving (the pre-maximize float rect when maximizing, the maximized
-    // rect when restoring); the destination is read live. Both directions
-    // play FORWARD — geometry packs encode direction in the rects, matching
-    // the zone-snap convention (see the implementation comment). Called
-    // either directly from the maximize state edge (geometry already landed)
-    // or deferred to the size-delivering windowFrameGeometryChanged when the
-    // state signal outran the client's commit. Implementation in
-    // window_connections.cpp beside its two call sites.
+    // Maximize / restore morph install (WindowPlaceIn / WindowPlaceOut) and
+    // its geometry endpoints. `departureFrame` is the rect the window leaves
+    // (the pre-maximize rect, or the maximized one on restore); the
+    // destination is read live. Both directions play FORWARD, geometry packs
+    // encoding direction in the rects as zone snaps do. Called from the
+    // maximize edge, or deferred to the size-delivering frame change when the
+    // state outran the commit (window_connections.cpp).
     void beginMaximizeShaderMorph(KWin::EffectWindow* window, const QRectF& departureFrame);
+    // End a running placement leg (not a held move or open leg; a maximize
+    // leg only with @p endMaximizeLeg); returns the rect it drew, or invalid.
+    QRectF endRunningPlacementLeg(KWin::EffectWindow* w, bool endMaximizeLeg);
     /// Evict least-recently-used cached textures back under the soft bound, never
     /// touching one a live transition still points at. @p pending is the transition
     /// currently being BUILT, which is not in shaderTransitions() yet and would
@@ -3177,7 +3341,6 @@ private:
     /// straight into the unguarded path with no diagnostic, and the entry it just
     /// inserted is precisely the one the sweep would take.
     void evictLruTextureIfOverBound(const ShaderTransition* pending);
-    void warmUserTextureAsync(const QString& absolutePath);
 
     std::unique_ptr<DragTracker> m_dragTracker;
     std::unique_ptr<ShellOverview> m_shellOverview;
@@ -3391,18 +3554,16 @@ private:
     PhosphorRules::RuleSet m_decorationExclusionRuleSet;
     PhosphorRules::RuleEvaluator m_decorationExclusionEvaluator{m_decorationExclusionRuleSet};
 
-    // True when any enabled rule in the unified store references a frame-
-    // geometry match field (Width / Height / PositionX / PositionY).
-    // Recomputed at the loadRuleAnimationsFromDbus sync point. Gates the
-    // geometry-edge rule-cache invalidation in flushPendingFrameGeometry:
-    // those fields are stamped live into the per-window query but the
-    // verdict caches key on (windowId, ruleSet revision), so without an
-    // invalidation edge a `Width LessThan N` appearance or exclusion verdict
-    // pins at the window's first resolve. The per-tick geometry lambda must
-    // NEVER invalidate directly (discussion #816 — animated geometry fires
-    // hundreds of ticks per second); the 50 ms flush plus this set-level
-    // gate keeps the no-geometry-rules user at zero cost.
+    // Set-level gates for the live-field rule evictions, recomputed at the
+    // loadRuleAnimationsFromDbus sync point (recomputeLiveFieldRuleGates): any
+    // enabled rule matching frame geometry (Width / Height / PositionX /
+    // PositionY), or the caption (Title / CaptionNormal). Those fields are
+    // stamped live into the query while the verdict caches key on (windowId,
+    // revision), so flushPendingFrameGeometry evicts ONE window per 50 ms flush
+    // (never per tick, discussion #816) and users with no such rule pay nothing.
     bool m_hasGeometryScopedRules = false;
+    bool m_hasCaptionScopedRules = false;
+    QSet<QString> m_pendingCaptionEvictions; ///< caption changes awaiting that flush
 
     // True when the last completed loadRuleAnimationsFromDbus admission pass
     // ran with the active-layout map UNSEEDED and dropped at least one rule
@@ -3410,14 +3571,14 @@ private:
     // because it references Field::ActiveLayout (see effectNeverStampedFields
     // in shader_config_dbus.cpp).
     //
-    // Read by exactly one consumer: the seeding edge in
+    // Read only by the seeding edge in
     // TilingHandler::setActiveLayouts, which re-drives the whole rule fetch so
     // the held-out rules are admitted. Without this marker that re-drive is
     // unconditional, and every session with no ActiveLayout rule at all — the
     // overwhelming majority — pays a getAllRules round-trip, a full RuleSet
     // parse and an updateAllDecorations sweep for rules that do not exist.
     //
-    // Cleared on exactly one path: consumption by that seeding edge. Every
+    // Cleared only by that seeding edge consuming it. Every
     // loadRuleAnimationsFromDbus reply that PARSES recomputes it outright
     // (shader_config_dbus.cpp assigns the pass verdict, never ORs). The
     // refusal arms (over-cap payload, non-object JSON, RuleSet::fromJson
@@ -3490,12 +3651,9 @@ private:
     PhosphorRules::RuleSet m_animationExclusionRuleSet;
     PhosphorRules::RuleEvaluator m_animationExclusionEvaluator{m_animationExclusionRuleSet};
 
-    // Autotile: true when the current drag was started on an engine-managed (autotile or scrolling) screen
-    // (callDragStarted was skipped). Captured at drag start so the drag end
-    // handler uses the same decision, preventing a race where m_managedScreens
-    // changes mid-drag (e.g., async D-Bus signal) and leaves the popup visible.
+    // True while the drag is on a screen a tiling engine owns: the drag
+    // forwards every cursor tick so the daemon can flip it back (mouse_drag.cpp).
     bool m_dragBypassedForEngine = false;
-    QString m_dragBypassScreenId; // Screen at drag start (for float D-Bus call on drag end)
 
     // Cached activation settings (loaded from daemon via D-Bus, updated on settingsChanged)
     // Used for local trigger checking to gate D-Bus calls (see anyLocalTriggerHeld)
@@ -3620,8 +3778,7 @@ private:
     QFont scrollTabIndicatorFont() const;
     // ── end scrolling tab indicator paint settings ──
 
-    // Per-drag activation / float tracking. Fields + rationale in effect_state.h
-    // (DragActivationState).
+    // Per-drag activation / float tracking. Fields + rationale in effect_state.h (DragActivationState).
     DragActivationState m_dragActivation;
 
     // Per-rule-cache invalidations accumulated within one event-loop turn,
@@ -3635,8 +3792,8 @@ private:
     // unconditionally, so at drag end the tracked screen already equals the
     // live one and no comparison there can recover the skipped invalidation.
     // Each suppressed handler records the id here instead, and callEndDrag
-    // drains the set once the daemon's outcome has been applied. Cleared on
-    // daemon loss, where invalidateAllRuleCaches supersedes it. An id whose
+    // drains the set once the daemon's outcome has been applied. Drained on
+    // every callEndDrag exit, not on daemon loss (a stale id costs one re-resolve). An id whose
     // window died meanwhile is harmless: the flush's findWindowById returns
     // null and skips it.
     QSet<QString> m_dragSuppressedRuleInvalidations;
@@ -3646,55 +3803,33 @@ private:
     // one updateAllDecorations().
     bool m_borderSweepPending = false;
 
-    // Daemon readiness / virtual-screen fetch gate state. Fields + rationale in
-    // effect_state.h (DaemonGateState).
+    // Daemon readiness / virtual-screen fetch gate state (effect_state.h DaemonGateState).
     DaemonGateState m_daemonGate;
 
     // Screen/window id caches (mutable: populated from const accessors). Fields in
-    // effect_state.h (IdCacheState). m_trackedScreenPerWindow below is a
-    // non-mutable member and is deliberately kept out of this group.
+    // effect_state.h (IdCacheState); m_trackedScreenPerWindow is not one of them.
     mutable IdCacheState m_idCaches;
 
     // Per-window tracked screen ID for cross-screen move detection.
-    // Replaces the per-window `new QString` heap allocation that was leaked.
     QHash<KWin::EffectWindow*, QString> m_trackedScreenPerWindow;
+    // The frame a window's last size-only change produced: the output arm has
+    // no old frame to judge one by (F1007). Cleared with the tracked screen.
+    QHash<KWin::EffectWindow*, QRectF> m_sizeOnlyFrames;
+    /// A daemon move to another screen pre-seeds the tracked screen, so neither crossing arm sees a
+    /// change: the screen it was sent to, until a frame lands there and its rule verdicts go (F160, F333).
+    QHash<KWin::EffectWindow*, QString> m_ruleScreenOwed;
+    // The window notifyWindowActivated last reported to the daemon, which is
+    // the daemon's focused window until the next report. reportActiveWindowScreen
+    // gates on it.
+    QPointer<KWin::EffectWindow> m_lastReportedActiveWindow;
 
-    // Per-window VirtualDesktop id set as of the last windowDesktopsChanged, so
-    // that handler can tell a genuine MOVE onto the desktop in view from the
-    // other edits KWin reports through the same signal: a set that merely grew
-    // (desktop 1 → desktops 1 and 2), one that shrank, and an un-stick. Only a
-    // move makes the window newly present on the desktop the user is looking
-    // at, and only a move may be placed. An EMPTY value means the window was on
-    // all desktops (KWin's sticky encoding), which counts as already present;
-    // contains() is what distinguishes that from an unseeded entry. Keyed on
-    // the raw EffectWindow* like m_trackedScreenPerWindow, seeded at wire time
-    // and erased in the windowDeleted cleanup alongside it.
-    QHash<KWin::EffectWindow*, QSet<QString>> m_trackedDesktopsPerWindow;
-
-    // The desktop set a window had immediately BEFORE it went sticky, for the
-    // one question the stamp above cannot answer on an un-stick: the sticky
-    // stamp is empty, so it says nothing about where the engines adopted the
-    // window, and the un-stick arm has to know whether the desktop it landed
-    // on is that one.
-    //
-    // Without it every un-stick reads as a move: the arm would release and
-    // re-add a window that came back to the desktop it was already keyed
-    // under, appending it to the stack instead of leaving its slot alone. With
-    // it, only an un-stick onto a DIFFERENT desktop takes the re-home path,
-    // which is the case the daemon's reconcile has genuinely released.
-    //
-    // Written when the stamp transitions non-empty → empty, dropped when an
-    // un-stick reaches the discriminator that reads it, and erased in the
-    // windowDeleted cleanup beside the stamp. An un-stick that returns EARLIER
-    // than the discriminator leaves the entry standing, which costs nothing:
-    // it is only ever read when the recorded stamp is empty, and the next
-    // sticky transition overwrites it. A window with no entry (sticky before PlasmaZones saw
-    // it) reads as "adopted somewhere else", which takes the re-home path —
-    // the conservative answer, since the alternative leaves it untracked.
-    QHash<KWin::EffectWindow*, QSet<QString>> m_preStickyDesktopsPerWindow;
+    // Per-window desktop and activity ids each context edit is classified against (WindowContextEdge): seeded
+    // at wire time, re-stamped before the arms run, not advanced while an edit is held (ContextHold), erased at
+    // windowDeleted. An empty set is KWin's "every one"; contains() tells it from an unseeded entry.
+    QHash<KWin::EffectWindow*, WindowContextEdge::Stamp> m_contextStampPerWindow;
 
     // Windows that already have their per-window connections. setupWindowConnections
-    // issues raw connects with lambda slots, so a second call on the same window
+    // issues raw connects, most with lambda slots, so a second call on the same window
     // doubles every per-window handler — and Qt::UniqueConnection is illegal with a
     // lambda slot, so the check has to live here.
     //
@@ -3722,12 +3857,12 @@ private:
     // The one in-flight deferred geometry replay per window (applyWindowGeometry
     // postponing a tile apply until the user's interactive move ends).
     //
-    // WHY A STORE AND NOT A BARE connect(): two applies for the same window
-    // inside one batch generation on one screen both survive the supersession
-    // guard, so without this each one connected its own replay and both fired at
-    // drag end, paying a full moveResize plus an animator retarget plus a rule
-    // resolve twice. Last-write-wins made the final rect right, which is exactly
-    // why it stayed invisible.
+    // WHY A STORE AND NOT A BARE connect(): the command stamp alone would drop a
+    // superseded replay only when it FIRES, so every apply in a gesture left its
+    // own connection standing until drag end. Every applyWindowGeometry retires
+    // the window's handle here first, so at most one replay is ever connected
+    // and an older rect is gone before a newer command can be overtaken by it.
+    // (WindowCommandStamps still guards the fire against non-apply commands.)
     //
     // A blanket disconnect on the signal is NOT a substitute: window_connections
     // holds a permanent connection from the same signal to the same receiver, and
@@ -3760,6 +3895,30 @@ private:
     // Per-screen current virtual desktop last reported to the daemon (physical
     // screenId → 1-based desktop), for dedup of KWin's per-output desktopChanged.
     QHash<QString, int> m_lastScreenDesktop;
+    // Each output's device pixel size as the last flush read it, and as this
+    // bridge last sent it (connector name → LogicalOutput::pixelSize). The
+    // sent half is forgotten when the daemon goes away, so the next bridge's
+    // pushOutputPixelSizes sends every output again.
+    PixelSizeDecisions::Ledger m_pixelSizeLedger;
+    // A flushOutputPixelSizes is queued for the end of this event-loop turn.
+    bool m_outputPixelSizeFlushQueued = false;
+    /// Set for the duration of a setCurrentDesktop() issued for a daemon
+    /// setScreenDesktopRequested whose purpose is a Correction (the owner-wins
+    /// return), and read by the desktop.switch transition's desktopChanged
+    /// handler, which KWin calls from inside setCurrentDesktop: a correction
+    /// runs no PlasmaZones desktop-switch transition and ends the user's own
+    /// switch leg on that output. All it saves is the transition's capture
+    /// cost. It claims no fullscreen effect, so a desktop-switch effect of
+    /// KWin's own (Slide, enabled by default) still animates the correction.
+    /// A user focus verb leaves it down and is shown like any switch.
+    bool m_correctiveDesktopSwitch = false;
+    /// A desktop-switch decoration sweep is queued for the end of this
+    /// event-loop turn (lifecycle_wiring.cpp): one sweep per burst of
+    /// per-output desktopChanged emissions.
+    bool m_desktopSwitchSweepQueued = false;
+    /// A desktop-arrival park drain is queued for the end of this event-loop
+    /// turn, coalesced the same way across desktop and activity switches.
+    bool m_desktopArrivalDrainQueued = false;
 
     // Last effective screen ID reported to daemon (physical or virtual).
     // Used for deduplication of cursorScreenChanged D-Bus calls when virtual
@@ -3769,18 +3928,11 @@ private:
     /// Physical screen ID -> list of virtual screens (empty = no subdivisions)
     QHash<QString, QVector<EffectVirtualScreenDef>> m_virtualScreenDefs;
 
-    /**
-     * @brief Resolve a global point to the effective screen ID (virtual-aware).
-     *
-     * If the physical screen (from output) has virtual subdivisions, returns
-     * the virtual screen ID whose geometry contains pos. Otherwise returns
-     * the physical screen ID unchanged.
-     *
-     * @param pos Global compositor-space point
-     * @param output The KWin output the point is on
-     * @return Effective screen ID (virtual or physical)
-     */
+    /// The effective (virtual-aware) screen id of @p pos on @p output.
     QString resolveEffectiveScreenId(const QPoint& pos, const KWin::LogicalOutput* output) const;
+    /// The virtual screen a window filling a split output belongs to, or empty
+    /// when it does not fill one (screens_fill.cpp).
+    QString fillingWindowScreenId(KWin::EffectWindow* w, const QString& windowId, KWin::LogicalOutput* output) const;
 
     /// Apply virtual-screen subdivisions for an already-resolved PHYSICAL screen id.
     /// This is the shared implementation; the output-taking overload above wraps it
@@ -3826,7 +3978,7 @@ private Q_SLOTS:
     /// so it would otherwise stay frozen until something unrelated damaged it.
     void slotSessionIdleChanged(bool idle);
 
-    /// Fetch the unified Rule store via `org.plasmazones.Rules.
+    /// Fetch the unified Rule store via `org.phosphor_works.Placement.Rules.
     /// getAllRules`, filter to rules carrying any effect-consumed
     /// (Tag::Effect) action, and forward them to the shader manager — the
     /// sole source of per-window effect overrides. The effect's ONE
@@ -3834,7 +3986,7 @@ private Q_SLOTS:
     /// three exclusion slices (placement = Exclude ∪ ExcludePlacement for the
     /// drag gate, decoration = Exclude ∪ ExcludeDecorations for
     /// shouldDecorateWindow, animation = the ExcludeAnimations slice for
-    /// shouldAnimateWindow) and the geometry-scoped-rules gate. Called once
+    /// shouldAnimateWindow) and the live-field rule gates. Called once
     /// at bringup; the bringup also subscribes to the interface's
     /// `rulesChanged` signal (via a debounce timer — see
     /// m_animationRulesRefreshDebounce) so a settings-UI edit takes effect
@@ -3884,13 +4036,16 @@ private:
     void fetchAllRulesOnce();
 
 private Q_SLOTS:
-    /// D-Bus signal handler for `Rules.rulesChanged`. Re-arms the
-    /// debounce timer rather than refetching the full ruleset on every
-    /// signal — the daemon emits one signal per per-rule mutation, so a
-    /// 50-rule batch edit would otherwise drive 50 full-ruleset fetches
-    /// and parses. A 50ms single-shot debounce coalesces the burst into a
-    /// single fetch at the trailing edge.
+    /// D-Bus signal handler for `Rules.rulesChanged`. Re-arms a 50ms single-shot
+    /// debounce rather than refetching the full ruleset per signal (the daemon
+    /// emits one per per-rule mutation, so a batch edit would drive one full
+    /// fetch and parse each). The restore cache refetches on the same trailing
+    /// edge, since a saved rule can refuse the zone restore (refreshRestoreCache).
     void slotRulesChanged();
+
+    /// Refetch the instant-restore cache (getPendingRestoreGeometries): at bring-up, on the daemon's
+    /// pendingRestoresChanged, and on a settings or rules change, which can turn the zone restore off and empty it.
+    void refreshRestoreCache();
 };
 
 } // namespace PlasmaZones

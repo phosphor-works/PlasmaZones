@@ -38,6 +38,8 @@
   lib,
   stdenv,
   fetchFromGitHub,       # Used when building from a pinned upstream release
+  fetchurl,              # The pinned Luau and valijson archives (see `depsArchives`)
+  linkFarm,              # Gathers them into one directory under their file names
   cmake,
   pkg-config,
 
@@ -82,6 +84,49 @@
   enableLTO ? false,
 }:
 
+let
+  # ── Third-party source archives ──────────────────────────────────────────
+  # Luau and valijson, built into the package from the release archives pinned
+  # (version, URL and SHA-256) in cmake/PhosphorDependencies.cmake. The build
+  # runs in the sandbox with no network, so they are fetched here as fixed-output
+  # derivations and handed to CMake as one directory (PHOSPHOR_DEPS_ARCHIVES in
+  # cmakeFlags), holding each under the FILE name the pin gives it. CMake
+  # checks each archive against the pin's hash again before unpacking it.
+  #
+  # fetchurl, not fetchFromGitHub: the pin hashes the archive file itself, and
+  # fetchurl's flat hash is that same SHA-256, where fetchFromGitHub would hash
+  # the unpacked tree. The SRI value is the hex digest in base64. The hex form
+  # sits in the comment beside it because check-conventions.py's dep-pins rule
+  # reads it there, and fails when a URL or hex hash here stops matching the
+  # pin. Bump both forms together.
+  depsArchives = linkFarm "plasmazones-deps-archives" [
+    {
+      name = "luau-0.745.tar.gz";
+      path = fetchurl {
+        url = "https://github.com/luau-lang/luau/archive/refs/tags/0.745.tar.gz";
+        # sha256 53c22773bace6cabbabaead576fbc08d11a0317fce11a3dbf9d027dda6849248
+        hash = "sha256-U8Inc7rObKu6uurVdvvAjRGgMX/OEaPb+dAn3aaEkkg=";
+      };
+    }
+    {
+      name = "valijson-1.1.3.tar.gz";
+      path = fetchurl {
+        url = "https://github.com/tristanpenman/valijson/archive/refs/tags/v1.1.3.tar.gz";
+        # sha256 887b53b1a924f6fe0b35fa3bbc9bbbe5ae8c72097b7f0f7c17b45f4cfa646029
+        hash = "sha256-iHtTsakk9v4LNfo7vJu75a6Mcgl7fw98F7RfTPpkYCk=";
+      };
+    }
+    {
+      name = "phosphor-branding-0.1.0.tar.gz";
+      path = fetchurl {
+        url = "https://github.com/phosphor-works/branding/releases/download/v0.1.0/phosphor-branding-0.1.0.tar.gz";
+        # sha256 53c7247e7e2c304a4d2e75a7bdd1a87164c63c1defa4159f3cef8da23d8244b3
+        hash = "sha256-U8ckfn4sMEpNLnWnvdGocWTGPB3vpBWfPO+Noj2CRLM=";
+      };
+    }
+  ];
+in
+
 stdenv.mkDerivation (finalAttrs: {
   pname = "plasmazones";
 
@@ -110,10 +155,12 @@ stdenv.mkDerivation (finalAttrs: {
                           # (QT_PLUGIN_PATH, QML2_IMPORT_PATH, etc.) at runtime
                           # without manual environment variable management.
   ]
-  # KDE Frameworks bring their own CMake modules and code generators
-  # (kconfig_add_kcfg_files, etc.) that must run on the build machine.
+  # KDE Frameworks bring their own CMake modules and code generators that
+  # must run on the build machine. The KF6Config package imports KConfig's
+  # code-generator tool when it is found, although PlasmaZones generates
+  # nothing from it since its .kcfg schemas were removed.
   ++ lib.optionals withKdeFrameworks [
-    kdePackages.kconfig   # Provides KConfigXT code generator used by the KCM
+    kdePackages.kconfig   # KF6Config's CMake package and its generator tool
   ];
 
   buildInputs = [
@@ -153,7 +200,7 @@ stdenv.mkDerivation (finalAttrs: {
   ]
   ++ lib.optionals withKdeFrameworks [
     # ── KDE Frameworks 6 ─────────────────────────────────────────────────────
-    kdePackages.kconfig           # KConfig: persistent settings storage
+    kdePackages.kconfig           # KConfig: dynamic workspaces read kwinrc and make the consented PerOutputVirtualDesktops write
     kdePackages.kcoreaddons       # KCoreAddons: KPluginFactory, KAboutData, etc.
     kdePackages.kcmutils          # KCMUtils: KDE System Settings module support
     kdePackages.kglobalaccel      # KGlobalAccel: system-wide keyboard shortcuts
@@ -169,8 +216,9 @@ stdenv.mkDerivation (finalAttrs: {
     kdePackages.kwin
 
     # ── Optional KDE extras ───────────────────────────────────────────────────
-    # PlasmaActivities enables per-activity zone layouts. The CMakeLists
-    # searches for it with QUIET so the build succeeds without it.
+    # PlasmaActivities enables per-activity zone layouts. Only
+    # phosphor-libs/libs/phosphor-workspaces searches for it, with QUIET, so
+    # the build succeeds without it.
     kdePackages.plasma-activities  # was: kactivities in KF5
   ];
 
@@ -220,6 +268,10 @@ stdenv.mkDerivation (finalAttrs: {
     # environment.systemPackages by the NixOS module). This is the canonical
     # NixOS plugin layout — the same approach quickshell uses for its QML/plugins.
     "-DKDE_INSTALL_QTPLUGINDIR=${placeholder "out"}/${qt6.qtbase.qtPluginPrefix}"
+
+    # The pinned Luau and valijson archives (`depsArchives` above), for the
+    # offline build the sandbox requires.
+    "-DPHOSPHOR_DEPS_ARCHIVES=${depsArchives}"
   ];
 
   # ── Post-install fixups ───────────────────────────────────────────────────
@@ -256,10 +308,14 @@ stdenv.mkDerivation (finalAttrs: {
       over D-Bus. The settings app (plasmazones-settings) and layout editor are
       standalone Qt applications.
     '';
-    homepage = "https://github.com/fuddlesworth/PlasmaZones";
+    homepage = "https://github.com/phosphor-works/PlasmaZones";
     # GPL-3.0-or-later for the app, daemon, editor, settings and KCM;
     # LGPL-2.1-or-later for the bundled Phosphor component libraries.
-    license = with licenses; [ gpl3Plus lgpl21Plus ];
+    # MIT and BSD-2-Clause for the bundled Luau runtime and valijson headers, which
+    # are compiled into the shipped objects, and CC0-1.0 for the two AppStream
+    # metainfo files the package installs. Same set the RPM spec's License tag names,
+    # and for the same reason it records there.
+    license = with licenses; [ gpl3Plus lgpl21Plus mit bsd2 cc0 ];
     maintainers = [ ];   # Add your nixpkgs handle here when submitting upstream
     platforms = [ "x86_64-linux" "aarch64-linux" ];
 

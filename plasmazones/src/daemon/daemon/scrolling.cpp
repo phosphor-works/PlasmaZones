@@ -6,9 +6,9 @@
 //
 // The scrolling counterpart of updateEngineScreens' engine push: order
 // seeding across mode transitions, per-context rule-param resolution, and
-// the setActiveScreens handoff. Driven
-// from updateEngineScreens (one cascade walk derives both engines' sets) so
-// the two sets always flip in the same recompute.
+// the setActiveScreens handoff. Driven from updateEngineScreens (one
+// cascade walk derives both engines' sets) so the two sets always flip in
+// the same recompute.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include "daemon/daemon.h"
@@ -91,6 +91,16 @@ void Daemon::captureScrollingOrders(const QSet<QString>& scrollingScreens)
     }
 }
 
+SeedScope Daemon::seedScopeFor(const QString& screenId, int desktop) const
+{
+    return SeedScope{screenId, desktop, [this](const QString& windowId) {
+                         const QRect frame =
+                             m_windowTrackingAdaptor ? m_windowTrackingAdaptor->frameGeometry(windowId) : QRect();
+                         return seedWindowScreen(windowId, {m_autotileEngine.get(), m_scrollEngine.get()},
+                                                 m_snapEngine.get(), frame, m_screenManager.get());
+                     }};
+}
+
 void Daemon::updateScrollingScreens(const QSet<QString>& scrollingScreens)
 {
     if (!m_scrollEngine || !m_layoutManager || !m_settings) {
@@ -154,7 +164,8 @@ void Daemon::updateScrollingScreens(const QSet<QString>& scrollingScreens)
             continue;
         }
         QStringList order = it.value();
-        filterEngineSeedOrder(order, wts, wts->windowRegistry(), PhosphorEngine::WindowPlacement::scrollingEngineId());
+        filterEngineSeedOrder(order, wts, wts->windowRegistry(), PhosphorEngine::WindowPlacement::scrollingEngineId(),
+                              seedScopeFor(screenId, desktop));
         if (!order.isEmpty()) {
             m_scrollEngine->setInitialWindowOrder(screenId, order);
         }
@@ -215,12 +226,13 @@ void Daemon::updateScrollingScreens(const QSet<QString>& scrollingScreens)
     // ScrollPerScreenKeys settings channel), so the seed is a plain copy;
     // rules write their own channel keys (bare-fraction width/height plus the
     // shared int keys), which the engine reads first.
-    // The two EFFECT-owned behaviours are collected as this loop walks the
-    // scrolling screens, then published in one push below. They cannot ride
-    // the engine's override map like their four siblings: focus-follows-mouse
-    // and the straddler PAINT clip both live in the compositor, so the daemon
-    // resolves `rule ?? config` here and hands the compositor the resolved
-    // membership.
+    // The EFFECT-owned behaviours are collected as this loop walks the
+    // scrolling screens, then published in one push below. The engine's
+    // override map does not reach the compositor, where focus-follows-mouse
+    // and the straddler PAINT clip both live, so the daemon resolves
+    // `rule ?? config` here and hands the compositor the resolved membership.
+    // cropStraddlers rides the override map as well, for the engine's own
+    // straddler clamp (see the effect-owned note inside the loop).
     QStringList ffmScreens;
     QStringList cropScreens;
     // Rebuilt from scratch by this walk rather than updated in place: a screen
@@ -584,11 +596,11 @@ void Daemon::updateScrollingScreens(const QSet<QString>& scrollingScreens)
     // and the adaptor's emit-on-change compare — an order-sensitive list
     // compare — would report a change that isn't one.
     // ScrollingAdaptor::setScrollEffectBehaviour sorts and de-duplicates on
-    // entry. That is the published-contract
-    // boundary and it covers every producer, not just this one, so sorting a
-    // second time here would be dead work claiming the same ownership. Screens
-    // that LEFT scrolling are absent by construction (the walk only visits the
-    // current set), so the departing-screen cleanup below has nothing to undo.
+    // entry. That is the published-contract boundary and it covers every
+    // producer, not just this one, so sorting a second time here would be dead
+    // work claiming the same ownership. Screens that LEFT scrolling are absent
+    // by construction (the walk only visits the current set), so the
+    // departing-screen cleanup below has nothing to undo.
     if (m_scrollingAdaptor) {
         m_scrollingAdaptor->setScrollEffectBehaviour(ffmScreens, cropScreens, verticalAxisScreens);
         // Pushed alongside, not folded in: the block list rides its own
@@ -689,9 +701,9 @@ void Daemon::publishScrollFocusScrollBlocks()
     m_scrollingAdaptor->setScrollFocusScrollBlockedWindows(scrollFocusScrollBlockedWindows());
 }
 
-/// Deliberately NOT liveness-gated, unlike the three providers wired in
-/// init_engines.cpp (the cards provider, the overlay axis provider and the
-/// UnifiedLayoutController one), which all guard on isActiveOnScreen.
+/// Deliberately NOT liveness-gated, unlike the two providers wired in
+/// init_engines.cpp (the cards provider and the overlay axis provider),
+/// which both guard on isActiveOnScreen.
 ///
 /// Those are PUBLIC entry points that any screen can be asked about, so a
 /// screen the engine does not own must answer "no vertical strip" rather than

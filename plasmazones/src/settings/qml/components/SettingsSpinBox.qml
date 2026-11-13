@@ -33,6 +33,10 @@ RowLayout {
     //* Setting Accessible.name on this RowLayout wrapper never reaches the
     //* SpinBox, so callers use this instead (mirrors SettingsSlider).
     property string accessibleName: ""
+    //* @brief Screen-reader description for the inner SpinBox, for a spin
+    //* whose displayed text says more than its raw value (a sentinel shown
+    //* as a word, say).
+    property string accessibleDescription: ""
 
     /// True while the inner SpinBox has keyboard focus. A host that feeds
     /// `value` through an external Binding gates it on `!editing` so a live edit
@@ -53,6 +57,7 @@ RowLayout {
         // bare number with no idea whether it is pixels, milliseconds or a
         // count.
         Accessible.name: root.accessibleName.length > 0 && root.unitText.length > 0 ? root.accessibleName + " " + root.unitText : root.accessibleName
+        Accessible.description: root.accessibleDescription
         from: root.from
         to: root.to
         stepSize: root.stepSize

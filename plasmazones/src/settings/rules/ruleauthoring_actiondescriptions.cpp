@@ -8,12 +8,12 @@
 // registered types and fails on any of those this ladder misses, so adding an
 // authorable action without a description is a red test, not a silent blank.
 // Types whose descriptor sets userAuthorable=false are filtered out before that
-// list is built (buildActionTypeEntries, ruleauthoring_actions.cpp) and are NOT
+// list is built (RuleAuthoring::actionTypes(), ruleauthoring_actions.cpp) and are NOT
 // covered by the canary. No descriptor in the tree sets it false today.
 //
-// Own translation unit rather than ruleauthoring_actions.cpp: the ladder
-// carries one entry per registered action type, and that file already sits at
-// the size guideline.
+// Own translation unit rather than ruleauthoring_actions.cpp: the ladder is
+// hover help, one entry per registered action type, and that file owns the
+// picker side.
 
 #include "ruleauthoring.h"
 
@@ -98,6 +98,20 @@ QString actionDescription(const QString& type)
     }
     if (type == ActionType::RouteToDesktop) {
         return PhosphorI18n::tr("Moves matching windows to a chosen virtual desktop when they open.");
+    }
+    if (type == ActionType::RouteToWorkspace) {
+        // Precedence is by action, not by rule priority (ActionTypes.h,
+        // RouteToWorkspace): a declared target decides the desktop over any
+        // RouteToDesktop, and a workspace that exists also decides the
+        // monitor over a RouteToScreen. The description says so because the
+        // priority order on the Rules page would suggest otherwise.
+        return PhosphorI18n::tr(
+            "Moves matching windows to a named workspace when they open, on whichever monitor it "
+            "lives. The rule keeps following the workspace when you rename it. Once the workspace "
+            "is declared, this action decides the desktop even over a desktop route from a "
+            "higher-priority rule, and while the workspace exists it decides the monitor too. The "
+            "rule does nothing while dynamic workspaces are off or no declared workspace matches "
+            "it.");
     }
     if (type == ActionType::RestorePosition) {
         return PhosphorI18n::tr(
@@ -344,8 +358,9 @@ QString actionDescription(const QString& type)
     }
     if (type == ActionType::SetScrollRespectMinimumSize) {
         return PhosphorI18n::tr(
-            "Keeps columns on the matched context at least as large as each window asks to be. "
-            "Off lets a column go smaller, which the compositor then clamps on its own.");
+            "Keeps columns on the matched context at least as large as each window's minimum size, and "
+            "grows a column to fit a window that stays larger than it. Off lets a column go smaller, which "
+            "the compositor then clamps on its own.");
     }
     if (type == ActionType::SetScrollCropStraddlers) {
         return PhosphorI18n::tr(

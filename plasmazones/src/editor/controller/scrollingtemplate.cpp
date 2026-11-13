@@ -19,6 +19,8 @@
 #include <QJsonObject>
 #include <QUuid>
 
+#include <utility>
+
 namespace PlasmaZones {
 
 // ---------------------------------------------------------------------------
@@ -43,16 +45,14 @@ void EditorController::setEditorModeInternal(int mode)
     }
     // A parked screen switch answers a question about the PREVIOUS edited
     // object; once the mode changed, applying it later could save or discard
-    // the wrong one. Drop it — the prompt's dialog acts on a cleared park as
-    // a no-op.
-    m_pendingTargetScreen.reset();
-    m_pendingTargetEditsLayout = false;
+    // the wrong one. Drop it, which also closes the prompt that asked.
+    dropPendingTargetScreen();
     // m_pendingLaunch is deliberately NOT dropped here, unlike the park
     // above: a parked launch has its own confirmation dialog whose Confirm
     // applies the launch wholesale (mode included), so it stays meaningful
     // across a mode change — dropping it would strand that open dialog
     // acting on nothing.
-    // The rest of the layout session (zones, gap overrides, bounds)
+    // The rest of the layout session (zones, gap overrides, full-screen flag)
     // deliberately stays loaded when entering template mode: QML gates every
     // reader on the mode, and each route back into layout mode
     // (createNewLayout, loadLayout, the forced plain-screen launch) rebuilds
@@ -90,19 +90,22 @@ void EditorController::beginTemplateSession(const QString& id, const QString& na
     // template session — the same-mode swap — would keep a park answering
     // for the PREVIOUS template and later save or discard the wrong one.
     // Same rationale as the setter's own clear, applied per session.
-    m_pendingTargetScreen.reset();
-    m_pendingTargetEditsLayout = false;
+    dropPendingTargetScreen();
 
-    // A template has no fixed-zone reference, so the layout bounding box a
-    // previous FIXED-geometry layout left behind is never the right basis for
-    // it. targetScreenSize() prefers that override, and templatePreviewVertical
-    // resolves the Auto axis from whatever it returns, so a template launched
-    // for the SAME screen an editing session already targeted would take its
-    // strip direction from the old layout's bounding box instead of the
-    // monitor. Neither clearer on the launch path runs in that case, because
+    // A template counts nothing in pixels, so the device-pixel unit a previous
+    // fixed-geometry layout left behind goes. It scales targetScreenSize(),
+    // and templatePreviewVertical resolves the Auto axis from whatever that
+    // returns. The launch path does not clear it when a template is launched
+    // for the SAME screen an editing session already targeted, because
     // applyLaunch's screen switch early-returns when the target is unchanged.
-    if (m_layoutBoundsOverride.isValid()) {
-        m_layoutBoundsOverride = QSize();
+    // Each route back into layout mode reads it again from the layout it
+    // loads.
+    const QSize previousSize = targetScreenSize();
+    const bool oldFixedUnit = std::exchange(m_fixedGeometryInDevicePixels, false);
+    if (oldFixedUnit) {
+        Q_EMIT fixedGeometryInDevicePixelsChanged();
+    }
+    if (targetScreenSize() != previousSize) {
         Q_EMIT targetScreenSizeChanged();
     }
 
@@ -244,6 +247,12 @@ bool EditorController::saveScrollingTemplateNow()
     m_isNewLayout = false;
     const bool unsavedCleared = m_hasUnsavedChanges;
     m_hasUnsavedChanges = false;
+    // Same reason as saveLayout's registry reload: the daemon's
+    // scrollingTemplatesChanged reaches us only after this call returns, and
+    // a prompt's Save is followed at once by the load it was guarding, which
+    // would open the pre-save copy from the local store. The offline arm
+    // above wrote the store itself, so a reload there is a plain rescan.
+    reloadLocalTemplates();
     // Reconcile the model with what actually persisted: both paths normalize
     // (drop degenerate columns, sort/dedupe/cap presets, demote an
     // unusable Preset default), and fromJson applies the identical

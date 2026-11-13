@@ -5,6 +5,7 @@
 
 #include "scrollengine/scrollenginelogging.h"
 
+#include <QVarLengthArray>
 #include <QtGlobal>
 
 namespace PhosphorScrollEngine {
@@ -89,13 +90,122 @@ int ScrollStrip::tabbedCrossReservationPx(const Column& c, const ScrollLayoutPar
     if (c.display != ColumnDisplay::Tabbed) {
         return 0;
     }
-    // The inverse of columnMinExtentPx's indicatorEatsMainAxis gate, and the
-    // same reasoning: a Left/Right indicator is thick along x, which is the
-    // CROSS axis exactly while the strip runs vertically.
+    // The inverse of tabbedMainReservationPx's gate, and the same reasoning:
+    // a Left/Right indicator is thick along x, which is the CROSS axis
+    // exactly while the strip runs vertically.
     if (isVerticalTabIndicator(params.tabIndicator.position) == params.axis.isHorizontal()) {
         return 0;
     }
     return params.tabIndicator.reservedThickness(c.visibleTileCount());
+}
+
+int ScrollStrip::tabbedMainReservationPx(const Column& c, const ScrollLayoutParams& params)
+{
+    if (c.display != ColumnDisplay::Tabbed) {
+        return 0;
+    }
+    // The gate is whether the indicator's THICKNESS eats the MAIN axis, which
+    // is not the same question as whether it sits on a vertical screen edge:
+    // the two coincide on a horizontal strip and invert on a vertical one
+    // (columnMinExtentPx carries the full note). tabbedCrossReservationPx is
+    // the inverse arm.
+    if (isVerticalTabIndicator(params.tabIndicator.position) != params.axis.isHorizontal()) {
+        return 0;
+    }
+    return params.tabIndicator.reservedThickness(c.visibleTileCount());
+}
+
+int ScrollStrip::committedMainFloorPx(const QString& windowId, const ScrollLayoutParams& params)
+{
+    // Gated here as well as at columnMinExtentPx's head, so a caller outside
+    // that function cannot read a floor the setting has switched off.
+    if (!params.respectMinimumSize || !params.committedFloor) {
+        return 0;
+    }
+    return qMax(0, params.axis.mainSize(params.committedFloor(windowId)));
+}
+
+int ScrollStrip::tileMinCrossPx(const Tile& t, const Column& c, const ScrollLayoutParams& params)
+{
+    const int declared = t.minCross(params.axis);
+    // The setting gate is here as well as at every caller, committedMainFloorPx's
+    // reason: no caller can read a committed floor the setting has switched
+    // off. A maximized-to-edges column declares its extent, so a committed
+    // floor has nothing to hold there; its declared minimum still reads,
+    // as it did before committed floors existed.
+    if (!params.respectMinimumSize || !params.committedCrossFloor || c.maximizedToEdges) {
+        return declared;
+    }
+    return qMax(declared, qMax(0, params.committedCrossFloor(t.windowId)));
+}
+
+int ScrollStrip::windowColumnMainExtentPx(const QString& windowId, const ScrollLayoutParams& params) const
+{
+    const int colIdx = columnOfWindow(windowId);
+    return colIdx < 0 ? -1 : columnExtentPx(m_columns.at(colIdx), params);
+}
+
+int ScrollStrip::windowTileCrossExtentPx(const QString& windowId, const ScrollLayoutParams& params) const
+{
+    const int colIdx = columnOfWindow(windowId);
+    if (colIdx < 0) {
+        return -1;
+    }
+    const ResolvedStrip resolved = relayout(params);
+    for (const ResolvedColumn& rc : resolved.columns) {
+        if (rc.columnIndex != colIdx) {
+            continue;
+        }
+        for (const ResolvedTile& rt : rc.tiles) {
+            if (rt.windowId == windowId) {
+                return params.axis.crossSize(rt.rect);
+            }
+        }
+        break;
+    }
+    return -1;
+}
+
+int ScrollStrip::tileCrossCapacityPx(const QString& windowId, const ScrollLayoutParams& params) const
+{
+    const int colIdx = columnOfWindow(windowId);
+    const int fullCross = crossExtent(params);
+    if (colIdx < 0 || fullCross <= 0) {
+        return -1;
+    }
+    const Column& c = m_columns.at(colIdx);
+    int visibleTiles = 0;
+    int siblingFloors = 0;
+    bool held = false;
+    for (const Tile& tile : c.tiles) {
+        if (tile.minimized) {
+            continue;
+        }
+        ++visibleTiles;
+        if (tile.windowId == windowId) {
+            held = true;
+        } else {
+            siblingFloors += qMax(1, params.respectMinimumSize ? tileMinCrossPx(tile, c, params) : 0);
+        }
+    }
+    if (!held) {
+        return -1;
+    }
+    // Every tab is committed at the one content rect, so no sibling takes
+    // anything from it; tabbedColumnCrossPx caps the column at the work area,
+    // and the tab gets that less the indicator's reservation across.
+    if (c.display == ColumnDisplay::Tabbed) {
+        return qMax(1, fullCross - tabbedCrossReservationPx(c, params));
+    }
+    // relayout's availH for this column (the gaps BETWEEN the visible tiles
+    // come out of the budget), less what the siblings' own floors keep: the
+    // relayout's rebalance never shrinks a tile below its floor, nor an Auto
+    // one below a pixel. Never below 0: siblings whose floors alone fill the
+    // column leave the tile nothing, and a negative answer would read as the
+    // -1 "no tile here" sentinel, so a floor the tile holds there would be
+    // neither floated nor dropped.
+    const int availH = qMax(visibleTiles, fullCross - params.gap * (visibleTiles - 1));
+    return qMax(0, availH - siblingFloors);
 }
 
 int ScrollStrip::tabbedColumnCrossPx(const Column& c, const ScrollLayoutParams& params)
@@ -190,13 +300,14 @@ int ScrollStrip::tabbedColumnCrossPx(const Column& c, const ScrollLayoutParams& 
     if (params.respectMinimumSize) {
         // Every visible tab is committed at this column's content rect, the
         // hidden ones included, so the floor is the tallest minimum in the
-        // set and not just the shown tab's. Capped at the work area for the
-        // same reason the stack branch caps its own floors: a client minimum
+        // set and not just the shown tab's, each raised to any committed
+        // cross floor its client taught. Capped at the work area for the
+        // same reason the stack branch caps its own floors: a frame minimum
         // larger than the output must not size the column past the screen.
         int floorPx = 0;
         for (const Tile& tile : c.tiles) {
             if (!tile.minimized) {
-                floorPx = qMax(floorPx, tile.minCross(params.axis));
+                floorPx = qMax(floorPx, tileMinCrossPx(tile, c, params));
             }
         }
         if (floorPx > 0) {
@@ -215,7 +326,7 @@ int ScrollStrip::columnExtentPx(const Column& c, const ScrollLayoutParams& param
     // phantom would render shifted from the position the anchor math
     // computed. No mutation site produces an empty column today (each
     // either closes the emptied column or is guarded on tiles.size() >= 2);
-    // this is the single chokepoint all four walks share, kept here so the
+    // this is the chokepoint every extent walk shares, kept here so the
     // invariant does not depend on every future mutation site remembering
     // it.
     if (c.isEmpty() || c.isFullyMinimized()) {
@@ -224,7 +335,7 @@ int ScrollStrip::columnExtentPx(const Column& c, const ScrollLayoutParams& param
     // Maximize-to-edges: the extent is DECLARED, not resolved from the width
     // intent (which stays stored, untouched, for the un-maximize restore).
     // No minimum floor and no work-area cap — the raw main extent already
-    // exceeds the capped answer, and a client minimum wider than the output
+    // exceeds the capped answer, and a frame minimum wider than the output
     // overhangs under the compositor's own enforcement, the same outcome the
     // respectMinimumSize=false arm accepts everywhere else.
     if (c.maximizedToEdges) {
@@ -269,18 +380,20 @@ int ScrollStrip::columnMinExtentPx(const Column& c, const ScrollLayoutParams& pa
         // TabIndicatorPosition stays a SCREEN-edge vocabulary on purpose (a
         // user who asked for the indicator on the left means the left of their
         // screen, and rotating a monitor must not move it), so the axis has to
-        // be brought in here rather than folded into the enum.
-        int reservationFloor = 0;
-        const bool indicatorEatsMainAxis =
-            isVerticalTabIndicator(params.tabIndicator.position) == params.axis.isHorizontal();
-        if (c.display == ColumnDisplay::Tabbed && indicatorEatsMainAxis) {
-            reservationFloor = params.tabIndicator.reservedThickness(c.visibleTileCount());
-        }
+        // be brought in here rather than folded into the enum. That gate lives
+        // in tabbedMainReservationPx, the one place it is spelled.
+        const int reservationFloor = tabbedMainReservationPx(c, params);
         for (const Tile& tile : c.tiles) {
-            // minMain, not minWidth: this is the column's floor ALONG the
-            // strip, which is the client's minimum height on a vertical one.
-            const int tileMinMain = tile.minMain(params.axis);
-            if (!tile.minimized && tileMinMain + reservationFloor > floor) {
+            // A minimized tile is out of the layout, and skipped before its
+            // committed floor is looked up.
+            if (tile.minimized) {
+                continue;
+            }
+            // minMain, not minWidth: the floor ALONG the strip (a vertical
+            // one's is the minimum height), raised to any extent the client's
+            // own commits hold it to, which is read the same way.
+            const int tileMinMain = qMax(tile.minMain(params.axis), committedMainFloorPx(tile.windowId, params));
+            if (tileMinMain + reservationFloor > floor) {
                 floor = tileMinMain + reservationFloor;
             }
         }
@@ -383,10 +496,8 @@ int ScrollStrip::clampedAnchorFor(int columnIndex, int anchor, const ScrollLayou
     // dying screen would permanently reset the strip's restored scroll
     // position. Preserve the current anchor instead; the first relayout
     // against a real area re-clamps it. This is the chokepoint most anchor
-    // walks share; keepOrRecenterAnchor, reanchorAfterFocusChange,
-    // centeredAnchorFor, centerVisibleColumns and removeWindowInternal
-    // (scrollstrip_structure.cpp) carry their own copies of the guard for
-    // the arms that do not pass through here.
+    // walks share; every anchor writer with an arm that does not pass through
+    // here carries its own copy of the guard and points back at this one.
     if (mainExtent(params) <= 0) {
         return m_viewAnchor;
     }
@@ -623,8 +734,8 @@ void ScrollStrip::reanchorForDropCommit(int oldViewOffset, const ScrollLayoutPar
     // latch buys is every LATER pass — a work-area change, a neighbour
     // closing, any relayout that leaves the column no longer fully visible
     // would otherwise re-apply the policy and undo the drop's position under
-    // a user who has not touched the strip since. The next focus change
-    // re-attaches through reanchorAfterFocusChange, same as any pan.
+    // a user who has not touched the strip since. Whatever re-attaches a pan
+    // re-attaches this too (the class doc lists it).
     m_viewDetached = true;
     // Degenerate-area guard, same as clampedAnchor's (the rationale lives
     // there): every arm below would write garbage over the persisted anchor.
@@ -679,6 +790,35 @@ void ScrollStrip::clampViewIntoStrip(const ScrollLayoutParams& params)
     }
 }
 
+ScrollStrip::ViewOverhang ScrollStrip::viewOverhang(const ScrollLayoutParams& params) const
+{
+    ViewOverhang overhang;
+    // Degenerate-area guard, same as clampedAnchor's: nothing here is a
+    // position against a zero-length work area.
+    if (m_activeColumnIdx < 0 || m_activeColumnIdx >= m_columns.size() || mainExtent(params) <= 0) {
+        return overhang;
+    }
+    const int viewOffset = viewOffsetFor(params);
+    const int maxViewOffset = qMax(0, stripExtentPx(params) - mainExtent(params));
+    overhang.leading = qMax(0, -viewOffset);
+    overhang.trailing = qMax(0, viewOffset - maxViewOffset);
+    return overhang;
+}
+
+void ScrollStrip::clampViewOverhang(const ScrollLayoutParams& params, int keepLeading, int keepTrailing)
+{
+    // Degenerate-area guard, same as clampedAnchor's: the clamp would
+    // collapse ANY anchor against a zero-length work area.
+    if (m_activeColumnIdx < 0 || m_activeColumnIdx >= m_columns.size() || mainExtent(params) <= 0) {
+        return;
+    }
+    const int activeMainPos = columnStripPos(m_activeColumnIdx, params);
+    const int maxViewOffset = qMax(0, stripExtentPx(params) - mainExtent(params));
+    const int viewOffset = activeMainPos - m_viewAnchor;
+    const int bounded = qBound(-qMax(0, keepLeading), viewOffset, maxViewOffset + qMax(0, keepTrailing));
+    m_viewAnchor = activeMainPos - bounded;
+}
+
 void ScrollStrip::updateViewForFocus(const ScrollLayoutParams& params)
 {
     // A detached view belongs to the user's pan, not to the policy (class
@@ -693,11 +833,14 @@ void ScrollStrip::updateViewForFocus(const ScrollLayoutParams& params)
     // scrollViewBy walks such a view back one clamped delta at a time rather
     // than snapping it — running clampedAnchor here would perform in one
     // layout pass the very snap that comment forbids, hundreds of pixels
-    // against the direction the user just scrolled. The only way a view that
-    // started IN range leaves it is a viewport growth, which strands it at the
-    // TRAILING end as dead space: the same state removeWindowInternal creates
-    // on purpose and the early-return below already preserves. It heals on the
-    // next pan or focus change.
+    // against the direction the user just scrolled. A view that started IN
+    // range can still leave it with no pan: a viewport growth strands it at
+    // the trailing end, and a column narrowing under it (a lowered minimum, a
+    // committed floor given back) strands it at whichever end that column's
+    // shrink exposes. Trailing dead space is the state removeWindowInternal
+    // creates on purpose and the early-return below already preserves, and a
+    // leading overhang is the shape the centering mutators store. Either heals
+    // on the next pan or focus change.
     if (m_viewDetached) {
         return;
     }
@@ -762,7 +905,7 @@ bool ScrollStrip::centerVisibleColumns(const ScrollLayoutParams& params)
     // FULLY visible columns only (niri center-visible-columns): a partially
     // clipped edge column is exactly what the verb pushes out of the way, so
     // it must not drag the span. The ONE spelling of that walk, shared with
-    // the width-distribution verbs — zero-extent (fully minimized) columns
+    // expandActiveColumnToAvailableWidth — zero-extent (fully minimized) columns
     // carry no strip position and are skipped there the same way
     // stripExtentPx skips them.
     const QVector<int> visible = fullyVisibleColumnIndices(params);
@@ -825,16 +968,20 @@ bool ScrollStrip::scrollViewBy(int delta, const ScrollLayoutParams& params)
     const int viewOffset = activeMainPos - m_viewAnchor;
     // qMax/qMin against viewOffset itself so an already-out-of-range view is
     // never pushed FURTHER out, but is free to travel back towards the range.
-    const int target = delta > 0 ? qMin(viewOffset + delta, qMax(viewOffset, maxViewOffset))
-                                 : qMax(viewOffset + delta, qMin(viewOffset, 0));
+    // The sum is taken wide: delta is exported API (the pixel pan hands it a
+    // wire value), and an int sum near INT_MAX would overflow before the
+    // clamp. The clamped result always lies between bounds that are ints.
+    const qint64 wanted = qint64(viewOffset) + delta;
+    const int target = delta > 0 ? int(qMin(wanted, qint64(qMax(viewOffset, maxViewOffset))))
+                                 : int(qMax(wanted, qint64(qMin(viewOffset, 0))));
     const int anchor = activeMainPos - target;
     if (anchor == m_viewAnchor) {
         return false;
     }
     m_viewAnchor = anchor;
     // The view is now where the USER put it, so take it out of the centering
-    // policy's hands until a focus change or a centering verb gives it back
-    // (class doc). Set only on a real move: a refusal at either end must not
+    // policy's hands until something re-attaches it (the class doc's View
+    // detachment section lists what does). Set only on a real move: a refusal at either end must not
     // detach a view the policy still owns, or holding a scroll key against the
     // strip's end would silently change what the next layout pass does.
     m_viewDetached = true;
@@ -851,6 +998,8 @@ bool ScrollStrip::stripFitsViewport(const ScrollLayoutParams& params) const
 
 bool ScrollStrip::stripSettledInViewport(const ScrollLayoutParams& params) const
 {
+    // The one walk of the strip's extent this per-tick disarm gate pays for
+    // is stripFitsViewport's; nothing below measures the extent again.
     if (!stripFitsViewport(params)) {
         return false;
     }
@@ -859,8 +1008,9 @@ bool ScrollStrip::stripSettledInViewport(const ScrollLayoutParams& params) const
     if (mainExtent(params) <= 0 || m_activeColumnIdx < 0) {
         return true;
     }
-    const int viewOffset = viewOffsetFor(params);
-    return viewOffset >= 0 && viewOffset <= qMax(0, stripExtentPx(params) - mainExtent(params));
+    // A strip that fits the viewport has exactly one in-range view offset,
+    // its start: [0, max(0, stripExtent - viewport)] is [0, 0] here.
+    return viewOffsetFor(params) == 0;
 }
 
 ResolvedStrip ScrollStrip::relayout(const ScrollLayoutParams& params) const
@@ -919,14 +1069,15 @@ ResolvedStrip ScrollStrip::relayout(const ScrollLayoutParams& params) const
         // max of the two and the answer is indistinguishable afterwards. A
         // maximized-to-edges extent is declared, never minimum-pinned.
         //
-        // This re-resolves the pair columnExtentPx just took a max of, which
-        // reads like the kind of duplicate per-tick walk the note at the end of
-        // this function says to remove. It stays because the only way to share
-        // the work is to fold the flag out of columnExtentPx and into its four
-        // callers, and that resolver owns the toEdges arm and the work-area cap
-        // the other three depend on. The toEdges short-circuit below keeps the
-        // extra pair off the maximized path, which is the one whose column
-        // spans the whole output.
+        // Nothing in this repository reads the field. It is computed anyway
+        // because ResolvedColumn is installed API and the field's documented
+        // meaning has to hold for whoever does, and dropping the member would
+        // shift the struct's layout. The cost is one more resolve of the pair
+        // columnExtentPx just took a max of, per column per relayout; sharing
+        // that work would mean splitting columnExtentPx, which owns the toEdges
+        // arm and the work-area cap every other extent walk depends on. The
+        // toEdges short-circuit below keeps the extra pair off the maximized
+        // path.
         rc.extentPinnedByMinimum =
             !toEdges && columnMinExtentPx(col, params) >= resolveColumnWidthPx(col.width, params);
         rc.maximizedToEdges = toEdges;
@@ -1106,18 +1257,32 @@ ResolvedStrip ScrollStrip::relayout(const ScrollLayoutParams& params) const
             }
             // Min-height clamp after distribution. Soft constraint: when
             // even the floors overflow the column, the overflow stands and
-            // the trailing tiles lay out below the work area (no float-out
-            // policy exists for this case — the open-time oversized check
-            // is the only min-size-driven float). The whole clamp (and the
+            // the trailing tiles lay out below the work area. No float-out
+            // policy exists for DECLARED minimums that overflow only
+            // together: the engine's oversized floats (the open-time check
+            // and its revisits through ScrollEngine::outgrowsWorkArea) fire
+            // for a declared minimum only when ONE window outgrows the work
+            // area. A committed cross floor is the exception, since the
+            // engine floats the window that teaches one its stack can never
+            // hold, and drops a held one the stack stops being able to hold
+            // (ScrollEngine::settleCommittedFloors). The whole clamp (and the
             // rebalance it necessitates) is the respect-minimum-size arm:
             // off, the distributed heights stand and the compositor's own
             // min-size enforcement decides what overhangs.
             if (params.respectMinimumSize) {
+                // tileMinCrossPx: heights[] divides the column ACROSS the
+                // strip, so the floor is the frame minimum on that axis,
+                // raised to any share the client's own commits hold the tile
+                // to. Resolved once, since the rebalance below reads it per
+                // pass. Held inline for an ordinary stack, so the relayout
+                // (which the indicator probe and the auto-scroll run per tick)
+                // pays no heap allocation for it; every slot is written below.
+                QVarLengthArray<int, 8> floors(n);
                 for (int vi = 0; vi < n; ++vi) {
-                    // minCross: heights[] divides the column ACROSS the
-                    // strip, so the floor is the client minimum on that axis.
-                    const Tile& t = col.tiles.at(visible.at(vi));
-                    const int floorPx = t.minCross(params.axis);
+                    floors[vi] = tileMinCrossPx(col.tiles.at(visible.at(vi)), col, params);
+                }
+                for (int vi = 0; vi < n; ++vi) {
+                    const int floorPx = floors.at(vi);
                     if (floorPx > 0 && heights[vi] < floorPx) {
                         heights[vi] = qMin(floorPx, availH);
                     }
@@ -1136,15 +1301,13 @@ ResolvedStrip ScrollStrip::relayout(const ScrollLayoutParams& params) const
                     while (excess > 0) {
                         int slackTotal = 0;
                         for (int vi = 0; vi < n; ++vi) {
-                            const Tile& t = col.tiles.at(visible.at(vi));
-                            slackTotal += qMax(0, heights[vi] - qMax(1, t.minCross(params.axis)));
+                            slackTotal += qMax(0, heights[vi] - qMax(1, floors.at(vi)));
                         }
                         if (slackTotal <= 0) {
                             break;
                         }
                         for (int vi = 0; vi < n && excess > 0; ++vi) {
-                            const Tile& t = col.tiles.at(visible.at(vi));
-                            const int slack = qMax(0, heights[vi] - qMax(1, t.minCross(params.axis)));
+                            const int slack = qMax(0, heights[vi] - qMax(1, floors.at(vi)));
                             if (slack <= 0) {
                                 continue;
                             }

@@ -211,9 +211,9 @@ private Q_SLOTS:
     void flatNestsAKeptHeaderInsideAnotherKeptHeader()
     {
         // Two stacked no-QML drill parents, the inner with two leaves. The
-        // recursion carries TWO counters — `depth` bounds the registry walk
-        // and gates the top-level seam, `rowDepth` is the emitted indent —
-        // and this is the shape that drives them apart by more than one step:
+        // recursion carries TWO counters — `depth` is the registry depth and
+        // gates the top-level seam, `rowDepth` is the emitted indent — and
+        // this is the shape that drives them apart by more than one step:
         // outer header at rowDepth 0, inner header at 1, leaves at 2.
         PageRegistry r;
         SidebarRows rows;
@@ -400,7 +400,7 @@ private Q_SLOTS:
         // actually drops it is the REGISTRY's visibility rule: isEntryVisible
         // hides a virtual node with no visible navigable descendant, so `cat`
         // never reaches build()'s descendant count at all (that count's zero
-        // case is reachable only through depth truncation — see
+        // case is not reached for a non-empty child list — see
         // firstTwoNavigableUnder's doc). The assertion pins the user-visible
         // behaviour either way.
         PageRegistry r;

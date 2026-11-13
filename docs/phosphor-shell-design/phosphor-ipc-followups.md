@@ -25,7 +25,7 @@ that already share the same pattern.
 
 ## 1. Per-process `MaxConnections` cap on the router
 
-**Where:** `phosphor-shell-libs/libs/phosphor-ipc/src/ipcrouter.cpp`, `handleNewConnection()`.
+**Where:** `phosphor-libs/libs/phosphor-ipc/src/ipcrouter.cpp`, `handleNewConnection()`.
 
 **Finding:** the accept loop drains all pending connections without any
 threshold check. A same-uid attacker (sandbox-escaped browser tab, hostile
@@ -48,7 +48,7 @@ declared model.
 
 ## 2. Idle-connection timeout
 
-**Where:** `phosphor-shell-libs/libs/phosphor-ipc/src/ipcrouter.cpp`, per-socket connect path.
+**Where:** `phosphor-libs/libs/phosphor-ipc/src/ipcrouter.cpp`, per-socket connect path.
 
 **Finding:** a peer can `connectToServer()` and never send a byte. The
 fd, the `QLocalSocket` QObject, and (lazily) the empty
@@ -69,7 +69,7 @@ beyond one fd per idle peer, and the existing `MaxConnections` cap (item
 
 ## 3. `SO_PEERCRED` peer credential check
 
-**Where:** `phosphor-shell-libs/libs/phosphor-ipc/src/ipcrouter.cpp`, `handleNewConnection()`.
+**Where:** `phosphor-libs/libs/phosphor-ipc/src/ipcrouter.cpp`, `handleNewConnection()`.
 
 **Finding:** the router accepts any peer that can connect to the socket
 path. Filesystem permissions limit this to same-uid attackers, but a
@@ -157,7 +157,7 @@ panel binds to `demoController.status` which reads `"router failed to
 start (see logs)"`, and the cheat-sheet panel shows a placeholder
 instead of an empty `export PHOSPHOR_SOCKET=` line.
 
-**Why no action:** behaviour matches `phosphor-shell-libs/libs/phosphor-ipc/README.md:112`
+**Why no action:** behaviour matches `phosphor-libs/libs/phosphor-ipc/README.md:112`
 ("Application can continue without IPC; failure is non-fatal"). The
 warnings are a debugging affordance.
 

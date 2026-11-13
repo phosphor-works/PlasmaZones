@@ -8,7 +8,6 @@
 #include <PhosphorProtocol/DragMarshalling.h>
 #include <PhosphorProtocol/ZoneMarshalling.h>
 #include <QDBusAbstractAdaptor>
-#include <QDBusContext>
 #include <QElapsedTimer>
 #include <QHash>
 #include <QObject>
@@ -58,24 +57,27 @@ class WindowTrackingAdaptor;
 /**
  * @brief D-Bus adaptor for window drag handling
  *
- * Provides D-Bus interface: org.plasmazones.WindowDrag
+ * Provides D-Bus interface: org.phosphor_works.Placement.WindowDrag
  *
- * Receives drag events from KWin script and handles:
- * - Modifier key detection (works on Wayland via QGuiApplication)
+ * Receives the KWin effect's drag reports (beginDrag, updateDragCursor,
+ * endDrag) and handles:
+ * - Trigger detection from the modifiers and buttons the effect sends
+ *   (QGuiApplication answers when the effect sends none)
  * - PhosphorZones::Zone detection and highlighting
- * - Overlay visibility based on modifiers
- * - Window snapping via KWin D-Bus
+ * - Overlay visibility based on the triggers
+ * - The drop outcome the effect applies (snap, size restore, float, no-op)
  *
- * Inherits @c QDBusContext so registerDropProxy can identify the peer that
- * registered a proxy and drop the registration when that peer dies. A proxy
- * outlives every individual drag by design, so without owner tracking a shell
- * that crashes rather than unregistering would keep hijacking snap drops over
- * its old rect for the daemon's whole lifetime.
+ * registerDropProxy identifies the peer that registered a proxy through the
+ * context of the object this adaptor is exported through
+ * (DbusHelpers::busCaller), and drops the registration when that peer dies.
+ * A proxy outlives every individual drag by design, so without owner
+ * tracking a shell that crashes rather than unregistering would keep
+ * hijacking snap drops over its old rect for the daemon's whole lifetime.
  */
-class PLASMAZONES_EXPORT WindowDragAdaptor : public QDBusAbstractAdaptor, public QDBusContext
+class PLASMAZONES_EXPORT WindowDragAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.WindowDrag")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.WindowDrag")
 
 public:
     explicit WindowDragAdaptor(IOverlayService* overlay, PhosphorZones::IZoneDetector* detector,
@@ -175,10 +177,11 @@ public:
     /// phase (shortcuts_wiring.cpp, snapAssistShown); the drag itself never binds it (the
     /// kwin-effect's keyboard grab handles Escape during a drag). Every normal
     /// release site routes through here so one consumer's teardown cannot tear
-    /// the grab out from under another consumer that is still showing. Two
-    /// sites deliberately bypass it with an unconditional release: cancelSnap()
-    /// (the explicit Escape-pressed teardown) and clearForCompositorReconnect()
-    /// (force-release when the compositor that held the grab is already gone).
+    /// the grab out from under another consumer that is still showing. The
+    /// sites that deliberately bypass it with an unconditional release are
+    /// cancelSnap() (the explicit Escape-pressed teardown) and
+    /// clearForCompositorReconnect() (force-release when the compositor that
+    /// held the grab is already gone).
     void releaseCancelOverlayShortcutIfIdle();
 
     /// Register the layout-picker keyboard navigation accelerators
@@ -205,12 +208,19 @@ public Q_SLOTS:
      * truth replaces the effect-side m_dragBypassedForAutotile cache that
      * went stale after every settings reload.
      *
-     * Internally, for snap-path drags, this also performs the same drag-start
-     * setup as the legacy dragStarted method (original geometry, pre-parsed
-     * triggers, was-snapped check). For autotile-bypass or
-     * snapping-disabled drags, it only stores m_draggedWindowId so later
-     * updateDragCursor / endDrag calls match.
-     *
+     * Every drag gets its trigger caches parsed and its per-drag latches
+     * reset here. The snap path then DEFERS the legacy dragStarted setup: the
+     * drag is stashed as pending (m_pendingSnapDragWindowId) and
+     * updateDragCursor promotes it once an activation trigger is held, the
+     * cursor reaches a zone-selector edge, or the cursor is over a tiling
+     * engine's screen with that engine's re-insert trigger held, its
+     * always-on entry included (activateSnapDragIfNeeded). A bypass drag
+     * resets the shared drag state, records m_draggedWindowId and its start
+     * frame, and on an engine-owned screen in reorder mode (autotile's
+     * Reorder drag behaviour, or scrolling's always-on re-insert, see
+     * effectiveDragReorderModeFor) arms the reorder latch for a window that
+     * engine tiles, so the first dragMoved tick begins the drag-insert
+     * preview.
      */
     PhosphorProtocol::DragPolicy beginDrag(const QString& windowId, int frameX, int frameY, int frameWidth,
                                            int frameHeight, const QString& startScreenId, int mouseButtons);
@@ -222,14 +232,25 @@ public Q_SLOTS:
      * PhosphorProtocol::DragOutcome that the compositor plugin applies verbatim — no further
      * decisions on the plugin side. Covers the full dispatch matrix:
      *
-     *   - autotile_screen bypass → ApplyFloat at the release cursor
-     *   - snapping_disabled / context_disabled / layout_suppressed bypass → NoOp
+     *   - an active or bypass drag cancelled → CancelSnap; a live drag-insert
+     *     preview is cancelled and nothing commits
+     *   - a pending snap drag that never activated → NoOp, cancelled or not.
+     *     An uncancelled drop on another screen first goes to
+     *     WindowTrackingAdaptor::dragEndedOnScreen, and a snapped window's
+     *     uncancelled drop on its own screen to notifyDragOutUnsnap
+     *   - engine-owned screen bypass → NoOp when a drag-insert preview on the
+     *     release screen commits, else ApplyFloat at the release cursor
+     *   - snapping_disabled / context_disabled / layout_suppressed bypass →
+     *     NoOp, or NotifyDragOutUnsnap for a snapped window dropped on another
+     *     screen
      *   - snap path → delegates to legacy dragStopped and packages its
-     *     out-params into the outcome (ApplySnap / RestoreSize / NoOp /
-     *     with snap-assist empty zones if requested)
+     *     out-params into the outcome (ApplySnap / RestoreSize / NoOp), with
+     *     snap assist requested when asked; the empty zones follow on
+     *     snapAssistReady
      *
-     * Must be called after beginDrag for the same windowId. If beginDrag
-     * was never called (or the ids mismatch), returns NoOp.
+     * Must be called after beginDrag for the same windowId. An id matching
+     * neither the active nor the pending drag returns the default (NoOp)
+     * outcome.
      */
     PhosphorProtocol::DragOutcome endDrag(const QString& windowId, int cursorX, int cursorY, int modifiers,
                                           int mouseButtons, bool cancelled);
@@ -239,14 +260,21 @@ public Q_SLOTS:
      * beginDrag / endDrag. Replaces dragMoved as the canonical hot-path
      * entry point during a drag. Throttled 30Hz by the compositor plugin.
      *
-     * For snap-path drags: delegates to legacy dragMoved internally to
-     * keep overlay/zone-detection state current.
+     * For snap-path drags: a pending drag is promoted here once an
+     * activation trigger is held, the cursor reaches a zone-selector edge,
+     * or the cursor is over a tiling engine's screen with that engine's
+     * re-insert trigger held, and until then the tick does nothing. An
+     * active one delegates to the
+     * legacy dragMoved to keep overlay/zone-detection state current.
      *
-     * For bypass drags: no-op, but still consulted for cursor screen
-     * detection — if the cursor crosses a virtual-screen boundary that
-     * would change the policy (autotile↔snap), the daemon emits
-     * dragPolicyChanged and the plugin reacts by switching its local
-     * drag mode. This replaces the effect-side cross-VS flip logic.
+     * For bypass drags: dragMoved runs too, for the drag-insert preview on
+     * engine-owned screens, while its snap overlay arms stand down there.
+     *
+     * Every active tick also recomputes the policy for the cursor's screen:
+     * when the cursor crosses onto a screen whose policy differs
+     * (autotile↔snap, or another screen of the same mode), the daemon emits
+     * dragPolicyChanged and the plugin reacts by switching its local drag
+     * mode. This replaces the effect-side cross-VS flip logic.
      */
     void updateDragCursor(const QString& windowId, int cursorX, int cursorY, int modifiers, int mouseButtons);
 
@@ -260,15 +288,20 @@ public Q_SLOTS:
      * the cell under it (highlight through the overlay, geometry preview,
      * endDrag snaps there); inside the rect but over no cell is no target.
      * @p proxyJson follows PhosphorProtocol::Service::DropProxyKey, in the
-     * screen's own pixels; a malformed proxy is refused and any earlier one
+     * screen's logical coordinates; a malformed proxy is refused and any earlier one
      * stands. One proxy per screen. On a tiling or scrolling screen the
      * proxy is accepted and ignored, since the snap path never runs there.
+     * Any bus peer may register a proxy on a screen that has none (the shell
+     * is not the compositor bridge, so the compositor gate cannot admit it),
+     * but a proxy another live peer registered is refused with AccessDenied.
      */
     void registerDropProxy(const QString& screenId, const QString& proxyJson);
-    /** Drop the proxy registered for @p screenId, if any. */
+    /** Drop the proxy registered for @p screenId, if any. A bus peer other
+     *  than the one that registered it is refused with AccessDenied. */
     void unregisterDropProxy(const QString& screenId);
 
-    /** Forward mouse wheel delta to zone selector for scrolling during drag. */
+    /** Forward mouse wheel delta to zone selector for scrolling during drag.
+     *  Compositor-only (#1155): any other bus caller is answered AccessDenied. */
     void selectorScrollWheel(int angleDeltaY);
 
     /**
@@ -291,7 +324,7 @@ public Q_SLOTS:
      * (`ClientHelpers::sendOneWay(...WindowDrag, "clearForCompositorReconnect")`,
      * lifecycle.cpp) so the daemon drops stale drag/overlay state the
      * moment the effect tears down, not just on the next re-registration.
-     * It is NOT listed in `org.plasmazones.WindowDrag.xml` (the XML is
+     * It is NOT listed in `org.phosphor_works.Placement.WindowDrag.xml` (the XML is
      * hand-maintained doc, not adaptor-generating), so the bus surface for
      * this method comes solely from its `Q_SLOTS` placement: moving it to a
      * plain `public:` member would silently remove it from the wire and the
@@ -306,16 +339,15 @@ public Q_SLOTS:
 public:
     /**
      * Called when a window is closed during or after a drag operation.
-     * Connected to WindowTrackingAdaptor::windowClosedNotification — the
-     * canonical close path also tears down drag state when the closing
-     * window was in flight.
+     * Connected to WindowLifecycleRelay::windowClosed, so the canonical close
+     * path also tears down drag state when the closing window was in flight.
      *
      * Declared as a public plain member function (NOT under Q_SLOTS):
      * QDBusAbstractAdaptor's runtime introspection exposes every PUBLIC
      * scriptable slot on the bus regardless of what the hand-maintained
      * XML lists. Keeping this in `public Q_SLOTS` would re-expose
      * `WindowDrag.handleWindowClosed` on the wire even after removing
-     * it from `org.plasmazones.WindowDrag.xml`. Plain member-function
+     * it from `org.phosphor_works.Placement.WindowDrag.xml`. Plain member-function
      * placement keeps the in-process function-pointer-`connect()`
      * target reachable while the bus surface truly matches the XML.
      *
@@ -385,7 +417,7 @@ Q_SIGNALS:
      * Emitted when the zone geometry under the cursor changes during drag.
      * NO in-tree subscriber exists today: the effect and DaemonClient
      * subscribe only to restoreSizeDuringDragChanged. The signal stays on
-     * the published D-Bus surface (org.plasmazones.WindowDrag.xml) for a
+     * the published D-Bus surface (org.phosphor_works.Placement.WindowDrag.xml) for a
      * snap-on-hover consumer; removing it from the wire contract is a
      * maintainer decision, not a doc fix.
      */
@@ -436,16 +468,38 @@ private:
     bool checkModifier(int modifierSetting, Qt::KeyboardModifiers mods) const;
     // Check if any trigger in a list matches current modifiers/mouse buttons
     bool anyTriggerHeld(const QVariantList& triggers, Qt::KeyboardModifiers mods, int mouseButtons) const;
-    // Overload using pre-parsed triggers (hot path during drag). Pass
-    // @p excludeSentinel = true to skip entries whose modifier is the
-    // AlwaysActive sentinel — those match every tick by definition, so they
-    // are useless as a per-tick "user is holding the trigger" signal.
-    // dragMoved uses this so the activation cache can carry both the master
-    // always-active bit and user-configurable hold/toggle entries (#249).
+    /// Which entries holding the AlwaysActive sentinel a per-tick trigger read
+    /// skips. The bare sentinel matches every tick by definition, so it is
+    /// useless as a "user is holding the trigger" signal, and a list that
+    /// carries it as its always-on bit reads its remaining entries without it.
+    enum class SentinelMatch {
+        Include, ///< Every entry counts.
+        /// Skip every entry holding the sentinel, the bare one and any
+        /// paired with a button. The activation and zone-span reads (#249).
+        SkipAll,
+        /// Skip only the bare sentinel. A sentinel paired with a button still
+        /// reads as that button, as it does with Include, which is how the
+        /// drag re-insert list treats it (only the bare one means "always",
+        /// see effectiveDragReorderModeFor), so it can keep a drag out under
+        /// always re-insert (#1162) and lift Escape's dismissal.
+        SkipBare,
+    };
+    // Overload using pre-parsed triggers (hot path during drag). dragMoved
+    // uses @p sentinels so a cache can carry both the always-on bit and the
+    // user-configurable hold/toggle entries (#249, #1162).
     bool anyTriggerHeld(const QVector<ParsedTrigger>& triggers, Qt::KeyboardModifiers mods, int mouseButtons,
-                        bool excludeSentinel = false) const;
+                        SentinelMatch sentinels = SentinelMatch::Include) const;
     // Parse QVariantList triggers into POD structs for repeated use
     static QVector<ParsedTrigger> parseTriggers(const QVariantList& triggers);
+    /// Whether @p triggers carries the bare AlwaysActive sentinel, the
+    /// "always" bit of a drag re-insert list (always re-insert). A sentinel
+    /// paired with a button is not it: the per-tick read ANDs the button in,
+    /// so it is that button's trigger.
+    static bool hasBareAlwaysActive(const QVector<ParsedTrigger>& triggers);
+    /// The modifiers a compositor report carries. A report with no modifier
+    /// held arrives as 0, which falls back to Qt's own query (which may not
+    /// see the keyboard on Wayland without focus).
+    static Qt::KeyboardModifiers resolveReportedModifiers(int modifiers);
 
     // ═══════════════════════════════════════════════════════════════════════
     // Legacy drag state-machine helpers (formerly public D-Bus slots). Now
@@ -464,15 +518,20 @@ private:
 
     // Promote the pending snap-path drag (stashed by beginDrag) to an
     // active drag by running the legacy dragStarted setup. Called from
-    // updateDragCursor once the activation trigger is first held OR the
+    // updateDragCursor once the activation trigger is first held, OR the
     // cursor enters a zone-selector edge region (edge-hover is an
-    // alternative "user wants to snap" commitment).
+    // alternative "user wants to snap" commitment), OR the cursor is over a
+    // tiling engine's screen with that engine's re-insert trigger held (its
+    // always-on entry included, so under "always re-insert" a plain drag
+    // crossing onto that screen promotes too).
     // Returns true if promotion happened or the drag was already active.
     bool activateSnapDragIfNeeded(int modifiers, int mouseButtons, int cursorX, int cursorY);
 
-    // Discard any pending snap-path drag state. Called from endDrag and
-    // handleWindowClosed to prevent leftover pending state leaking into
-    // the next drag.
+    // Discard any pending snap-path drag state, and sweep a leftover
+    // drag-insert preview as a dead session's. Called from beginDrag (the
+    // clean slate), endDrag's pending branch, handleWindowClosed and
+    // clearForCompositorReconnect, so no pending state leaks into the next
+    // drag.
     void clearPendingSnapDragState();
 
 public:
@@ -506,8 +565,12 @@ public:
      *        cascade, scrolling = the bare AlwaysActive sentinel in its
      *        trigger list). Resolved by the caller because the static can't
      *        reach the registry or the per-drag trigger caches. True on an
-     *        engine-owned screen clears immediateFloatOnStart — the reorder
-     *        pipeline, not a float, owns the drop.
+     *        engine-owned screen clears immediateFloatOnStart, since the
+     *        reorder pipeline owns the drop. Where the engine's re-insert
+     *        list also carries always re-insert, a held keep-out trigger can
+     *        still make that drop a float (#1162), and the window then takes
+     *        its float size only at the drop, because the policy does not
+     *        follow the trigger.
      * @param activeLayoutSuppressed Whether the screen's context has NO active
      *        zone layout because the default assignment is suppressed
      *        (LayoutRegistry::isContextActiveLayoutSuppressed — resolved by the
@@ -567,6 +630,31 @@ private:
     /// respect-minimum-size clamp is inert for it.
     QSize dragInsertAdoptedMinSize(const QString& windowId) const;
 
+    /// The dragged window's size as the user holds it, for
+    /// IPlacementEngine::setDragInsertClientSize, and only a size the client
+    /// chose, since an engine sizes an arriving window by it. A window FREE
+    /// at begin hands the frame the drag began with (a plain move keeps that
+    /// size); empty when that frame filled its output (a maximized or
+    /// fullscreen window's frame is the output) or no frame is known. A
+    /// window MANAGED at begin (m_dragStartManaged) hands nothing until a
+    /// restore during the drag gives it its own size back: the daemon's
+    /// drag-out size (m_dragRestoredSize), else the effect's drag-to-float
+    /// restore read from the live frame shadow. Re-read every tick of a live
+    /// preview and at the commit, so a restore landing after the begin is
+    /// seen. A pending snap drag reads its own begin frame, which promotion
+    /// copies over, so the selector's size floor can ask before it promotes.
+    QSize dragInsertClientSize() const;
+
+    /// Whether dragInsertClientSize is under the global minimum window size
+    /// on either axis. An empty size is never under it: a window managed at
+    /// begin is judged only once a restore hands its own size back, since
+    /// the frame its zone or tile gave it says nothing about the window.
+    /// Shared by the drag-insert adoption gate and both selector gates
+    /// (checkZoneSelectorTrigger, and the pending edge hover in
+    /// activateSnapDragIfNeeded), and asked every tick, so a restore landing
+    /// mid-drag moves all three together.
+    bool dragClientSizeBelowMinimum() const;
+
     /// Reorder-mode resolve for whichever engine owns @p screenId: autotile
     /// keeps the SetDragBehavior-rule/global-setting cascade; scrolling has
     /// no DragBehavior enum, so "always re-insert" IS the AlwaysActive
@@ -578,12 +666,12 @@ private:
     /// activeLayoutSuppressed input, resolved on the current desktop/activity
     /// like effectiveReorderMode). Also gates the per-tick drag paths, which a
     /// mid-drag monitor crossing reaches without a fresh beginDrag (#724).
-    /// Memoized per drag on the last screen id (see the definition); beginDrag
-    /// clears the memo.
+    /// Memoized per drag on the last (screen, desktop, activity) (see the
+    /// definition); beginDrag and onLayoutChanged clear the memo.
     bool isActiveLayoutSuppressedForScreen(const QString& screenId) const;
-    /// Uncached desktop-explicit form for snapshot-desktop callers (the
-    /// deferred snap-assist build must judge the drop-time desktop, not a
-    /// live read).
+    /// Uncached desktop-explicit form, read on the live activity. The memo
+    /// wrapper above is its caller; the deferred snap-assist build asks the
+    /// registry directly, since it judges a snapshot activity as well.
     bool isActiveLayoutSuppressedForScreen(const QString& screenId, int virtualDesktop) const;
 
     // Helper: Find screen containing a point (returns primary screen if not found)
@@ -619,7 +707,7 @@ private:
 
     // Drop proxy (dropproxy.h). resolveDropProxyAt maps a global cursor
     // position onto the proxy registered for the cursor's PHYSICAL screen,
-    // in that screen's own pixels. The two target helpers are the single-zone
+    // in that screen's logical coordinates. The two target helpers are the single-zone
     // and no-zone arms of handleMultiZoneModifier, shared with the proxy
     // path so a proxied cell lights and commits exactly like a real zone.
     DropProxyRegistry::Resolution resolveDropProxyAt(QScreen* screen, const QString& screenId, int x, int y) const;
@@ -690,6 +778,19 @@ private:
     // structural compare, so new fields are picked up automatically.
     PhosphorProtocol::DragPolicy m_currentDragPolicy;
     QRect m_originalGeometry;
+    /// Whether the window filled its output (maximized or fullscreen) when the
+    /// drag began: its original frame is then the output, never a float-back.
+    bool m_originalFrameFillsOutput = false;
+    /// Whether the window was MANAGED when the drag began: in a zone in view,
+    /// or a tile of either tiling engine. Its start frame was then decided by
+    /// the zone or the tile, so dragInsertClientSize hands no size for it.
+    /// Read by beginDrag ahead of any preview begin (the scroll begin detaches
+    /// the tile), set after its resetDragState, cleared by resetDragState.
+    bool m_dragStartManaged = false;
+    /// The drag-out size the daemon told the effect to restore mid-drag
+    /// (restoreSizeDuringDragChanged): the window's own size again. Empty
+    /// until one is sent. Cleared by resetDragState.
+    QSize m_dragRestoredSize;
 
     // Pending snap-path drag awaiting first activation. Populated by
     // beginDrag on the snap path instead of immediately running the full
@@ -703,7 +804,14 @@ private:
     // laziness now lives on the daemon side.
     QString m_pendingSnapDragWindowId;
     QRect m_pendingSnapDragGeometry;
+    /// m_originalFrameFillsOutput read with the geometry, not at promotion (F1051).
+    bool m_pendingSnapDragFillsOutput = false;
     bool m_pendingSnapDragWasSnapped = false;
+    /// The pending drag may no longer promote: Escape cancelled it
+    /// (cancelSnap), or dragStarted refused its promotion. It keeps its
+    /// identity so its endDrag still takes the pending branch and finishes
+    /// the drag-out. Cleared with the rest of the pending state.
+    bool m_pendingSnapDragCancelled = false;
     /// Set for the duration of one endDrag whose `cancelled` flag was true —
     /// KWin ended the interactive move itself (Escape, a fullscreen
     /// transition, another effect) and is restoring the window to where it
@@ -735,8 +843,27 @@ private:
     // Drag-insert toggle latch, shared across engines (the cursor is on one
     // screen at a time; the trigger LIST and toggle SETTING are selected per
     // tick by the engine owning the cursor screen).
-    bool m_dragInsertToggled = false; // Current toggle state for drag-insert
+    bool m_dragInsertToggled = false; // A tap has made an explicit choice this drag
+    // The insert state the toggle latch's last tap asked for, meaningful only
+    // while m_dragInsertToggled is set. Stored as the state, not as a
+    // divergence from the default, because the default differs between a
+    // screen with always re-insert and one without (resolveDragInsertActive).
+    bool m_dragInsertToggledInsert = false;
+    // A dragMoved tick reached the drag-insert block over an engine screen
+    // this drag. endDrag reads it for a reorder tile: with no such tick the
+    // preview never began, so the drop puts the tile back itself (or floats
+    // it when its report shows the keep-out held); after one the tick has
+    // already decided. Reset by beginDrag and resetDragState.
+    bool m_dragInsertEngineTicked = false;
     bool m_prevDragInsertHeld = false; // Previous frame's drag-insert trigger state
+    // Escape dismissed the re-insert for this drag (cancelSnap). While set,
+    // dragMoved reads the drag-insert trigger as released and the policy-flip
+    // re-latch leaves reorder down. Only a real trigger re-press clears it:
+    // an entry other than the bare sentinel released
+    // (m_dragInsertReleasedAfterCancel) and pressed again on an engine
+    // screen. Reset by beginDrag and resetDragState.
+    bool m_dragInsertCancelled = false;
+    bool m_dragInsertReleasedAfterCancel = false;
     // Journal-diagnostic dedup for the "drag-insert tick:" line: first tick
     // plus every raw-held transition logs once (a first-tick-only latch was
     // structurally blind to a mid-drag press, which once sent a whole
@@ -747,7 +874,7 @@ private:
     // Hold-mode release grace (resolveHoldGrace in dragactivation.h). The
     // timestamps sit on m_dragClock, started at beginDrag; -1 means the
     // trigger has not been physically held during this drag. Activation, zone
-    // span and drag-insert each keep their own, since the three lists may bind
+    // span and drag-insert each keep their own, since their lists may bind
     // different buttons and are released at different moments.
     QElapsedTimer m_dragClock;
     qint64 m_activationLastHeldMs = -1;
@@ -780,28 +907,35 @@ private:
     // widened to "tiled OR a preview is live for this drag" (detach-once
     // un-tiles the dragged window while its preview lives). Cleared by
     // endDrag, clearPendingSnapDragState, cancelSnap, handleWindowClosed,
-    // and the shared resetDragState teardown.
+    // dragMoved on a refused preview begin, and the shared resetDragState
+    // teardown.
     bool m_dragReorderActive = false;
-    // beginDrag's reorder fallback (preview begin refused → float-on-start
-    // restored) is a PER-DRAG decision: while set, the policy-flip re-latch
-    // must not re-arm reorder for this drag, or the fallback survives
-    // exactly one tick. Cleared at beginDrag and in resetDragState.
+    // A preview begin the reorder latch asked for and the engine refused
+    // (dragMoved) abandons reorder as a PER-DRAG decision: while set, the
+    // policy-flip re-latch must not re-arm reorder for this drag, or dragMoved
+    // retries the refused begin every tick. Cleared at beginDrag and in
+    // resetDragState.
     bool m_dragReorderAbandoned = false;
-    // The dragged window matches an Exclude / ExcludePlacement rule (or the
-    // minimum-window-size floor). Evaluated ONCE per drag (dragStarted, and
-    // beginDrag's bypass and pending twins) through
-    // SnapEngine::isWindowExcluded — the shared placement Exclude rules
+    // The dragged window matches an Exclude / ExcludePlacement rule.
+    // Evaluated at the drag's start (beginDrag's bypass and pending twins),
+    // and once more when a pending drag promotes (dragStarted), through
+    // SnapEngine::isWindowExcludedByRule — the shared placement Exclude rules
     // (mode-neutral; the scroll side enforces the same rules effect-side
-    // before a strip ever adopts such a window) plus the snap minimum-size
-    // floor. So on either variant, a window whose placement would be
-    // refused never sees the popup (the pre-existing gap where the trigger
-    // check had only cursor coords). Cleared in resetDragState.
+    // before a strip ever adopts such a window). The minimum-window-size
+    // floor is NOT folded in here: SnapEngine::isWindowExcluded judges it on
+    // the live frame, which for a window in a zone or a tile is the frame the
+    // zone or tile gave it, so a short zone denied the popup to a window the
+    // adoption gate lets in. The selector gates ask dragClientSizeBelowMinimum
+    // per tick beside this latch instead. So on either variant, a window
+    // whose placement would be refused never sees the popup (the
+    // pre-existing gap where the trigger check had only cursor coords).
+    // Cleared in resetDragState.
     bool m_dragWindowExcludedFromSelector = false;
     bool m_overlayShown = false;
     // Overlay was blanked mid-drag via IOverlayService::setIdleForDragPause()
     // (trigger released, but the drag is still live). Windows stay alive;
     // only the shader output is cleared. Cleared when the overlay shows zones
-    // again (refreshFromIdle) or when the drag ends.
+    // again (refreshFromIdle) or when the drag ends, which hides the overlay.
     bool m_overlayIdled = false;
     bool m_zoneSelectorShown = false;
     // Tracks which (virtual) screen the selector is currently shown on, so we
@@ -811,7 +945,7 @@ private:
     bool m_wasSnapped = false; // True if window was snapped to a zone when drag started
 
     // Per-drag memo for isActiveLayoutSuppressedForScreen (see its
-    // definition), keyed on (screen, desktop). mutable: the predicate is
+    // definition), keyed on (screen, desktop, activity). mutable: the predicate is
     // logically const and sits on the ~30 Hz dragMoved path. beginDrag and
     // onLayoutChanged clear it.
     mutable QString m_suppressMemoScreenId;
@@ -827,7 +961,7 @@ private:
 
     // Paint-to-span state (zone span modifier)
     QSet<QUuid> m_paintedZoneIds; // Accumulates zones during paint-to-span drag
-    bool m_modifierConflictWarned = false; // Logged once per drag, reset on next dragStarted
+    bool m_modifierConflictWarned = false; // Logged once per drag, reset by beginDrag
 
     // Escape cancel-overlay shortcut is registered/unregistered dynamically
     // via the PhosphorShortcuts Registry for the snap-assist phase and layout
@@ -845,9 +979,10 @@ private:
     // (hasDragInsertPreview(), dragInsertPreviewScreenId()). The adaptor
     // queries the engines directly to avoid drift between caches.
 
-    /// One-per-drag latch for the drag-insert tick diagnostic (the block's
+    /// First-tick latch for the drag-insert tick diagnostic (the block's
     /// silent failure modes are indistinguishable from missing ticks in the
-    /// journal without it). Reset by beginDrag.
+    /// journal without it). Later lines follow each raw-held transition
+    /// (m_lastLoggedRawInsertHeld). Reset by beginDrag.
     bool m_dragInsertTickLogged = false;
 
     // ── Edge auto-scroll driver (niri's dnd-edge-view-scroll) ───────────
@@ -885,14 +1020,14 @@ private:
     QPoint m_lastDragCursorPos;
     /// The drag the timer was armed for. A tick is at most 16 ms from
     /// firing when a drag ends, which is long enough for the next drag's
-    /// eager preview to begin — and that tick would then nudge the NEW
-    /// strip with the OLD drag's parked cursor.
+    /// preview to begin on a modifier or button tick, and that tick would
+    /// then nudge the NEW strip with the OLD drag's parked cursor.
     QString m_dragScrollWindowId;
     void ensureDragScrollTimerRunning(const QString& windowId);
     void stopDragScrollTimer();
     /// Arm / cancel the hold-mode release grace expiry replay. Arming keeps the
-    /// earlier of any pending deadline, so the three trigger families can share
-    /// the one timer.
+    /// earlier of any pending deadline, so every trigger family can share the
+    /// one timer.
     void armGraceExpiry(qint64 remainingMs);
     void stopGraceExpiry();
     /// One heartbeat. Named as a verb rather than `onDragScrollTick`: the
@@ -952,9 +1087,10 @@ private:
     /// looks, because an engine can drop its own preview WITHOUT telling the
     /// adaptor — several engine-side self-cancel sites do exactly that — so the
     /// daemon cannot rely on being notified and repairs wherever it notices:
-    ///   - settleDragInsertPreviewAt, on all three arms including the one
+    ///   - settleDragInsertPreviewAt, on every arm including the one
     ///     that finds no engine at all (a drag is still ending there);
-    ///   - cancelDragInsertIfActive, the shared cancel;
+    ///   - cancelDragInsertIfActive, the shared cancel, and
+    ///     cancelStaleDragInsertPreviews, its dead-session twin;
     ///   - cancelDragInsertPreviewsForScreen, keyed on the DEPARTING screen
     ///     rather than on whether it cancelled anything, since a prune may
     ///     have self-cancelled first;
@@ -971,7 +1107,7 @@ private:
     /// Drop-path settle for a live drag-insert preview (either engine).
     /// Commits it and returns true when the preview belongs to the screen
     /// under (@p cursorX, @p cursorY); otherwise cancels it (or does nothing
-    /// when no preview is live) and returns false. Shared by the two drop
+    /// when no preview is live) and returns false. Shared by the drop
     /// entry points (drop.cpp's dragStopped and drag_protocol.cpp's
     /// engine-owned bypass), which differ only in how they finalize.
     ///
@@ -990,12 +1126,21 @@ private:
 
     // Last emitted zone geometry (emit only when changed)
     QRect m_lastEmittedZoneGeometry;
+    // The drag-out size preview went out for the cursor's current screen.
+    // Re-armed by entering a zone and by every policy flip, which is how a
+    // screen change reaches updateDragCursor, so a crossing previews the new
+    // screen's size rather than keeping the old one's.
     bool m_restoreSizeEmittedDuringDrag = false;
 
     // Last logged activationActive value — used to emit a log entry only on
     // true transitions so the drag-overlay churn source can be traced from
     // journalctl without spamming every tick.
     bool m_lastLoggedActivationActive = false;
+    // The drag-insert adoption gate refused the dragged window on its last
+    // ask. The gate is re-asked every tick until a preview begins, so the
+    // refusal is logged on the transition into it, not once per tick.
+    // Cleared in resetDragState.
+    bool m_lastLoggedAdoptionRefused = false;
 
     void registerCancelOverlayShortcut();
     void unregisterCancelOverlayShortcut();
@@ -1004,7 +1149,10 @@ private:
     void checkZoneSelectorTrigger(int cursorX, int cursorY);
     bool isNearTriggerEdge(QScreen* screen, int cursorX, int cursorY, const QString& screenId = QString()) const;
 
-    // Screen resolution helper (DRY: used by prepareHandlerContext, dragStopped, checkZoneSelectorTrigger)
+    // Screen resolution helper. Most drag paths that resolve the cursor's
+    // screen go through it, from a pending drag's promotion check to the
+    // drop. dragMoved and dragStarted call effectiveScreenIdAt directly,
+    // the same resolve this wraps, since they need only the effective id.
     struct ScreenResolution
     {
         QString screenId; // effective (possibly virtual) screen ID
@@ -1030,7 +1178,13 @@ private:
     // captured pre-snap geometry to prevent race conditions in
     // dragStopped() — the in-flight value may have already been
     // overwritten by the snap commit by the time this runs.
-    void tryStorePreSnapGeometry(const QString& windowId, const QRect& originalGeometry);
+    void tryStorePreSnapGeometry(const QString& windowId, const QRect& originalGeometry, bool fillsOutput);
+    /// The registry's fills-output verdict for @p windowId, false when unknown.
+    bool windowFillsOutput(const QString& windowId) const;
+    /// The pre-snap size a drag-out restores on @p screenId, the release
+    /// screen: WindowTrackingAdaptor::preSnapSizeOn, the rule every drag-out
+    /// path shares.
+    std::optional<QSize> preSnapSizeFor(const QString& windowId, const QString& screenId) const;
 
 private Q_SLOTS:
     /**

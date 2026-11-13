@@ -6,7 +6,7 @@
 #
 # Collects the daemon's redacted Markdown report, config files, layout files,
 # and journal logs into a timestamped .tar.gz archive for attaching to
-# GitHub Issues or Discussions.
+# GitHub issues.
 #
 # The D-Bus report (report.md) already contains config/session/rules/layout
 # summaries, but we also include the raw files (the whole config dir plus
@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $(basename "$0") [--since MINUTES] [--output DIR]"
             echo ""
-            echo "Generate a PlasmaZones support report archive for bug reports/discussions."
+            echo "Generate a PlasmaZones support report archive to attach to a GitHub issue."
             echo ""
             echo "Options:"
             echo "  --since MINUTES  Minutes of journal logs to include (0 = default 30, max: $MAX_SINCE_MINUTES)"
@@ -109,7 +109,7 @@ call_dbus() {
     # Prefer busctl: qttools' `qdbus`/`qdbus6` segfaults at process exit on
     # Qt 6.11+ (static-destruction-order crash in registerComplexDBusType ->
     # QMetaType::unregisterMetaType) whenever it introspects an object that
-    # exposes complex D-Bus types — which /PlasmaZones does. That crash can
+    # exposes complex D-Bus types — which /org/phosphor_works/Placement does. That crash can
     # discard buffered stdout, losing the report entirely. busctl (systemd)
     # is unaffected and present on every systemd distro, so it is the default.
     # 90s, well above busctl's own 25s default. The daemon collects the journal
@@ -119,11 +119,11 @@ call_dbus() {
     local bus_timeout=(--timeout=90)
     if command -v busctl &>/dev/null; then
         local raw
-        if raw=$(busctl --user "${bus_timeout[@]}" --json=short call org.plasmazones /PlasmaZones org.plasmazones.Control generateSupportReport i "$SINCE_MINUTES" 2>/dev/null); then
+        if raw=$(busctl --user "${bus_timeout[@]}" --json=short call org.phosphor_works.Placement /org/phosphor_works/Placement org.phosphor_works.Placement.Control generateSupportReport i "$SINCE_MINUTES" 2>/dev/null); then
             # Parse busctl JSON output: {"type":"s","data":["..."]}
             python3 -c 'import json, sys; sys.stdout.write(json.load(sys.stdin)["data"][0])' <<< "$raw"
         else
-            raw=$(busctl --user "${bus_timeout[@]}" call org.plasmazones /PlasmaZones org.plasmazones.Control generateSupportReport i "$SINCE_MINUTES" 2>&1) || {
+            raw=$(busctl --user "${bus_timeout[@]}" call org.phosphor_works.Placement /org/phosphor_works/Placement org.phosphor_works.Placement.Control generateSupportReport i "$SINCE_MINUTES" 2>&1) || {
                 echo "Error: D-Bus call failed: $raw" >&2
                 return 1
             }
@@ -140,9 +140,9 @@ sys.stdout.write(s)' <<< "$raw"
         fi
     elif command -v qdbus6 &>/dev/null; then
         # Fallback only — see the busctl rationale above re: the Qt 6.11+ crash.
-        qdbus6 org.plasmazones /PlasmaZones org.plasmazones.Control.generateSupportReport "$SINCE_MINUTES"
+        qdbus6 org.phosphor_works.Placement /org/phosphor_works/Placement org.phosphor_works.Placement.Control.generateSupportReport "$SINCE_MINUTES"
     elif command -v qdbus &>/dev/null; then
-        qdbus org.plasmazones /PlasmaZones org.plasmazones.Control.generateSupportReport "$SINCE_MINUTES"
+        qdbus org.phosphor_works.Placement /org/phosphor_works/Placement org.phosphor_works.Placement.Control.generateSupportReport "$SINCE_MINUTES"
     else
         echo "Error: No D-Bus CLI tool found (busctl, qdbus6, or qdbus required)" >&2
         exit 1
@@ -660,4 +660,4 @@ echo "Contents:"
 # attach instruction below for a report that succeeded.
 tar -tzf "$ARCHIVE_PATH" | sed 's|^./||' | grep -v '^$' | sed 's/^/  /' || true
 echo ""
-echo "Attach this file to your GitHub Issue or Discussion."
+echo "Attach this file to your GitHub issue."

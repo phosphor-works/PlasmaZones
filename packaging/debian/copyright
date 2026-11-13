@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: PlasmaZones
 Upstream-Contact: fuddlesworth <fuddlesworth@users.noreply.github.com>
-Source: https://github.com/fuddlesworth/PlasmaZones
+Source: https://github.com/phosphor-works/PlasmaZones
 
 Files: *
 Copyright: 2024-2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
@@ -41,17 +41,23 @@ License: LGPL-2.1-or-later
 # while the sources said otherwise.
 #
 # phosphor-libs/data/schemas/*.json matters most here: it has no header (JSON has no
-# comment syntax) but is RCC-embedded into PhosphorShaders, PhosphorZones and
-# PhosphorAnimation, so declaring it GPL-3 asserts GPL over content compiled
-# into LGPL shared libraries. That is the hazard CLAUDE.md names when it says
-# never to "fix" a lib header to GPL-3, expressed in packaging metadata rather
-# than in a header.
+# comment syntax), and some of it is RCC-embedded into LGPL shared libraries
+# (layout.schema.json into PhosphorZones, shader-metadata.schema.json into
+# PhosphorShaders, curve.schema.json and animation-metadata.schema.json into
+# PhosphorAnimation). Declaring those GPL-3 asserts GPL over content compiled
+# into an LGPL library. That is the hazard CLAUDE.md names when it says never
+# to "fix" a lib header to GPL-3, expressed in packaging metadata rather than
+# in a header. The rest of the directory is the libraries' author-time
+# contract, validated by scripts/validate-json-schemas.py and compiled into no
+# library, and is LGPL like the tier it belongs to.
 # cmake/ is MIXED, so its LGPL members are named one by one rather than
 # globbed: format-qml.cmake, PhosphorCPack.cmake, PhosphorTranslations.cmake,
 # post-install-sycoca.sh and uninstall.cmake.in are GPL-3 and must keep
 # resolving to the catch-all.
-Files: cmake/PhosphorLibTesting.cmake
+Files: cmake/PhosphorDependencies.cmake
+       cmake/PhosphorLibTesting.cmake
        cmake/PhosphorTestIsolation.cmake
+       cmake/PhosphorTestPch.cmake
        cmake/PhosphorTier.cmake
        cmake/test-session-bus.conf
        phosphor-libs/CMakeLists.txt
@@ -65,8 +71,8 @@ License: LGPL-2.1-or-later
 # AppStream metadata. Both files declare CC0-1.0 in their own headers, which is
 # the usual licence for distro metadata so downstreams can redistribute and
 # translate it freely.
-Files: plasmazones/src/editor/org.plasmazones.editor.metainfo.xml
-       plasmazones/src/settings/org.plasmazones.settings.metainfo.xml
+Files: plasmazones/src/editor/org.phosphor_works.PlasmaZones.Editor.metainfo.xml
+       plasmazones/src/settings/org.phosphor_works.Facet.metainfo.xml
 Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
 License: CC0-1.0
 
@@ -187,21 +193,50 @@ Copyright: 2026 nikitamashchenko (https://www.shadertoy.com/)
            2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
 License: GPL-3.0-or-later
 
-# Vendored third-party sources, committed as tarballs and extracted at build
-# time. Not ours, and not GPL.
-Files: phosphor-libs/extern/luau-*.tar.gz
+# Third-party sources built into the package: the Luau and valijson release
+# archives pinned (version, URL, SHA-256) in cmake/PhosphorDependencies.cmake,
+# unpacked and compiled at build time. Not ours, and not GPL. The repository
+# does not track them. The Debian source package carries them at
+# packaging/deps inside its orig tarball, which the release workflow's
+# publish-obs job assembles, and its build-deb job fetches them to the same
+# place, which is where debian/rules points CMake.
+Files: packaging/deps/luau-*.tar.gz
 Copyright: 2019-2025 Roblox Corporation
            1994-2019 Lua.org, PUC-Rio
 License: MIT
 
-Files: phosphor-libs/extern/valijson-*.tar.gz
+Files: packaging/deps/valijson-*.tar.gz
 Copyright: 2016 Tristan Penman
            2016 Akamai Technologies, Inc.
 License: BSD-2-Clause
 
+# The suite's branding release, pinned beside them, which supplies the icons
+# the package installs. Artwork, not GPL.
+Files: packaging/deps/phosphor-branding-*.tar.gz
+Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+License: CC-BY-SA-4.0
+
 Files: debian/*
 Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
 License: GPL-3.0-or-later
+
+# The Arch packaging's own licence file, which is 0BSD rather than GPL-3 and
+# carries no SPDX header, so the conventions gate's dep5 rule cannot see it and
+# the Files: * catch-all was declaring it GPL-3.
+Files: packaging/arch/LICENSE
+Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+License: 0BSD
+
+# The two FSF licence texts we SHIP (the RPM spec lists both under %license).
+# They are Free Software Foundation documents, not ours, and their own terms are
+# verbatim-copying-only rather than the licence they happen to contain — so
+# declaring COPYING.LESSER as GPL-3.0-or-later was wrong twice over. Like the
+# file above they carry no SPDX tag, so the dep5 rule is blind to them and the
+# catch-all had been asserting our copyright over someone else's document.
+Files: COPYING.LESSER
+       LICENSE
+Copyright: 1991-2007 Free Software Foundation, Inc. <https://fsf.org/>
+License: FSF-verbatim
 
 License: LGPL-2.1-or-later
  This library is free software; you can redistribute it and/or modify
@@ -267,6 +302,22 @@ License: GPL-3.0-or-later
  On Debian systems, the full text of the GNU General Public License
  version 3 can be found in the file '/usr/share/common-licenses/GPL-3'.
 
+License: FSF-verbatim
+ Everyone is permitted to copy and distribute verbatim copies of this license
+ document, but changing it is not allowed.
+
+License: 0BSD
+ Permission to use, copy, modify, and/or distribute this software for any
+ purpose with or without fee is hereby granted.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+ REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+ INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ PERFORMANCE OF THIS SOFTWARE.
+
 License: CC0-1.0
  To the extent possible under law, the author(s) have dedicated all copyright
  and related and neighboring rights to this software to the public domain
@@ -284,10 +335,16 @@ License: CC-BY-SA-4.0
  license. The full license text is available at
  <https://creativecommons.org/licenses/by-sa/4.0/legalcode>.
 
-# Retained upstream notices. Neither paragraph is a Files stanza: the files that
-# incorporate this code ship under the licence their own stanza declares, and these
-# exist because BSD-3 clause 1 and the MIT licence each require their condition list
-# and disclaimer to travel with a source redistribution.
+# Retained upstream notice. Not a Files stanza: the files that incorporate this code
+# ship under the licence their own stanza declares, and this exists because BSD-3
+# clause 1 requires its condition list and disclaimer to travel with a source
+# redistribution. The MIT paragraph further up does the same job for the luau archive
+# and for the gl-transitions ports, whose own stanza declares LGPL-2.1-or-later.
+#
+# There used to be a second copy of that text here under the name `Expat`, with a
+# comment saying the two must stay byte-identical. Nothing referenced it and nothing
+# checked the identity, so it was an obligation with no check behind it rather than a
+# notice anyone reads. One paragraph, one name.
 
 License: BSD-3-Clause
  Redistribution and use in source and binary forms, with or without
@@ -315,21 +372,8 @@ License: BSD-3-Clause
  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-License: Expat
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
- .
- The above copyright notice and this permission notice shall be included in all
- copies or substantial portions of the Software.
- .
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- SOFTWARE.
+License: CC-BY-SA-4.0
+ This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
+ International License. To view a copy of this license, visit
+ https://creativecommons.org/licenses/by-sa/4.0/legalcode or send a letter to
+ Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.

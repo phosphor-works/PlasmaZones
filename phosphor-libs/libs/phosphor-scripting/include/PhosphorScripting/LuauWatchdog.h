@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorscripting_export.h>
+#include "phosphorscripting_export.h"
 
 #include <atomic>
 #include <chrono>

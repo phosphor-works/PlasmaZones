@@ -39,23 +39,24 @@ const QHash<QString, QSet<QString>>& SettingsController::pageGroupChildren()
 {
     // Single source of truth: parent name → set of leaf child page
     // names. Used by `isPageDirty` to propagate dirty state from a
-    // leaf to any group it belongs to. Covers parents at every level, seventeen
-    // in all. Top-level categories: placement, appearance. Mid-level
+    // leaf to any group it belongs to. Covers parents at every level.
+    // Top-level categories: placement, appearance, and the standalone
+    // workspaces drill-in parent (compiled in with the feature). Mid-level
     // virtual parents nested beneath them: snapping, tiling and scrolling under
     // placement; animations, decorations and overlays under appearance, each of
     // those three also a map key in its own right and not only a component of
     // appearance; animations-transitions, animations-motion and
     // animations-library under animations; decorations-surfaces and
-    // decorations-library under decorations. Overlays has no sub-buckets, only
-    // its leaves. Then the three *-cat collapsible headers
+    // decorations-library under decorations; overlays-library under overlays.
+    // Then the three *-cat collapsible headers
     // (snapping-config-cat, tiling-config-cat, scrolling-config-cat). Their children don't share their
     // name prefix, so the explicit set sidesteps the asymmetry between a
     // prefix-walk and a direct membership lookup.
     //
     // The "animations" entry is built at static-init by unioning the
     // virtual sub-buckets (`animations-transitions`, `animations-motion`,
-    // `animations-library`) with the leaf that hangs directly off
-    // `animations` (general).
+    // `animations-library`) with the leaves that hang directly off
+    // `animations` (simple and general).
     // Without this, a future leaf added to a virtual parent only would
     // silently miss the top-level dirty propagation.
     //
@@ -173,7 +174,19 @@ const QHash<QString, QSet<QString>>& SettingsController::pageGroupChildren()
     static const QSet<QString> kScrollingAllLeaves =
         QSet<QString>{kScrollingSimple, kScrollingColumns, kScrollingTabs, kScrollingWindow, kScrollingZoneSelector}
         + kScrollingConfigChildren;
+#ifdef USE_KDE_FRAMEWORKS
+    static const QSet<QString> kWorkspacesLeaves{
+        QStringLiteral("workspaces-behavior"),
+        QStringLiteral("workspaces-named"),
+        QStringLiteral("workspaces-shortcuts"),
+    };
+#endif
     static const QHash<QString, QSet<QString>> groups{
+    // Dynamic workspaces are compiled out of a USE_KDE_FRAMEWORKS=OFF build,
+    // and their pages with them (see buildApplicationController).
+#ifdef USE_KDE_FRAMEWORKS
+        {QStringLiteral("workspaces"), kWorkspacesLeaves},
+#endif
         {QStringLiteral("snapping"), kSnappingAllLeaves},
         {QStringLiteral("tiling"), kTilingAllLeaves},
         {QStringLiteral("scrolling"), kScrollingAllLeaves},
@@ -211,16 +224,16 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
     // per-page Reset writes each key's schema default and a per-page Discard
     // reverts each to the committed baseline (see Settings::resetKeys /
     // discardKeys). ALWAYS express keys through ConfigDefaults accessors — never
-    // inline literals (CLAUDE.md). The pairs mirror the store-backed getters in
-    // settings.cpp.
+    // inline literals (CLAUDE.md). The pairs mirror the store-backed getters,
+    // which live in plasmazones/src/config/settings/*.cpp.
     //
-    // INVARIANTS (maintained by hand — a unit guard would have to link the whole
-    // SettingsController TU): every pair must be a schema-declared key, and no
+    // INVARIANTS (guarded by test_page_owned_config_keys, which links this TU
+    // directly): every pair must be a schema-declared key, and no
     // key may be owned by two pages (a shared key would let one page's Discard
     // revert another page's edit). When adding a page, copy the (group, key)
-    // accessors verbatim from that page's getter in settings.cpp.
+    // accessors verbatim from that page's getter in config/settings/*.cpp.
     //
-    // Scope: KConfig-backed settings pages. The Rules page (separate rule store),
+    // Scope: config-store-backed settings pages. The Rules page (separate rule store),
     // the Profiles page (its own file store; the staged active pointer reverts
     // through ProfilePageController's StagingDomain, and the config a profile
     // stages reverts through whichever surface owns each key — the manifest
@@ -229,8 +242,9 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
     // the per-mode library pages (separate stores, never dirty — see
     // isLibraryPage; their families' default keys are owned by
     // snapping-window-behavior / tiling-algorithm / scrolling-columns below),
-    // the controller-mediated ordering/shortcuts
-    // pages, the Animations tree, and the Decoration pages (whose leaves
+    // the controller-mediated ordering pages and per-mode Quick Shortcuts
+    // pages (the Workspaces Quick Shortcuts page holds config keys and IS
+    // listed below), the Animations tree, and the Decoration pages (whose leaves
     // SHARE the one DecorationProfileTree key — the one-owner invariant above
     // forbids listing a shared key here) are deliberately absent because they
     // revert through their own machinery (the special-case branches in
@@ -244,6 +258,55 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
     // config-backed (Windows.* + Gaps.*), so it lists its owned keys here.
     using CD = ConfigDefaults;
     static const QHash<QString, Settings::ConfigKeyList> manifest{
+    // The dynamic-workspaces pages, compiled in with the feature. Their
+    // schema rows stay declared in every build, but no page shows them in a
+    // build without it.
+#ifdef USE_KDE_FRAMEWORKS
+        {QStringLiteral("workspaces-behavior"),
+         {
+             {CD::workspacesBehaviorGroup(), CD::enabledKey()},
+             // Written by the page's consent confirmation, not a row, so it
+             // is reset-exempt (resetExemptConsentKeys) but still owned here
+             // for dirty/save/discard.
+             {CD::workspacesBehaviorGroup(), CD::manageKWinPerOutputKey()},
+             {CD::workspacesBehaviorGroup(), CD::snapBackOsdHintKey()},
+             {CD::workspacesBehaviorGroup(), CD::rebindKWinDesktopShortcutsKey()},
+         }},
+        {QStringLiteral("workspaces-named"),
+         {
+             // Each entry's own focus and move chords live inside its map,
+             // so the in-row recorders are covered by this one key.
+             {CD::workspacesNamedGroup(), CD::entriesKey()},
+         }},
+        {QStringLiteral("workspaces-shortcuts"),
+         [] {
+             // Everything the page edits: the in-page chord recorders for the
+             // workspace verbs and both slot families (Shortcuts.Global
+             // leaves), and the workspace each move slot sends the window to.
+             // A slot target is a PAIR, the entry id and the name it carried
+             // when assigned, which Settings::setWorkspaceSlotTarget writes
+             // together, so a Reset or Discard must move both.
+             Settings::ConfigKeyList keys{
+                 {CD::shortcutsGlobalGroup(), CD::workspaceFocusUpKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceFocusDownKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceMoveWindowUpKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceMoveWindowDownKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceMoveColumnUpKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceMoveColumnDownKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceReorderUpKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceReorderDownKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceMoveToMonitorLeftKey()},
+                 {CD::shortcutsGlobalGroup(), CD::workspaceMoveToMonitorRightKey()},
+             };
+             for (int slot = 1; slot <= CD::WorkspaceSlotCount; ++slot) {
+                 keys.append({CD::shortcutsGlobalGroup(), CD::workspaceFocusSlotKey(slot)});
+                 keys.append({CD::shortcutsGlobalGroup(), CD::workspaceMoveSlotKey(slot)});
+                 keys.append({CD::workspacesSlotsGroup(), CD::workspaceSlotTargetIdKey(slot)});
+                 keys.append({CD::workspacesSlotsGroup(), CD::workspaceSlotTargetKey(slot)});
+             }
+             return keys;
+         }()},
+#endif
         {QStringLiteral("general"),
          {
              {CD::renderingGroup(), CD::backendKey()},
@@ -278,7 +341,6 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
              {CD::snappingEffectsGroup(), CD::navigationOsdKey()},
              {CD::snappingEffectsGroup(), CD::osdStyleKey()},
              {CD::snappingEffectsGroup(), CD::overlayDisplayModeKey()},
-             {CD::exclusionsGroup(), CD::transientWindowsKey()},
              {CD::exclusionsGroup(), CD::minimumWindowWidthKey()},
              {CD::exclusionsGroup(), CD::minimumWindowHeightKey()},
          }},
@@ -306,11 +368,6 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
              {CD::snappingBehaviorZoneSpanGroup(), CD::toggleActivationKey()},
              {CD::snappingBehaviorZoneSpanGroup(), CD::releaseGraceMsKey()},
              {CD::snappingBehaviorZoneSpanGroup(), CD::triggersKey()},
-             // Legacy modifier is rewritten by every triggers edit
-             // (setZoneSpanTriggers syncs it from the first non-zero trigger),
-             // so it must be reverted alongside Triggers or a per-page Discard
-             // leaves it desynced while the page reports clean.
-             {CD::snappingBehaviorZoneSpanGroup(), CD::modifierKey()},
              {CD::snappingGapsGroup(), CD::adjacentThresholdKey()},
              {CD::snappingBehaviorDisplayGroup(), CD::showOnAllMonitorsKey()},
              {CD::snappingBehaviorDisplayGroup(), CD::filterByAspectRatioKey()},
@@ -628,6 +685,7 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
              {CD::editorSnappingGroup(), CD::overrideModifierKey()},
              {CD::editorFillOnDropGroup(), CD::enabledKey()},
              {CD::editorFillOnDropGroup(), CD::modifierKey()},
+             {CD::editorBackgroundGroup(), CD::opacityKey()},
          }},
     };
     return manifest;
@@ -635,17 +693,50 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
 
 const Settings::ConfigKeyList& SettingsController::resetExemptModeEnableKeys()
 {
-    // The three placement enable master switches. Owned by their mode's main
-    // page (see the snapping-overlay-behavior manifest comment) so pending
-    // sidebar flips participate in dirty/save/discard, but EXEMPT from
-    // per-page Reset: "reset this page to defaults" must not switch the mode
-    // itself off or on. resetPage() filters these out of the manifest list it
-    // hands Settings::resetKeys.
+    // The feature enable master switches behind a sidebar toggle. Owned by
+    // their feature's main page (see the snapping-overlay-behavior manifest
+    // comment) so pending sidebar flips participate in dirty/save/discard, but
+    // EXEMPT from per-page Reset: "reset this page to defaults" must not switch
+    // the feature itself off or on. resetPage() filters these out of the
+    // manifest list it hands Settings::resetKeys.
+    //
+    // The three placement modes key off their mode ROOT group. Dynamic
+    // workspaces is the outlier: it has no root group of its own, so its
+    // enable lives in Workspaces.Behavior alongside that page's other keys,
+    // and the workspaces-behavior manifest owns it. Without the entry here a
+    // Reset on Workspaces → Behavior would turn the whole feature off.
     using CD = ConfigDefaults;
     static const Settings::ConfigKeyList keys = {
         {CD::snappingGroup(), CD::enabledKey()},
         {CD::tilingGroup(), CD::enabledKey()},
         {CD::scrollingGroup(), CD::enabledKey()},
+    // Only where the workspaces-behavior page exists to own it.
+#ifdef USE_KDE_FRAMEWORKS
+        {CD::workspacesBehaviorGroup(), CD::enabledKey()},
+#endif
+    };
+    return keys;
+}
+
+const Settings::ConfigKeyList& SettingsController::resetExemptConsentKeys()
+{
+    // Consent the user gave through a confirmation, not a settings row. The
+    // ManageKWinPerOutput latch records that PlasmaZones may turn on KWin's
+    // per-output desktops; the Workspaces Behavior page writes it from its
+    // consent prompt and owns it (so a pending grant takes part in
+    // dirty/save/discard), but shows no row for it, so "reset this page to
+    // defaults" must not withdraw it. resetPage() strips this list like the
+    // two above.
+    //
+    // A factory reset (defaults(), Settings::reset()) deliberately does
+    // clear it: that restores every setting, recorded consent included. It
+    // never reverts KWin's own flag, so a machine already in per-output mode
+    // keeps the feature running (workspacesActive reads that flag too).
+    using CD = ConfigDefaults;
+    static const Settings::ConfigKeyList keys = {
+#ifdef USE_KDE_FRAMEWORKS
+        {CD::workspacesBehaviorGroup(), CD::manageKWinPerOutputKey()},
+#endif
     };
     return keys;
 }
@@ -779,6 +870,12 @@ const QSet<QString>& SettingsController::validPageNames()
         QStringLiteral("general"),
         QStringLiteral("about"),
         QStringLiteral("virtualscreens"),
+    // Registered only where the feature is compiled in.
+#ifdef USE_KDE_FRAMEWORKS
+        QStringLiteral("workspaces-behavior"),
+        QStringLiteral("workspaces-named"),
+        QStringLiteral("workspaces-shortcuts"),
+#endif
         QStringLiteral("animations-simple"),
         QStringLiteral("animations-general"),
         QStringLiteral("animations-windows"),
@@ -807,7 +904,7 @@ namespace {
 // they are never dirty and own no resettable state (isLibraryPage), so they
 // neither need dirtyScopeFor's hoist nor block it — counting them would stop
 // the condensed pages' hoist the moment a library leaf sits beside them, which
-// is exactly the topology this PR's per-mode split created. Every OTHER
+// is exactly the topology the per-mode page split created. Every OTHER
 // navigable leaf still counts, which is what keeps the hoist from crossing a
 // surface that speaks for its own config (e.g. window-appearance under
 // appearance).

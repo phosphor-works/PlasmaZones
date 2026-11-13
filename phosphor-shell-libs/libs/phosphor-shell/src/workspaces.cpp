@@ -13,6 +13,17 @@
 
 namespace {
 Q_LOGGING_CATEGORY(lcWorkspaces, "phosphorshell.workspaces")
+
+/// The label for a desktop KWin reports with an empty name, or for a row the
+/// name list does not reach yet. KWin names every desktop it creates itself
+/// ("Desktop N" in KWin's language), so this shows only for a name a client
+/// set empty. Through QCoreApplication::translate with this library's own
+/// context, the shape the shell libraries use for their strings: it ships in
+/// English until a catalogue for the context is extracted.
+QString fallbackWorkspaceName(int position)
+{
+    return QCoreApplication::translate("PhosphorShell", "Desktop %1").arg(position);
+}
 } // namespace
 
 namespace PhosphorShell {
@@ -57,13 +68,10 @@ QVariant WorkspaceListModel::data(const QModelIndex& index, int role) const
     case IdRole:
         return m_ids.at(index.row());
     case NameRole:
-        // Names and ids are index-aligned by contract, but the manager
-        // pads names to the desktop count independently of the id list, so
-        // a transient mismatch is possible mid-refresh. Fall back to the
-        // same synthesized label the manager uses for unnamed desktops
-        // rather than rendering an empty pill (or indexing out of range).
-        return index.row() < m_names.size() ? m_names.at(index.row())
-                                            : QStringLiteral("Desktop %1").arg(index.row() + 1);
+        // reload() fills every row the id list has, so this fallback is a
+        // belt against indexing out of range, with the same label reload()
+        // gives an empty name rather than an empty pill.
+        return index.row() < m_names.size() ? m_names.at(index.row()) : fallbackWorkspaceName(index.row() + 1);
     case IsActiveRole:
         return index.row() == m_activeRow;
     default:
@@ -86,7 +94,18 @@ void WorkspaceListModel::reload()
         return;
     }
     const QStringList ids = m_manager->desktopIds();
-    const QStringList names = m_manager->desktopNames();
+    // KWin's own names, not desktopNames(): that fills an empty name with the
+    // workspace library's untranslated placeholder. Index-aligned with the
+    // ids, an empty entry or a row past the end filled with the translated
+    // label.
+    QStringList names = m_manager->rawDesktopNames();
+    for (int row = 0; row < ids.size(); ++row) {
+        if (row >= names.size()) {
+            names.append(fallbackWorkspaceName(row + 1));
+        } else if (names.at(row).isEmpty()) {
+            names[row] = fallbackWorkspaceName(row + 1);
+        }
+    }
     const int activeRow = m_manager->currentDesktop() - 1;
 
     if (ids == m_ids && names == m_names) {

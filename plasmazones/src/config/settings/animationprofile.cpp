@@ -18,19 +18,10 @@ namespace PlasmaZones {
 // decomposes / composes the blob. `animationsEnabled` stays a standalone bool
 // in settings.cpp.
 
-// Process-wide fallback registry for standalone Settings instances
-// constructed without an injected CurveRegistry (tests, settings-app
-// tools that don't share a registry with the daemon). Consolidated
-// here as a single function-local static so every fallback path
-// resolves curve wire-format strings through the same registry —
-// avoids the "two identical spring:14,0.6 strings resolve to different
-// shared_ptr<const Curve> instances" surprise that three separate
-// per-method statics introduced.
-static PhosphorAnimation::CurveRegistry& fallbackCurveRegistry()
-{
-    static PhosphorAnimation::CurveRegistry s_registry;
-    return s_registry;
-}
+// Settings instances constructed without an injected CurveRegistry resolve
+// curves through ConfigDefaults::fallbackCurveRegistry(), the one
+// process-wide registry the schema's default Profile also uses, so every
+// fallback path resolves a curve string to the same shared_ptr<const Curve>.
 
 namespace {
 /// Read the Profile blob as a mutable QJsonObject. Stored as a nested
@@ -81,7 +72,8 @@ PhosphorAnimation::Profile Settings::animationProfile() const
     if (obj.isEmpty()) {
         return PhosphorAnimation::Profile{};
     }
-    const PhosphorAnimation::CurveRegistry& reg = m_curveRegistry ? *m_curveRegistry : fallbackCurveRegistry();
+    const PhosphorAnimation::CurveRegistry& reg =
+        m_curveRegistry ? *m_curveRegistry : ConfigDefaults::fallbackCurveRegistry();
     return PhosphorAnimation::Profile::fromJson(obj, reg);
 }
 
@@ -303,12 +295,12 @@ void Settings::setAnimationProfile(const PhosphorAnimation::Profile& profile)
 // The dirty flag makes this self-limiting on the slider hot path — the first
 // write of an edit burst marks the backend dirty, so later ticks skip the
 // reparse until the next save.
-// The refresh adopts external sibling values into the live store and the
-// baseline WITHOUT per-property NOTIFY emissions — deliberately, unlike
-// load(): this is a per-write guard, and the UI adopts external state
-// through the controller's reload path (onExternalSettingsChanged), not
-// here. Until that reload runs, a binding on an externally-changed sibling
-// may read stale; it self-heals on the next load().
+// The refresh announces what it adopts, through the same reload body as
+// load() in its edit-preserving mode. It cannot stay silent and leave that to
+// the next load(): once the store holds the external values, load()'s
+// before/after diff is empty, so a change adopted here would never be
+// announced at all, and the settings app (or the daemon's D-Bus relay to the
+// editor) would keep the stale value for the rest of the session.
 // The call sits at the TOP of each setter (not inside patchProfileField)
 // because the per-field setters evaluate their currentValue argument at the
 // call site: a refresh inside the helper would run AFTER that read, and the
@@ -319,14 +311,18 @@ void Settings::refreshCleanBackendFromDisk()
     if (!m_configBackend || m_configBackend->isDirty()) {
         return;
     }
-    m_configBackend->reparseConfiguration();
-    // A clean backend means no local uncommitted writes, so before the
-    // reparse the live store matched m_baseline. The reparse may adopt
-    // externally-committed changes to ANY key; without advancing the
-    // baseline those would be attributed to the local user as unsaved
-    // edits (phantom per-page dirty markers, and a per-page Discard would
-    // revert the external change to the stale session baseline).
-    captureBaseline();
+    // A clean backend means no local uncommitted writes, so the live store
+    // matches m_baseline and there is no edit for the preserving mode to keep.
+    // It still captures the baseline from the reparsed document: the reparse
+    // may adopt externally-committed changes to ANY key, and without
+    // advancing the baseline those would be attributed to the local user as
+    // unsaved edits (phantom per-page dirty markers, and a per-page Discard
+    // would revert the external change to the stale session baseline). The
+    // preserving mode also leaves the per-screen members and the rule store
+    // alone, which a per-write guard has no business reloading, except for
+    // the one-time reload after a config file that could not be read reads
+    // cleanly again (reloadMembersFromRepairedConfig).
+    reloadFromDisk(true);
 }
 
 template<typename T>
@@ -407,7 +403,8 @@ void Settings::setAnimationEasingCurve(const QString& curve)
     // the warning below and produces a canonical wire-form when the spec
     // resolves. Either way, the blob keeps the caller's string intact so
     // the user's edit round-trips cleanly through the Q_PROPERTY.
-    PhosphorAnimation::CurveRegistry& reg = m_curveRegistry ? *m_curveRegistry : fallbackCurveRegistry();
+    PhosphorAnimation::CurveRegistry& reg =
+        m_curveRegistry ? *m_curveRegistry : ConfigDefaults::fallbackCurveRegistry();
     auto resolved = reg.tryCreate(curve);
     QString toStore;
     if (resolved) {

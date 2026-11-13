@@ -8,6 +8,7 @@
 #include <PhosphorAnimation/ProfilePaths.h>
 #include <PhosphorAnimation/ShaderProfileTree.h>
 #include <PhosphorAudio/IAudioSpectrumProvider.h>
+#include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorProtocol/ClientHelpers.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorProtocol/DragMarshalling.h>
@@ -63,10 +64,11 @@ PlasmaZonesEffect::PlasmaZonesEffect()
     , m_screenChangeHandler(std::make_unique<ScreenChangeHandler>(this))
     , m_snapAssistHandler(std::make_unique<SnapAssistHandler>(this))
     // Phase 3: per-output motion clocks drive every AnimatedValue in the
-    // controller. One `CompositorClock` per `LogicalOutput` so mixed
-    // refresh-rate displays (60 Hz + 144 Hz being the common case)
-    // phase-lock independently instead of beating against a shared
-    // process-wide clock. Populated below via effects->screens() and
+    // controller. One `CompositorClock` per `LogicalOutput`, which scopes
+    // refreshRate() and requestFrame() to that output. It does NOT scope the
+    // clock reading: now() reads steady_clock on every clock, so nothing is
+    // phase-locked per output. CompositorClock's docblock has the history of
+    // the latch this used to describe. Populated below via effects->screens() and
     // maintained via the screenAdded/screenRemoved signals. The
     // fallback unbound clock covers: (a) the bootstrap window before
     // screens() populates, (b) windows whose `screen()` is null
@@ -132,6 +134,13 @@ PlasmaZonesEffect::PlasmaZonesEffect()
     // fetch overwrites the whole tree on arrival. Borders are rule-owned and
     // render correctly before the fetch, so no placeholder tree is needed.
     seedDecorationTreeBaseline();
+
+    // A virtual-screen strip's tab pills are cut at that virtual screen's edge,
+    // as its columns are (scrollStripPaintRegion). A virtual screen's strip key
+    // is its own screen id (StripKeys::stripKey); a physical strip needs none.
+    m_scrollTabPainter->setStripClip([this](const QString& strip) {
+        return PhosphorIdentity::VirtualScreenId::isVirtual(strip) ? m_tilingHandler->stripScreenRect(strip) : QRect();
+    });
 
     // Constructor wiring decomposed into concern-scoped init methods (definitions
     // in lifecycle_wiring.cpp). Call order is load-bearing and matches the
@@ -202,10 +211,11 @@ void PlasmaZonesEffect::clearDaemonCompositorState()
     m_pointerPass.reset();
     // And the tab indicators: the override cursor must be handed back before
     // the effect goes (KWin would keep a pointing hand nothing owns). The
-    // handler's clear is GL-free — it RETIRES the per-output textures rather
-    // than deleting them — and releaseGl() right after is the GL-current
-    // point that actually frees them (plus anything retired earlier), so
-    // nothing leaks past the effect and nothing is deleted off-context.
+    // handler's clear retires the per-output textures and deletes them under
+    // a made-current context when one can be made current (F997); releaseGl()
+    // right after frees whatever is left (a clear that found no context, and
+    // anything retired earlier), so nothing leaks past the effect and nothing
+    // is deleted off-context.
     // Made current HERE rather than inherited from the transition resets
     // above, so reordering those cannot turn this into an off-context free.
     m_tilingHandler->clearScrollTabState();
@@ -283,7 +293,8 @@ void PlasmaZonesEffect::syncStockEffectSuppression()
     if (packOwnsEvent(PhosphorAnimation::ProfilePaths::WindowMinimize)) {
         // Both stock minimize animations: KWin loads whichever the user
         // picked in the exclusive minimize-animations group, and unloading
-        // the one that is not loaded is a recorded no-op.
+        // the one that is not loaded is skipped by the isEffectLoaded gate below, so
+        // listing both costs nothing.
         wanted << QStringLiteral("magiclamp") << QStringLiteral("squash");
     }
     if (packOwnsEvent(PhosphorAnimation::ProfilePaths::WindowPlaceIn)
@@ -479,24 +490,6 @@ PlasmaZonesEffect::~PlasmaZonesEffect()
     m_enableAudioVisualizer = false;
     m_audioSpectrumSize = 0;
 
-    // Drain the texture loader pool before any other teardown. A
-    // worker that's mid-rasterise would otherwise post a queued
-    // upload via QMetaObject::invokeMethod against `this` AFTER our
-    // members start tearing down — UAF on the texture cache.
-    // QThreadPool::waitForDone is called here BEFORE we let the
-    // member's destructor run (which itself blocks on waitForDone)
-    // so the pending invokeMethod posts are flushed against a still-
-    // intact `this`.
-    //
-    // Distinct from the hot-reload path in the `effectsChanged`
-    // lambda above: hot-reload bumps `m_shaderManager.m_textureCacheGeneration` (no
-    // wait) so workers in flight can discard their queued upload
-    // without blocking the compositor. Shutdown REQUIRES the wait —
-    // the queued uploads need to be flushed against a live `this`,
-    // not raced against member destruction.
-    m_shaderManager.m_textureLoaderPool.waitForDone();
-    m_shaderManager.m_textureLoadsInFlight.clear();
-
     // Clear daemon-side drag/overlay state while the effect is still alive,
     // but only after the destructor's local UAF-prevention guards have run.
     clearDaemonCompositorState();
@@ -535,11 +528,12 @@ PlasmaZonesEffect::~PlasmaZonesEffect()
     }
 
     if (m_keyboardGrabbed && KWin::effects) {
-        // Symmetric with the `if (KWin::effects)` guard above: during
-        // compositor teardown KWin::effects can be null, and an
-        // unguarded deref here would crash even though we reached the
-        // destructor body cleanly. The compositor's own teardown
-        // releases the grab when KWin::effects is gone.
+        // Symmetric with the `if (KWin::effects)` guard above, and belt-and-braces
+        // in both places: the global CANNOT be null here — upstream nulls it only
+        // after unloadAllEffects has destroyed every effect, so it outlives this
+        // destructor. See the invariant at PlasmaZonesEffect::windowOutput in
+        // screens.cpp. The test stays because it costs one comparison; the claim it
+        // used to carry, that teardown can reach this with a null global, is false.
         KWin::effects->ungrabKeyboard();
         m_keyboardGrabbed = false;
     }
@@ -555,10 +549,12 @@ PlasmaZonesEffect::~PlasmaZonesEffect()
     // erases from `m_shaderManager.m_shaderTransitions` mid-loop.
     //
     // Guarded by `if (KWin::effects)` matching the clearAllDecorations /
-    // ungrabKeyboard guards above: during compositor teardown the global
-    // is null and `endShaderTransition` dereferences it (setShader,
-    // unredirect, refWindow). The compositor's own teardown reclaims
-    // the offscreen state when KWin::effects is gone.
+    // ungrabKeyboard guards above, and as belt-and-braces for the same reason:
+    // `endShaderTransition` does dereference the global, in the addRepaint that already
+    // carries its own guard, but it cannot be null while this effect object lives.
+    // (setShader and unredirect are OffscreenEffect members on `this`, not global derefs, and
+    // refWindow is not called there at all.)
+    // See the invariant at PlasmaZonesEffect::windowOutput in screens.cpp.
     if (KWin::effects) {
         QVarLengthArray<KWin::EffectWindow*, 8> activeWindows;
         for (auto& [w, _] : m_shaderManager.shaderTransitions()) {
@@ -582,16 +578,19 @@ PlasmaZonesEffect::~PlasmaZonesEffect()
         // synchronous dispatch from the dtor body is sound.
         QCoreApplication::sendPostedEvents(this, QEvent::MetaCall);
     }
-    // When KWin::effects is null (compositor teardown) the drain above is
-    // skipped and any still-installed ShaderTransition is destroyed by
-    // member destruction instead. Each entry's `visibleRef` dtor then
-    // dereferences its stored EffectWindow* (`unrefVisible`) — there is no
-    // way to neutralise an EffectWindowVisibleRef without touching the
-    // window. This relies on KWin destroying effects before it destroys
-    // windows, which is the same lifetime assumption KWin's own Magic
-    // Lamp / Squash effects make: both hold visible refs in member
-    // containers destroyed at effect destruction with no null-effects
-    // special-casing.
+    // The null-global branch this paragraph used to describe at length is
+    // UNREACHABLE: upstream nulls KWin::effects only after unloadAllEffects has
+    // destroyed every effect, so this destructor always runs with it valid and the
+    // drain above always happens. See the invariant at
+    // PlasmaZonesEffect::windowOutput in screens.cpp.
+    //
+    // What still matters is the part that was never about the global: each entry's
+    // `visibleRef` dtor dereferences its stored EffectWindow* (`unrefVisible`), and
+    // there is no way to neutralise an EffectWindowVisibleRef without touching the
+    // window. That relies on KWin destroying effects before it destroys windows,
+    // which is the same lifetime assumption KWin's own Magic Lamp / Squash effects
+    // make: both hold visible refs in member containers destroyed at effect
+    // destruction with no null-effects special-casing.
 }
 
 } // namespace PlasmaZones

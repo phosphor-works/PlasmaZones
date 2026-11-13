@@ -4,9 +4,11 @@
 #include <PhosphorShortcuts/IBackend.h>
 #include <PhosphorShortcuts/Registry.h>
 
+#include <QCoreApplication>
 #include <QKeySequence>
 #include <QSignalSpy>
 #include <QString>
+#include <QStringList>
 #include <QTest>
 #include <QVector>
 
@@ -40,10 +42,21 @@ public:
 
     using IBackend::IBackend;
 
+    struct StoreCall
+    {
+        QString id;
+        QKeySequence seq;
+    };
+
     void registerShortcut(const QString& id, const QKeySequence& defaultSeq, const QKeySequence& currentSeq,
                           const QString& description, bool persistent) override
     {
         registers.push_back({id, defaultSeq, currentSeq, description, persistent});
+        calls.push_back(QStringLiteral("register:") + id);
+        if (reportOnRegister) {
+            // Mimics KGlobalAccel reporting from INSIDE the register call.
+            Q_EMIT triggersChanged(id);
+        }
     }
 
     void updateShortcut(const QString& id, const QKeySequence& defaultSeq, const QKeySequence& newTrigger) override
@@ -54,6 +67,28 @@ public:
     void unregisterShortcut(const QString& id) override
     {
         unregisters.push_back(id);
+    }
+
+    void suspendShortcut(const QString& id) override
+    {
+        suspends.push_back(id);
+        calls.push_back(QStringLiteral("suspend:") + id);
+    }
+
+    void storeShortcut(const QString& id, const QKeySequence& seq) override
+    {
+        stores.push_back({id, seq});
+        calls.push_back(QStringLiteral("store:") + id);
+    }
+
+    void forgetShortcut(const QString& id) override
+    {
+        forgets.push_back(id);
+    }
+
+    bool registersUnboundIds() const override
+    {
+        return registersUnbound;
     }
 
     void flush() override
@@ -85,6 +120,13 @@ public:
     QVector<RegisterCall> registers;
     QVector<UpdateCall> updates;
     QVector<QString> unregisters;
+    QVector<QString> suspends;
+    QVector<StoreCall> stores;
+    QVector<QString> forgets;
+    // Every register / suspend / store in call order, "verb:id".
+    QStringList calls;
+    bool registersUnbound = false;
+    bool reportOnRegister = false;
     QHash<QString, QStringList> reportedTriggers;
     int flushes = 0;
 };
@@ -823,8 +865,230 @@ private Q_SLOTS:
         backend.reportTriggers(QStringLiteral("pz.mine"), {QStringLiteral("Meta+2")});
         backend.reportTriggers(QStringLiteral("pz.other-consumer"), {QStringLiteral("Meta+3")});
 
+        // The relay is queued (see triggersChanged_isNeverDeliveredInsideFlush).
+        QTRY_COMPARE(spy.count(), 1);
+        QCoreApplication::processEvents();
         QCOMPARE(spy.count(), 1);
         QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("pz.mine"));
+    }
+
+    void triggersChanged_isNeverDeliveredInsideFlush()
+    {
+        // A backend may report from inside registerShortcut (KGlobalAccel
+        // emits its change signal inline when the service autoloads a stored
+        // chord). A consumer slot that unbinds in response would mutate the
+        // entry table while flush() walks it, so the relay must wait for the
+        // event loop.
+        FakeBackend backend;
+        backend.reportOnRegister = true;
+        Registry registry(&backend);
+        registry.bind(QStringLiteral("pz.a"), QKeySequence(QStringLiteral("Meta+1")));
+        registry.bind(QStringLiteral("pz.b"), QKeySequence(QStringLiteral("Meta+2")));
+
+        int deliveredDuringFlush = 0;
+        bool inFlush = false;
+        connect(&registry, &Registry::triggersChanged, &registry, [&](const QString&) {
+            if (inFlush) {
+                ++deliveredDuringFlush;
+            }
+            // The consumer shape the queueing protects: a slot that mutates
+            // the entry table in response.
+            registry.unbind(QStringLiteral("pz.b"));
+        });
+        QSignalSpy spy(&registry, &Registry::triggersChanged);
+
+        inFlush = true;
+        registry.flush();
+        inFlush = false;
+
+        QCOMPARE(deliveredDuringFlush, 0);
+        QCOMPARE(spy.count(), 0);
+
+        // Both ids reported while owned. Unbind pz.b before the event loop
+        // runs, so the ownership check that matters is the one at delivery
+        // time. Done here rather than from the slot, because the slot's
+        // unbind lands before or after pz.b's relay depending on the hash
+        // order flush() walked, and only one of those orders tests anything.
+        registry.unbind(QStringLiteral("pz.b"));
+
+        QTRY_COMPARE(spy.count(), 1);
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("pz.a"));
+    }
+
+    void parkWithRebindInSameBatch_writesNewChordThroughAfterSuspend()
+    {
+        // One save that changes a gated chord AND turns its feature off:
+        // rebind() then setActive(false) before the flush. The registered
+        // entry is suspended, so the update never reaches the backend; the
+        // new chord has to be written into the platform's record instead, or
+        // the revival autoloads the old one.
+        FakeBackend backend;
+        Registry registry(&backend);
+        const QString id = QStringLiteral("pz.gated");
+        registry.bind(id, QKeySequence(QStringLiteral("Meta+1")));
+        registry.flush();
+        backend.calls.clear();
+
+        registry.rebind(id, QKeySequence(QStringLiteral("Meta+2")));
+        registry.setActive(id, false);
+        registry.flush();
+
+        QCOMPARE(backend.calls, (QStringList{QStringLiteral("suspend:") + id, QStringLiteral("store:") + id}));
+        QCOMPARE(backend.stores.constLast().seq, QKeySequence(QStringLiteral("Meta+2")));
+        QVERIFY(backend.updates.isEmpty());
+    }
+
+    void parkWithoutChange_writesNothing()
+    {
+        // The plain park must not touch the record: a chord the user set in
+        // the platform's own settings while the feature is off has to
+        // survive.
+        FakeBackend backend;
+        Registry registry(&backend);
+        const QString id = QStringLiteral("pz.gated");
+        registry.bind(id, QKeySequence(QStringLiteral("Meta+1")));
+        registry.flush();
+
+        registry.setActive(id, false);
+        registry.flush();
+
+        QCOMPARE(backend.suspends, QVector<QString>{id});
+        QVERIFY(backend.stores.isEmpty());
+    }
+
+    void rebindWhileParked_writesThroughOnNextFlush()
+    {
+        // Changing a parked chord must reach the record at once, not only on
+        // revival: the process may restart before the feature comes back.
+        FakeBackend backend;
+        Registry registry(&backend);
+        const QString id = QStringLiteral("pz.gated");
+        registry.bind(id, QKeySequence(QStringLiteral("Meta+1")));
+        registry.flush();
+        registry.setActive(id, false);
+        registry.flush();
+        backend.calls.clear();
+
+        registry.rebind(id, QKeySequence(QStringLiteral("Meta+3")));
+        registry.flush();
+
+        QCOMPARE(backend.calls, QStringList{QStringLiteral("store:") + id});
+        QCOMPARE(backend.stores.constLast().seq, QKeySequence(QStringLiteral("Meta+3")));
+        QVERIFY(backend.registers.size() == 1); // still parked: no grab
+
+        // Revival registers with the stored chord and writes nothing more.
+        backend.calls.clear();
+        registry.setActive(id, true);
+        registry.flush();
+        QCOMPARE(backend.calls, QStringList{QStringLiteral("register:") + id});
+        QCOMPARE(backend.registers.constLast().currentSeq, QKeySequence(QStringLiteral("Meta+3")));
+    }
+
+    void rebindWhileParkedAndReviveInSameBatch_storesBeforeRegister()
+    {
+        // The mirror save: change the chord and turn the feature on together.
+        // The record must carry the new chord BEFORE the registration, since
+        // registration autoloads the record.
+        FakeBackend backend;
+        Registry registry(&backend);
+        const QString id = QStringLiteral("pz.gated");
+        registry.bind(id, QKeySequence(QStringLiteral("Meta+1")));
+        registry.flush();
+        registry.setActive(id, false);
+        registry.flush();
+        backend.calls.clear();
+
+        registry.rebind(id, QKeySequence(QStringLiteral("Meta+4")));
+        registry.setActive(id, true);
+        registry.flush();
+
+        QCOMPARE(backend.calls, (QStringList{QStringLiteral("store:") + id, QStringLiteral("register:") + id}));
+        QCOMPARE(backend.stores.constLast().seq, QKeySequence(QStringLiteral("Meta+4")));
+    }
+
+    void clearWhileParked_deletesTheRecord()
+    {
+        FakeBackend backend;
+        Registry registry(&backend);
+        const QString id = QStringLiteral("pz.gated");
+        registry.bind(id, QKeySequence(QStringLiteral("Meta+1")));
+        registry.flush();
+        registry.setActive(id, false);
+        registry.flush();
+        backend.calls.clear();
+
+        registry.rebind(id, QKeySequence());
+        registry.flush();
+
+        QCOMPARE(backend.calls, QStringList{QStringLiteral("store:") + id});
+        QVERIFY(backend.stores.constLast().seq.isEmpty());
+        QVERIFY(backend.unregisters.isEmpty());
+    }
+
+    void configAppliedBeforeFirstFlush_neverWritesThrough()
+    {
+        // Startup: bind() with the default, rebind() with the stored config,
+        // park, flush. Those sequences are config, not a user change, and
+        // writing them would overwrite a chord set in the platform's own
+        // settings while the feature was off.
+        FakeBackend backend;
+        Registry registry(&backend);
+        const QString id = QStringLiteral("pz.gated");
+        registry.bind(id, QKeySequence(QStringLiteral("Meta+1")));
+        registry.rebind(id, QKeySequence(QStringLiteral("Meta+5")));
+        registry.setActive(id, false);
+        registry.flush();
+
+        QVERIFY(backend.stores.isEmpty());
+        QVERIFY(backend.registers.isEmpty());
+
+        // Same when the family is registered first and parked on the next
+        // flush with nothing changed in between.
+        FakeBackend backend2;
+        Registry registry2(&backend2);
+        registry2.bind(id, QKeySequence(QStringLiteral("Meta+1")));
+        registry2.rebind(id, QKeySequence(QStringLiteral("Meta+5")));
+        registry2.flush();
+        registry2.setActive(id, false);
+        registry2.flush();
+        QVERIFY(backend2.stores.isEmpty());
+    }
+
+    void unboundIds_reachABackendThatRegistersThem()
+    {
+        // The D-Bus trigger fallback grabs no keys and can only fire ids it
+        // was told about, so an unbound id must still be registered there.
+        FakeBackend backend;
+        backend.registersUnbound = true;
+        Registry registry(&backend);
+        registry.bind(QStringLiteral("pz.unbound"), QKeySequence());
+        registry.flush();
+        QCOMPARE(backend.registers.size(), 1);
+        QCOMPARE(backend.registers.constFirst().id, QStringLiteral("pz.unbound"));
+
+        // A key-grabbing backend still keeps it out.
+        FakeBackend grabbing;
+        Registry registry2(&grabbing);
+        registry2.bind(QStringLiteral("pz.unbound"), QKeySequence());
+        registry2.flush();
+        QVERIFY(grabbing.registers.isEmpty());
+    }
+
+    void purge_unbindsHeldIdsAndForgetsOthers()
+    {
+        FakeBackend backend;
+        Registry registry(&backend);
+        registry.bind(QStringLiteral("pz.held"), QKeySequence(QStringLiteral("Escape")), {}, {}, false);
+        registry.flush();
+
+        registry.purge(QStringLiteral("pz.held"));
+        registry.purge(QStringLiteral("pz.leftover"));
+
+        QCOMPARE(backend.unregisters, QVector<QString>{QStringLiteral("pz.held")});
+        QCOMPARE(backend.forgets, QVector<QString>{QStringLiteral("pz.leftover")});
+        QVERIFY(!registry.isActive(QStringLiteral("pz.held")));
     }
 
     void descriptionChange_isLocalOnly()

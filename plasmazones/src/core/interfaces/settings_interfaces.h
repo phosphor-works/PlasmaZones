@@ -158,8 +158,6 @@ public:
     virtual void setDragActivationTriggers(const QVariantList& triggers) = 0;
     virtual bool zoneSpanEnabled() const = 0;
     virtual void setZoneSpanEnabled(bool enabled) = 0;
-    virtual DragModifier zoneSpanModifier() const = 0;
-    virtual void setZoneSpanModifier(DragModifier modifier) = 0;
     virtual QVariantList zoneSpanTriggers() const = 0;
     virtual void setZoneSpanTriggers(const QVariantList& triggers) = 0;
     virtual bool zoneSpanToggleMode() const = 0;
@@ -337,9 +335,9 @@ public:
 /**
  * @brief Global window-filtering knobs for the KWin effect
  *
- * Two independent filter sets, same shape: the snapping/tiling exclusion
- * globals (excludeTransientWindows + min-size) and the decoration/border
- * filter (decoration* + min-size). Both are consumed by the KWin effect; the
+ * Two independent filter sets: the snapping/tiling exclusion globals (the
+ * min-size thresholds only) and the decoration/border filter (a transient
+ * toggle plus its own min-size thresholds). Both are consumed by the KWin effect; the
  * decoration knobs are also surfaced in the standalone Window Appearance
  * settings page. Not exposed in the KCM.
  */
@@ -351,11 +349,9 @@ public:
     // The per-application / per-class exclusion lists (excludedApplications,
     // excludedWindowClasses) retired in v4 — the legacy QStringList settings
     // folded into Application-subject Exclude Rules, and all consumers
-    // (snap-engine, KWin effect, WTA pending-restore prune) now route through
+    // (snap-engine, KWin effect, WTA placement prune) now route through
     // PhosphorRules::ExclusionRules over the unified rule store.
 
-    virtual bool excludeTransientWindows() const = 0;
-    virtual void setExcludeTransientWindows(bool exclude) = 0;
     virtual int minimumWindowWidth() const = 0;
     virtual void setMinimumWindowWidth(int width) = 0;
     virtual int minimumWindowHeight() const = 0;
@@ -364,7 +360,7 @@ public:
     // Decoration window filtering — gates the KWin effect's border /
     // decoration pass, independent of the snapping filter above so a user can
     // tune which windows get a border separately from which windows snap.
-    // Unlike the snapping filter, exclude-transient is a real toggle here: with
+    // Unlike the snapping filter, which has no transient toggle, this one does: with
     // it off the effect draws borders onto dialogs / popups. Defaults preserve
     // the prior behavior (transients were already never decorated; no size
     // threshold was ever applied).
@@ -775,69 +771,18 @@ inline bool pruneDisabledDesktopEntries(QStringList& entries, int maxDesktop)
 }
 
 /**
- * @brief Re-key disabled-desktop entries for the removal of @p removedDesktop.
- * @return true if any entry was dropped or renumbered.
- *
- * The compositor renumbers on a mid-list removal (delete desktop 2 of 4 and
- * 3→2, 4→3), and these entries store the NUMBER. Left alone, a gate written
- * for desktop 4 goes on gating whatever desktop lands on 4 afterwards, which
- * is a different desktop than the user disabled. Prunes cannot see this: after
- * the shift every surviving number is still within the count, so there is
- * nothing out of range to remove. Only the removal position identifies it,
- * which is what VirtualDesktopManager::desktopRemovedAt carries.
- *
- * Entries AT the removed desktop are dropped (that desktop is gone), entries
- * above it come down one, entries below are untouched. Same rule the engines'
- * renumberDesktopsAfterRemoval applies to their per-desktop state, so the
- * settings gates and the live state stay on one numbering.
- *
- * Composite key format: "screenId/desktopNumber". Malformed entries are left
- * alone here — pruneDisabledDesktopEntries is what removes those.
- */
-inline bool renumberDisabledDesktopEntries(QStringList& entries, int removedDesktop)
-{
-    if (removedDesktop < 1) {
-        return false;
-    }
-    bool changed = false;
-    QStringList rekeyed;
-    rekeyed.reserve(entries.size());
-    for (const QString& entry : std::as_const(entries)) {
-        const int slashIdx = entry.lastIndexOf(QLatin1Char('/'));
-        if (slashIdx < 0) {
-            rekeyed.append(entry);
-            continue;
-        }
-        bool ok = false;
-        const int desktop = entry.mid(slashIdx + 1).toInt(&ok);
-        if (!ok || desktop < removedDesktop) {
-            rekeyed.append(entry);
-            continue;
-        }
-        if (desktop == removedDesktop) {
-            // The desktop the gate named no longer exists. Dropping beats
-            // shifting it onto the neighbour that moves into its number: the
-            // user disabled THIS desktop, not whichever one replaces it.
-            changed = true;
-            continue;
-        }
-        rekeyed.append(entry.left(slashIdx + 1) + QString::number(desktop - 1));
-        changed = true;
-    }
-    if (changed) {
-        entries = rekeyed;
-    }
-    return changed;
-}
-
-/**
  * @brief Remove disabled-activity entries whose activity UUID is not in @p validActivityIds.
  * @return true if any entries were removed.
  *
  * Composite key format: "screenId/activityUuid". Malformed entries are also removed.
+ * An empty @p validActivityIds removes nothing: there is always one activity, so
+ * an empty set means the activity service is unavailable (F423).
  */
 inline bool pruneDisabledActivityEntries(QStringList& entries, const QSet<QString>& validActivityIds)
 {
+    if (validActivityIds.isEmpty()) {
+        return false;
+    }
     const int before = entries.size();
     entries.removeIf([&validActivityIds](const QString& entry) {
         // Composite key format: "screenId/activityUuid". Virtual screen IDs

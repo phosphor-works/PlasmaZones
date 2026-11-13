@@ -6,18 +6,24 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.phosphor.control
 
 SettingsFlickable {
     id: root
 
-    // Capture the context property so child components can access it
-    readonly property var settingsBridge: appSettings
-    // Frame rate + audio spectrum drive EVERY shader category (overlay,
-    // animation, surface decoration), so the Shader Effects and Audio
-    // Spectrum cards live here on General rather than on the snapping overlay
-    // page. The backing state is still the snappingEffectsPage controller
-    // (its bounds + CAVA probe are global, only its name is historical).
-    readonly property var effectsBridge: settingsController.snappingEffectsPage
+    // PageHost sets both before the page's bindings run, because this page's
+    // registry entry passes context (PageRegistry::Entry::passesContext).
+    // `controller` is this page's GeneralPageController. settingsApp is
+    // declared even though this page does not read it: PageHost passes it to
+    // every such page, and assigning it to a page that lacks the property
+    // logs an error on every build.
+    required property QtObject controller
+    required property ApplicationController settingsApp
+
+    // The `appSettings` context property under a name of its own, for a child
+    // that declares an `appSettings` property: `appSettings: appSettings`
+    // inside that child would resolve to the child's own property.
+    readonly property var settingsBackend: appSettings
 
     contentHeight: content.implicitHeight
     clip: true
@@ -39,7 +45,7 @@ SettingsFlickable {
         // =====================================================================
         OsdCard {
             Layout.fillWidth: true
-            appSettings: root.settingsBridge
+            appSettings: root.settingsBackend
         }
 
         // =====================================================================
@@ -71,7 +77,7 @@ SettingsFlickable {
                         valueRole: "value"
                         // Machine-dependent, so enumerated by the page
                         // controller instead of declared in the schema.
-                        model: settingsController.generalPage.availableGpus
+                        model: root.controller.availableGpus
                         storedValue: appSettings.gpuDevice
                         // Guard the write: `enabled` does not reach an
                         // already-open popup (it re-parents to the Overlay),
@@ -123,8 +129,8 @@ SettingsFlickable {
                     Layout.leftMargin: Kirigami.Units.largeSpacing
                     Layout.rightMargin: Kirigami.Units.largeSpacing
                     type: Kirigami.MessageType.Information
-                    text: settingsController.daemonRunning ? i18n("Stop the daemon to change rendering settings.") : i18n("Rendering changes take effect after restarting the daemon.")
-                    visible: settingsController.daemonRunning || appSettings.renderingBackend !== settingsController.generalPage.startupRenderingBackend || appSettings.gpuDevice !== settingsController.generalPage.startupGpuDevice
+                    text: settingsController.daemonRunning ? i18n("Stop the daemon to change rendering settings.") : i18n("Rendering changes take effect the next time the daemon starts.")
+                    visible: settingsController.daemonRunning || appSettings.renderingBackend !== root.controller.startupRenderingBackend || appSettings.gpuDevice !== root.controller.startupGpuDevice
                 }
             }
         }
@@ -157,8 +163,9 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Frame rate")
-                        from: root.effectsBridge.shaderFrameRateMin
-                        to: root.effectsBridge.shaderFrameRateMax
+                        from: root.controller.shaderFrameRateMin
+                        to: root.controller.shaderFrameRateMax
+                        tickMarkStepSize: 30
                         value: appSettings.shaderFrameRate
                         valueSuffix: " " + i18nc("frames per second, unit appended to a slider value", "fps")
                         labelWidth: Kirigami.Units.gridUnit * 4
@@ -172,11 +179,12 @@ SettingsFlickable {
         // AUDIO SPECTRUM CARD
         // =====================================================================
         // The enable switch and the bar count (Shaders.Audio), the part of CAVA
-        // simple mode keeps. Both rows are gated on the toggle plus cava
-        // presence, and the values feed both runtimes (daemon overlays and the
-        // KWin effect) plus the editor's shader preview. The remaining analysis
-        // knobs (smoothing, gain, cutoffs, channels, filters, backend/source)
-        // are advanced depth and live in the Audio Analysis card below.
+        // simple mode keeps. The switch is disabled while cava is missing, and
+        // the bar count shows only while the switch is on and cava is present.
+        // The values feed both runtimes (daemon overlays and the KWin effect)
+        // plus this app's own shader preview. The remaining analysis knobs
+        // (smoothing, gain, cutoffs, channels, filters, backend/source) are
+        // advanced depth and live in the Audio Analysis card below.
         SettingsCard {
             headerText: i18n("Audio Spectrum")
             searchAnchor: "audioSpectrum"
@@ -188,12 +196,13 @@ SettingsFlickable {
                 SettingsRow {
                     title: i18n("Audio spectrum")
                     searchAnchor: "audioSpectrumEnabled"
-                    description: root.effectsBridge.cavaAvailable ? i18n("Feed audio spectrum data to shaders that support it") : i18n("CAVA is not installed. Install cava to enable audio visualization.")
+                    // A missing cava is reported once, by the warning below.
+                    description: i18n("Feed audio spectrum data to shaders that support it")
 
                     SettingsSwitch {
                         id: audioVizSwitch
 
-                        enabled: root.effectsBridge.cavaAvailable
+                        enabled: root.controller.cavaAvailable
                         checked: appSettings.enableAudioVisualizer
                         accessibleName: i18n("Enable CAVA audio spectrum")
                         onToggled: function (newValue) {
@@ -208,7 +217,7 @@ SettingsFlickable {
                     Layout.rightMargin: Kirigami.Units.largeSpacing
                     type: Kirigami.MessageType.Warning
                     text: i18n("CAVA is not installed. Install the <b>cava</b> package to enable audio-reactive shader effects.")
-                    visible: !root.effectsBridge.cavaAvailable
+                    visible: !root.controller.cavaAvailable
                 }
 
                 // One gate per knob stack: disabling a container propagates to
@@ -219,11 +228,11 @@ SettingsFlickable {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.smallSpacing
-                    enabled: audioVizSwitch.checked && root.effectsBridge.cavaAvailable
+                    enabled: audioVizSwitch.checked && root.controller.cavaAvailable
                     // Hide as well as disable: the rows collapse themselves
                     // via `visible: enabled`, but a visible zero-height
                     // container still costs the parent a spacing slot.
-                    visible: audioVizSwitch.checked && root.effectsBridge.cavaAvailable
+                    visible: audioVizSwitch.checked && root.controller.cavaAvailable
 
                     SettingsSeparator {}
 
@@ -234,9 +243,10 @@ SettingsFlickable {
 
                         SettingsSlider {
                             accessibleName: i18n("Spectrum bars")
-                            from: root.effectsBridge.audioSpectrumBarCountMin
-                            to: root.effectsBridge.audioSpectrumBarCountMax
+                            from: root.controller.audioSpectrumBarCountMin
+                            to: root.controller.audioSpectrumBarCountMax
                             stepSize: 2
+                            tickMarkStepSize: 16
                             value: appSettings.audioSpectrumBarCount
                             valueSuffix: ""
                             labelWidth: Kirigami.Units.gridUnit * 4
@@ -266,7 +276,7 @@ SettingsFlickable {
             searchAnchor: "audioAnalysis"
             collapsible: true
             advancedOnly: true
-            visible: (!advancedOnly || settingsController.advancedMode) && audioVizSwitch.checked && root.effectsBridge.cavaAvailable
+            visible: (!advancedOnly || settingsController.advancedMode) && audioVizSwitch.checked && root.controller.cavaAvailable
 
             contentItem: ColumnLayout {
                 spacing: Kirigami.Units.smallSpacing
@@ -278,8 +288,9 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Noise reduction")
-                        from: root.effectsBridge.audioNoiseReductionMin
-                        to: root.effectsBridge.audioNoiseReductionMax
+                        from: root.controller.audioNoiseReductionMin
+                        to: root.controller.audioNoiseReductionMax
+                        tickMarkStepSize: 10
                         value: appSettings.audioNoiseReduction
                         valueSuffix: ""
                         labelWidth: Kirigami.Units.gridUnit * 4
@@ -294,10 +305,10 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Extra smoothing")
-                        from: root.effectsBridge.audioExtraSmoothingMin
-                        to: root.effectsBridge.audioExtraSmoothingMax
+                        from: root.controller.audioExtraSmoothingMin
+                        to: root.controller.audioExtraSmoothingMax
+                        tickMarkStepSize: 10
                         value: appSettings.audioExtraSmoothing
-                        valueSuffix: "%"
                         labelWidth: Kirigami.Units.gridUnit * 4
                         onMoved: value => appSettings.audioExtraSmoothing = Math.round(value)
                     }
@@ -328,10 +339,10 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Sensitivity")
-                        from: root.effectsBridge.audioSensitivityMin
-                        to: root.effectsBridge.audioSensitivityMax
+                        from: root.controller.audioSensitivityMin
+                        to: root.controller.audioSensitivityMax
+                        tickMarkStepSize: 50
                         value: appSettings.audioSensitivity
-                        valueSuffix: "%"
                         labelWidth: Kirigami.Units.gridUnit * 4
                         onMoved: value => appSettings.audioSensitivity = Math.round(value)
                     }
@@ -346,8 +357,9 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Lowest frequency")
-                        from: root.effectsBridge.audioLowerCutoffHzMin
-                        to: root.effectsBridge.audioLowerCutoffHzMax
+                        from: root.controller.audioLowerCutoffHzMin
+                        to: root.controller.audioLowerCutoffHzMax
+                        tickMarkStepSize: 50
                         value: appSettings.audioLowerCutoffHz
                         valueSuffix: " " + i18nc("hertz, unit appended to a slider value", "Hz")
                         labelWidth: Kirigami.Units.gridUnit * 4
@@ -362,8 +374,9 @@ SettingsFlickable {
 
                     SettingsSlider {
                         accessibleName: i18n("Highest frequency")
-                        from: root.effectsBridge.audioHigherCutoffHzMin
-                        to: root.effectsBridge.audioHigherCutoffHzMax
+                        from: root.controller.audioHigherCutoffHzMin
+                        to: root.controller.audioHigherCutoffHzMax
+                        tickMarkStepSize: 1000
                         value: appSettings.audioHigherCutoffHz
                         valueSuffix: " " + i18nc("hertz, unit appended to a slider value", "Hz")
                         labelWidth: Kirigami.Units.gridUnit * 4
@@ -463,7 +476,16 @@ SettingsFlickable {
                         // directly or the field renders at implicit width.
                         width: Kirigami.Units.gridUnit * 12
                         Accessible.name: i18n("Audio source")
-                        onEditingFinished: appSettings.audioInputSource = text
+                        // editingFinished also fires on focus loss, and a page
+                        // switch that does not move focus first (Ctrl+PgDown)
+                        // hides this page AFTER the controller has made the
+                        // next page active. Without the envelope, the commit
+                        // would mark that next page dirty instead of this one.
+                        onEditingFinished: {
+                            settingsController.beginExternalEdit("general");
+                            appSettings.audioInputSource = text;
+                            settingsController.endExternalEdit();
+                        }
 
                         // Defer host-driven updates while the user is
                         // typing. A plain `text:` binding re-fires on every
@@ -515,25 +537,24 @@ SettingsFlickable {
         // =====================================================================
         // WINDOW FILTERING CARD
         // =====================================================================
-        // The three global filters previously hosted on the standalone
+        // The global size filters previously hosted on the standalone
         // "Exclusions" page. The per-app and per-class lists that used to
         // live there have folded into Rules (Application-subject
-        // Exclude rules), so the page itself was deleted; these three global
+        // Exclude rules), so the page itself was deleted; these global
         // knobs survive here because they apply to ALL windows uniformly
-        // rather than matching specific applications.
+        // rather than matching specific applications. The card's transient
+        // row is hidden: snapping and tiling have no transient-window
+        // setting, because placement leaves dialogs and other transient
+        // windows alone (window_filtering.cpp names the one fullscreen
+        // exemption).
         WindowFilterCard {
             Layout.fillWidth: true
 
-            excludeTransient: appSettings.excludeTransientWindows
-            transientDescription: i18n("Skip dialogs, popups, and toolbars for snapping and tiling")
-            transientAccessibleName: i18n("Exclude transient windows")
-            onExcludeTransientToggled: value => {
-                appSettings.excludeTransientWindows = value;
-            }
+            showTransientRow: false
 
             minWidth: appSettings.minimumWindowWidth
-            minWidthFrom: settingsController.generalPage.minimumWindowWidthMin
-            minWidthTo: settingsController.generalPage.minimumWindowWidthMax
+            minWidthFrom: root.controller.minimumWindowWidthMin
+            minWidthTo: root.controller.minimumWindowWidthMax
             minWidthDescription: i18n("Windows narrower than this are excluded")
             minWidthDisabledDescription: i18n("Disabled (no width threshold)")
             minWidthAccessibleName: i18n("Minimum window width")
@@ -542,8 +563,8 @@ SettingsFlickable {
             }
 
             minHeight: appSettings.minimumWindowHeight
-            minHeightFrom: settingsController.generalPage.minimumWindowHeightMin
-            minHeightTo: settingsController.generalPage.minimumWindowHeightMax
+            minHeightFrom: root.controller.minimumWindowHeightMin
+            minHeightTo: root.controller.minimumWindowHeightMax
             minHeightDescription: i18n("Windows shorter than this are excluded")
             minHeightDisabledDescription: i18n("Disabled (no height threshold)")
             minHeightAccessibleName: i18n("Minimum window height")

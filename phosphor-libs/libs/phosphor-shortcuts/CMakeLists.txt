@@ -70,6 +70,7 @@ set(phosphorshortcuts_public_HDRS
     include/PhosphorShortcuts/IBackend.h
     include/PhosphorShortcuts/Registry.h
     include/PhosphorShortcuts/Factory.h
+    include/PhosphorShortcuts/GlobalShortcutBlock.h
 )
 
 set(phosphorshortcuts_private_HDRS
@@ -80,6 +81,7 @@ set(phosphorshortcuts_private_HDRS
 set(phosphorshortcuts_SRCS
     src/registry.cpp
     src/factory.cpp
+    src/globalshortcutblock.cpp
     src/dbustriggerbackend.cpp
     src/portalbackend.cpp
     src/shortcutslogging.cpp
@@ -154,10 +156,10 @@ set_target_properties(PhosphorShortcuts PROPERTIES
 if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
 if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

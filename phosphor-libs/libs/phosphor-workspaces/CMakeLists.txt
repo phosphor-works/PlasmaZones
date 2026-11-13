@@ -5,7 +5,10 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-set(PHOSPHORWORKSPACES_VERSION "0.1.0")
+# 0.2.0: WorkspaceMap and WorkspaceReconciler joined the public API and
+# VirtualDesktopManager's interface changed. SOVERSION stays 0 below, like the
+# rest of the phosphor-* catalog, until a deliberate ABI break.
+set(PHOSPHORWORKSPACES_VERSION "0.2.0")
 
 # The Qt floor this library requires AND advertises in its generated
 # PhosphorWorkspacesConfig.cmake. Taken from the top-level QT_MIN_VERSION when built in-tree so
@@ -26,6 +29,11 @@ if(NOT PROJECT_VERSION)
 endif()
 
 include(GenerateExportHeader)
+
+# Unconditional, like phosphor-zones: in-tree this re-find is a cache hit,
+# and a standalone configure has no other source for the Qt targets the
+# library links below.
+find_package(Qt6 ${PHOSPHORWORKSPACES_QT_MIN} REQUIRED COMPONENTS Core DBus)
 
 set(CMAKE_AUTOMOC ON)
 
@@ -49,8 +57,14 @@ endif()
 add_library(PhosphorWorkspaces SHARED
     include/PhosphorWorkspaces/VirtualDesktopManager.h
     include/PhosphorWorkspaces/ActivityManager.h
+    include/PhosphorWorkspaces/WorkspaceMap.h
+    include/PhosphorWorkspaces/WorkspaceReconciler.h
     src/VirtualDesktopManager.cpp
     src/ActivityManager.cpp
+    src/WorkspaceMap.cpp
+    src/WorkspaceReconciler.cpp
+    src/WorkspaceReconcilerNamed.cpp
+    src/WorkspaceReconcilerScreens.cpp
 )
 add_library(PhosphorWorkspaces::PhosphorWorkspaces ALIAS PhosphorWorkspaces)
 
@@ -58,6 +72,15 @@ generate_export_header(PhosphorWorkspaces
     EXPORT_FILE_NAME phosphorworkspaces_export.h
     EXPORT_MACRO_NAME PHOSPHORWORKSPACES_EXPORT
 )
+
+# Resolve KDE_INSTALL_INCLUDEDIR before target_include_directories expands it
+# into $<INSTALL_INTERFACE:>. Until it was set here, a non-KDE configure
+# exported no install include directory while the headers still went to
+# GNUInstallDirs' includedir.
+if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+    include(GNUInstallDirs)
+    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 target_include_directories(PhosphorWorkspaces
     PUBLIC
@@ -90,22 +113,32 @@ endif()
 # on _FOUND. A legacy Config that exposes only variables (no target)
 # would otherwise wire `HAVE_KACTIVITIES` without a link dependency,
 # producing undefined-symbol errors in the daemon's ActivityManager.
+# This is the only activities lookup in the tree: the app tier links nothing
+# from it directly, and it runs whatever USE_KDE_FRAMEWORKS says, since the
+# library knows no app-tier option.
 if(TARGET Plasma::Activities)
     target_compile_definitions(PhosphorWorkspaces PRIVATE HAVE_KACTIVITIES)
     target_link_libraries(PhosphorWorkspaces PRIVATE Plasma::Activities)
+    message(STATUS "PhosphorWorkspaces: PlasmaActivities found, activity support enabled")
 elseif(TARGET KF6::Activities)
     target_compile_definitions(PhosphorWorkspaces PRIVATE HAVE_KACTIVITIES)
     target_link_libraries(PhosphorWorkspaces PRIVATE KF6::Activities)
+    message(STATUS "PhosphorWorkspaces: KF6Activities found, activity support enabled")
+else()
+    message(STATUS "PhosphorWorkspaces: no activities library found, activity support disabled")
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Install
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 
@@ -153,3 +186,11 @@ install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/PhosphorWorkspacesConfigVersion.cmake"
     DESTINATION ${KDE_INSTALL_LIBDIR}/cmake/PhosphorWorkspaces
 )
+
+# The workspace-map, reconciler, ledger and VirtualDesktopManager suites need
+# nothing beyond Qt, so the tree is entered unconditionally. The ActivityManager
+# suite inside it gates itself on the activities library.
+if(CMAKE_PROJECT_NAME STREQUAL "PhosphorWorkspaces" OR BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

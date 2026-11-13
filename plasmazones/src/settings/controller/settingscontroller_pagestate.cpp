@@ -8,7 +8,8 @@
 //     simple/advanced mode gate
 //   * navigateTo      — setActivePage plus an optional "#anchor" reveal
 //   * setAdvancedMode — flip the mode, re-filter the rail, re-gate the page
-//   * onSettings/ExternalSettingsChanged — NOTIFY → dirty / reload hooks
+//   * onSettings/ExternalSettingsChanged, onExternalEditorSettingsChanged,
+//     adoptExternalConfigKeepingEdits — NOTIFY → dirty / reload hooks
 //   * maybeDrainPendingExternalReload — adopt a reload deferred while dirty
 //   * setNeedsSave / dirtyPages / isPageDirty — dirty-state surface for QML
 //   * emitDirtyPagesChanged — the batched dirtyPagesChanged emit
@@ -30,12 +31,15 @@
 #include "settings/pages/decorationpagescope.h"
 #include "settingscontroller_pagekeys.h"
 
+#include "config/configmigration.h"
+
 #include "core/platform/logging.h"
 
 #include <PhosphorAnimation/ShaderProfileTree.h>
 #include <PhosphorSurface/DecorationProfileTree.h>
 
 #include <QDebug>
+#include <QFileInfo>
 #include <QTimer>
 
 namespace PlasmaZones {
@@ -263,8 +267,12 @@ void SettingsController::onSettingsPropertyChanged()
     // writes nothing. Flipping needsSave here would show a phantom
     // unsaved-changes footer on every theme switch. Runtime decoration seeds
     // similarly announce appearance previews without modifying the store.
+    //
+    // isAnnouncingReload(): values adopted from disk by an edit-preserving
+    // reload, including one run from inside a composite setter, are someone
+    // else's change, not an edit made here.
     if (!m_saving && !m_loading && !m_settings.isAnnouncingPaletteChange()
-        && !m_settings.isAnnouncingDecorationSeedChange()) {
+        && !m_settings.isAnnouncingDecorationSeedChange() && !m_settings.isAnnouncingReload()) {
         setNeedsSave(true);
         // A value edited BACK to its committed state would otherwise strand
         // its page in m_dirtyPages forever — nothing else reconciles on a
@@ -295,7 +303,7 @@ void SettingsController::onValueBlindSettingsChanged()
     // setNeedsSave's virtual-node early return cannot strand the latch with
     // an empty dirty set.
     if (!m_saving && !m_loading && !m_settings.isAnnouncingPaletteChange()
-        && !m_settings.isAnnouncingDecorationSeedChange()) {
+        && !m_settings.isAnnouncingDecorationSeedChange() && !m_settings.isAnnouncingReload()) {
         setNeedsSave(true);
         if (!m_dirtyPages.isEmpty()) {
             m_valueBlindDirty = true;
@@ -322,26 +330,126 @@ void SettingsController::scheduleDirtyReconcile()
 
 void SettingsController::onExternalSettingsChanged()
 {
+    // An external change that arrives while this process is saving is dropped,
+    // not deferred: it cannot be told apart from the daemon's echo of the save
+    // itself, and adopting that echo would revert just-saved assignments (see
+    // the deferred m_saving release in save()). A write another process makes
+    // just before this Save is worse off than "not adopted": the Save rewrites
+    // the whole file from this process's copy, so that write is reverted on
+    // disk, and the daemon, already holding this Save's values, announces
+    // nothing that would tell the writer. The window is the gap between the
+    // other process's write and its reload reaching the daemon, which is
+    // milliseconds.
     if (m_saving) {
         return;
     }
-    // With unsaved edits on any page, a reload would reparse disk over the
-    // in-memory Settings and end in setNeedsSave(false) — silently dropping
-    // the user's pending changes and clearing the footer. Staging-domain
-    // pages snapshot/revert their own state, but plain Q_PROPERTY edits
-    // (e.g. the animation profile fields) have no such net. Keep the local
-    // edits and remember the deferred reload: the next clean transition
-    // resolves it — dirtyPagesChanged fires maybeDrainPendingExternalReload
-    // (the per-page Discard path), while footer save/discard and defaults()
-    // clear or subsume the flag via their own disk rewrite or load(). Either
-    // way an externally-changed sibling page doesn't stay stale
-    // indefinitely.
+    // This path adopts everything the Editor.* one would, so an editor-only
+    // adoption queued by the same daemon reload has nothing left to do.
+    m_editorAdoptionQueued = false;
+    // With unsaved edits on any page, a full reload would reparse disk over
+    // the in-memory Settings and end in setNeedsSave(false), silently dropping
+    // the user's pending changes and clearing the footer. Deferring the whole
+    // reload is not enough either: Save rewrites every schema key from memory,
+    // so the stale copy of a key someone else just changed would go back over
+    // theirs. So adopt the external values now for every schema key the user
+    // has not touched, keeping the edits, and still defer the full reload for
+    // the state that has no baseline to merge against (rules, layout
+    // assignments, staging, per-screen overrides): the next clean transition
+    // drains it through maybeDrainPendingExternalReload. Those deferred parts
+    // keep the old limit, so an external per-screen override change can still
+    // be overwritten by a Save made before the drain.
     if (needsSave()) {
-        qCInfo(lcCore) << "External settings change deferred: unsaved local edits take precedence";
+        qCInfo(lcCore) << "External settings change: adopting untouched keys, unsaved local edits kept";
+        adoptExternalConfigKeepingEdits();
         m_pendingExternalReload = true;
         return;
     }
     load();
+}
+
+void SettingsController::onExternalEditorSettingsChanged()
+{
+    // Same echo rule as onExternalSettingsChanged: a Save of the Editor page
+    // reloads the daemon, whose answer arrives while m_saving is still held.
+    if (m_saving) {
+        return;
+    }
+    // Queued one turn: a daemon reload that moved other keys as well sends
+    // settingsChanged right after this, and its handler adopts everything, so
+    // reparsing here too would be the same work twice.
+    if (m_editorAdoptionQueued) {
+        return;
+    }
+    m_editorAdoptionQueued = true;
+    QTimer::singleShot(0, this, [this]() {
+        if (!m_editorAdoptionQueued) {
+            return;
+        }
+        m_editorAdoptionQueued = false;
+        adoptExternalConfigKeepingEdits();
+    });
+}
+
+void SettingsController::onDaemonReady()
+{
+    if (!m_settings.configUnreadable()) {
+        return;
+    }
+    adoptExternalConfigKeepingEdits();
+    if (m_settings.configUnreadable()) {
+        return;
+    }
+    // Readable now, either because the user repaired it or because the
+    // daemon's migration moved it aside. Only the second leaves a quarantine
+    // copy that was not there when the file was found unreadable, and then
+    // nothing else says where the old file went.
+    const QHash<QString, QDateTime> copies = quarantineCopyStamps(m_settings.configFilePath());
+    const QStringList names = ConfigMigration::quarantineCopies(m_settings.configFilePath());
+    for (auto it = names.crbegin(); it != names.crend(); ++it) {
+        // New by name, or by change time: a copy the user removed frees its
+        // name, and the next quarantine reuses it.
+        const auto before = m_quarantineCopiesWhenUnreadable.constFind(*it);
+        if (before == m_quarantineCopiesWhenUnreadable.constEnd() || before.value() != copies.value(*it)) {
+            Q_EMIT configQuarantined(*it);
+            break;
+        }
+    }
+}
+
+QHash<QString, QDateTime> SettingsController::quarantineCopyStamps(const QString& configPath)
+{
+    // The change time moves on a rename, which is how a quarantine copy is
+    // made, so it tells a reused name from the old copy that held it.
+    QHash<QString, QDateTime> stamps;
+    const QStringList copies = ConfigMigration::quarantineCopies(configPath);
+    for (const QString& copy : copies) {
+        stamps.insert(copy, QFileInfo(copy).metadataChangeTime());
+    }
+    return stamps;
+}
+
+void SettingsController::adoptExternalConfigKeepingEdits()
+{
+    {
+        // Held across the reload: its NOTIFYs are adoption, not user edits.
+        const ScopedFlag loadingScope(m_loading);
+        m_settings.reloadPreservingLocalEdits();
+    }
+    // An adopted value can make a local edit equal its new baseline, so let
+    // value truth re-decide which pages are still dirty.
+    scheduleDirtyReconcile();
+}
+
+void SettingsController::refreshConfigUnreadable()
+{
+    const bool unreadable = m_settings.configUnreadable();
+    if (m_configUnreadable != unreadable) {
+        m_configUnreadable = unreadable;
+        if (unreadable) {
+            m_quarantineCopiesWhenUnreadable = quarantineCopyStamps(m_settings.configFilePath());
+        }
+        Q_EMIT configUnreadableChanged();
+    }
 }
 
 void SettingsController::setNeedsSave(bool needs)
@@ -606,10 +714,24 @@ void SettingsController::reconcilePagesDirty(const QSet<QString>& pages)
     // the shared-domain reset paths reconcile every leaf of a group and would
     // otherwise fire one NOTIFY per flipped leaf (the discard paths already
     // batch this way).
+    //
+    // The condensed-simple cascade reconcilePageDirty performs runs here too,
+    // so the batched form is a true superset of the single-page one and a
+    // caller can pick either on batching grounds alone. Re-syncing a simple
+    // leaf is idempotent: syncDirtyMembership matches it to its own
+    // value-based truth, whichever backing page led us to it.
     bool changed = false;
-    for (const QString& page : pages) {
-        if (syncDirtyMembership(page, isPageDirty(page))) {
+    const auto sync = [this, &changed](const QString& p) {
+        if (syncDirtyMembership(p, isPageDirty(p))) {
             changed = true;
+        }
+    };
+    const auto& backing = simplePageBackingPages();
+    for (const QString& page : pages) {
+        sync(page);
+        for (auto it = backing.constBegin(); it != backing.constEnd(); ++it) {
+            if (it.value().contains(page))
+                sync(it.key());
         }
     }
     if (changed) {
@@ -669,19 +791,25 @@ bool SettingsController::syncDirtyMembership(const QString& page, bool dirty)
 
 void SettingsController::beginExternalEdit(const QString& page)
 {
-    // The three placement-mode ids resolve to the page that OWNS the mode's
-    // enable key, not to the section's first visible leaf. The only callers
-    // that pass a bare mode id are the sidebar's enable toggle and its
-    // section-disable confirm (Main.qml / ConfirmDialogs.qml), and the edit
-    // inside their envelope is precisely the <Mode>/enabled flip — value-based
-    // dirtiness for that key lives on its manifest owner. resolveToLeaf would
+    // The ids of the sections with a sidebar enable toggle (the three
+    // placement modes, and workspaces) resolve to the page that OWNS the
+    // feature's enable key, not to the section's first visible leaf. The only
+    // callers that pass a bare section id are the sidebar's enable toggle and
+    // its section-disable confirm (Main.qml / ConfirmDialogs.qml), and the
+    // edit inside their envelope is precisely that enable flip — value-based
+    // dirtiness for the key lives on its manifest owner. resolveToLeaf would
     // land on the section's first visible leaf instead, which since the
-    // library pages lead each section is a never-dirty page (isLibraryPage)
-    // that would swallow the attribution.
+    // library pages lead each mode section is a never-dirty page
+    // (isLibraryPage) that would swallow the attribution. Workspaces' first
+    // leaf happens to be its owner today; listing it keeps the attribution
+    // from depending on registration order.
     static const QHash<QString, QString> kModeEnableOwners{
         {QStringLiteral("snapping"), QStringLiteral("snapping-overlay-behavior")},
         {QStringLiteral("tiling"), QStringLiteral("tiling-behavior")},
         {QStringLiteral("scrolling"), QStringLiteral("scrolling-columns")},
+#ifdef USE_KDE_FRAMEWORKS
+        {QStringLiteral("workspaces"), QStringLiteral("workspaces-behavior")},
+#endif
     };
     const QString ownerMapped = kModeEnableOwners.value(page, page);
     // Resolve any OTHER parent category to its canonical leaf — same rules as

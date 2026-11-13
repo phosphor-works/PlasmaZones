@@ -38,6 +38,11 @@ using PlasmaZones::TestHelpers::IsolatedConfigGuard;
 
 namespace {
 
+// Namespaces for the uuid-v5 rule ids the tests below derive. Any fixed value
+// serves: nothing in Settings keys off them.
+const QUuid GapRuleNamespace(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000004}"));
+const QUuid BorderRuleNamespace(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000002}"));
+
 // Build a context gap Rule scoped to one screen: a `ScreenId Equals <connector>`
 // match carrying the inner/outer gap actions. Per-monitor gaps are config-backed
 // now, so this stands in for any gap-action-bearing rule the gap-resync
@@ -53,7 +58,7 @@ PhosphorRules::Rule makePerScreenGapRule(const QString& connector, int innerGap,
     };
 
     Rule rule;
-    rule.id = QUuid::createUuidV5(ConfigDefaults::baselineGapRuleId(), connector.toUtf8());
+    rule.id = QUuid::createUuidV5(GapRuleNamespace, connector.toUtf8());
     rule.name = QStringLiteral("Gaps (%1)").arg(connector);
     rule.enabled = true;
     rule.priority = 100;
@@ -538,7 +543,7 @@ private Q_SLOTS:
         // A non-gap rule write (a border rule, standing in for a mode/assignment
         // toggle) must NOT trigger the gap re-sync.
         Rule borderRule;
-        borderRule.id = QUuid::createUuidV5(ConfigDefaults::baselineBorderRuleId(), QByteArrayLiteral("nongap"));
+        borderRule.id = QUuid::createUuidV5(BorderRuleNamespace, QByteArrayLiteral("nongap"));
         borderRule.name = QStringLiteral("Border");
         borderRule.enabled = true;
         borderRule.priority = 50;
@@ -646,7 +651,6 @@ private Q_SLOTS:
         QCOMPARE(settings.keepWindowsInZonesOnResolutionChange(),
                  ConfigDefaults::keepWindowsInZonesOnResolutionChange());
         QCOMPARE(settings.restoreOriginalSizeOnUnsnap(), ConfigDefaults::restoreOriginalSizeOnUnsnap());
-        QCOMPARE(settings.excludeTransientWindows(), ConfigDefaults::excludeTransientWindows());
 
         // PhosphorZones::Zone selector defaults
         QCOMPARE(settings.zoneSelectorEnabled(), ConfigDefaults::zoneSelectorEnabled());

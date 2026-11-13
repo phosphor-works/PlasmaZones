@@ -1,9 +1,91 @@
 {
     "releases": [
         {
-            "version": "3.4.19",
-            "date": "2026-09-21",
+            "version": "3.5.5",
+            "date": "2026-11-04",
             "highlights": [
+                "New: A slider sets how much of the desktop shows through the layout editor's background, in the editor and under Settings → Editor → Appearance (#1161)",
+                "Changed: Luau and valijson are downloaded at build time as pinned archives instead of shipping in the source, and Luau moves to 0.745 (#1190)",
+                "Fixed: Editor settings changed in the Settings app reach an editor that is already open (#1161)",
+                "Fixed: The Settings app no longer undoes a change the layout editor made while it was open (#1172)",
+                "Fixed: A config file that cannot be read is no longer overwritten by a running PlasmaZones (#1172)",
+                "Fixed: Equalize Column Widths works when a column is partly off screen after a resize (#1195)",
+                "Fixed: A tiled window you maximize stays maximized with borderless maximized windows on (#1182)",
+                "Fixed: The rule editor lists Floating, Snapped, Tiled and Zone under Placement instead of Tiling (#1194)",
+                "Fixed: Tiling algorithm settings with an unusable default open on off or on the first choice (#1191)"
+            ]
+        },
+        {
+            "version": "3.5.4",
+            "date": "2026-11-02",
+            "highlights": [
+                "New: With \"Always re-insert on drag\" on, holding or toggling the re-insert trigger keeps the dragged window floating (#1162)",
+                "New: A rule's Zone condition offers every zone by name, grouped by layout (#1163)",
+                "New: Rules can test a monitor's width, height and aspect ratio, so one monitor can get a different layout at each resolution (#1145)",
+                "New: Fedora 45 RPMs for x86_64 and aarch64 (#1177)",
+                "Fixed: PlasmaZones no longer keeps fullscreen games and videos from going straight to the display (#1169)",
+                "Fixed: Windows without a window class, such as some Gamescope windows, show up in the rule editor's window picker (#1163)",
+                "Fixed: A window class picked from the window picker matches the window (#1163)",
+                "Fixed: The Echo pointer trail no longer leaves a black box over apps that draw their own cursor (#1164)",
+                "Fixed: Layout rules follow a monitor that rotates or changes resolution (#1165)",
+                "Fixed: Gap rules reach windows that are already snapped (#1165)",
+                "Fixed: The rules page's monitor tiles show the layout and rules that apply right now (#1165)",
+                "Fixed: The editor shows fixed zones that don't fit the screen where they really land (#1167)",
+                "Fixed: COPR rebuilds after a KWin update are offered by dnf (#1178)",
+                "Fixed: A tiling algorithm or shader pack can no longer stall PlasmaZones with an oversized result or include (#1175)"
+            ]
+        },
+        {
+            "version": "3.5.3",
+            "date": "2026-10-24",
+            "highlights": [
+                "Fixed: Fixed-size zones can keep their exact pixel size under display scaling with the new \"Fixed sizes count physical pixels\" layout setting in the editor (#1160)",
+                "Fixed: Resizing a centred scrolling column with the mouse puts the edge you dragged where you let go (#1158)",
+                "Fixed: A floating window dragged into the scrolling strip keeps the size it had (#1158)",
+                "Fixed: A window taller than its scrolling tile no longer covers the tile below it (#1156)",
+                "Fixed: An X11 window wider than its scrolling column widens the column, as Wayland windows already did (#1157)",
+                "Fixed: A scrolling column that was once wider peeks past the screen edge again (#1154)",
+                "Fixed: Move to Screen hands a scrolling window cropped at the screen edge to the other screen's strip (#1153)",
+                "Fixed: Snapped windows go back to their zones after a visit to a tiling or scrolling desktop (#1151)",
+                "Fixed: A window on several desktops or activities keeps its place on each of them (#1147)",
+                "Fixed: An app's splash screen no longer sizes and floats the main window that opens after it (#1158)",
+                "Fixed: Activities are followed when the activity service starts after PlasmaZones (#1146)",
+                "Fixed: Only the compositor can report window and screen changes to PlasmaZones, and other programs on the session bus are refused (#1155)",
+                "Fixed: Switching Tiling off and on again keeps your Tiling quick-layout shortcuts (#1158)",
+                "Fixed: A floating window reopens where it floated on a monitor split into virtual screens (#1158)",
+                "Fixed: Brazilian Portuguese button tooltips read as actions (#1152)"
+            ]
+        },
+        {
+            "version": "3.5.2",
+            "date": "2026-10-22",
+            "highlights": [
+                "Fixed: Window decorations, animations and pointer effects work again on Plasma 6.8 with the Mesa drivers most AMD and Intel graphics use (#1143)",
+                "Fixed: A shader compile error names the line in the pack's own file, in the validator, the editor preview and the compositor log (#1143)",
+                "Fixed: On a scrolling screen, a window wider than its column widens the column instead of sitting on top of the next one, and gives the width back when it shrinks (#1129)",
+                "Fixed: On Plasma 6.8, hidden scrolling tabs and columns scrolled out of view no longer leave a strip showing along the edge of the screen (#1141)"
+            ]
+        },
+        {
+            "version": "3.5.1",
+            "date": "2026-10-16",
+            "highlights": [
+                "Fixed: Dialog popups such as KDialog message boxes stay upright while their window animations play on Plasma 6.8"
+            ]
+        },
+        {
+            "version": "3.5.0",
+            "date": "2026-10-15",
+            "highlights": [
+                "Changed: A floating window you move to another monitor forgets the zone it floated from. Unfloating it there snaps it into a zone of that monitor when \"Unfloat to a zone when there is no previous zone\" is on, and otherwise it stays floating. This reverses the 3.3.3 behaviour on purpose, so a window you moved is never pulled back to the monitor it left (#1125)",
+                "Changed: A window that reopens at login, after PlasmaZones restarts or when its app opens again is put back in its zone or tile only when that is on the monitor it opened on. Otherwise it stays where KWin put it. This reverses the old behaviour on purpose, so a window you see open on one monitor is never pulled to another (#1125)",
+                "Changed: A window you moved while PlasmaZones was off stays where you put it when PlasmaZones starts again, and its old zone or tile is forgotten. This reverses the old behaviour on purpose. A placement rule that snaps a window to a zone still applies when the window first opens (#1125)",
+                "Changed: When a monitor is unplugged or a sleeping monitor drops its connection, the windows KWin moves to a tiling or scrolling monitor float where they land, and on a snapping monitor they are no longer snapped, while a window that was floating keeps floating. They go back to their zone or tile when the monitor returns, unless you moved them in the meantime. This changes on purpose the 2.3.7 standby fix, which kept every window in its old zone while its monitor was gone (#1125)",
+                "Changed: A snapped window you maximized or made fullscreen stays that way when its zone is put back, after a layout or desktop switch, a screen change, a restart, a reopen or an unminimize. It returns to its zone when you unmaximize it or leave fullscreen. This reverses part of the 3.4.8 change on purpose (#1125)",
+                "Changed: With auto-assign on, a snapped window sent to another desktop running the same layout keeps its zone instead of taking the first empty one. This reverses part of the 3.4.3 change on purpose (#1125)",
+                "Changed: A window dragged onto a tiling or scrolling monitor without the snap modifier floats where you let go, and the windows already tiled there do not move, during the drag or after it. Meta+F tiles it. This changes on purpose how such a drag ended before, when the monitor tiled the window as soon as it crossed over (#1125)",
+                "Changed: On a scrolling monitor, a column floated from the shell's placement map or dragged out of its strip stays where it is instead of jumping to where it last floated, the way it works on an autotile monitor. Floating it with Meta+F still sends it there. This changes the old behaviour on purpose (#1125)",
+                "Changed: When you remove a virtual desktop, window rules that name a desktop after it are renumbered with it, and a rule that named the removed desktop is switched off rather than deleted, so you can fix it in the rule editor (#1125)",
                 "New: A window shown on all desktops keeps its own place on each one. It can hold a different column, tile or zone per desktop, and those placements survive desktop switches and a restart (#1103)",
                 "Fixed: Moving a floated or hand-placed window to another desktop no longer snaps it into the first empty zone there (#1108)",
                 "Fixed: A window restored from minimize goes straight into its tile instead of flashing at its old size over the other windows (#1110)",
@@ -285,8 +367,8 @@
                 "Fixed: The built-in Steam rule no longer keeps Steam games out of tiling. It matched any window whose class mentioned steam, and a game launched from Steam carries a class like steam_app_2342813033, so every game matched and was taken out of placement and stripped of its borders. The rule now names Steam's own notification popups and leaves everything else alone, and it only takes those popups out of placement. A config carrying the old rule untouched is corrected on the next start, and a copy you edited is left as you left it (#947)",
                 "Fixed: A rule started from a quick start or a subject can take more conditions. Those starting points hand you a rule with a single condition, and the Add condition and Add group buttons only appeared once a rule already had a group, so there was no way to add a second. A rule with one condition now offers both buttons, and rules you already created this way get them too (#947)",
                 "Fixed: A rule no longer offers animation events it cannot change. The Override animation actions listed around sixty events, and only ten of them are ones a rule can affect, because a rule matches windows and can only change an animation that belongs to a window. Picking a desktop switch, a scrolling strip movement, an OSD or a Plasma shell popup gave you an action that saved without complaint and then never ran. Those events are no longer offered, and a rule you already made that names one keeps it, now marked with a warning explaining why nothing happens (#952)",
-                "Changed: The three flat batch assignment getters on the org.plasmazones.LayoutRegistry D-Bus interface (getAllDesktopAssignments, getAllActivityAssignments, getAllCombinedAssignments) now return a map per key, carrying layoutId beside scrollingTemplate, where they used to return a plain layout-id string. The matching setters still take plain layout ids, and templates are written through setScrollingTemplateLayout. Scripts reading those getters need a one-line adjustment (#887)",
-                "Changed: Scripts that used the org.plasmazones.Autotile D-Bus interface for shared window and screen queries should switch to the new org.plasmazones.Tiling interface. Autotile keeps only its own verbs, and scrolling screens announce on org.plasmazones.Scrolling (#852)"
+                "Changed: The three flat batch assignment getters on the org.phosphor_works.Placement.LayoutRegistry D-Bus interface (getAllDesktopAssignments, getAllActivityAssignments, getAllCombinedAssignments) now return a map per key, carrying layoutId beside scrollingTemplate, where they used to return a plain layout-id string. The matching setters still take plain layout ids, and templates are written through setScrollingTemplateLayout. Scripts reading those getters need a one-line adjustment (#887)",
+                "Changed: Scripts that used the org.phosphor_works.Placement.Autotile D-Bus interface for shared window and screen queries should switch to the new org.phosphor_works.Placement.Tiling interface. Autotile keeps only its own verbs, and scrolling screens announce on org.phosphor_works.Placement.Scrolling (#852)"
             ]
         },
         {

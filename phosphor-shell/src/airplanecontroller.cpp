@@ -22,7 +22,7 @@ const QString networkService = QStringLiteral("org.freedesktop.NetworkManager");
 const QString networkPath = QStringLiteral("/org/freedesktop/NetworkManager");
 const QString bluetoothService = QStringLiteral("org.bluez");
 const QString bluetoothInterface = QStringLiteral("org.bluez.Adapter1");
-const QString properties = QStringLiteral("org.freedesktop.DBus.Properties");
+const QString radioPropertiesInterface = QStringLiteral("org.freedesktop.DBus.Properties");
 const QString wifiKey = QStringLiteral("wifi");
 const QString wwanKey = QStringLiteral("wwan");
 }
@@ -218,8 +218,9 @@ void AirplaneController::write(const QString& key, bool value)
     if (radioValue(key) == value)
         return;
     const bool network = key == wifiKey || key == wwanKey;
-    auto message = QDBusMessage::createMethodCall(network ? networkService : bluetoothService,
-                                                  network ? networkPath : key, properties, QStringLiteral("Set"));
+    auto message =
+        QDBusMessage::createMethodCall(network ? networkService : bluetoothService, network ? networkPath : key,
+                                       radioPropertiesInterface, QStringLiteral("Set"));
     message << (network ? networkService : bluetoothInterface)
             << (network ? (key == wifiKey ? QStringLiteral("WirelessEnabled") : QStringLiteral("WwanEnabled"))
                         : QStringLiteral("Powered"))

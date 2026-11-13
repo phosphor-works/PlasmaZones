@@ -3,6 +3,7 @@
 
 #include "layoutadaptor.h"
 #include "dbus/dbushelpers.h"
+#include "phosphor_i18n.h"
 #include "core/interfaces/interfaces.h"
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutFactory.h>
@@ -153,6 +154,10 @@ void LayoutAdaptor::initCoalesceTimer()
     connect(&m_layoutSourceCoalesce, &QTimer::timeout, this, [this]() {
         Q_EMIT layoutListChanged();
     });
+    // The next event-loop pass: compresses a burst of checks in one turn.
+    m_screenStatesCheck.setSingleShot(true);
+    m_screenStatesCheck.setInterval(0);
+    connect(&m_screenStatesCheck, &QTimer::timeout, this, &LayoutAdaptor::checkScreenStates);
 }
 
 void LayoutAdaptor::connectLayoutManagerSignals()
@@ -229,6 +234,19 @@ void LayoutAdaptor::connectVirtualDesktopSignals()
     if (m_virtualDesktopManager) {
         connect(m_virtualDesktopManager, &PhosphorWorkspaces::VirtualDesktopManager::desktopCountChanged, this,
                 &LayoutAdaptor::virtualDesktopCountChanged);
+        // The count and the names normally commit together at KWin's count
+        // change, but in the manager's fallback (KWin's desktop signals not
+        // adding up to a list) a growing count can still go out before the
+        // list that names the new desktop, so a reader of the count alone
+        // keeps the old names and the names are relayed on their own (F1101).
+        m_relayedDesktopNames = displayDesktopNames();
+        connect(m_virtualDesktopManager, &PhosphorWorkspaces::VirtualDesktopManager::desktopsChanged, this, [this]() {
+            const QStringList names = displayDesktopNames();
+            if (names != m_relayedDesktopNames) {
+                m_relayedDesktopNames = names;
+                Q_EMIT virtualDesktopNamesChanged(names);
+            }
+        });
     }
 }
 
@@ -837,7 +855,27 @@ int LayoutAdaptor::getVirtualDesktopCount()
 
 QStringList LayoutAdaptor::getVirtualDesktopNames()
 {
-    return m_virtualDesktopManager ? m_virtualDesktopManager->desktopNames() : QStringList{QStringLiteral("Desktop 1")};
+    return displayDesktopNames();
+}
+
+QStringList LayoutAdaptor::displayDesktopNames() const
+{
+    const auto fallback = [](int position) {
+        return PhosphorI18n::tr("Desktop %1").arg(position);
+    };
+    if (!m_virtualDesktopManager) {
+        return QStringList{fallback(1)};
+    }
+    QStringList names = m_virtualDesktopManager->rawDesktopNames();
+    const int count = qMax(m_virtualDesktopManager->desktopCount(), static_cast<int>(names.size()));
+    for (int i = 0; i < count; ++i) {
+        if (i >= names.size()) {
+            names.append(fallback(i + 1));
+        } else if (names.at(i).isEmpty()) {
+            names[i] = fallback(i + 1);
+        }
+    }
+    return names;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -857,6 +895,36 @@ void LayoutAdaptor::setAlgorithmRegistry(PhosphorTiles::ITileAlgorithmRegistry* 
 void LayoutAdaptor::setAutotileLayoutSource(PhosphorLayout::ILayoutSource* source)
 {
     m_autotileLayoutSource = source;
+}
+
+void LayoutAdaptor::setTiledWindowCountProvider(std::function<std::optional<int>(const QString& screenId)> provider)
+{
+    m_tiledWindowCountProvider = std::move(provider);
+}
+
+void LayoutAdaptor::scheduleScreenStatesCheck()
+{
+    // Already queued for this pass: the one comparison covers this call too.
+    if (!m_screenStatesCheck.isActive()) {
+        m_screenStatesCheck.start();
+    }
+}
+
+void LayoutAdaptor::cancelScreenStatesCheck()
+{
+    m_screenStatesCheck.stop();
+}
+
+void LayoutAdaptor::checkScreenStates()
+{
+    // The whole answer, so a field added to getScreenStates later is covered
+    // without touching this. A handful of screens, once per turn at most.
+    const QString states = getScreenStates();
+    if (states == m_lastScreenStatesJson) {
+        return;
+    }
+    m_lastScreenStatesJson = states;
+    Q_EMIT screenStatesChanged();
 }
 
 void LayoutAdaptor::setLayoutSource(PhosphorLayout::ILayoutSource* source)

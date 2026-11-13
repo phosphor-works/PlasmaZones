@@ -5,6 +5,7 @@
 #include "config/settings/settings_detail.h"
 #include "config/configdefaults.h"
 #include "config/configkeys.h"
+#include "config/configkeys_disablelabels.h"
 #include "core/platform/logging.h"
 
 #include <PhosphorRules/ContextRuleBridge.h>
@@ -44,8 +45,9 @@ namespace {
 //   - `isContextOnly()` — a rule carrying a window-property leaf is not a
 //     context rule at all. Rebuilding it from the decoded dims would drop that
 //     leaf, and `disableEntryFor` has nowhere to put it.
-//   - `pinsNonDimensionContextField()` — a rule pinning Mode /
-//     TiledWindowCount / ScreenOrientation / ActiveLayout is more specific than
+//   - `pinsNonDimensionContextField()` — a rule pinning Mode,
+//     TiledWindowCount, ActiveLayout, ColorScheme or a screen-shape field
+//     (orientation, width, height, aspect ratio) is more specific than
 //     the (screen, desktop, activity) shape the entry strings can key. Taking it
 //     as a bare axis rule would BOTH over-report the gate (an
 //     `All{ScreenId==A, ScreenOrientation=="portrait"}` disable would switch the
@@ -183,8 +185,8 @@ void Settings::writeDisableEntries(PhosphorZones::AssignmentEntry::Mode mode, in
         // axisOf() gates admission with exactly the shapes disableEntriesFor
         // reports, so this walk drops only rules the append loop below rebuilds.
         // Anything it refuses — a window-property leaf, a pinned non-dimension
-        // context field (Mode / TiledWindowCount / ScreenOrientation /
-        // ActiveLayout), a Combined tuple — is NOT the pure (screen, desktop,
+        // context field (Mode, TiledWindowCount, ActiveLayout, ColorScheme or a
+        // screen-shape field), a Combined tuple — is NOT the pure (screen, desktop,
         // activity) shape this (axis, mode) rewrite owns, so it falls through to
         // `kept` untouched. Dropping it would destroy the rule outright: the
         // append loop rebuilds only the bare tuple, so the extra leaf would be
@@ -258,22 +260,13 @@ void Settings::writeDisableEntries(PhosphorZones::AssignmentEntry::Mode mode, in
             break;
         }
         }
-        // Compose the rule name with the same axis suffix the v3→v4
-        // migration uses (see `configmigration.cpp::disableRuleForDesktop`
-        // / `disableRuleForActivity`). Without the suffix, a runtime-
-        // authored desktop or activity disable rule shows up in the rule
-        // editor as the bare monitor-prefix label (`"Snapping off · DP-1"`),
-        // visually indistinguishable from a monitor-axis rule for the same
-        // screen — even though the underlying `(screen, desktop, activity)`
-        // tuple is what `disableRuleIdFor` keys the v5 UUID off. Two
-        // different rules with the same display name confuses the editor's
-        // dedup-on-name heuristic and obscures the actual scope.
-        QString name = disableRulePrefixFor(mode) + screenId;
-        if (axis == DisableAxis::Desktop) {
-            name += disableRuleDesktopSuffix(desktop);
-        } else if (axis == DisableAxis::Activity) {
-            name += disableRuleActivitySuffix();
-        }
+        // The same name the v3→v4 migration gives the rule: the mode prefix
+        // plus the context label of the (screen, desktop, activity) tuple the
+        // rule pins (disableRuleName). The tuple half is what tells a desktop
+        // or activity disable rule apart from the monitor-axis rule for the
+        // same screen in the rule editor, whose dedup-on-name heuristic would
+        // otherwise see two rules with one display name.
+        const QString name = disableRuleName(mode, screenId, desktop, activity);
         kept.append(CRB::makeDisableRule(name, screenId, desktop, activity, modeToken, CRB::kContextBandBase));
     }
 

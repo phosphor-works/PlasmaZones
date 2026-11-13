@@ -88,7 +88,8 @@ enum class OrderingPageKind {
 };
 OrderingPageKind orderingPageKind(const QString& page);
 
-/// The three Quick Shortcuts pages. Same shared-classification rationale.
+/// The three per-mode Quick Shortcuts pages (not the Workspaces one, which is
+/// a manifest page). Same shared-classification rationale.
 bool isShortcutsPage(const QString& page);
 
 /// The wire values the daemon's quick-layout slot map is keyed on. Named

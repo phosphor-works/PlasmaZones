@@ -1,17 +1,10 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// This header carried a sanctioned 1250-line exception while it was over the
-// project ceiling. Removing the shader-preview surface brought it back under,
-// so the ordinary CLAUDE.md limit applies again and no exception is in force.
-//
-// It stays a single Q_OBJECT declaration on purpose: moc needs the whole class
-// in one header, and the bulk here is the Q_PROPERTY / Q_INVOKABLE surface QML
-// binds to, which cannot move without rewriting every binding in
-// src/editor/qml. The implementation is already split by concern under
-// src/editor/controller/ (settings.cpp, scrollingtemplate.cpp, and siblings),
-// which is where the real per-concern boundary is. Long rationale belongs on
-// the definition in the matching controller/*.cpp when it will not fit here.
+// One Q_OBJECT declaration, since moc needs the whole class in one header.
+// The implementation is split by concern under src/editor/controller/
+// (settings.cpp, scrollingtemplate.cpp and siblings), and long rationale
+// belongs on the definition in the matching controller/*.cpp.
 
 #pragma once
 
@@ -32,9 +25,12 @@
 #include "undo/UndoController.h"
 #include "EditorGapsModel.h"
 #include "EditorTemplateModel.h"
+#include "helpers/EditorOwnedConfig.h"
 
 #include <memory>
 #include <optional>
+
+class QJsonObject;
 
 namespace PhosphorZones {
 class Layout;
@@ -42,8 +38,9 @@ class ScrollingTemplateStore;
 }
 
 namespace PhosphorConfig {
-// Forward-declared for refreshScrollingStripAxisSnapshot's reference
-// parameter; the .cpp includes the backend headers directly.
+// Forward-declared for the reference parameter of
+// refreshScrollingStripAxisSnapshot and applyEditorOwnedSettings; the .cpp
+// includes the backend headers directly.
 class IBackend;
 }
 
@@ -77,7 +74,7 @@ class EditorController : public QObject
     // The scrolling-template sub-model does the same.
     friend class EditorTemplateModel;
 
-    // PhosphorZones::Layout properties
+    // Layout properties
     Q_PROPERTY(QString layoutId READ layoutId NOTIFY layoutIdChanged)
     Q_PROPERTY(QString layoutName READ layoutName WRITE setLayoutName NOTIFY layoutNameChanged)
     Q_PROPERTY(QVariantList zones READ zones NOTIFY zonesChanged)
@@ -119,6 +116,15 @@ class EditorController : public QObject
     Q_PROPERTY(
         int fillOnDropModifier READ fillOnDropModifier WRITE setFillOnDropModifier NOTIFY fillOnDropModifierChanged)
 
+    // Opacity of the veil drawn behind the canvas (Editor.Background)
+    Q_PROPERTY(
+        qreal backgroundOpacity READ backgroundOpacity WRITE setBackgroundOpacity NOTIFY backgroundOpacityChanged)
+
+    // The grid-interval range the schema clamps to, for the bottom bar's
+    // sliders, so they match the settings app's Editor page.
+    Q_PROPERTY(qreal snapIntervalMin READ snapIntervalMin CONSTANT)
+    Q_PROPERTY(qreal snapIntervalMax READ snapIntervalMax CONSTANT)
+
     // Screen
     Q_PROPERTY(QString targetScreen READ targetScreen WRITE setTargetScreen NOTIFY targetScreenChanged)
 
@@ -131,7 +137,7 @@ class EditorController : public QObject
     // the strip whichever way that strip happens to run.
     Q_PROPERTY(bool templatePreviewVertical READ templatePreviewVertical NOTIFY templatePreviewVerticalChanged)
 
-    // PhosphorZones::Zone gap settings (per-layout override + global mirrors).
+    // Zone gap settings (per-layout override + global mirrors).
     // Extracted into a sub-model exposed by pointer; QML reads
     // controller.gaps.outerGapTop and friends.
     Q_PROPERTY(PlasmaZones::EditorGapsModel* gaps READ gaps CONSTANT)
@@ -146,17 +152,15 @@ class EditorController : public QObject
     Q_PROPERTY(bool useFullScreenGeometry READ useFullScreenGeometry WRITE setUseFullScreenGeometry NOTIFY
                    useFullScreenGeometryChanged)
 
+    // Unit of fixed-size zones: the target output's device pixels, or logical pixels
+    Q_PROPERTY(bool fixedGeometryInDevicePixels READ fixedGeometryInDevicePixels WRITE setFixedGeometryInDevicePixels
+                   NOTIFY fixedGeometryInDevicePixelsChanged)
+
     // Aspect ratio classification (0=Any, 1=Standard, 2=Ultrawide, 3=SuperUltrawide, 4=Portrait)
     Q_PROPERTY(int aspectRatioClass READ aspectRatioClass WRITE setAspectRatioClass NOTIFY aspectRatioClassChanged)
 
     // Target screen size (for fixed geometry coordinate conversion)
     Q_PROPERTY(QSize targetScreenSize READ targetScreenSize NOTIFY targetScreenSizeChanged)
-
-    // Virtual screen offset within the physical monitor.
-    // When editing a VS, the drawing area must be positioned at this offset so zones
-    // align with the VS region, not the full physical monitor.
-    Q_PROPERTY(QRect virtualScreenRect READ virtualScreenRect NOTIFY targetScreenSizeChanged)
-    Q_PROPERTY(bool isVirtualScreen READ isVirtualScreen NOTIFY targetScreenSizeChanged)
 
     // Usable area insets — offset from full screen geometry to available geometry (panels/taskbars)
     Q_PROPERTY(int insetLeft READ insetLeft NOTIFY usableAreaInsetsChanged)
@@ -220,6 +224,15 @@ public:
     explicit EditorController(QObject* parent = nullptr);
     ~EditorController() override;
 
+    /// Write any editor-settings change still queued, and tell the daemon with
+    /// a blocking call. main() runs this at aboutToQuit, BEFORE it pumps the
+    /// event loop for the QML teardown: otherwise the save timer can fire in
+    /// that pump, take the asynchronous path, and the daemon's reload request
+    /// may never leave the process. The destructor runs it too, as a no-op
+    /// when nothing is pending. One attempt only: a write that fails or is
+    /// refused here is dropped with a warning, not retried.
+    void flushEditorSettingsForShutdown();
+
     // Preview mode
     bool previewMode() const;
     void setPreviewMode(bool preview);
@@ -266,6 +279,9 @@ public:
     int snapOverrideModifier() const;
     bool fillOnDropEnabled() const;
     int fillOnDropModifier() const;
+    qreal backgroundOpacity() const;
+    qreal snapIntervalMin() const;
+    qreal snapIntervalMax() const;
     QString targetScreen() const;
     bool templatePreviewVertical() const;
     EditorGapsModel* gaps() const
@@ -276,16 +292,15 @@ public:
     bool hasOverlayDisplayModeOverride() const;
     int globalOverlayDisplayMode() const;
     bool useFullScreenGeometry() const;
+    bool fixedGeometryInDevicePixels() const;
     int aspectRatioClass() const;
+    /// The reference size fixed-zone numbers are drawn against: the area zones
+    /// occupy on the target screen (its usable area unless the layout covers
+    /// the full screen), never the layout's own extent, so fixed zones that
+    /// overflow it draw past the canvas edge. Logical pixels, scaled to the
+    /// output's device pixels when the layout counts fixed geometry in device
+    /// pixels.
     QSize targetScreenSize() const;
-    QRect virtualScreenRect() const
-    {
-        return m_virtualScreenRect;
-    }
-    bool isVirtualScreen() const
-    {
-        return m_virtualScreenRect.isValid();
-    }
     int insetLeft() const;
     int insetTop() const;
     int insetRight() const;
@@ -385,6 +400,7 @@ public:
     void setSnapOverrideModifier(int modifier);
     void setFillOnDropEnabled(bool enabled);
     void setFillOnDropModifier(int modifier);
+    void setBackgroundOpacity(qreal opacity);
     /**
      * @brief Request a switch to @p screenName, loading that screen's layout.
      *
@@ -448,23 +464,30 @@ public:
      * showFullScreen(), giving KWin the correct output hint.
      */
     Q_INVOKABLE void showFullScreenOnTargetScreen(QQuickWindow* window);
-    void setTargetScreenDirect(const QString& screenName); // Sets screen without loading layout (for initialization)
+    /// Swap the target screen WITHOUT loading that screen's layout: for a
+    /// launch that loads its own layout or template over the top, for putting
+    /// a stranded session's screen back after a failed load, and for moving a
+    /// screen-portable template session.
+    void setTargetScreenDirect(const QString& screenName);
     Q_INVOKABLE void clearOverlayDisplayModeOverride();
 
-    // Fetches every gap and overlay key (zonePadding + outerGap cluster +
-    // overlayDisplayMode) in a single daemon round-trip. Hands the gap globals
-    // to EditorGapsModel::applyGlobalSettings (which emits its own
+    // Fetches every gap and overlay key (the innerGap and outerGap cluster
+    // plus overlayDisplayMode) in a single daemon round-trip. Hands the gap
+    // globals to EditorGapsModel::applyGlobalSettings (which emits its own
     // globalZonePaddingChanged / globalOuterGapChanged) and refreshes the
     // overlay-mode global here, emitting globalOverlayDisplayModeChanged only
     // when it changed. Called from loadEditorSettings() on the startup hot path.
     void refreshGlobalGapOverlaySettings();
     void setOverlayDisplayMode(int mode);
     void setUseFullScreenGeometry(bool enabled);
+    void setFixedGeometryInDevicePixels(bool enabled);
     void setAspectRatioClass(int cls);
 
     // Gap override setters - Direct (for undo/redo, bypass command creation)
     void setOverlayDisplayModeDirect(int mode);
     void setUseFullScreenGeometryDirect(bool enabled);
+    void setFixedGeometryInDevicePixelsDirect(bool enabled);
+    void setAspectRatioClassDirect(int cls);
 
     // Visibility setters - Direct (for undo/redo, bypass command creation)
     void setAllowedScreensDirect(const QStringList& screens);
@@ -472,7 +495,7 @@ public:
     void setAllowedActivitiesDirect(const QStringList& activities);
 
 public Q_SLOTS:
-    // PhosphorZones::Layout operations; loadLayout's bool = payload
+    // Layout operations; loadLayout's bool = payload
     // resolved (false leaves the session, mode included, intact).
     void createNewLayout();
     bool loadLayout(const QString& layoutId);
@@ -486,11 +509,12 @@ public Q_SLOTS:
     // Daemon scrollingTemplatesChanged subscriber: the store watches
     // nothing, so this reload is how other-process writes reach us.
     void reloadLocalTemplates();
-    /// Daemon settingsChanged subscriber (debounced by
-    /// m_stripAxisReloadTimer): re-snapshots the strip-axis inputs so an
-    /// axis authored in the settings app while the editor is open reaches
-    /// the template preview without a restart.
-    void reloadScrollingStripAxis();
+    /// Daemon settingsChanged and editorSettingsChanged subscriber (debounced
+    /// by m_configReloadTimer): re-snapshots the strip-axis inputs and the
+    /// Editor.* groups, so what the settings app changes while the editor is
+    /// open reaches it without a restart. The global gap and overlay values
+    /// and the label font are still read once, at startup.
+    void reloadLiveConfig();
     /// Persist the current layout. False = the save did not land
     /// (layoutSaveFailed carries the reason, the unsaved flag stays set); a
     /// caller chaining a layout-replacing action (screen switch, close)
@@ -504,10 +528,12 @@ public Q_SLOTS:
     // reload so loadLayout()'s instant-open fast path resolves against the
     // daemon's view rather than the snapshot scanned at launch. The registry
     // watches nothing, so this explicit reload is the only way a daemon-side
-    // layout write reaches the editor.
+    // layout write reaches the editor. saveLayout() also calls it directly,
+    // ahead of the debounced signal, so a load in the same call stack sees
+    // what was just saved.
     void reloadLocalLayouts();
 
-    // PhosphorZones::Zone CRUD operations (using zone IDs)
+    // Zone CRUD operations (using zone IDs)
     QString addZone(qreal x, qreal y, qreal width, qreal height);
     void updateZoneGeometry(const QString& zoneId, qreal x, qreal y, qreal width, qreal height,
                             bool skipSnapping = false);
@@ -518,7 +544,7 @@ public Q_SLOTS:
     void deleteZone(const QString& zoneId);
     QString duplicateZone(const QString& zoneId);
 
-    // PhosphorZones::Zone splitting - split a zone horizontally or vertically
+    // Zone splitting - split a zone horizontally or vertically
     Q_INVOKABLE QString splitZone(const QString& zoneId, bool horizontal);
 
     // Helper: get zone index by ID
@@ -527,11 +553,11 @@ public Q_SLOTS:
 
     /**
      * @brief Get complete zone data by ID
-     * @param zoneId PhosphorZones::Zone ID to retrieve
+     * @param zoneId Zone ID to retrieve
      * @return Complete zone data as QVariantMap, or empty map if not found
      *
-     * Performance optimization: O(1) lookup instead of O(n) JavaScript loop in QML.
-     * Delegates to ZoneManager::getZoneById().
+     * A linear scan in C++, which spares QML its own loop over the zones
+     * list. Delegates to ZoneManager::getZoneById().
      */
     Q_INVOKABLE QVariantMap getZoneById(const QString& zoneId) const;
 
@@ -652,7 +678,7 @@ public Q_SLOTS:
     // Per-zone geometry mode operations
     /**
      * @brief Toggle a zone between Relative and Fixed geometry mode
-     * @param zoneId PhosphorZones::Zone to toggle
+     * @param zoneId Zone to toggle
      *
      * Converts between modes using the target screen resolution.
      * Creates an undo command for the toggle.
@@ -661,14 +687,14 @@ public Q_SLOTS:
 
     /**
      * @brief Update fixed geometry for a zone (for spinbox edits)
-     * @param zoneId PhosphorZones::Zone to update
+     * @param zoneId Zone to update
      * @param x, y, w, h Fixed pixel coordinates
      */
     Q_INVOKABLE void updateZoneFixedGeometry(const QString& zoneId, qreal x, qreal y, qreal w, qreal h);
 
     /**
      * @brief Apply geometry mode and coordinates directly (for undo/redo)
-     * @param zoneId PhosphorZones::Zone to update
+     * @param zoneId Zone to update
      * @param mode Geometry mode (0=Relative, 1=Fixed)
      * @param relativeGeo Relative geometry
      * @param fixedGeo Fixed geometry
@@ -733,6 +759,7 @@ Q_SIGNALS:
     void snapOverrideModifierChanged();
     void fillOnDropEnabledChanged();
     void fillOnDropModifierChanged();
+    void backgroundOpacityChanged();
     void targetScreenChanged();
     void templatePreviewVerticalChanged();
 
@@ -740,6 +767,12 @@ Q_SIGNALS:
     /// was parked instead of applied. The UI prompts, then calls
     /// confirmPendingTargetScreen() or cancelPendingTargetScreen().
     void targetScreenChangeRequiresConfirmation(const QString& screenName);
+
+    /// A parked screen switch was dropped unanswered because the object it
+    /// asked about was replaced (another layout or template loaded, or the
+    /// editing mode changed). The prompt that asked about it must close, or
+    /// its Save would act on the replacement.
+    void pendingTargetScreenDropped();
 
     /// A forwarded launch (`plasmazones-editor --new` / `--layout <id>`) wants
     /// to replace the loaded layout while it has unsaved edits. The UI must
@@ -751,6 +784,7 @@ Q_SIGNALS:
     void overlayDisplayModeChanged();
     void globalOverlayDisplayModeChanged();
     void useFullScreenGeometryChanged();
+    void fixedGeometryInDevicePixelsChanged();
     void aspectRatioClassChanged();
     void targetScreenSizeChanged();
 
@@ -774,6 +808,10 @@ Q_SIGNALS:
 
     void layoutSaved();
     void layoutExported();
+    /// exportLayout's failures. Its own signal, because the layoutSaveFailed
+    /// toast prefixes "Failed to save layout", which would misname an export.
+    /// The messages are self-contained, so QML toasts them verbatim.
+    void layoutExportFailed(const QString& error);
     void layoutLoadFailed(const QString& error);
     void layoutSaveFailed(const QString& error);
     /// Relayed from ILayoutService::errorOccurred. The service's messages are
@@ -797,15 +835,68 @@ Q_SIGNALS:
     void canPasteChanged();
     void clipboardOperationFailed(const QString& error);
 
+private Q_SLOTS:
+    /// Daemon Screen.screenGeometryChanged subscriber: re-reads the target's
+    /// geometry when @p screenId is the target screen.
+    void onDaemonScreenGeometryChanged(const QString& screenId);
+    /// Daemon Screen.virtualScreensChanged subscriber: re-reads the target's
+    /// geometry when it is a virtual screen of @p physicalScreenId.
+    void onDaemonVirtualScreensChanged(const QString& physicalScreenId);
+    /// Daemon Screen.availableGeometryChanged subscriber: refetches the
+    /// insets (and through setInsets the reference they bound) when
+    /// @p screenId is the target screen, for a panel that moved under an
+    /// unchanged screen rect.
+    void onDaemonAvailableGeometryChanged(const QString& screenId);
+
 private:
     void markUnsaved();
     void cacheVirtualScreenGeometry(const QString& screenName);
+    /// Fetch the target output's logical scale (the per-output fractional
+    /// one) from the daemon into m_targetScreenScale, unless it is already
+    /// known. The reference size reads the scale only for a layout counting
+    /// device pixels, so those callers ask for it only while
+    /// m_fixedGeometryInDevicePixels is set. pasteZones is the other reader:
+    /// it converts zones copied in the other unit, so it asks whenever the
+    /// clipboard's unit differs from the layout's, a logical layout included.
+    void ensureTargetScreenScale();
+    /// The target's whole logical rect size, before insets: the virtual
+    /// screen's, else the physical monitor's.
+    QSize targetFullLogicalScreenSize() const;
+    /// targetScreenSize() before the device-pixel scaling: the occupied area
+    /// of the virtual screen, else of the physical one.
+    QSize targetLogicalScreenSize() const;
+    /// The layout as saveLayout() sends it, built from the editor's state.
+    QJsonObject currentLayoutJson() const;
+    /// Publish targetScreenSize() after anything it depends on changed:
+    /// the change signal when it moved, and the zone manager's reference with
+    /// the fixed zones' relative copies re-derived against it.
+    void republishTargetScreenSize(const QSize& previous);
+    /// Re-read everything the reference size is derived from for the
+    /// current target (virtual screen geometry, scale and insets) and
+    /// republish it. For geometry that changed under an unchanged target,
+    /// such as a resolution, scale or subdivision change.
+    void refreshTargetScreenGeometry();
     /// Carry out the gated screen switch (caller cleared the replace
     /// decision). forceLayoutMode = the plain-screen launch shape: flips out
     /// of template/preview mode at apply time and loads even same-screen.
     void applyTargetScreen(const QString& screenName, bool forceLayoutMode = false);
-    void applyUsableAreaInsets(const QRect& fullGeom, const QRect& availGeom);
+    /// Insets of @p availGeom within @p fullGeom, measured for
+    /// @p requestedScreen (the screen the replies were asked about).
+    void applyUsableAreaInsets(const QRect& fullGeom, const QRect& availGeom, const QString& requestedScreen);
     void setInsets(int left, int top, int right, int bottom);
+    /// Drop the screen switch parked by setTargetScreen(), announcing it with
+    /// pendingTargetScreenDropped() when one was parked.
+    void dropPendingTargetScreen();
+    /// The daemon import and load behind importLayout(), once nothing
+    /// unsaved stands in its way.
+    void importLayoutNow(const QString& filePath);
+    /// Set @p zoneIds' three colours to the theme defaults as undoable
+    /// commands, for zones that are switching custom colours on.
+    void seedCustomColors(const QStringList& zoneIds);
+    /// Re-read the daemon's screen list (and the virtual screens' display
+    /// names) into m_availableScreenIds and m_screenModel, announcing
+    /// availableScreenIdsChanged only when either changed.
+    void refreshAvailableScreens();
 
     /**
      * @brief Z-order operation types for changeZOrderImpl
@@ -819,7 +910,7 @@ private:
 
     /**
      * @brief Internal implementation for all z-order operations
-     * @param zoneId PhosphorZones::Zone to modify
+     * @param zoneId Zone to modify
      * @param op Z-order operation to perform
      * @param actionName Undo action display name (already translated)
      */
@@ -841,27 +932,33 @@ private:
      */
     void syncSelectionSignals();
 
-    /**
-     * @brief Loads editor settings from KConfig
-     */
+    /// Read the editor settings and the global values the editor mirrors
+    /// from the config store, plus the gap and overlay globals from the daemon.
     void loadEditorSettings();
 
-    /**
-     * @brief Saves editor settings to KConfig
-     */
-    /// Queue an editor-settings write. Coalesced behind
-    /// m_editorSettingsSaveTimer — see flushEditorSettings for the real work.
-    void saveEditorSettings();
-    /// Write the editor settings to config.json and tell the daemon to reparse.
-    /// Runs off m_editorSettingsSaveTimer.
+    /// Mark @p changed as edited here and queue a write. Coalesced behind
+    /// m_editorSettingsSaveTimer; see flushEditorSettings for the real work.
+    /// Setters call it only for a value that actually moved, because a key
+    /// marked here wins over a concurrent settings-app change to it.
+    void saveEditorSettings(EditorOwnedConfig::Keys changed);
+    /// Write the edited settings to config.json and tell the daemon to
+    /// reparse. Runs off m_editorSettingsSaveTimer.
     void flushEditorSettings();
     /// flushEditorSettings for teardown: same write, but the daemon reload is
-    /// blocking so it is actually delivered before the process goes away. Only
-    /// ~EditorController calls this — see the note there.
+    /// blocking so it is actually delivered before the process goes away.
     void flushEditorSettingsBlocking();
-    /// The config write both flush paths share. Returns false when nothing
-    /// reached disk, in which case there is nothing for the daemon to reload.
-    bool writeEditorSettingsToDisk();
+    /// Outcome of writeEditorSettingsToDisk.
+    enum class EditorSettingsWrite {
+        Nothing, ///< no edited key, nothing touched
+        Written, ///< the edited keys reached disk
+        Refused, ///< config.json could not be read, so it was not overwritten
+        Failed, ///< the write itself failed
+    };
+    /// The config write both flush paths share: the edited keys only, onto
+    /// what disk holds now. Clears m_editorKeysEdited only when it landed.
+    EditorSettingsWrite writeEditorSettingsToDisk();
+    /// The editor-owned settings as this process currently holds them.
+    EditorOwnedConfig currentEditorOwnedConfig() const;
 
     /**
      * @brief Handles clipboard content changes
@@ -871,7 +968,7 @@ private:
      */
     void onClipboardChanged();
 
-    // PhosphorZones::Layout data
+    // Layout data
     QString m_layoutId;
     QString m_layoutName;
     int m_zonesVersion = 0; // Increments on any zone change (lightweight binding dependency)
@@ -940,16 +1037,43 @@ private:
     /// layoutChanged + layoutListChanged back-to-back — only hits the
     /// PhosphorZones::LayoutRegistry once.
     QTimer m_layoutReloadTimer;
-    /// Coalesces saveEditorSettings() bursts. Every snapping/fill-on-drop
-    /// setter calls saveEditorSettings, and ControlBar drives snapIntervalX
-    /// from Slider.onMoved — one call per mouse-move step. Each one rewrites
-    /// the whole config document, fsyncs it, and makes the daemon reparse its
-    /// entire config, so running that per tick is a drag-long stutter. Batch
-    /// the burst into one write once the value settles.
+    /// Coalesces saveEditorSettings() bursts. Every editor-settings setter
+    /// calls saveEditorSettings, and ControlBar drives the grid intervals and
+    /// the background opacity from Slider.onMoved, one call per mouse-move
+    /// step. Each write rewrites the whole config document, fsyncs it, and
+    /// makes the daemon reparse its entire config, so running that per tick
+    /// is a drag-long stutter. Batch the burst into one write once the value
+    /// settles.
     QTimer m_editorSettingsSaveTimer;
-    /// Debounces settingsChanged bursts (a settings-app Save emits per key
-    /// group) into one reloadScrollingStripAxis() re-read.
-    QTimer m_stripAxisReloadTimer;
+    /// Debounce for the editor-settings write, and the base of the retry
+    /// backoff after a failed one. Long enough to swallow a slider drag's
+    /// mouse-move burst, short enough that the write still feels immediate
+    /// once the user lets go.
+    static constexpr int EditorSettingsSaveDebounceMs = 250;
+    /// Retries after a failed write before the edits wait for the next change,
+    /// the next live reload that reads the file cleanly, or closing.
+    static constexpr int MaxEditorSettingsWriteRetries = 3;
+    /// The Editor.* settings changed in this process and not yet on disk.
+    /// Only these are written, and a reload does not adopt these, so neither
+    /// side overwrites a key the other changed. Kept after a failed write, so
+    /// the edit is retried rather than lost.
+    EditorOwnedConfig::Keys m_editorKeysEdited;
+    /// Consecutive failed writes, for the bounded retry in flushEditorSettings.
+    int m_editorSettingsWriteFailures = 0;
+    /// Shortcut keys already warned about as invalid, so a broken entry is
+    /// reported once rather than on every live reload.
+    QStringList m_warnedInvalidShortcuts;
+    /// Debounces the daemon's settingsChanged / editorSettingsChanged into one
+    /// reloadLiveConfig() re-read. A reload can move both, and the editor's own
+    /// write comes back as one.
+    QTimer m_configReloadTimer;
+
+    /// Read the Editor.* groups (snapping, shortcuts, fill on drop, canvas
+    /// background) from @p backend into the editor's state, announcing only
+    /// what changed, and skipping the keys in m_editorKeysEdited. Writes
+    /// nothing back itself; reloadLiveConfig decides separately whether a
+    /// pinned write should be restarted.
+    void applyEditorOwnedSettings(PhosphorConfig::IBackend& backend);
 
     /// The one snapshot writer for the strip-axis inputs (global value +
     /// per-screen overrides), shared by loadEditorSettings and the
@@ -958,9 +1082,9 @@ private:
     void refreshScrollingStripAxisSnapshot(PhosphorConfig::IBackend& backend);
 
     /// Recompute zone geometry for every manual layout against the primary
-    /// screen so a layout opened through the in-process registry carries its
-    /// fixed-geometry zones at their authored dimensions — see
-    /// SettingsController for the matching implementation.
+    /// screen, at that output's logical scale, so a layout opened through the
+    /// in-process registry carries its fixed-geometry zones at their authored
+    /// dimensions — see SettingsController for the matching implementation.
     void recalcLocalLayouts();
 
     bool m_gridOverlayVisible = true; // Grid overlay visibility (independent of snapping)
@@ -978,16 +1102,25 @@ private:
     bool m_fillOnDropEnabled = true; // Enabled by default
     int m_fillOnDropModifier = 0x04000000; // Qt::ControlModifier (different from snap override)
 
+    // Canvas veil opacity; loadEditorSettings replaces it before QML reads it.
+    // The literal is ConfigDefaults::editorBackgroundOpacity(), spelled out to
+    // keep configdefaults.h out of this header; a static_assert in
+    // controller/settings.cpp ties the two together.
+    static constexpr qreal DefaultBackgroundOpacity = 0.7;
+    qreal m_backgroundOpacity = DefaultBackgroundOpacity;
+
     // Screen
     QString m_targetScreen;
 
     // Strip-axis inputs for templatePreviewVertical(), snapshotted by
-    // loadEditorSettings(). The tri-state config enum (Auto / Horizontal /
+    // refreshScrollingStripAxisSnapshot() at startup and on every live
+    // reload. The tri-state config enum (Auto / Horizontal /
     // Vertical), NOT PhosphorProtocol::ScrollAxis — the two numberings differ
     // on purpose and are never cast between.
     /// Auto. Spelled as the literal rather than ConfigDefaults::
     /// scrollingStripAxis() so this header need not pull in configdefaults.h;
-    /// loadEditorSettings() carries a static_assert tying the two together.
+    /// refreshScrollingStripAxisSnapshot() carries a static_assert tying the
+    /// two together.
     int m_scrollingStripAxis = 0;
     /// Per-screen StripAxis overrides, keyed by the screen id or name the
     /// group was stored under. Absent screen means "use the global value".
@@ -1017,6 +1150,9 @@ private:
         bool preview = false;
         QString templateId;
         bool newTemplate = false;
+        /// A file importLayout() parked: the import replaces the loaded
+        /// layout, so it takes the same prompt as the launch shapes.
+        QString importPath;
     };
     std::optional<PendingLaunch> m_pendingLaunch;
     /// Apply a launch request outright, replacing whatever is loaded.
@@ -1028,32 +1164,49 @@ private:
     /// Screen parked by setTargetScreen() / a plain-screen launch while
     /// unsaved edits are pending (optional: "" is a legitimate value). The
     /// bool is the launch shape's intent — confirm then also leaves
-    /// template/preview mode and loads. Both reset on any mode change.
+    /// template/preview mode and loads. Both reset through
+    /// dropPendingTargetScreen() on any mode change, and on a same-mode
+    /// replacement of the edited object (a new or loaded layout, a template
+    /// session begun over another).
     std::optional<QString> m_pendingTargetScreen;
     bool m_pendingTargetEditsLayout = false;
     QSize m_virtualScreenSize; ///< Cached VS geometry size (valid when m_targetScreen is virtual)
-    QRect m_virtualScreenRect; ///< Cached VS absolute geometry (position within physical monitor)
-    /// Layout-derived reference-size override. When valid, takes precedence
-    /// over m_virtualScreenSize in targetScreenSize() — used for fixed-
-    /// geometry layouts whose zone bounding box defines the canvas the
-    /// editor / preview should render against, independent of the live
-    /// screen size. Cleared for relative-only layouts.
-    QSize m_layoutBoundsOverride;
+    /// Target output's logical scale, from the daemon. Zero while unknown:
+    /// it is fetched on demand by ensureTargetScreenScale (see there for who
+    /// asks), and forgotten whenever the target or its geometry changes.
+    qreal m_targetScreenScale = 0.0;
+    /// The target's size in device pixels from the same getScreenInfo reply
+    /// as m_targetScreenScale, fetched and forgotten with it. Invalid when the
+    /// daemon does not report one; targetScreenSize() then scales instead.
+    QSize m_targetScreenPixelSize;
+    /// Cached VS geometry, positioned relative to its physical monitor's
+    /// origin (valid when m_targetScreen is virtual).
+    QRect m_virtualScreenRect;
     int m_insetLeft = 0;
     int m_insetTop = 0;
     int m_insetRight = 0;
     int m_insetBottom = 0;
+    /// Stamp of the newest refreshUsableAreaInsets() request; a reply carrying
+    /// an older stamp answers for a screen that is no longer the target.
+    quint64 m_insetsRequestGeneration = 0;
+    /// Stamp of the newest showFullScreenOnTargetScreen() plan; a deferred
+    /// remap carrying an older stamp was superseded and must not run.
+    quint64 m_windowPlanGeneration = 0;
+    /// screenModel(), built by refreshAvailableScreens() so the property read
+    /// makes no D-Bus calls.
+    QVariantList m_screenModel;
 
     // Default colors (for theme-based defaults, set from QML)
     QString m_defaultHighlightColor;
     QString m_defaultInactiveColor;
     QString m_defaultBorderColor;
 
-    // PhosphorZones::Zone settings (per-layout override, -1 = use global)
+    // Zone settings (per-layout override, -1 = use global)
     // Per-layout zone-padding / edge-gap overrides live in m_gaps (see the
     // gaps property); overlay display mode stays here.
     int m_overlayDisplayMode = -1; // -1 = use global setting
     bool m_useFullScreenGeometry = false;
+    bool m_fixedGeometryInDevicePixels = false;
     int m_aspectRatioClass = 0; // 0 = Any (AspectRatioClass::Any)
     int m_cachedGlobalOverlayDisplayMode = 0; // Cached global overlay display mode
 
@@ -1083,7 +1236,11 @@ private:
     QString m_dragPrimaryZoneId;
     qreal m_dragStartX = 0.0;
     qreal m_dragStartY = 0.0;
-    QMap<QString, QPointF> m_dragInitialPositions; // Initial positions of all selected zones
+    /// Initial position of every selected zone, in the zone's own unit: the
+    /// fixed pixel origin for a fixed zone, the relative origin otherwise.
+    /// The primary is the exception and always records its relative origin,
+    /// because the drag delta is measured from it in relative units.
+    QMap<QString, QPointF> m_dragInitialPositions;
 };
 
 } // namespace PlasmaZones

@@ -24,8 +24,7 @@ namespace PlasmaZones {
 /**
  * @brief Unified stub ISettings for unit tests
  *
- * FILE-SIZE EXCEPTION (declared by the 2026-08 PR #915 audit): one class
- * implementing one very large interface, override for override. It grows
+ * One class implementing one very large interface, override for override. It grows
  * in lockstep with ISettings, and splitting a stub across headers would
  * buy nothing but a second place for an override to be missing — the
  * drift surface the per-family override comments below exist to prevent.
@@ -140,19 +139,6 @@ public:
         }
         m_zoneSpanEnabled = value;
         Q_EMIT zoneSpanEnabledChanged();
-        Q_EMIT settingsChanged();
-    }
-    DragModifier zoneSpanModifier() const override
-    {
-        return m_zoneSpanModifier;
-    }
-    void setZoneSpanModifier(DragModifier value) override
-    {
-        if (m_zoneSpanModifier == value) {
-            return;
-        }
-        m_zoneSpanModifier = value;
-        Q_EMIT zoneSpanModifierChanged();
         Q_EMIT settingsChanged();
     }
     QVariantList zoneSpanTriggers() const override
@@ -1114,19 +1100,6 @@ public:
 
     // IWindowExclusionSettings — the per-app / per-class exclusion list
     // accessors retired in v4 (folded into unified Rule store).
-    bool excludeTransientWindows() const override
-    {
-        return m_excludeTransientWindows;
-    }
-    void setExcludeTransientWindows(bool exclude) override
-    {
-        if (m_excludeTransientWindows == exclude) {
-            return;
-        }
-        m_excludeTransientWindows = exclude;
-        Q_EMIT excludeTransientWindowsChanged();
-        Q_EMIT settingsChanged();
-    }
     int minimumWindowWidth() const override
     {
         return m_minimumWindowWidth;
@@ -2533,14 +2506,20 @@ public:
         Q_EMIT autotilePerAlgorithmSettingsChanged();
         Q_EMIT settingsChanged();
     }
-    // Editor settings — round-trip the stub members so a test can
-    // exercise the EditorPageController setter/getter contract.
+    // Editor settings — round-trip the stub members, so a consumer test can
+    // drive an ISettings that holds what it was given.
     //
     // Every setter below pairs the field-specific signal with the umbrella
     // `settingsChanged()` emit. The concrete Settings class does the same
     // via the P_STORE_SET_{BOOL,STRING,INT,DOUBLE} macros
     // (src/config/settings/settings_detail.h) — the stub matches so tests can rely on `settingsChanged()`
     // firing on any setter, regardless of which ISettings backend is wired.
+    //
+    // DELIBERATE OMISSION: the snap-interval and modifier setters store their
+    // argument as given, without the schema's clampDouble / modifier-mask
+    // coercion. No stub-backed test feeds them an out-of-range value; one that
+    // needs the coercion must use the real Settings. The opacity setter
+    // mirrors its clamp anyway, since that costs a few lines.
     QString editorDuplicateShortcut() const override
     {
         return m_editorDuplicateShortcut;
@@ -2671,6 +2650,26 @@ public:
             return;
         m_fillOnDropModifier = m;
         Q_EMIT fillOnDropModifierChanged();
+        Q_EMIT settingsChanged();
+    }
+    qreal editorBackgroundOpacity() const override
+    {
+        return m_editorBackgroundOpacity;
+    }
+    void setEditorBackgroundOpacity(qreal v) override
+    {
+        // Mirror the schema's clampDouble, as the real store would, NaN branch
+        // included (see setDecorationBlurScaleMultiplier for why it is spelled
+        // out rather than left to qBound's argument order).
+        if (qIsNaN(v)) {
+            v = ConfigDefaults::editorBackgroundOpacityMin();
+        }
+        const qreal clamped =
+            qBound(ConfigDefaults::editorBackgroundOpacityMin(), v, ConfigDefaults::editorBackgroundOpacityMax());
+        if (qFuzzyCompare(1.0 + m_editorBackgroundOpacity, 1.0 + clamped))
+            return;
+        m_editorBackgroundOpacity = clamped;
+        Q_EMIT editorBackgroundOpacityChanged();
         Q_EMIT settingsChanged();
     }
     QStringList lockedScreens() const override
@@ -3020,6 +3019,11 @@ public:
     }
 
     // Persistence (ISettings)
+    // DELIBERATELY UNIMPLEMENTED: there is no disk to reload from, so none of
+    // the change signals production load() re-emits (the Q_PROPERTY NOTIFYs,
+    // the Editor.* signals and editorSettingsChanged, the per-mode and
+    // per-screen signals) can fire here. A test of reload announcements must
+    // use the real Settings.
     void load() override
     {
     }
@@ -3140,7 +3144,6 @@ private:
         static_cast<AutotileDragBehavior>(ConfigDefaults::autotileDragBehavior());
     AutotileOverflowBehavior m_autotileOverflowBehavior =
         static_cast<AutotileOverflowBehavior>(ConfigDefaults::autotileOverflowBehavior());
-    DragModifier m_zoneSpanModifier = static_cast<DragModifier>(ConfigDefaults::zoneSpanModifier());
     OsdStyle m_osdStyle = static_cast<OsdStyle>(ConfigDefaults::osdStyle());
     OverlayDisplayMode m_overlayDisplayMode = static_cast<OverlayDisplayMode>(ConfigDefaults::overlayDisplayMode());
     // Empty, matching ConfigDefaults::shaderProfileTree() — which is a QVariantMap and so
@@ -3170,7 +3173,9 @@ private:
     QHash<int, QStringList> m_disabledMonitors;
     QHash<int, QStringList> m_disabledDesktops;
     QHash<int, QStringList> m_disabledActivities;
-    QStringList m_lockedScreens = ConfigDefaults::lockedScreens();
+    // Empty, as in production: ConfigDefaults::autotileLockedScreens() is the empty string,
+    // the comma-joined form of no screen locked.
+    QStringList m_lockedScreens;
     QVariantList m_autotileDragInsertTriggers = ConfigDefaults::autotileDragInsertTriggers();
     QVariantList m_scrollingDragInsertTriggers = ConfigDefaults::scrollingDragInsertTriggers();
     QVariantList m_scrollingWheelFocusTriggers = ConfigDefaults::scrollingWheelFocusTriggers();
@@ -3255,12 +3260,9 @@ private:
     qreal m_labelFontSizeScale = static_cast<qreal>(ConfigDefaults::labelFontSizeScale());
 
     // The window-exclusion defaults, from ConfigDefaults for the same reason the
-    // animation-filter ones below are. These three were hardcoded, and all three disagreed
-    // with production: excludeTransientWindows read false against a default of TRUE (and
-    // its setter was a no-op, so no test could even move it), and the two minimum sizes
-    // read 0 against 200x150 — so every stub-backed test of the size filter was exercising
+    // animation-filter ones below are. Hardcoded, the two minimum sizes read 0 against
+    // production's 200x150, so every stub-backed test of the size filter was exercising
     // a filter that passes everything.
-    bool m_excludeTransientWindows = ConfigDefaults::excludeTransientWindows();
     int m_minimumWindowWidth = ConfigDefaults::minimumWindowWidth();
     int m_minimumWindowHeight = ConfigDefaults::minimumWindowHeight();
     // Animation-filter defaults routed through ConfigDefaults so a future
@@ -3287,6 +3289,7 @@ private:
     int m_editorSnapOverrideModifier = ConfigDefaults::editorSnapOverrideModifier();
     bool m_fillOnDropEnabled = ConfigDefaults::fillOnDropEnabled();
     int m_fillOnDropModifier = ConfigDefaults::fillOnDropModifier();
+    qreal m_editorBackgroundOpacity = ConfigDefaults::editorBackgroundOpacity();
     // Gaps — config-backed defaults routed through ConfigDefaults.
     int m_innerGap = ConfigDefaults::innerGap();
     int m_outerGap = ConfigDefaults::outerGap();

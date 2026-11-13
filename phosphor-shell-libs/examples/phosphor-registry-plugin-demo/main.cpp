@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // phosphor-registry-plugin-demo entry point. Toy bar with two
-// built-in widgets plus a third loaded from a .so + manifest.json
-// via PluginLoader.
+// built-in widgets plus a third loaded from a bar-widget plugin via
+// PluginLoader.
 //
-// The --plugin-root flag (default: ${GenericDataLocation}/phosphor/plugins/)
-// lets developers point the loader at a per-build directory the
-// CPU-meter plugin's CMakeLists writes the .so into. CI runs the
-// demo with --plugin-root=${CMAKE_BINARY_DIR}/registry-plugin-demo-plugins.
+// The --plugin-root flag names a root whose bar-widget/ directory is
+// searched ahead of the standard plugin paths
+// (PluginCatalog::defaultSearchPaths). The build defaults it to the
+// per-build root the CPU-meter plugin's CMakeLists writes into.
 
 #include "DemoController.h"
 
@@ -31,8 +31,8 @@ int main(int argc, char* argv[])
     parser.addHelpOption();
     QCommandLineOption pluginRootOption(
         QStringList{QStringLiteral("plugin-root")},
-        QStringLiteral("Directory the plugin loader scans for .so + manifest.json pairs. Defaults to the XDG data "
-                       "location for phosphor plugins."),
+        QStringLiteral("Plugin root whose bar-widget directory is searched ahead of the standard plugin paths. "
+                       "Defaults to the plugin root in the build tree."),
         QStringLiteral("path"));
     parser.addOption(pluginRootOption);
     parser.process(app);
@@ -40,14 +40,11 @@ int main(int argc, char* argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     // Resolve the plugin root in priority order:
-    //   1. --plugin-root from the CLI (CI + manual testing override)
+    //   1. --plugin-root from the CLI (manual testing override)
     //   2. PHOSPHOR_REGISTRY_PLUGIN_DEMO_DEFAULT_ROOT injected at
     //      build time, pointing at ${CMAKE_BINARY_DIR}/registry-plugin-demo-plugins/.
     //      Lets `./bin/phosphor-registry-plugin-demo` work out of the
     //      build tree without arguments.
-    //   3. Empty string — PluginLoader then falls back to
-    //      ${GenericDataLocation}/phosphor/plugins/ (the installed-
-    //      deployment default).
     QString pluginRoot = parser.value(pluginRootOption);
 #ifdef PHOSPHOR_REGISTRY_PLUGIN_DEMO_DEFAULT_ROOT
     if (pluginRoot.isEmpty()) {

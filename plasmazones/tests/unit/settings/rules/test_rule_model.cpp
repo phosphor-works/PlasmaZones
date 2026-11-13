@@ -15,6 +15,8 @@
  */
 
 #include <QJsonArray>
+#include <QLocale>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -118,11 +120,47 @@ private Q_SLOTS:
     void boolMatchConditionRendersOnOff();
     void shaderAndCurveLabelsResolveThroughLookups();
     void routeActionsRenderFriendlyLabels();
+    void routeTargetsTrimBoundAndFollowWorkspaceRenames();
+    void fractionActionsRejectStringValues();
     void scrollingActionsRenderDistinctLabels();
     void snapToZoneSummaryQuotesNamesAndFiltersTargets();
     void animationOverridesSummariseWithTheirEvent();
     void actionLabelPrefixesAreUnique();
+    void matchLabelsIgnoreCaseLikeTheEngine();
+    void screenShapeValuesReadGroupedInSummaries();
 };
+
+// The engine's Equals compares these leaves ignoring case, so the summary
+// resolves a hand-edited value spelled in another case to the option it
+// matches, and a value that names nothing still reads verbatim. FAILS if the
+// ActiveLayout UUID or the ColorScheme token is resolved case-sensitively.
+void TestRuleModel::matchLabelsIgnoreCaseLikeTheEngine()
+{
+    const QString layoutId = QUuid::createUuid().toString();
+    const auto leafRule = [](Field field, const QString& value) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.match = MatchExpression::makeLeaf(field, Operator::Equals, value);
+        RuleAction floatAction;
+        floatAction.type = QString(ActionType::Float);
+        rule.actions = {floatAction};
+        return rule;
+    };
+    const QString unknownId = QUuid::createUuid().toString().toUpper();
+    RuleModel model;
+    model.setRules({leafRule(Field::ActiveLayout, layoutId.toUpper()),
+                    leafRule(Field::ColorScheme, QStringLiteral("DARK")), leafRule(Field::ActiveLayout, unknownId)});
+    model.setSnappingLayoutLabelLookup([layoutId](const QString& id) {
+        return id == layoutId ? QStringLiteral("Columns") : id;
+    });
+    model.refreshLabels();
+    const auto summaryAt = [&model](int row) {
+        return model.data(model.index(row, 0), RuleModel::MatchSummaryRole).toString();
+    };
+    QVERIFY2(summaryAt(0).contains(QStringLiteral("Columns")), qPrintable(summaryAt(0)));
+    QVERIFY2(summaryAt(1).contains(QStringLiteral("Dark")), qPrintable(summaryAt(1)));
+    QVERIFY2(summaryAt(2).contains(unknownId), qPrintable(summaryAt(2)));
+}
 
 void TestRuleModel::rolesExposed()
 {
@@ -184,6 +222,54 @@ void TestRuleModel::sectionDerivation()
     columnWidth.params.insert(ActionParam::Value, 0.5);
     screenScroll.actions = {columnWidth};
     QCOMPARE(RuleModel::sectionFor(screenScroll), RuleModel::Section::Monitor);
+
+    // A rule matching only the screen's shape (no monitor named) describes a
+    // screen, so it files under Monitor & Layout like an orientation rule,
+    // and a rule matching only the colour scheme names no screen and does
+    // not. The screen-scoped set is derived from the field table, so this
+    // fails if a screen-shape field drops out of the derivation.
+    for (const Field shapeField : {Field::ScreenWidth, Field::ScreenHeight, Field::ScreenAspectRatio}) {
+        Rule shapeOnly;
+        shapeOnly.id = QUuid::createUuid();
+        shapeOnly.match = shapeField == Field::ScreenAspectRatio
+            ? MatchExpression::makeLeaf(shapeField, Operator::Equals, QStringLiteral("32:9"))
+            : MatchExpression::makeLeaf(shapeField, Operator::GreaterThan, 3000);
+        shapeOnly.actions = {gap};
+        QCOMPARE(RuleModel::sectionFor(shapeOnly), RuleModel::Section::Monitor);
+    }
+    Rule schemeOnly;
+    schemeOnly.id = QUuid::createUuid();
+    schemeOnly.match = MatchExpression::makeLeaf(Field::ColorScheme, Operator::Equals, QStringLiteral("dark"));
+    schemeOnly.actions = {gap};
+    QCOMPARE(RuleModel::sectionFor(schemeOnly), RuleModel::Section::Advanced);
+
+    // A window rule matching only window state (the zone a window sits in,
+    // whether it is snapped or floating, on a given monitor or not) is a
+    // per-window rule like one naming an app, so it files under Applications
+    // and a new one is seeded in that band rather than above every rule the
+    // user ordered under Advanced. FAILS if a state-only window rule is moved
+    // to another section, which also moves where a new one is inserted.
+    RuleAction floatAction;
+    floatAction.type = QString(ActionType::Float);
+    Rule zoneOnly;
+    zoneOnly.id = QUuid::createUuid();
+    zoneOnly.match = MatchExpression::makeLeaf(Field::Zone, Operator::Equals, QUuid::createUuid().toString());
+    zoneOnly.actions = {floatAction};
+    QCOMPARE(RuleModel::sectionFor(zoneOnly), RuleModel::Section::Application);
+
+    Rule floatingOnly;
+    floatingOnly.id = QUuid::createUuid();
+    floatingOnly.match = MatchExpression::makeLeaf(Field::IsFloating, Operator::Equals, true);
+    floatingOnly.actions = {floatAction};
+    QCOMPARE(RuleModel::sectionFor(floatingOnly), RuleModel::Section::Application);
+
+    Rule snappedOnScreen;
+    snappedOnScreen.id = QUuid::createUuid();
+    snappedOnScreen.match = MatchExpression::makeAll(
+        {MatchExpression::makeLeaf(Field::IsSnapped, Operator::Equals, true),
+         MatchExpression::makeLeaf(Field::ScreenId, Operator::Equals, QStringLiteral("DP-1"))});
+    snappedOnScreen.actions = {floatAction};
+    QCOMPARE(RuleModel::sectionFor(snappedOnScreen), RuleModel::Section::Application);
 }
 
 void TestRuleModel::compositeGraduatesToAdvanced()
@@ -404,6 +490,14 @@ void TestRuleModel::screenIdsOfCollectsOnlyLiteralPinOperators()
 
     const auto contains = MatchExpression::makeLeaf(Field::ScreenId, Operator::Contains, QStringLiteral("HDMI"));
     QVERIFY(RuleModel::screenIdsOf(contains).isEmpty());
+
+    // A monitor inside a `none` group is excluded, not addressed, so the walk
+    // stops there and the monitor filter does not list the rule under it.
+    const auto excludesDp2 = MatchExpression::makeNone(
+        {MatchExpression::makeLeaf(Field::ScreenId, Operator::Equals, QStringLiteral("DP-2"))});
+    QVERIFY(RuleModel::screenIdsOf(excludesDp2).isEmpty());
+    const auto dp1ButNotDp2 = MatchExpression::makeAll({eq, excludesDp2});
+    QCOMPARE(RuleModel::screenIdsOf(dp1ButNotDp2), QStringList{QStringLiteral("DP-1")});
 }
 
 void TestRuleModel::actionSummaryRendersAllEngineModes()
@@ -801,6 +895,126 @@ void TestRuleModel::routeActionsRenderFriendlyLabels()
     QCOMPARE(summaryAt(0), QStringLiteral("Open on monitor: LG Ultra HD · DP-2"));
 }
 
+void TestRuleModel::routeTargetsTrimBoundAndFollowWorkspaceRenames()
+{
+    // RouteToScreen: the loader bounds the TRIMMED id and stores it verbatim,
+    // so the summary trims before resolving, and an id past the wire bound
+    // falls back to the bare label instead of filling the row.
+    const auto screenRuleWith = [](const QString& screenId) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.priority = 200;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::Equals, QStringLiteral("firefox"));
+        RuleAction route;
+        route.type = QString(ActionType::RouteToScreen);
+        route.params.insert(ActionParam::TargetScreenId, screenId);
+        rule.actions = {route};
+        return rule;
+    };
+    // RouteToWorkspace carries the entry's persistent id plus the name it had
+    // when picked. A null id leaves the key out, the shape an id-less entry
+    // is picked with.
+    const QString entryId = QUuid::createUuid().toString();
+    const auto workspaceRuleWith = [](const QString& id, const QString& name) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.priority = 199;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::Equals, QStringLiteral("konsole"));
+        RuleAction route;
+        route.type = QString(ActionType::RouteToWorkspace);
+        if (!id.isNull()) {
+            route.params.insert(ActionParam::TargetWorkspaceId, id);
+        }
+        route.params.insert(ActionParam::TargetWorkspaceName, name);
+        rule.actions = {route};
+        return rule;
+    };
+
+    RuleModel model;
+    model.setRules({
+        screenRuleWith(QStringLiteral("  DP-2  ")),
+        screenRuleWith(QString(PhosphorRules::MaxScreenIdLength + 1, QLatin1Char('x'))),
+        workspaceRuleWith(entryId, QStringLiteral("  Web  ")),
+        workspaceRuleWith(QString(), QStringLiteral("Mail")),
+        workspaceRuleWith(entryId, QString(PhosphorRules::MaxWorkspaceNameLength + 1, QLatin1Char('n'))),
+    });
+    const auto summaryAt = [&](int row) {
+        return model.data(model.index(row, 0), RuleModel::ActionSummaryRole).toString();
+    };
+
+    model.setScreenLabelLookup([](const QString& id) {
+        return id == QLatin1String("DP-2") ? QStringLiteral("LG Ultra HD · DP-2") : id;
+    });
+    // The lookup answers a live name for the entry id only, and records
+    // whether it was ever asked about anything else.
+    QString renamedTo = QStringLiteral("Renamed");
+    QStringList askedIds;
+    model.setWorkspaceLabelLookup([&](const QString& id) {
+        askedIds.append(id);
+        return id == entryId ? renamedTo : QString();
+    });
+    model.refreshLabels();
+
+    // Fails if the trim before the screen lookup is dropped (the padded id
+    // would miss the lookup and render raw).
+    QCOMPARE(summaryAt(0), QStringLiteral("Open on monitor: LG Ultra HD · DP-2"));
+    // Fails if the MaxScreenIdLength bound is dropped.
+    QCOMPARE(summaryAt(1), QStringLiteral("Open on monitor"));
+    // The id resolves to the entry's CURRENT name, whatever was stored.
+    QCOMPARE(summaryAt(2), QStringLiteral("Open on workspace “Renamed”"));
+    // No id: the stored name, and the lookup is never asked.
+    QCOMPARE(summaryAt(3), QStringLiteral("Open on workspace “Mail”"));
+    // A live name wins even when the stored one is past its bound.
+    QCOMPARE(summaryAt(4), QStringLiteral("Open on workspace “Renamed”"));
+    for (const QString& asked : std::as_const(askedIds)) {
+        QCOMPARE(asked, entryId);
+    }
+    QVERIFY(!askedIds.isEmpty());
+
+    // The entry is gone (the lookup answers empty): the stored name, trimmed,
+    // and the bare label when the stored name is past its bound.
+    renamedTo.clear();
+    model.refreshLabels();
+    QCOMPARE(summaryAt(2), QStringLiteral("Open on workspace “Web”"));
+    QCOMPARE(summaryAt(3), QStringLiteral("Open on workspace “Mail”"));
+    QCOMPARE(summaryAt(4), QStringLiteral("Open on workspace"));
+}
+
+void TestRuleModel::fractionActionsRejectStringValues()
+{
+    // A staged editor payload can hold a string that spells a number. The
+    // validators refuse it at load, so the summary must not render it as a
+    // confident percent: it renders the invalid marker like a bool would.
+    const auto ruleWith = [](QLatin1StringView type, const QJsonValue& value) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.priority = 200;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::Equals, QStringLiteral("firefox"));
+        RuleAction action;
+        action.type = QString(type);
+        action.params.insert(ActionParam::Value, value);
+        rule.actions = {action};
+        return rule;
+    };
+
+    RuleModel model;
+    model.setRules({
+        ruleWith(ActionType::SetOpacity, QStringLiteral("0.5")),
+        ruleWith(ActionType::SetTintStrength, QStringLiteral("0.5")),
+        ruleWith(ActionType::SetOpacity, 0.5),
+        ruleWith(ActionType::SetTintStrength, 0.5),
+    });
+    const auto summaryAt = [&](int row) {
+        return model.data(model.index(row, 0), RuleModel::ActionSummaryRole).toString();
+    };
+    QCOMPARE(summaryAt(0), QStringLiteral("Opacity (invalid)"));
+    QCOMPARE(summaryAt(1), QStringLiteral("Tint strength (invalid)"));
+    // The numeric controls keep their percent, so the two legs above are
+    // about the string, not about the branch.
+    QCOMPARE(summaryAt(2), QStringLiteral("Opacity: 50%"));
+    QCOMPARE(summaryAt(3), QStringLiteral("Tint strength: 50%"));
+}
+
 void TestRuleModel::scrollingActionsRenderDistinctLabels()
 {
     // Pin the summaries of the three scrolling actions added by the
@@ -882,7 +1096,7 @@ void TestRuleModel::actionLabelPrefixesAreUnique()
     // the shape a duplicated copy-paste produces) and assert the resulting
     // labels are pairwise distinct.
     //
-    // The three RouteTo*/zone actions legitimately share a family prefix only
+    // The RouteTo* and zone actions legitimately share a family prefix only
     // through their VALUE, so comparing whole labels at the no-value shape is
     // the right granularity: it is exactly the text a user sees before
     // filling the value in.
@@ -1017,6 +1231,53 @@ void TestRuleModel::animationOverridesSummariseWithTheirEvent()
     const QString bareSummary = bare.data(bare.index(0, 0), RuleModel::ActionSummaryRole).toString();
     QVERIFY2(bareSummary.contains(QStringLiteral("window.open shader: dissolve")), qPrintable(bareSummary));
     QVERIFY2(bareSummary.contains(QStringLiteral("window.close shader: dissolve")), qPrintable(bareSummary));
+}
+
+void TestRuleModel::screenShapeValuesReadGroupedInSummaries()
+{
+    // The collapsed summary prints a screen size with the locale's digit
+    // grouping and a pixel unit, and an aspect ratio with the dropdown's
+    // portrait marker, so "10:16" never reads as a repeat of "16:10". The
+    // locale is pinned so the grouping is known.
+    const QLocale previous;
+    QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+    // Restored on every exit, a failed QVERIFY included, so no later test
+    // inherits the pinned locale.
+    const auto restoreLocale = qScopeGuard([previous]() {
+        QLocale::setDefault(previous);
+    });
+
+    const auto ruleWith = [](const MatchExpression& match) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.priority = 100;
+        rule.match = match;
+        RuleAction gap;
+        gap.type = QString(ActionType::SetInnerGap);
+        gap.params.insert(ActionParam::Value, 8);
+        rule.actions = {gap};
+        return rule;
+    };
+    RuleModel model;
+    model.setRules({
+        ruleWith(MatchExpression::makeLeaf(Field::ScreenWidth, Operator::GreaterThan, 2560)),
+        ruleWith(MatchExpression::makeLeaf(Field::ScreenAspectRatio, Operator::Equals, QStringLiteral("10:16"))),
+        ruleWith(MatchExpression::makeLeaf(Field::ScreenAspectRatio, Operator::Equals, QStringLiteral("16:10"))),
+        ruleWith(MatchExpression::makeLeaf(Field::Width, Operator::GreaterThan, 1000)),
+        ruleWith(MatchExpression::makeLeaf(Field::Pid, Operator::Equals, 1234567)),
+    });
+    const auto summaryAt = [&model](int row) {
+        return model.data(model.index(row, 0), RuleModel::MatchSummaryRole).toString();
+    };
+
+    QVERIFY2(summaryAt(0).contains(QStringLiteral("2,560 px")), qPrintable(summaryAt(0)));
+    QVERIFY2(summaryAt(1).contains(QStringLiteral("10:16 (portrait)")), qPrintable(summaryAt(1)));
+    QVERIFY2(!summaryAt(2).contains(QStringLiteral("portrait")), qPrintable(summaryAt(2)));
+    // A window's own size is grouped too but carries no screen unit.
+    QVERIFY2(summaryAt(3).contains(QStringLiteral("1,000")), qPrintable(summaryAt(3)));
+    QVERIFY2(!summaryAt(3).contains(QStringLiteral("px")), qPrintable(summaryAt(3)));
+    // A process id is an identifier, so it keeps plain digits.
+    QVERIFY2(summaryAt(4).contains(QStringLiteral("1234567")), qPrintable(summaryAt(4)));
 }
 
 QTEST_MAIN(TestRuleModel)

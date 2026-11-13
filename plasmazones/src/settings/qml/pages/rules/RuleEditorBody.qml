@@ -114,12 +114,18 @@ ColumnLayout {
     /// Timer collapses bursts of edits (held key, fast paste) into one
     /// validation pass without making the status-bar feel laggy.
     property var validationIssues: []
+    /// Non-blocking hint from `modeScopedInertHint`: names the actions a
+    /// placement-mode condition keeps from ever applying. Refreshed with
+    /// validationIssues but deliberately NOT part of canSave, because such
+    /// a rule is valid and its other actions still apply.
+    property string modeScopedHint: ""
 
     onWorkingRuleChanged: validationTimer.restart()
     Component.onCompleted: {
         // Seed the cache so the consumer's footer doesn't flash a
         // "no issues" state on first paint before the 50 ms timer fires.
         validationIssues = root.controller.validationIssuesForJson(root.workingRule);
+        modeScopedHint = root.controller.modeScopedInertHint(root.workingRule);
         root._recalcOperatorWidth();
     }
 
@@ -128,7 +134,10 @@ ColumnLayout {
 
         interval: 50
         repeat: false
-        onTriggered: root.validationIssues = root.controller.validationIssuesForJson(root.workingRule)
+        onTriggered: {
+            root.validationIssues = root.controller.validationIssuesForJson(root.workingRule);
+            root.modeScopedHint = root.controller.modeScopedInertHint(root.workingRule);
+        }
     }
     /// True iff the working rule is structurally complete (≥1 action,
     /// every leaf filled) AND semantically clean (no action/match domain

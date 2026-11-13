@@ -3,7 +3,9 @@
 
 // RuleController label-lookup setters. These are tiny pass-throughs that
 // forward the resolver into RuleModel, plus the zone-name enumerator the
-// SnapToZone picker reads, and they form a coherent sub-surface.
+// SnapToZone picker reads, the zone-option enumerator the Zone condition
+// picker reads, and the two providers the monitor overview reads, and they
+// form a coherent sub-surface.
 // Same class as rulecontroller.cpp, separate TU, no API change.
 
 #include "rulecontroller.h"
@@ -28,6 +30,11 @@ void RuleController::setZoneLookup(RuleModel::LabelLookup fn)
 void RuleController::setVirtualDesktopLookup(RuleModel::LabelLookup fn)
 {
     m_model.setVirtualDesktopLabelLookup(std::move(fn));
+}
+
+void RuleController::setWorkspaceLookup(RuleModel::LabelLookup fn)
+{
+    m_model.setWorkspaceLabelLookup(std::move(fn));
 }
 
 void RuleController::setSnappingLayoutLookup(RuleModel::LabelLookup fn)
@@ -80,19 +87,59 @@ void RuleController::setZoneNamesProvider(std::function<QStringList()> provider)
     // the same silence the label-lookup clears above keep. A real install
     // publishes immediately so the picker is populated before the first
     // registry reload.
-    if (m_zoneNamesProvider) {
-        refreshZoneNames();
+    refreshZoneNames();
+}
+
+void RuleController::setZoneMatchOptionsProvider(std::function<QVariantList()> provider)
+{
+    // Same clear-keeps-the-last-list contract as setZoneNamesProvider.
+    m_zoneMatchOptionsProvider = std::move(provider);
+    refreshZoneMatchOptions();
+}
+
+void RuleController::setColorSchemeProvider(std::function<QString()> provider)
+{
+    m_colorSchemeProvider = std::move(provider);
+}
+
+void RuleController::setDefaultAssignmentProvider(std::function<PhosphorZones::AssignmentEntry()> provider)
+{
+    m_defaultAssignmentProvider = std::move(provider);
+}
+
+void RuleController::refreshZoneLists()
+{
+    refreshZoneNames();
+    refreshZoneMatchOptions();
+}
+
+// Both refreshers skip a cleared provider, leaving its cached list in place
+// rather than publishing an empty one: the parent's registry reload stays
+// connected until ~QObject, after teardown has cleared the providers, and a
+// refresh landing there must neither call an empty std::function nor blank a
+// picker the user still has open.
+void RuleController::refreshZoneNames()
+{
+    if (!m_zoneNamesProvider) {
+        return;
+    }
+    QStringList next = m_zoneNamesProvider();
+    if (next != m_zoneNames) {
+        m_zoneNames = std::move(next);
+        Q_EMIT zoneNamesChanged();
     }
 }
 
-void RuleController::refreshZoneNames()
+void RuleController::refreshZoneMatchOptions()
 {
-    QStringList next = m_zoneNamesProvider ? m_zoneNamesProvider() : QStringList();
-    if (next == m_zoneNames) {
+    if (!m_zoneMatchOptionsProvider) {
         return;
     }
-    m_zoneNames = std::move(next);
-    Q_EMIT zoneNamesChanged();
+    QVariantList next = m_zoneMatchOptionsProvider();
+    if (next != m_zoneMatchOptions) {
+        m_zoneMatchOptions = std::move(next);
+        Q_EMIT zoneMatchOptionsChanged();
+    }
 }
 
 void RuleController::setCurveLabelResolver(const QJSValue& resolver)

@@ -128,28 +128,6 @@ const QHash<QString, QHash<QString, QString>>& enumLabelTable()
         t.insert(pairKey(CD::scrollingZoneSelectorGroup(), CD::positionKey()), selectorPositionLabels);
         t.insert(pairKey(CD::scrollingZoneSelectorGroup(), CD::sizeModeKey()), selectorSizeModeLabels);
 
-        // ── Drag modifiers. No settings page exposes these, so the enumerator
-        //    names are the only prior art for the wording. ──────────────────
-        const QHash<QString, QString> dragModifierLabels{
-            {QStringLiteral("disabled"), PhosphorI18n::tr("Disabled")},
-            {QStringLiteral("shift"), PhosphorI18n::tr("Shift")},
-            {QStringLiteral("ctrl"), PhosphorI18n::tr("Ctrl")},
-            {QStringLiteral("alt"), PhosphorI18n::tr("Alt")},
-            {QStringLiteral("meta"), PhosphorI18n::tr("Meta")},
-            {QStringLiteral("ctrlAlt"), PhosphorI18n::tr("Ctrl + Alt")},
-            {QStringLiteral("ctrlShift"), PhosphorI18n::tr("Ctrl + Shift")},
-            {QStringLiteral("altShift"), PhosphorI18n::tr("Alt + Shift")},
-            {QStringLiteral("alwaysActive"), PhosphorI18n::tr("Always active")},
-            {QStringLiteral("altMeta"), PhosphorI18n::tr("Alt + Meta")},
-            {QStringLiteral("ctrlAltMeta"), PhosphorI18n::tr("Ctrl + Alt + Meta")},
-            {QStringLiteral("metaShift"), PhosphorI18n::tr("Meta + Shift")},
-            {QStringLiteral("ctrlMeta"), PhosphorI18n::tr("Ctrl + Meta")},
-        };
-        // Only the zone-span key uses this enum. Editor.FillOnDrop/Modifier has
-        // the same accessor name but stores a Qt::KeyboardModifier bitmask, so
-        // it resolves as a trigger instead (see the descriptor table below).
-        t.insert(pairKey(CD::snappingBehaviorZoneSpanGroup(), CD::modifierKey()), dragModifierLabels);
-
         // ── Sticky window handling, declared on three independent groups ────
         const QHash<QString, QString> stickyLabels{
             {QStringLiteral("treatAsNormal"), PhosphorI18n::tr("Treat as normal")},
@@ -275,10 +253,11 @@ const QHash<QString, ValueDescriptor>& descriptorTable()
         t.insert(pairKey(CD::tilingAlgorithmGroup(), CD::splitRatioKey()), number(pct, 100.0));
         t.insert(pairKey(CD::tilingAlgorithmGroup(), CD::splitRatioStepKey()), number(pct, 100.0));
         // The editor's grid snapping interval is a FRACTION of the canvas
-        // (0.01-1.0, default 0.1), not a pixel step — the editor's own control
+        // (0.01-0.5, default 0.1), not a pixel step — the editor's own control
         // bar renders it as a percentage for the same reason.
         t.insert(pairKey(CD::editorSnappingGroup(), CD::intervalXKey()), number(pct, 100.0));
         t.insert(pairKey(CD::editorSnappingGroup(), CD::intervalYKey()), number(pct, 100.0));
+        t.insert(pairKey(CD::editorBackgroundGroup(), CD::opacityKey()), number(pct, 100.0));
 
         // ── Pixel quantities ────────────────────────────────────────────────
         t.insert(pairKey(CD::snappingZonesBorderGroup(), CD::widthKey()), number(px));

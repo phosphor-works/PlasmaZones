@@ -83,7 +83,7 @@ SettingsCard {
         SettingsRow {
             title: i18n("Respect minimum size")
             searchAnchor: "scrollingRespectMinimumSize"
-            description: i18n("Keep columns at least as wide and tall as their windows' minimum size, which can push other windows off screen")
+            description: i18n("Keep columns at least as wide and tall as their windows' minimum size, and grow a column to fit a window that stays larger than it. Both can push other windows off screen.")
 
             SettingsSwitch {
                 checked: appSettings.scrollingRespectMinimumSize
@@ -189,7 +189,7 @@ SettingsCard {
                 stepSize: 1
                 value: appSettings.scrollingColumnWidthStepPercent
                 formatValue: function (v) {
-                    return Math.round(v) + "%";
+                    return i18nc("a whole-number percentage", "%1%", Math.round(v));
                 }
                 onMoved: function (newValue) {
                     appSettings.scrollingColumnWidthStepPercent = Math.round(newValue);
@@ -211,7 +211,7 @@ SettingsCard {
                 stepSize: 1
                 value: appSettings.scrollingWindowHeightStepPercent
                 formatValue: function (v) {
-                    return Math.round(v) + "%";
+                    return i18nc("a whole-number percentage", "%1%", Math.round(v));
                 }
                 onMoved: function (newValue) {
                     appSettings.scrollingWindowHeightStepPercent = Math.round(newValue);
@@ -233,7 +233,7 @@ SettingsCard {
                 stepSize: 1
                 value: appSettings.scrollingViewScrollStepPercent
                 formatValue: function (v) {
-                    return Math.round(v) + "%";
+                    return i18nc("a whole-number percentage", "%1%", Math.round(v));
                 }
                 onMoved: function (newValue) {
                     appSettings.scrollingViewScrollStepPercent = Math.round(newValue);

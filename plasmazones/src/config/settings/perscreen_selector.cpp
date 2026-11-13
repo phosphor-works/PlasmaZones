@@ -151,7 +151,7 @@ void applyPerScreenOverrides(ZoneSelectorConfig& config, const QVariantMap& over
 
 } // anonymous namespace
 
-// ── Per-Screen PhosphorZones::Zone Selector Config ──────────────────────────
+// ── Per-Screen Zone Selector Config ──────────────────────────
 
 ZoneSelectorConfig Settings::resolvedZoneSelectorConfig(const QString& screenIdOrName) const
 {

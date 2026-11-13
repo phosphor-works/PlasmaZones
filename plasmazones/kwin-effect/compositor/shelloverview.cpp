@@ -163,10 +163,10 @@ bool ShellOverview::appliesTo(KWin::EffectWindow* window) const
 QPointF ShellOverview::visualOffset(KWin::EffectWindow* window, bool animated) const
 {
     auto* effect = static_cast<PlasmaZonesEffect*>(m_effect);
-    auto* output = effect->scrollManagedOutputFor(window);
-    if (!output)
+    const auto managed = effect->scrollManagedFor(window);
+    if (!managed.output)
         return {};
-    QPointF offset = animated ? effect->m_stripViewAnimator->offsetFor(output) : QPointF();
+    QPointF offset = animated ? effect->m_stripViewAnimator->offsetFor(managed.strip) : QPointF();
     const auto it = effect->m_scrollVisualDelta.constFind(effect->getWindowId(window));
     if (it != effect->m_scrollVisualDelta.cend())
         offset += effect->scrollVisualTranslationFor(*it, window->frameGeometry());

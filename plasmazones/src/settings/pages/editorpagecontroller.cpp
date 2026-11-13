@@ -33,6 +33,7 @@ EditorPageController::EditorPageController(ISettings& settings, QObject* parent)
     forward(&ISettings::editorSnapOverrideModifierChanged, &EditorPageController::snapOverrideModifierChanged);
     forward(&ISettings::fillOnDropEnabledChanged, &EditorPageController::fillOnDropEnabledChanged);
     forward(&ISettings::fillOnDropModifierChanged, &EditorPageController::fillOnDropModifierChanged);
+    forward(&ISettings::editorBackgroundOpacityChanged, &EditorPageController::backgroundOpacityChanged);
 }
 
 QString EditorPageController::duplicateShortcut() const
@@ -50,6 +51,22 @@ QString EditorPageController::splitVerticalShortcut() const
 QString EditorPageController::fillShortcut() const
 {
     return m_settings->editorFillShortcut();
+}
+QString EditorPageController::defaultDuplicateShortcut() const
+{
+    return ConfigDefaults::editorDuplicateShortcut();
+}
+QString EditorPageController::defaultSplitHorizontalShortcut() const
+{
+    return ConfigDefaults::editorSplitHorizontalShortcut();
+}
+QString EditorPageController::defaultSplitVerticalShortcut() const
+{
+    return ConfigDefaults::editorSplitVerticalShortcut();
+}
+QString EditorPageController::defaultFillShortcut() const
+{
+    return ConfigDefaults::editorFillShortcut();
 }
 bool EditorPageController::gridSnappingEnabled() const
 {
@@ -78,6 +95,26 @@ bool EditorPageController::fillOnDropEnabled() const
 int EditorPageController::fillOnDropModifier() const
 {
     return m_settings->fillOnDropModifier();
+}
+qreal EditorPageController::backgroundOpacity() const
+{
+    return m_settings->editorBackgroundOpacity();
+}
+qreal EditorPageController::snapIntervalMin() const
+{
+    return ConfigDefaults::editorSnapIntervalMin();
+}
+qreal EditorPageController::snapIntervalMax() const
+{
+    return ConfigDefaults::editorSnapIntervalMax();
+}
+qreal EditorPageController::backgroundOpacityMin() const
+{
+    return ConfigDefaults::editorBackgroundOpacityMin();
+}
+qreal EditorPageController::backgroundOpacityMax() const
+{
+    return ConfigDefaults::editorBackgroundOpacityMax();
 }
 
 void EditorPageController::setDuplicateShortcut(const QString& shortcut)
@@ -124,20 +161,17 @@ void EditorPageController::setFillOnDropModifier(int mod)
 {
     m_settings->setFillOnDropModifier(mod);
 }
+void EditorPageController::setBackgroundOpacity(qreal opacity)
+{
+    m_settings->setEditorBackgroundOpacity(opacity);
+}
 
-void EditorPageController::resetDefaults()
+void EditorPageController::resetShortcutDefaults()
 {
     m_settings->setEditorDuplicateShortcut(ConfigDefaults::editorDuplicateShortcut());
     m_settings->setEditorSplitHorizontalShortcut(ConfigDefaults::editorSplitHorizontalShortcut());
     m_settings->setEditorSplitVerticalShortcut(ConfigDefaults::editorSplitVerticalShortcut());
     m_settings->setEditorFillShortcut(ConfigDefaults::editorFillShortcut());
-    m_settings->setEditorGridSnappingEnabled(ConfigDefaults::editorGridSnappingEnabled());
-    m_settings->setEditorEdgeSnappingEnabled(ConfigDefaults::editorEdgeSnappingEnabled());
-    m_settings->setEditorSnapIntervalX(ConfigDefaults::editorSnapIntervalX());
-    m_settings->setEditorSnapIntervalY(ConfigDefaults::editorSnapIntervalY());
-    m_settings->setEditorSnapOverrideModifier(ConfigDefaults::editorSnapOverrideModifier());
-    m_settings->setFillOnDropEnabled(ConfigDefaults::fillOnDropEnabled());
-    m_settings->setFillOnDropModifier(ConfigDefaults::fillOnDropModifier());
 }
 
 } // namespace PlasmaZones

@@ -27,6 +27,11 @@ endif()
 
 include(GenerateExportHeader)
 
+# Unconditional, like phosphor-zones: in-tree this re-find is a cache hit,
+# and a standalone configure has no other source for the Qt targets the
+# library links below.
+find_package(Qt6 ${PHOSPHORSNAPENGINE_QT_MIN} REQUIRED COMPONENTS Core Gui)
+
 set(CMAKE_AUTOMOC ON)
 
 # Sibling Phosphor libraries this one links. Each lookup is GUARDED rather than
@@ -84,12 +89,17 @@ add_library(PhosphorSnapEngine SHARED
     src/SnapState.cpp
     src/calculate.cpp
     src/commit.cpp
+    src/desktopremap.cpp
     src/float.cpp
+    src/evacueepark.cpp
+    src/evacueepark_p.h
     src/free_size.cpp
+    src/leave.cpp
     src/lifecycle.cpp
     src/navigation.cpp
     src/navigation_actions.cpp
     src/navigation_crosssurface.cpp
+    src/pendingcarries_p.h
     src/resnap_calc.cpp
     src/snapnavigationtargets.cpp
     src/snapenginelogging.h
@@ -101,6 +111,15 @@ generate_export_header(PhosphorSnapEngine
     EXPORT_FILE_NAME phosphorsnapengine_export.h
     EXPORT_MACRO_NAME PHOSPHORSNAPENGINE_EXPORT
 )
+
+# Resolve KDE_INSTALL_INCLUDEDIR before target_include_directories expands it
+# into $<INSTALL_INTERFACE:>. Until it was set here, a non-KDE configure
+# exported no install include directory while the headers still went to
+# GNUInstallDirs' includedir.
+if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+    include(GNUInstallDirs)
+    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 target_include_directories(PhosphorSnapEngine
     PUBLIC
@@ -135,10 +154,13 @@ target_link_libraries(PhosphorSnapEngine
 # Install
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

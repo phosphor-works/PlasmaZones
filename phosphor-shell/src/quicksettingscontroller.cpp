@@ -29,10 +29,10 @@ const QString schedulePath = QStringLiteral("/org/kde/NightTime/Manager");
 const QString scheduleInterface = QStringLiteral("org.kde.NightTime.Manager");
 const QString power = QStringLiteral("org.freedesktop.UPower.PowerProfiles");
 const QString powerPath = QStringLiteral("/org/freedesktop/UPower/PowerProfiles");
-const QString properties = QStringLiteral("org.freedesktop.DBus.Properties");
+const QString propertiesInterface = QStringLiteral("org.freedesktop.DBus.Properties");
 QDBusMessage getAll(const QString& service, const QString& path, const QString& interface)
 {
-    auto message = QDBusMessage::createMethodCall(service, path, properties, QStringLiteral("GetAll"));
+    auto message = QDBusMessage::createMethodCall(service, path, propertiesInterface, QStringLiteral("GetAll"));
     message << interface;
     return message;
 }
@@ -106,7 +106,7 @@ QuickSettingsController::QuickSettingsController(QDBusConnection session, QDBusC
     connect(scheduler, &QDBusServiceWatcher::serviceOwnerChanged, this, &QuickSettingsController::refreshSchedule);
     for (const auto& item : {qMakePair(nightPath, kwin), qMakePair(powerPath, power)}) {
         auto& bus = item.second == kwin ? m_session : m_system;
-        bus.connect(item.second, item.first, properties, QStringLiteral("PropertiesChanged"), this,
+        bus.connect(item.second, item.first, propertiesInterface, QStringLiteral("PropertiesChanged"), this,
                     SLOT(propertiesChanged(QString, QVariantMap, QStringList)));
     }
     // KConfig notifications use relative names. Absolute injected paths
@@ -502,7 +502,7 @@ void QuickSettingsController::setPowerProfile(const QString& profile)
     m_powerError.clear();
     Q_EMIT changed();
     const auto epoch = m_powerEpoch;
-    auto message = QDBusMessage::createMethodCall(power, powerPath, properties, QStringLiteral("Set"));
+    auto message = QDBusMessage::createMethodCall(power, powerPath, propertiesInterface, QStringLiteral("Set"));
     message << power << QStringLiteral("ActiveProfile") << QVariant::fromValue(QDBusVariant(profile));
     auto* watcher = new QDBusPendingCallWatcher(m_system.asyncCall(message), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, epoch] {

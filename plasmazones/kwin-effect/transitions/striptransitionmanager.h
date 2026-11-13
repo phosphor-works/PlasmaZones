@@ -127,7 +127,7 @@ public:
     ///   • PACK SWAP (different @p effectId): the sampler resets too — pack
     ///     B must not begin at pack A's accumulated clock and frame count.
     ///   • AXIS FLIP (@p axis differs from the animator's current axis for
-    ///     this output): same arm as a pack swap. The spring may well be live
+    ///     @p strip): same arm as a pack swap. The spring may well be live
     ///     at call time, but applyBatchDelta is about to CANCEL it rather than
     ///     retarget it (an in-flight motion along the old axis has no velocity
     ///     worth keeping), so treating this as a retarget would compensate the
@@ -137,10 +137,12 @@ public:
     ///     above: running BEFORE applyBatchDelta is what leaves
     ///     StripViewAnimator::axisFor() still reporting the PRE-batch axis.
     ///
-    /// @p axis is the batch's strip axis for this output, the same value the
-    /// caller passes to applyBatchDelta.
-    void notifyLeg(KWin::LogicalOutput* output, const QString& effectId, const QVariantMap& params, int viewDelta,
-                   PhosphorProtocol::ScrollAxis axis);
+    /// @p axis is the batch's axis for @p strip, the same value the
+    /// caller passes to applyBatchDelta. @p strip is the strip key the leg
+    /// belongs to: the pass decorates the whole output, so only a strip that
+    /// is the whole output arms one, and a leg for another strip is fresh.
+    void notifyLeg(KWin::LogicalOutput* output, const QString& strip, const QString& effectId,
+                   const QVariantMap& params, int viewDelta, PhosphorProtocol::ScrollAxis axis);
 
     /// True while any armed output's view spring is live OR its settle fade
     /// is open. Feeds PlasmaZonesEffect::isActive() and
@@ -157,9 +159,9 @@ public:
     /// hideCursorForPass). Feeds PlasmaZonesEffect::isActive() SEPARATELY
     /// from isRunning(): on the settle path the hide is released only from
     /// the effect's paint hooks (paintOutput's settle frame, postPaintScreen's
-    /// reap; the off-paint kill paths outputRemoved and reset release it
-    /// themselves), and isRunning() goes false the instant the settle fade's
-    /// window closes.
+    /// reap; the off-paint kill paths (notifyLeg's disarm, outputRemoved and
+    /// reset) release it themselves), and isRunning() goes false the instant
+    /// the settle fade's window closes.
     /// When that happens between the last fade frame and the next frame's
     /// chain build, an isActive() built on isRunning() alone drops the
     /// effect from the chain with the cursor still hidden and no hook left
@@ -178,9 +180,17 @@ public:
     /// taken for a still-live strip leg (its spring keeps integrating under
     /// the blend) is neither drawn by us nor released: updateCursorHiding
     /// keeps it for a live pass under the pointer, and nothing else runs.
-    /// A no-op unless this manager holds the hide and the pointer is on
-    /// @p screen, so a strip leg on another output keeps its hide and no
-    /// per-frame hide/show flap arises. The next strip frame after the
+    /// A no-op unless this manager holds the hide. With the pointer ON
+    /// @p screen it releases unconditionally, because the caller is about to
+    /// paint this output without us. With the pointer on ANOTHER output it
+    /// DELEGATES to updateCursorHiding, which releases only when no live pass
+    /// covers the pointer — so a strip leg on another output keeps its hide and
+    /// no per-frame hide/show flap arises, while a hide stranded by a pointer
+    /// that left mid-leg is given back. That second arm used to return without
+    /// releasing, which stranded the compositor's cursor on the output the
+    /// pointer had moved to, because the frame that would have noticed is the
+    /// one postPaintScreen skips after a failed paint. The next strip frame
+    /// after the
     /// foreign pass ends re-hides through hideCursorForPass, so the pair
     /// stays balanced. Restores the cursor plane; a software cursor is
     /// still not drawn by the foreign pass, exactly as it is not for any
@@ -227,6 +237,9 @@ public:
     /// screenRemoved handler beside StripViewAnimator::forgetOutput — a
     /// disconnected LogicalOutput* left in m_active would dangle.
     void outputRemoved(KWin::LogicalOutput* screen);
+    /// Drop the pass armed for @p strip (if any): its strip changed or left
+    /// scrolling.
+    void stripRemoved(const QString& strip);
 
     /// Drop all state and release GL resources (effect teardown / compositor
     /// reset).
@@ -236,6 +249,8 @@ private:
     struct OutputStripPass
     {
         QString effectId;
+        // The strip key the pass was armed for, whose spring it reads.
+        QString strip;
         // Resolved p_<name> values packed into the customParams[] /
         // customColors[] slot pools (metadata defaults merged with the
         // profile's overrides) — same translation as the desktop pass.
@@ -335,16 +350,62 @@ private:
     /// covers the pointer: the leg settled, the output went away, or the
     /// pointer moved to an output with no pass. Runs from paintOutput's
     /// settle frame, so that frame's normal scene paints the cursor rather
-    /// than blinking it for a frame, and from every postPaintScreen, so a
+    /// than blinking it for a frame, and from every postPaintScreen that did
+    /// not report a failed paint (reapSettled is gated on that), so a
     /// pointer crossing to a quiet output gets its cursor back within a
-    /// frame even though the hidden cursor damages nothing there. Also run
-    /// on every abort path that erases or abandons a pass (notifyLeg's
-    /// disarm, a compile sentinel or allocation failure mid-leg), so a
-    /// hide taken on the previous frame is not carried into a frame the
-    /// normal scene paints. The one path that shows while a pass is still
-    /// live is releaseCursorHideForForeignPaint.
+    /// frame even though the hidden cursor damages nothing there. Also run on the
+    /// paths that ERASE the entry, since an erase can strand a hide nothing else
+    /// would release.
+    ///
+    /// NOT on every path that finds no entry. Five rounds of this docblock got that
+    /// sentence wrong: one named `forgetOutput`, which is not a member of this class
+    /// at all, one named the settled branch, which DOES release, and one counted four
+    /// exits when there are FIVE. They are `isRunningForOutput` (a const query with
+    /// nothing to release), BOTH of `notifyLeg`'s no-entry exits (the disarm, and the
+    /// fresh arm that emplaces a pass and returns), `snapshotBelowCapture`, and
+    /// `outputRemoved`. Skipping the release at each is correct rather than an
+    /// omission: a find-none means this manager holds nothing for that output, and
+    /// `hideCursorForPass` only ever takes a hide for a screen it has a live entry
+    /// for, so a find-none elsewhere cannot be holding one.
+    ///
+    /// `snapshotBelowCapture` is the one whose bail is WIDER than a find-none — it also
+    /// returns on a null screen (no capture exclusion is set), on an already-taken snapshot,
+    /// and on an entry that exists with a null texture, where a hide may well be held. All
+    /// THREE of its extra bails are named because a previous version named two. Releasing
+    /// there would still be wrong, and for the reason this class's own contract gives above
+    /// rather than anything about the
+    /// pushed framebuffer: KWin draws its overlay item at the END of the scene walk, so a
+    /// cursor shown mid-walk lands INSIDE the capture and the pack smears it — which is the
+    /// hazard the hide exists for. The post-walk re-seat arm catches the same
+    /// texture-missing condition and releases there, after the walk has closed.
+    ///
+    /// Grep the name before editing this paragraph again — every wrong version of
+    /// it was written from a list someone believed rather than one they ran.
+    ///
+    /// A reported-failure abort leaves the entry LIVE in m_active, so this call would
+    /// not release there: it walks m_active and returns as soon as a live entry holds
+    /// the cursor, which is that very entry. Those paths go through
+    /// releaseCursorHideForForeignPaint instead, which is unconditional for one output
+    /// and so is the one call that shows the cursor while a pass is still live. FOUR
+    /// sites need it, three here and one outside this class: the failed capture walk,
+    /// the failed sharp composite, the post-walk re-seat when the entry is still there
+    /// but its textures are not, and the desktop-switch foreign paint, which replaces
+    /// this output's frame from paint_pipeline.cpp while a strip leg is still live.
     void updateCursorHiding();
     bool cursorOnOutput(KWin::LogicalOutput* screen) const;
+
+    /// The clock EVERY liveness decision in this class reads: the pass-pinned
+    /// timestamp while a pass is in flight, the live sample otherwise.
+    ///
+    /// holdsAfterSettle is monotone non-increasing in its argument, so two readers
+    /// on different clocks disagree at the settle-fade boundary, and the later
+    /// (live) one calls a fade closed that the pass is still painting on the pinned
+    /// one. Every such disagreement costs a frame: a cursor shown while the pass
+    /// draws its own, a fade truncated one frame early, or direct scanout permitted
+    /// on a frame the pass replaces. The -1 sentinel means no pass is in flight
+    /// (the off-paint-thread D-Bus arms, the teardown hooks), where the live sample
+    /// is both the only answer available and the right one.
+    [[nodiscard]] qint64 passClockMs() const;
 
     /// Draw @p windows sharp onto the current target, bottom to top, each
     /// through the effect's own paintWindow with m_directPaintCapture set.

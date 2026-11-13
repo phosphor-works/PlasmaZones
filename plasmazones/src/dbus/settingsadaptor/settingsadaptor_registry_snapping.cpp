@@ -88,24 +88,6 @@ void SettingsAdaptor::initializeRegistrySnapping()
 
     REGISTER_BOOL_SETTING("zoneSpanEnabled", zoneSpanEnabled, setZoneSpanEnabled)
 
-    // PhosphorZones::Zone span modifier (legacy single value)
-    m_getters[QStringLiteral("zoneSpanModifier")] = [this]() {
-        return static_cast<int>(m_settings->zoneSpanModifier());
-    };
-    m_setters[QStringLiteral("zoneSpanModifier")] = [this](const QVariant& v) {
-        bool modOk = false;
-        const int mod = v.toInt(&modOk);
-        if (!modOk) {
-            return false; // non-numeric payload: refuse, do not coerce to the zero member
-        }
-        if (mod >= 0 && mod <= MaxDragModifier) {
-            m_settings->setZoneSpanModifier(static_cast<DragModifier>(mod));
-            return true;
-        }
-        return false;
-    };
-    m_schemas[QStringLiteral("zoneSpanModifier")] = QStringLiteral("int");
-
     // PhosphorZones::Zone span triggers list (multi-bind)
     m_getters[QStringLiteral("zoneSpanTriggers")] = [this]() {
         return QVariant::fromValue(m_settings->zoneSpanTriggers());

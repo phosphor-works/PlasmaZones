@@ -28,10 +28,13 @@
 
 #include <QClipboard>
 #include <QDBusConnection>
+#include <QDBusServiceWatcher>
 #include <QGuiApplication>
+#include <QScreen>
 #include <QStringList>
 #include <PhosphorScreens/ScreenIdentity.h>
 
+#include "../common/daemonscreenscale.h"
 #include "../common/screenidresolver.h"
 
 namespace PlasmaZones {
@@ -46,8 +49,8 @@ EditorController::EditorController(QObject* parent)
     , m_gaps(new EditorGapsModel(this, this))
     , m_localRuleStore(std::make_unique<PhosphorRules::RuleStore>(ConfigDefaults::rulesFilePath()))
     , m_localRuleStoreWatcher(std::make_unique<PhosphorRules::RuleStoreWatcher>(*m_localRuleStore))
-    , m_localLayoutManager(std::make_unique<PhosphorZones::LayoutRegistry>(m_localRuleStore.get(),
-                                                                           QStringLiteral("plasmazones/layouts")))
+    , m_localLayoutManager(
+          std::make_unique<PhosphorZones::LayoutRegistry>(m_localRuleStore.get(), ConfigDefaults::layoutsSubdir()))
 {
     // Install the library-level screen-id resolver before any layout load
     // runs. First call initialises the static; subsequent constructions
@@ -83,15 +86,11 @@ EditorController::EditorController(QObject* parent)
     // explicit loadLayouts() call is the only thing that rescans disk. This
     // one covers startup, and the D-Bus subscriptions wired below cover every
     // later change. Do not drop either as redundant.
+    // It emits layoutsChanged unconditionally at the end of every pass, an
+    // empty layouts directory included, so the connect above has already
+    // recomputed fixed-geometry zones when this returns. The settings app
+    // relies on the same emission and makes no second call either.
     m_localLayoutManager->loadLayouts();
-    // Recompute zone geometry for fixed-geometry layouts so a loaded layout
-    // carries real zone rects — see the matching
-    // comment in SettingsController. The connect above also fires
-    // recalcLocalLayouts on the first loadLayouts() emission, but the
-    // explicit call here covers the single-shot path where loadLayouts()
-    // returns no-op (e.g. empty layouts dir, recalc still has work to do
-    // against any pre-existing in-memory state).
-    recalcLocalLayouts();
 
     // Subscribe to the daemon's layout-change D-Bus signals and force
     // a local-source reload when any fire. Nothing watches the layout
@@ -113,11 +112,10 @@ EditorController::EditorController(QObject* parent)
     m_layoutReloadTimer.setInterval(50);
     connect(&m_layoutReloadTimer, &QTimer::timeout, this, &EditorController::reloadLocalLayouts);
 
-    // Same coalescing shape for editor-settings writes. 250 ms: long enough to
-    // swallow a slider drag's mouse-move burst, short enough that the write
-    // still feels immediate once the user lets go.
+    // Same coalescing shape for editor-settings writes; see
+    // EditorSettingsSaveDebounceMs for the interval.
     m_editorSettingsSaveTimer.setSingleShot(true);
-    m_editorSettingsSaveTimer.setInterval(250);
+    m_editorSettingsSaveTimer.setInterval(EditorSettingsSaveDebounceMs);
     connect(&m_editorSettingsSaveTimer, &QTimer::timeout, this, &EditorController::flushEditorSettings);
 
     auto bus = QDBusConnection::sessionBus();
@@ -143,16 +141,18 @@ EditorController::EditorController(QObject* parent)
         subscribe(iface, sig, &m_layoutReloadTimer, SLOT(start()));
     }
 
-    // Strip-axis inputs follow the live config: the daemon's settingsChanged
-    // fires once per key group on a settings-app Save, so debounce the burst
-    // into one config re-read. Without this, a per-screen axis authored
-    // while the editor is open never reached the template preview until a
-    // restart (loadEditorSettings runs only from this constructor).
-    m_stripAxisReloadTimer.setSingleShot(true);
-    m_stripAxisReloadTimer.setInterval(250);
-    connect(&m_stripAxisReloadTimer, &QTimer::timeout, this, &EditorController::reloadScrollingStripAxis);
-    subscribe(QString(PhosphorProtocol::Service::Interface::Settings), QStringLiteral("settingsChanged"),
-              &m_stripAxisReloadTimer, SLOT(start()));
+    // The strip-axis inputs and the Editor.* groups follow the live config.
+    // A daemon reload announces the strip axis on settingsChanged and the
+    // Editor.* groups on editorSettingsChanged, and can fire both, so both feed
+    // one debounced re-read. Without this, what the settings app changed while
+    // the editor was open never reached it until a restart (loadEditorSettings
+    // runs only from this constructor).
+    m_configReloadTimer.setSingleShot(true);
+    m_configReloadTimer.setInterval(250);
+    connect(&m_configReloadTimer, &QTimer::timeout, this, &EditorController::reloadLiveConfig);
+    const QString settingsIface = QString(PhosphorProtocol::Service::Interface::Settings);
+    subscribe(settingsIface, QStringLiteral("settingsChanged"), &m_configReloadTimer, SLOT(start()));
+    subscribe(settingsIface, QStringLiteral("editorSettingsChanged"), &m_configReloadTimer, SLOT(start()));
 
     // Local read view of the scrolling templates, the template sibling of
     // m_localLayoutManager: instant template opens without the daemon, plus
@@ -162,6 +162,50 @@ EditorController::EditorController(QObject* parent)
     m_templateStore = std::make_unique<PhosphorZones::ScrollingTemplateStore>();
     m_templateStore->loadTemplates();
     subscribe(iface, QStringLiteral("scrollingTemplatesChanged"), this, SLOT(reloadLocalTemplates()));
+
+    // The target screen's geometry is cached at switch time (virtual screen
+    // rect, scale and insets), so a change under an unchanged target has to
+    // reach it some other way. The daemon announces resolution, scale and
+    // subdivision changes, the only source for a virtual screen or a
+    // fractional scale.
+    const QString screenIface = QString(PhosphorProtocol::Service::Interface::Screen);
+    subscribe(screenIface, QStringLiteral("screenGeometryChanged"), this, SLOT(onDaemonScreenGeometryChanged(QString)));
+    subscribe(screenIface, QStringLiteral("virtualScreensChanged"), this, SLOT(onDaemonVirtualScreensChanged(QString)));
+    // A panel added, removed or resized moves the work area under an
+    // unchanged screen rect, so screenGeometryChanged stays silent for it.
+    // The insets bound the reference fixed zones are drawn against, so the
+    // daemon's work-area signal refetches them; setInsets republishes.
+    subscribe(screenIface, QStringLiteral("availableGeometryChanged"), this,
+              SLOT(onDaemonAvailableGeometryChanged(QString)));
+    // A physical target is also measured off the editor's own QScreen
+    // (targetFullLogicalScreenSize), which updates on its own schedule, so watch
+    // that too. Its available-geometry arm only refetches the insets, and Qt
+    // reports a work area on only some Wayland compositors, which is why the
+    // daemon's signal above is the one a virtual screen relies on.
+    const auto watchScreen = [this](QScreen* screen) {
+        connect(screen, &QScreen::geometryChanged, this, [this, screen]() {
+            if (PhosphorScreens::ScreenIdentity::findByIdOrName(m_targetScreen) == screen) {
+                refreshTargetScreenGeometry();
+            }
+        });
+        connect(screen, &QScreen::availableGeometryChanged, this, [this, screen]() {
+            if (PhosphorScreens::ScreenIdentity::findByIdOrName(m_targetScreen) == screen) {
+                refreshUsableAreaInsets();
+            }
+        });
+    };
+    const auto screens = QGuiApplication::screens();
+    for (QScreen* screen : screens) {
+        watchScreen(screen);
+    }
+    connect(qGuiApp, &QGuiApplication::screenAdded, this, watchScreen);
+
+    // A daemon that was not on the bus when a scale or a virtual screen's
+    // geometry was asked for left them unknown; ask again once it arrives.
+    auto* daemonWatcher = new QDBusServiceWatcher(svc, bus, QDBusServiceWatcher::WatchForRegistration, this);
+    connect(daemonWatcher, &QDBusServiceWatcher::serviceRegistered, this, [this]() {
+        refreshTargetScreenGeometry();
+    });
 
     if (!failedSubscriptions.isEmpty()) {
         qCWarning(lcEditor) << "EditorController:" << failedSubscriptions.size()
@@ -258,21 +302,38 @@ EditorController::EditorController(QObject* parent)
     // Initialize canPaste state
     m_canPaste = canPaste();
 
-    // Load editor settings from KConfig
+    // Load editor settings from the JSON config backend
     loadEditorSettings();
 }
 
 EditorController::~EditorController()
 {
-    // Flush a queued settings write rather than queueing another: the timer
-    // will never fire again from here, so a still-pending edit (the user closed
-    // the editor within the debounce window of their last change) would be lost.
-    if (m_editorSettingsSaveTimer.isActive()) {
-        m_editorSettingsSaveTimer.stop();
-        flushEditorSettingsBlocking();
-    }
+    // Normally a no-op: main() already ran this at aboutToQuit. It still
+    // covers a controller destroyed some other way.
+    flushEditorSettingsForShutdown();
 
     // Services are QObjects with this as parent, so they'll be deleted automatically.
+}
+
+void EditorController::flushEditorSettingsForShutdown()
+{
+    // Flush a queued settings write rather than queueing another: the timer
+    // will never fire again from here, so a still-pending edit (the user closed
+    // the editor within the debounce window of their last change) would be
+    // lost. Keyed on the edited set rather than the timer, because a write
+    // that failed earlier leaves its keys edited with no timer running.
+    m_editorSettingsSaveTimer.stop();
+    if (m_editorKeysEdited) {
+        flushEditorSettingsBlocking();
+        // One attempt at shutdown. A write that failed or was refused here is
+        // reported by writeEditorSettingsToDisk, and trying again from the
+        // destructor would only repeat the warning against the same file.
+        if (m_editorKeysEdited) {
+            qCWarning(lcEditor) << "Editor settings changed this session could not be written before closing and are "
+                                   "lost";
+            m_editorKeysEdited = {};
+        }
+    }
 }
 
 // Preview mode
@@ -313,8 +374,8 @@ void EditorController::reloadLocalLayouts()
     // the connect block + rationale. loadLayouts() does no diffing: it
     // re-reads and rebuilds the whole catalogue every call, which is what
     // makes it a reload. The layout set is O(10s) of small JSON files and
-    // this only fires on a daemon layout signal, so the re-scan is not on
-    // any hot path.
+    // this runs only on a daemon layout signal or a successful saveLayout(),
+    // both user-paced, so the re-scan is not on any hot path.
     if (m_localLayoutManager) {
         m_localLayoutManager->loadLayouts();
     }
@@ -329,6 +390,11 @@ void EditorController::recalcLocalLayouts()
     if (!primary) {
         return;
     }
+    // A layout counting fixed sizes in device pixels is laid out at the
+    // output's logical scale, which only the daemon knows (QScreen reports the
+    // integer buffer scale). Asked once per pass rather than per layout; zero
+    // when the daemon cannot answer keeps each layout's last scale.
+    const qreal primaryScale = queryDaemonScreenScale(PhosphorScreens::ScreenIdentity::identifierFor(primary));
     for (PhosphorZones::Layout* layout : m_localLayoutManager->layouts()) {
         if (!layout) {
             continue;
@@ -336,7 +402,7 @@ void EditorController::recalcLocalLayouts()
         // Editor is a separate process without a daemon ScreenManager — pass
         // nullptr and accept the Qt-availableGeometry fallback for previews.
         PhosphorZones::LayoutComputeService::recalculateSync(
-            layout, GeometryUtils::effectiveScreenGeometry(nullptr, layout, primary));
+            layout, GeometryUtils::effectiveScreenGeometry(nullptr, layout, primary), primaryScale);
     }
 }
 QString EditorController::selectedZoneId() const
@@ -410,6 +476,18 @@ bool EditorController::fillOnDropEnabled() const
 int EditorController::fillOnDropModifier() const
 {
     return m_fillOnDropModifier;
+}
+qreal EditorController::backgroundOpacity() const
+{
+    return m_backgroundOpacity;
+}
+qreal EditorController::snapIntervalMin() const
+{
+    return ConfigDefaults::editorSnapIntervalMin();
+}
+qreal EditorController::snapIntervalMax() const
+{
+    return ConfigDefaults::editorSnapIntervalMax();
 }
 QString EditorController::targetScreen() const
 {
@@ -501,8 +579,11 @@ void EditorController::setSelectedZoneIdsDirect(const QStringList& zoneIds)
 
 void EditorController::setGridSnappingEnabled(bool enabled)
 {
+    if (m_snappingService->gridSnappingEnabled() == enabled) {
+        return;
+    }
     m_snappingService->setGridSnappingEnabled(enabled);
-    saveEditorSettings();
+    saveEditorSettings(EditorOwnedConfig::Key::GridSnapping);
 }
 
 void EditorController::setGridOverlayVisible(bool visible)
@@ -515,20 +596,30 @@ void EditorController::setGridOverlayVisible(bool visible)
 
 void EditorController::setEdgeSnappingEnabled(bool enabled)
 {
+    if (m_snappingService->edgeSnappingEnabled() == enabled) {
+        return;
+    }
     m_snappingService->setEdgeSnappingEnabled(enabled);
-    saveEditorSettings();
+    saveEditorSettings(EditorOwnedConfig::Key::EdgeSnapping);
 }
 
 void EditorController::setSnapIntervalX(qreal interval)
 {
+    // The service clamps, so compare what it holds after, not the argument.
+    const qreal before = m_snappingService->snapIntervalX();
     m_snappingService->setSnapIntervalX(interval);
-    saveEditorSettings();
+    if (!qFuzzyCompare(before, m_snappingService->snapIntervalX())) {
+        saveEditorSettings(EditorOwnedConfig::Key::SnapIntervalX);
+    }
 }
 
 void EditorController::setSnapIntervalY(qreal interval)
 {
+    const qreal before = m_snappingService->snapIntervalY();
     m_snappingService->setSnapIntervalY(interval);
-    saveEditorSettings();
+    if (!qFuzzyCompare(before, m_snappingService->snapIntervalY())) {
+        saveEditorSettings(EditorOwnedConfig::Key::SnapIntervalY);
+    }
 }
 
 void EditorController::setSnapInterval(qreal interval)
@@ -543,7 +634,7 @@ void EditorController::setSnapOverrideModifier(int modifier)
     if (m_snapOverrideModifier != modifier) {
         m_snapOverrideModifier = modifier;
         Q_EMIT snapOverrideModifierChanged();
-        saveEditorSettings();
+        saveEditorSettings(EditorOwnedConfig::Key::SnapOverrideModifier);
     }
 }
 
@@ -552,7 +643,7 @@ void EditorController::setFillOnDropEnabled(bool enabled)
     if (m_fillOnDropEnabled != enabled) {
         m_fillOnDropEnabled = enabled;
         Q_EMIT fillOnDropEnabledChanged();
-        saveEditorSettings();
+        saveEditorSettings(EditorOwnedConfig::Key::FillOnDropEnabled);
     }
 }
 
@@ -561,7 +652,23 @@ void EditorController::setFillOnDropModifier(int modifier)
     if (m_fillOnDropModifier != modifier) {
         m_fillOnDropModifier = modifier;
         Q_EMIT fillOnDropModifierChanged();
-        saveEditorSettings();
+        saveEditorSettings(EditorOwnedConfig::Key::FillOnDropModifier);
+    }
+}
+
+void EditorController::setBackgroundOpacity(qreal opacity)
+{
+    // The same rule the schema's clampDouble applies to the stored value
+    // (NaN to the minimum, then the range), so what the canvas shows is what
+    // reads back after the save. Compared with the 1+x idiom because 0 is a
+    // legal value.
+    const qreal clamped = qIsNaN(opacity)
+        ? ConfigDefaults::editorBackgroundOpacityMin()
+        : qBound(ConfigDefaults::editorBackgroundOpacityMin(), opacity, ConfigDefaults::editorBackgroundOpacityMax());
+    if (!qFuzzyCompare(1.0 + m_backgroundOpacity, 1.0 + clamped)) {
+        m_backgroundOpacity = clamped;
+        Q_EMIT backgroundOpacityChanged();
+        saveEditorSettings(EditorOwnedConfig::Key::BackgroundOpacity);
     }
 }
 

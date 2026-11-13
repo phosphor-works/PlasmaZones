@@ -20,8 +20,9 @@ The library factors the work into:
 - **`WatchedDirectorySet`** is the base mechanism. It owns the
   `QFileSystemWatcher`, debounces rescan triggers (50 ms), promotes
   watches to a parent directory when the target doesn't exist yet,
-  guards against rescan-during-rescan races, and re-arms individual
-  file watches after a scan.
+  guards against rescan-during-rescan races, re-arms individual
+  file watches after a scan, and re-arms its watches when a directory on
+  the way to a registered one is replaced or retargeted.
 - **`IScanStrategy`** is the pluggable policy for how to enumerate the
   registered directories, parse each entry, and commit results to the
   consumer's registry. The base owns *when* to scan, and the strategy owns
@@ -53,6 +54,7 @@ hand-rolling.
 | Type | Purpose |
 |------|---------|
 | `PhosphorFsLoader::WatchedDirectorySet`           | Base mechanism: watcher, debounce, parent-watch, race guard |
+| `PhosphorFsLoader::WatchedFileSet`                | Watches an explicit list of files, some possibly missing, and reports only the ones whose fingerprint (inode, size, mtime ns) changed |
 | `PhosphorFsLoader::IScanStrategy`                 | Pluggable enumerate / parse / commit policy |
 | `PhosphorFsLoader::DirectoryLoader`               | Flat `*.json` specialisation (sink-driven) |
 | `PhosphorFsLoader::IDirectoryLoaderSink`          | Per-schema strategy: `parseFile()` + `commitBatch()` |
@@ -60,6 +62,7 @@ hand-rolling.
 | `PhosphorFsLoader::MetadataPackScanStrategy<P>`   | Subdirectory-with-`metadata.json` strategy |
 | `PhosphorFsLoader::validateJsonEnvelope`          | Shared `"name"`-field envelope validator returning a `JsonEnvelope` |
 | `PhosphorFsLoader::resolveWithinDirectory`        | Containment guard: resolves a declared path against a directory and refuses anything landing outside it |
+| `PhosphorFsLoader::readFileWithinDirectory`       | Bounded read of a declared path that validates the OPENED descriptor: regular file, size cap, real path inside the directory, so a symlink or FIFO swapped in after the check is refused |
 | `PhosphorFsLoader::AbsolutePathPolicy`            | Whether an already-absolute declared path is refused (pack-declared) or trusted (user-chosen at runtime) |
 | `PhosphorFsLoader::SchemaValidator`               | JSON-Schema gate applied to a pack's `metadata.json` before it is parsed |
 
@@ -129,6 +132,33 @@ registry.setUserPath(userDir);
 registry.refresh();
 ```
 
+Watching a config file and the theme file it names, either of which may not
+exist yet:
+
+```cpp
+#include <PhosphorFsLoader/WatchedFileSet.h>
+
+auto* files = new PhosphorFsLoader::WatchedFileSet(this);
+connect(files, &PhosphorFsLoader::WatchedFileSet::filesChanged, this,
+        [this](const QStringList& changed) { reload(changed); });
+files->setPaths({configPath, themePath});   // reconciles; call again when the theme changes
+```
+
+Reading an asset a pack declares, without letting it escape the pack:
+
+```cpp
+#include <PhosphorFsLoader/ContainedFileReader.h>
+
+QString error;
+const auto mesh = PhosphorFsLoader::readFileWithinDirectory(
+    declared, packDir, PhosphorFsLoader::AbsolutePathPolicy::Reject, 32 * 1024 * 1024, &error);
+if (!mesh) {
+    return error;
+}
+watch(mesh->path);
+parse(mesh->bytes);
+```
+
 ## Design notes
 
 - **Watcher is opt-in.** `LiveReload::On` installs a
@@ -146,6 +176,37 @@ registry.refresh();
   yet, which is the ordinary live-reload case. The guard canonicalises the
   deepest EXISTING ancestor and re-appends the missing tail, so the two domains
   are never mixed, and it fails closed when nothing on the chain exists.
+- **Single files report by fingerprint.** `WatchedFileSet` watches each file
+  and every directory on the way to it, from `/` down, so creation, deletion
+  and rename-replacement are seen wherever they happen. A directory event
+  alone proves nothing, so after the debounce each path is `stat()`ed and
+  only those whose identity or content stamp moved are reported. An
+  unrelated write beside a watched file or in one of its ancestors emits
+  nothing.
+- **Watches follow identity, not path strings.** An inotify watch stays on
+  the inode its path named when it was added, and Qt's directory watch does
+  not report its own rename. So a symlinked directory that is retargeted
+  (Home Manager, stow, chezmoi) or a parent replaced by rename would leave
+  every watch below it on the old tree. Both sets record an identity chain
+  for each watched path: the device and inode of every directory walked from
+  `/` and the text of every symlink followed, resolved component by
+  component. An event in an ancestor costs a walk of the chains, a few
+  `lstat()` calls. Only a chain that moved re-arms its watches, and in
+  `WatchedDirectorySet` only a chain that moved runs a rescan.
+  `WatchedDirectorySet` chains its registered directories, and also each
+  path its strategy reports that goes through a symlink below its
+  registered directory: a linked file, a linked folder, a file inside one.
+  A watch under the link's own spelling would stay on the old target when
+  the link is pointed elsewhere, and see nothing while it dangles, so such a
+  path is watched through its chain, its target under its physical path.
+  Reported paths that go through no link keep their plain watch, because
+  the chain of their registered directory already covers everything above
+  them.
+- **Containment of what was opened, not what was named.**
+  `readFileWithinDirectory` runs `resolveWithinDirectory` first, then opens
+  with `O_NONBLOCK`, `fstat()`s the descriptor and checks its
+  `/proc/self/fd` real path against the directory. A path checked before
+  opening can be swapped between check and open; the descriptor cannot.
 - **`commitBatch` is the one mutation point.** The sink only touches
   its target registry inside `commitBatch`, so bulk signals (e.g. a
   QML `reloadAll`) coalesce to one emit per scan.

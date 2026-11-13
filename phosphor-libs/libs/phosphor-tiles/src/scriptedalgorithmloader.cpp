@@ -378,8 +378,8 @@ QStringList ScriptedAlgorithmLoader::performScan(const QStringList& directoriesI
 
     // Remove stale scripts that no longer exist on disk.
     //
-    // CAP-TRIP POLICY (unlike PluginLoader, which SKIPS its sweep on a cap
-    // trip): this sweep runs unconditionally even after a truncated scan, so a
+    // CAP-TRIP POLICY (unlike PluginCatalog, which keeps what it knew about
+    // the plugins a cap trip left unreached): this sweep runs unconditionally even after a truncated scan, so a
     // script whose directory sorted past MaxScripts is unregistered — which for
     // this loader means tearing down a live sandboxed Luau VM via deleteLater.
     // That is acceptable here only because the cap is a pure DoS backstop
@@ -633,8 +633,17 @@ void ScriptedAlgorithmLoader::loadFromDirectory(const QString& dir, bool isUserD
             continue;
         }
 
-        if (!reusedExisting) {
-            m_registry->registerAlgorithm(scriptId, algo.release());
+        // The registry refuses ids it reserves or cannot carry (`none`, the
+        // `autotile:` prefix, characters outside its id charset) and deletes
+        // the algorithm. A refused script must stay out of m_scriptIdToPath
+        // and the stamps, exactly like the collisions above: otherwise it
+        // counts toward MaxScripts and the loaded count while nothing is
+        // registered under its id.
+        if (!reusedExisting && !m_registry->registerAlgorithm(scriptId, algo.release())) {
+            qCWarning(PhosphorTiles::lcTilesLib).nospace() << "Script '" << fullPath << "' declares id '" << scriptId
+                                                           << "' which the algorithm registry refused — skipped";
+            m_refusedFilePaths.insert(fullPath);
+            continue;
         }
         m_scriptIdToPath[scriptId] = fullPath;
         m_scriptStamps.insert(
@@ -666,7 +675,7 @@ QStringList ScriptedAlgorithmLoader::validatedLuauFiles(const QString& dirPath, 
     // inside canonicalDir after symlink expansion). Leaving NoSymLinks in the
     // filter would additionally block benign user-local symlinks pointing at
     // read-only system script directories.
-    // `QDir::Name` explicitly, matching JsonScanStrategy and PluginLoader. The
+    // `QDir::Name` explicitly, matching JsonScanStrategy and PluginCatalog. The
     // default sort is Name|IgnoreCase, and the ordering stopped being cosmetic
     // the moment the cap below started counting files CONSIDERED: in a
     // directory over the cap, sort order decides which files survive.

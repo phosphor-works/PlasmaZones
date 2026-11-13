@@ -38,7 +38,7 @@ namespace {
 /// already-bound shader as a triangle strip. texcoord [0,1] maps to the bound
 /// FBO directly (bottom-origin), so a passthrough buffer reproduces uTexture0's
 /// layout. This is the SOLE buffer-pass draw site; the matching vertex SOURCE
-/// (kFullscreenQuadVertexSource) lives in surface_compile.cpp, which only
+/// (SurfaceShaderRegistry::compositorBufferVertexSource) is compiled in surface_compile.cpp, which only
 /// compiles the buffer-pass shaders. Kept file-local — under the Unity build a
 /// duplicate anonymous-namespace definition elsewhere would collide.
 /// The caller owns the ShaderBinder.
@@ -146,10 +146,10 @@ QRectF PlasmaZonesEffect::surfaceWindowRect(KWin::EffectWindow* w) const
 }
 
 // Shadow-margin cache refresh for surfaceWindowRect() above. Seeded at
-// connect time (setupWindowConnections — nothing is resizing then, so the
-// pair agrees) and re-run on every windowExpandedGeometryChanged, which is
-// the one moment KWin has just recomputed the expanded rect against the live
-// frame.
+// connect time (setupWindowConnections; a window the load sweep wires
+// mid-resize can seed a lagged pair, which the next signal corrects) and re-run
+// on every windowExpandedGeometryChanged, which is the one moment KWin has just
+// recomputed the expanded rect against the live frame.
 //
 // A resize is exactly the interval where those two disagree (see
 // surfaceWindowRect's declaration for the measured X11 case), so the cache
@@ -276,9 +276,9 @@ KWin::GLTexture* PlasmaZonesEffect::renderSurfaceChainComposite(KWin::EffectWind
     glDisable(GL_BLEND);
     namespace SC = PhosphorSurfaceShaders::SurfaceShaderContract;
 
-    // Function-local rather than a member: plasmazoneseffect.h sits one line under
-    // its recorded ceiling, and this is a pure session-scoped diagnostic latch with
-    // no other reader. Same shape the capture path's allocation-failure latch uses.
+    // Function-local rather than a member: a session-scoped diagnostic latch
+    // with no other reader. Same shape the capture path's allocation-failure
+    // latch uses.
     static bool fallbackUnavailableWarned = false;
 
     // Upload the audio spectrum ONCE per fold, up front, before any pass binds
@@ -736,26 +736,26 @@ KWin::GLTexture* PlasmaZonesEffect::renderSurfaceChainComposite(KWin::EffectWind
                     pass.shader->setUniform(pass.uHasBackdropLoc, backdropAvailable ? 1.0f : 0.0f);
                 }
                 for (size_t j = 0; j < i && j < static_cast<size_t>(ShaderInternal::kSurfaceChannelCount); ++j) {
-                    glActiveTexture(GL_TEXTURE0 + ShaderInternal::kSurfaceFoldChannelBaseUnit + static_cast<int>(j));
-                    bufs[j]->bind();
                     if (pass.iChannelLoc[j] >= 0) {
-                        pass.shader->setUniform(pass.iChannelLoc[j],
-                                                ShaderInternal::kSurfaceFoldChannelBaseUnit + static_cast<int>(j));
-                    }
-                    if (j < static_cast<size_t>(ShaderInternal::kSurfaceChannelResolutionSlots)
-                        && pass.iChannelResolutionLoc[j] >= 0) {
-                        const QVector4D res(static_cast<float>(bufs[j]->width()), static_cast<float>(bufs[j]->height()),
-                                            0.0f, 0.0f);
-                        pass.shader->setUniform(pass.iChannelResolutionLoc[j], res);
+                        const int unit = ShaderInternal::kSurfaceFoldChannelBaseUnit + static_cast<int>(j);
+                        glActiveTexture(GL_TEXTURE0 + unit);
+                        bufs[j]->bind();
+                        pass.shader->setUniform(pass.iChannelLoc[j], unit);
+                        if (j < static_cast<size_t>(ShaderInternal::kSurfaceChannelResolutionSlots)
+                            && pass.iChannelResolutionLoc[j] >= 0) {
+                            const QVector4D res(static_cast<float>(bufs[j]->width()),
+                                                static_cast<float>(bufs[j]->height()), 0.0f, 0.0f);
+                            pass.shader->setUniform(pass.iChannelResolutionLoc[j], res);
+                        }
                     }
                 }
-                // Bind a transparent fallback to every channel this pass DECLARES but has
-                // no prior buffer output for — which for the FIRST buffer pass is all of
-                // them, since there is nothing before it. An unset sampler2D reads texture
-                // unit 0, and unit 0 holds the RUNNING COMPOSITE: a pack whose first buffer
-                // pass samples iChannel0 was reading the window back into itself. The main
-                // pass, the audio slot and the user-texture slots all bind a fallback for
-                // exactly this reason; the buffer passes were left out of it.
+                // Both loops key on `iChannelLoc[j] >= 0`, what the pass SAMPLES: the one above
+                // bound unconditionally until it cost the 7-pass chain 21 binds for ~12 sampled
+                // channels a frame. Here, bind a transparent fallback to every channel this pass
+                // DECLARES but has no prior output for — all of them for the FIRST pass. An unset
+                // sampler2D reads texture unit 0, which holds the RUNNING COMPOSITE: such a pack
+                // was reading the window back into itself, which is why the main pass, the audio
+                // slot and the user-texture slots all bind one too.
                 for (size_t j = i; j < static_cast<size_t>(ShaderInternal::kSurfaceChannelCount); ++j) {
                     if (pass.iChannelLoc[j] < 0) {
                         continue; // the pass never samples this channel
@@ -942,9 +942,7 @@ KWin::GLTexture* PlasmaZonesEffect::renderSurfaceChainComposite(KWin::EffectWind
                 glActiveTexture(GL_TEXTURE0 + ShaderInternal::kSurfaceFoldChannelBaseUnit + i);
                 bufs[i]->bind();
                 mainChannelsBound = i + 1;
-                {
-                    pk->shader->setUniform(pk->iChannelLoc[i], ShaderInternal::kSurfaceFoldChannelBaseUnit + i);
-                }
+                pk->shader->setUniform(pk->iChannelLoc[i], ShaderInternal::kSurfaceFoldChannelBaseUnit + i);
                 if (i < ShaderInternal::kSurfaceChannelResolutionSlots && pk->iChannelResolutionLoc[i] >= 0) {
                     const QVector4D res(static_cast<float>(bufs[i]->width()), static_cast<float>(bufs[i]->height()),
                                         0.0f, 0.0f);

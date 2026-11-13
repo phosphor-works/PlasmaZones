@@ -9,7 +9,7 @@
 #               cells in the same grammar; the shell's one scale transition.
 #   Cheatsheet  searchable shortcut reference with mode guides, grouped
 #               keycaps, alternatives, and shared shell appearance.
-#   ShortcutCatalog  the C++ reader behind the sheet: org.plasmazones
+#   ShortcutCatalog  the C++ reader behind the sheet: org.phosphor_works.Placement
 #               .Control.getShortcutsJson plus its shortcutsChanged relay.
 #
 # Themed through phosphor-theme, drawn with the phosphor-shell-widgets

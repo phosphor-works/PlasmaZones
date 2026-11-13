@@ -175,8 +175,9 @@ void ScrollEngine::focusInDirectionResolved(const QString& direction, const Phos
         }
         applyLayout(screen, true);
         // Focus is PERSISTED state: serializeStripState writes focusedWindow
-        // and viewAnchor, and the only thing that marks DirtyScrollStrips is
-        // the daemon's placementChanged connection. Without this emit a pure
+        // and viewAnchor, and placementChanged is this engine's only way to
+        // mark DirtyScrollStrips (the tracking service's scheduleSaveState,
+        // DirtyAll, also sets that bit). Without this emit a pure
         // focus walk (which moves both the active column and the view anchor)
         // never reaches the save, so the strip restores scrolled to whatever
         // column was focused before the walk. The move/tab/width verbs all
@@ -600,6 +601,14 @@ bool ScrollEngine::moveActiveWindowAcrossBoundary(ScrollState* state, const QStr
         const int anchored = strip.columnOfWindow(slot.anchor);
         return anchored >= 0 && strip.insertWindowIntoColumnAt(anchored, slot.tileIndex, id, stripParams);
     };
+    // What the mover's client taught answered the source output's tiles, and
+    // on the target it starts unfloored and teaches afresh. Taken out BEFORE
+    // the insert, because targetParams reads the floors live and the insert
+    // and the arrival focus below lay the column out: forgotten after them,
+    // the target's view was anchored for the old floor and the relayout then
+    // drew the column narrower. Put back if the target refuses the mover,
+    // which then floats on its own output (a return, not a migration).
+    const CommittedExtent moverCommitted = m_committedExtents.take(windowId);
     bool moverInserted = insertCarryingStackSlot(targetState->strip(), moverLandingSlot, windowId, targetParams);
     // A stack re-entry joins a HOST column, whose maximize-to-edges state is
     // that column's own; only the positional insert below opens a column the
@@ -654,6 +663,9 @@ bool ScrollEngine::moveActiveWindowAcrossBoundary(ScrollState* state, const QStr
         m_lastAppliedWindowedFs.remove(windowId); // eviction symmetry with the float/handoff paths
         m_lastAppliedMaximizedToEdges.remove(windowId);
     } else {
+        if (!moverCommitted.isEmpty()) {
+            m_committedExtents.insert(windowId, moverCommitted);
+        }
         // Refused, with the window already out of the source strip: adopt it
         // as a FLOAT of the source state rather than leaving it held by
         // neither side with no re-entry path short of a fresh windowOpened
@@ -682,6 +694,10 @@ bool ScrollEngine::moveActiveWindowAcrossBoundary(ScrollState* state, const QStr
         // the verb reports as failed.
         ScrollState* home = moverInserted ? state : targetState;
         const ScrollLayoutParams& homeParams = moverInserted ? sourceParams : targetParams;
+        // The mover's rule for a partner that crosses: taken out before its
+        // insert on the source output, put back if it ends up floating on its
+        // own. A partner put back on its own output keeps it untouched.
+        const CommittedExtent partnerCommitted = moverInserted ? m_committedExtents.take(partner) : CommittedExtent{};
         bool partnerInserted = insertCarryingStackSlot(
             home->strip(), moverInserted ? partnerLandingSlot : moverLandingSlot, partner, homeParams);
         const bool partnerJoinedStack = partnerInserted; // same host-column rule as the mover's
@@ -713,6 +729,9 @@ bool ScrollEngine::moveActiveWindowAcrossBoundary(ScrollState* state, const QStr
             // Same full repair as the mover's refusal, minus the focus
             // seeding: the partner never held compositor focus, so its
             // adoption must not claim the float layer's focus memory.
+            if (!partnerCommitted.isEmpty()) {
+                m_committedExtents.insert(partner, partnerCommitted);
+            }
             adoptAsFloatAfterRefusal(targetState, partner, partnerMinSize, target);
             qCWarning(lcScrollEngine) << "moveActiveWindowAcrossBoundary: source strip refused swap partner" << partner
                                       << "on" << screenId << "— adopted as floating on target";
@@ -1041,10 +1060,10 @@ void ScrollEngine::cycleFocus(bool forward, const PhosphorEngine::NavigationCont
         idx = (idx + (forward ? 1 : -1) + order.size()) % order.size();
         if (!state->strip().isWindowMinimized(order.at(idx)) && state->strip().focusWindow(order.at(idx), params)) {
             applyLayout(screen, true);
-            // Focus and view anchor are persisted, and placementChanged is the
-            // only producer of DirtyScrollStrips — same reason as
-            // focusInDirection. This is the last focus-mutating verb; every
-            // other one already emits.
+            // Focus and view anchor are persisted, and placementChanged is this
+            // engine's only way to mark DirtyScrollStrips (the tracking service's
+            // DirtyAll save also sets it), as in focusInDirection. This is the
+            // last focus-mutating verb; every other one already emits.
             Q_EMIT placementChanged(screen);
             Q_EMIT navigationFeedback(true, action, QString(), active, order.at(idx), screen);
             return;

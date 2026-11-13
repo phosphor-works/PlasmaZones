@@ -4,9 +4,9 @@
 // The placement-map surfaces of TilingAdaptor: the per-screen replay of the
 // last tile batch (currentTilesJson) and the engine-managed focused window
 // with its change signal (managedFocusedWindow / focusedWindowChanged).
-// Split from tilingadaptor.cpp and relay.cpp by concern, both of which sit
-// near the file-size ceiling; the lifecycle dispatch and the engine relays
-// stay where they were and call the hooks defined here.
+// Split from tilingadaptor.cpp and relay.cpp by concern. The lifecycle
+// dispatch and the engine relays stay where they were and call the hooks
+// defined here.
 
 #include "tilingadaptor.h"
 
@@ -24,7 +24,8 @@ namespace PlasmaZones {
 namespace {
 /// The replay's keys, spelled to match what relayTileRequestsJson PARSES
 /// (relay.cpp reads the same literals off the engines' batch JSON), so a
-/// client can feed a replay back through the same reader. Kept beside the
+/// client can feed a replay back through the same reader. zoneId is the one
+/// key the reader does not parse: it is written for shape parity only. Kept beside the
 /// serializer rather than in the protocol header because the batch JSON is
 /// an in-process contract between the engines and this adaptor, not a wire
 /// vocabulary the effect reads.

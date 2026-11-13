@@ -23,7 +23,7 @@
 #include <utility>
 
 namespace {
-constexpr auto kDefaultObjectPath = "/org/phosphor/PolicyKit1/AuthenticationAgent";
+constexpr auto kDefaultObjectPath = "/org/phosphor_works/Lambent/PolicyKit1/AuthenticationAgent";
 constexpr int kMaximumAttempts = 3;
 Q_LOGGING_CATEGORY(lcPolkitAgent, "phosphor.service.polkit")
 } // namespace

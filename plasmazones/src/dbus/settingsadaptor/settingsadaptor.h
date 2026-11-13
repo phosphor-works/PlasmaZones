@@ -6,7 +6,6 @@
 #include "plasmazones_export.h"
 #include <QObject>
 #include <QDBusAbstractAdaptor>
-#include <QDBusContext>
 #include <QDBusVariant>
 #include <QString>
 #include <QVariant>
@@ -26,25 +25,26 @@ class Settings; // Forward declaration for concrete type
 /**
  * @brief D-Bus adaptor for settings operations
  *
- * Provides D-Bus interface: org.plasmazones.Settings
+ * Provides D-Bus interface: org.phosphor_works.Placement.Settings
  *  Settings read/write operations
  *
  * Uses registry pattern for setSetting.
  */
-/// Inherits QDBusContext (like OverlayAdaptor) so getSetting can answer an
-/// UNKNOWN key with a real D-Bus error instead of a valid-but-empty value.
-/// That distinction is load-bearing: getSetting resolves keys through a
-/// hand-maintained registry, not through Qt property reflection, so a setting
+/// getSetting answers an UNKNOWN key with a real D-Bus error instead of a
+/// valid-but-empty value, sent through DbusHelpers::sendBusError because Qt
+/// sets a call's context on the object this adaptor is exported through, not
+/// on the adaptor. That distinction is load-bearing: getSetting resolves keys
+/// through a hand-maintained registry, not through Qt property reflection, so a setting
 /// whose registration is forgotten is a live possibility — and while the miss
 /// answered with an empty string, every one of the ~50 callers coerced it blind
 /// (QVariant("").toBool() is false), silently shipping the default-inverted
 /// value instead of failing. An error reply makes loadSettingAsync's
 /// reply.isValid() false, so the callback never runs and the caller keeps its
 /// own default. One central guard instead of a type-check at every call site.
-class PLASMAZONES_EXPORT SettingsAdaptor : public QDBusAbstractAdaptor, public QDBusContext
+class PLASMAZONES_EXPORT SettingsAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.Settings")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Settings")
 
 public:
     /// @param settings Settings interface (required).
@@ -137,7 +137,7 @@ public Q_SLOTS:
      * NOTE: nothing in this tree calls it. It was added for a KCM per-monitor flush that
      * never materialised — the KCM writes config.json in-process and calls
      * reloadSettings(). It stays as part of the PUBLISHED D-Bus write surface (declared in
-     * org.plasmazones.Settings.xml, covered by tests/unit/dbus), for external clients. Do
+     * org.phosphor_works.Placement.Settings.xml, covered by tests/unit/dbus), for external clients. Do
      * not re-justify it by naming an in-tree caller; there is none.
      *
      * Unknown keys inside @p values are passed through to the underlying
@@ -178,7 +178,9 @@ public Q_SLOTS:
 
     /**
      * @brief Receive window list from KWin effect (callback)
-     * @param json JSON array of window objects
+     * @param json JSON array of window rows, shaped as the provideRunningWindows
+     *        docstring in org.phosphor_works.Placement.Settings.xml gives it. A payload over
+     *        PhosphorProtocol::Service::MaxRunningWindowsPayloadBytes is refused.
      */
     void provideRunningWindows(const QString& json);
 
@@ -197,6 +199,18 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void settingsChanged();
+
+    /**
+     * @brief Daemon → layout editor and Settings app: an Editor.* setting
+     * changed on a daemon reload (a settings-app Save, the editor's own
+     * write coming back, or a factory reset over D-Bus).
+     *
+     * Kept off @ref settingsChanged because nothing else reads those keys,
+     * and every subscriber of settingsChanged (the daemon's own handlers, the
+     * KWin effect, the shell) would otherwise re-fetch its whole state each
+     * time the editor saved a slider.
+     */
+    void editorSettingsChanged();
 
     /**
      * @brief Daemon → KWin effect: the per-event motion-profile tree changed.
@@ -244,7 +258,9 @@ Q_SIGNALS:
      * the KWin effect. Subscribers (SettingsController) cache the value
      * and present it to the UI without a blocking round-trip.
      *
-     * @param json JSON array: [{windowClass, appName, caption}, ...]
+     * @param json JSON array: [{windowClass, rawWindowClass, appName, caption,
+     *        desktopFile}, ...], as the runningWindowsAvailable docstring in
+     *        org.phosphor_works.Placement.Settings.xml describes it.
      */
     void runningWindowsAvailable(const QString& json);
 

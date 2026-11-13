@@ -17,6 +17,8 @@
 #include "core/interfaces/interfaces.h"
 #include "core/types/zoneselectorlayout.h"
 #include "core/utils/utils.h"
+#include "dbus/windowtrackingadaptor/internal.h"
+#include "dbus/windowtrackingadaptor/windowtrackingadaptor.h"
 
 #include <PhosphorContext/ContextHandle.h>
 #include <PhosphorContext/IContextResolver.h>
@@ -52,13 +54,17 @@ void WindowDragAdaptor::checkZoneSelectorTrigger(int cursorX, int cursorY)
     // place the toggle and the rule are folded.
 
     // A rule-excluded dragged window never sees the popup, on EITHER
-    // variant. The probe (SnapEngine::isWindowExcluded) is mode-neutral by
-    // design: the Exclude rules and the minimum-window-size floor live in
-    // the shared placement-exclusion vocabulary, and the scroll side
-    // enforces the same rules effect-side before a strip ever adopts such
-    // a window — so on a strip screen too, offering targets would promise
-    // an insert the placement policy refuses. Evaluated once at drag start.
-    if (m_dragWindowExcludedFromSelector) {
+    // variant. The probe (SnapEngine::isWindowExcludedByRule) is mode-neutral
+    // by design: the Exclude rules live in the shared placement-exclusion
+    // vocabulary, and the scroll side enforces the same rules effect-side
+    // before a strip ever adopts such a window — so on a strip screen too,
+    // offering targets would promise an insert the placement policy refuses.
+    // Evaluated once at drag start. The minimum-window-size floor is asked
+    // here every tick instead, on the size the window holds as its own
+    // (dragClientSizeBelowMinimum), the same answer the drag-insert adoption
+    // gate acts on: a window in a short zone or tile is not refused for the
+    // frame its zone or tile gave it.
+    if (m_dragWindowExcludedFromSelector || dragClientSizeBelowMinimum()) {
         if (m_zoneSelectorShown) {
             m_zoneSelectorShown = false;
             m_zoneSelectorShownOn.clear();
@@ -176,8 +182,14 @@ void WindowDragAdaptor::checkZoneSelectorTrigger(int cursorX, int cursorY)
     // a scrolling screen popped the selector on a screen the strip owns — and
     // endDrag's non-snap exits do not tear the popup down, leaving it stranded
     // with no further cursor ticks to hide it. Mirrors drop.cpp's useOverlayZone.
+    // The tiling opt-out ("autotile:none") gets none either: no engine runs
+    // there, snapping included, so a pick would snap the window into a zone
+    // of a screen nothing manages (user decision autotile_none_float_owner).
     const bool engineOwnsSelectorScreen = (m_autotileEngine && m_autotileEngine->isActiveOnScreen(selectorScreenId))
-        || (m_scrollEngine && m_scrollEngine->isActiveOnScreen(selectorScreenId));
+        || (m_scrollEngine && m_scrollEngine->isActiveOnScreen(selectorScreenId))
+        || (m_windowTracking && m_layoutManager
+            && WindowTrackingInternal::isOptOutContext(*m_windowTracking, selectorScreenId, 0,
+                                                       m_layoutManager->currentActivity()));
     // Capability carve-out: a scroll screen whose engine provides the
     // drag-insert selector renders the STRIP popup here — the popup is the
     // engine surface, not a competitor to it. Autotile screens (and scroll

@@ -3,9 +3,8 @@
 //
 // Daemon::initializeAutotile() — the autotile engine's signal wiring and its
 // eight shortcut handlers — plus Daemon::handleTilingModeToggle(), the
-// three-mode cycle the toggle shortcut drives. Split out of daemon/signals.cpp
-// to keep that file under the size ceiling; the rest of the daemon's signal
-// wiring stays there.
+// three-mode cycle the toggle shortcut drives. Split out of daemon/signals.cpp;
+// the rest of the daemon's signal wiring stays there.
 
 #include "daemon/daemon.h"
 #include "helpers.h"
@@ -66,17 +65,17 @@ void Daemon::initializeAutotile()
         // fires for float, swap, window open/close, etc. which is too noisy)
         connect(m_autotileEngine.get(), &PlacementEngineBase::algorithmChanged, this,
                 [this](const QString& algorithmId) {
-                    // Suppress during startup: loadState() emits algorithmChanged from
-                    // finalizeStartup(), and finalizeStartup() is the authoritative
+                    // Suppress during startup, while m_running is false: an algorithm
+                    // switch then must not race finalizeStartup(), the authoritative
                     // startup-OSD path (gated on showOsdOnDesktopSwitch via
                     // showOsdForAllScreens). Letting this handler also fire would both
                     // double-queue an OSD on the focused screen AND leak past
                     // showOsdOnDesktopSwitch=false, since this branch gates only on
                     // showOsdOnLayoutSwitch.
                     //
-                    // Also gate on isAnyScreenAutotile() — loadState() may emit even
-                    // when no screen is in autotile mode, and a runtime algorithm
-                    // change is irrelevant in that case.
+                    // Also gate on isAnyScreenAutotile(): an algorithm switch with no
+                    // screen in autotile mode is not worth an OSD (the global default
+                    // can change from settings while every screen snaps or scrolls).
                     if (m_running && isAnyScreenAutotile() && m_overlayService) {
                         QString screenId;
                         if (m_autotileEngine) {
@@ -179,15 +178,6 @@ void Daemon::initializeAutotile()
 
 void Daemon::handleTilingModeToggle()
 {
-    if (!m_settings) {
-        return;
-    }
-    if (!m_unifiedLayoutController || !m_layoutManager) {
-        return;
-    }
-    // Feature gate happens below, after the current mode is known,
-    // so we can check the flag for the TARGET mode (not just autotile).
-
     // Mode toggle is screen-targeted, not window-targeted: route off the
     // cursor's screen, not the focused window's. Otherwise pressing the
     // toggle while looking at vs:0 with a focused window on vs:1 silently
@@ -198,6 +188,19 @@ void Daemon::handleTilingModeToggle()
         qCWarning(lcDaemon) << "Mode toggle: empty screenId from resolveCursorScreenId";
         return;
     }
+    toggleScreenMode(screenId, false);
+}
+
+void Daemon::toggleScreenMode(const QString& screenId, bool snappingAutotilePair)
+{
+    if (!m_settings) {
+        return;
+    }
+    if (!m_unifiedLayoutController || !m_layoutManager) {
+        return;
+    }
+    // Feature gate happens below, after the current mode is known,
+    // so we can check the flag for the TARGET mode (not just autotile).
     int desktop = currentDesktopForScreen(screenId);
     QString activity = currentActivity();
     qCInfo(lcDaemon) << "Mode toggle: screenId=" << screenId << "desktop=" << desktop << "activity=" << activity;
@@ -272,12 +275,16 @@ void Daemon::handleTilingModeToggle()
     // two cannot disagree about what "enabled" means). Disabled modes are
     // skipped, so with scrolling off the cycle degrades to the historical
     // two-state flip; with every other mode off the toggle is a no-op.
-    Mode target = nextInCycle(currentMode);
-    while (target != currentMode && !modeEnabled(target)) {
+    // The pair (Control.toggleAutotileForScreen) flips snapping and autotile
+    // only, scrolling going to autotile, and does nothing when the target's
+    // master switch is off.
+    Mode target = snappingAutotilePair ? (currentMode == Mode::Autotile ? Mode::Snapping : Mode::Autotile)
+                                       : nextInCycle(currentMode);
+    while (!snappingAutotilePair && target != currentMode && !modeEnabled(target)) {
         target = nextInCycle(target);
     }
-    if (target == currentMode) {
-        qCInfo(lcDaemon) << "Mode toggle: ignored — no other enabled mode to cycle into";
+    if (target == currentMode || !modeEnabled(target)) {
+        qCInfo(lcDaemon) << "Mode toggle: ignored — no other enabled mode to switch into";
         updateLayoutFilter();
         return;
     }
@@ -334,12 +341,16 @@ void Daemon::handleTilingModeToggle()
             entry.mode = Mode::Snapping;
             entry.snappingLayout = QString(PhosphorZones::NoSnappingLayout);
             // Re-resolve the sibling slot with the same empty-activity
-            // widening the scrolling arm uses: when the resolved "none" came
-            // from the broader empty-activity entry, this direct write
-            // creates an activity-scoped entry that would otherwise shadow
-            // the broader entry's algorithm memory from single-resolve
-            // consumers (the cascade returns the most specific entry whole,
-            // not field-merged).
+            // widening the scrolling arm uses. Resolution is per slot
+            // (LayoutRegistry::resolveAssignmentEntry): a slot the new
+            // activity-scoped entry carries replaces the broader entry's
+            // value, and a slot it leaves empty inherits it. The widening is
+            // still not a plain re-read of that inheritance: the slot readers
+            // go through assignmentEntryForScreen, which hands a resolved
+            // entry with no layout of its own on to the connector and default
+            // tiers as a whole, so the activity-scoped read can come back
+            // empty where the empty-activity one finds the broader entry's
+            // algorithm memory. Copying what that finds keeps the memory.
             entry.tilingAlgorithm = m_layoutManager->tilingAlgorithmForScreen(screenId, desktop, activity);
             if (entry.tilingAlgorithm.isEmpty() && !activity.isEmpty()) {
                 entry.tilingAlgorithm = m_layoutManager->tilingAlgorithmForScreen(screenId, desktop, QString());
@@ -600,7 +611,7 @@ void Daemon::handleTilingModeToggle()
             // this branch must drive its own resnap or the released
             // strip windows keep their scroll geometry. Mirrors
             // resnapIfManualMode (navigation.cpp) including the
-            // engine-managed exclude union and the OSD suppress arm.
+            // engine-managed exclude union, and resnaps silently as it does.
             // The service() check is redundant defence, not a real
             // guard: WindowTrackingAdaptor assigns m_service in its
             // constructor and never nulls it, so a live adaptor always
@@ -613,8 +624,8 @@ void Daemon::handleTilingModeToggle()
             // resolving a layout. A refused apply leaves the screen still
             // scrolling and an opt-out resolves no layout on purpose, so in
             // both cases there is nothing to resnap into: the call only
-            // populated a buffer, armed a suppression count and drew a "no
-            // layout for screen" warning per toggle. The sibling
+            // populated a buffer and drew a "no layout for screen" warning
+            // per toggle. The sibling
             // autotile→snapping arm already carries the same resolve gate.
             //
             // The gate sits HERE rather than on the branch above on purpose:
@@ -638,10 +649,7 @@ void Daemon::handleTilingModeToggle()
                 // screens at once and the parameter takes a single
                 // value; the per-window filter inside the service
                 // is what keeps that case correct.
-                m_windowTrackingAdaptor->service()->populateResnapBufferForAllScreens(engineManagedScreens, {screenId},
-                                                                                      desktop);
-                armResnapOsdSuppression(1);
-                m_snapAdaptor->resnapToNewLayout();
+                m_windowTrackingAdaptor->resnapScreensToTheirLayouts(engineManagedScreens, {screenId}, desktop);
             }
             emitPendingSnapFloatRestoresForResnapBuffer();
         } else {
@@ -802,11 +810,8 @@ void Daemon::handleTilingModeToggle()
             buildAutotileRestoreEntries(resnappedWindows, desktop, activity, screenId);
         allResnapEntries.append(restoreEntries);
 
-        // Emit ONE batched signal (suppresses one OSD regardless of screen count)
+        // One batched signal; a batch emits no resnap feedback.
         concreteSnap->emitBatchedResnap(allResnapEntries);
-        // Empty ⇒ no feedback to suppress; a no-op arm must NOT zero a
-        // concurrent stream's outstanding count (the old `= 0` did).
-        armResnapOsdSuppression(allResnapEntries.isEmpty() ? 0 : 1);
     }
 }
 

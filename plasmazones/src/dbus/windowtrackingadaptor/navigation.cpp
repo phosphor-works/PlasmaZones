@@ -6,16 +6,18 @@
 // cycleWindowsInZone, restoreWindowSize, rotateWindowsInLayout) moved to
 // SnapAdaptor (src/dbus/snapadaptor/navigation.cpp).
 //
-// resolveSnapModeScreensForResnap stays — it's a public utility used by
-// SnapEngine's navigation methods. SnapAdaptor has its own copy that
-// delegates here via m_adaptor.
+// resolveSnapModeScreensForResnap stays: SnapAdaptor's resnapCurrentAssignments,
+// reapplySnapZones and resnapForVirtualScreenReconfigure delegate to it through m_adaptor.
 //
 // requestMoveSpecificWindowToZone and reportNavigationFeedback stay — they are
 // pure signal emitters used cross-mode.
 
 #include "windowtrackingadaptor.h"
 #include "core/platform/logging.h"
+#include "core/interfaces/interfaces.h"
 #include "core/resolve/screenmoderouter.h"
+#include "dbus/dbushelpers.h"
+#include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/VirtualScreen.h>
@@ -37,10 +39,19 @@ QStringList WindowTrackingAdaptor::resolveSnapModeScreensForResnap(const QString
         candidates = mgr->effectiveScreenIds();
     }
 
-    if (!m_screenModeRouter) {
-        return candidates;
+    // Every caller is a system resnap: nothing with snapping switched off,
+    // nothing in a context the user disabled (F469).
+    if (m_settings && !m_settings->snappingEnabled()) {
+        return {};
     }
-    return m_screenModeRouter->partitionByMode(candidates).snap;
+    if (m_screenModeRouter) {
+        candidates = m_screenModeRouter->partitionByMode(candidates).snap;
+    }
+    const QString activity = m_layoutManager->currentActivity();
+    candidates.removeIf([this, &activity](const QString& screenId) {
+        return isPersistedContextDisabled(screenId, currentDesktopForScreen(screenId), activity);
+    });
+    return candidates;
 }
 
 void WindowTrackingAdaptor::requestMoveSpecificWindowToZone(const QString& windowId, const QString& zoneId,
@@ -55,6 +66,9 @@ void WindowTrackingAdaptor::reportNavigationFeedback(bool success, const QString
                                                      const QString& sourceZoneId, const QString& targetZoneId,
                                                      const QString& screenId)
 {
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return;
+    }
     qCDebug(lcDbusWindow) << "Navigation feedback: success=" << success << "action=" << action << "reason=" << reason
                           << "sourceZone=" << sourceZoneId << "targetZone=" << targetZoneId << "screen=" << screenId;
     Q_EMIT navigationFeedback(success, action, reason, sourceZoneId, targetZoneId, screenId);

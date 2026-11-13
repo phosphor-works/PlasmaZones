@@ -5,8 +5,8 @@
 // provides the drag-insert selector): the popup model built from the
 // injected strip-cards provider, and the hit-test that classifies the
 // cursor into a DragInsertTarget mirror. Split out of selector.cpp /
-// overlayservice.cpp by concern (both sit near their size ceilings) and
-// because everything here is dead weight on snap/autotile screens.
+// overlayservice.cpp by concern, because everything here is dead weight on
+// snap/autotile screens.
 
 #include "internal.h"
 #include "daemon/overlayservice.h"
@@ -139,6 +139,12 @@ void OverlayService::refreshStripSelector(const QString& screenId)
 
 void OverlayService::updateStripSelectorHit(QQuickItem* slot, int localX, int localY, const QString& screenId)
 {
+    // Guarded like every sibling helper in this file. The one caller reaches here
+    // behind a truthy zoneSelectorSlot(), but the writeQmlProperty calls further down
+    // are null-tolerant, which makes the function READ as guarded from the call site.
+    if (!slot) {
+        return;
+    }
     const QVariantList stripColumns = slot->property("stripColumns").toList();
     const QPointF pos(localX, localY);
 

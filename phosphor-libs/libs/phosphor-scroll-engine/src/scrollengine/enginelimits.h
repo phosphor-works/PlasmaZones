@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <PhosphorProtocol/ServiceConstants.h>
+
 #include <QtGlobal>
 
 namespace PhosphorScrollEngine {
@@ -79,6 +81,38 @@ inline constexpr int kMaxRestoredTilesPerColumn = 32;
 /// conversion total. Deliberately far above any real monitor extent: this
 /// rejects the malformed, it is not a layout constraint.
 inline constexpr double kMaxFixedExtentPx = 65535.0;
+
+/// Sanity ceiling for a pixel extent a CLIENT reports about itself: its
+/// declared minimum (ScrollStrip::setWindowMinimumSize) and the size it
+/// committed when offered its tile (ScrollEngine::reportCommittedSize). Both
+/// are summed with gaps, sibling floors and tab reservations in the relayout,
+/// so a value near INT_MAX would overflow those sums. Like kMaxFixedExtentPx it
+/// rejects the malformed rather than constraining a layout: an extent past the
+/// work area is handled by floating the window, not by this cap.
+inline constexpr int kMaxClientExtentPx = 100000;
+
+/// Sanity ceiling for one view pan along the strip (scrollViewByPercent's
+/// pixels before they are rounded, scrollViewByPx's caller-supplied ones),
+/// the same band the D-Bus adaptor bounds the pixel pan to. The percent verb
+/// needs it to keep qRound defined; ScrollStrip::scrollViewBy sums wide and
+/// takes any int, so for the pixel verb it only trims a pan the strip would
+/// clamp at its end anyway. Far wider than any meaningful pan (a hundred
+/// viewports and more) and far inside int.
+inline constexpr int kMaxScrollViewPx = 1'000'000;
+
+/// How far a committed extent may differ from the offer and still count as
+/// the offer (ScrollEngine::reportCommittedSize), and the rounding allowance
+/// every committed-floor compare in engine_committed.cpp takes. Fractional
+/// scaling rounds a logical size to whole device pixels and back, so a client
+/// that took its tile can commit one pixel either side of it; reading that as
+/// an answer would plant or give back a one-pixel floor and relayout the strip
+/// for it.
+///
+/// The wire contract's own tolerance, not a copy of it: the compositor decides
+/// which answers it reports with the same constant, and the two ends must
+/// agree. PhosphorProtocol::Service::CommittedSizeTolerancePx carries the full
+/// contract.
+inline constexpr int kCommittedExtentSlackPx = PhosphorProtocol::Service::CommittedSizeTolerancePx;
 
 /// Sanity bounds for tab-indicator geometry. Deliberately NOT the rules
 /// layer's constants — this library does not depend on phosphor-rules — but

@@ -37,8 +37,11 @@ OrderingPageKind orderingPageKind(const QString& page)
     return OrderingPageKind::None;
 }
 
-// The three Quick Shortcuts pages. Their editable state is the per-mode staged
-// quick-slot layout assignments in StagingService (daemon-backed).
+// The three per-mode Quick Shortcuts pages (snapping, tiling, scrolling). Their
+// editable state is the per-mode staged quick-slot layout assignments in
+// StagingService (daemon-backed). The Workspaces Quick Shortcuts page is NOT
+// one of them: its slot targets and chords are config keys, so it reverts
+// through the page manifest like any other config page.
 bool isShortcutsPage(const QString& page)
 {
     return page == QLatin1String("snapping-shortcuts") || page == QLatin1String("tiling-shortcuts")
@@ -121,8 +124,7 @@ const Settings::ConfigKeyList& animationConfigKeys()
 // moved to animationpagescope.{h,cpp}: pure page→event-root scoping logic
 // with no SettingsController dependency, split out for the same reason the
 // decoration equivalents were (direct unit-testability without building the
-// whole settings-app object graph, and to keep this translation unit inside
-// the file-size ceiling).
+// whole settings-app object graph).
 
 // Every decoration leaf reads/writes the single shared DecorationProfileTree
 // settings key (one JSON blob covering windows, OSDs, popups, shell surfaces

@@ -30,17 +30,20 @@
 #include "config/configdefaults.h"
 #include "core/platform/logging.h"
 #include "core/interfaces/settings_interfaces.h"
+#include "settings/rules/rulepickeroptions.h"
 #include "settings/utils/dbusutils.h"
 #include <PhosphorLayoutApi/LayoutId.h>
+#include <PhosphorProtocol/ClientHelpers.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorZones/ZoneJsonKeys.h>
 
+#include <QDBusConnection>
 #include <QDBusMessage>
+#include <QDBusPendingCallWatcher>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QRect>
 #include <QScreen>
@@ -177,9 +180,9 @@ namespace {
 /// unassigned case does NOT warn: a successful reply for an empty slot still
 /// carries one (empty) argument, so it returns through the first branch.
 ///
-/// Anonymous namespace keeps this TU-local, the same convention
-/// parseRunningWindowsJson below follows so unity-build batching cannot
-/// produce a duplicate-symbol surprise.
+/// Anonymous namespace keeps this TU-local, the same convention the
+/// settingscontroller_ordering.cpp helpers follow, so unity-build batching
+/// cannot produce a duplicate-symbol surprise.
 QString quickSlotFromReply(const QDBusMessage& reply, const char* what, int slotNumber)
 {
     if (reply.type() == QDBusMessage::ReplyMessage && !reply.arguments().isEmpty()) {
@@ -457,7 +460,15 @@ void SettingsController::onVirtualDesktopsChanged()
         // future mode (e.g. Scrolling) is automatically pruned when the
         // user removes a virtual desktop it referenced. The hand-maintained
         // {Snapping, Autotile} list here used to silently skip Scrolling.
-        if (desktopsRefreshed && m_virtualDesktopCount >= 1) {
+        //
+        // Skipped while dynamic workspaces are enabled (in a build that
+        // carries them; elsewhere the flag does nothing). The daemon then
+        // creates and removes desktops on its own as windows come and go, so
+        // the count dips below a disabled desktop's number in passing, and a
+        // prune would drop the user's entry (and badge the Overview page with
+        // an edit nobody made) on every such dip.
+        if (desktopsRefreshed && m_virtualDesktopCount >= 1
+            && !(workspacesAvailable() && m_settings.workspacesEnabled())) {
             for (const auto mode : PhosphorZones::allModes()) {
                 QStringList disabled = m_settings.disabledDesktops(mode);
                 if (pruneDisabledDesktopEntries(disabled, m_virtualDesktopCount)) {
@@ -500,22 +511,18 @@ void SettingsController::onActivitiesChanged()
                 validIds.insert(id);
             }
         }
-        // Gate on the ids the prune actually consumes, not on m_activities: a
-        // non-empty payload whose entries carry no usable id passes an
-        // m_activities check with an empty validIds, and pruning against an
-        // empty set wipes every disabled-activity entry the user has.
+        // A payload with no usable id leaves validIds empty, and the prune
+        // removes nothing then (F423).
         //
         // Iterate every mode the (Mode, Family) table knows about so a
         // future mode (e.g. Scrolling) is automatically pruned when the
         // user removes a KDE activity it referenced. Symmetric with the
         // desktop-prune loop in onVirtualDesktopsChanged above.
-        if (!validIds.isEmpty()) {
-            for (const auto mode : PhosphorZones::allModes()) {
-                QStringList disabledActs = m_settings.disabledActivities(mode);
-                if (pruneDisabledActivityEntries(disabledActs, validIds)) {
-                    m_settings.setDisabledActivities(mode, disabledActs);
-                    prunedAny = true;
-                }
+        for (const auto mode : PhosphorZones::allModes()) {
+            QStringList disabledActs = m_settings.disabledActivities(mode);
+            if (pruneDisabledActivityEntries(disabledActs, validIds)) {
+                m_settings.setDisabledActivities(mode, disabledActs);
+                prunedAny = true;
             }
         }
         if (prunedAny) {
@@ -526,6 +533,9 @@ void SettingsController::onActivitiesChanged()
     // Unconditional for the same reason as virtualDesktopsChanged above: KDE
     // is the change authority for this event, so no snapshot compare.
     Q_EMIT activitiesChanged();
+    // currentActivityChanged lands here too, and each screen's state names
+    // the current activity.
+    scheduleScreenStatesRefresh();
 }
 
 void SettingsController::onScreenLayoutChanged(const QString& screenId, const QString& layoutId, int virtualDesktop)
@@ -540,57 +550,10 @@ void SettingsController::onScreenLayoutChanged(const QString& screenId, const QS
     // small. If a future consumer needs per-screen targeting, widen the
     // signal in lockstep with the QML side (single-signal source of truth).
     Q_EMIT screenLayoutChanged();
+    scheduleScreenStatesRefresh();
 }
 
 namespace {
-
-// Parses the daemon's running-windows JSON payload into a QVariantList of
-// {windowClass, appName, caption, desktopFile} maps ready for QML consumption. The
-// synchronous getRunningWindows() predecessor was removed in Phase 6 of
-// refactor/dbus-performance; only onRunningWindowsAvailable calls this now.
-// Anonymous namespace keeps this TU-local — same convention as the
-// settingscontroller_ordering.cpp helpers so unity-build batching can't
-// produce a duplicate-symbol surprise.
-QVariantList parseRunningWindowsJson(const QString& json)
-{
-    if (json.isEmpty()) {
-        return {};
-    }
-    // A signal payload rather than a method reply, so DaemonDBus::replyJsonArray
-    // does not fit — but it warns for the same reason: the caller sees an empty
-    // list either way, and without a log line "no windows are open" and "the
-    // effect sent something unreadable" are the same state.
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8(), &parseError);
-    if (parseError.error != QJsonParseError::NoError) {
-        qCWarning(lcCore) << "parseRunningWindowsJson: payload is not valid JSON:" << parseError.errorString();
-        return {};
-    }
-    if (!doc.isArray()) {
-        qCWarning(lcCore) << "parseRunningWindowsJson: payload JSON is not an array";
-        return {};
-    }
-
-    QVariantList result;
-    const QJsonArray array = doc.array();
-    result.reserve(array.size());
-    for (const QJsonValue& value : array) {
-        if (!value.isObject()) {
-            continue;
-        }
-        const QJsonObject obj = value.toObject();
-        QVariantMap item;
-        item[QStringLiteral("windowClass")] = obj[QLatin1String("windowClass")].toString();
-        item[QStringLiteral("appName")] = obj[QLatin1String("appName")].toString();
-        item[QStringLiteral("caption")] = obj[QLatin1String("caption")].toString();
-        // `desktopFile` is forwarded verbatim — older effect builds that
-        // don't include the field will produce an empty string, which the
-        // WindowPickerDialog hides from its DesktopFile mode.
-        item[QStringLiteral("desktopFile")] = obj[QLatin1String("desktopFile")].toString();
-        result.append(item);
-    }
-    return result;
-}
 
 // The most tabs a strip preview will draw pills for. The daemon is a
 // same-user peer rather than a hostile one, so this is version-skew and
@@ -663,7 +626,7 @@ void SettingsController::onRunningWindowsAvailable(const QString& json)
     // Reply arrived — stop the timeout timer so a stale runningWindowsTimedOut()
     // doesn't fire after we've already served fresh data.
     m_runningWindowsTimeout.stop();
-    m_cachedRunningWindows = parseRunningWindowsJson(json);
+    m_cachedRunningWindows = RulePickerOptions::runningWindows(json);
     Q_EMIT runningWindowsAvailable(m_cachedRunningWindows);
 }
 
@@ -671,10 +634,12 @@ void SettingsController::onRunningWindowsAvailable(const QString& json)
 // Screen state query
 // ═══════════════════════════════════════════════════════════════════════════════
 
-QVariantList SettingsController::getScreenStates() const
+namespace {
+
+/// The getScreenStates reply as one map per screen. Shared by the blocking
+/// query and the cached asynchronous one so both read the reply the same way.
+QVariantList screenStatesFromReply(const QDBusMessage& reply)
 {
-    QDBusMessage reply = DaemonDBus::callDaemon(QString(PhosphorProtocol::Service::Interface::LayoutRegistry),
-                                                QStringLiteral("getScreenStates"));
     const QJsonArray arr = DaemonDBus::replyJsonArray(reply, QLatin1String("getScreenStates"));
     QVariantList result;
     result.reserve(arr.size());
@@ -683,6 +648,49 @@ QVariantList SettingsController::getScreenStates() const
             result.append(value.toObject().toVariantMap());
     }
     return result;
+}
+
+} // namespace
+
+QVariantList SettingsController::getScreenStates() const
+{
+    return screenStatesFromReply(DaemonDBus::callDaemon(QString(PhosphorProtocol::Service::Interface::LayoutRegistry),
+                                                        QStringLiteral("getScreenStates")));
+}
+
+void SettingsController::scheduleScreenStatesRefresh()
+{
+    m_screenStatesCache.schedule();
+}
+
+void SettingsController::refreshScreenStates()
+{
+    // A focus change or the Rules page coming into view is no reason to
+    // start a stopped daemon, so the call is not made while it is down. The
+    // runningChanged handler schedules a re-read once the daemon is up.
+    // Checked here rather than per trigger so a burst folded by the cache
+    // costs one check. No unit test drives this gate because constructing
+    // a SettingsController needs a session bus.
+    if (!m_daemonController.isRunning()) {
+        return;
+    }
+    // The daemon can still leave the bus between that check and delivery, so
+    // the message itself also refuses to start it. ClientHelpers::asyncCall
+    // leaves D-Bus's auto-start flag set, hence the message is built here.
+    QDBusMessage message = QDBusMessage::createMethodCall(
+        QString(PhosphorProtocol::Service::Name), QString(PhosphorProtocol::Service::ObjectPath),
+        QString(PhosphorProtocol::Service::Interface::LayoutRegistry), QStringLiteral("getScreenStates"));
+    message.setAutoStartService(false);
+    // Numbered before the call so a reply to an older request, still in
+    // flight, is dropped rather than overwriting a newer answer.
+    const quint64 request = m_screenStatesCache.beginRequest();
+    auto* watcher = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, request](QDBusPendingCallWatcher* w) {
+        w->deleteLater();
+        const QDBusMessage reply = w->reply();
+        const bool ok = reply.type() == QDBusMessage::ReplyMessage;
+        m_screenStatesCache.finishRequest(request, ok, ok ? screenStatesFromReply(reply) : QVariantList());
+    });
 }
 
 QVariantMap SettingsController::getScrollingBlueprintProgress(const QString& screenId) const

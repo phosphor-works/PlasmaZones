@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorconfig_export.h>
+#include "phosphorconfig_export.h"
 
 #include <QColor>
 #include <QJsonObject>
@@ -29,18 +29,24 @@ struct Schema;
 ///   - A uniform @c changed() signal that consumers can wire directly to UI updates
 ///
 /// @code
+///   const QString window = QStringLiteral("Window");
+///   const QString width = QStringLiteral("Width");
+///
 ///   Schema schema;
 ///   schema.version = 1;
-///   schema.groups["Window"] = {
-///       {QStringLiteral("Width"),  600,       QMetaType::Int},
-///       {QStringLiteral("Height"), 400,       QMetaType::Int},
-///       {QStringLiteral("Title"),  QStringLiteral("Hello")},
+///   schema.groups[window] = {
+///       {width, 600, QMetaType::Int},
+///       {QStringLiteral("Height"), 400, QMetaType::Int},
+///       {QStringLiteral("Title"), QStringLiteral("Hello"), QMetaType::QString},
 ///   };
 ///
-///   auto store = std::make_unique<Store>(std::move(backend), schema);
-///   int w = store->read<int>("Window", "Width"); // returns 600 if unset
-///   store->write("Window", "Width", 800);
-///   store->reset("Window", "Width"); // back to 600
+///   // The store borrows the backend, so declare the backend first: it is
+///   // then destroyed after the store.
+///   auto backend = std::make_unique<JsonBackend>(configPath);
+///   Store store(backend.get(), schema);
+///   int w = store.read<int>(window, width); // 600 while unset
+///   store.write(window, width, 800);
+///   store.reset(window, width); // back to 600
 /// @endcode
 class PHOSPHORCONFIG_EXPORT Store : public QObject
 {
@@ -122,6 +128,13 @@ public:
     /// freezes a default. The read path answers absence with the schema
     /// default, making the two indistinguishable to consumers — and letting
     /// a later default retune reach every store that has no explicit value.
+    ///
+    /// Over a backend with a read-only layer (@c JsonBackend::setOverlay),
+    /// reads see the layer but @c write, @c reset, @c resetGroup and
+    /// @c importFromJson decide against what is persisted
+    /// (@c IBackend::persistedGroup). A value equal to the layer's is still
+    /// written, and @c changed reports the persisted change even while the
+    /// layer keeps the value reads observe where it was.
     void write(const QString& group, const QString& key, const QVariant& value);
 
     /// Reset one key to its schema default. No-op when the key is undeclared.
@@ -147,7 +160,8 @@ public:
 
     /// Produce a JSON snapshot of every declared key's current value. Useful
     /// for "export settings" UIs and dotfile sync. Keys absent from the
-    /// backing store are emitted with their schema default.
+    /// backing store are emitted with their schema default. The values are
+    /// the ones reads observe, so a @c JsonBackend overlay is included.
     QJsonObject exportToJson() const;
 
     /// Produce a JSON snapshot of every declared key's SCHEMA DEFAULT,

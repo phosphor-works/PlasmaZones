@@ -2,7 +2,7 @@
     "KPlugin": {
         "Name": "PlasmaZones",
         "Description": "Version information, update checks, and settings launcher",
-        "Icon": "plasmazones",
+        "Icon": "org.phosphor_works.PlasmaZones",
         "Authors": [
             {
                 "Name": "fuddlesworth",

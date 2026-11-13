@@ -27,7 +27,7 @@ class ISettings;
 /**
  * @brief D-Bus adaptor for zone detection operations
  *
- * Provides D-Bus interface: org.plasmazones.ZoneDetection
+ * Provides D-Bus interface: org.phosphor_works.Placement.ZoneDetection
  *  PhosphorZones::Zone detection queries
  *
  * Uses interface types for loose coupling
@@ -36,7 +36,7 @@ class PLASMAZONES_EXPORT ZoneDetectionAdaptor : public QDBusAbstractAdaptor,
                                                 public PhosphorSnapEngine::IZoneAdjacencyResolver
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.ZoneDetection")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.ZoneDetection")
 
 public:
     explicit ZoneDetectionAdaptor(PhosphorZones::IZoneDetector* detector, PhosphorZones::LayoutRegistry* layoutManager,
@@ -44,8 +44,24 @@ public:
                                   QObject* parent = nullptr);
     ~ZoneDetectionAdaptor() override = default;
 
+    /// The zone next to the union of a span in @p direction, never a member.
+    /// Not a slot: the D-Bus contract stays as it is.
+    QString getAdjacentZoneOutside(const QStringList& zoneIds, const QString& direction,
+                                   const QString& screenId) const override;
+    /// The edge zone of @p desktop's layout. Not a slot either.
+    QString getFirstZoneInDirectionOnDesktop(const QString& direction, const QString& screenId,
+                                             int desktop) const override;
+
 public Q_SLOTS:
-    // PhosphorZones::Zone detection for cursor position
+    // PhosphorZones::Zone detection for cursor position. Not pure queries:
+    // both recompute the point's screen layout against that screen (the one
+    // Layout object every screen running that layout shares, its last
+    // recalculation scale included) and bind the shared zone detector to it,
+    // as a drag tick does. detectZoneAtPosition also highlights the zone found
+    // and emits zoneDetected with the zone's rect on the detected screen. When
+    // the detection runs and finds no zone it clears the highlight, but a call
+    // that returns before detecting (no screen, no layout for it, or a
+    // degenerate screen geometry) leaves the highlight as it was.
     QString detectZoneAtPosition(int x, int y);
     QStringList detectMultiZoneAtPosition(int x, int y);
     PhosphorProtocol::ZoneGeometryRect getZoneGeometry(const QString& zoneId);
@@ -109,6 +125,8 @@ public Q_SLOTS:
     QString detectZoneWithModifiers(int x, int y);
 
 Q_SIGNALS:
+    /// The zone detectZoneAtPosition found, with its rect on the screen the
+    /// point was detected on.
     void zoneDetected(const QString& zoneId, const PhosphorProtocol::ZoneGeometryRect& geometry);
 
 private:
@@ -126,6 +144,8 @@ private:
     /// drag pipeline and the overlay layer — external clients otherwise see
     /// zones on a screen the daemon itself treats as zoneless.
     PhosphorZones::Layout* resolveActiveLayoutForScreen(const QString& screenId) const;
+    /// The zone of @p layout at its edge in @p direction, on @p resolvedId's geometry.
+    QString firstZoneOfLayout(PhosphorZones::Layout* layout, const QString& direction, const QString& resolvedId) const;
 
     PhosphorZones::IZoneDetector* m_zoneDetector; // Interface type (DIP)
     PhosphorZones::LayoutRegistry* m_layoutManager; // Interface type (DIP)

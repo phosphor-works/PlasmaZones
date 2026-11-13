@@ -180,6 +180,26 @@ void DesktopTransitionManager::desktopRemoved(KWin::VirtualDesktop* desktop)
     }
 }
 
+void DesktopTransitionManager::cancelSwitch(KWin::LogicalOutput* screen)
+{
+    // Only a Switch leg: a peek leg belongs to show-desktop, which a desktop
+    // switch on one output does not end, and its bare-desktop cache feeds the
+    // show leg still to come.
+    const auto it = m_active.find(screen);
+    if (it == m_active.end() || it->second.kind != Kind::Switch) {
+        return;
+    }
+    // Runs from desktopChanged, off the paint thread, and the erase frees the
+    // leg's captured GLTextures.
+    ensureGlContextCurrent();
+    // The blend was the last thing drawn on the output and nothing else
+    // schedules the settled scene's frame, as for desktopRemoved's reap.
+    if (KWin::effects && screen) {
+        KWin::effects->addRepaint(screen->geometry());
+    }
+    endOutput(screen);
+}
+
 void DesktopTransitionManager::invalidateShaderCache()
 {
     // Fires from the AnimationShaderRegistry file watcher between frames, where the

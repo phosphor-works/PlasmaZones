@@ -5,6 +5,7 @@
 
 #include "plasmazones_export.h"
 #include <QObject>
+#include <QPointer>
 #include <QDBusAbstractAdaptor>
 #include <QDBusVariant>
 #include <QJsonObject>
@@ -14,6 +15,7 @@
 #include <QTimer>
 #include <QUuid>
 #include <QHash>
+#include <functional>
 #include <optional>
 #include <functional>
 #include <utility>
@@ -50,13 +52,13 @@ class ISettings;
 /**
  * @brief D-Bus adaptor for layout management operations
  *
- * Provides D-Bus interface: org.plasmazones.LayoutRegistry
+ * Provides D-Bus interface: org.phosphor_works.Placement.LayoutRegistry
  *  PhosphorZones::Layout CRUD and assignment operations
  */
 class PLASMAZONES_EXPORT LayoutAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.LayoutRegistry")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.LayoutRegistry")
 
 public:
     explicit LayoutAdaptor(PhosphorZones::LayoutRegistry* manager, QObject* parent = nullptr);
@@ -99,6 +101,31 @@ public:
      * without changing the adaptor.
      */
     void setLayoutSource(PhosphorLayout::ILayoutSource* source);
+
+    /// Inject the daemon's live tiled-window count per screen: the count of the
+    /// tiling state that runs on the screen, or nullopt when no tiling engine
+    /// does. Backs getScreenStates' tiledWindowCount key. Unset, the key is
+    /// never written.
+    void setTiledWindowCountProvider(std::function<std::optional<int>(const QString& screenId)> provider);
+
+    /// Queue a comparison of the getScreenStates answer for the next
+    /// event-loop pass, and emit @ref screenStatesChanged when it differs from
+    /// the answer the last comparison saw. The first comparison has nothing
+    /// before it, so it emits. The daemon calls it wherever a field other
+    /// than a display name can move: every active-assignment diff (which the
+    /// desktop and activity switches, screen adds and removals,
+    /// virtual-screen changes, assignment applies and rule reconciles all
+    /// run) and every change of a tiling screen's tiled-window count. No call
+    /// exists for a display name alone: a layout list change or a template
+    /// reload queues it only through the assignment diff its handler runs,
+    /// and an algorithm reload not at all. Coalesced, so a burst in one turn
+    /// compares once. Not a bus slot.
+    void scheduleScreenStatesCheck();
+
+    /// Drop a comparison @ref scheduleScreenStatesCheck queued and has not
+    /// run yet. Daemon::stop calls it, so no signal goes out after the
+    /// daemon's teardown has begun. Not a bus slot.
+    void cancelScreenStatesCheck();
 
 public Q_SLOTS:
     // PhosphorZones::Layout queries
@@ -344,7 +371,10 @@ public Q_SLOTS:
      * inherited value from an assigned one. scrollingTemplateId reads the
      * stored entry field rather than the mode-gated resolver, so a template
      * preserved across a mode toggle is reported even while another mode
-     * runs.
+     * runs. tiledWindowCount is the live count of the tiling state running
+     * on the screen, present only while a tiling engine (autotile or
+     * scrolling) runs there, so a reader can evaluate a TiledWindowCount
+     * condition the way the daemon does and leave it unanswered elsewhere.
      *
      * @return JSON string
      */
@@ -363,9 +393,10 @@ Q_SIGNALS:
      * Emitted by @c updateLayout (the editor's save path) and by active-layout
      * switches, where the client genuinely needs the whole serialized layout.
      * Usually carries the complete layout JSON (5–20 KB in prod); when the
-     * update targeted an AUTOTILE entry the payload is the caller's raw
-     * autotile-override object (id "autotile:&lt;algorithmId&gt;", not a
-     * serialized layout), so subscribers must not blindly parse it as one.
+     * update targeted an AUTOTILE entry the payload is that algorithm's
+     * override entry as stored, under its id "autotile:&lt;algorithmId&gt;"
+     * (not a serialized layout), so subscribers must not blindly parse it as
+     * one.
      *
      * @c createLayoutFromJson does NOT emit this — a new layout announces
      * itself with @c layoutCreated(id) instead. An active-layout switch is not
@@ -450,6 +481,9 @@ Q_SIGNALS:
     void activeLayoutForScreenChanged(const QString& screenId, const QString& layoutId);
 
     void virtualDesktopCountChanged(int count);
+    /// The desktop names changed: a rename, or a desktop added, removed or
+    /// moved. A growing count can go out before the names it brings (F1101).
+    void virtualDesktopNamesChanged(const QStringList& names);
 
     /**
      * @brief Emitted when the internal active layout changes
@@ -487,6 +521,25 @@ Q_SIGNALS:
      * set semantics should convert via `QSet<QString>{list.begin(), list.end()}`.
      */
     void assignmentChangesApplied(const QStringList& changedScreenIds);
+
+    /**
+     * @brief Emitted when what getScreenStates answers has changed.
+     *
+     * Guaranteed for every field except the display names (layoutName,
+     * algorithmName, scrollingTemplateName), including the ones no other
+     * signal reports on its own: a screen's virtual desktop or the activity
+     * moving while its resolved layout stays the same, and the live
+     * tiled-window count of a tiling screen. A change that moves only a name
+     * (a layout rename, an algorithm or template reload) is not guaranteed to
+     * fire it. It may, because a comparison that runs for any reason, the
+     * assignment diff a layout list change or a template reload runs
+     * included, carries a moved name along.
+     * Carries nothing, so a subscriber re-reads getScreenStates. Coalesced per
+     * event-loop pass and compared against the previous answer (see
+     * @ref scheduleScreenStatesCheck), so it fires once per real change, and
+     * once after start-up, when the first comparison has nothing before it.
+     */
+    void screenStatesChanged();
 
 private Q_SLOTS:
     // String-based connection slots for PhosphorZones::LayoutRegistry signals
@@ -552,6 +605,11 @@ public:
     /// so a lone bus call resnaps and announces like a batch close does.
     void stageOrApply(const QString& resolvedId);
 
+    /// Make @p layout the global active layout, at the batch close when a save
+    /// batch is open. flushPendingActiveLayout applies the held one.
+    void setActiveLayoutAtApply(PhosphorZones::Layout* layout);
+    void flushPendingActiveLayout();
+
     /**
      * @brief Publish the daemon's freshly recomputed active-assignment snapshot.
      *
@@ -606,6 +664,13 @@ public:
 private:
     void connectLayoutManagerSignals();
     void connectVirtualDesktopSignals();
+    /// The desktop names this adaptor relays: KWin's own (already in KWin's
+    /// language for the desktops KWin named), with only an empty entry, and
+    /// any position past the end of KWin's list, filled with the translated
+    /// "Desktop N". VirtualDesktopManager::desktopNames() fills those with an
+    /// untranslated placeholder instead. Without KWin's interface, the
+    /// translated fallback for every desktop the manager counts.
+    QStringList displayDesktopNames() const;
     void connectActivitySignals();
 
     /**
@@ -617,6 +682,9 @@ private:
      * one place — see constructor bodies in layoutadaptor.cpp.
      */
     void initCoalesceTimer();
+    /// The comparison @ref scheduleScreenStatesCheck queues. Private and not a
+    /// slot, so it is no bus method.
+    void checkScreenStates();
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // Helper Methods
@@ -710,6 +778,7 @@ private:
 
     PhosphorZones::LayoutRegistry* m_layoutManager; // Concrete type for signal connections
     PhosphorWorkspaces::VirtualDesktopManager* m_virtualDesktopManager = nullptr;
+    QStringList m_relayedDesktopNames; ///< the last virtualDesktopNamesChanged payload
     PhosphorWorkspaces::ActivityManager* m_activityManager = nullptr;
     PhosphorScreens::ScreenManager* m_screenManager = nullptr;
     ISettings* m_settings = nullptr;
@@ -720,6 +789,15 @@ private:
     /// Separate from m_layoutSource (which is the full composite used for
     /// getLayoutPreview* D-Bus output).
     PhosphorLayout::ILayoutSource* m_autotileLayoutSource = nullptr;
+    /// See setTiledWindowCountProvider.
+    std::function<std::optional<int>(const QString& screenId)> m_tiledWindowCountProvider;
+
+    /// The zero-interval single shot scheduleScreenStatesCheck arms (its
+    /// isActive() is the compression latch, and cancelScreenStatesCheck stops
+    /// it), and the getScreenStates answer the last comparison saw (empty
+    /// before the first).
+    QTimer m_screenStatesCheck;
+    QString m_lastScreenStatesJson;
 
     // Suppress screenLayoutChanged D-Bus signal while a settings-driven save
     // batch is in flight (armed via the setSaveBatchMode slot around a batch
@@ -733,13 +811,22 @@ private:
     // consumed by applyAssignmentChanges.
     QSet<QString> m_changedScreenIds;
 
+    // The global active layout a staged write set, applied by
+    // applyAssignmentChanges after the apply (F724).
+    QPointer<PhosphorZones::Layout> m_pendingActiveLayout;
+
     // Resolved active layout id per effective screen, pushed by the daemon via
     // publishActiveAssignments. Mirrors Daemon::m_activeAssignmentByScreen — the
     // daemon is the authority, this is the bus-facing copy that backs
     // getActiveLayoutsForScreens.
     QHash<QString, QString> m_activeAssignmentByScreen;
 
-    // JSON caching for performance
+    // JSON caching for performance. Invalidated by layout edits only, so the
+    // relativeGeometry a fixed zone's JSON carries (Layout::toJson computes it
+    // from the layout's last recalculation) stays the one of the first read
+    // across later recalculations, a scale change included. Nothing reads that
+    // hint from these replies today; a reader that needs the zones' current
+    // proportions must normalize the fixed geometry itself, not rely on it.
     QString m_cachedActiveLayoutJson;
     QUuid m_cachedActiveLayoutId;
     QHash<QUuid, QString> m_cachedLayoutJson; // Cache for individual layouts

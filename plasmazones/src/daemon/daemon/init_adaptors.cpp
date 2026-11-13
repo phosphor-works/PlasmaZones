@@ -4,69 +4,30 @@
 #include "daemon/daemon.h"
 #include "helpers.h"
 
-#include <QGuiApplication>
-#include <QDBusConnection>
-
-#include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
-#include <PhosphorAnimation/AnimationShaderRegistry.h>
-#include <PhosphorSurface/SurfaceShaderRegistry.h>
 
 #include "daemon/overlayservice.h"
-#include "daemon/controllers/unifiedlayoutcontroller.h"
 #include "daemon/controllers/shortcutmanager.h"
-#include "daemon/controllers/enginefactory.h"
-#include "daemon/controllers/contextresolverwiring.h"
-#include "daemon/rendering/zoneentryscaffold.h"
-#include "daemon/rendering/zoneshadernoderhi.h"
 
-#include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>
-#include <PhosphorLayoutApi/LayoutId.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/IZoneLayoutRegistry.h>
-#include <PhosphorZones/ZonesLayoutSource.h>
-#include <PhosphorZones/LayoutComputeService.h>
 #include <PhosphorZones/ZoneDetector.h>
 #include <PhosphorTiles/AlgorithmRegistry.h>
-#include <PhosphorTiles/AutotileConstants.h>
-#include <PhosphorTiles/AutotileLayoutSourceFactory.h>
 #include <PhosphorTiles/ITileAlgorithmRegistry.h>
 #include <PhosphorTiles/ScriptedAlgorithmLoader.h>
-#include <PhosphorTiles/TilingAlgorithm.h>
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorWorkspaces/ActivityManager.h>
-#include <PhosphorProtocol/ServiceConstants.h>
-#include <PhosphorContext/ContextResolver.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
-#include <PhosphorScreens/Swapper.h>
-#include <PhosphorScreens/PlasmaPanelSource.h>
-#include <PhosphorScreens/ScreenIdentity.h>
-#include <PhosphorSnapEngine/SnapEngine.h>
-#include <PhosphorSnapEngine/SnapState.h>
-#include <PhosphorTileEngine/AutotileEngine.h>
-#include <PhosphorRules/ExclusionRules.h>
-#include <PhosphorRules/RuleAction.h>
-#include <PhosphorRules/Rule.h>
 #include <PhosphorRules/RuleStore.h>
 
-#include "config/configbackends.h"
-#include "config/configdefaults.h"
 #include "config/settingsconfigstore.h"
 #include "config/settings.h"
-#include "core/types/baselinecleanup.h"
 #include "core/types/constants.h"
-#include "core/resolve/crosssurfaceresolver.h"
-#include "core/resolve/animationbootstrap.h"
-#include "core/resolve/screenmoderouter.h"
-#include "core/utils/geometryutils.h"
-#include "core/utils/utils.h"
 #include "core/platform/logging.h"
 #include "core/interfaces/shaderregistry.h"
-#include "common/screenidresolver.h"
-#include "common/layoutbundlebuilder.h"
-#include "phosphor_i18n.h"
+#include "dbus/dbushelpers.h"
 #include "dbus/layoutadaptor/layoutadaptor.h"
 #include "dbus/settingsadaptor/settingsadaptor.h"
 #include "dbus/overlayadaptor.h"
@@ -164,6 +125,12 @@ void Daemon::initCoreAdaptors()
     // getLayoutPreview* methods; this separate pointer targets only the
     // autotile enumeration slot — see LayoutAdaptor::setAutotileLayoutSource.
     m_layoutAdaptor->setAutotileLayoutSource(m_autotileLayoutSource);
+    // The live tiled-window count getScreenStates publishes, the same answer
+    // the registry's TiledWindowCount provider gives the context cascade. The
+    // engines are built later in init(); the lambda reads them per call.
+    m_layoutAdaptor->setTiledWindowCountProvider([this](const QString& screenId) {
+        return tiledWindowCountForScreen(screenId);
+    });
     // Invalidate D-Bus getActiveLayout() cache when the default layout changes in settings
     connect(m_settings.get(), &Settings::defaultLayoutIdChanged, m_layoutAdaptor, &LayoutAdaptor::invalidateCache);
     m_settingsAdaptor = new SettingsAdaptor(m_settings.get(), &m_profileRegistry, this);
@@ -173,7 +140,7 @@ void Daemon::initCoreAdaptors()
     // that owns m_shaderRegistry runs its destructor.
     m_shaderAdaptor = new ShaderAdaptor(m_shaderRegistry.get(), this);
 
-    // Rule adaptor - the unified org.plasmazones.Rules surface.
+    // Rule adaptor - the unified org.phosphor_works.Placement.Rules surface.
     // Held as a member so stop() can detach() it before the unique_ptr that
     // owns m_ruleStore runs its destructor.
     m_ruleAdaptor = new RuleAdaptor(m_ruleStore.get(), this);
@@ -202,6 +169,13 @@ void Daemon::initCoreAdaptors()
     // Overlay adaptor - overlay visibility and highlighting
     m_overlayAdaptor = new OverlayAdaptor(m_overlayService.get(), m_zoneDetector.get(), m_layoutManager.get(),
                                           m_screenManager.get(), m_settings.get(), this);
+    // A bridge registers only from the compositor's own process, the one the
+    // thumbnail entries are held to, so no other peer can take the
+    // registration first and keep KWin out (#1155). Both adaptors are
+    // children of this daemon and go together.
+    m_compositorBridge->setCompositorIdentityCheck([overlay = m_overlayAdaptor](const QString& busName) {
+        return overlay->isCompositorPeer(busName);
+    });
 
     // PhosphorZones::Zone detection adaptor - zone detection queries
     m_zoneDetectionAdaptor = new ZoneDetectionAdaptor(m_zoneDetector.get(), m_layoutManager.get(),
@@ -216,6 +190,39 @@ void Daemon::initCoreAdaptors()
     // Full rule set for per-window RestorePosition evaluation (overrides the
     // per-engine *RestoreFloatedWindowsOnLogin settings for matched windows).
     m_windowTrackingAdaptor->setRuleStore(m_ruleStore.get());
+    // The effect's settle report can name an output gone before the daemon's
+    // own screen-removed handler runs; both retire it the same way.
+    m_windowTrackingAdaptor->setOutputRetirer([this](const QString& physicalScreenId) {
+        retireOutputPlacements(physicalScreenId);
+    });
+    // A window that left a screen leaves the saved engine orders of the
+    // screens it left, or a mode round trip there tiles it back (F695).
+    m_windowTrackingAdaptor->setWindowLeftScreenHook([this](const QString& windowId, const QString& keepScreenId) {
+        pruneEngineOrdersForWindow(PhosphorIdentity::WindowId::extractInstanceId(windowId), keepScreenId);
+    });
+    // The compositor bridge's screen-form floats act on the window where it
+    // is; any other bus caller's are gated as the screenless verb is (F1108).
+    m_windowTrackingAdaptor->setBridgeCallerCheck([adaptor = m_windowTrackingAdaptor](const QString& busName) {
+        return DbusHelpers::isBridgeCaller(adaptor, busName);
+    });
+    // An evacuee on a hidden desktop floats by the mode that desktop runs,
+    // decided as the engine screen sets decide it in view (F1122).
+    m_windowTrackingAdaptor->setContextModeResolver(
+        [this](const QString& screenId, int desktop, const QString& activity) {
+            return runningModeForContext(screenId, desktop, activity);
+        });
+    // Each monitor's size as last accepted from the compositor, from the
+    // session state the adaptor just loaded, stands in for the report until
+    // this session's is accepted (onCompositorPixelSizeChanged). Here, before start()
+    // starts the screen manager, so the first resolve of every screen already
+    // has it and a report that confirms it moves nothing. The manager tracks
+    // no screen yet, so seeding emits nothing.
+    {
+        const QHash<QString, QSize> lastSizes = m_windowTrackingAdaptor->screenPixelSizes();
+        for (auto it = lastSizes.constBegin(); it != lastSizes.constEnd(); ++it) {
+            m_screenManager->seedPixelSize(it.key(), it.value());
+        }
+    }
 
     // Drop closed windows from m_lastEngineOrders so a manual→autotile toggle
     // doesn't replay a ghost id into the TilingState (recalculateLayout would
@@ -241,8 +248,13 @@ void Daemon::initCoreAdaptors()
     // m_virtualScreenSwapper. One store per process, one change-signal
     // channel, no parallel Settings observer.
     m_screenAdaptor = new PhosphorScreens::DBusScreenAdaptor(m_screenManager.get(), m_virtualScreenStore.get(), this);
+    // Its compositor reports answer to the registered bridge through the same
+    // gate as the daemon's own compositor-only slots (#1155).
+    m_screenAdaptor->setCompositorReportGate([adaptor = m_screenAdaptor](QLatin1StringView member) {
+        return DbusHelpers::admitCompositorReport(adaptor, member);
+    });
 
-    // Window drag adaptor - handles drag events from KWin script
+    // Window drag adaptor - handles drag events from the KWin effect
     // All drag logic (modifiers, zones, snapping) handled here
     m_windowDragAdaptor = new WindowDragAdaptor(m_overlayService.get(), m_zoneDetector.get(), m_layoutManager.get(),
                                                 m_screenManager.get(), m_settings.get(), m_windowTrackingAdaptor, this);
@@ -268,6 +280,16 @@ void Daemon::initCoreAdaptors()
                                  << ") — clearing any stale drag state held by daemon";
                 m_windowDragAdaptor->clearForCompositorReconnect();
             });
+    // The compositor's pixel-size reports are deliberately NOT cleared on a
+    // (re-)registration, unlike the drag state above. A fresh effect re-sends
+    // every live output's size right after it registers (it starts with no
+    // record of what it sent), which overwrites each entry it still has, so a
+    // clear first would only flip every screen to its seed or to unknown and
+    // back, a second reshape per screen for nothing. An entry for a connector
+    // the new effect no longer has answers for no screen the daemon tracks,
+    // and an output added on that connector later is reported on its add. The
+    // bridge has no unregistration signal to clear on either; the manager
+    // drops every report in stop().
 
     // Registration watchdog: the KWin effect should register as a compositor
     // bridge within a few seconds of startup. If it never does, the daemon is

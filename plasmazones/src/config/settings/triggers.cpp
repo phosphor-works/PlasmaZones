@@ -46,14 +46,13 @@ P_STORE_SET_BOOL(setZoneSpanToggleMode, snappingBehaviorZoneSpanGroup, toggleAct
 P_STORE_GET(int, zoneSpanGraceMs, snappingBehaviorZoneSpanGroup, releaseGraceMsKey, int)
 P_STORE_SET_INT(setZoneSpanGraceMs, snappingBehaviorZoneSpanGroup, releaseGraceMsKey, zoneSpanGraceMsChanged)
 
-// Shared helper for the "plain" trigger-list setters (activation,
-// snap-assist, autotile-insert, and scrolling-insert plus the two wheel
-// chords in settings/scrolling.cpp). Post-write compare — the schema's
+// Shared helper for every trigger-list setter, the wheel chords in
+// settings/scrolling.cpp included. Post-write compare — the schema's
 // canonicalTriggerList validator drops non-map entries, strips unknown keys,
 // and caps the list. A pre-write equality check against the stored canonical
 // form would fire a spurious changed signal whenever the caller passed a
 // list that canonicalises to the same value (e.g. extra keys, sub-cap
-// padding). zoneSpan keeps its own setter due to the legacy-modifier sync.
+// padding).
 void Settings::writeTriggerList(const QString& group, const QString& key, const QVariantList& triggers,
                                 TriggerListSignalFn specificSignal)
 {
@@ -85,159 +84,15 @@ void Settings::setDragActivationTriggers(const QVariantList& triggers)
 P_STORE_GET(bool, zoneSpanEnabled, snappingBehaviorZoneSpanGroup, enabledKey, bool)
 P_STORE_SET_BOOL(setZoneSpanEnabled, snappingBehaviorZoneSpanGroup, enabledKey, zoneSpanEnabledChanged)
 
-DragModifier Settings::zoneSpanModifier() const
-{
-    return static_cast<DragModifier>(
-        m_store->read<int>(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::modifierKey()));
-}
-int Settings::zoneSpanModifierInt() const
-{
-    return static_cast<int>(zoneSpanModifier());
-}
-void Settings::setZoneSpanModifier(DragModifier modifier)
-{
-    // Same composite stale-guard as writeTriggerList: the modifier synthesis
-    // below read-modify-writes the whole zoneSpan trigger list, so a stale
-    // cache would bake stale sibling trigger entries into the rewrite.
-    refreshCleanBackendFromDisk();
-    // Write-then-compare so the schema's validIntOr validator gets the first
-    // word on whether the request is valid. A pre-write equality check like
-    // `before == static_cast<int>(modifier)` would let an invalid modifier
-    // (e.g. 99) sneak past: the store would snap it to Disabled=0 and skip
-    // the disk write, but we'd then stamp a trigger list with modifier=99
-    // baked in because the synthesis below ran with the raw input.
-    const int before =
-        m_store->read<int>(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::modifierKey());
-    // Snapshot the trigger list BEFORE writing the modifier: on configs with no
-    // stored trigger list, zoneSpanTriggers() synthesizes its result from the
-    // modifier key, so a post-write snapshot would already reflect the new
-    // modifier and the trigger-change comparison below could never fire.
-    const QVariantList beforeTriggers = zoneSpanTriggers();
-    m_store->write(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::modifierKey(),
-                   static_cast<int>(modifier));
-    const int after =
-        m_store->read<int>(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::modifierKey());
-    if (after == before) {
-        return;
-    }
-
-    // Modifier actually changed. Sync the trigger list's first entry — using
-    // the validator-coerced `after` value, not the raw input, so an invalid
-    // request that was snapped to the default doesn't smuggle a
-    // {modifier: 99} phantom into the trigger list.
-    QVariantList triggers = beforeTriggers;
-    if (!triggers.isEmpty()) {
-        QVariantMap first = triggers.first().toMap();
-        first[ConfigDefaults::triggerModifierField()] = after;
-        triggers[0] = first;
-    } else {
-        QVariantMap trigger;
-        trigger[ConfigDefaults::triggerModifierField()] = after;
-        trigger[ConfigDefaults::triggerMouseButtonField()] = 0;
-        triggers = {trigger};
-    }
-    m_store->write(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::triggersKey(), triggers);
-    const QVariantList afterTriggers = zoneSpanTriggers();
-
-    Q_EMIT zoneSpanModifierChanged();
-    if (afterTriggers != beforeTriggers) {
-        Q_EMIT zoneSpanTriggersChanged();
-    }
-    Q_EMIT settingsChanged();
-}
-void Settings::setZoneSpanModifierInt(int modifier)
-{
-    if (modifier >= 0 && modifier <= MaxDragModifier) {
-        setZoneSpanModifier(static_cast<DragModifier>(modifier));
-    }
-}
-
 QVariantList Settings::zoneSpanTriggers() const
 {
-    // ZoneSpan uniquely carries BOTH a legacy scalar "Modifier" key and a
-    // v2 "Triggers" list — historical result of the migration path where
-    // the old setting was a single modifier. SnapAssist and DragActivation
-    // only have the trigger list, so no equivalent synthesis applies there.
-    //
-    // When Triggers is absent on disk, synthesize a single-entry list from
-    // the actual ZoneSpanModifier value instead of returning the schema's
-    // static default. That keeps the two settings in sync when only one was
-    // explicitly persisted — e.g. a hand-edited config that sets
-    // ZoneSpanModifier but leaves Triggers untouched should report the
-    // edited modifier through zoneSpanTriggers(), not the compiled default.
-    //
-    // hasKey and zoneSpanModifier() both open a JsonGroup, and
-    // JsonBackend enforces a single active group at a time. Scope the
-    // hasKey group in its own block so it's released before
-    // zoneSpanModifier() opens the next one.
-    bool hasTriggers = false;
-    {
-        auto g = m_configBackend->group(ConfigDefaults::snappingBehaviorZoneSpanGroup());
-        hasTriggers = g->hasKey(ConfigDefaults::triggersKey());
-    }
-    if (!hasTriggers) {
-        QVariantMap trigger;
-        trigger[ConfigDefaults::triggerModifierField()] = static_cast<int>(zoneSpanModifier());
-        trigger[ConfigDefaults::triggerMouseButtonField()] = 0;
-        return {trigger};
-    }
     return m_store->readVariant(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::triggersKey())
         .toList();
 }
 void Settings::setZoneSpanTriggers(const QVariantList& triggers)
 {
-    // Same composite stale-guard as writeTriggerList (zoneSpan keeps its own
-    // setter for the legacy-modifier sync, not to skip the refresh).
-    refreshCleanBackendFromDisk();
-    // Post-write compare — see setDragActivationTriggers for the
-    // canonicalisation rationale. Snapshot both triggers AND the legacy
-    // modifier up front so we only emit the NOTIFY signals whose value
-    // actually changed.
-    const QVariantList beforeTriggers = zoneSpanTriggers();
-    const int beforeModifier =
-        m_store->read<int>(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::modifierKey());
-
-    m_store->write(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::triggersKey(),
-                   triggers.mid(0, MaxTriggersPerAction));
-
-    // Sync legacy modifier member from first trigger with a non-zero modifier.
-    // Derive from the validator-coerced STORED list (readVariant), never from
-    // the synthesizing zoneSpanTriggers() getter: a default-equal write is
-    // stored as key ABSENCE under sparse persistence, and the getter would
-    // then synthesize from the not-yet-synced Modifier key — feeding the OLD
-    // modifier back into this sync and silently reverting the user's edit
-    // with no NOTIFY.
-    const QVariantList storedTriggers =
-        m_store->readVariant(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::triggersKey()).toList();
-    DragModifier synced = DragModifier::Disabled;
-    for (const auto& t : storedTriggers) {
-        const int mod = t.toMap().value(ConfigDefaults::triggerModifierField(), 0).toInt();
-        if (mod != 0) {
-            synced = static_cast<DragModifier>(qBound(0, mod, MaxDragModifier));
-            break;
-        }
-    }
-    m_store->write(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::modifierKey(),
-                   static_cast<int>(synced));
-    const int afterModifier =
-        m_store->read<int>(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::modifierKey());
-
-    // The observable compare runs AFTER the modifier sync, so a pruned-key
-    // getter (which synthesizes from Modifier) reads the freshly synced
-    // value rather than the stale one.
-    const QVariantList afterTriggers = zoneSpanTriggers();
-    const bool triggersChanged = afterTriggers != beforeTriggers;
-    const bool modifierChanged = afterModifier != beforeModifier;
-    if (!triggersChanged && !modifierChanged) {
-        return;
-    }
-    if (triggersChanged) {
-        Q_EMIT zoneSpanTriggersChanged();
-    }
-    if (modifierChanged) {
-        Q_EMIT zoneSpanModifierChanged();
-    }
-    Q_EMIT settingsChanged();
+    writeTriggerList(ConfigDefaults::snappingBehaviorZoneSpanGroup(), ConfigDefaults::triggersKey(), triggers,
+                     &Settings::zoneSpanTriggersChanged);
 }
 
 // Behavior: WindowHandling + SnapAssist.

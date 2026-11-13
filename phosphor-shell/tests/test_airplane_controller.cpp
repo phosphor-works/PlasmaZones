@@ -20,7 +20,9 @@ using Objects = QMap<QDBusObjectPath, Interfaces>;
 Q_DECLARE_METATYPE(Interfaces)
 Q_DECLARE_METATYPE(Objects)
 
-namespace {
+// Named, not anonymous: the test class below holds a RadioFixture, and a member of
+// internal-linkage type warns (-Wsubobject-linkage) once the unity build includes this file.
+namespace AirplaneTestSupport {
 const QString manager = QStringLiteral("org.freedesktop.NetworkManager");
 const QString networkPath = QStringLiteral("/org/freedesktop/NetworkManager");
 const QString bluez = QStringLiteral("org.bluez");
@@ -134,7 +136,9 @@ public:
         return true;
     }
 };
-}
+} // namespace AirplaneTestSupport
+
+using namespace AirplaneTestSupport;
 
 class TestAirplaneController : public QObject
 {

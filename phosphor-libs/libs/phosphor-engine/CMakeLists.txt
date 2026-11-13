@@ -36,6 +36,11 @@ endif()
 
 include(GenerateExportHeader)
 
+# Unconditional, like phosphor-zones: in-tree this re-find is a cache hit,
+# and a standalone configure has no other source for the Qt targets the
+# library links below.
+find_package(Qt6 ${PHOSPHORENGINE_QT_MIN} REQUIRED COMPONENTS Core)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PhosphorEngine Library (SHARED)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -72,6 +77,7 @@ if(NOT TARGET PhosphorProtocol::PhosphorProtocol)
 endif()
 
 add_library(PhosphorEngine SHARED
+    include/PhosphorEngine/DesktopRemap.h
     include/PhosphorEngine/PlacementEngineBase.h
     include/PhosphorEngine/GapResolution.h
     include/PhosphorEngine/LayerFocusSwitch.h
@@ -79,6 +85,7 @@ add_library(PhosphorEngine SHARED
     include/PhosphorEngine/ScreenContextTracker.h
     include/PhosphorEngine/WindowPlacement.h
     include/PhosphorEngine/WindowPlacementStore.h
+    src/DesktopRemap.cpp
     src/LayerFocusSwitch.cpp
     src/PlacementEngineBase.cpp
     src/ScreenContextTracker.cpp
@@ -95,6 +102,15 @@ generate_export_header(PhosphorEngine
     EXPORT_FILE_NAME phosphorengine_export.h
     EXPORT_MACRO_NAME PHOSPHORENGINE_EXPORT
 )
+
+# Resolve KDE_INSTALL_INCLUDEDIR before target_include_directories expands it
+# into $<INSTALL_INTERFACE:>. Until it was set here, a non-KDE configure
+# exported no install include directory while the headers still went to
+# GNUInstallDirs' includedir.
+if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+    include(GNUInstallDirs)
+    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 target_include_directories(PhosphorEngine
     PUBLIC
@@ -123,10 +139,13 @@ target_link_libraries(PhosphorEngine
 # Install
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

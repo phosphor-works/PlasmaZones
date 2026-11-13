@@ -3,16 +3,19 @@
 
 #pragma once
 
-// Validator helpers shared between settingsschema.cpp and the per-domain
-// schema TUs split out of it (settingsschema_scrolling.cpp,
-// settingsschema_tiling.cpp). A helper lives here when it is reusable ACROSS
-// DOMAINS, so the next domain TU to need it finds it instead of copying it.
+// Validator and row helpers shared between settingsschema.cpp and the
+// per-domain schema TUs split out of it (settingsschema_scrolling.cpp,
+// settingsschema_tiling.cpp, settingsschema_workspaces.cpp). A helper lives
+// here when it is reusable ACROSS DOMAINS, so the next domain TU to need it
+// finds it instead of copying it.
 // canonicalProportionList is here on that basis — both its current users are
 // scrolling preset lists, but nothing about it is scrolling-specific.
 // Helpers genuinely tied to one domain stay in that TU's anonymous namespace.
 //
-// Each helper returns a function object with the same shape as
-// PhosphorConfig::KeyDef::validator.
+// Each SchemaValidators helper returns a function object with the same shape
+// as PhosphorConfig::KeyDef::validator. SchemaRows holds the row builders.
+
+#include <PhosphorConfig/Schema.h>
 
 #include <QLatin1Char>
 #include <QString>
@@ -208,3 +211,17 @@ inline QVariant canonicalProportionList(const QVariant& v, const QString& fallba
 }
 
 } // namespace PlasmaZones::SchemaValidators
+
+namespace PlasmaZones::SchemaRows {
+
+/// Append a string KeyDef with no validator: the shape of every global
+/// shortcut row. `description` is what the action DOES, in the user's terms,
+/// for the settings UI and the generated documentation to share, so it is a
+/// required argument: a row without its sentence does not compile.
+inline void addShortcut(QVector<PhosphorConfig::KeyDef>& list, const QString& key, const QString& defaultValue,
+                        const QString& description)
+{
+    list.append({key, defaultValue, QMetaType::QString, description});
+}
+
+} // namespace PlasmaZones::SchemaRows

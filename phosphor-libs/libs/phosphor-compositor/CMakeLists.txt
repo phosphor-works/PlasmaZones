@@ -83,6 +83,10 @@ generate_export_header(PhosphorCompositor
 if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
 endif()
 
@@ -149,3 +153,12 @@ install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/PhosphorCompositorConfigVersion.cmake"
     DESTINATION ${KDE_INSTALL_LIBDIR}/cmake/PhosphorCompositor
 )
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+if(CMAKE_PROJECT_NAME STREQUAL "PhosphorCompositor" OR BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

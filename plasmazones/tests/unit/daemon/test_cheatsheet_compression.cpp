@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Pins ShortcutManager::compressCheatsheetFamilies: a fully-assigned,
-// single-trigger, prefix-sharing family collapses to one combined row, and
-// every deviation (alternate binding, prefix mismatch, unassigned member,
-// off-pattern final token) falls back to the individual rows.
+// single-trigger, prefix-sharing family collapses to one combined row, a
+// family with no member assigned collapses to one unassigned row, and every
+// other deviation (alternate binding, prefix mismatch, some members
+// unassigned, off-pattern final token) falls back to the individual rows.
 
 #include "daemon/controllers/shortcutmanager.h"
 
@@ -169,6 +170,41 @@ private Q_SLOTS:
         rows[3].insert(QStringLiteral("assigned"), false);
 
         QCOMPARE(ShortcutManager::compressCheatsheetFamilies(rows, {arrowFamily()}).size(), 4);
+    }
+
+    void allMembersUnassigned_foldToOneUnassignedRow()
+    {
+        // An unbound family (the workspace slot families ship that way) reads
+        // as one row rather than a wall of empty ones. The merged row keeps
+        // the first member's id and position and says it is unassigned.
+        QVector<QVariantMap> rows = arrowRows();
+        for (QVariantMap& row : rows) {
+            row.insert(QStringLiteral("triggers"), QStringList());
+            row.insert(QStringLiteral("assigned"), false);
+        }
+
+        const QVector<QVariantMap> out = ShortcutManager::compressCheatsheetFamilies(rows, {arrowFamily()});
+
+        QCOMPARE(out.size(), 1);
+        const QVariantMap row = out.first();
+        QCOMPARE(row.value(QStringLiteral("id")).toString(), QStringLiteral("span-left"));
+        QCOMPARE(row.value(QStringLiteral("label")).toString(), QStringLiteral("Span Window"));
+        QCOMPARE(row.value(QStringLiteral("assigned")).toBool(), false);
+        QCOMPARE(row.value(QStringLiteral("triggers")).toStringList(), QStringList());
+    }
+
+    void allUnassignedButOneMemberMissing_leavesRowsAlone()
+    {
+        // The unassigned fold needs every member present, like the assigned
+        // one: a family with a member not registered is left as it is.
+        QVector<QVariantMap> rows = arrowRows();
+        rows.removeLast();
+        for (QVariantMap& row : rows) {
+            row.insert(QStringLiteral("triggers"), QStringList());
+            row.insert(QStringLiteral("assigned"), false);
+        }
+
+        QCOMPARE(ShortcutManager::compressCheatsheetFamilies(rows, {arrowFamily()}).size(), 3);
     }
 
     void wrongFinalToken_staysUncompressed()

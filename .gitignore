@@ -10,6 +10,8 @@
 # -----------------------------------------------------------------------------
 build/
 build*/
+# CI's compiler cache (.github/workflows/ci.yml)
+.ccache/
 CMakeCache.txt
 CMakeFiles/
 CMakeScripts/
@@ -283,11 +285,6 @@ docs/latex/
 *.deb
 *.rpm
 *.dmg
-# ...but the vendored Luau and valijson source tarballs are committed
-# (extracted at build time). The path is phosphor-libs/extern/ since the tier
-# split; a stale `!extern/*.tar.gz` here silently drops them from a commit
-# rather than erroring, which is how they went missing once already.
-!phosphor-libs/extern/*.tar.gz
 *.pkg
 dist/
 *.egg-info/
@@ -331,19 +328,26 @@ PlasmaZones.wiki/
 # -----------------------------------------------------------------------------
 # Claude Code
 # -----------------------------------------------------------------------------
-# .claude/ is ignored except the checked-in review/theme agents and the
-# code-audit, shader-theme and pz-* workflow skills
+# .claude/ is ignored except the checked-in agents, the hooks that
+# settings.json runs, and the code-audit, record-lesson, shader-theme and pz-*
+# workflow skills
 .claude/*
 !.claude/agents/
 .claude/agents/*
 !.claude/agents/review/
 !.claude/agents/shader-theme/
+!.claude/agents/triage/
+!.claude/agents/experts/
+!.claude/hooks/
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/code-audit/
+!.claude/skills/record-lesson/
 !.claude/skills/shader-theme/
+!.claude/skills/pz-algorithm-api/
 !.claude/skills/pz-build/
 !.claude/skills/pz-add-setting/
+!.claude/skills/pz-shader-pack/
 !.claude/skills/pz-verify-live/
 !.claude/settings.json
 .mcp.json
@@ -392,6 +396,11 @@ scratchpad/
 # and its version from the tag being released, so a committed copy could only
 # ever go stale.
 packaging/obs/plasmazones.dsc
+
+# The pinned dependency archives (cmake/PhosphorDependencies.cmake) a Debian
+# build reads through debian/rules. The release workflow fetches them there, or
+# puts them in the OBS orig tarball, from the pins, so they are never tracked.
+packaging/deps/
 
 # moon workspace runtime state (hashes, run reports). The config under
 # .moon/*.yml and .moon/tasks/ is tracked; only the cache is not.

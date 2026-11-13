@@ -11,6 +11,7 @@
 #include <QUuid>
 
 #include <algorithm>
+#include <functional>
 #include <iterator>
 #include <optional>
 
@@ -478,11 +479,11 @@ inline bool contextDimsOf(const MatchExpression& match, QString& screenId, int& 
         }
         // Any leaf that is not a ScreenId / VirtualDesktop / Activity equality
         // leaf is ignored here — a flat mixed rule still yields its context
-        // projection, per the contract above. This includes the Mode,
-        // TiledWindowCount, ScreenOrientation, ActiveLayout and ColorScheme
-        // leaves: all five ARE context fields, but none is one of the three
-        // decomposed dimensions, so they are deliberately projected out of
-        // contextDimsOf. Callers that must not lose them gate on
+        // projection, per the contract above. This includes every other
+        // context leaf (Mode, TiledWindowCount, the screen-shape fields,
+        // ActiveLayout, ColorScheme): each IS a context field, but none is one
+        // of the three decomposed dimensions, so they are deliberately
+        // projected out of contextDimsOf. Callers that must not lose them gate on
         // pinsNonDimensionContextField first — contextAxisFor already does.
     }
     // If no context-equality leaf was matched, the input was either a
@@ -504,8 +505,9 @@ inline bool contextDimsOf(const MatchExpression& match, QString& screenId, int& 
 inline constexpr Field kContextDimensionFields[] = {Field::ScreenId, Field::VirtualDesktop, Field::Activity};
 
 /// True if @p match pins a context field that is NOT one of the three cascade
-/// dimensions — today @c Mode, @c TiledWindowCount, @c ScreenOrientation,
-/// @c ActiveLayout and @c ColorScheme. Such a match is more specific than the
+/// dimensions — any context field outside @ref kContextDimensionFields (Mode,
+/// TiledWindowCount, the screen orientation, width, height and aspect ratio,
+/// ActiveLayout, ColorScheme). Such a match is more specific than the
 /// (screen, desktop, activity) shape @c makeContextMatch emits, so it must not
 /// be treated as an exact-context assignment: the batch reader/writers and
 /// exact-rule upsert rebuild the context base from the decoded dims alone, which
@@ -550,8 +552,8 @@ inline ContextAxis contextAxisFor(const MatchExpression& match)
     if (!match.isContextOnly()) {
         return ContextAxis::CatchAll;
     }
-    // A match that ALSO pins a non-dimension context field (Mode /
-    // TiledWindowCount / ScreenOrientation / ActiveLayout / ColorScheme) is not the
+    // A match that ALSO pins a non-dimension context field (any context field
+    // outside kContextDimensionFields) is not the
     // (screen, desktop, activity) shape makeContextMatch emits, so it is not an
     // exact-context assignment; treat it as CatchAll-axis so the batch
     // projections skip it. It still resolves normally through the evaluator,
@@ -637,8 +639,8 @@ inline bool matchIsExactContext(const MatchExpression& match, const QString& scr
     if (!match.isContextOnly()) {
         return false;
     }
-    // A pinned non-dimension context leaf (Mode / TiledWindowCount /
-    // ScreenOrientation / ActiveLayout / ColorScheme) means the match is more specific than the
+    // A pinned non-dimension context leaf (any context field outside
+    // kContextDimensionFields) means the match is more specific than the
     // bare (screen, desktop, activity) shape, so it is NOT exact — see
     // contextAxisFor for why dropping it here would lose the leaf on rebuild.
     if (pinsNonDimensionContextField(match)) {
@@ -706,6 +708,236 @@ inline std::optional<QString> disableRuleMode(const Rule& rule)
     // recognised-tokens list. This helper stays string-typed so the
     // PhosphorRules lib does not need to depend on PhosphorZones.
     return mode;
+}
+
+// ── Renumbering: a desktop or an activity edit ─────────────────────────────
+
+/// How the desktops and activities a rule set names have moved. An empty
+/// function is the identity. desktop(old) answers the new 1-based number, or
+/// 0 when that desktop is gone; activityAlive(id) is false for a removed
+/// activity. applies(rule), when set, picks the rules the remap reaches: one
+/// it answers false for is HELD, kept exactly as written and never dropped, and
+/// it outranks a moved rule that lands on its id. The daemon's late start-up
+/// renumber holds every rule added or changed after start-up took its snapshot
+/// of them (F1045): such a rule was written in the live numbering.
+struct ContextRemap
+{
+    std::function<int(int)> desktop{};
+    std::function<bool(const QString&)> activityAlive{};
+    std::function<bool(const Rule&)> applies{};
+};
+
+namespace detail {
+
+/// @p match with every `VirtualDesktop Equals` leaf, at any depth, moved
+/// through @p desktop. A leaf naming a desktop that is gone keeps its value
+/// and sets @p namedGone. A GreaterThan / LessThan bound is left as written:
+/// after a reorder there is no single bound that names the same desktops.
+inline MatchExpression remapDesktopLeaves(const MatchExpression& match, const std::function<int(int)>& desktop,
+                                          bool& namedGone)
+{
+    if (match.isLeaf()) {
+        if (!isContextEqualsLeaf(match, Field::VirtualDesktop)) {
+            return match;
+        }
+        bool ok = false;
+        const int old = match.predicate().value.toInt(&ok);
+        if (!ok || old <= 0) {
+            return match;
+        }
+        const int moved = desktop(old);
+        if (moved <= 0) {
+            namedGone = true;
+            return match;
+        }
+        return moved == old ? match : MatchExpression::makeLeaf(Field::VirtualDesktop, Operator::Equals, moved);
+    }
+    QList<MatchExpression> children;
+    children.reserve(match.children().size());
+    bool changed = false;
+    for (const MatchExpression& child : match.children()) {
+        children.append(remapDesktopLeaves(child, desktop, namedGone));
+        changed = changed || children.constLast() != child;
+    }
+    if (!changed) {
+        return match;
+    }
+    switch (match.kind()) {
+    case MatchExpression::Kind::Any:
+        return MatchExpression::makeAny(children);
+    case MatchExpression::Kind::None:
+        return MatchExpression::makeNone(children);
+    default:
+        return MatchExpression::makeAll(children);
+    }
+}
+
+/// A rule that is not one context's own setting follows its desktops: its
+/// `VirtualDesktop Equals` leaves and its RouteToDesktop target move through
+/// @p desktop, and when one of them named a desktop that is gone the rule is
+/// switched off, not deleted, so it stays in the rule editor to be fixed.
+/// True when @p rule changed.
+inline bool remapRuleDesktops(Rule& rule, const std::function<int(int)>& desktop)
+{
+    bool namedGone = false;
+    MatchExpression match = remapDesktopLeaves(rule.match, desktop, namedGone);
+    bool changed = match != rule.match;
+    rule.match = std::move(match);
+    for (RuleAction& action : rule.actions) {
+        if (action.type != QString(ActionType::RouteToDesktop)) {
+            continue;
+        }
+        const QJsonValue target = action.params.value(ActionParam::TargetDesktop);
+        if (!target.isDouble() || target.toInt() <= 0) {
+            continue;
+        }
+        const int moved = desktop(target.toInt());
+        if (moved <= 0) {
+            namedGone = true;
+        } else if (moved != target.toInt()) {
+            action.params.insert(ActionParam::TargetDesktop, moved);
+            changed = true;
+        }
+    }
+    if (namedGone && rule.enabled) {
+        rule.enabled = false;
+        changed = true;
+    }
+    return changed;
+}
+
+/// Whether @p rule, whose match is the exact context shape decoded into the
+/// tuple, is that context's own setting: this bridge minted it for the tuple,
+/// or every action it carries is a context-domain one. A window rule with a
+/// context-shaped match ("Desktop is 3" with Float) is not (F1092).
+inline bool isContextSetting(const Rule& rule, const QString& screenId, int virtualDesktop, const QString& activity)
+{
+    if (rule.id == assignmentRuleIdFor(screenId, virtualDesktop, activity)) {
+        return true;
+    }
+    if (const auto mode = disableRuleMode(rule);
+        mode && rule.id == disableRuleIdFor(screenId, virtualDesktop, activity, *mode)) {
+        return true;
+    }
+    return std::all_of(rule.actions.cbegin(), rule.actions.cend(), [](const RuleAction& action) {
+        return ActionRegistry::instance().domainFor(action) == ActionDomain::Context;
+    });
+}
+
+} // namespace detail
+
+/**
+ * @brief @p rules with the desktops and activities they name moved by @p remap.
+ *
+ * A CONTEXT rule (the exact (screen, desktop, activity) shape: context-only,
+ * no pinned non-dimension field, decoded by @ref contextDimsOf) that this
+ * bridge minted or that carries only context-domain actions
+ * (detail::isContextSetting) is that context's own setting, whoever wrote it:
+ * the layout registry claims such a rule as the context's assignment by its
+ * shape. Pinned to a desktop or an
+ * activity that is gone it is dropped. Pinned to a desktop that moved it is
+ * re-pinned there, and when this bridge minted it its deterministic id and
+ * its generated name follow the new tuple; a hand-built one keeps both.
+ *
+ * Every other rule (a window rule, a context match of another shape, or the
+ * exact shape carrying a window action) keeps its id and name and follows its
+ * desktops through detail::remapRuleDesktops, which switches it off when it
+ * named a removed desktop; the activities it names are not touched.
+ *
+ * The walk builds a fresh list, so a reorder cannot collide two re-minted
+ * ids. A rule left in place that ends on a moved rule's id (a stale rule past
+ * the old desktop list) is dropped and the moved one kept, unless
+ * ContextRemap::applies held it: then the moved one is dropped.
+ *
+ * @return the remapped list, or std::nullopt when nothing changed.
+ */
+inline std::optional<QList<Rule>> remapContextRules(const QList<Rule>& rules, const ContextRemap& remap)
+{
+    if (!remap.desktop && !remap.activityAlive) {
+        return std::nullopt;
+    }
+    QList<Rule> remapped;
+    remapped.reserve(rules.size());
+    QList<bool> moved;
+    moved.reserve(rules.size());
+    QSet<QUuid> movedIds;
+    QSet<QUuid> heldIds;
+    bool changed = false;
+    for (const Rule& rule : rules) {
+        if (remap.applies && !remap.applies(rule)) {
+            heldIds.insert(rule.id);
+            remapped.append(rule);
+            moved.append(false);
+            continue;
+        }
+        QString screenId;
+        int desktop = 0;
+        QString activity;
+        const bool contextRule = rule.match.isContextOnly() && !pinsNonDimensionContextField(rule.match)
+            && contextDimsOf(rule.match, screenId, desktop, activity)
+            && detail::isContextSetting(rule, screenId, desktop, activity);
+        if (!contextRule) {
+            Rule copy = rule;
+            const bool ruleMoved = remap.desktop && detail::remapRuleDesktops(copy, remap.desktop);
+            changed = changed || ruleMoved;
+            remapped.append(ruleMoved ? copy : rule);
+            moved.append(ruleMoved);
+            continue;
+        }
+        const int newDesktop = desktop > 0 && remap.desktop ? remap.desktop(desktop) : desktop;
+        const bool activityGone = !activity.isEmpty() && remap.activityAlive && !remap.activityAlive(activity);
+        if ((desktop > 0 && newDesktop <= 0) || activityGone) {
+            changed = true;
+            continue;
+        }
+        if (newDesktop == desktop) {
+            remapped.append(rule);
+            moved.append(false);
+            continue;
+        }
+        Rule copy = rule;
+        bool namedGone = false;
+        copy.match = detail::remapDesktopLeaves(rule.match, remap.desktop, namedGone);
+        const auto mode = disableRuleMode(rule);
+        const bool mintedDisable = mode && rule.id == disableRuleIdFor(screenId, desktop, activity, *mode);
+        if (rule.id == assignmentRuleIdFor(screenId, desktop, activity)) {
+            copy.id = assignmentRuleIdFor(screenId, newDesktop, activity);
+        } else if (mintedDisable) {
+            copy.id = disableRuleIdFor(screenId, newDesktop, activity, *mode);
+        }
+        // The generated name is the context label, or for a minted disable
+        // rule a mode prefix ending in " · " before it ("Autotile off · DP-1 ·
+        // Desktop 3"). The prefix is kept and the label re-minted; any other
+        // name is the user's own and stays.
+        const QString oldLabel = contextRuleName(screenId, desktop, activity);
+        if (rule.name == oldLabel) {
+            copy.name = contextRuleName(screenId, newDesktop, activity);
+        } else if (mintedDisable && rule.name.endsWith(QStringLiteral(" · ") + oldLabel)) {
+            copy.name = rule.name.chopped(oldLabel.size()) + contextRuleName(screenId, newDesktop, activity);
+        }
+        movedIds.insert(copy.id);
+        remapped.append(copy);
+        moved.append(true);
+        changed = true;
+    }
+    if (!changed) {
+        return std::nullopt;
+    }
+    if (!movedIds.isEmpty()) {
+        QList<Rule> deduped;
+        deduped.reserve(remapped.size());
+        for (qsizetype i = 0; i < remapped.size(); ++i) {
+            const QUuid& id = remapped.at(i).id;
+            // A held rule is newer truth than a moved one, so the moved one
+            // gives way to it. Otherwise the moved one outranks the stale rule.
+            const bool keep = moved.at(i) ? !heldIds.contains(id) : (heldIds.contains(id) || !movedIds.contains(id));
+            if (keep) {
+                deduped.append(remapped.at(i));
+            }
+        }
+        return deduped;
+    }
+    return remapped;
 }
 
 } // namespace ContextRuleBridge

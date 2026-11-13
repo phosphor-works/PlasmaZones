@@ -24,7 +24,9 @@
 #include <memory>
 #include <utility>
 
-namespace {
+// Named, not anonymous: the test class below holds a QuickSettingsFixture, and a member of
+// internal-linkage type warns (-Wsubobject-linkage) once the unity build includes this file.
+namespace QuickSettingsTestSupport {
 const QString compositorService = QStringLiteral("org.kde.KWin");
 const QString nightPath = QStringLiteral("/org/kde/KWin/NightLight");
 const QString nightInterface = QStringLiteral("org.kde.KWin.NightLight");
@@ -205,7 +207,9 @@ QByteArray contents(const QString& path)
     QFile file(path);
     return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{};
 }
-}
+} // namespace QuickSettingsTestSupport
+
+using namespace QuickSettingsTestSupport;
 
 class TestQuickSettingsController : public QObject
 {

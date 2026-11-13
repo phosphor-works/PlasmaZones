@@ -9,10 +9,13 @@
 
 #include <QDBusConnectionInterface>
 #include <QDBusServiceWatcher>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QQmlEngine>
 #include <QSize>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 Q_LOGGING_CATEGORY(lcPlacementMap, "phosphorshell.placementmap")
@@ -238,6 +241,28 @@ void PlacementMapScreen::refreshGeometry()
             fetchModeData();
         }
         schedulePublish();
+    });
+    fetchDeviceScale();
+}
+
+void PlacementMapScreen::fetchDeviceScale()
+{
+    // The output's logical scale as the daemon's geometry sensor sees it, for
+    // a snapping layout that counts its fixed zones in device pixels. The
+    // daemon's answer, not QScreen's: on Wayland QScreen reports the integer
+    // buffer scale (2 for a 1.15 output).
+    call<QString>(Iface::Screen, QStringLiteral("getScreenInfo"), {m_screenId}, [this](const QString& json) {
+        const qreal scale =
+            QJsonDocument::fromJson(json.toUtf8()).object().value(QLatin1String("devicePixelRatio")).toDouble(0.0);
+        const qreal usable = (std::isfinite(scale) && scale > 0.0) ? scale : 0.0;
+        if (qFuzzyCompare(1.0 + usable, 1.0 + m_deviceScale)) {
+            return;
+        }
+        m_deviceScale = usable;
+        // Only a snapping layout's cells depend on it.
+        if (m_mode == Snapping) {
+            fetchModeData();
+        }
     });
 }
 
@@ -579,12 +604,6 @@ PlacementMap::PlacementMap(QObject* parent)
         setAvailable(false);
     });
 
-    connect(m_bus, &PlacementMapBus::geometryChanged, this, [this](const QString& screenId) {
-        for (PlacementMapScreen* screen : std::as_const(m_screens)) {
-            if (screen->screenId() == screenId)
-                screen->refreshGeometry();
-        }
-    });
     connect(m_bus, &PlacementMapBus::layoutChanged, this, [this](const QString& screenId) {
         for (PlacementMapScreen* s : std::as_const(m_screens)) {
             if (s->screenId() == screenId || screenId.isEmpty()) {
@@ -660,6 +679,18 @@ PlacementMap::PlacementMap(QObject* parent)
                 s->stripChanged();
             }
         }
+    });
+    // A screen's geometry, work area or scale moved (the bus folds
+    // Screen.availableGeometryChanged into this signal). The signal names an
+    // EFFECTIVE id (a virtual screen on a subdivided output) while a map knows
+    // its output's, and a change to one output can move the work area of
+    // another, so every screen re-reads. These signals are rare, and the
+    // re-read is a few async calls per screen.
+    connect(m_bus, &PlacementMapBus::screenGeometryChanged, this, [this](const QString&) {
+        if (!isAvailable()) {
+            return;
+        }
+        forEachScreen(&PlacementMapScreen::refreshGeometry);
     });
     // The engine's own focus per screen (Tiling.focusedWindowChanged).
     connect(m_bus, &PlacementMapBus::focusedWindowChanged, this,

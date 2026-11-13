@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorcompositor_export.h>
+#include "phosphorcompositor_export.h"
 
 #include <QIcon>
 #include <QRectF>
@@ -203,7 +203,10 @@ public:
     // Screen Management
     // ═══════════════════════════════════════════════════════════════════
 
-    /// Invalidate cached screen IDs (call on screen add/remove/reconfigure)
+    /// Invalidate cached screen IDs (call on screen add/remove/reconfigure).
+    /// No in-tree caller: the KWin effect invalidates its own cache directly from its screen
+    /// handlers, and this is the bridge's published way for compositor-agnostic code to do the
+    /// same. Removing a pure virtual changes the vtable of an installed interface, so it stays.
     virtual void invalidateScreenIdCache() = 0;
 };
 

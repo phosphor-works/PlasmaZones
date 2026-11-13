@@ -17,15 +17,16 @@ import org.kde.kirigami as Kirigami
  * form on its "Save current settings" card, the way the sets pages do.
  *
  * The host wires `profiles` (the availableProfiles() rows) so the parent combo
- * can list the inheritance candidates, and `excludeId` to drop the profile
- * being edited from that list (the store still guards deeper cycles).
+ * can list the inheritance candidates, and `excludeIds` to drop the ones the
+ * store would refuse: the profile being edited and every profile inheriting
+ * from it (ProfileStore::selfAndDescendantIds). The host sets it on every open.
  */
 Kirigami.Dialog {
     id: root
 
     property string mode: "rename"
     property var profiles: []
-    property string excludeId: ""
+    property list<string> excludeIds: []
     property alias nameText: nameField.text
     property alias descriptionText: descField.text
     property string parentId: ""
@@ -35,7 +36,7 @@ Kirigami.Dialog {
     readonly property bool _showName: mode === "rename"
     readonly property bool _showParent: mode === "parent"
 
-    // "Defaults" (empty id) first, then every profile except the excluded one.
+    // "Defaults" (empty id) first, then every profile except the excluded ones.
     readonly property var _parentModel: {
         const rows = [
             {
@@ -44,7 +45,7 @@ Kirigami.Dialog {
             }
         ];
         for (let i = 0; i < profiles.length; ++i) {
-            if (profiles[i].id !== root.excludeId)
+            if (root.excludeIds.indexOf(profiles[i].id) < 0)
                 rows.push(profiles[i]);
         }
         return rows;

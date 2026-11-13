@@ -3,49 +3,34 @@
 
 #include "internal.h"
 #include "daemon/overlayservice.h"
+#include "core/interfaces/isettings.h"
 #include "core/platform/logging.h"
-#include <PhosphorOverlay/ShellHost.h>
-#include <PhosphorSurfaces/SurfaceManager.h>
-#include <PhosphorZones/Layout.h>
-#include <PhosphorZones/LayoutUtils.h>
-#include <PhosphorScreens/Manager.h>
 #include "core/utils/utils.h"
-#include <QQuickWindow>
-#include <QScreen>
-#include <QSet>
-#include <QQmlEngine>
-#include <QGuiApplication>
-#include <QImage>
-#include <QPalette>
-
-#include <optional>
-
-#include <PhosphorLayer/ILayerShellTransport.h>
-#include <PhosphorLayer/Surface.h>
 #include "phosphor_roles.h"
 #include "phosphor_slot_keys.h"
 #include "qml_property_names.h"
-#include <PhosphorScreens/ScreenIdentity.h>
 
 #include <PhosphorAnimation/SurfaceAnimator.h>
+#include <PhosphorLayer/ILayerShellTransport.h>
+#include <PhosphorLayer/Surface.h>
+#include <PhosphorOverlay/ShellHost.h>
+#include <PhosphorScreens/Manager.h>
+#include <PhosphorScreens/ScreenIdentity.h>
+#include <PhosphorSurface/DecorationSupportedPaths.h>
+#include <PhosphorSurfaces/SurfaceManager.h>
+#include <PhosphorZones/GeometryUtils.h>
+#include <PhosphorZones/Layout.h>
+#include <PhosphorZones/LayoutUtils.h>
 
-#include <PhosphorShaders/ShaderPresetRegistry.h>
-#include <PhosphorShaders/ShaderRegistry.h>
-#include <PhosphorSurface/DecorationProfile.h>
-#include <PhosphorSurface/DecorationProfileTree.h>
-#include <PhosphorSurface/SurfaceChainCompose.h>
-#include <PhosphorSurface/SurfaceShaderEffect.h>
-#include <PhosphorSurface/SurfaceShaderRegistry.h>
-#include <PhosphorSurface/SurfaceThemeResolve.h>
+#include <QQuickWindow>
+#include <QScreen>
+#include <QSet>
 
-#include "core/interfaces/isettings.h"
+#include <optional>
 
 namespace PlasmaZones {
 
 namespace {
-/// Forces the re-bake an in-place source edit cannot get. See qml_property_names.h.
-int s_decorationReloadGeneration = 0;
-
 // Size the OSD window to its target screen rect. The wl_surface is now
 // screen-sized (mirrors zone-selector / snap-assist) - anchors and
 // margins were set once at warm-up time by `createWarmedOsdSurface` from
@@ -79,24 +64,18 @@ std::optional<PreparedLayoutOsdWindow> OverlayService::prepareLayoutOsdWindow(co
     PreparedLayoutOsdWindow prep;
 
     // Use virtual screen geometry if applicable, otherwise physical
-    prep.screenGeom = resolveScreenGeometry(m_screenManager, screenId);
-    if (!prep.screenGeom.isValid()) {
-        prep.screenGeom = physScreen->geometry();
-    }
-
     prep.effectiveScreenId = screenId.isEmpty() ? PhosphorScreens::ScreenIdentity::identifierFor(physScreen) : screenId;
+
+    // ONE lookup in both forms, as the sibling show paths do, and keyed on the EFFECTIVE id for
+    // the reason given at the assert below. trueGeom is the verdict, prep.screenGeom is the size.
+    const QRect trueGeom = trueScreenGeometry(m_screenManager, prep.effectiveScreenId);
+    prep.screenGeom = trueGeom.isValid() ? trueGeom : physScreen->geometry();
 
     auto* state = ensurePassiveShellFor(prep.effectiveScreenId, physScreen);
     if (!state || !state->shell || !state->shell->shellWindow() || !state->shell->shellSurface() || !state->osdSlot()) {
         qCWarning(lcOverlay) << "Failed to get passive shell for layout OSD on screen=" << prep.effectiveScreenId;
         return std::nullopt;
     }
-
-    // Force-hide any zone selector on this screen so a fading-out
-    // selector doesn't stack translucently behind the incoming OSD.
-    // Slot-level animator hide; the shell surface stays Shown for the
-    // OSD that follows.
-    hideZoneSelectorSlotOnScreen(prep.effectiveScreenId);
 
     prep.window = state->shell->shellWindow();
     prep.surface = state->shell->shellSurface();
@@ -109,39 +88,63 @@ std::optional<PreparedLayoutOsdWindow> OverlayService::prepareLayoutOsdWindow(co
     // values from the previous show (or from QML property initialisers on
     // the first-ever show).
 
-    assertWindowOnScreen(prep.window, physScreen, prep.screenGeom);
+    // The TRUE geometry, not prep.screenGeom: that one is substituted above when the id does not
+    // resolve, and a substituted rect makes assertWindowOnScreen's physical-screen test trivially
+    // true. prep.screenGeom still drives the sizing and the aspect ratio below.
+    //
+    // Keyed on effectiveScreenId, not @p screenId, because that is the id every other per-screen
+    // lookup in this function already uses. NOT because an empty id resolves to nothing — it does
+    // not: ScreenManager::trackedScreenFor has an explicit empty-id arm answering with the primary
+    // output, so the raw id would have compared equal too. What the effective id buys is the case
+    // where the screen source's primary name is absent from the tracked set, since identifierFor
+    // stamps the same spelling the tracked entries carry.
+    assertWindowOnScreen(prep.window, physScreen, trueGeom);
 
     prep.aspectRatio = (prep.screenGeom.height() > 0)
         ? static_cast<qreal>(prep.screenGeom.width()) / prep.screenGeom.height()
         : (16.0 / 9.0);
-    prep.aspectRatio = qBound(0.5, prep.aspectRatio, 4.0);
+    // The 0.25-4.0 policy LayoutOsdContent's safeAspectRatio mirrors, so a
+    // rotated 21:9 (about 0.43) keeps its real shape instead of a 1:2 box.
+    prep.aspectRatio = qBound(0.25, prep.aspectRatio, 4.0);
 
     return prep;
 }
 
 void OverlayService::finishOsdShow(QQuickWindow* window, PhosphorLayer::Surface* surface, QQuickItem* osdSlot,
-                                   const QRect& screenGeom)
+                                   const QRect& screenGeom, const QString& effectiveScreenId)
 {
     sizeOsdToScreen(window, screenGeom);
-    // Disarm the render-pipeline prime first so its queued hide doesn't
+    // Disarm the render-pipeline prime first so its queued hand-back doesn't
     // race this real show - see primeSurfaceRenderPipeline.
     cancelSurfacePrime(surface);
-    // Only the slot's opacity animates. Map the wl_surface via
-    // Surface::show() (idempotent on subsequent shows; keepMappedOnHide
-    // is effects-gated - see createWarmedOsdSurface - so the wl_surface
-    // stays mapped between slot animations while shaders or animations
-    // are enabled, and unmaps between shows otherwise).
+    // Only the slot animates. Map the wl_surface via Surface::show()
+    // (idempotent while another slot holds it mapped; the shell unmaps
+    // whenever no slot is visible - see createWarmedOsdSurface).
     if (!surface->isLogicallyShown()) {
         surface->show();
     }
     osdSlot->setVisible(true);
     m_surfaceAnimator->beginShow(surface, osdSlot, PhosphorRoles::Osd, []() { });
-    // Surface::show() above unconditionally clears Qt::WindowTransparentForInput.
-    // OSD slots don't grab input (they auto-dismiss; keeping the input
-    // region active for the OSD's lifetime would block clicks on every
-    // background window for several seconds). Re-evaluate the input
-    // region now that the OSD slot is visible - `syncPassiveShellSurfaceState`
-    // counts only modal slots toward `anyInputGrabbing`.
+    // Force-hide any zone selector on this screen so a fading-out selector doesn't
+    // stack translucently behind the incoming OSD. Slot-level animator hide.
+    // AFTER the OSD slot is visible: with animations off the selector's hide
+    // completes synchronously and re-syncs the shell, and with the selector as the
+    // only visible slot that sync would unmap the shell just before the OSD
+    // remapped it.
+    //
+    // Deliberately here rather than in prepareLayoutOsdWindow. Most callers refuse
+    // before they prepare, but showNavigationOsd refuses AFTER (its dedup and
+    // needsLayout checks both follow the prepare), so that one path could prepare
+    // and then bail. A path that did hid the selector with nothing to bring it back:
+    // the restore runs off a sibling slot's hide completion, and no OSD had been shown
+    // to complete one, while showZoneSelector early-returns on the still-set visible
+    // flag. The slot then stayed hidden for the rest of the drag.
+    hideZoneSelectorSlotOnScreen(effectiveScreenId);
+    // OSD slots don't grab input (they auto-dismiss; keeping the input region
+    // active for the OSD's lifetime would block clicks on every background
+    // window for several seconds). Re-sync now that the OSD slot is visible:
+    // the sync sets Qt::WindowTransparentForInput from the modal slots alone
+    // (`anyInputGrabbing`).
     syncPassiveShellSurfaceStateForSurface(surface);
     QMetaObject::invokeMethod(osdSlot, "restartDismissTimer");
 }
@@ -180,14 +183,17 @@ void OverlayService::showLayoutOsdImpl(PhosphorZones::Layout* layout, const QStr
 
     // Pass the actual screen geometry so fixed-mode zones normalize against
     // the screen we're about to render on, not Layout::lastRecalcGeometry()
-    // (which may belong to a different screen).
+    // (which may belong to a different screen), and that screen's scale, not
+    // Layout::lastRecalcScale(), for a layout counting device pixels.
     LayoutOsdContentParams p;
     p.screenId = effectiveScreenId;
     p.id = layout->id().toString();
     p.name = layout->name();
     p.zones = layout->zones().isEmpty()
         ? QVariantList()
-        : PhosphorZones::LayoutUtils::zonesToVariantList(layout, PhosphorZones::ZoneField::Full, QRectF(screenGeom));
+        : PhosphorZones::LayoutUtils::zonesToVariantList(
+              layout, PhosphorZones::ZoneField::Full, QRectF(screenGeom),
+              PhosphorZones::GeometryUtils::screenScale(m_screenManager, effectiveScreenId));
     // Since the native-template pivot this path serves NON-template screens
     // only: a template apply carries no Layout* and routes to
     // showScrollingTemplateOsd instead, and every producer of this overload
@@ -222,7 +228,7 @@ void OverlayService::showLayoutOsdImpl(PhosphorZones::Layout* layout, const QStr
     pushLayoutOsdContent(osdSlot, p);
     writeQmlProperty(osdSlot, QStringLiteral("mode"), QStringLiteral("layout-osd"));
 
-    finishOsdShow(window, surface, osdSlot, screenGeom);
+    finishOsdShow(window, surface, osdSlot, screenGeom, effectiveScreenId);
     qCInfo(lcOverlay) << (locked ? "Locked" : "Layout") << "OSD: layout=" << layout->name() << "screen=" << screenId;
 }
 
@@ -279,7 +285,7 @@ void OverlayService::showScrollingTemplateOsd(const QString& id, const QString& 
     pushLayoutOsdContent(osdSlot, p);
     writeQmlProperty(osdSlot, QStringLiteral("mode"), QStringLiteral("layout-osd"));
 
-    finishOsdShow(window, surface, osdSlot, screenGeom);
+    finishOsdShow(window, surface, osdSlot, screenGeom, effectiveScreenId);
     qCInfo(lcOverlay) << (locked ? "Locked template" : "Template") << "OSD: template=" << name << "screen=" << screenId
                       << "vertical=" << verticalAxis;
 }
@@ -335,7 +341,7 @@ void OverlayService::showScrollingStripOsd(const QString& name, const QVariantLi
     pushLayoutOsdContent(osdSlot, p);
     writeQmlProperty(osdSlot, QStringLiteral("mode"), QStringLiteral("layout-osd"));
 
-    finishOsdShow(window, surface, osdSlot, screenGeom);
+    finishOsdShow(window, surface, osdSlot, screenGeom, prep->effectiveScreenId);
     qCInfo(lcOverlay) << "Scrolling strip OSD: screen=" << screenId << "zones=" << zones.size()
                       << "vertical=" << verticalAxis;
 }
@@ -378,17 +384,20 @@ void OverlayService::showLayoutOsd(const QString& id, const QString& name, const
     // the numeric preview ratio from it (LayoutOsdContent.previewAspectRatio
     // switch), and OSD outer size is content-driven, so no companion numeric
     // is required here.
-    QString arClass = QStringLiteral("any");
-    auto uuidOpt = Utils::parseUuid(id);
+    // A UUID whose layout the manager cannot find falls through to the CLASSIFY
+    // branch rather than keeping "any". Leaving it at "any" resolved to the raw
+    // screen aspect in QML, which is exactly the inconsistency the classify arm
+    // exists to prevent, and the sibling case (a UUID with no layout manager at
+    // all) already classified. Latent today, since the one caller of this overload
+    // always passes a non-UUID "autotile:<algorithmId>".
+    PhosphorZones::Layout* layout = nullptr;
+    const auto uuidOpt = Utils::parseUuid(id);
     if (uuidOpt && m_layoutManager) {
-        PhosphorZones::Layout* layout = m_layoutManager->layoutById(*uuidOpt);
-        if (layout) {
-            arClass = PhosphorLayout::ScreenClassification::toString(layout->aspectRatioClass());
-        }
-    } else {
-        const auto screenClass = PhosphorLayout::ScreenClassification::classify(aspectRatio);
-        arClass = PhosphorLayout::ScreenClassification::toString(screenClass);
+        layout = m_layoutManager->layoutById(*uuidOpt);
     }
+    const QString arClass = layout
+        ? PhosphorLayout::ScreenClassification::toString(layout->aspectRatioClass())
+        : PhosphorLayout::ScreenClassification::toString(PhosphorLayout::ScreenClassification::classify(aspectRatio));
 
     LayoutOsdContentParams p;
     p.screenId = effectiveScreenId;
@@ -399,8 +408,8 @@ void OverlayService::showLayoutOsd(const QString& id, const QString& name, const
     // Category and isTemplate move together (showLayoutOsdImpl and
     // showScrollingTemplateOsd both enforce it): derive rather than default,
     // so a caller passing the ScrollingTemplate category cannot produce the
-    // "Manual badge beside a Column template caption" contradiction. Both
-    // current callers pass Autotile, so this is latent-proofing.
+    // "Manual badge beside a Column template caption" contradiction. The one
+    // current caller passes Autotile, so this is latent-proofing.
     p.isTemplate = (category == static_cast<int>(PhosphorZones::LayoutCategory::ScrollingTemplate));
     p.autoAssign = autoAssign;
     // Forward the global master toggle (#370) only for manual layouts.
@@ -418,7 +427,7 @@ void OverlayService::showLayoutOsd(const QString& id, const QString& name, const
     pushLayoutOsdContent(osdSlot, p);
     writeQmlProperty(osdSlot, QStringLiteral("mode"), QStringLiteral("layout-osd"));
 
-    finishOsdShow(window, surface, osdSlot, screenGeom);
+    finishOsdShow(window, surface, osdSlot, screenGeom, effectiveScreenId);
     qCInfo(lcOverlay) << "Layout OSD: name=" << name << "category=" << category << "screen=" << screenId;
 }
 
@@ -476,315 +485,26 @@ void OverlayService::pushLayoutOsdContent(QObject* osdSlot, const LayoutOsdConte
                          overlayOverride.inactiveOpacity.value_or(m_settings->inactiveOpacity()));
     }
     // Stage d: resolve + push the OSD's surface-shader decoration (rounded
-    // corners + border) onto the slot. Done here so every layout-OSD show path
-    // (showLayoutOsdImpl / showLayoutOsd(string…) / showDisabledOsd) decorates
-    // consistently; showNavigationOsd calls applyDecoration directly since it
-    // does not route through pushLayoutOsdContent.
-    applyDecoration(osdSlot, QStringLiteral("osd"));
-}
-
-void OverlayService::setSurfaceShaderRegistry(PhosphorSurfaceShaders::SurfaceShaderRegistry* registry)
-{
-    if (m_surfaceShaderRegistry == registry) {
-        return;
-    }
-    // Disconnect from the outgoing registry before the borrow is overwritten,
-    // or a re-set would leave a second connection behind. Daemon::stop() nulls
-    // this borrow before resetting the registry, so the old pointer is still
-    // alive here.
-    if (m_surfaceShaderRegistry) {
-        disconnect(m_surfaceShaderRegistry, nullptr, this, nullptr);
-    }
-    m_surfaceShaderRegistry = registry;
-    // Re-arm the refusal warnings: the pack set has changed, so a pack that
-    // was reported missing may now be present (or newly broken). effectsChanged
-    // fires only on a real content or discovery change, never on a plain
-    // rescan, so this cannot put the warnings back to once-per-show.
-    m_warnedDecorationPacks.clear();
-    if (m_surfaceShaderRegistry) {
-        connect(m_surfaceShaderRegistry, &PhosphorSurfaceShaders::SurfaceShaderRegistry::effectsChanged, this,
-                [this]() {
-                    m_warnedDecorationPacks.clear();
-                    ++s_decorationReloadGeneration; // before the re-resolve, so it is written
-                    // And RE-RESOLVE what is on screen. A pack installed, removed or
-                    // edited on disk changes what a visible popup's chain composes to,
-                    // and nothing else on this path pushes that: the chain is resolved
-                    // at show time, so a popup already up kept the old composition until
-                    // it was dismissed. The shell's twin does the same thing through
-                    // bump() for its own chrome.
-                    reapplyVisiblePopupDecorations();
-                });
-    }
-}
-
-void OverlayService::reapplyVisiblePopupDecorations()
-{
-    for (auto it = m_screenStates.constBegin(); it != m_screenStates.constEnd(); ++it) {
-        const auto& state = it.value();
-        if (m_zoneSelectorVisible) {
-            applyDecoration(state.zoneSelectorSlot(), QStringLiteral("popup.zoneSelector"));
-        }
-        if (m_snapAssistVisible) {
-            applyDecoration(state.snapAssistSlot(), QStringLiteral("popup.snapAssist"));
-        }
-        if (m_layoutPickerVisible) {
-            applyDecoration(state.layoutPickerSlot(), QStringLiteral("popup.layoutPicker"));
-        }
-        if (m_cheatsheetVisible) {
-            applyDecoration(state.cheatsheetSlot(), QStringLiteral("popup.cheatsheet"));
-        }
-        // THE OSD IS A DECORATED SURFACE TOO and had no arm here, so a pack
-        // installed, removed or enabled while one was on screen re-resolved
-        // every popup except it. Every OSD show path already calls
-        // applyDecoration(osdSlot, "osd"), so this is the same call the show
-        // paths make, on the same path string.
-        //
-        // Keyed on the ITEM's own visibility rather than a service flag, because
-        // the OSD has no flag: the show paths call setVisible(true) on the slot
-        // directly and the dismiss timer hides it, so the item is the authority.
-        // The four above have flags because their visibility is service state.
-        //
-        // The window in which this matters is short, since an OSD is transient,
-        // and an in-place pack EDIT re-resolves to an identical chain anyway.
-        // It bites on an install, an uninstall or an enable change.
-        if (QQuickItem* const osd = state.osdSlot(); osd && osd->isVisible()) {
-            applyDecoration(osd, QStringLiteral("osd"));
-        }
-    }
-}
-
-void OverlayService::applyDecoration(QObject* slot, const QString& surfacePath)
-{
-    if (!slot) {
-        return;
-    }
-
-    // Helper to leave the slot undecorated: clear the chain so the QML
-    // SurfaceDecoration stays inert and the card draws its native chrome.
-    const auto clearDecoration = [this, slot]() {
-        writeQmlProperty(slot, QStringLiteral("decorationChain"), QVariant::fromValue(QVariantList()));
-        writeQmlProperty(slot, QStringLiteral("decorationOuterPadding"), 0.0);
-        // Drop the backdrop with the chain: an undecorated slot has nothing to
-        // sample it, and holding the image would keep a wallpaper-sized texture
-        // uploaded for a surface that draws none of it.
-        writeQmlProperty(slot, QStringLiteral("backdropTexture"), QVariant());
-        // No decoration -> no audio need on this slot; let CAVA wind down if it
-        // was only kept alive for an audio decoration here.
-        if (auto* item = qobject_cast<QQuickItem*>(slot)) {
-            item->setProperty(OverlayQmlPropertyNames::WantsAudioDecoration.data(), false);
-            // Symmetric with applyDecoration's UniqueConnection: an undecorated
-            // slot no longer needs the show/hide hook (applyDecoration re-adds
-            // it if the slot is decorated again).
-            disconnect(item, &QQuickItem::visibleChanged, this, &OverlayService::syncCavaState);
-        }
-        syncCavaState();
-    };
-
-    if (!m_settings || !m_surfaceShaderRegistry) {
-        clearDecoration();
-        return;
-    }
-
-    // Resolve @p surfacePath through the decoration tree. resolve() walks
-    // baseline → category → leaf and returns a DecorationProfile carrying an
-    // effective CHAIN (ordered pack ids) plus a per-pack parameters map.
-    const PhosphorSurfaceShaders::DecorationProfileTree tree = m_settings->decorationProfileTree();
-    // Flatten each layer's preset reference into its parameters, after the
-    // walk-up rather than before it — see withPresetsResolved for why the order
-    // matters. With no preset registry injected this is the resolved profile
-    // unchanged.
-    const PhosphorSurfaceShaders::DecorationProfile profile = m_presetRegistry
-        ? PhosphorSurfaceShaders::withPresetsResolved(tree.resolve(surfacePath), *m_presetRegistry,
-                                                      PhosphorShaders::ShaderFamily::Surface)
-        : tree.resolve(surfacePath);
-    // enabledChain(): a pack the user toggled off must not render here either.
-    const QStringList chain = profile.enabledChain();
-    if (chain.isEmpty()) {
-        // No decoration packs configured for this surface — render it plainly.
-        clearDecoration();
-        return;
-    }
-
-    // The daemon composes the FULL chain: the QML SurfaceDecoration host runs
-    // one SurfaceShaderItem per stage, each sampling the previous stage's
-    // output through an interposed ShaderEffectSource — the QML analogue of
-    // the compositor's composite ping-pong (renderSurfaceChainComposite), so
-    // a border + glow chain renders both packs here too. Buffer passes
-    // (multipass packs like the blur family) run here as well — each stage
-    // forwards its pack's declared buffer set below. needsBackdrop packs have
-    // no scene to sample on the daemon, so the desktop wallpaper is bound as a
-    // stand-in below and they take their uHasBackdrop = 0 fallback only when
-    // that cannot be resolved.
-    //
-    // Per-pack parameter overrides come from the resolved profile (shape
-    // { packId -> { paramId -> value } }). p_useSystemAccent is a
-    // host-consumed flag; the overlay path passes the pack's declared colour
-    // params through translateSurfaceParams unchanged (system-accent colour
-    // resolution is performed by the daemon's colour pipeline, not
-    // synthesised here). Each stage's vertexSource satisfies the warm-bake
-    // HOST-WIRING PRECONDITION (daemon.cpp): a pack declaring its own vertex
-    // stage keys the same vert here as the warm bake; the empty-URL case
-    // (every current pack) falls through to the item's shared-surface.vert
-    // resolution.
-    const QVariantMap allPackParams = profile.effectiveParameters();
-    QVariantList stages;
-    double outerPadding = 0.0;
-    bool chainWantsAudio = false;
-    bool chainWantsBackdrop = false;
-    // Theme colours for the pack flag resolver, read once for the whole chain.
-    const QPalette pal = QGuiApplication::palette();
-    // The blur-quality tier the composer folds into every declared buffer scale.
-    // m_settings is non-null here: this function early-returns above when it is.
-    const qreal blurScale = m_settings->decorationBlurScaleMultiplier();
-    for (const QString& packId : chain) {
-        if (!m_surfaceShaderRegistry->hasEffect(packId)) {
-            // One warning per pack id per REASON, not one per show: a profile
-            // naming a pack the user uninstalled is a standing condition, and
-            // this runs on every OSD show. parseEffect's texture drops are
-            // one-shot for the same reason, though only per registry parse.
-            // (translateSurfaceParams' overflow summaries are NOT — they are
-            // one summary per call, and composeStageMap calls it for every
-            // pack on every show.)
-            //
-            // Keyed per reason rather than per pack: the missing and invalid
-            // branches are mutually exclusive within one iteration but not
-            // over time, so a bare pack id would let "uninstalled" swallow the
-            // later, different "reinstalled but broken" warning for good.
-            const QString missingKey = packId + QLatin1String("|missing");
-            if (!m_warnedDecorationPacks.contains(missingKey)) {
-                m_warnedDecorationPacks.insert(missingKey);
-                qCWarning(lcOverlay) << "Surface decoration (" << surfacePath << "): resolved pack id" << packId
-                                     << "is not present in the surface-shader registry — skipping this chain stage";
-            }
-            continue;
-        }
-        const PhosphorSurfaceShaders::SurfaceShaderEffect effect = m_surfaceShaderRegistry->effect(packId);
-        // isValid() already requires a non-empty fragmentShaderPath.
-        if (!effect.isValid()) {
-            // Standing condition too, and on the same every-show path: an
-            // installed pack whose fragment shader will not resolve stays
-            // broken until the user reinstalls it. Same per-reason keying as
-            // the missing branch above.
-            const QString invalidKey = packId + QLatin1String("|invalid");
-            if (!m_warnedDecorationPacks.contains(invalidKey)) {
-                m_warnedDecorationPacks.insert(invalidKey);
-                qCWarning(lcOverlay) << "Surface decoration (" << surfacePath << "): pack" << packId
-                                     << "has no valid fragment shader — skipping this chain stage";
-            }
-            continue;
-        }
-        // Audio-reactive pack in the chain -> this decoration slot wants the
-        // live CAVA spectrum (gated below so a plain border never starts audio).
-        chainWantsAudio = chainWantsAudio || effect.audio;
-        // A pack that samples the scene behind the surface gets the desktop
-        // wallpaper as a stand-in for it (see the backdrop write below).
-        chainWantsBackdrop = chainWantsBackdrop || effect.needsBackdrop;
-        const QVariantMap friendlyParams = allPackParams.value(packId).toMap();
-
-        // Outer-margin request (the pack's declared paddingParam, e.g. glow's
-        // glowSize): the per-surface override wins, else the param's declared
-        // default — the same resolution the compositor's updateWindowDecoration
-        // applies, with the chain's LARGEST request padding the shared canvas.
-        // The QML host inflates the capture + shader items by this logical-px
-        // margin so an outer effect gets real transparent room; 0 (a
-        // margin-less chain) keeps the classic 1:1 geometry.
-        outerPadding = qMax(outerPadding, PhosphorSurfaceShaders::paddingRequest(effect, friendlyParams));
-
-        // Theme colour resolution: packs that opt into theme-derived colours
-        // (border useThemeNeutral/useSystemAccent, glow/shadow useThemeTint) have
-        // them synthesised into their friendly params here, before translation —
-        // the flags are host-consumed and never reach the shader. Shared with the
-        // KWin window-decoration path via resolveThemeParamColors so both resolve
-        // identically. The daemon sources its theme colours from the live palette
-        // (background / foreground) plus its accent settings; resolved on every
-        // show, so a colour-scheme change is picked up on the next OSD.
-        // m_settings is guaranteed non-null here — applyDecoration early-returns
-        // above when it (or the registry) is null.
-        QVariantMap resolvedParams = friendlyParams;
-        PhosphorSurfaceShaders::resolveThemeParamColors(effect, resolvedParams,
-                                                        {m_settings->highlightColor(), m_settings->inactiveColor(),
-                                                         pal.color(QPalette::Active, QPalette::Window),
-                                                         pal.color(QPalette::Active, QPalette::WindowText)});
-
-        // Card corner radius: the popup slot publishes its card's design radius
-        // (cardCornerRadius, a Kirigami-derived logical-px value). The decoration
-        // rounds to the CARD, not a per-pack value, so every pack that declares a
-        // cornerRadius (border, shadow, glow) is injected the same radius here and
-        // their corners coincide. translateSurfaceParams only emits a lane for
-        // packs whose metadata declares cornerRadius, so this is a no-op for any
-        // pack without it. Slots that publish no cardCornerRadius (or a non-card
-        // surface) fall back to the pack's own default.
-        const QVariant cardRadius = slot->property(OverlayQmlPropertyNames::CardCornerRadius.data());
-        if (cardRadius.isValid() && cardRadius.toReal() > 0.0) {
-            resolvedParams.insert(QStringLiteral("cornerRadius"), cardRadius.toReal());
-        }
-
-        // Through the shared builder, so this host, the settings app's decoration
-        // preview and the shell cannot describe a stage differently. A preview that
-        // composed its own would stop predicting what the daemon draws.
-        stages.append(PhosphorSurfaceShaders::composeStageMap(effect, resolvedParams, blurScale));
-    }
-    if (stages.isEmpty()) {
-        clearDecoration();
-        return;
-    }
-    // Same defensive cap as the compositor's wb.outerPadding, shared so the two
-    // decoration composers cannot drift.
-    outerPadding = qBound(0.0, outerPadding, static_cast<double>(PhosphorSurfaceShaders::kMaxDecorationOuterPaddingPx));
-
-    // Padding BEFORE the chain: the chain write is the load trigger, and the
-    // single list write hands every stage's source + params to QML atomically,
-    // so no stage ever bakes against a half-written sibling (the old
-    // per-property protocol needed a clear-first + source-last dance for the
-    // same guarantee).
-    writeQmlProperty(slot, QStringLiteral("decorationOuterPadding"), outerPadding);
-    // Backdrop BEFORE the chain, for the same reason as the padding: the chain
-    // write is the load trigger, so everything a stage reads on its first bake
-    // has to be in place first.
-    //
-    // A daemon surface has no live scene behind it, so a needsBackdrop pack
-    // (the glass / blur family) is handed the desktop wallpaper as a stand-in.
-    // It is an approximation — it shows the wallpaper, not the windows actually
-    // under the card — but it is the difference between a frosted OSD reading
-    // as frosted glass and reading as a flat tint. Only resolved for a chain
-    // that actually samples it; every other chain writes a null image, leaves
-    // uHasBackdrop at 0, and behaves exactly as it did before.
-    //
-    // Loaded once into a local so an unresolvable wallpaper writes the SAME
-    // invalid QVariant the no-backdrop arm and every hide/clear path write. A
-    // valid QVariant holding a null QImage is not the same thing to the QML
-    // side, which gates on the property being null or undefined, so it would
-    // flip useWallpaper true with no pixels behind it.
-    const QImage backdrop = chainWantsBackdrop ? PhosphorShaders::ShaderRegistry::loadWallpaperImage() : QImage();
-    writeQmlProperty(slot, QStringLiteral("backdropTexture"),
-                     backdrop.isNull() ? QVariant() : QVariant::fromValue(backdrop));
-    writeQmlProperty(slot, QStringLiteral("decorationChain"), QVariant::fromValue(stages));
-    // Every apply, so a slot decorated after a commit starts at the current value.
-    writeQmlProperty(slot, QString(OverlayQmlPropertyNames::DecorationReloadGeneration), s_decorationReloadGeneration);
-
-    // Record whether this slot now carries an audio-reactive pack, then reconcile
-    // CAVA: a newly-decorated audio surface may need audio capture started, or a
-    // change from audio to non-audio may let it wind down.
-    // Every OSD slot is a QQuickItem (the show paths hand one down), so a
-    // failed cast here means the caller passed something this function cannot
-    // decorate at all. Say so rather than silently leaving the slot carrying
-    // whatever audio flag a previous show set, which syncCavaState would then
-    // act on.
-    if (auto* item = qobject_cast<QQuickItem*>(slot)) {
-        item->setProperty(OverlayQmlPropertyNames::WantsAudioDecoration.data(), chainWantsAudio);
-        // Decoration is often applied while the slot is still hidden (popups
-        // apply-then-show), so re-run syncCavaState whenever it shows/hides —
-        // that starts CAVA once an audio surface becomes visible and stops it on
-        // hide. UniqueConnection keeps re-decoration from stacking duplicates.
-        connect(item, &QQuickItem::visibleChanged, this, &OverlayService::syncCavaState, Qt::UniqueConnection);
-    } else {
-        qCWarning(lcOverlay) << "Surface decoration (" << surfacePath
-                             << "): slot is not a QQuickItem — its audio-reactive flag cannot be updated";
-    }
-    syncCavaState();
+    // corners + border) onto the slot. Done here so every path routing through
+    // pushLayoutOsdContent decorates consistently: its five call sites, in
+    // showLayoutOsdImpl (which serves both the layout and the LOCKED show, the latter
+    // being an argument rather than a call site of its own), showScrollingTemplateOsd,
+    // showScrollingStripOsd, the showLayoutOsd(string…) overload and showDisabledOsd.
+    // showNavigationOsd calls applyDecoration directly, not routing through here.
+    applyDecoration(osdSlot, PhosphorSurfaceShaders::decorationOsdPath());
 }
 
 void OverlayService::showDisabledOsd(const QString& reason, const QString& screenId)
+{
+    showMessageCard(reason, screenId, QStringLiteral("dialog-cancel"));
+}
+
+void OverlayService::showInfoOsd(const QString& message, const QString& screenId)
+{
+    showMessageCard(message, screenId, QStringLiteral("dialog-information"));
+}
+
+void OverlayService::showMessageCard(const QString& reason, const QString& screenId, const QString& iconName)
 {
     const auto prep = prepareLayoutOsdWindow(screenId);
     if (!prep) {
@@ -833,11 +553,11 @@ void OverlayService::showDisabledOsd(const QString& reason, const QString& scree
     writeQmlProperty(osdSlot, QStringLiteral("disabledReason"), reason);
     // Written explicitly rather than left to the QML default: the slot is
     // REUSED across shows, so the glyph must be re-stated on each one.
-    writeQmlProperty(osdSlot, QStringLiteral("disabledIcon"), QStringLiteral("dialog-cancel"));
+    writeQmlProperty(osdSlot, QStringLiteral("disabledIcon"), iconName);
     writeQmlProperty(osdSlot, QStringLiteral("mode"), QStringLiteral("layout-osd"));
 
-    finishOsdShow(window, surface, osdSlot, screenGeom);
-    qCInfo(lcOverlay) << "Disabled OSD: reason=" << reason << "screen=" << screenId;
+    finishOsdShow(window, surface, osdSlot, screenGeom, effectiveScreenId);
+    qCInfo(lcOverlay) << "Message OSD: text=" << reason << "icon=" << iconName << "screen=" << screenId;
 }
 
 // hideLayoutOsd / hideNavigationOsd (formerly Q_SLOTS connected to a QML
@@ -849,12 +569,12 @@ void OverlayService::showDisabledOsd(const QString& reason, const QString& scree
 //     → ShellHost::hideSlot runs an animator-driven slot-hide
 //     → onOsdSlotHideCompleted flips slot.visible=false and re-syncs
 //       surface state.
-// keepMappedOnHide is conditional (createWarmedOsdSurface): the shell
-// window stays mapped across hides only while shaders or animations are
-// enabled, keeping the warmed Vulkan swapchain alive; with effects off
-// the next syncSurfaceState unmaps the wl_surface. Pre-warmed by
-// warmUpNotifications and reused for the daemon's lifetime;
-// destroyPassiveShell only fires on screen-removal / shutdown.
+// Once no slot is visible the next syncSurfaceState unmaps the shell's
+// wl_surface (see createWarmedOsdSurface). Pre-warmed by
+// warmUpNotifications and reused while its screen lives:
+// destroyPassiveShell runs on screen removal and virtual-screen
+// reconfiguration, and the destructor tears shells down through ShellHost
+// directly.
 
 // Hot-plug hook installed by warmUpNotifications. The single
 // ensureOsdScreenAddedConnected / ensurePassiveShellFor / wirePassiveShellSlots /
@@ -887,9 +607,12 @@ void OverlayService::onOsdDismissRequested()
     if (!state || !state->shell || !state->shell->shellSurface() || !state->osdSlot()) {
         return;
     }
-    m_shellHost->hideSlot(matchedId, PhosphorSlotKeys::Osd(), [this, effectiveId = matchedId]() {
-        onOsdSlotHideCompleted(effectiveId);
-    });
+    // Resolved through the slot item at completion time: a rekey can move the
+    // state to a new key while the leg runs (see currentKeyForSlotItem).
+    m_shellHost->hideSlot(matchedId, PhosphorSlotKeys::Osd(),
+                          [this, effectiveId = matchedId, slotItem = QPointer<QQuickItem>(state->osdSlot())]() {
+                              onOsdSlotHideCompleted(currentKeyForSlotItem(slotItem, effectiveId));
+                          });
 }
 
 void OverlayService::onOsdSlotHideCompleted(const QString& effectiveId)
@@ -910,7 +633,7 @@ void OverlayService::onOsdSlotHideCompleted(const QString& effectiveId)
     // show runs applyDecoration again, which rewrites this, so nothing is lost
     // by dropping it for the idle interval between shows. The chain itself is
     // left alone deliberately: it is rewritten per show and costs a list.
-    writeQmlProperty(it->osdSlot(), QStringLiteral("backdropTexture"), QVariant());
+    writeQmlProperty(it->osdSlot(), QString(OverlayQmlPropertyNames::BackdropTexture), QVariant());
     // Symmetric restore: layout/disabled/navigation OSD show paths
     // hid the zone-selector slot to keep it from peeking through the
     // OSD card. snap-assist's onSnapAssistSlotHideCompleted does the
@@ -936,9 +659,10 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
     // Shared window preparation (screen resolve, passive shell, geometry).
     // Runs BEFORE the dedup check because it is the source of effectiveId;
     // that is safe — on the duplicate path the first show already created
-    // the shell and hid the zone selector, so the helper's side effects are
-    // no-ops there. The bundle's aspect ratio is unused: the nav card is
-    // text-sized, not preview-sized.
+    // the shell, so the helper's side effects are no-ops there, and the
+    // zone-selector hide now lives in finishOsdShow past every bail. The
+    // bundle's aspect ratio is unused: the nav card is text-sized, not
+    // preview-sized.
     const auto prep = prepareLayoutOsdWindow(screenId);
     if (!prep) {
         return;
@@ -957,8 +681,8 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
     // the physical id - can clear stale dedup state on screen replug.
     //
     // The dedup state is updated only after we've decided to actually
-    // show - see the matching m_lastNavigation* writes below near
-    // navSurface->show(). A bail-out path further down (no layout,
+    // show - see the matching m_lastNavigation* writes below, after the
+    // finishOsdShow call. A bail-out path further down (no layout,
     // no notification window, etc.) must NOT poison the dedup state,
     // otherwise a failed show silently swallows the next legitimate call
     // within 200 ms.
@@ -999,7 +723,7 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
     }
 
     // Resolve per-screen layout (not the global m_layout which may belong to another screen)
-    // Float, algorithm, rotate, and autotile-only actions don't need layout/zones
+    // Float, rotate and autotile-only actions don't need layout/zones
     // "fullscreen", "tabbed", "resize", "center", "scroll", "consume" and
     // "expel" belong here too: their success arms render plain text and never
     // consult zone data, so the missing-layout bail below could only ever
@@ -1024,11 +748,14 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
     // "Zone %1" copy resolves and the missing-layout bail below must not
     // swallow the feedback.
     //
-    // Resolved lazily and memoised. What the laziness actually saves is ONE
-    // path: the ensurePassiveShellFor bail below, which returns before the
-    // zones are written. Every OSD that renders — failures and no-layout
-    // actions included — still reaches the zones write and pays the walk
-    // once, because skipping it there would change the zones QML receives.
+    // Resolved lazily and MEMOISED, and it is the memo that earns its keep: on the
+    // needsLayout arm the two call sites below would otherwise walk the provider twice for
+    // one OSD. Off that arm the `&&` short-circuit skips the first call site, so there is one
+    // walk and the memo costs nothing either way. The laziness itself
+    // saves nothing now that prepareLayoutOsdWindow, which carries the ensurePassiveShellFor
+    // bail, has been hoisted ABOVE this point — nothing between here and the second call
+    // site returns early. Every OSD that renders, failures and no-layout actions included,
+    // reaches the zones write and pays the walk exactly once.
     std::optional<QVariantList> scrollZonesCache;
     const auto scrollZonesFor = [this, &scrollZonesCache, &effectiveId]() -> const QVariantList& {
         if (!scrollZonesCache.has_value()) {
@@ -1045,11 +772,10 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
     }
 
     // The passive shell, window, surface and slot all came from
-    // prepareLayoutOsdWindow above (which also hid any fading zone
-    // selector on this screen). The shell is kept mapped across hides
-    // while shaders or animations are enabled (effects-gated
-    // keepMappedOnHide); per-show the SurfaceAnimator's beginShow replays
-    // the fade-in and restartDismissTimer extends the auto-hide.
+    // prepareLayoutOsdWindow above; finishOsdShow below is what hides any
+    // fading zone selector on this screen. Per-show the SurfaceAnimator's
+    // beginShow replays the fade-in and restartDismissTimer extends the
+    // auto-hide.
 
     // Process reason field - for rotation, extract the window count.
     // Format: "clockwise:N" or "counterclockwise:N" where N is window count.
@@ -1088,12 +814,14 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
 
     // Use shared PhosphorZones::LayoutUtils with minimal fields for zone number
     // lookup (only need zoneId and zoneNumber, not name/appearance). Pass
-    // navScreenGeom so fixed-mode zones normalize against the navigated-to
-    // screen rather than Layout::lastRecalcGeometry().
+    // navScreenGeom and that screen's scale so fixed-mode zones normalize
+    // against the navigated-to screen rather than Layout::lastRecalcGeometry()
+    // and Layout::lastRecalcScale().
     QVariantList zonesList = scrollZonesFor();
     if (zonesList.isEmpty()) {
-        zonesList = PhosphorZones::LayoutUtils::zonesToVariantList(screenLayout, PhosphorZones::ZoneField::Minimal,
-                                                                   QRectF(navScreenGeom));
+        zonesList = PhosphorZones::LayoutUtils::zonesToVariantList(
+            screenLayout, PhosphorZones::ZoneField::Minimal, QRectF(navScreenGeom),
+            PhosphorZones::GeometryUtils::screenScale(m_screenManager, effectiveId));
     }
     writeQmlProperty(osdSlot, QStringLiteral("zones"), zonesList);
 
@@ -1106,17 +834,17 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
     // Stage d: resolve + push the OSD surface decoration. Navigation OSDs do
     // not route through pushLayoutOsdContent, so apply it explicitly here (same
     // decoration the layout-OSD paths get via pushLayoutOsdContent).
-    applyDecoration(osdSlot, QStringLiteral("osd"));
+    applyDecoration(osdSlot, PhosphorSurfaceShaders::decorationOsdPath());
 
     // Write mode AFTER data properties so the Loader-instantiated
     // NavigationOsdContent picks up correct values on first binding pass.
     // (assertWindowOnScreen already ran inside prepareLayoutOsdWindow.)
     writeQmlProperty(osdSlot, QStringLiteral("mode"), QStringLiteral("navigation-osd"));
 
-    finishOsdShow(window, navSurface, osdSlot, navScreenGeom);
+    finishOsdShow(window, navSurface, osdSlot, navScreenGeom, effectiveId);
 
-    // Update dedup state AFTER the Surface::show() + restartDismissTimer
-    // dispatch. Every early-return above this point is a "no OSD shown"
+    // Update dedup state AFTER finishOsdShow (the show and the
+    // restartDismissTimer dispatch). Every early-return above this point is a "no OSD shown"
     // outcome that must not poison the next call's dedup window - keeping
     // the writes here means a bail-out (no physScreen, no notification
     // window, no layout/zones, etc.) leaves dedup state untouched and the
@@ -1134,8 +862,8 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
                       << "highlightedZones=" << highlightedZoneIds;
 }
 
-// hideNavigationOsd removed together with hideLayoutOsd - see the comment
-// block above warmUpNotifications() for the rationale. The m_lastNavigation*
+// hideNavigationOsd removed together with hideLayoutOsd - see the dismiss-path
+// comment block above onOsdDismissRequested for the rationale. The m_lastNavigation*
 // dedup state is cleared implicitly by the 200 ms timeout check in
 // showNavigationOsd() itself (the OSD's ~1000 ms dismiss timer is far
 // longer than the dedup window, so any dismiss is always past the

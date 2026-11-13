@@ -12,7 +12,6 @@
 #include <PhosphorEngine/IWindowTrackingService.h>
 #include <PhosphorEngine/WindowPlacementStore.h>
 
-#include "enginelimits.h"
 #include "scrollenginelogging.h"
 
 namespace PhosphorScrollEngine {
@@ -42,10 +41,8 @@ void ScrollEngine::handoffRelease(const QString& rawWindowId)
     // engine knowingly gave up, and a stale scrolling TILED slot left in the
     // unified record is not memory but a false home — paired with a stale
     // record-level screenId (which an engine-miss capture can leave behind),
-    // the cross-screen reclaim would later yank the window back out from
-    // under its new engine, and that engine's defer gate would read the same
-    // stale record and stand down. Ordinary close deliberately KEEPS the
-    // slot; only the handoff clears it.
+    // a stale managed slot would read as a restorable home at the next open.
+    // Ordinary close deliberately KEEPS the slot; only the handoff clears it.
     if (m_windowTracker) {
         m_windowTracker->releaseEngineSlot(windowId, engineId());
     }
@@ -60,8 +57,14 @@ void ScrollEngine::handoffRelease(const QString& rawWindowId)
     m_declinedOpenFocus.remove(windowId);
     // m_lastAppliedRect deliberately retained (same rationale as
     // windowClosed: a close/capture racing the handoff still needs the
-    // poison-guard memory; pruneStaleWindows reclaims it).
+    // poison-guard memory). A re-adoption reclaims it, so does the
+    // post-capture forgetClosedFullscreenHold of the window's eventual close,
+    // and pruneStaleWindows is the aliveness backstop.
     m_floatRestore.remove(windowId);
+    // The window leaves the engine on every desktop, so what its client's
+    // commits taught goes too. releaseWindowOffScreen reaches here through the
+    // base release, which is how a move to another monitor drops it.
+    forgetCommittedExtents(windowId);
     // The mode-transition float marker must not outlive this engine's
     // tracking: the receiving engine owns the float bit from here, and a
     // stale entry would keep isModeSpecificFloated answering true.
@@ -81,22 +84,55 @@ void ScrollEngine::handoffRelease(const QString& rawWindowId)
     if (key == currentKeyForScreen(key.screenId)) {
         scheduleRetileForScreen(key.screenId);
     }
+    // The strip's structure changed (the released column is gone, or the
+    // managed set shrank by a float), and placementChanged is this engine's
+    // only way to mark DirtyScrollStrips and republish the strip, the reason
+    // windowClosed emits it at the same point. The scheduled retile does not
+    // cover it: applyLayout announces only when the view anchor moved.
+    Q_EMIT placementChanged(key.screenId);
 }
 
 void ScrollEngine::handoffReceive(const HandoffContext& ctx)
 {
     const QString windowId = canonicalizeForLookup(ctx.windowId);
-    if (windowId.isEmpty() || !m_scrollingScreens.contains(ctx.toScreenId)) {
+    if (windowId.isEmpty() || ctx.toScreenId.isEmpty()) {
+        return;
+    }
+    // The context the window is received into: the one in view, or the
+    // desktop the caller names. m_scrollingScreens speaks only for the context
+    // in view, so a background desktop is judged by the mode it runs as the
+    // daemon resolves it, as readoptParked judges one (C101). A refused
+    // workspace move re-homes its window into the background desktop it was
+    // released from, and refusing that because the desktop in view snaps or
+    // tiles left the window tracked by no engine. Unset resolver: every
+    // context scrolls, readoptParked's reading.
+    PhosphorEngine::PlacementStateKey key = currentKeyForScreen(ctx.toScreenId);
+    if (ctx.toDesktop > 0) {
+        key.desktop = ctx.toDesktop;
+    }
+    const bool receivedInView = key == currentKeyForScreen(ctx.toScreenId);
+    const bool contextScrolls = receivedInView
+        ? m_scrollingScreens.contains(ctx.toScreenId)
+        : (!m_scrollingModeResolver || m_scrollingModeResolver(key.screenId, key.desktop, key.activity));
+    if (!contextScrolls) {
+        return;
+    }
+    // stateForKey builds no strip on a screen outside the scrolling set, so a
+    // background desktop there receives only into the strip it kept from when
+    // it last scrolled. Without one the receive is refused HERE, before the
+    // records below are given up for an arrival that cannot happen (C117).
+    if (!m_scrollingScreens.contains(ctx.toScreenId) && !m_states.stateForKey(key)) {
         return;
     }
     m_closedFullscreenHolds.remove(windowId); // any re-entry ends the closed-hold answer
     // Same preview hygiene as handoffRelease: an arriving window that a
     // live preview still names would be double-placed at commit.
     dropClosedWindowFromDragPreview(windowId);
-    PhosphorEngine::PlacementStateKey key = currentKeyForScreen(ctx.toScreenId);
-    if (ctx.toDesktop > 0) {
-        key.desktop = ctx.toDesktop;
-    }
+    // The window has left every other screen: a column stashed for it on one
+    // is given up, as insertOpenedWindow does for an arrival (F648).
+    forgetStashedWindowWhere(windowId, [&ctx](const PhosphorEngine::PlacementStateKey& stashKey) {
+        return stashKey.screenId != ctx.toScreenId;
+    });
     // Defence-in-depth single-owner guard: the daemon releases the source
     // first on every current path, but a window still tracked in ANOTHER
     // scroll context here would end up held by two states with the reverse
@@ -105,9 +141,20 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
     PhosphorEngine::PlacementStateKey staleKey;
     bool migratedWindowedFs = false;
     bool migratedMaximizedToEdges = false;
+    std::optional<WindowHeight> migratedHeight;
     if (ScrollState* staleState = stateForWindow(windowId, &staleKey); staleState && staleKey != key) {
-        const ScrollLayoutParams staleParams = layoutParamsForScreen(staleKey.screenId);
+        // The stale context's OWN params, not the screen's current one: it is
+        // usually a background desktop, and takeWindow re-derives that strip's
+        // anchor from these.
+        const ScrollLayoutParams staleParams = layoutParamsForKey(staleKey);
         const bool staleWasFloating = staleState->isFloating(windowId);
+        // The tile's height intent too, windowOpened's migration rule: the hop
+        // is a move, and the height the window already had outranks the
+        // context default the insert below seeds. Only off a real tile, for
+        // that migration's reason (a float's answer is a default Auto).
+        if (staleState->strip().containsWindow(windowId)) {
+            migratedHeight = staleState->strip().windowHeightIntent(windowId);
+        }
         // Capture before takeWindow destroys the tile, mirroring
         // windowOpened's migration: the receive re-applies it after its own
         // insert so the presentation survives this defence-in-depth hop too.
@@ -137,6 +184,11 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
         m_parkedScrollEdge.remove(windowId);
         m_floatRestore.remove(windowId);
         m_scrollFloatedWindows.remove(windowId);
+        // A migration out of the stale context, onto another output or
+        // another desktop, so what the client's commits taught there goes too
+        // (windowOpened's migration and handoffRelease drop it the same way),
+        // ahead of the insert below.
+        forgetCommittedExtents(windowId);
         if (staleWasFloating) {
             // Same announcement as windowOpened's migration: a silently
             // dropped float bit leaves signal-driven subscribers believing
@@ -151,6 +203,12 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
         }
         Q_EMIT placementChanged(staleKey.screenId);
     }
+    // A column a move recorded for it on another desktop of this screen is
+    // one it did not reach, as for insertOpenedWindow's arrival (C41). After
+    // the migration above, which takes the window out of the contexts it is
+    // leaving, so the memberships the record keeps a tile for are only the
+    // ones the window holds on (C74).
+    forgetMovedColumnsElsewhere(windowId, key);
     ScrollState* state = stateForKey(key, true);
     if (!state) {
         return;
@@ -224,29 +282,33 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
     // insertOpenedWindow's re-resolve and commitDragInsertPreview's predicted
     // count; unlike the cross-monitor move, nothing re-stamps the height after
     // this insert, so the params have to be right the first time.
-    const ScrollLayoutParams params = layoutParamsForScreen(ctx.toScreenId, state->strip().columnCount() + 1);
+    // The receiving context's OWN params (layoutParamsForKey): ctx.toDesktop
+    // can name a desktop that is not the one in view, and the screen form
+    // would resolve the gaps and work area of the desktop in view instead.
+    const ScrollLayoutParams params = layoutParamsForKey(key, state->strip().columnCount() + 1);
     // params already resolved this screen's default width one line up —
     // re-fetching the override map for the same value is the duplicate
     // resolve this params-first convention exists to avoid.
     ColumnWidth width = params.defaultColumnWidth;
+    // The receiving context's override map for the same reason: the
+    // screen-id form reads the context in view, which a background
+    // ctx.toDesktop is not.
+    const ColumnDisplay display = effectiveDefaultColumnDisplay(m_perScreenOverrides.value(key));
     if (ctx.sourceGeometry.isValid()) {
-        // sourceGeometry is the window's PHYSICAL frame at handoff time, so
-        // decode it by the TARGET strip's role: the value being minted is an
-        // intent for the strip receiving the window. Reading .width() feeds a
-        // cross extent into a main-axis intent on a vertical target.
-        // Bounded like every other Fixed intent this engine mints: the source
-        // geometry is a compositor-reported frame, so a degenerate or absurd
-        // extent would otherwise become the column's standing width intent.
-        const int sourceMain = params.axis.mainSize(ctx.sourceGeometry.size());
-        width = ColumnWidth::makeFixed(qBound(1, sourceMain, static_cast<int>(kMaxFixedExtentPx)));
+        // sourceGeometry is the window's PHYSICAL frame at handoff time, and
+        // the column keeps the size the window arrives at: the same conversion
+        // "the client decides" makes, decoded by the TARGET strip's role (the
+        // value being minted is an intent for the strip receiving the window),
+        // lifted by a tabbed column's reservation, and bounded like every
+        // other Fixed intent this engine mints.
+        width = clientDecidedColumnWidth(ctx.sourceGeometry.size(), params, display);
     }
     // Entry position comes from the CALLER: the cross-mode dispatcher
     // derives insertIndex from the crossing direction (0 when entering from
     // the strip's left edge), and -1 appends at the right end. This
     // function has no direction of its own to derive an edge from.
     const int columnIdx = (ctx.insertIndex >= 0) ? ctx.insertIndex : state->strip().columnCount();
-    if (state->strip().insertWindowAt(columnIdx, windowId, width, effectiveDefaultColumnDisplay(ctx.toScreenId),
-                                      params)) {
+    if (state->strip().insertWindowAt(columnIdx, windowId, width, display, params)) {
         // Seed the source engine's last-known min size so the first relayout
         // clamps correctly instead of waiting a refuse/re-discover round-trip.
         // Clamped per axis rather than OR-gated through: a mixed pair like
@@ -265,9 +327,13 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
         if (migratedMaximizedToEdges) {
             state->strip().setMaximizedToEdgesForWindow(windowId, true);
         }
+        if (migratedHeight) {
+            state->strip().restateWindowHeightIntent(windowId, *migratedHeight);
+        }
         m_states.addMembership(windowId, key);
-        const bool isCurrentContext = key == currentKeyForScreen(ctx.toScreenId);
-        if (isCurrentContext) {
+        // A background arrival lays out nothing: the strip in view is not the
+        // one that changed, and the switch to the receiving desktop retiles it.
+        if (receivedInView) {
             state->strip().focusWindow(windowId, params);
             applyLayout(ctx.toScreenId, false);
         }
@@ -293,7 +359,18 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
 std::optional<PhosphorEngine::WindowPlacement> ScrollEngine::capturePlacement(const QString& rawWindowId) const
 {
     const QString windowId = canonicalizeForLookup(rawWindowId);
+    PhosphorEngine::PlacementStateKey key;
+    const ScrollState* state = stateForWindow(windowId, &key);
+    if (!state) {
+        return std::nullopt;
+    }
+    return capturePlacementIn(windowId, state, key);
+}
 
+std::optional<PhosphorEngine::WindowPlacement>
+ScrollEngine::capturePlacementIn(const QString& windowId, const ScrollState* state,
+                                 const PhosphorEngine::PlacementStateKey& key) const
+{
     // A window mid-drag-insert has NO capturable placement, and answering
     // anyway silently destroys the one it had. Under DETACH-ONCE, begin drops
     // the window from the floating set and out of the strip while KEEPING it
@@ -313,12 +390,6 @@ std::optional<PhosphorEngine::WindowPlacement> ScrollEngine::capturePlacement(co
     // record intact, which is the same answer the adaptor already
     // documents for an unmanaged window.
     if (m_dragInsertPreview && m_dragInsertPreview->windowId == windowId) {
-        return std::nullopt;
-    }
-
-    PhosphorEngine::PlacementStateKey key;
-    const ScrollState* state = stateForWindow(windowId, &key);
-    if (!state) {
         return std::nullopt;
     }
     // A window held out for its OWN fullscreen has no placement to capture:

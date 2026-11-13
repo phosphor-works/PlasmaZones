@@ -30,7 +30,8 @@ include_directories(
 # one class. Before the tier split they lived in the plasmazones test tree
 # and were deliberately ungated so the default (shell-off) configure still
 # built them; now the whole tier is entered only with BUILD_PHOSPHOR_SHELL
-# on, and the build-shell CI job is what runs them.
+# on. CI does not build the tier, so they run in a local shell-on build or
+# the root Dockerfile's image.
 #
 # The classes live in the GPL shell binary, so they are tested here rather
 # than from the LGPL bar module's own QuickTest suite (which covers the QML
@@ -470,6 +471,39 @@ if(TARGET PhosphorPopout::PhosphorPopout)
     add_test(NAME test_routing_popout_transport COMMAND test_routing_popout_transport)
 endif()
 
+# The shell process's tile factory and control-center controller live in the
+# shell executable, so the suites below cannot link a library for them. Each
+# is built once here as an OBJECT library and linked by every suite that
+# needs it: the same objects go into each test, compiled once instead of once
+# per test. Objects are added only to a target that names the OBJECT library
+# itself, so a suite needing both names both. The headers are listed so
+# AUTOMOC scans their Q_OBJECT classes.
+if(TARGET PhosphorRegistry::PhosphorRegistry)
+    add_library(phosphorshell_test_tile_factory OBJECT
+        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/QmlComponentTileFactory.h
+        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/qmlcomponenttilefactory.cpp
+    )
+    target_include_directories(phosphorshell_test_tile_factory PUBLIC ${CMAKE_SOURCE_DIR}/phosphor-shell/src)
+    target_link_libraries(phosphorshell_test_tile_factory
+        PUBLIC Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick PhosphorRegistry::PhosphorRegistry)
+endif()
+if(TARGET PhosphorRegistry::PhosphorRegistry AND TARGET PhosphorServiceIdle::PhosphorServiceIdle)
+    add_library(phosphorshell_test_control_center OBJECT
+        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/ControlCenterController.h
+        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/controlcentercontroller.cpp
+    )
+    target_include_directories(phosphorshell_test_control_center PUBLIC ${CMAKE_SOURCE_DIR}/phosphor-shell/src)
+    target_link_libraries(phosphorshell_test_control_center
+        PUBLIC
+            Qt6::Core
+            Qt6::Gui
+            Qt6::Qml
+            Qt6::Quick
+            PhosphorRegistry::PhosphorRegistry
+            PhosphorServiceIdle::PhosphorServiceIdle
+    )
+endif()
+
 # PanePopoutTransport: the engine-placed pane (A2 §4), a real toplevel
 # built from FloatingWindow with the pane app id, hosted in
 # Phosphor.Popout's PaneHost. Needs the shell library for FloatingWindow,
@@ -482,10 +516,6 @@ if(TARGET PhosphorShell::PhosphorShell AND TARGET PhosphorPopout::PhosphorPopout
         test_pane_popout_transport.cpp
         ${CMAKE_SOURCE_DIR}/phosphor-shell/src/PanePopoutTransport.h
         ${CMAKE_SOURCE_DIR}/phosphor-shell/src/panepopouttransport.cpp
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/ControlCenterController.h
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/controlcentercontroller.cpp
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/QmlComponentTileFactory.h
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/qmlcomponenttilefactory.cpp
         # The transport rewrites the pane rule's zone before an open.
         ${CMAKE_SOURCE_DIR}/phosphor-shell/src/PaneRules.h
         ${CMAKE_SOURCE_DIR}/phosphor-shell/src/panerules.cpp
@@ -510,6 +540,8 @@ if(TARGET PhosphorShell::PhosphorShell AND TARGET PhosphorPopout::PhosphorPopout
             PhosphorServiceIdle::PhosphorServiceIdle
             PhosphorRules::PhosphorRules
             PhosphorProtocol::PhosphorProtocol
+            phosphorshell_test_control_center
+            phosphorshell_test_tile_factory
     )
     add_test(NAME test_pane_popout_transport COMMAND test_pane_popout_transport)
 endif()
@@ -544,12 +576,7 @@ endif()
 if(TARGET PhosphorRegistry::PhosphorRegistry AND TARGET PhosphorServiceIdle::PhosphorServiceIdle)
     add_executable(test_control_center_controller
         test_control_center_controller.cpp
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/ControlCenterController.h
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/controlcentercontroller.cpp
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/QmlComponentTileFactory.h
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/qmlcomponenttilefactory.cpp
     )
-    target_include_directories(test_control_center_controller PRIVATE ${CMAKE_SOURCE_DIR}/phosphor-shell/src)
     target_link_libraries(test_control_center_controller
         PRIVATE
             Qt6::Test
@@ -559,6 +586,8 @@ if(TARGET PhosphorRegistry::PhosphorRegistry AND TARGET PhosphorServiceIdle::Pho
             Qt6::Quick
             PhosphorRegistry::PhosphorRegistry
             PhosphorServiceIdle::PhosphorServiceIdle
+            phosphorshell_test_control_center
+            phosphorshell_test_tile_factory
     )
     add_test(NAME test_control_center_controller COMMAND test_control_center_controller)
 
@@ -567,10 +596,7 @@ if(TARGET PhosphorRegistry::PhosphorRegistry AND TARGET PhosphorServiceIdle::Pho
     # surface depends on to destroy the tiles it built.
     add_executable(test_qml_component_tile_factory
         test_qml_component_tile_factory.cpp
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/QmlComponentTileFactory.h
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/qmlcomponenttilefactory.cpp
     )
-    target_include_directories(test_qml_component_tile_factory PRIVATE ${CMAKE_SOURCE_DIR}/phosphor-shell/src)
     target_link_libraries(test_qml_component_tile_factory
         PRIVATE
             Qt6::Test
@@ -579,6 +605,7 @@ if(TARGET PhosphorRegistry::PhosphorRegistry AND TARGET PhosphorServiceIdle::Pho
             Qt6::Qml
             Qt6::Quick
             PhosphorRegistry::PhosphorRegistry
+            phosphorshell_test_tile_factory
     )
     add_test(NAME test_qml_component_tile_factory COMMAND test_qml_component_tile_factory)
 endif()
@@ -592,10 +619,6 @@ if(TARGET PhosphorPopout::PhosphorPopout AND TARGET PhosphorRegistry::PhosphorRe
         test_socket_popout_transport.cpp
         ${CMAKE_SOURCE_DIR}/phosphor-shell/src/SocketPopoutTransport.h
         ${CMAKE_SOURCE_DIR}/phosphor-shell/src/socketpopouttransport.cpp
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/ControlCenterController.h
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/controlcentercontroller.cpp
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/QmlComponentTileFactory.h
-        ${CMAKE_SOURCE_DIR}/phosphor-shell/src/qmlcomponenttilefactory.cpp
     )
     target_include_directories(test_socket_popout_transport PRIVATE ${CMAKE_SOURCE_DIR}/phosphor-shell/src)
     target_link_libraries(test_socket_popout_transport
@@ -608,6 +631,8 @@ if(TARGET PhosphorPopout::PhosphorPopout AND TARGET PhosphorRegistry::PhosphorRe
             PhosphorPopout::PhosphorPopout
             PhosphorRegistry::PhosphorRegistry
             PhosphorServiceIdle::PhosphorServiceIdle
+            phosphorshell_test_control_center
+            phosphorshell_test_tile_factory
     )
     add_test(NAME test_socket_popout_transport COMMAND test_socket_popout_transport)
 endif()

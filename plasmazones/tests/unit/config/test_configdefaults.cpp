@@ -66,10 +66,15 @@ private Q_SLOTS:
      */
     void testAllDefaults_withinKcfgBounds()
     {
-        // Activation. Enum-valued settings derive their bounds from the enum
-        // (not magic literals) so the tripwire tracks the enum if it grows.
-        QVERIFY(ConfigDefaults::zoneSpanModifier() >= static_cast<int>(DragModifier::Disabled));
-        QVERIFY(ConfigDefaults::zoneSpanModifier() <= MaxDragModifier);
+        // Activation. The zone-span default is a trigger list holding one
+        // {Ctrl, no button} entry; the legacy scalar modifier no longer exists.
+        {
+            const QVariantList zoneSpan = ConfigDefaults::zoneSpanTriggers();
+            QCOMPARE(zoneSpan.size(), 1);
+            const QVariantMap entry = zoneSpan.first().toMap();
+            QCOMPARE(entry.value(ConfigDefaults::triggerModifierField()).toInt(), static_cast<int>(DragModifier::Ctrl));
+            QCOMPARE(entry.value(ConfigDefaults::triggerMouseButtonField()).toInt(), 0);
+        }
 
         // One pair only. The other three grace accessors currently DELEGATE to
         // this one, so repeating the range check for them asserts nothing that

@@ -264,15 +264,18 @@ Window {
             });
     }
 
-    // Semi-transparent background — replaces the old Window.color alpha=0.7.
-    // A child Rectangle lets the window surface be fully transparent while
-    // popup menus (xdg_popup) get their own opaque surfaces from the style.
+    // Background veil at the user's Editor.Background opacity. A child
+    // Rectangle lets the window surface be fully transparent while popup menus
+    // (xdg_popup) get their own opaque surfaces from the style. The 0.7
+    // fallback only covers a missing controller, which main() rules out by
+    // setting it before the window loads; the configured default lives in
+    // ConfigDefaults::editorBackgroundOpacity().
     Rectangle {
         id: windowBackground
 
         anchors.fill: parent
         z: -1
-        color: Theme.withAlpha(Kirigami.Theme.backgroundColor, 0.7)
+        color: Theme.withAlpha(Kirigami.Theme.backgroundColor, editorWindow._editorController ? editorWindow._editorController.backgroundOpacity : 0.7)
     }
 
     ZoneOperations {
@@ -783,7 +786,7 @@ Window {
         color: exitButtonMouse.containsMouse ? Theme.withAlpha(Kirigami.Theme.highlightColor, 0.3) : Theme.withAlpha(Kirigami.Theme.backgroundColor, 0.9)
         // Focus ring when reached via Tab, frame-contrast hairline otherwise
         border.color: fullscreenExitButton.activeFocus ? Kirigami.Theme.focusColor : Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, Kirigami.Theme.frameContrast)
-        border.width: fullscreenExitButton.activeFocus ? 2 : 1
+        border.width: fullscreenExitButton.activeFocus ? Theme.focusBorderWidth : 1
         z: 200
         // Fade in/out animation
         opacity: editorWindow.fullscreenMode ? 1 : 0
@@ -1039,6 +1042,12 @@ Window {
             notifications.showSuccess(i18nc("@info", "Layout exported"));
         }
 
+        // Every export failure message already says that the export failed
+        // and why, so it shows verbatim with no prefix.
+        function onLayoutExportFailed(error) {
+            notifications.showError(error);
+        }
+
         // The template paths emit self-contained sentences ("That template
         // is no longer available."), so they show verbatim; the layout paths
         // emit fragments that need the prefix.
@@ -1081,6 +1090,13 @@ Window {
         function onTargetScreenChangeRequiresConfirmation(screenName) {
             confirmScreenSwitchDialog.screenName = editorWindow.displayNameForScreen(screenName);
             confirmScreenSwitchDialog.open();
+        }
+
+        // The parked switch was dropped because what it asked about was
+        // replaced underneath the prompt (another layout or template loaded).
+        // Its Save would now save the replacement, so the prompt goes.
+        function onPendingTargetScreenDropped() {
+            confirmScreenSwitchDialog.close();
         }
 
         // The controller parked a forwarded launch because the current layout

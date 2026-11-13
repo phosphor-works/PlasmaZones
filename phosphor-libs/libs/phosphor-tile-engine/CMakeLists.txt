@@ -31,6 +31,12 @@ endif()
 
 include(GenerateExportHeader)
 
+# Unconditional, like phosphor-zones: in-tree this re-find is a cache hit,
+# and a standalone configure has no other source for the Qt targets the
+# library links below. Gui is for the sources' QScreen use, linked
+# PRIVATE, so the package config does not need it.
+find_package(Qt6 ${PHOSPHORTILEENGINE_QT_MIN} REQUIRED COMPONENTS Core Gui)
+
 set(CMAKE_AUTOMOC ON)
 
 # Sibling Phosphor libraries this one links. Each lookup is GUARDED rather than
@@ -88,6 +94,7 @@ add_library(PhosphorTileEngine SHARED
     src/autotileengine/engine_internal.h
     src/autotileengine/core.cpp
     src/autotileengine/context.cpp
+    src/autotileengine/desktopremap.cpp
     src/autotileengine/membership.cpp
     src/autotileengine/algorithm_state.cpp
     src/autotileengine/config.cpp
@@ -98,6 +105,8 @@ add_library(PhosphorTileEngine SHARED
     src/autotileengine/insert.cpp
     src/autotileengine/layout_apply.cpp
     src/autotileengine/drag_preview.cpp
+    src/autotileengine/evacueepark.cpp
+    src/autotileengine/evacueepark_p.h
     src/autotileengine/facade.cpp
     src/AutotileConfig.cpp
     src/NavigationController.cpp
@@ -113,6 +122,15 @@ generate_export_header(PhosphorTileEngine
     EXPORT_FILE_NAME phosphortileengine_export.h
     EXPORT_MACRO_NAME PHOSPHORTILEENGINE_EXPORT
 )
+
+# Resolve KDE_INSTALL_INCLUDEDIR before target_include_directories expands it
+# into $<INSTALL_INTERFACE:>. Until it was set here, a non-KDE configure
+# exported no install include directory while the headers still went to
+# GNUInstallDirs' includedir.
+if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+    include(GNUInstallDirs)
+    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 target_include_directories(PhosphorTileEngine
     PUBLIC
@@ -146,6 +164,7 @@ target_link_libraries(PhosphorTileEngine
         # in its API, so downstream consumers need this on their include path.
         PhosphorLayoutApi::PhosphorLayoutApi
     PRIVATE
+        Qt6::Gui  # the sources use QScreen directly
         PhosphorScreens::Runtime  # AutotileEngine queries screen geometry via ScreenManager
         PhosphorIdentity::PhosphorIdentity
         PhosphorZones::PhosphorZones
@@ -156,10 +175,13 @@ target_link_libraries(PhosphorTileEngine
 # Install
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

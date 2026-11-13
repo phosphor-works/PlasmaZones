@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// FILE-SIZE EXCEPTION (sanctioned): the SettingsController constructor and
-// destructor — one long, ordered wiring/teardown pair whose declaration-order
-// and disconnect-before-reset contracts reference each other in sequence
-// (see the in-body banners). Everything separable has already moved to the
-// settingscontroller_*.cpp siblings; the natural next split, the rule-label
-// resolver installation block, belongs in a _rulelabels.cpp when it is next
-// touched substantively.
+// The SettingsController constructor and destructor — one long, ordered
+// wiring/teardown pair whose declaration-order and disconnect-before-reset
+// contracts reference each other in sequence (see the in-body banners).
+// Everything separable has already moved to the settingscontroller_*.cpp
+// siblings, the rule-label resolvers included (settingscontroller_rulelookups.cpp).
 
 #include "settingscontroller.h"
 
@@ -21,7 +19,6 @@
 #include "settings/pages/snappingzonescontroller.h"
 #include "shaderpreview/shaderpreviewcontroller.h"
 #include "settings/pages/snappingbehaviorcontroller.h"
-#include "settings/pages/snappingeffectscontroller.h"
 #include "settings/pages/snappingzoneselectorcontroller.h"
 #include "settings/pages/tilingalgorithmcontroller.h"
 #include "settings/pages/scrollingbehaviorcontroller.h"
@@ -54,7 +51,6 @@
 // std::make_unique<RuleStore> in the ctor needs the complete
 // type. The header forward-declares it to avoid pulling the
 // dependency graph into every consumer of SettingsController.
-#include <PhosphorRules/ActionParams.h>
 #include <PhosphorRules/RuleStore.h>
 #include <PhosphorRules/RuleStoreWatcher.h>
 
@@ -282,23 +278,26 @@ SettingsController::~SettingsController()
     // before ~QObject reaches the raw children, so it is gone while the
     // RuleController it borrows is still alive.
 
-    // Tear down the RuleController's label lookups while the
-    // captured member containers (m_layouts, m_activities, m_screens,
-    // etc.) are still alive. Members destruct in reverse declaration
-    // order BEFORE ~QObject tears down child QObjects — so by the time
-    // ~RuleController runs as part of the QObject teardown, those
-    // captured containers are already gone. Any model-signal slot that
-    // reaches a lookup during teardown would deref destroyed state.
-    // The leafLabel/actionLabel helpers in rulemodel_labels.cpp treat empty
-    // lookups as identity, so clearing here is the safe contract.
+    // Tear down the RuleController's label lookups while the state they
+    // read (m_layouts, m_activities, m_screenHelper and the rest) is still
+    // alive. Members destruct in reverse declaration order BEFORE ~QObject
+    // tears down child QObjects — so by the time ~RuleController runs as
+    // part of the QObject teardown, that state is already gone. Any
+    // model-signal slot that reaches a lookup during teardown would deref
+    // destroyed state. The label helpers (leafLabel in
+    // rulemodel_matchlabels.cpp, actionLabel in rulemodel_labels.cpp) treat
+    // empty lookups as identity, so clearing here is the safe contract.
     if (m_rulesPage) {
         m_rulesPage->setScreenLookup({});
         m_rulesPage->setActivityLookup({});
         m_rulesPage->setZoneLookup({});
-        // The zone-name provider captures `this` and walks m_localLayoutManager;
-        // clear it for the same reason (the controller keeps its last list).
+        // The zone-name and zone-option providers capture `this` and walk
+        // m_localLayoutManager; clear them for the same reason (the
+        // controller keeps their last lists).
         m_rulesPage->setZoneNamesProvider({});
+        m_rulesPage->setZoneMatchOptionsProvider({});
         m_rulesPage->setVirtualDesktopLookup({});
+        m_rulesPage->setWorkspaceLookup({});
         m_rulesPage->setSnappingLayoutLookup({});
         m_rulesPage->setTilingAlgorithmLookup({});
         // The shader resolver captures `this` and reaches m_animationShaderRegistry;
@@ -317,11 +316,14 @@ SettingsController::~SettingsController()
         // ~QObject teardown); clear it too so a deferred dataChanged during
         // teardown can't run the lookup against the dangling registry.
         m_rulesPage->setDecorationPackLookup({});
-        // Drain any in-flight `dataChanged` emissions queued against
-        // the cleared lookups before the model captures the now-
-        // empty resolvers. refreshLabels walks every row once and
-        // rebuilds the label cache with the identity (empty) lookups
-        // so the next paint reads consistent data.
+        // The default-assignment provider reads m_settings and
+        // m_localLayoutManager. The colour-scheme one captures nothing, and
+        // is cleared too so the overview's inputs go together.
+        m_rulesPage->setDefaultAssignmentProvider({});
+        m_rulesPage->setColorSchemeProvider({});
+        // Re-emit the label roles once against the now-empty (identity)
+        // lookups, so anything that paints during teardown reads raw ids
+        // consistently rather than a mix of resolved and raw labels.
         if (m_rulesPage->model())
             m_rulesPage->model()->refreshLabels();
     }
@@ -368,18 +370,26 @@ SettingsController::SettingsController(QObject* parent)
     , m_localLayoutManager(
           std::make_unique<PhosphorZones::LayoutRegistry>(m_localRuleStore.get(), ConfigDefaults::layoutsSubdir()))
 {
+    // Settings loaded config.json in its constructor. Note the quarantine
+    // copies now, before anything slower runs: a daemon starting alongside
+    // could move the file aside in between, and its copy must not count as
+    // one that was already there.
+    m_configUnreadable = m_settings.configUnreadable();
+    if (m_configUnreadable) {
+        m_quarantineCopiesWhenUnreadable = quarantineCopyStamps(m_settings.configFilePath());
+    }
     // The screen-id resolver is installed in the member-init list (see
     // m_screenIdResolverReady) so it is ready before m_settings load()s. It
     // lives in src/common/screenidresolver.{h,cpp} so daemon/editor/settings
     // share one install-once helper.
 
     // Auto-discovery pattern: every linked provider library has
-    // already registered a builder via static-init. The KCM just
+    // already registered a builder via static-init. The settings app just
     // publishes the registries it owns via the shared helper
     // (buildStandardLayoutSourceBundle) so the context-wiring is the
     // same across daemon/editor/settings. Adding a new engine library
     // doesn't require editing this file unless the engine demands a
-    // service the KCM doesn't already publish.
+    // service the settings app doesn't already publish.
     m_localTemplateStore = std::make_unique<PhosphorZones::ScrollingTemplateStore>();
     m_localTemplateStore->loadTemplates();
     buildStandardLayoutSourceBundle(m_localSources, m_localLayoutManager.get(), m_localAlgorithmRegistry.get(),
@@ -405,14 +415,15 @@ SettingsController::SettingsController(QObject* parent)
     // at m_layouts.
     connect(m_localLayoutManager.get(), &PhosphorZones::LayoutRegistry::layoutsChanged, this, [this]() {
         recalcLocalLayouts();
-        // The SnapToZone picker's zone-name list comes from the registry's Zone
-        // objects, not from the LayoutPreview projection below (which carries
-        // geometry and numbers only), so a rename that changes no preview still
-        // has to reach it. Refresh BEFORE the withhold / equality gates below:
-        // both key off the preview list, and the controller compares the name
-        // list itself so this is a no-op emit-wise when nothing changed.
+        // The SnapToZone picker's zone-name list and the Zone condition's
+        // zone options come from the registry's Zone objects, not from the
+        // LayoutPreview projection below (which carries geometry and numbers
+        // only), so a rename that changes no preview still has to reach them.
+        // Refresh BEFORE the withhold / equality gates below: both key off the
+        // preview list, and the controller compares each list itself so this
+        // is a no-op emit-wise when nothing changed.
         if (m_rulesPage) {
-            m_rulesPage->refreshZoneNames();
+            m_rulesPage->refreshZoneLists();
         }
         QVariantList localLayouts = localLayoutPreviews();
         // An empty disk view is published like any other: when the user deletes
@@ -447,6 +458,11 @@ SettingsController::SettingsController(QObject* parent)
     // only when loadLayouts() is called — it watches nothing, so an explicit
     // call is the sole reload trigger. This one covers startup;
     // loadLayoutsAsync() re-calls it off the daemon's D-Bus layout signals.
+    // That is enough because every PlasmaZones layout write goes through the
+    // daemon (the editor saves over D-Bus, DBusLayoutService), so a change it
+    // makes is always followed by one of those signals. A file copied or
+    // edited by hand in the layouts directory is the one change that arrives
+    // without one, and it is picked up at the next reload.
     m_localLayoutManager->loadLayouts();
     // `loadLayouts()` emits `layoutsChanged` synchronously, which the
     // handler wired above already routes through `recalcLocalLayouts()`
@@ -458,8 +474,8 @@ SettingsController::SettingsController(QObject* parent)
     // independent of the daemon and gets there via the signal path.
 
     // Load scripted algorithms so they appear in the algorithm dropdown.
-    // The daemon owns its own AlgorithmRegistry + loader; the KCM runs in
-    // a separate process and binds to its own per-process registry
+    // The daemon owns its own AlgorithmRegistry + loader; the settings app
+    // runs in a separate process and binds to its own per-process registry
     // (m_localAlgorithmRegistry) so picker-side previews stay live even
     // when the daemon is down.
     //
@@ -506,6 +522,13 @@ SettingsController::SettingsController(QObject* parent)
     QStringList failedSubscriptions;
     wireDaemonSubscriptions(failedSubscriptions);
 
+    // Seed the primary scale recalcLocalLayouts reads. The initial local load
+    // above ran before any answer could arrive, so a device-pixel layout's
+    // first preview keeps its last scale until this reply reloads it. A new
+    // primary screen invalidates the cache, which keys on the screen.
+    connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, &SettingsController::refreshPrimaryScreenScale);
+    refreshPrimaryScreenScale();
+
     // Client-side timeout for the async window picker. If the daemon
     // never fans out a runningWindowsAvailable signal (KWin effect
     // unloaded, crashed, or slow), the timer fires runningWindowsTimedOut()
@@ -517,6 +540,10 @@ SettingsController::SettingsController(QObject* parent)
                                        << "ms — KWin effect unresponsive?";
         Q_EMIT runningWindowsTimedOut();
     });
+
+    // From here on Settings announces flips (m_configUnreadable was seeded at
+    // the top of this constructor).
+    connect(&m_settings, &Settings::configUnreadableChanged, this, &SettingsController::refreshConfigUnreadable);
 
     // Forward daemon running state changes and refresh data when daemon starts
     connect(&m_daemonController, &DaemonController::runningChanged, this, [this]() {
@@ -544,6 +571,7 @@ SettingsController::SettingsController(QObject* parent)
             // daemon start, and the common case (a daemon restart that enumerates
             // the same desktops and activities) must not churn every bound view.
             scheduleLayoutLoad();
+            refreshPrimaryScreenScale();
             const int desktopCountBefore = m_virtualDesktopCount;
             const QStringList desktopNamesBefore = m_virtualDesktopNames;
             refreshVirtualDesktops();
@@ -559,6 +587,7 @@ SettingsController::SettingsController(QObject* parent)
                 Q_EMIT activitiesChanged();
             }
             m_screenHelper.refreshScreens();
+            scheduleScreenStatesRefresh();
         }
     });
 
@@ -615,6 +644,12 @@ SettingsController::SettingsController(QObject* parent)
     wirePerScreenOverrideSignal(&Settings::perScreenScrollingZoneSelectorSettingsChanged);
     wirePerScreenOverrideSignal(&Settings::perScreenScrollingSettingsChanged);
 
+    // Dynamic workspaces: the named-list forward and the inputs of
+    // workspacesActive. Every workspace chord and slot target is a Settings
+    // Q_PROPERTY, so the meta-object loop above already wires their dirty
+    // tracking.
+    wireWorkspaces();
+
     // The three ordering pages (and the layout library's Priority sort
     // availability) bind to the staged*OrderChanged signals only. When
     // nothing is staged the effective order is the Settings value, so a
@@ -666,13 +701,12 @@ SettingsController::SettingsController(QObject* parent)
     // CONSTANT bounds facade over ConfigDefaults — no Settings wiring required.
     m_snappingZonesPage = new SnappingZonesController(this);
 
-    // Snapping→Effects page — CONSTANT-only bounds facade. The Window Appearance
-    // page is ISettings-backed: it forwards its window border / title bar and the
-    // shared inner/outer gap values straight to config (Windows.* / Gaps.*). Those
-    // values ARE Q_PROPERTY on Settings, so the meta-object loop above already
-    // wires their NOTIFY to onSettingsPropertyChanged(); the controller only
-    // provides the QML-facing forwarders + the slider bounds.
-    m_snappingEffectsPage = new SnappingEffectsController(this);
+    // The Window Appearance page is ISettings-backed: it forwards its window
+    // border / title bar and the shared inner/outer gap values straight to
+    // config (Windows.* / Gaps.*). Those values ARE Q_PROPERTY on Settings, so
+    // the meta-object loop above already wires their NOTIFY to
+    // onSettingsPropertyChanged(); the controller only provides the QML-facing
+    // forwarders + the slider bounds.
     m_windowAppearancePage = new WindowAppearanceController(m_settings, this);
 
     // Tiling→Algorithm page sub-controller. Owns the algorithm slider bounds +
@@ -692,8 +726,9 @@ SettingsController::SettingsController(QObject* parent)
     connect(m_tilingAlgorithmPage.get(), &TilingAlgorithmController::changed, this,
             &SettingsController::onSettingsPropertyChanged);
 
-    // General page sub-controller — owns rendering-backend picker data and
-    // animation bounds. Its startup backend snapshot is captured at ctor
+    // General page sub-controller — owns rendering-backend picker data, the
+    // shader frame-rate and audio-spectrum bounds with the cava probe, and
+    // the animation bounds. Its startup backend snapshot is captured at ctor
     // time, so this must run AFTER m_settings is fully initialised (which is
     // guaranteed by it being a value member: the member-init list runs to
     // completion before any of this ctor body does. Declaration position has
@@ -788,8 +823,8 @@ SettingsController::SettingsController(QObject* parent)
         // disconnects them in ~QObject, which runs AFTER the unique_ptr members
         // are destroyed. An effectsChanged arriving in that window would have
         // seeded freed memory. Asking the owning pointer each time puts this
-        // dependency back under the rule the destructor enforces for the other
-        // eleven, with no extra teardown bookkeeping to forget.
+        // dependency back under the rule the destructor enforces for every
+        // other late-bound one, with no extra teardown bookkeeping to forget.
         const auto syncAnimation = [this]() {
             if (m_presetStore && m_animationShaderRegistry) {
                 PhosphorShaders::seedPackPresets(m_presetStore->registry(), PhosphorShaders::ShaderFamily::Animation,
@@ -813,10 +848,11 @@ SettingsController::SettingsController(QObject* parent)
         syncSurface();
         syncPointer();
         // Overlay is NOT seeded here: m_overlayShaderRegistry does not exist
-        // yet. It is built roughly a hundred lines below, so seeding it from
-        // this block only ever hit its own null guard and every overlay pack's
-        // shipped presets stayed invisible to the settings UI. It is seeded, and
-        // its reload edge connected, immediately after that registry is built.
+        // yet. It is built after installRuleLabelLookups(), further down this
+        // ctor, so seeding it from this block only ever hit its own null guard
+        // and every overlay pack's shipped presets stayed invisible to the
+        // settings UI. It is seeded, and its reload edge connected,
+        // immediately after that registry is built.
 
         connect(m_animationShaderRegistry, &PhosphorAnimationShaders::AnimationShaderRegistry::effectsChanged, this,
                 syncAnimation);
@@ -850,7 +886,7 @@ SettingsController::SettingsController(QObject* parent)
 
     // Rules page sub-controller — the unified rule surface. It owns
     // its own RuleModel and talks to the daemon's
-    // org.plasmazones.Rules adaptor. Dirty-tracking mirrors the
+    // org.phosphor_works.Placement.Rules adaptor. Dirty-tracking mirrors the
     // animations page: a staged edit flips needsSave; commit/revert run
     // from this controller's save()/load() so they don't race the
     // setNeedsSave(false) those methods emit.
@@ -913,9 +949,9 @@ SettingsController::SettingsController(QObject* parent)
     // apply / discard participate in the framework's Save/Discard.
     m_profilesPage = std::make_unique<ProfilePageController>(m_settings, *m_rulesPage, this);
 
-    // The rule-list label lookups (screen / activity / desktop / zone / layout
-    // / algorithm / shader / event / decoration) and the refreshes that keep
-    // them live. Installed exactly once; see settingscontroller_rulelookups.cpp.
+    // The rule-list label lookups, the two zone enumerators the rule editor's
+    // pickers read, and the refreshes that keep them live. Installed exactly
+    // once; see settingscontroller_rulelookups.cpp for the full set.
     installRuleLabelLookups();
 
     // Overlay shader registry — settings-side mirror of the daemon's. The
@@ -981,6 +1017,19 @@ SettingsController::SettingsController(QObject* parent)
     // forwarders (and the dirty-tracking guard). Previously refreshScreens
     // ran first and any same-tick screensChanged was lost, leaving QML
     // bindings stale until the next external daemon-driven refresh.
+    connect(&m_screenStatesCache, &ScreenStatesCache::refreshDue, this, &SettingsController::refreshScreenStates);
+    connect(&m_screenStatesCache, &ScreenStatesCache::statesChanged, this, &SettingsController::screenStatesChanged);
+    connect(&m_screenHelper, &ScreenHelper::screensChanged, this, &SettingsController::scheduleScreenStatesRefresh);
+    // The daemon's screenStatesChanged reports each state move. The states
+    // are also re-read whenever the window regains focus, which is when the
+    // user comes back to look, so a signal missed while the daemon was
+    // restarting cannot leave the tiles stale. refreshScreenStates skips a
+    // daemon that is not running, so focusing the window never starts one.
+    connect(qGuiApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive) {
+            scheduleScreenStatesRefresh();
+        }
+    });
     m_screenHelper.connectToDaemonSignals();
     // Hot-unplug: if the monitor the per-monitor groups are scoped to goes
     // away, fall back to "All Monitors". Lives here (not in the transient
@@ -1020,6 +1069,12 @@ SettingsController::SettingsController(QObject* parent)
         setNeedsSave(true);
     });
     m_screenHelper.refreshScreens();
+    // Seed the states with one blocking call, as the screen list above was,
+    // so the Rules page's first tiles already evaluate against them rather
+    // than drawing a stateless pass and redrawing when an asynchronous reply
+    // lands. The refresh above may also have scheduled an asynchronous
+    // re-read, whose reply republishes only on a difference.
+    m_screenStatesCache.seed(getScreenStates());
 
     // PhosphorZones::Layout load timer (debounce). The five layout-mutation
     // subscriptions (layoutCreated / layoutDeleted / layoutChanged /
@@ -1082,24 +1137,9 @@ SnappingBehaviorController* SettingsController::snappingBehaviorPage() const
     return m_snappingBehaviorPage;
 }
 
-TilingBehaviorController* SettingsController::tilingBehaviorPage() const
-{
-    return m_tilingBehaviorPage;
-}
-
 ScrollingBehaviorController* SettingsController::scrollingBehaviorPage() const
 {
     return m_scrollingBehaviorPage;
-}
-
-WindowAppearanceController* SettingsController::windowAppearancePage() const
-{
-    return m_windowAppearancePage;
-}
-
-SnappingEffectsController* SettingsController::snappingEffectsPage() const
-{
-    return m_snappingEffectsPage;
 }
 
 OverlaysPageController* SettingsController::overlaysPage() const

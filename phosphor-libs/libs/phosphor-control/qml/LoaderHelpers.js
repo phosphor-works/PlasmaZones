@@ -3,12 +3,11 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-// Shared Loader.onLoaded utilities used by SettingsAppWindow chrome
-// elements that mount consumer-supplied Component slots (Sidebar's
-// footerContent, AboutPageShell's topContent). Centralised so the
-// subtle "imperative Qt.binding assignment overrides any consumer
-// Layout.fillWidth on the loaded item" pitfall has one place to
-// document it.
+// Shared Loader.onLoaded utilities for the chrome's Loaders that mount
+// content from elsewhere: consumer-supplied Components, pages and module
+// sections. Centralised so the subtle "imperative Qt.binding assignment
+// overrides any consumer Layout.fillWidth on the loaded item" pitfall has
+// one place to document it.
 //
 // Usage from inside a Loader's onLoaded handler:
 //   onLoaded: PhosphorLoaderHelpers.bindItemWidthToLoader(loaderId)
@@ -40,16 +39,20 @@ function bindItemWidthToLoader(loader) {
 
 /**
  * Inject `value` into `item[propName]` only when the item declares
- * that property — and silently swallow the assignment when the
- * consumer's binding made it readonly. Centralises the
- * `hasOwnProperty + try-catch` idiom PageHost.qml uses three times
- * to forward a controller pointer into pages without crashing on
- * pages that bind their own controller.
+ * that property. Centralises the `hasOwnProperty + try-catch` idiom the
+ * chrome uses to forward a controller, settingsApp or compact flag into
+ * loaded content.
  *
- * `value` may be `null` — the caller passes through whatever the
- * registry produced. PageHost treats null re-registration as
- * "keep prior" and won't call this function with a null value;
- * other consumers may need different policy.
+ * A property the item declares read-only (it supplies its own value, as
+ * a page binding `readonly property var controller` to its own controller
+ * does) is left alone silently: QML throws a TypeError for that write,
+ * which is the one failure this helper exists to tolerate. Any other
+ * failure, such as a value of the wrong type for the declared property,
+ * is a bug in the item or the caller and is logged.
+ *
+ * `value` may be `null`: callers pass through whatever they hold, and
+ * PageHost's onLoaded passes the registry's controller, which is null
+ * once that controller has been destroyed.
  */
 function injectIfAssignable(item, propName, value) {
     if (!item || !item.hasOwnProperty(propName))
@@ -57,6 +60,8 @@ function injectIfAssignable(item, propName, value) {
     try {
         item[propName] = value;
     } catch (e) {
-        // Page binds its own controller (readonly) — skip.
+        if (e instanceof TypeError && String(e.message).startsWith("Cannot assign to read-only property"))
+            return;
+        console.warn("injectIfAssignable: could not set", propName, "on", item, ":", e);
     }
 }

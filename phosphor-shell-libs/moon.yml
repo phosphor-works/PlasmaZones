@@ -12,7 +12,7 @@ dependsOn:
 
 project:
   name: 'Phosphor shell libraries'
-  description: 'Theme, popout and IPC foundation, the Phosphor.* QML surfaces and the per-domain system service libraries behind the shell.'
+  description: 'Theme and popout foundation, the Phosphor.* QML surfaces and the per-domain system service libraries behind the shell.'
 
 tasks:
   # The bar's tray test drives phosphor-shell's nested-shell tray fixture, and

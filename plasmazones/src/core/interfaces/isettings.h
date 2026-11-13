@@ -3,6 +3,15 @@
 
 #pragma once
 
+// SANCTIONED FILE-SIZE EXCEPTION. This header is one Q_OBJECT class
+// declaration whose bulk is the accessor and Q_SIGNALS surface of the settings
+// its consumers reach through the interface (keys only the concrete Settings
+// serves live there instead). moc requires the whole Q_OBJECT class in one
+// translation unit's header, so "splitting" it would mean fragmenting one
+// class across several headers, which buys nothing and costs every reader the
+// hunt for where a signal lives. Growth of the accessor / signal surface is
+// expected here; new non-declaration logic is not.
+//
 // ISettings — PZ global settings facade.
 //
 // Split out of interfaces.h so consumers can include just the settings
@@ -77,8 +86,9 @@ inline QColor opaqueDropIndicatorFallback()
  * @endcode
  *
  * A `dynamic_cast<ISettings*>(zoneSelectorSettingsPtr)` also works at the
- * call site since `Settings` (the only concrete subclass) inherits from both
- * bases, but holding both pointers from construction is cheaper and clearer.
+ * call site since `Settings` (the production subclass; the test helper
+ * StubSettings is the other) inherits from both bases, but holding both
+ * pointers from construction is cheaper and clearer.
  */
 class PLASMAZONES_EXPORT ISettings : public QObject,
                                      public IZoneActivationSettings,
@@ -131,9 +141,10 @@ public:
     // Autotile focus settings (fetched by KWin effect via D-Bus)
     virtual bool autotileFocusFollowsMouse() const = 0;
     virtual void setAutotileFocusFollowsMouse(bool enabled) = 0;
-    // Snapping focus behavior. focusNewWindows is read daemon-side by SnapAdaptor
-    // to activate auto-placed-on-open windows; focusFollowsMouse is fetched by the
-    // KWin effect via D-Bus.
+    // Snapping focus behavior. focusNewWindows is read daemon-side by the snap
+    // engine, through ISnapSettings::focusNewWindows(), to activate
+    // auto-placed-on-open windows; focusFollowsMouse is fetched by the KWin
+    // effect via D-Bus.
     virtual bool snappingFocusNewWindows() const = 0;
     virtual void setSnappingFocusNewWindows(bool enabled) = 0;
     virtual bool snappingFocusFollowsMouse() const = 0;
@@ -212,9 +223,9 @@ public:
 
     // Decorations.Performance — an animated pack repaints every window carrying
     // it on every vsync, and that alone keeps the GPU in its top performance
-    // state regardless of how cheap the per-frame work is. The three gates below
-    // bound WHEN the chain redraws; the blur-scale multiplier after them shrinks
-    // the per-frame work instead.
+    // state regardless of how cheap the per-frame work is. The gates below
+    // bound WHEN the chain redraws; the blur-scale multiplier shrinks the
+    // per-frame work instead.
     virtual bool decorationAnimateFocusedOnly() const = 0;
     virtual void setDecorationAnimateFocusedOnly(bool value) = 0;
     virtual bool decorationPauseWhenIdle() const = 0;
@@ -241,12 +252,14 @@ public:
     /// caller). Pairs with the systemColorSchemeChanged signal below: the signal
     /// says "it flipped", this says "to what".
     ///
-    /// On the interface rather than only as Settings' static, so the consumers
-    /// that stamp the ColorScheme match field (the daemon's registry provider and
-    /// the WindowTrackingAdaptor query builder) reach it through their INJECTED
-    /// settings and a test double can substitute a fixed scheme. Settings
-    /// implements it by delegating to its static derivation, which stays the one
-    /// place the palette is classified.
+    /// On the interface rather than only as Settings' static, so a consumer
+    /// that stamps the ColorScheme match field through its INJECTED settings
+    /// (the WindowTrackingAdaptor query builder) can have a test double
+    /// substitute a fixed scheme. Not every consumer takes that path: the
+    /// daemon's registry colour-scheme provider calls the static
+    /// Settings::systemColorSchemeToken() directly. Settings implements this by
+    /// delegating to that static derivation, which stays the one place the
+    /// palette is classified.
     ///
     /// Defaulted rather than pure so an implementation with no palette to
     /// classify (a test double) inherits the honest "unknown" answer instead of
@@ -348,6 +361,8 @@ public:
     virtual void setFillOnDropEnabled(bool enabled) = 0;
     virtual int fillOnDropModifier() const = 0;
     virtual void setFillOnDropModifier(int mod) = 0;
+    virtual qreal editorBackgroundOpacity() const = 0;
+    virtual void setEditorBackgroundOpacity(qreal opacity) = 0;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Per-screen overrides — category-keyed maps of setting key → value that
@@ -376,16 +391,28 @@ public:
         return false;
     }
 
-    // The five defaults below are spelled as literals rather than calling
-    // their ConfigDefaults twins, because this interface header deliberately
-    // does not depend on the config layer. A stub answering the opposite of
-    // what the real Settings would is a silent behaviour split, so each is
-    // pinned from the other side: settings/scrolling.cpp — a TU that sees
-    // both — static_asserts the tab-indicator default, the drop-indicator
-    // default, ConfigDefaults::scrollingRestoreFloatedWindowsOnLogin(),
-    // ConfigDefaults::scrollingKeepFloatingAbove() and
-    // ConfigDefaults::scrollingGroupSameAppAsTabs() against the literals
-    // here, and names this comment. Change any of them and fix both places.
+    // The defaulted scrolling getters below answer these constants rather
+    // than calling their ConfigDefaults twins, because this interface header
+    // deliberately does not depend on the config layer. A stub answering the
+    // opposite of what the real Settings would is a silent behaviour split,
+    // so settings/scrolling.cpp (a TU that sees both) static_asserts each
+    // constant here against its ConfigDefaults twin. An edit on EITHER side
+    // breaks the build until the other follows.
+    static constexpr bool ScrollingTabIndicatorEnabledDefault = true;
+    static constexpr int ScrollingTabIndicatorStyleDefault = 1;
+    static constexpr int ScrollingTabIndicatorGapsBetweenTabsDefault = 0;
+    static constexpr int ScrollingTabIndicatorCornerRadiusDefault = 0;
+    static constexpr int ScrollingTabIndicatorFontWeightDefault = 700;
+    static constexpr bool ScrollingTabIndicatorFontItalicDefault = false;
+    static constexpr bool ScrollingTabIndicatorFontUnderlineDefault = false;
+    static constexpr bool ScrollingTabIndicatorFontStrikeoutDefault = false;
+    static constexpr bool ScrollingDropIndicatorEnabledDefault = true;
+    static constexpr double ScrollingDropIndicatorOpacityDefault = 0.25;
+    static constexpr int ScrollingDropIndicatorBorderWidthDefault = 2;
+    static constexpr int ScrollingDropIndicatorBorderRadiusDefault = 8;
+    static constexpr bool ScrollingRestoreFloatedWindowsOnLoginDefault = true;
+    static constexpr bool ScrollingKeepFloatingAboveDefault = false;
+    static constexpr bool ScrollingGroupSameAppAsTabsDefault = false;
 
     /// Tab indicator alongside tabbed scrolling columns. Virtual with an
     /// always-on default because two readers reach it through this interface
@@ -395,7 +422,7 @@ public:
     /// to paint the pills at all (the zoneSelectorEnabled pattern).
     virtual bool scrollingTabIndicatorEnabled() const
     {
-        return true;
+        return ScrollingTabIndicatorEnabledDefault;
     }
 
     /// Writer for the toggle above. Virtual with a no-op default (the
@@ -418,11 +445,11 @@ public:
     // indicator's GEOMETRY settings are deliberately absent: they change the
     // resolved column rect, so the scrolling engine reads them through
     // IScrollSettings and ships the finished rect in the tab-strip payload.
-    // Each NUMERIC default below is pinned against its ConfigDefaults twin by a
-    // static_assert in settings/scrolling.cpp, the way the toggle above is
-    // (that covers the drop-indicator opacity/border-width literals further
-    // down too). Six defaults below cannot be: the five colours and the tab
-    // label's font family. The tab colour trio and the family return a
+    // Each NUMERIC default below answers one of the constants above, pinned
+    // against its ConfigDefaults twin the way the toggle's is (that covers the
+    // drop-indicator opacity, border width and radius further down too). Six
+    // defaults below cannot be: the five colours and the tab label's font
+    // family. The tab colour trio and the family return a
     // non-constexpr QString from ConfigDefaults, and their SCHEMA defaults are
     // pinned at runtime by test_scrolling_settings.cpp. The drop-indicator
     // pair below returns a QColor, which is not a literal type either; its
@@ -434,7 +461,7 @@ public:
     /// has.
     virtual int scrollingTabIndicatorStyle() const
     {
-        return 1;
+        return ScrollingTabIndicatorStyleDefault;
     }
     virtual void setScrollingTabIndicatorStyle(int /*style*/)
     {
@@ -442,7 +469,7 @@ public:
     /// Gap between individual tabs, in logical pixels.
     virtual int scrollingTabIndicatorGapsBetweenTabs() const
     {
-        return 0;
+        return ScrollingTabIndicatorGapsBetweenTabsDefault;
     }
     virtual void setScrollingTabIndicatorGapsBetweenTabs(int /*px*/)
     {
@@ -451,7 +478,7 @@ public:
     /// default is square, niri's own; the sentinel is opted into.
     virtual int scrollingTabIndicatorCornerRadius() const
     {
-        return 0;
+        return ScrollingTabIndicatorCornerRadiusDefault;
     }
     virtual void setScrollingTabIndicatorCornerRadius(int /*px*/)
     {
@@ -495,28 +522,28 @@ public:
     }
     virtual int scrollingTabIndicatorFontWeight() const
     {
-        return 700;
+        return ScrollingTabIndicatorFontWeightDefault;
     }
     virtual void setScrollingTabIndicatorFontWeight(int /*weight*/)
     {
     }
     virtual bool scrollingTabIndicatorFontItalic() const
     {
-        return false;
+        return ScrollingTabIndicatorFontItalicDefault;
     }
     virtual void setScrollingTabIndicatorFontItalic(bool /*italic*/)
     {
     }
     virtual bool scrollingTabIndicatorFontUnderline() const
     {
-        return false;
+        return ScrollingTabIndicatorFontUnderlineDefault;
     }
     virtual void setScrollingTabIndicatorFontUnderline(bool /*underline*/)
     {
     }
     virtual bool scrollingTabIndicatorFontStrikeout() const
     {
-        return false;
+        return ScrollingTabIndicatorFontStrikeoutDefault;
     }
     virtual void setScrollingTabIndicatorFontStrikeout(bool /*strikeout*/)
     {
@@ -527,7 +554,7 @@ public:
     /// interface, same pattern as scrollingTabIndicatorEnabled above.
     virtual bool scrollingDropIndicatorEnabled() const
     {
-        return true;
+        return ScrollingDropIndicatorEnabledDefault;
     }
     virtual void setScrollingDropIndicatorEnabled(bool /*enabled*/)
     {
@@ -566,27 +593,23 @@ public:
     /// from its own colour's alpha channel, which nothing downstream replaces.
     virtual double scrollingDropIndicatorOpacity() const
     {
-        return 0.25;
+        return ScrollingDropIndicatorOpacityDefault;
     }
     virtual void setScrollingDropIndicatorOpacity(double /*opacity*/)
     {
     }
     virtual int scrollingDropIndicatorBorderWidth() const
     {
-        return 2;
+        return ScrollingDropIndicatorBorderWidthDefault;
     }
     virtual void setScrollingDropIndicatorBorderWidth(int /*px*/)
     {
     }
-    /// 8 px, the zone overlay's radius. The static_assert in
-    /// settings/scrolling.cpp pins the CONFIGDEFAULTS value, so moving it (or
-    /// the ZoneDefaults constant it forwards) fails the build and prompts an
-    /// update here. It cannot see a change made on THIS side — editing the
-    /// literal below compiles cleanly and drifts silently, so keep the two in
-    /// step by hand.
+    /// 8 px, the zone overlay's radius, pinned both ways like the constants
+    /// above.
     virtual int scrollingDropIndicatorBorderRadius() const
     {
-        return 8;
+        return ScrollingDropIndicatorBorderRadiusDefault;
     }
     virtual void setScrollingDropIndicatorBorderRadius(int /*px*/)
     {
@@ -597,7 +620,7 @@ public:
     /// can resolve it through the interface, like its snap/autotile twins.
     virtual bool scrollingRestoreFloatedWindowsOnLogin() const
     {
-        return true;
+        return ScrollingRestoreFloatedWindowsOnLoginDefault;
     }
 
     /// Writer for the toggle above, same no-op-default rationale as
@@ -611,11 +634,9 @@ public:
     /// twin of IWindowBehaviorSettings' snapping/autotile pair, defaulted like
     /// its restore sibling above so the D-Bus settings registry can register
     /// the key through the interface (the KWin effect is its only reader).
-    /// Pinned to ConfigDefaults::scrollingKeepFloatingAbove() by the
-    /// static_assert in settings/scrolling.cpp.
     virtual bool scrollingKeepFloatingAbove() const
     {
-        return false;
+        return ScrollingKeepFloatingAboveDefault;
     }
 
     /// Writer for the toggle above, same no-op-default rationale as
@@ -629,12 +650,10 @@ public:
     /// Defaulted like the two toggles above so the D-Bus settings registry
     /// registers the key through the interface (the preferred shape for new
     /// keys). The engine reads it through IScrollSettings, which declares the
-    /// same defaulted getter; Settings overrides both with one body. Pinned to
-    /// ConfigDefaults::scrollingGroupSameAppAsTabs() by the static_assert in
-    /// settings/scrolling.cpp.
+    /// same defaulted getter; Settings overrides both with one body.
     virtual bool scrollingGroupSameAppAsTabs() const
     {
-        return false;
+        return ScrollingGroupSameAppAsTabsDefault;
     }
 
     /// Writer for the toggle above, same no-op-default rationale as
@@ -730,10 +749,18 @@ public:
     // is the writer and an interleaved load() here would clobber unflushed
     // in-memory edits. Only the owning side (or a future cross-process
     // watcher) drives reloads on the borrowed path. Implementations that
-    // own their store (the standard constructor) reload normally. See
-    // Settings::load (settings.cpp) for the live guard against
-    // `m_ownedRuleStore`.
+    // own their store (the standard constructor) reload normally. The live
+    // guard against `m_ownedRuleStore` is in Settings::reloadFromDisk
+    // (settings.cpp), the body load() runs.
     virtual void load() = 0;
+    /// Adopt what the config file now holds for every key without an unsaved
+    /// edit here, keeping the edits, and announce what moved. For a caller
+    /// about to run setters with signals blocked: a setter's own refresh can
+    /// adopt another process's write, and the blocker would swallow that
+    /// announcement for good. Default: nothing to adopt (no backing file).
+    virtual void reloadPreservingLocalEdits()
+    {
+    }
     /// Persist the current values. Returns false when the write did not
     /// reach disk (the implementation keeps the previous baseline so the
     /// unsaved values stay discardable and the next save retries).
@@ -755,7 +782,6 @@ Q_SIGNALS:
     void scrollingDragInsertToggleChanged();
     void scrollingDragInsertGraceMsChanged();
     void zoneSpanEnabledChanged();
-    void zoneSpanModifierChanged();
     void zoneSpanTriggersChanged();
     void zoneSpanToggleModeChanged();
     void zoneSpanGraceMsChanged();
@@ -830,7 +856,6 @@ Q_SIGNALS:
     // — see settings_interfaces.h for the rationale (lists folded into
     // unified Exclude Rules; consumers subscribe to the rule store
     // through PhosphorRules::RuleStore::rulesChanged instead).
-    void excludeTransientWindowsChanged();
     void minimumWindowWidthChanged();
     void minimumWindowHeightChanged();
     // Decoration window filtering — paired with the IWindowExclusionSettings
@@ -902,6 +927,16 @@ Q_SIGNALS:
     void editorSnapOverrideModifierChanged();
     void fillOnDropEnabledChanged();
     void fillOnDropModifierChanged();
+    void editorBackgroundOpacityChanged();
+    /// Aggregate for the Editor.* settings when a reload path (load, discard,
+    /// reset, profile staging) moves them, emitted once after their own
+    /// signals. Deliberately separate from settingsChanged: no daemon or
+    /// compositor consumer reads an Editor.* key, and folding them in would
+    /// run the whole settingsChanged cascade every time the layout editor
+    /// saves. The daemon relays it over D-Bus to the editor and the settings
+    /// app. The Editor.* setters still emit settingsChanged, like every other
+    /// setter, since they only ever run in the settings app.
+    void editorSettingsChanged();
     // Shader effects
     void shaderFrameRateChanged();
     void enableAudioVisualizerChanged();
@@ -1030,6 +1065,11 @@ Q_SIGNALS:
     void autotileStickyWindowHandlingChanged();
     void autotileDragBehaviorChanged();
     void autotileOverflowBehaviorChanged();
+    // Fired by setLockedScreens on a real change only. A reload, a profile
+    // overlay or a per-page reset that moves the key announces through the
+    // aggregate settingsChanged instead (lockedScreens carries no Q_PROPERTY).
+    // Nothing connects to this one: the readers query isContextLocked /
+    // isScreenLocked on demand.
     void lockedScreensChanged();
     void virtualScreenConfigsChanged();
     // Ordering
@@ -1185,10 +1225,10 @@ Q_SIGNALS:
     void scrollingMinimizeWindowHeightShortcutChanged();
 
     // ── Environment signals ─────────────────────────────────────────────────
-    // Not setting NOTIFYs: nothing above them in the config schema fires these,
-    // no Q_PROPERTY is bound to them, and they never touch dirty tracking. They
-    // are kept apart from the key-backed run above so that stays a clean
-    // one-signal-per-key list.
+    // Not setting NOTIFYs: nothing in the config schema fires these, no
+    // Q_PROPERTY is bound to them, and they never touch dirty tracking. They
+    // are kept apart from the key-backed signals above, which all announce a
+    // stored value.
 
     /// The system colour scheme flipped between light and dark. Derived from
     /// QEvent::ApplicationPaletteChange in the config layer (the process's one

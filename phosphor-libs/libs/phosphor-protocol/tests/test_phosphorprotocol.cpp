@@ -344,8 +344,8 @@ private Q_SLOTS:
 
     void testServiceConstants()
     {
-        QCOMPARE(Service::Name, QLatin1String("org.plasmazones"));
-        QCOMPARE(Service::ObjectPath, QLatin1String("/PlasmaZones"));
+        QCOMPARE(Service::Name, QLatin1String("org.phosphor_works.Placement"));
+        QCOMPARE(Service::ObjectPath, QLatin1String("/org/phosphor_works/Placement"));
         // MinPeerApiVersion tracks ApiVersion exactly, so every unreleased
         // step collapses into the current number. See the v6 entry in
         // ServiceConstants.h for what it covers: it widened TileRequestEntry
@@ -393,8 +393,38 @@ private Q_SLOTS:
         // passive-channel float instead of a user float, so the toggle has no
         // fullscreen tile left to release. An old effect calling the missing
         // method errors on the wire; an old daemon's signal goes unheard.
-        QCOMPARE(Service::ApiVersion, 10);
-        QCOMPARE(Service::MinPeerApiVersion, 10);
+        // Scrolling.reportCommittedSize came after v10 shipped and takes no
+        // bump: see the "After v10, WITHOUT a bump" note in ServiceConstants.h.
+        //
+        // v11 is the dynamic-workspaces wire. It is NOT additive, which is why
+        // it bumps: a v10 effect would pass the handshake, ignore the
+        // by-id and output-carrying moves and the per-output switch, and the
+        // daemon would commit engine and workspace state for moves the
+        // compositor never made (windows that never move, engines holding
+        // windows on desktops they never reached, verbs that do nothing).
+        // setScreenDesktopRequested now names its desktop by id with a
+        // purpose, windowWorkspaceMoveRequested replaces the by-id desktop
+        // move and the bare output move with one step that carries both
+        // legs, and the workspace map stream is gone.
+        QCOMPARE(Service::ApiVersion, 11);
+        QCOMPARE(Service::MinPeerApiVersion, 11);
+    }
+
+    /// The switch purpose is a wire int: its two values must keep their
+    /// numbers, and anything the compositor does not know must read as a
+    /// user switch, so a malformed request is shown rather than hidden.
+    void testScreenDesktopSwitchPurposeWire()
+    {
+        QCOMPARE(static_cast<int>(PhosphorProtocol::ScreenDesktopSwitchPurpose::UserSwitch), 0);
+        QCOMPARE(static_cast<int>(PhosphorProtocol::ScreenDesktopSwitchPurpose::Correction), 1);
+        QCOMPARE(PhosphorProtocol::clampScreenDesktopSwitchPurposeFromWire(0),
+                 PhosphorProtocol::ScreenDesktopSwitchPurpose::UserSwitch);
+        QCOMPARE(PhosphorProtocol::clampScreenDesktopSwitchPurposeFromWire(1),
+                 PhosphorProtocol::ScreenDesktopSwitchPurpose::Correction);
+        QCOMPARE(PhosphorProtocol::clampScreenDesktopSwitchPurposeFromWire(2),
+                 PhosphorProtocol::ScreenDesktopSwitchPurpose::UserSwitch);
+        QCOMPARE(PhosphorProtocol::clampScreenDesktopSwitchPurposeFromWire(-1),
+                 PhosphorProtocol::ScreenDesktopSwitchPurpose::UserSwitch);
     }
 
     // ── Environment switches ─────────────────────────────────────────────

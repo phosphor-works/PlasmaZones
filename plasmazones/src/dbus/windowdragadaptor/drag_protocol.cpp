@@ -18,7 +18,9 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include "core/interfaces/settings_interfaces.h"
 #include "core/platform/logging.h"
+#include "dbus/dbushelpers.h"
 #include <PhosphorEngine/IPlacementEngine.h>
+#include <PhosphorScreens/ScreenIdentity.h>
 #include <QGuiApplication>
 #include <QTimer>
 
@@ -65,17 +67,23 @@ WindowDragAdaptor::computeDragPolicy(const ISettings* settings, const PhosphorEn
     if (autotileEngine && !screenId.isEmpty() && autotileEngine->isActiveOnScreen(screenId)) {
         policy.bypassReason = PhosphorProtocol::DragBypassReason::EngineOwnedScreen;
         policy.captureGeometry = true; // preserve pre-autotile size for unfloat restore
-        // GRAB THE KEYBOARD, but only under always-on re-insert. Escape has
-        // to reach the daemon to cancel the preview, and without a grab it
-        // reaches KWin's MoveResizeFilter instead and aborts the whole move.
+        // GRAB THE KEYBOARD, but only in reorder mode: here the Reorder drag
+        // behaviour, on the scrolling branch below its always re-insert.
+        // Escape has to reach the daemon to cancel the preview, and without a
+        // grab it reaches KWin's MoveResizeFilter instead and aborts the whole
+        // move.
         //
-        // Scoped to reorderMode rather than every engine drag because that is
-        // the only configuration with no other way out: in HOLD mode releasing
-        // the trigger already cancels the preview and lets the drag continue,
-        // while always-on forces insertHeld true on every tick (see dragMoved)
-        // so the cancel arm is unreachable. A grab swallows every key for the
-        // drag's duration, so it is not worth taking where a cheaper exit
-        // already exists.
+        // Scoped to reorderMode rather than every engine drag because the
+        // reorder latch keeps the preview on from drag start with nothing
+        // held (see dragMoved), while in HOLD mode releasing the trigger
+        // already cancels the preview and lets the drag continue. Under
+        // always re-insert a held keep-out trigger is a second exit (#1162),
+        // but only where the user has bound one, so Escape still has to work.
+        // A grab swallows every key for the drag's duration, so it is not
+        // worth taking where a cheaper exit always exists. Tiling's always
+        // re-insert does NOT reach here as reorderMode (effectiveReorderMode
+        // reads the drag behaviour only), so under the Float behaviour its
+        // preview runs with nothing held and takes no grab.
         //
         // This is the premise that expired: skipping the grab on engine
         // screens was correct when an engine drag had no overlay and no
@@ -109,7 +117,8 @@ WindowDragAdaptor::computeDragPolicy(const ISettings* settings, const PhosphorEn
         policy.bypassReason = PhosphorProtocol::DragBypassReason::EngineOwnedScreen;
         policy.captureGeometry = true;
         // See the autotile branch above for why the grab is scoped to
-        // always-on re-insert rather than taken for every engine drag.
+        // reorder mode, here always re-insert, rather than taken for every
+        // engine drag.
         policy.grabKeyboard = reorderMode;
         if (!windowId.isEmpty() && !reorderMode) {
             policy.immediateFloatOnStart = scrollEngine->isWindowTracked(windowId);
@@ -236,6 +245,9 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
                                                           int frameWidth, int frameHeight, const QString& startScreenId,
                                                           int mouseButtons)
 {
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return {};
+    }
     if (windowId.isEmpty()) {
         qCWarning(lcDbusWindow) << "beginDrag: empty windowId";
         return PhosphorProtocol::DragPolicy{};
@@ -268,7 +280,11 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
     // move-window modifier and also the default trigger). The user must
     // release and re-press to toggle.
     m_dragInsertToggled = false;
+    m_dragInsertToggledInsert = false;
+    m_dragInsertEngineTicked = false;
     m_prevDragInsertHeld = true;
+    m_dragInsertCancelled = false;
+    m_dragInsertReleasedAfterCancel = false;
     m_dragInsertTickLogged = false;
     m_lastLoggedRawInsertHeld = false;
     m_dragReorderAbandoned = false;
@@ -320,17 +336,26 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
     }
 
     // Per-window drop-indicator colours, resolved from THIS window's rules and
-    // held for the drag. Unconditional and here for the same reason as the
-    // trigger caches above: a drag that starts bypassed never runs dragStarted,
-    // and the indicator is painted precisely on those engine-owned screens. One
-    // resolve per drag, not per tick — the answer cannot change while a single
-    // window is in hand.
-    if (m_overlayService && m_windowTracking) {
-        m_overlayService->setScrollDropIndicatorWindowOverrides(m_windowTracking->dropIndicatorRuleParams(windowId));
-    }
+    // held for the drag. Resolved once here, not per tick, since the answer
+    // cannot change while a single window is in hand, and pushed by BOTH
+    // branches below AFTER their resetDragState: that shared teardown clears
+    // the overrides, so a push ahead of it never reached a single drag. Both
+    // branches need it, because a drag that starts bypassed never runs
+    // dragStarted and the indicator is painted precisely on those engine-owned
+    // screens.
+    const QVariantMap dropIndicatorOverrides =
+        m_windowTracking ? m_windowTracking->dropIndicatorRuleParams(windowId) : QVariantMap();
+
+    // Whether a zone or a tile decided the frame the drag starts on (see
+    // dragInsertClientSize). Read here, at the drag's start, before any
+    // preview begin can detach a scroll tile, and stored by both branches
+    // after their resetDragState, which clears it.
+    const bool startManaged = (m_windowTracking && !m_windowTracking->getZoneForWindow(windowId).isEmpty())
+        || (m_autotileEngine && m_autotileEngine->isWindowTiled(windowId))
+        || (m_scrollEngine && m_scrollEngine->isWindowTiled(windowId));
 
     // Resolve once and reuse: the autotile arm runs a full context rule
-    // resolve, and the reorder-fallback branch below needs the same answer.
+    // resolve, and the reorder latch below needs the same answer.
     // Must come AFTER the trigger-cache parse — the scrolling arm reads the
     // parsed scrolling cache for its AlwaysActive sentinel.
     const bool startReorderMode = effectiveDragReorderModeFor(startScreenId);
@@ -338,15 +363,10 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
         computeDragPolicy(m_settings, m_autotileEngine, m_scrollEngine, windowId, startScreenId, m_contextResolver,
                           startReorderMode, isActiveLayoutSuppressedForScreen(startScreenId));
 
-    // Reusable mutable copy — the reorder fallback path below may need to
-    // restore immediateFloatOnStart that computeDragPolicy proactively cleared.
-    PhosphorProtocol::DragPolicy effectivePolicy = policy;
+    qCInfo(lcDbusWindow) << "beginDrag:" << windowId << "screen=" << startScreenId << "bypass=" << policy.bypassReason
+                         << "stream=" << policy.streamDragMoved << "immediateFloat=" << policy.immediateFloatOnStart;
 
-    qCInfo(lcDbusWindow) << "beginDrag:" << windowId << "screen=" << startScreenId
-                         << "bypass=" << effectivePolicy.bypassReason << "stream=" << effectivePolicy.streamDragMoved
-                         << "immediateFloat=" << effectivePolicy.immediateFloatOnStart;
-
-    if (effectivePolicy.bypassReason != PhosphorProtocol::DragBypassReason::None) {
+    if (policy.bypassReason != PhosphorProtocol::DragBypassReason::None) {
         // Bypass path — record the id so the matching endDrag can find us,
         // but skip the full snap-path setup (overlay, zone state, etc.).
         // Trigger cache and stale-preview cleanup both happen above so bypass
@@ -363,16 +383,20 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
         m_draggedWindowId = windowId;
         // Bypass twin of dragStarted's card exclusion: this path never runs
         // dragStarted, and the strip popup can show on the very first tick.
-        // AFTER resetDragState, which clears it.
+        // AFTER resetDragState, which clears it, as it does the drop-indicator
+        // overrides resolved above.
         if (m_overlayService) {
             m_overlayService->setActiveDragWindowId(windowId);
+            m_overlayService->setScrollDropIndicatorWindowOverrides(dropIndicatorOverrides);
         }
         // Bypass twin of dragStarted's excluded-window selector suppression.
         {
             auto* snapEngine = m_windowTracking ? m_windowTracking->snapEngine() : nullptr;
-            m_dragWindowExcludedFromSelector = snapEngine && snapEngine->isWindowExcluded(windowId);
+            m_dragWindowExcludedFromSelector = snapEngine && snapEngine->isWindowExcludedByRule(windowId);
         }
         m_originalGeometry = QRect(frameX, frameY, frameWidth, frameHeight);
+        m_originalFrameFillsOutput = windowFillsOutput(windowId);
+        m_dragStartManaged = startManaged;
         m_snapCancelled = false;
         m_wasSnapped = false;
         m_dragReorderActive = false;
@@ -384,49 +408,31 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
         // flipping toggle-activation for the rest of the drag.
         m_prevTriggerHeld = true;
 
-        // Reorder mode: eagerly begin a drag-insert preview so even
-        // zero-movement drops have something to commit on endDrag (otherwise
-        // the autotile-bypass endDrag path falls through to ApplyFloat and
-        // we'd float the very tile the user was trying to reorder). Gated on
-        // isWindowTiled so floating/untracked windows still drag free and
-        // take the normal ApplyFloat path — matches Krohnkite's "floating
-        // windows are first-class" semantics.
+        // Reorder mode: arm the reorder latch for a tile, and leave the
+        // preview's begin to the first dragMoved tick. Gated on isWindowTiled
+        // so floating/untracked windows still drag free and take the normal
+        // ApplyFloat path, which matches Krohnkite's "floating windows are
+        // first-class" semantics.
         //
-        // If beginDragInsertPreview returns false (target state missing,
-        // window lost between tiled-check and the call, etc.) the daemon
-        // can't run the swap pipeline. computeDragPolicy already cleared
-        // immediateFloatOnStart on the assumption that reorder would take
-        // over; without that override the user would see no float-restore
-        // during the drag and a sudden float on drop. Restore the
-        // legacy float-on-start behavior here so the UX matches the Float
-        // mode default for the rest of this drag.
-        if (effectivePolicy.bypassReason == PhosphorProtocol::DragBypassReason::EngineOwnedScreen && startReorderMode) {
+        // Not begun here: beginDrag carries no modifiers, so it cannot see a
+        // keep-out trigger held from the drag's start under always re-insert
+        // (#1162). A begin here would detach the tile and the first tick,
+        // which does see the trigger, would re-attach it, reflowing the
+        // neighbours twice. Two cases follow from the begin waiting for a
+        // tick. A drop that no tick reached (a click, a flick inside the
+        // first tick's 32 ms, a move with no pointer) puts the tile back, or
+        // floats it when the drop's own report shows the keep-out held
+        // (endDrag). A begin the engine refuses abandons reorder for the rest
+        // of the drag, and the window floats at the drop (dragMoved).
+        if (policy.bypassReason == PhosphorProtocol::DragBypassReason::EngineOwnedScreen && startReorderMode) {
             PhosphorEngine::IPlacementEngine* startEngine = dragInsertEngineFor(startScreenId);
-            if (startEngine && startEngine->isWindowTiled(windowId)) {
-                if (startEngine->beginDragInsertPreview(windowId, startScreenId)) {
-                    m_dragReorderActive = true;
-                } else {
-                    qCWarning(lcDbusWindow)
-                        << "beginDrag: reorder mode requested but beginDragInsertPreview failed for" << windowId
-                        << "screen=" << startScreenId << "— restoring float-on-start fallback";
-                    effectivePolicy.immediateFloatOnStart = startEngine->isWindowTracked(windowId);
-                    // The fallback is a PER-DRAG decision. Without this
-                    // latch, updateDragCursor's first same-screen tick
-                    // recomputed the policy under reorderMode=true, saw the
-                    // restored immediateFloatOnStart as a mismatch, re-
-                    // emitted a contradicting policy, re-armed the reorder
-                    // latch, and dragMoved retried the failed preview every
-                    // tick — the deliberate fallback survived exactly one
-                    // tick.
-                    m_dragReorderAbandoned = true;
-                }
-            }
+            m_dragReorderActive = startEngine && startEngine->isWindowTiled(windowId);
         }
-        // Stash the full (post-fallback) policy so updateDragCursor's
-        // comparator sees the same struct we returned to the client, and
-        // endDrag can dispatch on bypassReason without recomputing.
-        m_currentDragPolicy = effectivePolicy;
-        return effectivePolicy;
+        // Stash the policy so updateDragCursor's comparator sees the same
+        // struct we returned to the client, and endDrag can dispatch on
+        // bypassReason without recomputing.
+        m_currentDragPolicy = policy;
+        return policy;
     }
 
     // Snap path — do NOT run the legacy dragStarted setup yet. We defer
@@ -450,14 +456,21 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
     // its mismatch return then swallows every tick.
     resetDragState();
     m_prevTriggerHeld = true;
+    // Promotion (dragStarted) does not touch it, so the begin-time answer
+    // carries over to the promoted drag.
+    m_dragStartManaged = startManaged;
     m_pendingSnapDragWindowId = windowId;
     // Pending twin of the bypass branch's card exclusion (AFTER resetDragState,
     // which clears it): a pending snap drag whose cursor crosses onto a strip
     // screen probes the trigger edge before dragStarted runs, and without the
     // id the band is sized for a card list that still contains the dragged
-    // window (N+1 cards for a popup that will render N).
+    // window (N+1 cards for a popup that will render N). The drop-indicator
+    // overrides are pushed here too: promotion runs dragStarted, which resets
+    // neither, and the promoted drag paints the indicator on every engine
+    // screen it crosses onto.
     if (m_overlayService) {
         m_overlayService->setActiveDragWindowId(windowId);
+        m_overlayService->setScrollDropIndicatorWindowOverrides(dropIndicatorOverrides);
     }
     // Pending twin of the bypass branch's excluded-window suppression (AFTER
     // resetDragState, which clears it): the edge-hover promotion in
@@ -466,17 +479,18 @@ PhosphorProtocol::DragPolicy WindowDragAdaptor::beginDrag(const QString& windowI
     // tick would refuse.
     {
         auto* snapEngine = m_windowTracking ? m_windowTracking->snapEngine() : nullptr;
-        m_dragWindowExcludedFromSelector = snapEngine && snapEngine->isWindowExcluded(windowId);
+        m_dragWindowExcludedFromSelector = snapEngine && snapEngine->isWindowExcludedByRule(windowId);
     }
     m_pendingSnapDragGeometry = QRect(frameX, frameY, frameWidth, frameHeight);
+    m_pendingSnapDragFillsOutput = windowFillsOutput(windowId);
     m_pendingSnapDragWasSnapped = m_windowTracking && !m_windowTracking->getZoneForWindow(windowId).isEmpty();
     Q_UNUSED(
         mouseButtons); // pre-2026-05 cached the mouseButtons here; dragStarted Q_UNUSEDd them so the cache was dead
 
     // Stash the full policy so updateDragCursor's comparator has a
     // previous-policy reference to compare cross-VS candidates against.
-    m_currentDragPolicy = effectivePolicy;
-    return effectivePolicy;
+    m_currentDragPolicy = policy;
+    return policy;
 }
 
 bool WindowDragAdaptor::activateSnapDragIfNeeded(int modifiers, int mouseButtons, int cursorX, int cursorY)
@@ -485,12 +499,15 @@ bool WindowDragAdaptor::activateSnapDragIfNeeded(int modifiers, int mouseButtons
     if (!m_draggedWindowId.isEmpty()) {
         return true;
     }
-    // No pending drag to activate.
-    if (m_pendingSnapDragWindowId.isEmpty()) {
+    // No pending drag to activate, or one Escape cancelled (or whose promotion
+    // was refused), which stays pending until its endDrag.
+    if (m_pendingSnapDragWindowId.isEmpty() || m_pendingSnapDragCancelled) {
         return false;
     }
 
-    const Qt::KeyboardModifiers mods = static_cast<Qt::KeyboardModifiers>(modifiers);
+    // Resolved the way dragMoved resolves them, which this same report runs
+    // through right after a promotion.
+    const Qt::KeyboardModifiers mods = resolveReportedModifiers(modifiers);
     const bool triggerHeld = anyTriggerHeld(m_cachedActivationTriggers, mods, mouseButtons);
     const bool toggleMode = m_settings && m_settings->toggleActivation();
 
@@ -502,10 +519,16 @@ bool WindowDragAdaptor::activateSnapDragIfNeeded(int modifiers, int mouseButtons
     // appeared. Repro: drag a window, don't hold the modifier, hover an
     // edge — nothing happens.
     bool edgeActivation = false;
-    // The exclusion gate mirrors checkZoneSelectorTrigger's: an edge hover
-    // must not promote a drag whose popup the very next tick refuses.
-    if (!triggerHeld && !toggleMode && !m_dragWindowExcludedFromSelector && m_settings) {
-        auto resolved = resolveScreenAt(QPointF(cursorX, cursorY));
+    // The cursor's screen, for the edge-hover and re-insert arms below, which
+    // both run only without a held trigger or toggle mode. Resolved once per
+    // tick rather than once per arm.
+    const ScreenResolution resolved =
+        (!triggerHeld && !toggleMode) ? resolveScreenAt(QPointF(cursorX, cursorY)) : ScreenResolution{};
+    // The exclusion gate mirrors checkZoneSelectorTrigger's, the size floor
+    // included: an edge hover must not promote a drag whose popup the very
+    // next tick refuses.
+    if (!triggerHeld && !toggleMode && !m_dragWindowExcludedFromSelector && !dragClientSizeBelowMinimum()
+        && m_settings) {
         // Live-mode disable check — `handleFor` not `handleForMode(Snapping)`.
         // The user may have flipped the screen's mode between beginDrag
         // and this cursor tick; consult the destination's actual mode
@@ -550,7 +573,37 @@ bool WindowDragAdaptor::activateSnapDragIfNeeded(int modifiers, int mouseButtons
         }
     }
 
+    // Drag re-insert activation: over a screen a tiling engine runs, that
+    // engine's own drag-insert trigger is the same commitment, its always-on
+    // sentinel included. Its trigger list can differ from the snap
+    // activation list, and a pending drag never reaches dragMoved, so a drag
+    // that began on a snapping screen and crossed onto a strip or a stack
+    // holding only the re-insert trigger did nothing there. Promoting hands
+    // the next ticks to dragMoved's drag-insert block, as a held snap trigger
+    // would. A toggle-mode insert trigger held through the crossing needs a
+    // fresh press after it, as it does in a drag that starts there.
+    //
+    // The always-on sentinel reads as held on every tick, so under "always
+    // re-insert" every pending drag that crosses onto that engine's screen
+    // promotes here, a plain one included, and its drop re-inserts the window
+    // rather than floating it there, unless the keep-out trigger is held or
+    // toggled (#1162), when dragMoved keeps the drag out and endDrag floats
+    // it. That is intended: it is what the same setting does to a drag that
+    // starts on that screen. Only a screen whose engine carries no always-on
+    // entry keeps the plain cross-screen drop, which dragEndedOnScreen floats
+    // where it lands.
+    bool insertActivation = false;
     if (!triggerHeld && !toggleMode && !edgeActivation) {
+        const QString& screenId = resolved.screenId;
+        PhosphorEngine::IPlacementEngine* engine = dragInsertEngineFor(screenId);
+        if (engine && !(m_contextResolver && m_contextResolver->isDisabled(m_contextResolver->handleFor(screenId)))) {
+            insertActivation = anyTriggerHeld(engine == m_scrollEngine ? m_cachedScrollingDragInsertTriggers
+                                                                       : m_cachedAutotileDragInsertTriggers,
+                                              mods, mouseButtons);
+        }
+    }
+
+    if (!triggerHeld && !toggleMode && !edgeActivation && !insertActivation) {
         return false;
     }
 
@@ -560,9 +613,28 @@ bool WindowDragAdaptor::activateSnapDragIfNeeded(int modifiers, int mouseButtons
     m_pendingSnapDragGeometry = QRect();
 
     qCInfo(lcDbusWindow) << "activateSnapDragIfNeeded: promoting" << pendingId << "to active drag"
-                         << "via=" << (edgeActivation ? "edge-hover" : "modifier");
+                         << "via="
+                         << (edgeActivation         ? "edge-hover"
+                                 : insertActivation ? "drag-insert trigger"
+                                                    : "modifier");
     dragStarted(pendingId, static_cast<double>(pendingGeo.x()), static_cast<double>(pendingGeo.y()),
                 static_cast<double>(pendingGeo.width()), static_cast<double>(pendingGeo.height()));
+    if (m_draggedWindowId != pendingId) {
+        // dragStarted refused the promotion (snapping was switched off since
+        // beginDrag). The drag goes back to pending, barred from promoting
+        // again, so its endDrag still takes the pending branch: with neither
+        // id set it went down the mismatch branch instead, and a snapped
+        // window dragged off its zone kept the zone and its old monitor's
+        // memory.
+        m_pendingSnapDragWindowId = pendingId;
+        m_pendingSnapDragGeometry = pendingGeo;
+        m_pendingSnapDragCancelled = true;
+        return false;
+    }
+    // dragStarted read fillsOutput now; the frame it pairs with is from
+    // beginDrag, when a maximize KWin dropped since still filled the output
+    // (F1051).
+    m_originalFrameFillsOutput = m_pendingSnapDragFillsOutput;
     // Drop the wasSnapped latch after dragStarted has re-derived live
     // m_wasSnapped from the tracking state — its single consumer (the
     // endDrag pending-never-activated branch) is now unreachable for
@@ -571,22 +643,27 @@ bool WindowDragAdaptor::activateSnapDragIfNeeded(int modifiers, int mouseButtons
     // value can't actually bleed into a later drag; the reset just keeps
     // the field honest for the remainder of this now-activated drag.
     m_pendingSnapDragWasSnapped = false;
-    return !m_draggedWindowId.isEmpty();
+    return true;
 }
 
 void WindowDragAdaptor::clearPendingSnapDragState()
 {
     m_pendingSnapDragWindowId.clear();
+    m_pendingSnapDragCancelled = false;
     m_pendingSnapDragGeometry = QRect();
+    m_pendingSnapDragFillsOutput = false;
     m_pendingSnapDragWasSnapped = false;
     m_dragReorderActive = false;
-    // The strip popup's card exclusion belongs to the pending drag too:
-    // beginDrag's pending branch sets it, and the exits that end a pending
-    // drag (endDrag's pending branch, handleWindowClosed) route here without
-    // resetDragState — left set, the next popup show would silently drop a
-    // bystander's card.
+    // The strip popup's card exclusion and the drop-indicator colour
+    // overrides belong to the pending drag too: beginDrag's pending branch
+    // pushes both, and the exits that end a pending drag (endDrag's pending
+    // branch, handleWindowClosed) route here without resetDragState. Left
+    // set, the next popup show would silently drop a bystander's card, and
+    // the overlay would hold this window's colours until the next drag's
+    // reset.
     if (m_overlayService) {
         m_overlayService->setActiveDragWindowId(QString());
+        m_overlayService->setScrollDropIndicatorWindowOverrides({});
     }
     // Any drag-insert preview left over from an incomplete previous drag
     // (daemon lost track, client disconnect, snapping-disabled flip, etc.)
@@ -606,6 +683,9 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
 {
     PhosphorProtocol::DragOutcome outcome;
     outcome.windowId = windowId;
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return outcome;
+    }
 
     if (windowId.isEmpty()) {
         qCWarning(lcDbusWindow) << "endDrag: empty windowId";
@@ -629,9 +709,21 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
         // promote here; a pending never-activated drag can only unsnap-and-NoOp.
         const bool wasSnapped = m_pendingSnapDragWasSnapped;
         qCInfo(lcDbusWindow) << "endDrag: pending snap drag never activated" << windowId << "wasSnapped=" << wasSnapped
-                             << "cancelled=" << cancelled;
+                             << "cancelled=" << cancelled << "promotionBarred=" << m_pendingSnapDragCancelled;
         clearPendingSnapDragState();
         m_currentDragPolicy = {};
+        // Dropped on another snapping screen than the one snap holds the
+        // window on: it leaves its snap memory there and floats where it
+        // was dropped (F677). Dropped on a screen a tiling engine runs: that
+        // engine adopts it floating where it was dropped and the tiles there
+        // stay put (l18_plain_drop_on_tiling). Nothing else would: the
+        // effect holds every crossing back for the whole drag.
+        if (!cancelled && m_windowTracking
+            && m_windowTracking->dragEndedOnScreen(windowId, resolveScreenAt(QPointF(cursorX, cursorY)).screenId,
+                                                   /*floatIfSnapped=*/true)) {
+            outcome.action = PhosphorProtocol::DragOutcome::NoOp;
+            return outcome;
+        }
         // If the window was snapped at drag start and dragged without holding the
         // activation trigger, unsnap it so it floats at the drop location instead of
         // leaving a stale zone assignment.
@@ -656,9 +748,9 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
         // interactive-drag mark (a leftover mark silently exempts a window
         // from layout until the next beginDrag). A PENDING drag counts as
         // live here: its compositor move is still running with the mark set
-        // for the whole gesture (cancelSnap re-sets it for the same reason),
-        // so the sweep must not fire off a stray endDrag for a different
-        // window while one is pending.
+        // for the whole gesture (an Escape-cancelled pending drag keeps its
+        // identity for the same reason), so the sweep must not fire off a
+        // stray endDrag for a different window while one is pending.
         if (m_draggedWindowId.isEmpty() && m_pendingSnapDragWindowId.isEmpty()) {
             m_currentDragPolicy = {};
             m_dragReorderActive = false;
@@ -672,6 +764,10 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
     }
 
     const PhosphorProtocol::DragBypassReason bypassReason = m_currentDragPolicy.bypassReason;
+    // Read before the resets below for the engine-owned arm's reorder drop.
+    const QString policyScreenId = m_currentDragPolicy.screenId;
+    const bool reorderArmed = m_dragReorderActive;
+    const bool engineTicked = m_dragInsertEngineTicked;
     m_currentDragPolicy = {}; // next drag starts fresh
     // m_dragReorderActive lives for one drag only. Reset here (before the
     // various early-return branches below) so no branch has to remember.
@@ -745,7 +841,7 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
     // through resetDragState (not a bare id clear) so zone state inherited
     // from a mid-drag screen crossing dies with the drag.
     switch (bypassReason) {
-    case PhosphorProtocol::DragBypassReason::EngineOwnedScreen:
+    case PhosphorProtocol::DragBypassReason::EngineOwnedScreen: {
         // Drag-insert: if a preview is live ON THE RELEASE SCREEN (autotile
         // stack or scroll strip), commit it so the window takes its picked
         // slot on the next retile. The owning engine controls final
@@ -757,6 +853,60 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
             resetDragState();
             return outcome;
         }
+        // A tile in reorder mode whose drag no engine tick reached. The
+        // preview begins on the first tick (beginDrag), and a position tick
+        // comes at the earliest 32 ms into a move, so a click, a quick flick,
+        // or a move with no pointer at all (touch, tablet, keyboard) has no
+        // preview to settle. Floating it would float a tile the user never
+        // got to aim, so the drop puts it back in its slot, which needs the
+        // engine to re-emit its rect: the engines deliberately leave a window
+        // alone when its drag mark clears. Begin then cancel does that and is
+        // an exact undo, restoring the slot, the focus and the view the strip
+        // had, where a commit would refocus the window and detach the view.
+        // On a strip the begin closes the neighbours up and the cancel puts
+        // them back, two batches from this one call, as the earlier begin at
+        // drag start and commit at the drop also sent.
+        //
+        // Not when the drop keeps the drag out under always re-insert
+        // (#1162): beginDrag carries no modifiers and a key held from the
+        // start sends no tick, so the drop's own report is the first that can
+        // show it held. Hold mode only, as on a tick, since a toggle needs a
+        // press it never saw, and with no tick there is no grace stamp. Only
+        // on the screen the drag started on, which is the one the latch was
+        // armed for; a drop on another screen floats where it lands. Once a
+        // tick ran, the tick decided: a preview it began was settled above,
+        // and none means the trigger kept the drag out, the begin was
+        // refused, or the preview was cancelled since, all of which float.
+        if (reorderArmed && !engineTicked) {
+            const QString releaseScreenId = resolveScreenAt(QPointF(cursorX, cursorY)).screenId;
+            PhosphorEngine::IPlacementEngine* startEngine =
+                PhosphorScreens::ScreenIdentity::screensMatch(policyScreenId, releaseScreenId)
+                ? dragInsertEngineFor(releaseScreenId)
+                : nullptr;
+            bool keptOut = false;
+            if (startEngine) {
+                const bool onScrolling = startEngine == m_scrollEngine;
+                const QVector<ParsedTrigger>& triggers =
+                    onScrolling ? m_cachedScrollingDragInsertTriggers : m_cachedAutotileDragInsertTriggers;
+                // The caches stay empty without settings, so the sentinel test
+                // also guards the toggle read.
+                keptOut = hasBareAlwaysActive(triggers) && m_settings
+                    && !(onScrolling ? m_settings->scrollingDragInsertToggle() : m_settings->autotileDragInsertToggle())
+                    && anyTriggerHeld(triggers, resolveReportedModifiers(modifiers), mouseButtons,
+                                      SentinelMatch::SkipBare);
+            }
+            // The release screen's id, not the policy's: the two name the same
+            // screen here, and the release id is the spelling the tick path
+            // hands the engines, which key their contexts by it.
+            if (startEngine && !keptOut && startEngine->beginDragInsertPreview(windowId, releaseScreenId)) {
+                startEngine->cancelDragInsertPreview(/*dragStillActive=*/false);
+                clearScrollDropIndicator();
+                outcome.action = PhosphorProtocol::DragOutcome::NoOp;
+                hideOverlayAndSelector();
+                resetDragState();
+                return outcome;
+            }
+        }
         // Release screen is resolved plugin-side from the cursor position,
         // but we pass the cursor through so the daemon can log it. The
         // plugin passes its own view of "current screen" to the float call.
@@ -767,6 +917,7 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
         hideOverlayAndSelector();
         resetDragState();
         return outcome;
+    }
     case PhosphorProtocol::DragBypassReason::SnappingDisabled:
     case PhosphorProtocol::DragBypassReason::ContextDisabled:
     case PhosphorProtocol::DragBypassReason::LayoutSuppressed:
@@ -781,7 +932,19 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
         // window detached.
         cancelDragInsertIfActive();
         clearScrollDropIndicator();
-        outcome.action = PhosphorProtocol::DragOutcome::NoOp;
+        // A dead drag still moved the window: dropped on another screen, it
+        // leaves its snap memory on the one it came from, free here (F360).
+        // Read here, not from the drag start: a dead drag never ran the
+        // snap path's setup that records it.
+        {
+            const bool wasSnapped = m_windowTracking && !m_windowTracking->getZoneForWindow(windowId).isEmpty();
+            // No cancelled test: a cancelled drag returned above the switch.
+            const bool left = m_windowTracking
+                && m_windowTracking->dragEndedOnScreen(windowId, resolveScreenAt(QPointF(cursorX, cursorY)).screenId,
+                                                       /*floatIfSnapped=*/false);
+            outcome.action = left && wasSnapped ? PhosphorProtocol::DragOutcome::NotifyDragOutUnsnap
+                                                : PhosphorProtocol::DragOutcome::NoOp;
+        }
         hideOverlayAndSelector();
         resetDragState();
         return outcome;
@@ -854,6 +1017,9 @@ PhosphorProtocol::DragOutcome WindowDragAdaptor::endDrag(const QString& windowId
 void WindowDragAdaptor::updateDragCursor(const QString& windowId, int cursorX, int cursorY, int modifiers,
                                          int mouseButtons)
 {
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return;
+    }
     if (windowId.isEmpty()) {
         return;
     }
@@ -865,9 +1031,9 @@ void WindowDragAdaptor::updateDragCursor(const QString& windowId, int cursorX, i
     // the drag policy for the whole never-activated phase (the flip block
     // below never runs), which is deliberate and safe: a pending drag
     // exercises none of the policy-driven activation behaviors, its endDrag
-    // takes the pending NoOp branch, and a window the compositor move lands
-    // on another screen is adopted or unsnapped by the WTA's
-    // windowScreenChanged handoff independently of the policy.
+    // takes the pending branch, which hands a window dropped on another
+    // screen to WindowTrackingAdaptor::dragEndedOnScreen (the effect holds
+    // every crossing back for the whole drag, so nothing else would).
     if (m_draggedWindowId.isEmpty() && m_pendingSnapDragWindowId == windowId) {
         if (!activateSnapDragIfNeeded(modifiers, mouseButtons, cursorX, cursorY)) {
             return;
@@ -923,10 +1089,12 @@ void WindowDragAdaptor::updateDragCursor(const QString& windowId, int cursorX, i
             // preview off this latch, so tracking the current screen restores correct
             // Reorder-vs-Float behavior across a mid-drag screen crossing.
             //
-            // The GATE mirrors beginDrag's eager-preview seed (the reorder
+            // The GATE mirrors beginDrag's reorder seed (the reorder
             // block in its bypass branch): (1) the destination policy is the autotile-bypass path —
             // bypassReason == EngineOwnedScreen excludes a context-DISABLED autotile screen
-            // (computeDragPolicy evaluates ContextDisabled first), so the latch never
+            // (computeDragPolicy evaluates ContextDisabled first; the engine set
+            // itself leaves one out, except between a disable edit and its
+            // recompute), so the latch never
             // forces a preview on a dead/excluded screen; and (2) the window is still
             // tiled — beginDragInsertPreview would otherwise ADOPT a floating/untracked
             // window into the stack (fresh-adoption branch), silently tiling a window
@@ -934,12 +1102,11 @@ void WindowDragAdaptor::updateDragCursor(const QString& windowId, int cursorX, i
             // windows drag free" invariant. A genuinely tiled window crossing Float→Reorder
             // is still tiled at the flip, so this stays true for the case that should reorder.
             //
-            // Unlike the seed, this only sets the latch; it does NOT eagerly call
-            // beginDragInsertPreview or restore a float-on-start fallback. The next
-            // dragMoved tick begins the preview off the latch (drag.cpp), so on a mid-drag
-            // cross to a Reorder screen where that begin fails the window float-drops on
-            // release rather than during the drag — an acceptable degradation for a
-            // transient begin failure (the common case begins successfully).
+            // Like the seed, this only sets the latch. The next dragMoved tick
+            // begins the preview off it (drag.cpp), and a begin that fails there
+            // abandons reorder for the rest of the drag, so the window float-drops
+            // on release rather than during the drag, an acceptable degradation
+            // for a transient begin failure (the common case begins successfully).
             // isWindowTiled OR a live preview: under detach-once semantics
             // the dragged window is NOT a tile while its preview is live, so
             // tiled-only would drop the reorder latch on every mid-drag
@@ -947,13 +1114,22 @@ void WindowDragAdaptor::updateDragCursor(const QString& windowId, int cursorX, i
             // (dragInsertPreviewEngine, not cursorEngine): on a cross-engine
             // crossing the live preview still belongs to the departing
             // engine, which is exactly the crossing this disjunct exists to
-            // keep latched. And once beginDrag's fallback abandoned reorder
-            // for this drag, the latch stays down — re-arming it here made
-            // dragMoved retry the failed preview every tick and re-emitted a
-            // policy contradicting the float fallback one tick after it.
+            // keep latched. And once dragMoved abandoned reorder for this drag
+            // over a refused begin, the latch stays down, or dragMoved would
+            // retry the refused begin every tick.
+            // Escape's dismissal holds the same way (m_dragInsertCancelled):
+            // re-latching on a crossing would force the re-insert Escape just
+            // dismissed back on, and the drop would commit it.
             m_dragReorderActive = candidate.bypassReason == PhosphorProtocol::DragBypassReason::EngineOwnedScreen
-                && reorderMode && !m_dragReorderAbandoned && cursorEngine
+                && reorderMode && !m_dragReorderAbandoned && !m_dragInsertCancelled && cursorEngine
                 && (cursorEngine->isWindowTiled(windowId) || dragInsertPreviewEngine() != nullptr);
+            // The drag-out size preview was read for the screen just left, and
+            // a screen change always flips (the policy carries its screen),
+            // snap to snap included. Re-armed here, the next tick outside a
+            // zone previews the size read for the new screen, the size the
+            // drop commits there. A flip on the same screen only re-sends the
+            // size already shown.
+            m_restoreSizeEmittedDuringDrag = false;
             // A flip onto ANY bypass screen invalidates the live zone
             // selection: without this, the zone state populated on the last
             // active-screen tick (m_currentZoneId/geometry, multi-zone set,
@@ -978,11 +1154,10 @@ void WindowDragAdaptor::updateDragCursor(const QString& windowId, int cursorX, i
                 m_currentMultiZoneGeometry = QRect();
                 m_paintedZoneIds.clear();
                 // Symmetric with cancelSnap and resetDragState, which clear
-                // these two beside the zone block: the last-emitted rect
-                // suppresses the next geometry emit by compare, and the
-                // restore latch gates the free-size leg.
+                // this beside the zone block: the last-emitted rect
+                // suppresses the next geometry emit by compare. The restore
+                // latch was re-armed above for every flip.
                 m_lastEmittedZoneGeometry = QRect();
-                m_restoreSizeEmittedDuringDrag = false;
                 // The selector popup too: once a drag-insert preview goes
                 // live, dragMoved's preview block returns before the
                 // selector-dismiss gates on every tick, so a popup shown on
@@ -1000,14 +1175,14 @@ void WindowDragAdaptor::updateDragCursor(const QString& windowId, int cursorX, i
                 }
             }
             Q_EMIT dragPolicyChanged(windowId, candidate);
-            // After the flip, fall through: if we're now on the snap path
-            // we still want to call legacy dragMoved below for overlay
-            // updates. If we're now bypassed, legacy dragMoved is a
-            // no-op because m_snapCancelled isn't set and dragMoved only
-            // does real work when m_draggedWindowId matches — which it
-            // does — but the overlay/zone state will be hidden by the
-            // effect's reaction handler, so running dragMoved here does
-            // no harm.
+            // After the flip, fall through: dragMoved runs as usual. On the
+            // snap path it drives the overlay, and on an engine screen
+            // prepareHandlerContext hides the overlay and returns, while the
+            // drag-insert block above it keeps working. The effect sends no
+            // cancelSnap on the flip, so a drag that comes back to the snap
+            // path finds the overlay again and its drop can snap. The
+            // keyboard grab follows the new policy's grabKeyboard on the
+            // effect side.
         }
     }
 

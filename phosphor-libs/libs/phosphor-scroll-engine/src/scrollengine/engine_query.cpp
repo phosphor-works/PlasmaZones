@@ -3,10 +3,11 @@
 
 // Read-only layout queries, split out of engine_apply.cpp along their own
 // seam: the per-screen params resolver (layoutParamsForScreen and the axis
-// resolvers it leans on) and the visible-tile accessor family the daemon's
-// selector/overlay surfaces read. Nothing here mutates engine state; the
-// batch emitter (applyLayout and its park/emit pipeline) stays in
-// engine_apply.cpp.
+// resolvers it leans on), the visible-tile accessor family the daemon's
+// selector/overlay surfaces read, and the focused-column read the
+// move-column-to-workspace verb enumerates its group through. Nothing here
+// mutates engine state; the batch emitter (applyLayout and its park/emit
+// pipeline) stays in engine_apply.cpp.
 
 #include <PhosphorScrollEngine/ScrollEngine.h>
 
@@ -14,8 +15,13 @@
 #include <PhosphorEngine/ICrossSurfaceResolver.h>
 #include <PhosphorEngine/IGeometrySettings.h> // GeometryDefaults::MaxGap
 #include <PhosphorEngine/PerScreenKeys.h>
+#include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScrollEngine/IScrollSettings.h>
+
+#include <QSet>
+
+#include <algorithm>
 
 namespace PhosphorScrollEngine {
 
@@ -27,9 +33,25 @@ ScrollLayoutParams ScrollEngine::layoutParamsForScreen(const QString& screenId, 
 }
 
 ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::PlacementStateKey& key,
-                                                    int columnCountOverride) const
+                                                    int columnCountOverride, UnseenContextOverrides unseen) const
 {
     const QString& screenId = key.screenId;
+    // Which context these params describe. The screen-only spelling (desktop
+    // 0, no activity) and the screen's current key are the SAME context, and
+    // both resolve the way applyLayout does: the gap provider is asked for
+    // "whatever the screen shows now", and the override map and the smart-gaps
+    // column count come from the current key. That matters under a sticky
+    // pin, where the current key names the PINNED desktop while the provider's
+    // current-context answer is the live desktop's rules: a caller naming the
+    // pinned key must get the gaps the apply laid the strip out with, or an
+    // exact compare against an applied rect (reportCommittedSize's whole-tile
+    // check) refuses a genuine answer. Any other key is a BACKGROUND context
+    // and resolves entirely against itself (see @p unseen for a context with
+    // no override map yet): its own gap rules, its own override map, its own
+    // strip's column count.
+    const PhosphorEngine::PlacementStateKey currentKey = m_context.currentKeyForScreen(screenId);
+    const bool currentContext = key == currentKey || (key.desktop == 0 && key.activity.isEmpty());
+    const PhosphorEngine::PlacementStateKey contextKey = currentContext ? currentKey : key;
     ScrollLayoutParams params;
     QRect area = m_screenManager ? m_screenManager->screenAvailableGeometry(screenId)
                                  : (m_availableGeometryProvider ? m_availableGeometryProvider(screenId) : QRect());
@@ -68,7 +90,8 @@ ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::Placem
     if (m_contextGapProvider) {
         namespace PSK = PhosphorEngine::PerScreenKeys;
         namespace GR = PhosphorEngine::GapResolution;
-        const QVariantMap overrides = m_contextGapProvider(screenId, key.desktop, key.activity);
+        const QVariantMap overrides = currentContext ? m_contextGapProvider(screenId, 0, QString())
+                                                     : m_contextGapProvider(screenId, key.desktop, key.activity);
         // The shared atomic-layer resolution both sibling pipelines use (the
         // snap-side GeometryUtils and the autotile PerScreenConfigResolver):
         // an override map that carries outer-gap info wins WHOLESALE, and
@@ -101,9 +124,10 @@ ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::Placem
     // agrees: the geometry producers and the pure-math verbs (navigation,
     // anchor math, the maximize compare) all have to see the same work area
     // or the strip resolves against one rect and applies another. The basis
-    // is the screen's CURRENT-context strip, which is the one applyLayout
-    // ever puts on screen; a background context resolving params for the
-    // same screen borrows that verdict rather than inventing a second one.
+    // is the strip of the context these params describe: the current one for
+    // every current-context caller, which is the strip applyLayout puts on
+    // screen, and a background context's own strip for a mutation on it, so a
+    // background desktop's column count is never judged by the one in view.
     // Accepted quirk: while a drag-insert preview holds the dragged window
     // DETACHED, a two-column strip counts as one here, so the outer gaps
     // drop for the duration of the hold and snap back at commit/cancel.
@@ -114,7 +138,17 @@ ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::Placem
     // down: smart gaps is now a per-screen rule slot too, and its gate runs
     // before the rest of the effective* reads. One fetch still serves them
     // all — the later reads take this same map.
-    const QVariantMap overrides = overridesForScreen(screenId);
+    //
+    // A context the producer never resolved a map for (applyPerScreenConfig
+    // files one for a screen's current context only) reads the global
+    // defaults, unless the caller asks for the screen's current map instead
+    // (UnseenContextOverrides::ScreenCurrent).
+    QVariantMap overrides;
+    if (const auto own = m_perScreenOverrides.constFind(contextKey); own != m_perScreenOverrides.cend()) {
+        overrides = *own;
+    } else if (unseen == UnseenContextOverrides::ScreenCurrent) {
+        overrides = m_perScreenOverrides.value(currentKey);
+    }
     // The Auto axis basis, captured BEFORE smart gaps may zero the outer
     // gaps. Smart-gap zeroing is CONTENT-driven — it reads the strip's live
     // column count — and folding it into the axis basis coupled the resolved
@@ -135,7 +169,7 @@ ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::Placem
                 top = bottom = left = right = 0;
             }
         } else {
-            const ScrollState* state = m_states.stateForKey(m_context.currentKeyForScreen(screenId));
+            const ScrollState* state = m_states.stateForKey(contextKey);
             if (state && state->strip().columnCount() == 1) {
                 top = bottom = left = right = 0;
             }
@@ -187,6 +221,16 @@ ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::Placem
     params.alwaysCenterSingleColumn = effectiveAlwaysCenterSingleColumn(overrides);
     params.defaultColumnWidth = effectiveDefaultColumnWidth(overrides, params.presetColumnWidths);
     params.tabIndicator = effectiveTabIndicator(overrides);
+    // Every params this engine resolves reads the per-window committed floors,
+    // so the apply, the verbs and the drag-insert probe all lay a floored
+    // column out alike. The capture is the engine itself; the params are
+    // transient values that never outlive the call that resolved them.
+    params.committedFloor = [this](const QString& windowId) {
+        return committedFloorFor(windowId);
+    };
+    params.committedCrossFloor = [this, axis = params.axis](const QString& windowId) {
+        return committedCrossFloorFor(windowId, axis);
+    };
     return params;
 }
 
@@ -269,14 +313,18 @@ QVector<ScrollEngine::VisibleTile> ScrollEngine::visibleTiles(const QString& scr
         // tab-strip payload starts too (engine_apply.cpp): that one rect folds
         // in the master switch, the single-tab skip and "not tabbed".
         //
-        // The emitter's gate is a SUPERSET, not a match. It additionally drops
-        // a column that is out of view and one whose tiles are all parked.
-        // This walk runs its own relayout and never consults park state at
-        // all, so a fully-parked tabbed column is emitted here with its tab
-        // fields while the screen draws no bar for it. Deliberate: the
-        // preview draws that tile, so drawing the tile's indicator is the
-        // self-consistent answer, and importing park state into a read-only
-        // query would couple it to the apply pipeline's ordering.
+        // The emitter's gate is not a match, and it differs both ways. It
+        // drops a column still in view whose tiles are all parked: this walk
+        // runs its own relayout and never consults park state at all, so such
+        // a column is emitted here with its tab fields while the screen draws
+        // no bar for it. Deliberate: the preview draws that tile, so drawing
+        // the tile's indicator is the self-consistent answer, and importing
+        // park state into a read-only query would couple it to the apply
+        // pipeline's ordering. And it KEEPS a departing column, one this
+        // batch's view slide took out of view, for the outgoing leg of the
+        // slide (tabStripsChanged), which this walk never lists: it reads only
+        // what is on screen now, and a column out of view has no tile here to
+        // carry an indicator.
         //
         // Derived per COLUMN, not per tile: a tabbed column resolves exactly
         // one non-hidden tile, so the walk below stamps the data onto that one
@@ -335,9 +383,9 @@ QVector<ScrollEngine::VisibleTile> ScrollEngine::visibleTiles(const QString& scr
             // edge is what tells the viewer the strip continues off-screen.
             const QRect clipped = tile.rect.intersected(clipArea);
             if (!clipped.isEmpty()) {
-                // Designated, not positional: three of these eight are ints in
-                // a row, so a member inserted mid-struct would compile clean
-                // and silently reassign the rest.
+                // Designated, not positional: several of these members are
+                // ints in a row, so a member inserted mid-struct would compile
+                // clean and silently reassign the rest.
                 out.append(VisibleTile{.windowId = tile.windowId,
                                        .columnIndex = column.columnIndex,
                                        .zoneNumber = ++zoneNumber,
@@ -514,6 +562,107 @@ QVector<QRectF> ScrollEngine::visibleTileRectsRelative(const QString& screenId) 
         out.append(entry.relativeRect);
     }
     return out;
+}
+
+QVector<StashedTile> ScrollEngine::columnTilesWithHiddenMembers(const ScrollState* state, int columnIndex) const
+{
+    if (!state || columnIndex < 0 || columnIndex >= state->strip().columns().size()) {
+        return {};
+    }
+    const Column& column = state->strip().columns().at(columnIndex);
+    QVector<StashedTile> tiles;
+    QSet<QString> members;
+    for (const Tile& tile : column.tiles) {
+        StashedTile entry;
+        entry.windowId = tile.windowId;
+        entry.height = tile.height;
+        entry.minimized = tile.minimized;
+        entry.windowedFullscreen = tile.windowedFullscreen;
+        tiles.append(entry);
+        members.insert(tile.windowId);
+    }
+    // A HIDDEN member is out of the strip, floating in this state, with a
+    // FloatRestore slot anchored on a sibling of this column (stackAnchor is
+    // set only for a tile that left a SHARED column, so a window that had a
+    // column of its own is never one). Only the two compositor-driven exits
+    // count: its own fullscreen (the hold on the slot) and minimize, which
+    // the effect reports as a float and which only the registry can tell
+    // from a user float. A user float left the column deliberately, and an
+    // unknown minimize state is read as "not minimized" for the same reason:
+    // moving a window the user floated out of the column would be a move
+    // they never asked for.
+    struct Hidden
+    {
+        int slot;
+        quint64 leftAt;
+        StashedTile tile;
+    };
+    QVector<Hidden> hidden;
+    for (const QString& windowId : state->floatingWindows()) {
+        const auto restore = m_floatRestore.constFind(windowId);
+        if (restore == m_floatRestore.cend() || restore->stackAnchor.isEmpty()
+            || !members.contains(restore->stackAnchor)) {
+            continue;
+        }
+        const bool minimized = m_windowRegistry && m_windowRegistry->minimizedState(windowId).value_or(false);
+        if (!restore->fullscreenHold && !minimized) {
+            continue;
+        }
+        StashedTile entry;
+        entry.windowId = windowId;
+        entry.height = restore->height;
+        hidden.append({qMax(0, restore->tileIndex), restore->leaveSequence, entry});
+    }
+    // The leaves replayed in reverse (C43). Each slot indexes the column as it
+    // stood when that member left, so the member that left last goes back
+    // first, into the column it left, and each earlier one then finds the
+    // column it left too. An order by slot misplaces two members that left
+    // from the same slot (the floating set is sorted by id, which decides
+    // their order) and a member that left from a slot above one that left
+    // before it. A slot past the end (siblings left since the window did)
+    // clamps onto the end.
+    std::stable_sort(hidden.begin(), hidden.end(), [](const Hidden& a, const Hidden& b) {
+        return a.leftAt > b.leftAt;
+    });
+    for (const Hidden& entry : std::as_const(hidden)) {
+        tiles.insert(qMin(entry.slot, int(tiles.size())), entry.tile);
+    }
+    return tiles;
+}
+
+QStringList ScrollEngine::focusedColumnWindows(const QString& screenId, FocusedColumnRefusal* reason) const
+{
+    const auto refuse = [reason](FocusedColumnRefusal why) {
+        if (reason) {
+            *reason = why;
+        }
+        return QStringList();
+    };
+    // The EXACT strip key, no resolution: the caller hands over the screen it
+    // acts on (the virtual sub-screen on a subdivided monitor), and the
+    // relocation built on this answer must name the same strip.
+    if (screenId.isEmpty() || !m_scrollingScreens.contains(screenId)) {
+        return refuse(FocusedColumnRefusal::NotScrolling);
+    }
+    const ScrollState* state = m_states.stateForKey(currentKeyForScreen(screenId));
+    if (!state || !state->strip().activeColumn()) {
+        return refuse(FocusedColumnRefusal::NoColumn);
+    }
+    // The column verbs' float refusal (refuseUnderFloatFocus), asked here
+    // without its feedback: this is a read, and the caller reports the reason.
+    if (state->floatingHasFocus()) {
+        return refuse(FocusedColumnRefusal::FloatFocused);
+    }
+    const QVector<StashedTile> tiles = columnTilesWithHiddenMembers(state, state->strip().activeColumnIndex());
+    QStringList windows;
+    windows.reserve(tiles.size());
+    for (const StashedTile& tile : tiles) {
+        windows.append(tile.windowId);
+    }
+    if (reason) {
+        *reason = FocusedColumnRefusal::None;
+    }
+    return windows;
 }
 
 } // namespace PhosphorScrollEngine

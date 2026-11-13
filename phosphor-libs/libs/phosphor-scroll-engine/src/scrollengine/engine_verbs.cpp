@@ -6,6 +6,7 @@
 #include <PhosphorEngine/LayerFocusSwitch.h>
 #include <PhosphorEngine/WindowRegistry.h>
 
+#include "enginelimits.h"
 #include "scrollverbresolve_p.h"
 // lcScrollEngine is used below and reaches this file only through a sibling
 // translation unit under a UNITY build, so its absence breaks a non-unity
@@ -32,11 +33,27 @@ namespace PhosphorScrollEngine {
 // Direction-bearing verbs pass "left"/"right"/"up"/"down" so the OSD's arrow
 // points the way the verb went — its directionArrow default is a RIGHT arrow,
 // so an empty reason on a leftward verb renders the wrong glyph.
-#define P_SCROLL_VERB(screenIdExpr, opExpr, actionStr, focusAfterExpr, successReasonExpr)                              \
+//
+// `refuseUnderFloatExpr` selects the float-focus refusal (refuseUnderFloatFocus).
+// The verbs that RESTRUCTURE the strip around its active column pass true
+// through P_SCROLL_COLUMN_VERB: with a float holding focus that column is the
+// one behind the float, and moving it while announcing success, then focusing
+// it, steals focus from the window the user is looking at. Everything else
+// passes false through P_SCROLL_VERB, for one of two reasons. Sizing,
+// centering and display verbs act on the column behind the float without
+// taking focus, for the reason given above. The column-focus verbs (first,
+// last, adjacent, wrap) and moveColumnToIndex do take focus, on purpose: a
+// focus verb pressed on a float is asked to move focus into the strip, and
+// moveColumnToIndex moves the column its caller named by index rather than
+// the one behind the float.
+#define P_SCROLL_VERB_BODY(screenIdExpr, opExpr, actionStr, focusAfterExpr, successReasonExpr, refuseUnderFloatExpr)   \
     P_SCROLL_RESOLVE(screenIdExpr);                                                                                    \
     if (!state || state->strip().isEmpty()) {                                                                          \
         Q_EMIT navigationFeedback(false, QStringLiteral(actionStr), QStringLiteral("no_windows"), QString(),           \
                                   QString(), screen);                                                                  \
+        return;                                                                                                        \
+    }                                                                                                                  \
+    if ((refuseUnderFloatExpr) && refuseUnderFloatFocus(state, QStringLiteral(actionStr), screen)) {                   \
         return;                                                                                                        \
     }                                                                                                                  \
     const QString sourceWindow = state->strip().activeWindowId();                                                      \
@@ -48,6 +65,10 @@ namespace PhosphorScrollEngine {
     Q_EMIT navigationFeedback(changed, QStringLiteral(actionStr),                                                      \
                               changed ? (successReasonExpr) : QStringLiteral("no_target"), sourceWindow,               \
                               changed ? state->strip().activeWindowId() : QString(), screen)
+#define P_SCROLL_VERB(screenIdExpr, opExpr, actionStr, focusAfterExpr, successReasonExpr)                              \
+    P_SCROLL_VERB_BODY(screenIdExpr, opExpr, actionStr, focusAfterExpr, successReasonExpr, false)
+#define P_SCROLL_COLUMN_VERB(screenIdExpr, opExpr, actionStr, focusAfterExpr, successReasonExpr)                       \
+    P_SCROLL_VERB_BODY(screenIdExpr, opExpr, actionStr, focusAfterExpr, successReasonExpr, true)
 
 // The tile-focus family: the two stack-end verbs, cycleTab and focusTab.
 // Three things separate it from P_SCROLL_VERB, and all three follow from
@@ -78,9 +99,7 @@ namespace PhosphorScrollEngine {
                                   screen);                                                                             \
         return;                                                                                                        \
     }                                                                                                                  \
-    if (state->floatingHasFocus()) {                                                                                   \
-        Q_EMIT navigationFeedback(false, QStringLiteral("focus"), QStringLiteral("no_target"),                         \
-                                  state->lastFloatingFocus(), QString(), screen);                                      \
+    if (refuseUnderFloatFocus(state, QStringLiteral("focus"), screen)) {                                               \
         return;                                                                                                        \
     }                                                                                                                  \
     const QString sourceWindow = state->strip().activeWindowId();                                                      \
@@ -112,14 +131,27 @@ void ScrollEngine::focusColumnLast(const QString& screenId)
 
 void ScrollEngine::moveColumnToFirst(const QString& screenId)
 {
-    P_SCROLL_VERB(screenId, state->strip().moveActiveColumnToFirst(params), "move", true,
-                  Detail::physicalTokenForMain(-1, params.axis));
+    P_SCROLL_COLUMN_VERB(screenId, state->strip().moveActiveColumnToFirst(params), "move", true,
+                         Detail::physicalTokenForMain(-1, params.axis));
 }
 
 void ScrollEngine::moveColumnToLast(const QString& screenId)
 {
-    P_SCROLL_VERB(screenId, state->strip().moveActiveColumnToLast(params), "move", true,
-                  Detail::physicalTokenForMain(1, params.axis));
+    P_SCROLL_COLUMN_VERB(screenId, state->strip().moveActiveColumnToLast(params), "move", true,
+                         Detail::physicalTokenForMain(1, params.axis));
+}
+
+bool ScrollEngine::refuseUnderFloatFocus(const ScrollState* state, const QString& action, const QString& screenId)
+{
+    if (!state || !state->floatingHasFocus()) {
+        return false;
+    }
+    // The float the user is looking at is the honest source: the strip's
+    // active window is a tile they cannot see, and naming it would tell them
+    // a verb they pressed on the float was about something else.
+    Q_EMIT navigationFeedback(false, action, QStringLiteral("no_target"), state->lastFloatingFocus(), QString(),
+                              screenId);
+    return true;
 }
 
 // NOTE on the P_SCROLL_* macros above: they deliberately inject `screen`,
@@ -127,9 +159,9 @@ void ScrollEngine::moveColumnToLast(const QString& screenId)
 // A helper struct + lambda was considered and rejected: every verb would
 // still need the three names plus the bail-out, and the macro keeps almost
 // every verb body in this file a one-liner. The names are part of the macro's
-// documented contract. Both verb macros are #undef'd after the last verb that
-// uses them, ahead of the windowed-fullscreen trio; the note there explains
-// why P_SCROLL_RESOLVE deliberately is not.
+// documented contract. Every verb macro defined above is #undef'd after the
+// last verb that uses them, ahead of the windowed-fullscreen trio; the note
+// there explains why P_SCROLL_RESOLVE deliberately is not.
 // The hand-expanded verbs are the ones the macro cannot express:
 // consumeWindowIntoColumn (source resolved after the op), consumeOrExpelWindow
 // (two ops, one feedback), the two maximize toggles (a bool answer and a
@@ -161,6 +193,11 @@ void ScrollEngine::consumeWindowIntoColumn(const QString& screenId)
                                   screen);
         return;
     }
+    // The column-verb float refusal (P_SCROLL_COLUMN_VERB's): the consume
+    // restructures and focuses the column behind a focused float.
+    if (refuseUnderFloatFocus(state, QStringLiteral("consume"), screen)) {
+        return;
+    }
     const QString beforeWindow = state->strip().activeWindowId();
     const bool changed = state->strip().consumeWindowIntoColumn(params);
     if (changed) {
@@ -177,7 +214,7 @@ void ScrollEngine::consumeWindowIntoColumn(const QString& screenId)
 
 void ScrollEngine::expelWindowFromColumn(const QString& screenId)
 {
-    P_SCROLL_VERB(screenId, state->strip().expelWindowFromColumn(params), "expel", true, QString());
+    P_SCROLL_COLUMN_VERB(screenId, state->strip().expelWindowFromColumn(params), "expel", true, QString());
 }
 
 void ScrollEngine::consumeOrExpelWindow(int delta, const QString& screenId)
@@ -201,6 +238,11 @@ void ScrollEngine::consumeOrExpelWindow(int delta, const QString& screenId)
     const auto* activeColumn = state->strip().activeColumn();
     const bool willExpel = activeColumn != nullptr && activeColumn->tiles.size() > 1;
     const QString action = willExpel ? QStringLiteral("expel") : QStringLiteral("consume");
+    // The column-verb float refusal (P_SCROLL_COLUMN_VERB's), under the token
+    // the press would have been reported with.
+    if (refuseUnderFloatFocus(state, action, screen)) {
+        return;
+    }
     const QString sourceWindow = state->strip().activeWindowId();
     const bool changed = state->strip().consumeOrExpel(delta, params);
     if (changed) {
@@ -213,7 +255,20 @@ void ScrollEngine::consumeOrExpelWindow(int delta, const QString& screenId)
 
 void ScrollEngine::centerColumn(const QString& screenId)
 {
-    P_SCROLL_VERB(screenId, state->strip().centerActiveColumn(params), "center", false, QString());
+    // The strip answers whether the ANCHOR moved, and re-attaches a panned
+    // view even when it did not (centerActiveColumn). That re-attach is
+    // persisted state the macro's no-change arm never announces, so it is
+    // republished here; the press still reports no_target, since nothing on
+    // screen moved.
+    P_SCROLL_VERB(screenId, ([&]() {
+                      const bool wasDetached = state->strip().viewDetached();
+                      const bool moved = state->strip().centerActiveColumn(params);
+                      if (!moved && wasDetached && !state->strip().viewDetached()) {
+                          Q_EMIT placementChanged(screen);
+                      }
+                      return moved;
+                  }()),
+                  "center", false, QString());
 }
 
 void ScrollEngine::toggleColumnTabbed(const QString& screenId)
@@ -571,8 +626,18 @@ void ScrollEngine::equalizeWindowHeights(const QString& screenId)
 void ScrollEngine::centerVisibleColumns(const QString& screenId)
 {
     // "span" distinguishes the whole-group centering from centerColumn's
-    // single-column copy in the OSD (both ride the "center" action).
-    P_SCROLL_VERB(screenId, state->strip().centerVisibleColumns(params), "center", false, QStringLiteral("span"));
+    // single-column copy in the OSD (both ride the "center" action). The
+    // re-attach of a panned view that moved no anchor is republished for
+    // centerColumn's reason.
+    P_SCROLL_VERB(screenId, ([&]() {
+                      const bool wasDetached = state->strip().viewDetached();
+                      const bool moved = state->strip().centerVisibleColumns(params);
+                      if (!moved && wasDetached && !state->strip().viewDetached()) {
+                          Q_EMIT placementChanged(screen);
+                      }
+                      return moved;
+                  }()),
+                  "center", false, QStringLiteral("span"));
 }
 
 void ScrollEngine::scrollViewByPercent(qreal percent, const QString& screenId)
@@ -599,14 +664,14 @@ void ScrollEngine::scrollViewByPercent(qreal percent, const QString& screenId)
     // undefined, and a caller outside this repo can pass 1e12 as easily as a
     // NaN — the same hazard `setColumnWidth` guards against a few functions
     // below, and for the same reason. Bounded before the round rather than
-    // after, since after is already too late. The band is far wider than any
-    // meaningful scroll (a hundred viewports) and far inside int.
-    constexpr qreal kMaxScrollPx = 1e6;
+    // after, since after is already too late. The band (kMaxScrollViewPx) is
+    // the one the pixel verb bounds to.
+    constexpr qreal kMaxScrollPx = kMaxScrollViewPx;
     const qreal rawPx = std::isfinite(percent)
         ? qBound(-kMaxScrollPx, percent / 100.0 * params.axis.mainSize(params.workArea), kMaxScrollPx)
         : 0.0;
     const int deltaPx = qRound(rawPx);
-    scrollViewResolved(deltaPx, screen, state, params);
+    scrollViewResolved(deltaPx, screen, state, params, /*announce=*/true);
 }
 
 void ScrollEngine::scrollViewByPx(int px, const QString& screenId)
@@ -621,11 +686,25 @@ void ScrollEngine::scrollViewByPx(int px, const QString& screenId)
                                   screen);
         return;
     }
-    scrollViewResolved(px, screen, state, params);
+    // Past the empty-strip answer above, the pan reports nothing at all. The
+    // placement map calls this once per frame while the user drags its lens,
+    // and the navigation card would keep coming back for the whole drag: on
+    // every frame of a successful pan, and on every frame of a drag held
+    // against the strip's end (no_target) or held still (a zero pan,
+    // no_movement). The user is already watching the strip, which shows all
+    // three answers. The empty strip still reports, since there is no strip
+    // to watch.
+    //
+    // Bounded here as well as at the D-Bus adaptor, to the band the percent
+    // verb uses: this is exported API, so the entry states its own range
+    // rather than leaning on one caller's. ScrollStrip::scrollViewBy sums wide
+    // and would take any int, so the bound only ever trims a pan the strip
+    // would clamp at its end anyway.
+    scrollViewResolved(qBound(-kMaxScrollViewPx, px, kMaxScrollViewPx), screen, state, params, /*announce=*/false);
 }
 
 void ScrollEngine::scrollViewResolved(int deltaPx, const QString& screen, ScrollState* state,
-                                      const ScrollLayoutParams& params)
+                                      const ScrollLayoutParams& params, bool announce)
 {
     const QString sourceWindow = state->strip().activeWindowId();
     const bool changed = deltaPx != 0 && state->strip().scrollViewBy(deltaPx, params);
@@ -636,6 +715,9 @@ void ScrollEngine::scrollViewResolved(int deltaPx, const QString& screen, Scroll
         // floating window.
         applyLayout(screen, false);
         Q_EMIT placementChanged(screen);
+    }
+    if (!announce) {
+        return;
     }
     // The active window is unchanged either way — that is the verb's whole
     // point — so the target slot carries it back unchanged on success too.
@@ -850,11 +932,11 @@ void ScrollEngine::moveFocusedToFloating(const QString& screenId)
     // from `screen`, and floatWindowInternal's announcement uses the id it is
     // handed — a foreign raw hint would label the change with a screen that
     // does not own the window. A SUCCESSFUL press is deliberately silent (no
-    // navigationFeedback): the verb delegates to setWindowFloat and the
+    // navigationFeedback): the verb floats through setWindowFloatAnnounced (Active) and the
     // window visibly moving IS the feedback, the rule snapAllWindows also
     // follows — only refusals speak. Pinned by
     // moveToFloatingAndBackAnswersEveryPress.
-    setWindowFloat(windowId, true, screen);
+    setWindowFloatAnnounced(windowId, true, screen, FloatAnnounce::Active);
 }
 
 void ScrollEngine::moveFocusedToTiling(const QString& screenId)
@@ -891,7 +973,7 @@ void ScrollEngine::moveFocusedToTiling(const QString& screenId)
     }
     // Resolved screen for the same reason as moveFocusedToFloating, and the
     // same silent-success convention.
-    setWindowFloat(windowId, false, screen);
+    setWindowFloatAnnounced(windowId, false, screen, FloatAnnounce::Active);
 }
 
 void ScrollEngine::switchFocusBetweenFloatingAndTiling(const QString& screenId)
@@ -960,6 +1042,8 @@ void ScrollEngine::switchFocusBetweenFloatingAndTiling(const QString& screenId)
 }
 
 #undef P_SCROLL_VERB
+#undef P_SCROLL_COLUMN_VERB
+#undef P_SCROLL_VERB_BODY
 #undef P_SCROLL_TILE_FOCUS_VERB
 // P_SCROLL_RESOLVE deliberately NOT #undef'd — it comes from
 // scrollverbresolve_p.h, whose include guard would make an #undef here erase
@@ -972,10 +1056,12 @@ void ScrollEngine::switchFocusBetweenFloatingAndTiling(const QString& screenId)
 
 void ScrollEngine::toggleWindowedFullscreen(const QString& screenId)
 {
-    // Hand-expanded (not P_SCROLL_VERB) for toggleColumnTabbed's reason: the
-    // op is layout-neutral and never reads layout params, but the two diverge
-    // downstream, since this verb's feedback carries the resulting state as
-    // the reason token, and the OSD has dedicated arms for it.
+    // Hand-expanded (not P_SCROLL_VERB) for the arms the macro has no room
+    // for: both refusals below are LOGGED, the float-focus one with its own
+    // diagnostic, and the feedback carries the resulting state as its reason
+    // token, which the OSD has dedicated arms for. The op is layout-neutral
+    // and never reads layout params, so the macro's params resolve would
+    // also be wasted work.
     const QString screen = resolveOperationScreen(screenId);
     // m_states directly, the const spelling stateForScreen() const uses:
     // stateForKey is non-const for its create arm, which this never wants.

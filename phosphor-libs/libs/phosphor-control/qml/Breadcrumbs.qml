@@ -38,17 +38,8 @@ RowLayout {
     /** Flat-mode display-title overrides, page id → title (see
      *  Sidebar.flatTitleOverrides). Consulted only while flattenTree. */
     property var flatTitleOverrides: ({})
-    //  Cycle guard EXTENDS PageRegistry::MaxParentChainHops (which
-    //  ApplicationController::parentChainFor walks against) with a seen-set:
-    //  the C++ guard catches an N-hop cycle after that many hops + warns; the
-    //  QML guard breaks on first repeat. A misregistered page with `parentId == own id`
-    //  (or two pages mutually parenting each other) would otherwise
-    //  freeze the UI thread on first render.
-    //  Bound to the C++ constant rather than re-typing 32 here, so a change to
-    //  the cap cannot leave this walk truncating chains the C++ side accepts.
-    readonly property int _maxParentChainHops: root.controller.registry.maxParentChainHops
     // Bumped whenever the registry emits pageRegistered or visibleSetChanged
-    // — gives the
+    // (a bind that changes whether a page has QML emits the latter). Gives the
     // `segments` binding below a dependency to track so a late-registered
     // page whose id matches `currentPageId` (or any ancestor on the
     // chain) refreshes the rendered crumb trail, and so a per-entry
@@ -83,25 +74,22 @@ RowLayout {
             return [leaf];
         }
         const out = [];
-        // Object.create(null) gives a prototype-less map, so page ids
-        // matching built-in property names ("constructor", "toString",
-        // "hasOwnProperty") don't spuriously short-circuit on inherited
-        // truthy values.
-        const seen = Object.create(null);
+        // No cycle guard and no hop cap: PageRegistry::registerPage refuses a
+        // parent that is not registered yet and a page with more than
+        // PageRegistry::MaxParentChainHops ancestors, and never removes or
+        // reparents an entry. Every parentId therefore names an earlier entry
+        // and this walk reaches a root, the same guarantee
+        // PageRegistry::allowedInMode walks on. The only early stop is an id
+        // the registry does not know, which is a currentPageId nothing
+        // registered.
         let id = root.controller.currentPageId;
-        let hops = 0;
-        while (id && hops < root._maxParentChainHops) {
-            if (seen[id])
-                break;
-
-            seen[id] = true;
+        while (id) {
             const data = root.controller.registry.pageData(id);
             if (!data || !data.id)
                 break;
 
             out.unshift(data);
             id = data.parentId;
-            hops++;
         }
         return out;
     }
@@ -138,9 +126,8 @@ RowLayout {
 
     // Covers a consumer assigning or rebinding `Breadcrumbs.controller` after
     // this component is built, which swaps the registry underneath
-    // `titleResolver`. `_maxParentChainHops` is a property binding and
-    // re-evaluates on its own, but `segments` reads flatPageData(), a
-    // Q_INVOKABLE that registers no dependency, so without this bump the trail
+    // `titleResolver`. `segments` reads flatPageData(), a Q_INVOKABLE that
+    // registers no dependency, so without this bump the trail
     // stays resolved against the old registry. Mirrors the rail's own
     // registry-swap hook in Sidebar.qml. Coalesced for the same reason the
     // pageRegistered bump is.

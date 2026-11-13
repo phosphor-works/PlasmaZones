@@ -3,7 +3,6 @@
 
 #include "ruleadaptor.h"
 
-#include "core/types/baselinecleanup.h"
 #include "core/platform/logging.h"
 
 #include <PhosphorRules/Rule.h>
@@ -250,25 +249,19 @@ void RuleAdaptor::resetManagedDefaults()
     if (!m_store) {
         return;
     }
-    // Reload from disk first so we operate on the CURRENTLY PERSISTED set. The
-    // global Restore Defaults calls Settings::reset() (which writes rules.json
-    // from the settings process to drop the per-mode DisableEngine rules) just
-    // before this; the daemon's borrowed rule store is NOT refreshed by the
-    // reloadSettings() that follows (only an owned store reloads there), so its
-    // in-memory set is stale. Without this reload, the setAllRules below would
-    // write those dropped disable rules back. load() is idempotent (emits only
-    // on a real change).
+    // Reloading from disk is all this does. The global Restore Defaults calls
+    // Settings::reset() (which writes rules.json from the settings process to
+    // drop the per-mode DisableEngine rules) just before this; the daemon's
+    // borrowed rule store is NOT refreshed by the reloadSettings() that
+    // follows (only an owned store reloads there), so its in-memory set is
+    // stale. Without this reload, the daemon's next write of the store (any
+    // rule edit) would write those dropped disable rules back. load() is
+    // idempotent (emits only on a real change). No managed rule is restored
+    // here: window appearance (border / title bar / gap) defaults live in the
+    // config store, which the settings side resets, and the managed baseline
+    // rules older builds seeded are stripped by
+    // ConfigMigration::stripManagedAppearanceBaselineRules at start-up.
     m_store->load();
-
-    // Window appearance (border / title bar / gap) defaults now live in the config
-    // store, not in managed baseline rules. "Restore Defaults" resets those config
-    // values on the settings side; here we only have to strip any stale managed
-    // appearance baselines an older build left in rules.json, preserving every user
-    // rule. Shared with the daemon's startup cleanup so the two can't drift.
-    if (!stripStaleManagedAppearanceBaselines(*m_store)) {
-        qCWarning(lcDbusRules) << "RuleAdaptor::resetManagedDefaults: failed to persist rules.json after stripping "
-                                  "stale baseline appearance rules";
-    }
 }
 
 } // namespace PlasmaZones

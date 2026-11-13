@@ -22,7 +22,7 @@ class IConfigStore;
 class ScreenManager;
 
 /**
- * @brief D-Bus adaptor for the `org.plasmazones.Screen` screen-topology
+ * @brief D-Bus adaptor for the `org.phosphor_works.Placement.Screen` screen-topology
  *        surface: screen queries, virtual-screen mutation, the JSON
  *        round-trip for `setVirtualScreenConfig`, caches, and signals.
  *
@@ -42,7 +42,7 @@ class ScreenManager;
 class PHOSPHORSCREENS_EXPORT DBusScreenAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.Screen")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Screen")
 
 public:
     /// Primary constructor: wires the screen-topology service and the VS
@@ -52,9 +52,34 @@ public:
     explicit DBusScreenAdaptor(ScreenManager* manager, IConfigStore* store, QObject* parent = nullptr);
     ~DBusScreenAdaptor() override;
 
+    /// The admission check for the methods only the compositor may call
+    /// (setPrimaryScreenFromKWin, setAvailableGeometryFromKWin,
+    /// setPixelSizeFromKWin), which report
+    /// what the compositor saw. Called with the method's name first thing in
+    /// each; false means the gate has answered the caller and the method
+    /// returns. Unset, every caller is admitted: the embedder decides who the
+    /// compositor is.
+    using CompositorReportGate = std::function<bool(QLatin1StringView member)>;
+    void setCompositorReportGate(CompositorReportGate gate);
+
 public Q_SLOTS:
     // Screen queries
     QStringList getScreens();
+    /// JSON object describing @p screenId. Besides the identity and geometry
+    /// keys it carries `devicePixelRatio`, the compositor's logical scale (see
+    /// ScreenManager::logicalScale), and `pixelSize` {width, height}, the
+    /// screen's size in device pixels, for a virtual screen its own region's
+    /// share. `pixelSize` is ScreenManager::pixelSize: the output's mode as
+    /// the compositor reported it (setPixelSizeFromKWin) once the host
+    /// accepted the report, or until then the size the host seeded, which is
+    /// the size last accepted for that monitor, in this session or an earlier
+    /// one. With neither it is
+    /// estimated as the logical size times the scale, rounded, which lands on
+    /// the mode or within a pixel of it once the scale is the real one.
+    /// `pixelSizeSource` names which of the three it is: "reported",
+    /// "seeded" or "estimated". It is absent when there is no size at all. An
+    /// id that does not resolve, including a virtual screen the manager does
+    /// not know, answers an empty string and is not cached.
     QString getScreenInfo(const QString& screenId);
     QString getPrimaryScreen();
     QString getScreenId(const QString& connectorName);
@@ -66,6 +91,9 @@ public Q_SLOTS:
     /// the work-area rect. An invalid or zero-size rect clears the override —
     /// a defensive contract; the effect itself always reports a valid rect.
     void setAvailableGeometryFromKWin(const QString& screenName, int x, int y, int width, int height);
+    /// The geometry queries answer the primary screen for an EMPTY id only. A
+    /// named screen that does not resolve, and a virtual screen the manager
+    /// does not know, answer an invalid QRect, never another screen's rect.
     QRect getAvailableGeometry(const QString& screenId);
     QRect getScreenGeometry(const QString& screenId);
 
@@ -97,11 +125,32 @@ public Q_SLOTS:
     ///         from VirtualScreenSwapper::reasonString().
     QString rotateVirtualScreens(const QString& physicalScreenId, bool clockwise);
 
+    /// Record an output's exact size in device pixels as reported by the
+    /// compositor (the KWin effect reads the output's current mode, already
+    /// rotated). @p screenName is a connector name. A 0x0 size clears the
+    /// record, which is what the effect sends when the output goes away. A
+    /// negative size, a size with only one side zero, or one past any real
+    /// output's is dropped and leaves the record as it was. Forwards to
+    /// ScreenManager::setCompositorPixelSize, where the report is pending
+    /// until the host accepts it (ScreenManager::acceptCompositorPixelSize),
+    /// and getScreenInfo answers it only from then. Appended last among the
+    /// slots.
+    void setPixelSizeFromKWin(const QString& screenName, int width, int height);
+
 Q_SIGNALS:
     void screenAdded(const QString& screenId);
     void screenRemoved(const QString& screenId);
+    /// The screen's resolution, position or logical scale changed (the scale
+    /// through ScreenManager::logicalScaleChanged), or what getScreenInfo
+    /// answers for its size in device pixels did (through
+    /// ScreenManager::acceptedPixelSizeChanged), once per effective id.
     void screenGeometryChanged(const QString& screenId);
     void virtualScreensChanged(const QString& physicalScreenId);
+    /// The screen's available geometry (the work area left by panels) moved
+    /// while its full rect may not have, once per effective id. Follows
+    /// ScreenManager::availableGeometryChanged, which fires only on a real
+    /// change. Appended last among the signals.
+    void availableGeometryChanged(const QString& screenId);
 
 protected:
     /// @return the wired ScreenManager pointer (may be null, including when
@@ -127,7 +176,6 @@ private:
     bool emitForEffectiveScreens(const QString& physId, const std::function<void(const QString&)>& emitFn);
     void invalidateScreenInfoCache();
     void connectScreenManagerSignals(ScreenManager* mgr);
-    void disconnectScreenManagerSignals(ScreenManager* mgr);
     void wireQGuiApplicationSignals();
     /// Per-screen connect(geometryChanged) + connect(qGuiApp::screenRemoved)
     /// pair. Called both from the existing-screens loop in
@@ -138,8 +186,10 @@ private:
     QString m_primaryScreenOverride;
     // QPointer-guarded so a ScreenManager / IConfigStore destroyed before
     // this adaptor (e.g. daemon tears down data members before QObject
-    // children) safely reads as null rather than dangling. Prevents UAF in
-    // the destructor's disconnect path.
+    // children) safely reads as null rather than dangling, for every slot and
+    // accessor that reads them after that point. The destructor deliberately
+    // does not disconnect (Qt breaks the connections when either peer dies),
+    // so there is no destructor path for it to guard.
     QPointer<ScreenManager> m_screenManager;
     QPointer<IConfigStore> m_configStore;
 
@@ -148,6 +198,8 @@ private:
     QHash<QString, QString> m_cachedScreenInfoJson;
 
     bool m_qGuiAppSignalsWired = false;
+    /// See setCompositorReportGate. Appended last (installed class).
+    CompositorReportGate m_compositorReportGate;
 };
 
 } // namespace PhosphorScreens

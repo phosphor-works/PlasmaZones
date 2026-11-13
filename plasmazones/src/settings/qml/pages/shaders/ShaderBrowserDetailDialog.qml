@@ -16,8 +16,8 @@ import "../../js/FontUtils.js" as FontUtils
  *
  * Side-by-side layout (mirroring the zone editor): the metadata and parameters scroll
  * independently on the left while a PINNED preview fills the right, so the preview never
- * scrolls out of view and the parameters always have room. Drives both the
- * animation-shaders browser and the snapping-overlay-shaders browser via a `bridge`.
+ * scrolls out of view and the parameters always have room. Drives the animation,
+ * overlay and decoration shader browsers via a `bridge`.
  *
  * When the bridge also exposes a `previewController`, the right pane is a LIVE
  * preview (selected by the bridge's `previewKind`: a ZoneShaderItem render for
@@ -31,6 +31,9 @@ import "../../js/FontUtils.js" as FontUtils
  * Optional:
  *   - `usagesRev`: int — invalidates the cached `shaderEffectUsages` result.
  *   - `usageHeaderTextFn`: function(count) → string — domain-tuned copy.
+ *   - `usageCountFn`: function(effectId, usages) → int — the count the header
+ *      shows. At 0 the header line is hidden and the usage rows are listed
+ *      alone. Default: every usage row. See ShaderBrowserPage.usageCountFn.
  */
 Kirigami.Dialog {
     id: root
@@ -52,6 +55,10 @@ Kirigami.Dialog {
 
         return bridge.shaderEffectUsages(id) || [];
     }
+    property var usageCountFn: function (effectId, usages) {
+        return usages.length;
+    }
+    readonly property int _usageCount: _usages.length > 0 ? usageCountFn(effect.id, _usages) : 0
     readonly property bool _hasParameters: effect && effect.parameters && effect.parameters.length > 0
 
     // Percent-encode a local file path for a file:// URL. `encodeURI` handles spaces and
@@ -637,8 +644,13 @@ Kirigami.Dialog {
                             Layout.fillWidth: true
                         }
 
+                        // The count line only while something is counted. A
+                        // usage list with no counted rows (an overlay that is
+                        // only the Global default) lists that row alone,
+                        // rather than under "Used by 0 layouts".
                         RowLayout {
                             Layout.fillWidth: true
+                            visible: root._usageCount > 0
                             spacing: Kirigami.Units.smallSpacing
 
                             Kirigami.Icon {
@@ -649,14 +661,16 @@ Kirigami.Dialog {
                             }
 
                             Label {
-                                text: root.usageHeaderTextFn(root._usages.length)
+                                text: root.usageHeaderTextFn(root._usageCount)
                                 font.weight: Font.DemiBold
                             }
                         }
 
                         Label {
                             Layout.fillWidth: true
-                            Layout.leftMargin: Kirigami.Units.iconSizes.small + Kirigami.Units.smallSpacing
+                            // Indented under the count line's text, and flush
+                            // when that line is hidden.
+                            Layout.leftMargin: root._usageCount > 0 ? Kirigami.Units.iconSizes.small + Kirigami.Units.smallSpacing : 0
                             text: {
                                 var labels = [];
                                 for (var i = 0; i < root._usages.length; i++)
@@ -1076,9 +1090,9 @@ Kirigami.Dialog {
                     }
 
                     // T3.2: surface the live preview's actual GLSL compile error
-                    // in-app (shared with the editor preview). The renderer is
+                    // in-app. The renderer is
                     // recreated per shader, so its Error is always THIS shader's.
-                    PZCommon.ShaderCompileErrorBanner {
+                    PZCommon.ShaderErrorBanner {
                         anchors.centerIn: parent
                         width: Math.min(parent.width - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 22)
                         height: Math.min(parent.height - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 12)

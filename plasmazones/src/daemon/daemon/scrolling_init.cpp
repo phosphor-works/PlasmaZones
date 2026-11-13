@@ -212,10 +212,9 @@ void Daemon::connectScrollingShortcuts()
         s->centerVisibleColumns(id);
     }));
     // POLARITY CONTRACT: the emitter passes bottom=false for
-    // kIdScrollFocusWindowTop and true for the Bottom id (shortcutmanager.cpp
-    // table rows); focusTileAtEnd(false) seeks the TOP tile. Swapping this
-    // ternary compiles clean and no test drives the wire, so keep the
-    // polarity next to the branch.
+    // kIdScrollFocusWindowTop and true for the Bottom id (the
+    // ShortcutTable::staticEntries() rows in shortcutmanager_table.cpp); focusTileAtEnd(false) seeks the TOP tile.
+    // Swapping this ternary compiles clean and no test drives the wire, so keep the polarity next to the branch.
     wire(&ShortcutManager::scrollFocusWindowEndRequested, boolVerb([](Scroll* s, const QString& id, bool bottom) {
         bottom ? s->focusWindowBottom(id) : s->focusWindowTop(id);
     }));

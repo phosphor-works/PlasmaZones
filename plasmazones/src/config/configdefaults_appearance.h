@@ -4,15 +4,15 @@
 #pragma once
 
 // NOTE ON THE INCLUDE SET: this is the FIRST link of the ConfigDefaults
-// inheritance chain, and the links below it (gaps → limits → shaders →
-// screens → scrolling → scrolling_behavior → scrolling_shortcuts →
-// configdefaults.h) include only their parent — so
-// this header deliberately hosts the Qt and project includes the WHOLE chain
-// consumes, not just what its own 300 lines read. Trimming an include that
-// looks unused here breaks a downstream link.
+// inheritance chain (appearance → gaps → limits → shaders → screens →
+// scrolling → scrolling_behavior → scrolling_shortcuts → workspaces →
+// configdefaults.h). The later links include their parent plus only the odd
+// library header of their own, so this header deliberately hosts the Qt and
+// project includes the WHOLE chain consumes, not just what its own accessors
+// read. Trimming an include that looks unused here breaks a downstream link.
 #include "core/types/constants.h"
 #include "core/types/enums.h"
-#include "configkeys_scrolling.h"
+#include "configkeys_workspaces.h"
 #include "plasmazones_export.h"
 // PhosphorTiles::AutotileDefaults lives in PhosphorTiles — config layer delegates to it for
 // the user-facing default accessors.
@@ -29,8 +29,8 @@
 // config-backed window-appearance settings above, not in this tree's default.
 #include <PhosphorSurface/DecorationProfileTree.h>
 // Zone-overlay colour/opacity/border defaults this header's own accessors
-// delegate to. Explicit rather than transitive (the chain also reaches it
-// through AssignmentEntry.h) — same policy as configdefaults_scrolling.h.
+// delegate to. Included explicitly, as configdefaults_scrolling.h does for
+// its own uses.
 #include <PhosphorZones/ZoneDefaults.h>
 
 #include <QColor>
@@ -45,17 +45,14 @@
 #include <QVariantMap>
 #include <QtCore/qnamespace.h>
 
-namespace PhosphorAnimation {
-class CurveRegistry;
-}
-
 namespace PlasmaZones {
 
-// Chain link 1 of the ConfigDefaults inheritance chain (see configdefaults.h).
+// Chain link 1 of the ConfigDefaults inheritance chain (the order is in the
+// include-set note at the top of this file).
 // Zone-overlay + window-decoration appearance default accessors. Inherited by
 // ConfigDefaultsGaps and ultimately ConfigDefaults, so every ConfigDefaults::foo()
 // call site resolves these static members through inheritance.
-class ConfigDefaultsAppearance : public ConfigKeysScrolling
+class ConfigDefaultsAppearance : public ConfigKeysWorkspaces
 {
 public:
     // ═══════════════════════════════════════════════════════════════════════════
@@ -291,9 +288,10 @@ public:
     {
         return 1.0;
     }
+    // Not zero: at zero every matched window would be drawn invisible.
     static constexpr qreal windowOpacityMin()
     {
-        return 0.0;
+        return 0.1;
     }
     static constexpr qreal windowOpacityMax()
     {

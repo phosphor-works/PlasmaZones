@@ -25,9 +25,10 @@ ln -sfn ../../../../plasmazones/data/schemas $T/plasmazones/data/schemas
 for f in animations overlays surface; do ln -sfn ../../../../../plasmazones/data/$f/shared $T/plasmazones/data/$f/shared; done
 ```
 
-Two schema roots, not one: the shader, animation, surface, pointer, curve and layout
-schemas live in `phosphor-libs/data/schemas/`, while `plasmazones/data/schemas/` holds only the
-scrolling-template and whatsnew ones. `validate-json-schemas.py` checks every mapped
+Two schema roots, not one: the libraries' schemas, the shader-family metadata and curve
+schemas among them, live in `phosphor-libs/data/schemas/`, while `plasmazones/data/schemas/`
+holds the PlasmaZones-only ones. `SCHEMA_MAP` in `scripts/validate-json-schemas.py` names
+which root each schema is in. `validate-json-schemas.py` checks every mapped
 schema exists before it filters to the files you named, so a single missing root fails the
 gate outright rather than skipping.
 
@@ -62,7 +63,7 @@ the repo's `plasmazones/data/`.
 ## 2. Shader compile: `plasmazones-shader-validate`
 
 Binary: `build/bin/plasmazones-shader-validate` (built by the default target). Needs `glslang`
-or `glslangValidator` on PATH for animation and pointer packs, and HARD-FAILS without it.
+or `glslangValidator` on PATH for animation, surface and pointer packs, and HARD-FAILS without it.
 
 ```bash
 build/bin/plasmazones-shader-validate --animation $P/animations/<id>
@@ -120,7 +121,7 @@ the suite reads clean without them: reconfigure with those flags before claiming
 Run the full suite before handing over: `ctest --test-dir build --output-on-failure`
 (use `dbus-run-session` if daemon tests complain about the bus).
 
-## 4. Prose and licence (no linter exists, check by hand)
+## 4. Prose and licence (`check-conventions.py` covers packs inside the repo; check a scratchpad pack by hand)
 
 ```bash
 grep -nE '"(name|description)".*(—|&mdash;| - |;)' $P/animations/<id>/metadata.json $P/overlays/<id>/metadata.json $P/surface/<id>/metadata.json

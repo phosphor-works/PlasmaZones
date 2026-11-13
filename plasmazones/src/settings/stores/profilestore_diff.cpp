@@ -227,18 +227,15 @@ QVariantList ProfileStore::configChanges(const QString& id) const
         ? (m_config.defaultConfig ? m_config.defaultConfig() : QJsonObject())
         : resolveConfig(parent, all);
 
+    // No machine-scoped key reaches a record (Settings::isMachineScopedKey):
+    // diffConfig skips them on capture and readProfileFile strips them from
+    // every file it reads, hand-placed ones included. So every key below is
+    // one activation really applies.
     QVariantList rows;
     for (auto git = rec.configDelta.constBegin(); git != rec.configDelta.constEnd(); ++git) {
         const QJsonObject group = git.value().toObject();
         const QJsonObject baseGroup = parentResolved.value(git.key()).toObject();
         for (auto kit = group.constBegin(); kit != group.constEnd(); ++kit) {
-            // Machine-scoped keys (see isMachineScopedKey in profilestore.cpp)
-            // cannot enter a delta through diffConfig, but a hand-edited
-            // profile file could carry one — activation ignores it, so a
-            // change row here would advertise an override with no effect.
-            if (git.key() == ConfigKeys::renderingGroup() && kit.key() == ConfigKeys::gpuKey()) {
-                continue;
-            }
             appendLeafRows(git.key(), kit.key(), humanizeGroupSegments(git.key()) + QStringList{humanizeKey(kit.key())},
                            QVariantList(), baseGroup.value(kit.key()), kit.value(), 0, rows);
         }

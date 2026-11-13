@@ -6,6 +6,8 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.phosphor.control
+import "../../js/ExportFileName.js" as ExportFileName
 
 /**
  * @brief Settings profiles: save the current configuration as a named profile,
@@ -15,7 +17,8 @@ import org.kde.kirigami as Kirigami
  * defaults at the root). Activating a profile STAGES its settings into the Save
  * footer — the change takes effect when the user saves, and reverts on discard.
  *
- * Talks to `settingsController.profilesPage.bridge` (a PlasmaZones::ProfileStore):
+ * Talks to `controller.bridge` (a PlasmaZones::ProfileStore, owned by the
+ * ProfilePageController that PageHost passes in as `controller`):
  *   QVariantList availableProfiles()   // rows: id, name, description,
  *                                      //   parentId, parentName, isRoot, depth,
  *                                      //   active, modified, signature
@@ -24,6 +27,7 @@ import org.kde.kirigami as Kirigami
  *   bool    updateProfileFromCurrent(id)
  *   QString duplicateProfile(id)
  *   bool    setParent(id, parentId)
+ *   QStringList selfAndDescendantIds(id)
  *   bool    removeProfile(id)
  *   bool    activateProfile(id)
  *   bool    exportProfile(id, localPath)
@@ -37,11 +41,21 @@ import org.kde.kirigami as Kirigami
 SettingsFlickable {
     id: root
 
-    readonly property var bridge: settingsController.profilesPage ? settingsController.profilesPage.bridge : null
+    // PageHost sets both before the page's bindings run, because this page's
+    // registry entry passes context (PageRegistry::Entry::passesContext).
+    // settingsApp is declared even though this page does not read it: PageHost
+    // passes it to every such page, and assigning it to a page that lacks the
+    // property logs an error on every build.
+    required property QtObject controller
+    required property ApplicationController settingsApp
+
+    // The controller's CONSTANT store, so never null once the required
+    // controller is set.
+    readonly property QtObject bridge: root.controller.bridge
 
     // Q_INVOKABLE results are not reactive across the QML boundary — refresh
     // manually on profilesChanged.
-    property var profilesList: bridge ? bridge.availableProfiles() : []
+    property var profilesList: bridge.availableProfiles()
 
     contentHeight: content.implicitHeight
     clip: true
@@ -67,16 +81,32 @@ SettingsFlickable {
     /// point, not change notification.
     readonly property var _expandedIds: ({})
 
+    /// Set while the page is hidden and something has moved under the rows,
+    /// so the re-read waits until the page is shown again. PageHost keeps a
+    /// visited page alive but hidden, and without this a hidden Profiles page
+    /// re-read every row on every settings edit anywhere in the app.
+    property bool _reloadPending: false
+
     function _reload() {
-        root.profilesList = root.bridge ? root.bridge.availableProfiles() : [];
+        root._reloadPending = false;
+        root.profilesList = root.bridge.availableProfiles();
+    }
+
+    function _reloadWhenShown() {
+        if (root.visible)
+            root._reload();
+        else
+            root._reloadPending = true;
+    }
+
+    onVisibleChanged: {
+        if (root.visible && root._reloadPending)
+            root._reload();
     }
 
     /// Commit the inline save form, then clear it for the next one (mirrors the
     /// sets pages' save flow).
     function _saveCurrent() {
-        if (!root.bridge)
-            return;
-
         const parentId = parentCombo.currentValue !== undefined ? parentCombo.currentValue : "";
         if (root.bridge.createProfile(nameField.text.trim(), descField.text.trim(), parentId).length > 0) {
             nameField.text = "";
@@ -91,7 +121,7 @@ SettingsFlickable {
     // while any page is loaded.
     Connections {
         function onProfilesChanged() {
-            root._reload();
+            root._reloadWhenShown();
         }
 
         target: root.bridge
@@ -100,17 +130,33 @@ SettingsFlickable {
     // A settings edit doesn't fire profilesChanged, but it can flip the active
     // profile's `modified` state — re-read the rows so the badge stays honest.
     // Debounced: settingsChanged fires per property change (a slider drag emits
-    // a burst), and each reload walks every profile file on disk.
+    // a burst), and each reload exports the whole live config to compare it
+    // with the active profile, then rebuilds every row delegate. The profile
+    // files themselves are cached between mutations, so no disk walk is
+    // involved.
     Timer {
         id: settingsEditRefresh
 
         interval: 250
-        onTriggered: root._reload()
+        onTriggered: root._reloadWhenShown()
+    }
+
+    function _settingsEdited() {
+        if (root.visible)
+            settingsEditRefresh.restart();
+        else
+            root._reloadPending = true;
     }
 
     Connections {
         function onSettingsChanged() {
-            settingsEditRefresh.restart();
+            root._settingsEdited();
+        }
+
+        // A reload that moves only Editor.* settings announces them here
+        // instead of on settingsChanged, and profiles capture those keys too.
+        function onEditorSettingsChanged() {
+            root._settingsEdited();
         }
 
         target: appSettings
@@ -241,17 +287,19 @@ SettingsFlickable {
             description: i18n("Add a profile exported from PlasmaZones.")
             idleText: i18nc("@info drop-zone idle label", "Drop a profile file here to import it")
             hoverText: i18nc("@info drop-zone hover label", "Release to import the profile")
-            importFn: url => {
-                if (!root.bridge)
-                    return false;
-                return root.bridge.importProfile(url).length > 0;
-            }
+            // Returns the stored name, "" on failure, or true when the profile
+            // was imported but is not listed under its id (the banner then
+            // names the file). The store suffixes a name that is already
+            // taken, so the file's name can differ from what the list shows.
+            importFn: url => root._importProfile(url)
             openImportDialogFn: () => importDialog.open()
-            openFolderFn: root.bridge ? () => root.bridge.openProfilesDirectory() : null
+            openFolderFn: () => root.bridge.openProfilesDirectory()
             importButtonAccessibleName: i18n("Import a profile from a file")
             openFolderAccessibleName: i18n("Open the profiles folder")
             successTextFn: name => i18nc("@info profile import success", "Imported profile “%1”.", name)
-            failureTextFn: name => i18nc("@info profile import failure", "Could not import “%1”. The file must be a profile exported from PlasmaZones.", name)
+            // No failureTextFn: every refusal in ProfileStore::importProfile
+            // toasts its own cause, and a generic banner beside it said the
+            // same thing twice, sometimes with the wrong reason.
         }
 
         // ── Saved profiles ──
@@ -303,10 +351,29 @@ SettingsFlickable {
         }
     }
 
+    /// Import @p pathOrUrl, in the shape ImportDropCard's importFn returns:
+    /// the name the profile was stored under, "" when the store refused it
+    /// (it has already toasted why), or true when it was imported but is not
+    /// listed under the returned id, so the banner falls back to the file's
+    /// own name.
+    function _importProfile(pathOrUrl) {
+        const id = root.bridge.importProfile(pathOrUrl);
+        if (id.length === 0)
+            return "";
+        // A fresh read, not profilesList: while the page is hidden the
+        // profilesChanged the import fired only marks a reload as pending.
+        const rows = root.bridge.availableProfiles();
+        for (let i = 0; i < rows.length; ++i) {
+            if (rows[i].id === id)
+                return rows[i].name;
+        }
+        // Imported, but not listed under its id. Still a success, which the
+        // banner then reports under the file's own name.
+        return true;
+    }
+
     // ── Row action handlers (wired from each ProfileRow's signals) ──
     function _activate(m) {
-        if (!root.bridge)
-            return;
         // Activating stages the profile's whole configuration, which replaces
         // anything the user has edited and not yet saved, possibly on a page
         // they are not looking at. Ask first when there is something to lose.
@@ -319,17 +386,15 @@ SettingsFlickable {
         root.bridge.activateProfile(m.id);
     }
     function _update(m) {
-        if (root.bridge)
-            root.bridge.updateProfileFromCurrent(m.id);
+        root.bridge.updateProfileFromCurrent(m.id);
     }
     function _duplicate(m) {
-        if (root.bridge)
-            root.bridge.duplicateProfile(m.id);
+        root.bridge.duplicateProfile(m.id);
     }
     function _rename(m) {
         profileDialog.mode = "rename";
         profileDialog.targetId = m.id;
-        profileDialog.excludeId = "";
+        profileDialog.excludeIds = [];
         profileDialog.nameText = m.name;
         profileDialog.descriptionText = m.description;
         profileDialog.open();
@@ -337,13 +402,17 @@ SettingsFlickable {
     function _setParent(m) {
         profileDialog.mode = "parent";
         profileDialog.targetId = m.id;
-        profileDialog.excludeId = m.id;
+        // The profile itself and everything inheriting from it: the store
+        // refuses each of them as a parent, so the picker does not offer them.
+        profileDialog.excludeIds = root.bridge.selfAndDescendantIds(m.id);
         profileDialog.parentId = m.parentId;
         profileDialog.open();
     }
     function _export(m) {
         exportDialog.profileId = m.id;
-        exportDialog.currentFile = "file:" + m.name.replace(/[^a-zA-Z0-9 _-]/g, "_") + ".json";
+        // A full URL in the dialog's folder, the way the library pages seed
+        // their exports. The name keeps every character a file system accepts.
+        exportDialog.selectedFile = exportDialog.currentFolder + "/" + ExportFileName.forDisplayName(m.name, "json", i18nc("@item file name for an exported profile whose name has no usable characters", "profile"));
         exportDialog.open();
     }
     function _delete(m) {
@@ -360,16 +429,10 @@ SettingsFlickable {
 
         profiles: root.profilesList
         onProfileAccepted: (name, description, parentId) => {
-            if (!root.bridge)
-                return;
-
             if (profileDialog.mode === "rename")
                 root.bridge.renameProfile(profileDialog.targetId, name, description);
             else if (profileDialog.mode === "parent")
                 root.bridge.setParent(profileDialog.targetId, parentId);
-
-            // Reset the per-open excludeId so a later rename sees the full list.
-            profileDialog.excludeId = "";
         }
     }
 
@@ -388,8 +451,7 @@ SettingsFlickable {
                 text: i18n("Use profile")
                 icon.name: "dialog-ok-apply"
                 onTriggered: {
-                    if (root.bridge)
-                        root.bridge.activateProfile(activateConfirm.profileId);
+                    root.bridge.activateProfile(activateConfirm.profileId);
                     activateConfirm.close();
                 }
             }
@@ -411,8 +473,7 @@ SettingsFlickable {
                 text: i18n("Delete")
                 icon.name: "edit-delete"
                 onTriggered: {
-                    if (root.bridge)
-                        root.bridge.removeProfile(deleteConfirm.profileId);
+                    root.bridge.removeProfile(deleteConfirm.profileId);
                     delete root._expandedIds[deleteConfirm.profileId];
                     deleteConfirm.close();
                 }
@@ -430,10 +491,8 @@ SettingsFlickable {
         nameFilters: [i18n("PlasmaZones Profile (*.json)"), i18n("All files (*)")]
         fileMode: FileDialog.SaveFile
         defaultSuffix: "json"
-        onAccepted: {
-            if (root.bridge)
-                root.bridge.exportProfile(exportDialog.profileId, settingsController.urlToLocalFile(selectedFile));
-        }
+        // The store toasts the outcome either way.
+        onAccepted: root.bridge.exportProfile(exportDialog.profileId, settingsController.urlToLocalFile(selectedFile))
     }
 
     FileDialog {
@@ -443,11 +502,10 @@ SettingsFlickable {
         nameFilters: [i18n("PlasmaZones Profile (*.json)"), i18n("All files (*)")]
         fileMode: FileDialog.OpenFile
         onAccepted: {
-            if (!root.bridge)
-                return;
-
+            // Import BY PATH, report BY URL: showResult percent-decodes its
+            // argument, and a dialog path is already decoded.
             const path = settingsController.urlToLocalFile(selectedFile);
-            importCard.showResult(root.bridge.importProfile(path).length > 0, selectedFile);
+            importCard.showResult(root._importProfile(path), selectedFile);
         }
     }
 }

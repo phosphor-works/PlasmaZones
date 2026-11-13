@@ -3,6 +3,7 @@
 
 #include "shortcutmanager.h"
 #include "shortcutmanager_ids.h"
+#include "shortcutmanager_table.h"
 
 #include "config/configdefaults.h"
 #include "config/settings.h"
@@ -14,564 +15,55 @@
 #include <PhosphorShortcuts/Registry.h>
 
 #include <QHash>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 
 #include <algorithm>
+#include <iterator>
 
 namespace PlasmaZones {
 
 namespace {
 
-// Shortcut ids + indexed-slot id helpers live in shortcutmanager_ids.h
-// (shared with the cheatsheet catalog TU).
+// Shortcut ids + indexed-slot id helpers live in shortcutmanager_ids.h (see
+// its header comment for every TU that reads them).
 using namespace ShortcutIds;
+using ShortcutTable::StaticEntry;
 
-// ─── Static shortcut table ──────────────────────────────────────────────────
-// One row per settings-driven shortcut. The three indexed slot families
-// (quick_layout_N, snap_to_zone_N, scroll_focus_tab_N) are below in helper
-// loops because their getters are array-indexed rather than per-id.
-//
-// Adding a shortcut: declare the Q_SIGNAL in shortcutmanager.h, add a
-// ConfigDefaults::xxxShortcut accessor, add the Settings::xxxShortcut getter,
-// then add one row here. The signal-emit lambda must be capture-less so it
-// can decay to a function pointer for storage in the table.
-struct StaticEntry
-{
-    const char* id;
-    QString (*defGetter)();
-    QString (Settings::*curGetter)() const;
-    const char* label;
-    void (*fire)(ShortcutManager*);
-};
-
-const StaticEntry kStaticEntries[] = {
-    // ─── Core ──────────────────────────────────────────────────────────────
-    {kIdOpenEditor, &ConfigDefaults::openEditorShortcut, &Settings::openEditorShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Open Zone Editor"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->openEditorRequested();
-     }},
-    {kIdOpenSettings, &ConfigDefaults::openSettingsShortcut, &Settings::openSettingsShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Open Settings"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->openSettingsRequested();
-     }},
-    {kIdPreviousLayout, &ConfigDefaults::previousLayoutShortcut, &Settings::previousLayoutShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Previous Layout"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->previousLayoutRequested();
-     }},
-    {kIdNextLayout, &ConfigDefaults::nextLayoutShortcut, &Settings::nextLayoutShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Next Layout"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->nextLayoutRequested();
-     }},
-
-    // ─── Move window ───────────────────────────────────────────────────────
-    {kIdMoveWindowLeft, &ConfigDefaults::moveWindowLeftShortcut, &Settings::moveWindowLeftShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Move Window Left"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->moveWindowRequested(NavigationDirection::Left);
-     }},
-    {kIdMoveWindowRight, &ConfigDefaults::moveWindowRightShortcut, &Settings::moveWindowRightShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Move Window Right"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->moveWindowRequested(NavigationDirection::Right);
-     }},
-    {kIdMoveWindowUp, &ConfigDefaults::moveWindowUpShortcut, &Settings::moveWindowUpShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Move Window Up"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->moveWindowRequested(NavigationDirection::Up);
-     }},
-    {kIdMoveWindowDown, &ConfigDefaults::moveWindowDownShortcut, &Settings::moveWindowDownShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Move Window Down"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->moveWindowRequested(NavigationDirection::Down);
-     }},
-
-    // ─── Span window (grow/shrink the zone span) ───────────────────────────
-    {kIdSpanWindowLeft, &ConfigDefaults::spanWindowLeftShortcut, &Settings::spanWindowLeftShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Span Window Left"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->spanWindowRequested(NavigationDirection::Left);
-     }},
-    {kIdSpanWindowRight, &ConfigDefaults::spanWindowRightShortcut, &Settings::spanWindowRightShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Span Window Right"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->spanWindowRequested(NavigationDirection::Right);
-     }},
-    {kIdSpanWindowUp, &ConfigDefaults::spanWindowUpShortcut, &Settings::spanWindowUpShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Span Window Up"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->spanWindowRequested(NavigationDirection::Up);
-     }},
-    {kIdSpanWindowDown, &ConfigDefaults::spanWindowDownShortcut, &Settings::spanWindowDownShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Span Window Down"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->spanWindowRequested(NavigationDirection::Down);
-     }},
-
-    // ─── Focus zone ────────────────────────────────────────────────────────
-    {kIdFocusZoneLeft, &ConfigDefaults::focusZoneLeftShortcut, &Settings::focusZoneLeftShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Zone Left"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->focusZoneRequested(NavigationDirection::Left);
-     }},
-    {kIdFocusZoneRight, &ConfigDefaults::focusZoneRightShortcut, &Settings::focusZoneRightShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Zone Right"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->focusZoneRequested(NavigationDirection::Right);
-     }},
-    {kIdFocusZoneUp, &ConfigDefaults::focusZoneUpShortcut, &Settings::focusZoneUpShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Zone Up"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->focusZoneRequested(NavigationDirection::Up);
-     }},
-    {kIdFocusZoneDown, &ConfigDefaults::focusZoneDownShortcut, &Settings::focusZoneDownShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Zone Down"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->focusZoneRequested(NavigationDirection::Down);
-     }},
-
-    // ─── Non-directional navigation ────────────────────────────────────────
-    {kIdPushToEmptyZone, &ConfigDefaults::pushToEmptyZoneShortcut, &Settings::pushToEmptyZoneShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Move Window to Empty Zone"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->pushToEmptyZoneRequested();
-     }},
-    {kIdRestoreWindowSize, &ConfigDefaults::restoreWindowSizeShortcut, &Settings::restoreWindowSizeShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Restore Window Size"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->restoreWindowSizeRequested();
-     }},
-    {kIdToggleWindowFloat, &ConfigDefaults::toggleWindowFloatShortcut, &Settings::toggleWindowFloatShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Toggle Window Floating"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->toggleWindowFloatRequested();
-     }},
-    {kIdSwitchFocusFloatTiling, &ConfigDefaults::switchFocusFloatTilingShortcut,
-     &Settings::switchFocusFloatTilingShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Switch Focus Between Floating and Placed Windows"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->switchFocusFloatTilingRequested();
-     }},
-
-    // ─── Swap window ───────────────────────────────────────────────────────
-    {kIdSwapWindowLeft, &ConfigDefaults::swapWindowLeftShortcut, &Settings::swapWindowLeftShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap Window Left"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapWindowRequested(NavigationDirection::Left);
-     }},
-    {kIdSwapWindowRight, &ConfigDefaults::swapWindowRightShortcut, &Settings::swapWindowRightShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap Window Right"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapWindowRequested(NavigationDirection::Right);
-     }},
-    {kIdSwapWindowUp, &ConfigDefaults::swapWindowUpShortcut, &Settings::swapWindowUpShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap Window Up"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapWindowRequested(NavigationDirection::Up);
-     }},
-    {kIdSwapWindowDown, &ConfigDefaults::swapWindowDownShortcut, &Settings::swapWindowDownShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap Window Down"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapWindowRequested(NavigationDirection::Down);
-     }},
-
-    // ─── Swap virtual screen ───────────────────────────────────────────────
-    {kIdSwapVirtualScreenLeft, &ConfigDefaults::swapVirtualScreenLeftShortcut, &Settings::swapVirtualScreenLeftShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap Virtual Screen Left"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapVirtualScreenRequested(NavigationDirection::Left);
-     }},
-    {kIdSwapVirtualScreenRight, &ConfigDefaults::swapVirtualScreenRightShortcut,
-     &Settings::swapVirtualScreenRightShortcut, QT_TRANSLATE_NOOP("plasmazones", "Swap Virtual Screen Right"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapVirtualScreenRequested(NavigationDirection::Right);
-     }},
-    {kIdSwapVirtualScreenUp, &ConfigDefaults::swapVirtualScreenUpShortcut, &Settings::swapVirtualScreenUpShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap Virtual Screen Up"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapVirtualScreenRequested(NavigationDirection::Up);
-     }},
-    {kIdSwapVirtualScreenDown, &ConfigDefaults::swapVirtualScreenDownShortcut, &Settings::swapVirtualScreenDownShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap Virtual Screen Down"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapVirtualScreenRequested(NavigationDirection::Down);
-     }},
-
-    // ─── Rotate virtual screens ────────────────────────────────────────────
-    {kIdRotateVirtualScreensCW, &ConfigDefaults::rotateVirtualScreensClockwiseShortcut,
-     &Settings::rotateVirtualScreensClockwiseShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Rotate Virtual Screens Clockwise"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->rotateVirtualScreensRequested(true);
-     }},
-    {kIdRotateVirtualScreensCCW, &ConfigDefaults::rotateVirtualScreensCounterclockwiseShortcut,
-     &Settings::rotateVirtualScreensCounterclockwiseShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Rotate Virtual Screens Counterclockwise"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->rotateVirtualScreensRequested(false);
-     }},
-
-    // ─── Rotate windows ────────────────────────────────────────────────────
-    {kIdRotateWindowsCW, &ConfigDefaults::rotateWindowsClockwiseShortcut, &Settings::rotateWindowsClockwiseShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Rotate Windows Clockwise"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->rotateWindowsRequested(true);
-     }},
-    {kIdRotateWindowsCCW, &ConfigDefaults::rotateWindowsCounterclockwiseShortcut,
-     &Settings::rotateWindowsCounterclockwiseShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Rotate Windows Counterclockwise"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->rotateWindowsRequested(false);
-     }},
-
-    // ─── Cycle window in zone ──────────────────────────────────────────────
-    {kIdCycleWindowForward, &ConfigDefaults::cycleWindowForwardShortcut, &Settings::cycleWindowForwardShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Cycle Window Forward in Zone"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->cycleWindowsInZoneRequested(true);
-     }},
-    {kIdCycleWindowBackward, &ConfigDefaults::cycleWindowBackwardShortcut, &Settings::cycleWindowBackwardShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Cycle Window Backward in Zone"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->cycleWindowsInZoneRequested(false);
-     }},
-
-    // ─── Misc layout ops ───────────────────────────────────────────────────
-    {kIdResnapToNewLayout, &ConfigDefaults::resnapToNewLayoutShortcut, &Settings::resnapToNewLayoutShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Reapply Layout to Windows"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->resnapToNewLayoutRequested();
-     }},
-    {kIdSnapAllWindows, &ConfigDefaults::snapAllWindowsShortcut, &Settings::snapAllWindowsShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Snap All Windows to Zones"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->snapAllWindowsRequested();
-     }},
-    {kIdLayoutPicker, &ConfigDefaults::layoutPickerShortcut, &Settings::layoutPickerShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Open Layout Picker"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->layoutPickerRequested();
-     }},
-    {kIdToggleLayoutLock, &ConfigDefaults::toggleLayoutLockShortcut, &Settings::toggleLayoutLockShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Toggle Layout Lock"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->toggleLayoutLockRequested();
-     }},
-
-    // ─── Autotile ──────────────────────────────────────────────────────────
-    // Label says "cycle", not "toggle": since scrolling became a first-class
-    // mode this walks Snapping → Tiling → Scrolling, skipping disabled
-    // modes. The id stays toggle_autotile so existing kglobalshortcutsrc
-    // bindings survive.
-    {kIdToggleAutotile, &ConfigDefaults::autotileToggleShortcut, &Settings::autotileToggleShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Cycle Placement Mode"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->toggleAutotileRequested();
-     }},
-    {kIdFocusMaster, &ConfigDefaults::autotileFocusMasterShortcut, &Settings::autotileFocusMasterShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Master Window"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->focusMasterRequested();
-     }},
-    {kIdSwapMaster, &ConfigDefaults::autotileSwapMasterShortcut, &Settings::autotileSwapMasterShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Swap with Master"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->swapWithMasterRequested();
-     }},
-    {kIdIncreaseMasterRatio, &ConfigDefaults::autotileIncMasterRatioShortcut, &Settings::autotileIncMasterRatioShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Increase Master Ratio"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->increaseMasterRatioRequested();
-     }},
-    {kIdDecreaseMasterRatio, &ConfigDefaults::autotileDecMasterRatioShortcut, &Settings::autotileDecMasterRatioShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Decrease Master Ratio"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->decreaseMasterRatioRequested();
-     }},
-    {kIdIncreaseMasterCount, &ConfigDefaults::autotileIncMasterCountShortcut, &Settings::autotileIncMasterCountShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Increase Master Count"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->increaseMasterCountRequested();
-     }},
-    {kIdDecreaseMasterCount, &ConfigDefaults::autotileDecMasterCountShortcut, &Settings::autotileDecMasterCountShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Decrease Master Count"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->decreaseMasterCountRequested();
-     }},
-    // Mode-neutral since the scrolling arm landed (the catalog tags it
-    // "managed"); it stays in this block because its config key and
-    // accessor are still the autotile ones, which existing bindings name.
-    {kIdRetile, &ConfigDefaults::autotileRetileShortcut, &Settings::autotileRetileShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Retile Windows"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->retileRequested();
-     }},
-
-    // ─── Scrolling columns ─────────────────────────────────────────────────
-    {kIdScrollFocusColumnFirst, &ConfigDefaults::scrollingFocusColumnFirstShortcut,
-     &Settings::scrollingFocusColumnFirstShortcut, QT_TRANSLATE_NOOP("plasmazones", "Focus First Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusColumnEndRequested(false);
-     }},
-    {kIdScrollFocusColumnLast, &ConfigDefaults::scrollingFocusColumnLastShortcut,
-     &Settings::scrollingFocusColumnLastShortcut, QT_TRANSLATE_NOOP("plasmazones", "Focus Last Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusColumnEndRequested(true);
-     }},
-    {kIdScrollMoveColumnToFirst, &ConfigDefaults::scrollingMoveColumnToFirstShortcut,
-     &Settings::scrollingMoveColumnToFirstShortcut, QT_TRANSLATE_NOOP("plasmazones", "Move Column to Start"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMoveColumnToEndRequested(false);
-     }},
-    {kIdScrollMoveColumnToLast, &ConfigDefaults::scrollingMoveColumnToLastShortcut,
-     &Settings::scrollingMoveColumnToLastShortcut, QT_TRANSLATE_NOOP("plasmazones", "Move Column to End"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMoveColumnToEndRequested(true);
-     }},
-    {kIdScrollConsumeWindow, &ConfigDefaults::scrollingConsumeWindowShortcut,
-     &Settings::scrollingConsumeWindowShortcut, QT_TRANSLATE_NOOP("plasmazones", "Consume Window into Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollConsumeWindowRequested();
-     }},
-    {kIdScrollExpelWindow, &ConfigDefaults::scrollingExpelWindowShortcut, &Settings::scrollingExpelWindowShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Expel Window from Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollExpelWindowRequested();
-     }},
-    {kIdScrollConsumeOrExpelLeft, &ConfigDefaults::scrollingConsumeOrExpelLeftShortcut,
-     &Settings::scrollingConsumeOrExpelLeftShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Consume or Expel Toward the Strip Start"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollConsumeOrExpelRequested(-1);
-     }},
-    {kIdScrollConsumeOrExpelRight, &ConfigDefaults::scrollingConsumeOrExpelRightShortcut,
-     &Settings::scrollingConsumeOrExpelRightShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Consume or Expel Toward the Strip End"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollConsumeOrExpelRequested(1);
-     }},
-    {kIdScrollCenterColumn, &ConfigDefaults::scrollingCenterColumnShortcut, &Settings::scrollingCenterColumnShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Center Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCenterColumnRequested();
-     }},
-    {kIdScrollToggleColumnTabbed, &ConfigDefaults::scrollingToggleColumnTabbedShortcut,
-     &Settings::scrollingToggleColumnTabbedShortcut, QT_TRANSLATE_NOOP("plasmazones", "Toggle Tabbed Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollToggleColumnTabbedRequested();
-     }},
-    // POLARITY CONTRACT: -1 walks toward the first tab and +1 toward the
-    // last, matching the delta the engine's cycleTab takes. Swapping these
-    // compiles clean and only shows up as a backwards chord in the field.
-    {kIdScrollCycleTab, &ConfigDefaults::scrollingCycleTabShortcut, &Settings::scrollingCycleTabShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Next Tab in Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCycleTabRequested(1);
-     }},
-    {kIdScrollCycleTabBack, &ConfigDefaults::scrollingCycleTabBackShortcut, &Settings::scrollingCycleTabBackShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Previous Tab in Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCycleTabRequested(-1);
-     }},
-    {kIdScrollToggleWindowedFullscreen, &ConfigDefaults::scrollingToggleWindowedFullscreenShortcut,
-     &Settings::scrollingToggleWindowedFullscreenShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Toggle Windowed Fullscreen"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollToggleWindowedFullscreenRequested();
-     }},
-    {kIdScrollCycleColumnWidth, &ConfigDefaults::scrollingCycleColumnWidthShortcut,
-     &Settings::scrollingCycleColumnWidthShortcut, QT_TRANSLATE_NOOP("plasmazones", "Cycle Column Width Preset"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCycleColumnWidthRequested(1);
-     }},
-    {kIdScrollCycleColumnWidthBack, &ConfigDefaults::scrollingCycleColumnWidthBackShortcut,
-     &Settings::scrollingCycleColumnWidthBackShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Cycle Column Width Preset Back"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCycleColumnWidthRequested(-1);
-     }},
-    {kIdScrollIncreaseColumnWidth, &ConfigDefaults::scrollingIncreaseColumnWidthShortcut,
-     &Settings::scrollingIncreaseColumnWidthShortcut, QT_TRANSLATE_NOOP("plasmazones", "Increase Column Width"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollAdjustColumnWidthRequested(sm->scrollColumnWidthStepPercent());
-     }},
-    {kIdScrollDecreaseColumnWidth, &ConfigDefaults::scrollingDecreaseColumnWidthShortcut,
-     &Settings::scrollingDecreaseColumnWidthShortcut, QT_TRANSLATE_NOOP("plasmazones", "Decrease Column Width"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollAdjustColumnWidthRequested(-sm->scrollColumnWidthStepPercent());
-     }},
-    {kIdScrollMaximizeColumn, &ConfigDefaults::scrollingMaximizeColumnShortcut,
-     &Settings::scrollingMaximizeColumnShortcut, QT_TRANSLATE_NOOP("plasmazones", "Maximize Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMaximizeColumnRequested();
-     }},
-    {kIdScrollMaximizeToEdges, &ConfigDefaults::scrollingMaximizeToEdgesShortcut,
-     &Settings::scrollingMaximizeToEdgesShortcut, QT_TRANSLATE_NOOP("plasmazones", "Maximize to Screen Edges"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMaximizeToEdgesRequested();
-     }},
-    // "Grow into empty space", not "expand to available width": the old
-    // wording was indistinguishable from Maximize Column in the System
-    // Settings list. This one names what the op actually does — claim the
-    // visible leftover space without touching other columns.
-    {kIdScrollExpandColumn, &ConfigDefaults::scrollingExpandColumnShortcut, &Settings::scrollingExpandColumnShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Grow Column into Empty Space"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollExpandColumnRequested();
-     }},
-    {kIdScrollCycleWindowHeight, &ConfigDefaults::scrollingCycleWindowHeightShortcut,
-     &Settings::scrollingCycleWindowHeightShortcut, QT_TRANSLATE_NOOP("plasmazones", "Cycle Window Height Preset"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCycleWindowHeightRequested(1);
-     }},
-    {kIdScrollCycleWindowHeightBack, &ConfigDefaults::scrollingCycleWindowHeightBackShortcut,
-     &Settings::scrollingCycleWindowHeightBackShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Cycle Window Height Preset Back"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCycleWindowHeightRequested(-1);
-     }},
-    {kIdScrollIncreaseWindowHeight, &ConfigDefaults::scrollingIncreaseWindowHeightShortcut,
-     &Settings::scrollingIncreaseWindowHeightShortcut, QT_TRANSLATE_NOOP("plasmazones", "Increase Window Height"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollAdjustWindowHeightRequested(sm->scrollWindowHeightStepPercent());
-     }},
-    {kIdScrollDecreaseWindowHeight, &ConfigDefaults::scrollingDecreaseWindowHeightShortcut,
-     &Settings::scrollingDecreaseWindowHeightShortcut, QT_TRANSLATE_NOOP("plasmazones", "Decrease Window Height"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollAdjustWindowHeightRequested(-sm->scrollWindowHeightStepPercent());
-     }},
-    {kIdScrollMaximizeWindowHeight, &ConfigDefaults::scrollingMaximizeWindowHeightShortcut,
-     &Settings::scrollingMaximizeWindowHeightShortcut, QT_TRANSLATE_NOOP("plasmazones", "Maximize Window Height"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMaximizeWindowHeightRequested();
-     }},
-    // "Grow window into empty space", the wording its width twin settled on
-    // (see kIdScrollExpandColumn): it names what the op does rather than
-    // reading as another spelling of Maximize Window Height.
-    {kIdScrollExpandWindow, &ConfigDefaults::scrollingExpandWindowShortcut, &Settings::scrollingExpandWindowShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Grow Window into Empty Space"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollExpandWindowRequested();
-     }},
-    {kIdScrollCenterVisibleColumns, &ConfigDefaults::scrollingCenterVisibleColumnsShortcut,
-     &Settings::scrollingCenterVisibleColumnsShortcut, QT_TRANSLATE_NOOP("plasmazones", "Center Visible Columns"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollCenterVisibleColumnsRequested();
-     }},
-    {kIdScrollFocusWindowTop, &ConfigDefaults::scrollingFocusWindowTopShortcut,
-     &Settings::scrollingFocusWindowTopShortcut, QT_TRANSLATE_NOOP("plasmazones", "Focus First Window in Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusWindowEndRequested(false);
-     }},
-    {kIdScrollFocusWindowBottom, &ConfigDefaults::scrollingFocusWindowBottomShortcut,
-     &Settings::scrollingFocusWindowBottomShortcut, QT_TRANSLATE_NOOP("plasmazones", "Focus Last Window in Column"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusWindowEndRequested(true);
-     }},
-    {kIdScrollFocusColumnLeft, &ConfigDefaults::scrollingFocusColumnLeftShortcut,
-     &Settings::scrollingFocusColumnLeftShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Previous Column, Stopping at the Edge"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusColumnPlainRequested(-1);
-     }},
-    {kIdScrollFocusColumnRight, &ConfigDefaults::scrollingFocusColumnRightShortcut,
-     &Settings::scrollingFocusColumnRightShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Next Column, Stopping at the Edge"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusColumnPlainRequested(1);
-     }},
-    {kIdScrollFocusColumnLeftOrLast, &ConfigDefaults::scrollingFocusColumnLeftOrLastShortcut,
-     &Settings::scrollingFocusColumnLeftOrLastShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Previous Column, Wrapping"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusColumnWrapRequested(-1);
-     }},
-    {kIdScrollFocusColumnRightOrFirst, &ConfigDefaults::scrollingFocusColumnRightOrFirstShortcut,
-     &Settings::scrollingFocusColumnRightOrFirstShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Focus Next Column, Wrapping"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollFocusColumnWrapRequested(1);
-     }},
-    {kIdScrollMoveToFloating, &ConfigDefaults::scrollingMoveToFloatingShortcut,
-     &Settings::scrollingMoveToFloatingShortcut, QT_TRANSLATE_NOOP("plasmazones", "Move Window to Floating"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMoveToFloatRequested(true);
-     }},
-    {kIdScrollMoveToTiling, &ConfigDefaults::scrollingMoveToTilingShortcut, &Settings::scrollingMoveToTilingShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Move Window to Tiled"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMoveToFloatRequested(false);
-     }},
-    // A literal 100: one viewport is one viewport, and a percent setting with
-    // a single meaningful value would be a setting for nothing. The STEP pan
-    // has no keyboard row — it is the wheel's (Meta+Shift+wheel, registered
-    // by the KWin effect and reading the view scroll step through the
-    // ScrollingAdaptor's provider), for the same reason Meta+wheel's column
-    // focus has no keyboard twin.
-    {kIdScrollViewPageBack, &ConfigDefaults::scrollingViewPageBackShortcut, &Settings::scrollingViewPageBackShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Scroll View Back a Page"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollViewRequested(-100);
-     }},
-    {kIdScrollViewPageForward, &ConfigDefaults::scrollingViewPageForwardShortcut,
-     &Settings::scrollingViewPageForwardShortcut, QT_TRANSLATE_NOOP("plasmazones", "Scroll View Forward a Page"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollViewRequested(100);
-     }},
-    {kIdScrollEqualizeColumnWidths, &ConfigDefaults::scrollingEqualizeColumnWidthsShortcut,
-     &Settings::scrollingEqualizeColumnWidthsShortcut, QT_TRANSLATE_NOOP("plasmazones", "Equalize Column Widths"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollEqualizeColumnWidthsRequested();
-     }},
-    {kIdScrollMinimizeColumnWidth, &ConfigDefaults::scrollingMinimizeColumnWidthShortcut,
-     &Settings::scrollingMinimizeColumnWidthShortcut, QT_TRANSLATE_NOOP("plasmazones", "Minimize Column Width"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMinimizeColumnWidthRequested();
-     }},
-    {kIdScrollEqualizeWindowHeights, &ConfigDefaults::scrollingEqualizeWindowHeightsShortcut,
-     &Settings::scrollingEqualizeWindowHeightsShortcut, QT_TRANSLATE_NOOP("plasmazones", "Equalize Window Heights"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollEqualizeWindowHeightsRequested();
-     }},
-    {kIdScrollMinimizeWindowHeight, &ConfigDefaults::scrollingMinimizeWindowHeightShortcut,
-     &Settings::scrollingMinimizeWindowHeightShortcut, QT_TRANSLATE_NOOP("plasmazones", "Minimize Window Height"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->scrollMinimizeWindowHeightRequested();
-     }},
-
-    // ─── Cheatsheet ────────────────────────────────────────────────────────
-    {kIdToggleCheatsheet, &ConfigDefaults::toggleCheatsheetShortcut, &Settings::toggleCheatsheetShortcut,
-     QT_TRANSLATE_NOOP("plasmazones", "Open Shortcut Cheatsheet"),
-     [](ShortcutManager* sm) {
-         Q_EMIT sm->toggleCheatsheetRequested();
-     }},
-};
+// The workspace slot families are registered from the indexed loops below,
+// but their config keys are bounded by the settings-side constant. Tie the
+// two together so raising one without the other fails to compile rather than
+// silently registering a slot the config cannot store.
+static_assert(kIndexedSlotCount == ConfigDefaults::WorkspaceSlotCount,
+              "workspace slot families are registered with kIndexedSlotCount; keep it equal to the config bound");
 
 // Indexed slot defaults — array of static accessors so the slot loop can
-// resolve defaults by index without one constexpr-if branch per slot.
+// resolve defaults by index without one constexpr-if branch per slot. Sized
+// by their initializers, not by kIndexedSlotCount: a declared bound would
+// value-initialize any slot left out to a null getter, which the slot loop
+// would then call. The static_asserts below catch a missing or extra slot.
 using DefaultGetter = QString (*)();
-constexpr DefaultGetter kQuickLayoutDefaults[kIndexedSlotCount] = {
+constexpr DefaultGetter kQuickLayoutDefaults[] = {
     &ConfigDefaults::quickLayout1Shortcut, &ConfigDefaults::quickLayout2Shortcut, &ConfigDefaults::quickLayout3Shortcut,
     &ConfigDefaults::quickLayout4Shortcut, &ConfigDefaults::quickLayout5Shortcut, &ConfigDefaults::quickLayout6Shortcut,
     &ConfigDefaults::quickLayout7Shortcut, &ConfigDefaults::quickLayout8Shortcut, &ConfigDefaults::quickLayout9Shortcut,
 };
-constexpr DefaultGetter kSnapToZoneDefaults[kIndexedSlotCount] = {
+constexpr DefaultGetter kSnapToZoneDefaults[] = {
     &ConfigDefaults::snapToZone1Shortcut, &ConfigDefaults::snapToZone2Shortcut, &ConfigDefaults::snapToZone3Shortcut,
     &ConfigDefaults::snapToZone4Shortcut, &ConfigDefaults::snapToZone5Shortcut, &ConfigDefaults::snapToZone6Shortcut,
     &ConfigDefaults::snapToZone7Shortcut, &ConfigDefaults::snapToZone8Shortcut, &ConfigDefaults::snapToZone9Shortcut,
 };
-
-constexpr DefaultGetter kScrollFocusTabDefaults[kIndexedSlotCount] = {
+constexpr DefaultGetter kScrollFocusTabDefaults[] = {
     &ConfigDefaults::scrollFocusTab1Shortcut, &ConfigDefaults::scrollFocusTab2Shortcut,
     &ConfigDefaults::scrollFocusTab3Shortcut, &ConfigDefaults::scrollFocusTab4Shortcut,
     &ConfigDefaults::scrollFocusTab5Shortcut, &ConfigDefaults::scrollFocusTab6Shortcut,
     &ConfigDefaults::scrollFocusTab7Shortcut, &ConfigDefaults::scrollFocusTab8Shortcut,
     &ConfigDefaults::scrollFocusTab9Shortcut,
 };
+static_assert(std::size(kQuickLayoutDefaults) == kIndexedSlotCount, "one quick-layout default per slot");
+static_assert(std::size(kSnapToZoneDefaults) == kIndexedSlotCount, "one snap-to-zone default per slot");
+static_assert(std::size(kScrollFocusTabDefaults) == kIndexedSlotCount, "one focus-tab default per slot");
 
 // QKeySequence(QString) silently returns an empty sequence on malformed
 // input. Wrap with a warning log so a typo in the config surfaces from the
@@ -692,22 +184,55 @@ void ShortcutManager::registerShortcuts()
     if (!m_registry) {
         m_registry = std::make_unique<PhosphorShortcuts::Registry>(m_backend.get(), nullptr);
         // External rebinds (System Settings, compositor-side) invalidate the
-        // cheatsheet catalog's trigger strings. Registry filters to owned ids.
-        connect(m_registry.get(), &PhosphorShortcuts::Registry::triggersChanged, this, [this](const QString&) {
-            Q_EMIT cheatsheetModelChanged();
+        // cheatsheet catalog's trigger strings. Registry filters to owned ids;
+        // this narrows further to the ids the catalog lists, so a rebind of
+        // a transient grab (the picker's arrows, an Escape) does not
+        // republish an open sheet.
+        connect(m_registry.get(), &PhosphorShortcuts::Registry::triggersChanged, this, [this](const QString& id) {
+            const bool catalogued =
+                isCataloguedAdhocId(id) || std::any_of(m_entries.cbegin(), m_entries.cend(), [&id](const Entry& e) {
+                    return e.id == id;
+                });
+            if (catalogued) {
+                Q_EMIT cheatsheetModelChanged();
+            }
         });
     }
 
     m_registrationInProgress = true;
 
     buildEntries();
+    purgeStaleRecords();
 
+    // Whether a park right after registration actually gives the grab back.
+    // Portal cannot release a grab per id, so on it a parked entry is never
+    // registered in the first place.
+    const bool parkReleasesGrab = m_backend->suspendReleasesGrab();
     for (const auto& e : std::as_const(m_entries)) {
         m_registry->bind(e.id, e.defaultSeq, e.description, e.fire);
         // Apply current sequence from settings after initial bind so the
         // first flush reflects the user's saved preference, not only the
         // compiled-in default.
-        m_registry->rebind(e.id, e.currentSeq());
+        const QKeySequence seq = e.currentSeq();
+        m_registry->rebind(e.id, seq);
+        if (entryActive(e, seq)) {
+            continue;
+        }
+        if (parkReleasesGrab) {
+            // Register the entry first and park it on the settle, rather than
+            // never registering it at all. Registration is what puts a bound
+            // id into kglobalshortcutsrc, and that record is what makes it a
+            // rebindable row in the System Settings Shortcuts module, so a
+            // user running with the feature off can still adjust the chords
+            // there. An id with no chord stays unregistered either way (an
+            // empty grab is the discussion #155 hazard); the settings app's
+            // shortcut recorders are where those are assigned. The entry
+            // holds its grab until the settle, which on KGlobalAccel is the
+            // same event-loop turn, since its flush answers ready() at once.
+            m_settingsDirty = true;
+        } else {
+            m_registry->setActive(e.id, false);
+        }
     }
 
     // Tag this batch so a settle that arrives late (either path) can tell
@@ -787,9 +312,19 @@ void ShortcutManager::settleRegistration(quint64 generation)
     }
 }
 
-bool ShortcutManager::updateShortcuts()
+void ShortcutManager::updateShortcuts()
 {
-    return applyShortcutUpdates(/*deferFlush=*/false);
+    applyShortcutUpdates(/*deferFlush=*/false);
+}
+
+void ShortcutManager::setWorkspaceFamilyActive(bool active)
+{
+    if (m_workspaceFamilyActive == active) {
+        return;
+    }
+    m_workspaceFamilyActive = active;
+    // Deferred like any settings save while the first batch is in flight.
+    applyShortcutUpdates(/*deferFlush=*/false);
 }
 
 bool ShortcutManager::applyShortcutUpdates(bool deferFlush)
@@ -853,10 +388,10 @@ void ShortcutManager::unregisterShortcuts()
     // System Settings customisations live. This runs on the daemon stop()
     // path (SIGTERM included), so the sweep deleted every customised binding
     // on each service restart (discussion #851). Destroying the backend below
-    // releases the grabs without touching persistent records: KGlobalAccel
-    // drops its in-memory action table when the QActions die and the backend
-    // destructor purges only transient ids, while PortalBackend releases
-    // everything by closing the session.
+    // releases the grabs without touching persistent records: each QAction's
+    // destruction makes the KGlobalAccel client send setInactive (the grab
+    // goes, the record stays), the backend destructor purges only transient
+    // ids, and PortalBackend releases everything by closing the session.
     //
     // Deliberately NO cheatsheetModelChanged emit, unlike every other
     // catalog-changing path. The two callers are the daemon stop() path —
@@ -875,6 +410,42 @@ void ShortcutManager::unregisterShortcuts()
     m_backend.reset();
 }
 
+bool ShortcutManager::setForeignShortcuts(const QString& componentName, const QString& actionName,
+                                          const QList<QKeySequence>& sequences)
+{
+    return m_registry ? m_registry->setForeignShortcuts(componentName, actionName, sequences) : false;
+}
+
+std::optional<QList<QKeySequence>> ShortcutManager::foreignShortcuts(const QString& componentName,
+                                                                     const QString& actionName) const
+{
+    // No registry is a FAILED query, not an unbound action — nullopt, so the
+    // caller keeps its hands off the chord.
+    return m_registry ? m_registry->foreignShortcuts(componentName, actionName) : std::nullopt;
+}
+
+bool ShortcutManager::entryActive(const Entry& e, const QKeySequence& seq) const
+{
+    if (!e.workspaceGated) {
+        return true;
+    }
+    // The workspace family holds a grab only while a workspace controller
+    // runs: an inert system-wide grab shadows those chords for every other
+    // application.
+    if (!m_workspaceFamilyActive) {
+        return false;
+    }
+    // With the stock takeover off, KWin still owns its "Switch One Desktop
+    // Up/Down" chords, and kglobalacceld dispatches a key to the shortcut
+    // registered first, which is KWin's. The focus pair would hold a grab
+    // that never fires while the sheet advertised it, so it parks until the
+    // user moves it to a chord of its own or turns the takeover on.
+    if (e.sharesKWinStockChord && seq == e.defaultSeq && m_settings && !m_settings->workspacesRebindKWinShortcuts()) {
+        return false;
+    }
+    return true;
+}
+
 bool ShortcutManager::rebindAll()
 {
     bool anyChanged = false;
@@ -884,30 +455,71 @@ bool ShortcutManager::rebindAll()
             anyChanged = true;
         }
         m_registry->rebind(e.id, seq);
+        // Parked through Registry::setActive rather than by rebinding to an
+        // empty sequence, because the empty-sequence path unregisters on the
+        // backend and KGlobalAccel's unregister wipes the user's saved chords
+        // for the whole family. A chord changed in the same pass as the park
+        // is still written through to the platform's record by the next
+        // flush (Registry::setActive). The active flag counts towards
+        // anyChanged: a pass that only flipped a gate moves no sequence, and
+        // without this the flush that applies the park would never run.
+        const bool active = entryActive(e, seq);
+        if (m_registry->isActive(e.id) != active) {
+            anyChanged = true;
+        }
+        m_registry->setActive(e.id, active);
     }
     return anyChanged;
 }
 
+void ShortcutManager::purgeStaleRecords()
+{
+    const std::optional<QStringList> stored = m_registry->storedShortcutIds();
+    if (!stored) {
+        // Not a backend with records of its own, or the query failed. A
+        // failed query leaves leftovers in place until the next start, which
+        // is no worse than not looking.
+        return;
+    }
+    QSet<QString> keep;
+    keep.reserve(m_entries.size());
+    for (const auto& e : std::as_const(m_entries)) {
+        keep.insert(e.id);
+    }
+    for (const QString& id : *stored) {
+        if (!keep.contains(id)) {
+            qCInfo(lcShortcuts) << "Removing stale shortcut record" << id;
+            m_registry->purge(id);
+        }
+    }
+}
+
 QStringList ShortcutManager::staticShortcutIds()
 {
+    const std::size_t count = ShortcutTable::staticEntryCount();
+    const StaticEntry* const table = ShortcutTable::staticEntries();
     QStringList ids;
-    ids.reserve(static_cast<int>(std::size(kStaticEntries)));
-    for (const auto& e : kStaticEntries) {
-        ids.append(QString::fromLatin1(e.id));
+    ids.reserve(static_cast<int>(count));
+    for (std::size_t i = 0; i < count; ++i) {
+        ids.append(QString::fromLatin1(table[i].id));
     }
     return ids;
 }
 
 void ShortcutManager::buildEntries()
 {
+    const std::size_t staticCount = ShortcutTable::staticEntryCount();
+    const StaticEntry* const staticTable = ShortcutTable::staticEntries();
+
     m_entries.clear();
-    m_entries.reserve(static_cast<int>(std::size(kStaticEntries)) + 3 * kIndexedSlotCount);
+    m_entries.reserve(static_cast<int>(staticCount) + 5 * kIndexedSlotCount);
 
     Settings* s = m_settings;
     ShortcutManager* sm = this;
 
-    // Static table — one entry per row.
-    for (const auto& src : kStaticEntries) {
+    // Static table (shortcutmanager_table.cpp) — one entry per row.
+    for (std::size_t i = 0; i < staticCount; ++i) {
+        const StaticEntry& src = staticTable[i];
         Entry e;
         e.id = QString::fromLatin1(src.id);
         e.defaultSeq = parseSequence(src.defGetter(), e.id);
@@ -921,6 +533,9 @@ void ShortcutManager::buildEntries()
         e.fire = [sm, fire] {
             fire(sm);
         };
+        e.workspaceGated = src.workspaceGated;
+        e.sharesKWinStockChord =
+            e.id == QLatin1String(kIdWorkspaceFocusUp) || e.id == QLatin1String(kIdWorkspaceFocusDown);
         m_entries.push_back(std::move(e));
     }
 
@@ -938,6 +553,53 @@ void ShortcutManager::buildEntries()
         const int slot = i + 1;
         e.fire = [this, slot] {
             Q_EMIT quickLayoutRequested(slot);
+        };
+        m_entries.push_back(std::move(e));
+    }
+
+    // Workspace quick-shortcut slots. The slot's target workspace and its
+    // chord are both assigned on the settings app's workspace shortcuts page.
+    // The family ships unbound (ConfigDefaults::workspaceMoveSlotShortcut says
+    // why), and an unbound id is never registered with a key-grabbing backend,
+    // so the settings page is where these chords are first set.
+    for (int i = 0; i < kIndexedSlotCount; ++i) {
+        Entry e;
+        e.id = workspaceMoveSlotId(i);
+        e.defaultSeq = parseSequence(ConfigDefaults::workspaceMoveSlotShortcut(), e.id);
+        e.workspaceGated = true;
+        // "Slot", not a bare number: this is what KGlobalAccel shows in the
+        // Shortcuts KCM, and the chord does NOT move the window to the Nth
+        // workspace. It moves it to whichever named workspace the settings
+        // app assigned to slot N, the quick-layout model.
+        e.description = PhosphorI18n::tr("Move Window to Workspace Slot %1", "single workspace slot number").arg(i + 1);
+        const QString idCopy = e.id;
+        e.currentSeq = [s, i, idCopy] {
+            return parseSequence(s->workspaceMoveSlotShortcut(i), idCopy);
+        };
+        const int slot = i + 1;
+        e.fire = [this, slot] {
+            Q_EMIT workspaceMoveSlotRequested(slot);
+        };
+        m_entries.push_back(std::move(e));
+    }
+
+    // Workspace focus slots: switch the acting monitor to workspace N of its
+    // own list. Unbound by default (ConfigDefaults::workspaceFocusSlotShortcut
+    // says why), so like the move slots above they are first bound on the
+    // settings app's workspace shortcuts page.
+    for (int i = 0; i < kIndexedSlotCount; ++i) {
+        Entry e;
+        e.id = workspaceFocusSlotId(i);
+        e.defaultSeq = parseSequence(ConfigDefaults::workspaceFocusSlotShortcut(), e.id);
+        e.workspaceGated = true;
+        e.description = PhosphorI18n::tr("Focus Workspace %1", "single workspace slot number").arg(i + 1);
+        const QString idCopy = e.id;
+        e.currentSeq = [s, i, idCopy] {
+            return parseSequence(s->workspaceFocusSlotShortcut(i), idCopy);
+        };
+        const int slot = i + 1;
+        e.fire = [this, slot] {
+            Q_EMIT workspaceFocusSlotRequested(slot);
         };
         m_entries.push_back(std::move(e));
     }
@@ -960,14 +622,14 @@ void ShortcutManager::buildEntries()
         m_entries.push_back(std::move(e));
     }
 
-    // Scrolling tab ordinals. Third instance of the same shape; every slot's
-    // default is empty, which parseSequence maps to an unbound entry rather
-    // than a warning (it short-circuits on an empty string).
+    // Scrolling tab ordinals, the same shape as the slot families above.
+    // Every slot's default is empty, which parseSequence maps to an unbound
+    // entry rather than a warning (it short-circuits on an empty string).
     for (int i = 0; i < kIndexedSlotCount; ++i) {
         Entry e;
         e.id = scrollFocusTabId(i);
         e.defaultSeq = parseSequence(kScrollFocusTabDefaults[i](), e.id);
-        e.description = PhosphorI18n::tr("Focus Tab %1").arg(i + 1);
+        e.description = PhosphorI18n::tr("Focus Tab %1", "single tab ordinal").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
             return parseSequence(s->scrollFocusTabShortcut(i), idCopy);

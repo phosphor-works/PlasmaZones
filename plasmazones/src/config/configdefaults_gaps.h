@@ -12,7 +12,7 @@ class ConfigDefaultsGaps : public ConfigDefaultsAppearance
 {
 public:
     // ═══════════════════════════════════════════════════════════════════════════
-    // PhosphorZones::Zone Settings
+    // Zone Settings
     // ═══════════════════════════════════════════════════════════════════════════
 
     // Inner gap: the single shared inter-window gap used by BOTH snapping and

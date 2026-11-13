@@ -12,6 +12,7 @@
 # the in-tree target must exist before the consumer configures, or the
 # fallback resolves a stale installed copy.
 
+add_subdirectory(libs/phosphor-channel)     # ordered byte frames between two processes with backpressure (shared-memory ring, multiplexed stream) - no Qt
 add_subdirectory(libs/phosphor-identity)    # stable cross-process window identity (composite ids, app-id matching)
 add_subdirectory(libs/phosphor-dbus)        # generic, service-agnostic D-Bus client utilities (Client, HasDBusStreaming)
 add_subdirectory(libs/phosphor-protocol)    # D-Bus wire types and service constants, needed by phosphor-screens (Resolver endpoint defaults)
@@ -47,6 +48,7 @@ add_subdirectory(libs/phosphor-surface-quick) # Qt Quick consumer of surface pac
 add_subdirectory(libs/phosphor-layer)       # wlr-layer-shell surface lifecycle management
 add_subdirectory(libs/phosphor-shell-patterns) # UI-pattern recipes (axis 2) built on PhosphorLayer::Role
 add_subdirectory(libs/phosphor-shortcuts)   # global shortcut backends + domain-free Registry
+add_subdirectory(libs/phosphor-ipc)         # JSON-over-Unix-socket IpcRouter + IpcTarget QML type
 # PlasmaZones consumes the org.phosphor.animation QML module via the
 # daemon, the editor, and the phosphor-shell binary. The QML plugin's
 # QtQuickClockManager directly constructs QtQuickClock, which is gated
@@ -76,7 +78,7 @@ add_subdirectory(libs/phosphor-overlay)     # per-screen shell-host + slot mecha
 # Declared before the root enters the shell tier, which looks these up
 # ───────────────────────────────────────────────────────────────────────
 # Everything in this file is unconditional: the shell-tier libraries (theme,
-# popout, ipc), the phosphorctl CLI and the phosphor-shell binary live in
+# popout), the phosphorctl CLI and the phosphor-shell binary live in
 # phosphor-shell-libs/ and phosphor-shell/, which the ROOT CMakeLists enters
 # under BUILD_PHOSPHOR_SHELL. Nothing here is gated by that flag.
 #

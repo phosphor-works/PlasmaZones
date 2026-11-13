@@ -31,6 +31,11 @@ endif()
 
 include(GenerateExportHeader)
 
+# Unconditional, like phosphor-zones: in-tree this re-find is a cache hit,
+# and a standalone configure has no other source for the Qt targets the
+# library links below.
+find_package(Qt6 ${PHOSPHORSCROLLENGINE_QT_MIN} REQUIRED COMPONENTS Core)
+
 set(CMAKE_AUTOMOC ON)
 
 # Sibling Phosphor libraries this one links. Each lookup is GUARDED rather than
@@ -82,12 +87,16 @@ add_library(PhosphorScrollEngine SHARED
     src/scrollengine/engine_overrides.cpp
     src/scrollengine/engine_grouping.cpp
     src/scrollengine/engine_context.cpp
+    src/scrollengine/engine_desktopremap.cpp
     src/scrollengine/engine_membership.cpp
+    src/scrollengine/engine_stashleave.cpp
     src/scrollengine/engine_stickypin.cpp
     src/scrollengine/enginelimits.h
     src/scrollengine/engine_apply.cpp
     src/scrollengine/engine_query.cpp
     src/scrollengine/scrollpark_p.h
+    src/scrollengine/engine_evacueepark.cpp
+    src/scrollengine/evacueepark_p.h
     src/scrollengine/engine_park.cpp
     src/scrollengine/engine_snapshot.cpp
     src/scrollengine/drag_autoscroll.cpp
@@ -96,6 +105,7 @@ add_library(PhosphorScrollEngine SHARED
     src/scrollengine/engine_float_open.cpp
     src/scrollengine/engine_focus.cpp
     src/scrollengine/engine_minsize.cpp
+    src/scrollengine/engine_committed.cpp
     src/scrollengine/engine_reopen.cpp
     src/scrollengine/engine_handoff.cpp
     src/scrollengine/engine_float.cpp
@@ -112,6 +122,15 @@ generate_export_header(PhosphorScrollEngine
     EXPORT_FILE_NAME phosphorscrollengine_export.h
     EXPORT_MACRO_NAME PHOSPHORSCROLLENGINE_EXPORT
 )
+
+# Resolve KDE_INSTALL_INCLUDEDIR before target_include_directories expands it
+# into $<INSTALL_INTERFACE:>. Until it was set here, a non-KDE configure
+# exported no install include directory while the headers still went to
+# GNUInstallDirs' includedir.
+if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+    include(GNUInstallDirs)
+    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 target_include_directories(PhosphorScrollEngine
     PUBLIC
@@ -143,10 +162,13 @@ target_link_libraries(PhosphorScrollEngine
 # Install
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

@@ -227,19 +227,6 @@ void Daemon::clearHighlight()
     }
 }
 
-void Daemon::armResnapOsdSuppression(int count)
-{
-    if (count <= 0) {
-        return;
-    }
-    // ADD, never clobber: overlapping async resnap streams each pre-arm before
-    // emitting, and their feedbacks drain this counter one-by-one. Overwriting
-    // would drop a concurrent stream's outstanding count (one OSD wrongly shown,
-    // a later one wrongly suppressed). The watchdog floors a stuck count.
-    m_suppressResnapOsd += count;
-    m_suppressResnapOsdWatchdog.start();
-}
-
 bool Daemon::globalOsdSuppressed() const
 {
     if (m_shuttingDown) {
@@ -447,7 +434,19 @@ void Daemon::showContextDisabledOsd(const QString& screenId, int desktop, const 
     case DisabledReason::DesktopDisabled: {
         QString desktopLabel;
         if (m_virtualDesktopManager) {
-            const QStringList names = m_virtualDesktopManager->desktopNames();
+            // rawDesktopNames, KWin's names exactly as KWin reports them. KWin
+            // gives every desktop it creates without a name a positional
+            // default label of its own ("Desktop N", already in KWin's
+            // language), and the workspace controller pushes such a label
+            // wherever it means unnamed, so that label is what the card
+            // shows. An entry is empty only when a client explicitly set an
+            // empty name, and then the translated fallback below runs.
+            // desktopNames() is not used: it fills empty entries with its own
+            // untranslatable "Desktop N" placeholder (the library links no
+            // i18n), which would pre-empt that fallback. The list is neither
+            // padded to the desktop count nor populated at all without the
+            // KWin D-Bus link, which the bounds test below already covers.
+            const QStringList names = m_virtualDesktopManager->rawDesktopNames();
             if (desktop > 0 && desktop <= names.size()) {
                 desktopLabel = names[desktop - 1];
             }
@@ -983,10 +982,10 @@ void Daemon::syncModeFromAssignments()
             // assignment. Without this, PhosphorZones::LayoutRegistry::activeLayout() returns the
             // previous desktop's layout, causing zone detection, overlay, and
             // onLayoutChanged to operate on the wrong zones.
-            // Block activeLayoutChanged to prevent resnap buffer corruption.
-            // Desktop switches and KCM saves both route through here — neither
-            // should trigger resnap via the global active layout signal. KCM saves
-            // use populateResnapBufferForAllScreens() + resnapToNewLayout()
+            // Block activeLayoutChanged: desktop switches and KCM saves both
+            // route through here, and neither should prune or resnap through
+            // the global active layout signal. KCM saves use
+            // populateResnapBufferForAllScreens() + resnapToNewLayout()
             // (per-screen, independent of global active layout) instead.
             // Scrolling short-circuits the same way autotile does: the
             // "scrolling:" sentinel is not a manual layout, so
@@ -1075,6 +1074,15 @@ void Daemon::showDesktopSwitchOsdForScreen(const QString& screenId, const QStrin
         return;
     }
     showOsdForScreens(targets, activity);
+}
+
+bool Daemon::takeFirstDesktopReport(const QString& screenId)
+{
+    if (m_desktopReportedScreens.contains(screenId)) {
+        return false;
+    }
+    m_desktopReportedScreens.insert(screenId);
+    return true;
 }
 
 void Daemon::showOsdForAllScreens(const QString& activity)

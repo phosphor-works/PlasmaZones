@@ -30,6 +30,32 @@ tasks:
   # --affected` runs ctest against build/phosphor-libs, and the only tests that pin
   # those helpers never run. A workspace-relative input (leading `/`) closes
   # the gap; task inputs merge with the inherited set rather than replacing it.
+  #
+  # The QML sweep in test_shader_item_qml_bindings is here for the same reason:
+  # it reads phosphor-surface-quick's shipped QML (SurfaceDecoration.qml is the
+  # only library host that drives a guarded texture property), so an edit there
+  # changes what it asserts while marking only `phosphor-libs` affected.
+  #
+  # phosphor-shaders is the same again: its preamble, include resolver and
+  # entry-point assembly are pinned by test_shader_param_preamble,
+  # test_shader_include_resolver and test_shader_entry_point, which live in
+  # this tier, and the shader validator gates and GPU bake tests here compile
+  # every bundled pack through them. The compositor vertex stages the
+  # animation, surface and pointer registries carry are compiled by those same
+  # gates and by test_animation_pack_bakes and the GPU bake tests, and by no
+  # test in phosphor-libs.
+  #
+  # The schemas are the same again: test_shader_schema_bounds reads the four
+  # shader-family metadata schemas from phosphor-libs/data/schemas at run time
+  # (P_SHADER_SCHEMA_DIR), and pins the bounds they hard-code against the
+  # shader contract constants, so a schema edit changes what it asserts.
   test:
     inputs:
+      - '/phosphor-libs/data/schemas/**/*'
       - '/phosphor-libs/libs/phosphor-tiles/src/pluau/pluau.luau'
+      - '/phosphor-libs/libs/phosphor-surface-quick/qml/**/*.qml'
+      - '/phosphor-libs/libs/phosphor-shaders/src/**/*'
+      - '/phosphor-libs/libs/phosphor-shaders/include/**/*'
+      - '/phosphor-libs/libs/phosphor-animation/src/animationshaderregistry.cpp'
+      - '/phosphor-libs/libs/phosphor-surface/src/surfaceshaderregistry.cpp'
+      - '/phosphor-libs/libs/phosphor-pointer/src/pointershaderregistry.cpp'

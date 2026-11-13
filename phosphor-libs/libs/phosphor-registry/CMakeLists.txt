@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2026 fuddlesworth
 # SPDX-License-Identifier: LGPL-2.1-or-later
 #
-# PhosphorRegistry: generic factory-by-name registry + plugin loader
-# for the phosphor-shell UI extension seams (bar widgets, control-center
-# tiles, launcher providers, OSDs, desktop widgets).
+# PhosphorRegistry: generic factory-by-name registry for the phosphor-shell
+# UI extension seams (bar widgets, control-center tiles, launcher providers,
+# OSDs, desktop widgets), the PluginCatalog every plugin seam shares, and the
+# bar-widget PluginLoader built on it.
 #
 # Phase 1.3 deliverable per docs/phosphor-shell-design/04-implementation-plan.md.
 
@@ -22,13 +23,6 @@ if(DEFINED QT_MIN_VERSION)
 else()
     set(PHOSPHORREGISTRY_QT_MIN "6.10.0")
 endif()
-# Plugin ABI version. Mirrors PhosphorRegistry::PluginAbiVersion in
-# Manifest.h. Exported as a compile definition so headers can
-# static_assert the two stay in sync, and consumed by test fixture
-# manifests via configure_file so they bump in lockstep with the
-# header constant.
-set(PHOSPHOR_PLUGIN_ABI_VERSION 1)
-
 if(NOT PROJECT_VERSION)
     project(PhosphorRegistry VERSION ${PHOSPHORREGISTRY_VERSION} LANGUAGES CXX)
     set(CMAKE_CXX_STANDARD 20)
@@ -46,9 +40,14 @@ include(GenerateExportHeader)
 # Dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-find_package(Qt6 ${PHOSPHORREGISTRY_QT_MIN} REQUIRED COMPONENTS Core Qml)
-# WatchedDirectorySet + IScanStrategy live in phosphor-fsloader. The
-# plugin loader hot-reload path consumes both directly. REQUIRED is
+# Core only. The QML-facing factory seams (IBarWidgetFactory and its siblings)
+# forward-declare QQmlEngine and QQuickItem, and no source here includes a Qml
+# header, so the plugin hosts that build items link Qml/Quick themselves. A
+# Qt6::Qml edge here reached every engine library through PhosphorLayoutApi
+# and tripped the root engine QML firewall.
+find_package(Qt6 ${PHOSPHORREGISTRY_QT_MIN} REQUIRED COMPONENTS Core)
+# WatchedDirectorySet + IScanStrategy live in phosphor-fsloader.
+# PluginCatalog's live reload consumes both directly. REQUIRED is
 # load-bearing: target_link_libraries below names the imported target
 # unconditionally, so a missing dependency MUST fail configure rather
 # than fail link with a confusing "target not found" error. The
@@ -63,12 +62,12 @@ endif()
 # feature_summary (mirrors the WrapVulkanHeaders pattern in the project
 # root CMakeLists.txt). Guarded so a standalone configure of this
 # subproject (which does not include(FeatureSummary)) stays valid.
-# PhosphorFsLoader is REQUIRED here because the plugin-loader hot-reload
-# path consumes WatchedDirectorySet + IScanStrategy unconditionally.
+# PhosphorFsLoader is REQUIRED here because PluginCatalog consumes
+# WatchedDirectorySet + IScanStrategy unconditionally.
 if(COMMAND set_package_properties)
     set_package_properties(PhosphorFsLoader PROPERTIES
         TYPE REQUIRED
-        PURPOSE "WatchedDirectorySet + IScanStrategy for phosphor-registry's plugin hot-reload path")
+        PURPOSE "WatchedDirectorySet + IScanStrategy for phosphor-registry's plugin catalog live reload")
 endif()
 if(COMMAND add_feature_info)
     set(_phosphor_registry_fsloader_found FALSE)
@@ -77,7 +76,7 @@ if(COMMAND add_feature_info)
     endif()
     add_feature_info("PhosphorFsLoader"
                      _phosphor_registry_fsloader_found
-                     "Filesystem watcher backing phosphor-registry's plugin hot-reload")
+                     "Filesystem watcher backing phosphor-registry's plugin catalog live reload")
     unset(_phosphor_registry_fsloader_found)
 endif()
 
@@ -98,7 +97,8 @@ set(phosphorregistry_public_HDRS
     include/PhosphorRegistry/ILauncherProviderFactory.h
     include/PhosphorRegistry/IOSDFactory.h
     include/PhosphorRegistry/IDesktopWidgetFactory.h
-    include/PhosphorRegistry/Manifest.h
+    include/PhosphorRegistry/IBarWidgetPlugin.h
+    include/PhosphorRegistry/PluginCatalog.h
     include/PhosphorRegistry/PluginLoader.h
     include/PhosphorRegistry/MetadataPackLoader.h
     include/PhosphorRegistry/PathKeyedOverrides.h
@@ -106,7 +106,7 @@ set(phosphorregistry_public_HDRS
 
 set(phosphorregistry_SRCS
     src/registrynotifier.cpp
-    src/manifest.cpp
+    src/plugincatalog.cpp
     src/pluginloader.cpp
 )
 
@@ -125,7 +125,15 @@ generate_export_header(PhosphorRegistry
 if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 
@@ -138,20 +146,14 @@ target_include_directories(PhosphorRegistry
 
 target_compile_features(PhosphorRegistry PUBLIC cxx_std_20)
 
-target_compile_definitions(PhosphorRegistry
-    PUBLIC
-        PHOSPHOR_PLUGIN_ABI_VERSION=${PHOSPHOR_PLUGIN_ABI_VERSION}
-)
-
 target_link_libraries(PhosphorRegistry
     PUBLIC
         Qt6::Core
-        Qt6::Qml
         # PUBLIC, not PRIVATE: the header-only MetadataPackLoader<T>
         # template (consumed by the unified domain registries) includes
         # MetadataPackScanStrategy.h + WatchedDirectorySet.h in its public
         # interface, so consumers need fsloader's include dirs + link.
-        # PluginLoader.cpp's use is satisfied by the same public link.
+        # plugincatalog.cpp's use is satisfied by the same public link.
         PhosphorFsLoader::PhosphorFsLoader
 )
 

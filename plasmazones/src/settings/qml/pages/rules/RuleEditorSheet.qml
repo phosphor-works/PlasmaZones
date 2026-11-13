@@ -191,6 +191,7 @@ Kirigami.Dialog {
             canSave: editorBody.canSave
             validationIssues: editorBody.validationIssues
             workingRule: editorBody.workingRule
+            modeScopedHint: editorBody.modeScopedHint
         }
     }
 }

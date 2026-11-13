@@ -6,14 +6,18 @@
 // lives in settingsadaptor_batch.cpp (same class, no API change).
 
 #include "settingsadaptor.h"
+#include "dbus/dbushelpers.h"
 #include "core/interfaces/interfaces.h"
 #include "core/utils/dbusvariantutils.h"
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
+#include <PhosphorProtocol/ServiceConstants.h>
+#include <PhosphorRules/ActionParams.h>
 #include "core/platform/logging.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QSignalBlocker>
 #include <QDBusVariant>
 #include <algorithm>
 #include <functional>
@@ -58,6 +62,11 @@ SettingsAdaptor::SettingsAdaptor(ISettings* settings, PhosphorAnimation::Phospho
 
     // Connect to interface signals (DIP)
     connect(m_settings, &ISettings::settingsChanged, this, &SettingsAdaptor::settingsChanged);
+    // A direct relay, unlike the debounced motion-tree notifier: the
+    // settings app tells the daemon's echo of its own Save apart from an
+    // external change by when it arrives (queued ahead of the reply to its
+    // blocking reloadSettings call), and a timer would deliver it later.
+    connect(m_settings, &ISettings::editorSettingsChanged, this, &SettingsAdaptor::editorSettingsChanged);
 
     // The per-event motion-profile registry is a second source of
     // settings-shaped state: editing a `window.open` duration writes the
@@ -99,6 +108,9 @@ SettingsAdaptor::~SettingsAdaptor()
     // ~QObject destroys us (the owning unique_ptr has already run).
     if (m_settings && m_saveTimer->isActive()) {
         m_saveTimer->stop();
+        // Blocked for the reason Daemon::stop gives: what save() might adopt
+        // and announce has no consumer left at teardown.
+        const QSignalBlocker blocker(m_settings);
         m_settings->save();
         qCInfo(lcDbusSettings) << "Flushed pending save on destruction";
     }
@@ -114,6 +126,10 @@ void SettingsAdaptor::detach()
     // it here (the dtor uses the same pattern).
     if (m_settings && m_saveTimer->isActive()) {
         m_saveTimer->stop();
+        // Blocked as in Daemon::stop: the daemon is tearing down (this runs
+        // once the bus surface is gone), and nothing will act on a change the
+        // save adopts.
+        const QSignalBlocker blocker(m_settings);
         m_settings->save();
     }
     if (m_settings) {
@@ -196,9 +212,7 @@ QDBusVariant SettingsAdaptor::getSetting(const QString& key)
     // failing silently and the other loudly, which is how the silent one survives.
     if (key.isEmpty()) {
         qCDebug(lcDbusSettings) << "getSetting: empty key";
-        if (calledFromDBus()) {
-            sendErrorReply(QDBusError::InvalidArgs, QStringLiteral("Empty setting key"));
-        }
+        DbusHelpers::sendBusError(this, QDBusError::InvalidArgs, QStringLiteral("Empty setting key"));
         return QDBusVariant(QVariant());
     }
 
@@ -228,16 +242,14 @@ QDBusVariant SettingsAdaptor::getSetting(const QString& key)
     // A real error reply makes QDBusPendingReply::isValid() false in
     // ClientHelpers::loadSettingAsync, so the value callback never runs and the
     // caller simply keeps its own default. Guarded once here rather than pushed out
-    // to ~50 call sites as a defensive type-check.
+    // to every ClientHelpers::loadSettingAsync caller as a defensive type-check.
     // DEBUG, matching the batch path. An unknown key is answered with a D-Bus error, which
     // is the real signal; logging it at warning level let any process on the session bus
     // fill the daemon's log with content of its own choosing, one key at a time.
     qCDebug(lcDbusSettings) << "getSetting: unknown key" << key;
-    if (calledFromDBus()) {
-        sendErrorReply(QDBusError::InvalidArgs, QStringLiteral("Unknown setting key: %1").arg(key));
-    }
-    // The return value is discarded once sendErrorReply has run; it matters only for
-    // a direct (non-D-Bus) call, where an invalid variant is the honest answer.
+    DbusHelpers::sendBusError(this, QDBusError::InvalidArgs, QStringLiteral("Unknown setting key: %1").arg(key));
+    // The return value is discarded once the error reply has gone out; it matters only
+    // for a direct (non-D-Bus) call, where an invalid variant is the honest answer.
     return QDBusVariant(QVariant());
 }
 
@@ -440,15 +452,19 @@ namespace {
 /// is not currently connected (the config outlives the cable), so refusing an id that no live
 /// QScreen matches would break saved configuration rather than protect anything. What this
 /// does refuse is what a screen id can never be: empty, absurdly long, or carrying control
-/// characters — which is how a hostile session-bus peer would grow the config file without
-/// bound and smuggle newlines into anything that later prints one.
+/// characters. That bounds each entry a hostile session-bus peer can write and keeps newlines
+/// out of anything that later prints one. It does not bound how many entries a peer can
+/// write: distinct plausible ids each persist an entry of their own.
 ///
 /// CLAUDE.md: "Input validation at system boundaries." This is that boundary: every one of
 /// the three per-screen writers is a D-Bus slot reachable by any process on the session bus.
+///
+/// The length bound is PhosphorRules::MaxScreenIdLength, the one screen-id bound the rules
+/// loader and the named-workspace output pin use as well, so an id this setter accepts is one
+/// a rule can name.
 bool isPlausibleScreenId(const QString& screenId)
 {
-    constexpr int kMaxScreenIdLength = 256;
-    if (screenId.isEmpty() || screenId.size() > kMaxScreenIdLength) {
+    if (screenId.isEmpty() || screenId.size() > PhosphorRules::MaxScreenIdLength) {
         return false;
     }
     return std::none_of(screenId.cbegin(), screenId.cend(), [](QChar c) {
@@ -461,8 +477,9 @@ bool isPlausibleScreenId(const QString& screenId)
 /// Same boundary reasoning as isPlausibleScreenId, applied to the other half of
 /// the per-screen store's composite key. The per-screen writers accept an
 /// arbitrary caller-supplied key and persist it into config.json, so without
-/// this any session-bus peer could grow the file without bound and smuggle
-/// control characters into a value that is later printed. Shape only: the key
+/// this any session-bus peer could write keys of any length and smuggle
+/// control characters into a value that is later printed. Like the screen id
+/// check it bounds each key, not how many a peer writes. Shape only: the key
 /// vocabulary is owned by the settings pages, not enumerable here, and a key a
 /// future page adds must keep round-tripping through an older daemon.
 bool isPlausibleSettingKey(const QString& key)
@@ -485,13 +502,11 @@ void SettingsAdaptor::setPerScreenSetting(const QString& screenId, const QString
     // rejection has no return value to carry. Raise a D-Bus error on every
     // rejection path instead: without one the caller cannot tell a dropped
     // write from an applied one, and the batch twin (setPerScreenSettings)
-    // already reports failure through its bool. calledFromDBus() guards the
-    // reply because these are also reachable as plain C++ calls in tests.
+    // already reports failure through its bool. A plain C++ call, as the
+    // tests make, gets no reply (DbusHelpers::sendBusError).
     const auto reject = [this](const QString& reason) {
         qCDebug(lcDbusSettings) << "setPerScreenSetting:" << reason;
-        if (calledFromDBus()) {
-            sendErrorReply(QDBusError::InvalidArgs, reason);
-        }
+        DbusHelpers::sendBusError(this, QDBusError::InvalidArgs, reason);
     };
     if (!m_settings) {
         reject(QStringLiteral("no settings backend is attached"));
@@ -530,9 +545,7 @@ void SettingsAdaptor::clearPerScreenSettings(const QString& screenId, const QStr
     // Void slot, same reject-loudly contract as setPerScreenSetting above.
     const auto reject = [this](const QString& reason) {
         qCDebug(lcDbusSettings) << "clearPerScreenSettings:" << reason;
-        if (calledFromDBus()) {
-            sendErrorReply(QDBusError::InvalidArgs, reason);
-        }
+        DbusHelpers::sendBusError(this, QDBusError::InvalidArgs, reason);
     };
     if (!m_settings) {
         reject(QStringLiteral("no settings backend is attached"));
@@ -625,8 +638,9 @@ bool SettingsAdaptor::setPerScreenSettings(const QString& screenId, const QStrin
     // One debounced save for the whole batch. The per-screen save path
     // coalesces multiple category updates into a single disk write.
     scheduleSave();
-    // DEBUG: screenId and category are caller-supplied and unvalidated, and every bus peer
-    // can drive this in a loop. Same reasoning as the unknown-key paths above.
+    // DEBUG: screenId and category are caller-supplied (checked for shape and a known
+    // category above, but chosen by the caller), and every bus peer can drive this in a
+    // loop. Same reasoning as the unknown-key paths above.
     qCDebug(lcDbusSettings) << "setPerScreenSettings: batch applied" << values.size() << "keys on screen" << screenId
                             << "category" << category;
     return true;
@@ -648,21 +662,21 @@ void SettingsAdaptor::requestRunningWindows()
 
 void SettingsAdaptor::provideRunningWindows(const QString& json)
 {
-    // The payload is caller-supplied and fans out to every subscriber, where it
-    // becomes the rule-authoring window picker's list. This slot is reachable by
-    // any session-bus peer, not only the KWin effect, so gate the shape before
-    // relaying: an oversized blob is refused outright, and anything that is not
-    // the expected JSON array of window rows is refused rather than handed to
-    // clients to parse. The cap is generous next to a real window list — it
-    // bounds a hostile single call, it is not a working limit.
-    //
-    // This does NOT make the contents trustworthy: a peer can still send a
-    // well-formed array of fabricated rows. What it bounds is the cost and the
-    // shape. There is no server-side cache to grow here, and the client cache
-    // REPLACES its contents per payload rather than accumulating.
-    constexpr int kMaxPayloadBytes = 1 << 20; // 1 MiB
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return;
+    }
+    // The payload fans out to every subscriber, where it becomes the
+    // rule-authoring window picker's list. Only the registered compositor
+    // bridge passes the gate above, and its shape is still checked before
+    // relaying, because a bridge bug must not reach the clients' parsers: an
+    // oversized blob is refused outright, and anything that is not the
+    // expected JSON array of window rows is refused rather than handed to
+    // clients to parse. The cap is shared with the effect, which leaves out
+    // rows rather than build a payload past it. There is no server-side cache
+    // to grow here, and the client cache REPLACES its contents per payload
+    // rather than accumulating.
     const QByteArray utf8 = json.toUtf8();
-    if (utf8.size() > kMaxPayloadBytes) {
+    if (utf8.size() > PhosphorProtocol::Service::MaxRunningWindowsPayloadBytes) {
         qCWarning(lcDbusSettings) << "provideRunningWindows: payload of" << utf8.size()
                                   << "bytes exceeds the boundary cap — dropped";
         return;

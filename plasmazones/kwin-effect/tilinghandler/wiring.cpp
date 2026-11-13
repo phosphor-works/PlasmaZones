@@ -7,6 +7,7 @@
 // slot bodies.
 
 #include "tilinghandler.h"
+#include "scrolldecisions.h"
 #include "plasmazoneseffect/plasmazoneseffect.h"
 #include "handlers/snaphandler.h"
 #include "compositor/effectlogging.h"
@@ -60,7 +61,7 @@ void TilingHandler::connectSignals()
                    SLOT(slotWindowFloatingChanged(QString, bool, QString)));
     bus.disconnect(PhosphorProtocol::Service::Name, PhosphorProtocol::Service::ObjectPath,
                    PhosphorProtocol::Service::Interface::Scrolling, QStringLiteral("scrollingScreensChanged"), this,
-                   SLOT(slotScrollingScreensChanged(QStringList)));
+                   SLOT(slotScrollingScreensChanged(QStringList, bool, QStringList)));
     bus.disconnect(PhosphorProtocol::Service::Name, PhosphorProtocol::Service::ObjectPath,
                    PhosphorProtocol::Service::Interface::Scrolling, QStringLiteral("stripContextChanged"), this,
                    SLOT(slotStripContextChanged(QString, QString, QString)));
@@ -106,7 +107,7 @@ void TilingHandler::connectSignals()
 
     bus.connect(PhosphorProtocol::Service::Name, PhosphorProtocol::Service::ObjectPath,
                 PhosphorProtocol::Service::Interface::Scrolling, QStringLiteral("scrollingScreensChanged"), this,
-                SLOT(slotScrollingScreensChanged(QStringList)));
+                SLOT(slotScrollingScreensChanged(QStringList, bool, QStringList)));
 
     bus.connect(PhosphorProtocol::Service::Name, PhosphorProtocol::Service::ObjectPath,
                 PhosphorProtocol::Service::Interface::Scrolling, QStringLiteral("stripContextChanged"), this,
@@ -148,7 +149,7 @@ void TilingHandler::loadSettings()
     // Query initial engine-managed screen set from daemon asynchronously. The
     // foreign org.freedesktop.DBus.Properties interface is correct for D-Bus
     // property access; ClientHelpers can't be used here because it hard-wires
-    // the org.plasmazones interface. Bound by SyncCallTimeoutMs so a wedged
+    // the org.phosphor_works.Placement interface. Bound by SyncCallTimeoutMs so a wedged
     // daemon doesn't leak a watcher for Qt's default 25 s.
     QDBusMessage msg =
         QDBusMessage::createMethodCall(PhosphorProtocol::Service::Name, PhosphorProtocol::Service::ObjectPath,
@@ -166,17 +167,17 @@ void TilingHandler::loadSettings()
                 if (queryGeneration != m_screenQueryGeneration) {
                     return;
                 }
-                // Cleared BEFORE the teardown bail, not after. Every other exit
-                // from this handler clears the flag and drains the deferred
+                // Cleared BEFORE the KWin::effects bail, not after. Every other
+                // exit from this handler clears the flag and drains the deferred
                 // routes; returning with it still set left m_deferredWindowRoutes
                 // and m_pendingFreshWindows undrained forever, because the
                 // scheduler that would retry them is itself gated on this flag
-                // being false. Compositor-teardown only, so effectively benign,
-                // but it was the one arm that broke the file's own invariant.
+                // being false.
                 m_initialScreenQueryPending = false;
-                // Compositor teardown: a D-Bus reply can land after KWin::effects
-                // is gone (the daemon-loss handler documents the same case), and
-                // the stacking-order walk below would deref the null.
+                // Belt and braces for the stacking-order walk below: KWin nulls the
+                // global only after it has destroyed every effect, so a reply this
+                // live handler receives never finds it gone (see
+                // PlasmaZonesEffect::windowOutput).
                 if (!KWin::effects) {
                     return;
                 }
@@ -191,7 +192,7 @@ void TilingHandler::loadSettings()
                 }
                 QDBusPendingReply<QDBusVariant> reply = *w;
                 if (reply.isValid()) {
-                    QStringList screens = reply.value().variant().toStringList();
+                    const QStringList screens = reply.value().variant().toStringList();
                     // The ENTIRE published set, not a diff. The raw replace
                     // is safe only because removals are covered elsewhere:
                     // drainDeadSessionState's clears (and, when the daemon exits
@@ -201,7 +202,9 @@ void TilingHandler::loadSettings()
                     // this reply to miss. If those resets ever stop being
                     // load-bearing, this handler must route through
                     // slotScreensChanged's removed/added diff instead.
-                    const QSet<QString> published(screens.begin(), screens.end());
+                    // Empty ids dropped, as every managed-set writer drops them
+                    // (nonEmptyIdSet, F359).
+                    const QSet<QString> published = ScrollDecisions::nonEmptyIdSet(screens);
                     // Same intersection hazard as slotScreensChanged: this
                     // reply and the scrollingScreens reply race, so whichever
                     // lands second changes the Mode discriminator without
@@ -284,10 +287,10 @@ void TilingHandler::loadSettings()
     fetchScrollTabStrips();
 }
 
-// Scrolling screen subset — the Mode-stamp discriminator only, no
-// lifecycle transitions to run, so the reply handling is a guarded
-// plain assignment. Dispatched from loadSettings; a failed Get re-dispatches
-// itself while the retry budget lasts.
+// Scrolling screen subset — a bring-up load: announceFlipped=false, so the
+// reply sets the Mode stamp input and runs no engine flip. Dispatched from
+// loadSettings; a failed Get re-dispatches itself while the retry budget
+// lasts.
 void TilingHandler::fetchScrollingScreens()
 {
     QDBusMessage scrollMsg =
@@ -314,18 +317,18 @@ void TilingHandler::fetchScrollingScreens()
                 }
                 QDBusPendingReply<QDBusVariant> reply = *w;
                 if (reply.isValid()) {
-                    const QStringList screens = reply.value().variant().toStringList();
                     // Through the chokepoint: the initial load must run the
                     // same rule-cache invalidate + border sweep as a live
                     // signal, or a Mode "scrolling" rule verdict memoised
                     // before the reply landed would stick.
-                    // announceFlipped=false: this is a BRING-UP load, which is
-                    // exactly the case the contract reserves it for. The
-                    // managed-screens reply owns the re-announce, and letting
-                    // this one flip too bumped the per-screen stagger epoch
-                    // mid-flight, voiding the tile batch the daemon had already
-                    // started delivering and leaving the screen half-tiled.
-                    setScrollingScreens(QSet<QString>(screens.cbegin(), screens.cend()),
+                    // announceFlipped=false: the managed-screens reply owns the
+                    // bring-up re-announce, and letting this one flip too bumped
+                    // the per-screen stagger epoch mid-flight, voiding the tile
+                    // batch the daemon had started delivering and leaving the
+                    // screen half-tiled. The guards above make it land only on
+                    // the set as it stood at dispatch (setScrollingScreens'
+                    // DEPENDENCY note says what that leaves unreleased).
+                    setScrollingScreens(ScrollDecisions::nonEmptyIdSet(reply.value().variant().toStringList()),
                                         /*announceFlipped=*/false);
                     qCInfo(lcEffect) << "Loaded scrolling screens:" << m_scrollingScreens;
                 } else {
@@ -467,7 +470,13 @@ void TilingHandler::fetchScrollFocusScrollBlockedWindows()
                 }
                 QDBusPendingReply<QDBusVariant> reply = *w;
                 if (reply.isValid()) {
-                    applyScrollFocusScrollBlockedWindows(reply.value().variant().toStringList());
+                    const QVariant value = reply.value().variant();
+                    if (value.typeId() != QMetaType::QStringList) {
+                        qCWarning(lcEffect)
+                            << "Focus scroll blocks: ignoring a non-string-list reply of type" << value.typeName();
+                        return;
+                    }
+                    applyScrollFocusScrollBlockedWindows(value.toStringList());
                     // Logged on its OWN reply rather than beside the behaviour
                     // map's: the two are separate Gets now, and the map's reply
                     // lands first, so printing this there would have described
@@ -612,9 +621,13 @@ void TilingHandler::fetchScrollTabPaintOverrides()
                                 << reply.error().message();
             return;
         }
-        // Teardown guard, matching the managedScreens reply handler above. The
-        // slots below reach outputForScreenId, which dereferences
-        // KWin::effects->screens() without a check of its own.
+        // Belt and braces, matching the managedScreens reply handler above: the slots below reach
+        // outputForScreenId, which dereferences KWin::effects->screens() without a check of its
+        // own, and the global is never null while this effect is alive (KWin nulls it only after
+        // destroying every effect, see PlasmaZonesEffect::windowOutput). Both scroll-tab slots
+        // carry the same test, since each is also invoked by direct D-Bus signal delivery (the
+        // bus.connect calls near the top of this file); this one is the cheap early exit that
+        // skips the whole loop.
         if (!KWin::effects) {
             return;
         }
@@ -668,8 +681,8 @@ void TilingHandler::fetchScrollTabStrips()
                                 << reply.error().message();
             return;
         }
-        // Teardown guard, matching the managedScreens reply handler above (see
-        // the paint-overrides fetch for why these two slots need it).
+        // Belt and braces, matching the managedScreens reply handler above (see
+        // the paint-overrides fetch).
         if (!KWin::effects) {
             return;
         }

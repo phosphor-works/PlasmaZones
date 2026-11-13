@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Fixture helpers shared by the offline pack validator's five test executables:
-// test_pack_validators, test_pointer_pack_validator, test_surface_pack_validator,
-// test_animation_pack_bakes and test_pack_model_detection.
+// Fixture helpers shared by every executable in the shadervalidate/ foreach in
+// plasmazones/tests/unit/CMakeLists.txt, which is where the list lives. Named there rather
+// than enumerated here: two earlier versions of this comment carried a list, each was correct
+// when written, and both went stale later — the second within a fortnight, when a sixth
+// executable joined the foreach and nobody came back here.
 // Header-only and `inline` so each executable carries one definition and no
-// test-only library has to exist for five small binaries.
+// test-only library has to exist for a handful of small binaries.
 
 #pragma once
 
@@ -82,13 +84,13 @@ inline bool linkSharedIncludes(const QTemporaryDir& tmp)
 }
 
 /// The pointer twin of `linkSharedIncludes`. The pointer entry prologue always
-/// emits `#include <pointer_lib.glsl>`, and `includePathsFor` searches the
-/// pack's PARENT directory and its `shared/` sibling before falling back to the
-/// INSTALLED tree under the XDG data dirs. A temp packs-root has neither, so
-/// without this every pointer fixture silently resolved the helpers from
-/// whatever version happened to be installed on the machine — which meant the
-/// suite baked against a different `shared/` than the one in the working tree,
-/// and passed while the branch's own helper changes went unexercised.
+/// emits `#include <pointer_lib.glsl>`, and the pointer arm searches the pack's
+/// `shared/` sibling and its PARENT directory, the pair the runtime registry
+/// resolves against. A temp packs-root has no `shared/`, so without this every
+/// pointer fixture failed the include. Before the arm resolved through
+/// packSharedRoots it also fell back to the INSTALLED tree, so a fixture
+/// silently baked against whatever helpers happened to be installed rather
+/// than the ones in the working tree.
 ///
 /// Returns false when the source tree is not available, which is the caller's
 /// cue to skip rather than fail.
@@ -199,10 +201,10 @@ inline QJsonArray toArray(const QStringList& values)
 }
 
 // ── surface fixture writers ─────────────────────────────────────────────
-// Shared by the surface validator's two test executables. They were file-local
-// to the first one until the second needed the same writers: a per-lint negative
-// slot is only cheap when the fixture is, and two copies of a fixture writer is
-// how two test files start disagreeing about what a valid pack looks like.
+// Shared by every surface test executable, deliberately without naming how many.
+// They were file-local to the first one until the second needed the same writers: a
+// per-lint negative slot is only cheap when the fixture is, and two copies of a fixture
+// writer is how two test files start disagreeing about what a valid pack looks like.
 
 /// The surface twin of `validate`. Writes the pack plus a `pSurface` entry body,
 /// which the validator assembles into a full TU exactly as the daemon and the
@@ -234,6 +236,41 @@ inline PackResult validateSurface(const QTemporaryDir& tmp, const QString& name,
     result.errors = PlasmaZones::ShaderValidate::validateSurfacePack(dir, stream);
     stream.flush();
     return result;
+}
+
+/// The buffer-pass FILLER: a pass that is not one of the nine builtin blur passes.
+///
+/// A fixture whose subject is a buffer-ARRAY lint (a non-numeric scale, a misaligned
+/// length, a daemon-only wrap) still has to declare a buffer pass for the arrays to be
+/// about anything, and every `builtin:` token belongs to the Kawase pyramid or the
+/// separable gaussian pair. The blur lints fire on those BY NAME, so such a fixture drew
+/// two errors with nothing to do with its subject — and several of these slots carried an
+/// `errors > 0` assertion that those two satisfied on their own, leaving the lint under
+/// test unguarded. This pass writes a constant, reads no channel and declares no
+/// parameter, so it draws no lint of its own and composes at any index.
+inline QString surfaceFillerBufferName()
+{
+    return QStringLiteral("filler.frag");
+}
+
+inline QByteArray surfaceFillerBufferBody()
+{
+    return QByteArrayLiteral(
+        "#version 450\n"
+        "layout(location = 0) out vec4 fragColor;\n"
+        "void main() { fragColor = vec4(0.0, 0.0, 0.0, 1.0); }\n");
+}
+
+/// `validateSurface` plus the filler buffer pass written beside the pack, for a fixture
+/// that declares `bufferShaders: [surfaceFillerBufferName()]`.
+inline PackResult validateSurfaceWithFillerPass(const QTemporaryDir& tmp, const QString& name,
+                                                const QJsonObject& metadata, const QString& body)
+{
+    const QString dir = tmp.filePath(name);
+    if (!writePackFile(dir, surfaceFillerBufferName(), surfaceFillerBufferBody())) {
+        return fixtureFailure(QStringLiteral("failed to write the filler buffer pass under ") + dir);
+    }
+    return validateSurface(tmp, name, metadata, body);
 }
 
 /// One surface parameter declaration.
@@ -312,13 +349,21 @@ inline bool reportLineHas(const QString& report, const QString& stage, const QSt
     return false;
 }
 
+/// The text every compositor arm's report line contains: "(compositor)",
+/// "(compositor GLES)", "(compositor GLES 6.7)", "(compositor link)" and
+/// "(compositor, both dialects)". Excluding "(compositor)" with its closing paren would let the
+/// GLES lines through.
+inline const QString kCompositorMarker = QStringLiteral("(compositor");
+
 /// As `reportLineHas`, but the line must ALSO not contain @p excluded.
 ///
-/// Needed because the two host markers NEST: a compositor line reads
-/// "OK (compositor)", which contains "OK", so asserting `reportLineHas(stage,
-/// "OK")` is SUBSUMED by the compositor assertion beside it and the Qt-RHI half
-/// goes untested. Deleting the whole daemon buffer-pass loop left both of those
-/// assertions satisfied. Use this for the daemon side of any both-hosts claim.
+/// Needed because the host markers NEST: every compositor line reads "OK
+/// (compositor)", "OK (compositor GLES)" or "OK (compositor link)", each of
+/// which contains "OK", so asserting `reportLineHas(stage, "OK")` is SUBSUMED by
+/// the compositor assertions beside it and the Qt-RHI half goes untested.
+/// Deleting the whole daemon buffer-pass loop left both of those assertions
+/// satisfied. Use this for the daemon side of any both-hosts claim, excluding
+/// kCompositorMarker.
 inline bool reportLineHasWithout(const QString& report, const QString& stage, const QString& marker,
                                  const QString& excluded)
 {
@@ -332,6 +377,17 @@ inline bool reportLineHasWithout(const QString& report, const QString& stage, co
 }
 
 } // namespace PackValidatorTest
+
+/// Assert that @p needle is absent from the report of a pack the validator
+/// ACCEPTED. The error count is the half that matters: a fixture failure
+/// returns errors -1 and a report naming the fixture, which satisfies any
+/// absence on its own. A macro because QVERIFY and QCOMPARE return from the
+/// CALLING slot.
+#define QVERIFY_ACCEPTED_WITHOUT(result, needle)                                                                       \
+    do {                                                                                                               \
+        QVERIFY2(!(result).report.contains(needle), qPrintable((result).report));                                      \
+        QCOMPARE((result).errors, 0);                                                                                  \
+    } while (false)
 
 /// The preconditions every slot that runs the ANIMATION validator shares. The
 /// validator bakes every animation pack's fragment for the compositor through
@@ -367,9 +423,9 @@ inline bool reportLineHasWithout(const QString& report, const QString& stage, co
 
 /// The surface twin, and the reason it did not exist until now is the finding it
 /// closes: the SURFACE arm of the validator had no test harness at all. Four
-/// production arms (animation, pointer, surface, overlay) and, before this macro,
-/// four of the five executables listed at the top of this file, between them
-/// reaching only three of those arms. Each executable compiles all four, so a
+/// production arms (animation, pointer, surface, overlay) and, before this macro, every
+/// executable then in the shadervalidate/ foreach reaching only three of them
+/// between them. Each executable compiles all four, so a
 /// lint deleted from the surface arm alone
 /// broke no test and failed no link. The topology was an artifact of the file-size
 /// ceiling rather than of the family boundary, which is why the gap went unnoticed.

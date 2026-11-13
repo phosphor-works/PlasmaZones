@@ -14,6 +14,7 @@
 
 #include <QLatin1StringView>
 #include <QList>
+#include <QLocale>
 #include <QSet>
 
 #include <array>
@@ -29,13 +30,13 @@ using PhosphorRules::Operator;
 /// Group a match Field into a picker category. The `Field` enum interleaves
 /// state and context (e.g. IsMaximized sits after Activity), so the picker
 /// groups by THIS classification, never by enum / emit order. The categories
-/// are deliberately fine-grained: a single flat "State" bucket of ~19 entries
-/// is hard to scan, so the window-kind, taskbar/switcher-hint, and
-/// PlasmaZones-tiling concepts each get their own top-level fly-out. Items
+/// are deliberately fine-grained: a single flat "State" bucket is hard to
+/// scan, so the window-kind, taskbar/switcher-hint, and
+/// PlasmaZones-placement concepts each get their own top-level fly-out. Items
 /// within a category are sorted alphabetically by CategoryMenuButton; only the
 /// returned order int controls the relative position of the categories. The
 /// order ints below are assigned so the category labels sort alphabetically
-/// (Context, Identity, Size, State, Taskbar & switcher, Tiling, Type).
+/// (Context, Identity, Placement, Size, State, Taskbar & switcher, Type).
 PickerCategory fieldCategory(Field f)
 {
     switch (f) {
@@ -66,30 +67,34 @@ PickerCategory fieldCategory(Field f)
     case Field::IsResizable:
     case Field::IsMovable:
     case Field::IsMaximizable:
-        return {PhosphorI18n::tr("State"), 3};
+        return {PhosphorI18n::tr("State"), 4};
     // NETWM "skip" hints — whether the window opts out of the taskbar, pager,
     // or Alt+Tab switcher.
     case Field::SkipTaskbar:
     case Field::SkipPager:
     case Field::SkipSwitcher:
-        return {PhosphorI18n::tr("Taskbar & switcher"), 4};
-    // PlasmaZones-owned placement state.
+        return {PhosphorI18n::tr("Taskbar & switcher"), 5};
+    // PlasmaZones-owned placement state. Named for all three modes, not one:
+    // Snapped and Zone are snapping-mode fields, so a "Tiling" heading hid them.
     case Field::IsFloating:
     case Field::IsSnapped:
     case Field::IsTiled:
     case Field::Zone:
-        return {PhosphorI18n::tr("Tiling"), 5};
+        return {PhosphorI18n::tr("Placement"), 2};
     case Field::Width:
     case Field::Height:
     case Field::PositionX:
     case Field::PositionY:
-        return {PhosphorI18n::tr("Size"), 2};
+        return {PhosphorI18n::tr("Size"), 3};
     case Field::ScreenId:
     case Field::VirtualDesktop:
     case Field::Activity:
     case Field::Mode:
     case Field::TiledWindowCount:
     case Field::ScreenOrientation:
+    case Field::ScreenWidth:
+    case Field::ScreenHeight:
+    case Field::ScreenAspectRatio:
     case Field::ActiveLayout:
     case Field::ColorScheme:
         return {PhosphorI18n::tr("Context"), 0};
@@ -98,9 +103,9 @@ PickerCategory fieldCategory(Field f)
 }
 
 /// Short, user-facing help for one match Field — surfaced as the hover
-/// tooltip on the leaf editor's info icon. Kept concise (one line); the
-/// switch is exhaustive so every field, including the picker-hidden ones,
-/// has a description.
+/// tooltip on the leaf editor's info icon. Kept concise; the switch is
+/// exhaustive so every field, including the picker-hidden ones, has a
+/// description.
 QString fieldDescription(Field f)
 {
     switch (f) {
@@ -179,7 +184,10 @@ QString fieldDescription(Field f)
     case Field::IsTiled:
         return PhosphorI18n::tr("Whether the window is managed by the tiling engine.");
     case Field::Zone:
-        return PhosphorI18n::tr("The zone the window is snapped into (manual-zone mode only).");
+        return PhosphorI18n::tr(
+            "The zone the window is snapped into, in snapping mode. A window spanning several zones counts as being "
+            "in the first of them. It suits rules about how a window looks or stacks while it sits in a zone, not "
+            "rules about where a window opens.");
     case Field::ScreenId:
         return PhosphorI18n::tr("The monitor the window is on.");
     case Field::VirtualDesktop:
@@ -197,6 +205,21 @@ QString fieldDescription(Field f)
         return PhosphorI18n::tr(
             "Whether the monitor is in portrait or landscape orientation. Lets a rule pick a different layout or "
             "algorithm on a rotated screen.");
+    case Field::ScreenWidth:
+        return PhosphorI18n::tr(
+            "The monitor's width in device pixels, counted before display scaling. A rotated monitor swaps its width "
+            "and height. Lets a rule pick a different layout or algorithm when the same monitor runs at another "
+            "resolution.");
+    case Field::ScreenHeight:
+        return PhosphorI18n::tr(
+            "The monitor's height in device pixels, counted before display scaling. A rotated monitor swaps its width "
+            "and height. Lets a rule pick a different layout or algorithm when the same monitor runs at another "
+            "resolution.");
+    case Field::ScreenAspectRatio:
+        return PhosphorI18n::tr(
+            "The monitor's shape, rounded to the nearest common ratio such as 16:9 or 32:9. Lets a rule pick a "
+            "different layout or algorithm when a monitor changes shape, for example when its split mode halves "
+            "its width.");
     case Field::ActiveLayout:
         return PhosphorI18n::tr(
             "The layout currently active on the monitor, or the scrolling template in use there. Lets a rule change "
@@ -306,8 +329,10 @@ QList<ClosedTokenOption> colorSchemeOptions()
 }
 QString closedTokenLabel(const QList<ClosedTokenOption>& opts, const QString& token)
 {
+    // Ignoring case, as the engine's Equals compares these leaves, so a
+    // hand-edited "DARK" reads as the option it matches.
     for (const ClosedTokenOption& o : opts) {
-        if (o.wire == token) {
+        if (o.wire.compare(token, Qt::CaseInsensitive) == 0) {
             return o.label;
         }
     }
@@ -341,6 +366,38 @@ QString orientationLabel(const QString& orientationToken)
 QString colorSchemeLabel(const QString& schemeToken)
 {
     return closedTokenLabel(colorSchemeOptions(), schemeToken);
+}
+
+QString aspectRatioLabel(const QString& token)
+{
+    for (const PhosphorRules::AspectRatioToken& ratio : PhosphorRules::kAspectRatioTokens) {
+        if (token != ratio.token) {
+            continue;
+        }
+        // The ratio itself stays untranslated by design: it is the notation
+        // the monitor's display settings and spec sheet print, and every
+        // locale reads "16:9" the same way. Only the portrait marker is prose.
+        if (ratio.ratio < 1.0) {
+            return PhosphorI18n::tr("%1 (portrait)", "screen aspect ratio such as 9:16, marked as taller than wide")
+                .arg(token);
+        }
+        return token;
+    }
+    return token;
+}
+
+QString numericMatchValueLabel(PhosphorRules::Field field, qint64 value)
+{
+    // A process id is an identifier rather than a quantity, so it keeps the
+    // plain digits every process list prints.
+    if (field == PhosphorRules::Field::Pid) {
+        return QString::number(value);
+    }
+    const QString number = QLocale().toString(value);
+    if (field == PhosphorRules::Field::ScreenWidth || field == PhosphorRules::Field::ScreenHeight) {
+        return PhosphorI18n::tr("%1 px", "a screen size in pixels, such as 2,560 px").arg(number);
+    }
+    return number;
 }
 
 QString templateDisplayLabel(const QString& templateName)
@@ -516,8 +573,8 @@ QVariantList matchFields()
     //     restarts. Surfacing it in the picker invites users to author
     //     rules that silently stop working.
     //   * WindowRole is the X11 WM_WINDOW_ROLE property, empty for every
-    //     Wayland-native window — PlasmaZones is Wayland-only (per
-    //     CLAUDE.md), so the picker would always read as blank.
+    //     Wayland-native window and set only by the occasional XWayland
+    //     client, so the picker would almost always read as blank.
     // The Field enum keeps both values for back-compat with already-saved
     // rules; only the authoring UI hides them.
     //
@@ -614,6 +671,22 @@ QVariantList matchFields()
                 options.append(option);
             }
             entry[QStringLiteral("options")] = options;
+        } else if (f == Field::ScreenAspectRatio) {
+            // Closed vocabulary like orientation, read straight from the rules
+            // library's own token table so the picker can never offer a ratio
+            // the daemon and effect do not stamp. The label is the token with
+            // a portrait marker on the taller-than-wide ratios (see
+            // aspectRatioLabel for why the token itself is not translated).
+            kind = QStringLiteral("aspectRatio");
+            QVariantList options;
+            for (const PhosphorRules::AspectRatioToken& ratio : PhosphorRules::kAspectRatioTokens) {
+                QVariantMap option;
+                option[QStringLiteral("value")] = QString(ratio.token);
+                option[QStringLiteral("wire")] = QString(ratio.token);
+                option[QStringLiteral("label")] = aspectRatioLabel(QString(ratio.token));
+                options.append(option);
+            }
+            entry[QStringLiteral("options")] = options;
         } else if (f == Field::ColorScheme) {
             // Closed light/dark vocabulary — a dropdown of the friendly
             // tokens, same shape as Mode and ScreenOrientation. The value IS
@@ -638,6 +711,12 @@ QVariantList matchFields()
             // screen / activity pickers), so the user picks a friendly name
             // while the wire value stays the id.
             kind = QStringLiteral("layout");
+        } else if (f == Field::Zone) {
+            // The value is a braced zone UUID. The QML editor swaps this for a
+            // zone picker with one submenu per layout, driven by
+            // `RuleController::zoneMatchOptions`, so nobody has to copy a UUID
+            // out of a layout file by hand.
+            kind = QStringLiteral("zone");
         }
         entry[QStringLiteral("valueKind")] = kind;
         out.append(entry);
@@ -663,16 +742,14 @@ QVariantList operatorsForField(int fieldValue)
     }
     const Field field = static_cast<Field>(fieldValue);
     QList<Operator> ops;
-    if (field == Field::Mode || field == Field::ScreenOrientation || field == Field::ActiveLayout
-        || field == Field::Zone || field == Field::ColorScheme) {
+    if (field == Field::Mode || field == Field::ScreenOrientation || field == Field::ScreenAspectRatio
+        || field == Field::ActiveLayout || field == Field::Zone || field == Field::ColorScheme) {
         // These are string-valued but their vocabulary is closed or opaque
-        // (placement mode, portrait/landscape, light/dark, a concrete layout
+        // (placement mode, portrait/landscape, an aspect ratio, light/dark, a concrete layout
         // id, a zone UUID) — only an exact-token Equals is meaningful. A substring or
         // regex against a closed token set, a layout UUID, or a zone UUID is a
         // footgun the picker cannot author sensibly. Mirrors the WindowType
-        // enum treatment. Zone has no picker of its own yet, so its value is
-        // still a hand-typed brace-wrapped UUID; restricting the operators at
-        // least stops a partial-UUID Contains from silently matching nothing.
+        // enum treatment.
         ops = {Operator::Equals};
     } else if (PhosphorRules::fieldIsString(field)) {
         ops = {Operator::Equals, Operator::Contains, Operator::StartsWith, Operator::EndsWith, Operator::Regex};

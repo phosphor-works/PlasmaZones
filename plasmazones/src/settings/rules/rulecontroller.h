@@ -14,6 +14,7 @@
 #include <functional>
 
 #include <PhosphorRules/Rule.h>
+#include <PhosphorZones/AssignmentEntry.h>
 
 #include "rulemodel.h"
 
@@ -28,7 +29,7 @@ namespace PlasmaZones {
  *
  *   1. On construction (and on a daemon `rulesChanged` D-Bus signal while the
  *      page is clean) it fetches the rule set from
- *      `org.plasmazones.Rules` and loads it into the model.
+ *      `org.phosphor_works.Placement.Rules` and loads it into the model.
  *   2. Every QML CRUD call mutates the in-memory model and flips the dirty bit.
  *   3. On `apply()` the staged rule set is pushed back to the daemon
  *      asynchronously (`asyncCommit` → `setAllRules`) — the daemon stays the
@@ -38,9 +39,10 @@ namespace PlasmaZones {
  *      re-fetch leaves the page dirty rather than silently dropping the edits.
  *
  * Dirty-tracking + revert/commit mirror `AnimationsPageController`'s
- * pending-changes contract: `SettingsController` connects `dirtyChanged` to
- * `setNeedsSave`, drives `apply()` (which dispatches `asyncCommit`) from
- * `save()`, and `revert()` from `load()`.
+ * pending-changes contract: `SettingsController` reconciles its dirty state
+ * value-based off `dirtyChanged` (reattributeRuleDirty), the framework's
+ * StagingDomain drives `apply()` (which dispatches `asyncCommit`) and
+ * `discard()`, and `SettingsController`'s load path drives `revert()`.
  *
  * The controller is the only thing on the settings side that knows the D-Bus
  * shape; the model and QML never touch the wire.
@@ -67,8 +69,17 @@ class RuleController : public PhosphorControl::PageController
     /// rule resolves against whichever layout is active on the placement screen
     /// at open time, so this is a suggestion list, not a constraint. Filled by
     /// the provider SettingsController installs (setZoneNamesProvider) and
-    /// re-read on refreshZoneNames(); empty until then.
+    /// re-read on refreshZoneLists(); empty until then.
     Q_PROPERTY(QStringList zoneNames READ zoneNames NOTIFY zoneNamesChanged)
+    /// Every zone of every layout on disk, for the `Zone` match condition's
+    /// picker and the read-only match tree. Each entry is
+    /// `{ id: zone UUID (braced), displayName: "<layout> — <zone>", zoneName,
+    /// layoutName, layoutOrder }`, ordered by layout name and then zone number
+    /// (RulePickerOptions::zoneMatchOptions builds it). The id is the wire
+    /// value a Zone leaf stores. Filled by the provider SettingsController installs
+    /// (setZoneMatchOptionsProvider) and re-read on refreshZoneLists(); empty
+    /// until then.
+    Q_PROPERTY(QVariantList zoneMatchOptions READ zoneMatchOptions NOTIFY zoneMatchOptionsChanged)
 
 public:
     explicit RuleController(QObject* parent = nullptr);
@@ -81,28 +92,31 @@ public:
     void apply() override;
     void discard() override;
 
-    /// Wire the screen-id / activity-uuid / layout-id → display-name lookups
-    /// used by the model's `matchSummary` and by the controller's own
-    /// `monitorOverview` summary. The lookups capture the SettingsController
-    /// snapshot lists by reference, so they resolve against the live snapshot
-    /// every call. Install-once: when the underlying snapshot lists update,
-    /// the parent calls `RuleModel::refreshLabels()` on the model to
-    /// invalidate the cached label cells — re-installing the lookups would
-    /// just churn the closures without changing behaviour.
+    /// Wire the id → display-name lookups used by the model's `matchSummary`
+    /// / `actionSummary` and by the controller's own `monitorOverview`
+    /// summary. The lookups SettingsController installs capture `this` and
+    /// read its live state every call. Install-once: when that state changes,
+    /// the parent calls `RuleModel::refreshLabels()` on the model to re-emit
+    /// the label roles — re-installing the lookups would just churn the
+    /// closures without changing behaviour.
     ///
-    /// All lookups (screen, activity, zone, virtualDesktop, snappingLayout,
-    /// tilingAlgorithm, shaderEffect, overlayShader, decorationPack, curve) must
-    /// be wired for the model to render rich
-    /// `matchSummary` / `actionSummary` cells — a missing lookup falls
-    /// back to printing the raw id/UUID. SettingsController is the
-    /// single intended caller and installs all of them during page
-    /// registration via the typed snappingLayout/tilingAlgorithm pair.
+    /// All lookups (screen, activity, zone, virtualDesktop, workspace,
+    /// snappingLayout, tilingAlgorithm, shaderEffect, animationEvent,
+    /// overlayShader, decorationPack, curve) must be wired for the model to render rich
+    /// `matchSummary` / `actionSummary` cells — a missing lookup falls back
+    /// to printing the raw id/UUID. SettingsController installs every one but
+    /// the curve resolver from its constructor (installRuleLabelLookups);
+    /// the rules page installs the curve resolver from QML
+    /// (setCurveLabelResolver).
     void setScreenLookup(RuleModel::LabelLookup fn);
     void setActivityLookup(RuleModel::LabelLookup fn);
-    /// zone UUID → zone-name resolver for `Zone` match-leaf labels.
+    /// zone UUID → "<layout> — <zone>" resolver for `Zone` match-leaf labels.
     void setZoneLookup(RuleModel::LabelLookup fn);
     /// desktop number → name resolver for `VirtualDesktop` match-leaf labels.
     void setVirtualDesktopLookup(RuleModel::LabelLookup fn);
+    /// Named-workspace entry id → current name resolver for RouteToWorkspace
+    /// actions. Answers empty for an id no declared workspace carries.
+    void setWorkspaceLookup(RuleModel::LabelLookup fn);
     /// layoutId UUID → display label resolver for SetSnappingLayout actions.
     void setSnappingLayoutLookup(RuleModel::LabelLookup fn);
     /// Algorithm token ("bsp", …) → display label resolver for SetTilingAlgorithm actions.
@@ -118,6 +132,10 @@ public:
     /// distinctly. SettingsController wires this from the animations page
     /// controller's event taxonomy.
     void setAnimationEventLookup(RuleModel::LabelLookup fn);
+    /// Surface-pack id → display name resolver for OverrideDecorationChain
+    /// actions. SettingsController wires this from the surface shader
+    /// registry (the source the decoration pages' pack picker reads), so the
+    /// list renders "Frosted Glass" rather than the raw id.
     void setDecorationPackLookup(RuleModel::LabelLookup fn);
     /// Overlay shader id → display name resolver for OverrideOverlayShader
     /// actions. SettingsController wires this from the overlay/snapping shader
@@ -129,16 +147,37 @@ public:
     /// settings app publishes to QML carries geometry and numbers, not names)
     /// and returns the distinct sorted names; the controller caches the result
     /// and emits zoneNamesChanged only when it differs. Install-once, then
-    /// call refreshZoneNames() on every registry reload; pass `{}` to clear
+    /// call refreshZoneLists() on every registry reload; pass `{}` to clear
     /// before the captured registry is destroyed.
     void setZoneNamesProvider(std::function<QStringList()> provider);
-    /// Re-read the provider and publish the result if it changed. Cheap when
-    /// nothing changed (one list compare), so the parent may call it on every
-    /// registry reload without an equality guard of its own.
-    void refreshZoneNames();
+    /// Install the enumerator behind the `zoneMatchOptions` property. Same
+    /// contract as setZoneNamesProvider: it reads the caller's layout
+    /// registry, the controller caches the answer and emits
+    /// zoneMatchOptionsChanged only when it differs, and `{}` clears it before
+    /// the captured registry is destroyed.
+    void setZoneMatchOptionsProvider(std::function<QVariantList()> provider);
+    /// Install the colour-scheme token ("light" / "dark") monitorOverview
+    /// stamps on each screen's query, read live per call. Unset stamps an
+    /// empty token.
+    void setColorSchemeProvider(std::function<QString()> provider);
+    /// Install the global default assignment monitorOverview bases a screen on
+    /// when a rule fills a layout slot but no rule sets the engine mode (the
+    /// daemon's level-1 default, suppression included). Read live per call.
+    /// Unset reads an empty Snapping entry.
+    void setDefaultAssignmentProvider(std::function<PhosphorZones::AssignmentEntry()> provider);
+    /// Re-read each installed zone provider and publish whichever result
+    /// changed; a cleared provider keeps its last list. Each provider walks
+    /// every layout, but the controller emits only on a real change, so the
+    /// parent may call this on every registry reload without an equality
+    /// guard of its own.
+    void refreshZoneLists();
     QStringList zoneNames() const
     {
         return m_zoneNames;
+    }
+    QVariantList zoneMatchOptions() const
+    {
+        return m_zoneMatchOptions;
     }
 
     /// Curve wire-string → display name resolver for OverrideAnimationCurve
@@ -193,7 +232,9 @@ public:
     /// if the re-fetch succeeded; if the daemon is unreachable the staged
     /// edits are left in place (there is nothing authoritative to reload
     /// to), and `daemonReachable` is cleared so the page surfaces the
-    /// failure. Called by `SettingsController::load()` (Discard).
+    /// failure. Called by `SettingsController::adoptOnDiskState()` (load,
+    /// global Discard, settings import), `SettingsController::defaults()`,
+    /// and `discard()`.
     ///
     /// @note While the revert fetch is in flight, any in-QML edits to rules
     /// are discarded when the daemon snapshot lands — the reply handler
@@ -229,11 +270,13 @@ public:
     void captureSavedSnapshot();
 
     /// Fire-and-forget D-Bus call for the GLOBAL Restore Defaults path
-    /// (org.plasmazones.Rules.resetManagedDefaults): asks the daemon to strip any
-    /// stale managed appearance baseline rules left in rules.json by an older
-    /// build, preserving user rules. The daemon persists + broadcasts
-    /// rulesChanged; SettingsController::defaults() pairs this with revert() to
-    /// reload the model.
+    /// (org.phosphor_works.Placement.Rules.resetManagedDefaults): asks the
+    /// daemon to reload its rule store from disk, so it picks up the
+    /// settings side's reset of rules.json (the dropped per-mode disable
+    /// rules) instead of writing its stale copy back on its next save. It
+    /// creates and removes no rule. The daemon broadcasts rulesChanged only
+    /// when the reloaded set differs; SettingsController::defaults() pairs
+    /// this with revert() to reload the model.
     void resetManagedDefaults();
 
     /// Stage a resolved USER rule subset (non-managed) into the live model,
@@ -326,21 +369,44 @@ public:
 
     /// Read-only per-monitor summary for the overview strip. Each entry:
     /// `{ screenId, layoutName, tilingEnabled, ruleCount, assigned, locked }`
-    /// (`locked` is true when a LockContext rule pins the monitor's layout).
+    /// (`locked` is true when a LockContext rule locks the monitor's layout).
     /// @p screens is the `SettingsController::screens` list (each a map with a
     /// `name` field, and a `screenId` fallback) so the overview can list every
     /// connected monitor — including ones with no rule at all (the "Not
-    /// assigned" tile).
-    Q_INVOKABLE QVariantList monitorOverview(const QVariantList& screens) const;
+    /// assigned" tile). Its `pixelWidth` / `pixelHeight` give the screen's
+    /// shape when `pixelSizeKnown` is set, and its logical `width` / `height`
+    /// give only the orientation otherwise, as in the daemon.
+    ///
+    /// Every tile describes what the STAGED rules do to that screen in its
+    /// current state: each rule's whole match is evaluated against a query
+    /// built from the screen's shape, the colour-scheme provider, and the
+    /// matching @p screenStates entry (`SettingsController::screenStates`:
+    /// `screenId`, `virtualDesktop`, `activity`, `tiledWindowCount`). The
+    /// layout and lock come from the daemon's own slot resolvers
+    /// (LayoutRegistry::resolveRuleSlots / resolveLockRule).
+    Q_INVOKABLE QVariantList monitorOverview(const QVariantList& screens,
+                                             const QVariantList& screenStates = QVariantList()) const;
+
+    /// Plain-prose note on the current device-pixel size and nearest aspect
+    /// ratio of each screen @p matchJson pins (RuleModel::screenIdsOf), read
+    /// from @p screens (the `SettingsController::screens` list). A pinned
+    /// monitor split into virtual screens is named through each of them. The
+    /// daemon retries a virtual screen against its monitor's rules only when
+    /// the virtual screen's own rules fill no slot, and on that retry the
+    /// monitor's rules read the virtual screen's size.
+    /// The rule editor shows it under a Screen width, Screen height or
+    /// Screen aspect ratio value. Empty when the match pins no connected
+    /// screen whose size the daemon knows (`pixelSizeKnown`).
+    Q_INVOKABLE QString screenSizeHint(const QVariantList& screens, const QVariantMap& matchJson) const;
 
     // ── Authoring metadata for the QML editors ────────────────────────────
 
     /// Match fields suitable for the leaf-editor field dropdown. Each entry:
     /// `{ value: int (Field enum), wire: QString (JSON wire string), label,
     ///    valueKind: "string"|"number"|"bool"|"windowType"|"virtualDesktop"|
-    ///    "screen"|"activity"|"mode"|"orientation"|"layout"|"colorScheme" }`. The screen /
-    /// activity / virtualDesktop / layout kinds drive dedicated pickers; the
-    /// closed-vocab kinds (windowType / mode / orientation) also carry an
+    ///    "screen"|"activity"|"mode"|"orientation"|"aspectRatio"|"layout"|"colorScheme"|"zone" }`. The screen /
+    /// activity / virtualDesktop / layout / zone kinds drive dedicated pickers; the
+    /// closed-vocab kinds (windowType / mode / orientation / aspectRatio / colorScheme) also carry an
     /// `options` list. QML keys off `wire` so it never has to reconstruct the
     /// enum↔wire-string table.
     Q_INVOKABLE QVariantList matchFields() const;
@@ -368,14 +434,16 @@ public:
     /// `{ key, kind, label, hint? }` (`hint` is the input hint shown under
     /// free-text editors, absent when the kind needs none). `kind` is one of
     /// the descriptor kinds the ActionRow editor dispatches on (enum, number,
-    /// percent, bool, color, zoneOrdinals, zoneNames, screenId, virtualDesktop,
-    /// snappingLayout, scrollingTemplate, tilingAlgorithm, animationEvent,
-    /// shaderEffect, overlayShader, decorationChain, curveEditor). Optional
+    /// percent, bool, color, string, zoneOrdinals, zoneNames, screenId,
+    /// virtualDesktop, workspaceName, snappingLayout, scrollingTemplate,
+    /// tilingAlgorithm, animationEvent, shaderEffect, shaderPreset,
+    /// overlayShader, overlayLayout, decorationChain, curveEditor). Optional
     /// fields are carried whenever the schema declares them: `options` (a list
     /// of `{ value: QString (wire token), label }` maps, for `enum`),
     /// `min`/`max`/`scale`/`defaultDisplay` (display-unit bounds and seed; the
-    /// value stored is `display * scale`; `zoneOrdinals` and `zoneNames` use
-    /// `max` as their advisory ordinal cap and per-name character cap),
+    /// value stored is `display * scale`; `zoneOrdinals` uses `max` as its
+    /// advisory ordinal cap, and `zoneNames`, `workspaceName` and the
+    /// free-text `string` params use it as a character cap),
     /// `onLabel`/`offLabel` (for `bool`, when the polarity wording exists), and
     /// `acceptsAccent` (for `color`).
     /// QML drives the per-type editor entirely from this descriptor; the
@@ -426,19 +494,31 @@ public:
     /// True iff the @p matchJson sub-tree references only context fields — i.e.
     /// it is compatible with every action's domain. "Context field" is whatever
     /// `PhosphorRules::fieldIsContext` reports, which is every
-    /// `FieldSource::Context` row of the field table: today ScreenId,
-    /// VirtualDesktop, Activity, Mode, TiledWindowCount, ScreenOrientation and
-    /// ActiveLayout. The picker uses this to flag context-domain
+    /// `FieldSource::Context` row of the field table (ScreenId, VirtualDesktop,
+    /// Activity, Mode and the other context rows there). The picker uses this to flag context-domain
     /// action types as incompatible when the current match has a
     /// window-property leaf. An empty / catch-all match counts as
     /// context-only.
     Q_INVOKABLE bool matchIsContextOnly(const QVariantMap& matchJson) const;
+
+    /// A translated hint for a rule whose match checks the placement mode
+    /// while it carries actions the daemon decides before the mode is known,
+    /// or "" when there is nothing to say. The daemon's open routing and its
+    /// restore predicates admit no rule that references Field::Mode
+    /// (rules_admission.h, admitScreenStamped), so in such a rule
+    /// RouteToWorkspace, RouteToScreen, RouteToDesktop, RestorePosition and
+    /// SetRestoreToZoneOnLogin never take effect, and SnapToZone does not
+    /// place the window when it opens. Not a validation issue: the rule is
+    /// well formed and saving it is the user's call, so the editor shows this
+    /// beside the issues without gating Save on it.
+    Q_INVOKABLE QString modeScopedInertHint(const QVariantMap& ruleJson) const;
 
 Q_SIGNALS:
     // dirtyChanged() inherited from StagingDomain.
     void daemonReachableChanged();
     void daemonChangedWhileDirtyChanged();
     void zoneNamesChanged();
+    void zoneMatchOptionsChanged();
     /// Emitted on the async fetch reply path after the model has been
     /// repopulated with the daemon's authoritative rule set. Lets tests and
     /// QML observers know when the initial load (or a daemon-broadcast
@@ -448,9 +528,12 @@ Q_SIGNALS:
     /// call (Discard). `success` is true iff the re-fetch landed and the
     /// staged edits were dropped; false on a D-Bus / daemon error, in which
     /// case the staged edits are intentionally preserved (the page stays
-    /// dirty). `SettingsController::load()` listens once so it can re-add the
-    /// "rules" entry to its dirty-pages set when revert failed during
-    /// the `setNeedsSave(false)` blanket-clear it does for every other page.
+    /// dirty). SettingsController holds a PERMANENT listener (its
+    /// constructor) that re-derives the rule-backed pages' dirty state by
+    /// value on every emission, so a failed revert re-badges the Rules page
+    /// after the caller's `setNeedsSave(false)` blanket-clear and a
+    /// successful one leaves it clean. `discard()` also listens once, to emit
+    /// its discardResult.
     void revertFinished(bool success);
 
 private:
@@ -580,6 +663,19 @@ private:
     /// fires on a real change.
     std::function<QStringList()> m_zoneNamesProvider;
     QStringList m_zoneNames;
+    /// Zone-option enumerator (see setZoneMatchOptionsProvider) and its last
+    /// answer, cached and compared for the same reasons as the name list.
+    std::function<QVariantList()> m_zoneMatchOptionsProvider;
+    QVariantList m_zoneMatchOptions;
+    /// See setColorSchemeProvider / setDefaultAssignmentProvider.
+    std::function<QString()> m_colorSchemeProvider;
+    std::function<PhosphorZones::AssignmentEntry()> m_defaultAssignmentProvider;
+
+    /// Re-read one zone provider and publish its list if it changed; a
+    /// cleared provider is skipped. refreshZoneLists() runs both, each setter
+    /// only its own.
+    void refreshZoneNames();
+    void refreshZoneMatchOptions();
 };
 
 } // namespace PlasmaZones

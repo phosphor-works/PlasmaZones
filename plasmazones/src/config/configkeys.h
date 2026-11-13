@@ -3,25 +3,16 @@
 
 #pragma once
 
+// The accessor macros. Defined in one place for the whole ConfigKeys chain,
+// undef'd again at the bottom of this file.
+#include "configkeymacro.h"
+
 #include <PhosphorProtocol/ServiceConstants.h>
+// Not used by this header. The ConfigDefaults chain has always re-exported
+// AssignmentEntry, and the settings, daemon and D-Bus code that names
+// AssignmentEntry::Mode next to a ConfigDefaults call reaches the type through
+// it, so the chain keeps exporting it explicitly here.
 #include <PhosphorZones/AssignmentEntry.h>
-
-#include <QString>
-
-// Macro to define a static config key accessor returning a QStringLiteral.
-// Usage: P_CONFIG_KEY(snappingEnabledKey, "SnappingEnabled")
-// Expands to: static QString snappingEnabledKey() { return QStringLiteral("SnappingEnabled"); }
-#define P_CONFIG_KEY(name, str)                                                                                        \
-    static QString name()                                                                                              \
-    {                                                                                                                  \
-        return QStringLiteral(str);                                                                                    \
-    }
-
-// Alias for group-name accessors — same body as P_CONFIG_KEY, single
-// definition so a future tweak to P_CONFIG_KEY (e.g. attribute
-// annotation) automatically applies to groups too. Separate macro
-// name preserved for readability at the call sites.
-#define P_CONFIG_GROUP(name, str) P_CONFIG_KEY(name, str)
 
 // Single definition point for the per-screen group prefix spellings.
 // All five are rows in PerScreenPathResolver's prefix→category mapping table,
@@ -37,9 +28,9 @@
 // spellings here keeps whichever consumers exist in lockstep instead of
 // silently desyncing the JSON path resolver from the group accessors.
 //
-// MIGRATION-FROZEN: configmigration.cpp's v1→v2 INI migration matches
-// per-screen groups through the live resolver (and therefore through these
-// spellings). Renaming any of them would retarget the v1 migration to
+// MIGRATION-FROZEN: the INI→JSON step (ConfigMigration::iniMapToJson)
+// matches per-screen groups through the live resolver (and therefore through
+// these spellings). Renaming any of them would retarget the v1 migration to
 // names no historical INI ever held, silently dropping per-screen
 // overrides on migration. A rename therefore requires a schema-version
 // bump with frozen Legacy copies of the old spellings — same policy as
@@ -85,7 +76,6 @@ public:
     P_CONFIG_GROUP(shortcutsTilingGroup, "Shortcuts.Tiling")
     P_CONFIG_GROUP(shortcutsScrollingGroup, "Shortcuts.Scrolling")
     P_CONFIG_GROUP(orderingGroup, "Ordering")
-    P_CONFIG_GROUP(updatesGroup, "Updates")
 
     // Window decoration appearance (tiled/snapped window border + title bar).
     // Mode-neutral top-level group — the values apply to both the snapping and
@@ -95,6 +85,11 @@ public:
     // Shared inner/outer gap model used by BOTH snapping and tiling. Mode-neutral
     // top-level group; the gap values are read by both engines.
     P_CONFIG_GROUP(gapsGroup, "Gaps")
+
+    // The Workspaces.* groups and keys, and the workspace verb and slot keys
+    // of Shortcuts.Global, live in configkeys_workspaces.h
+    // (ConfigKeysWorkspaces, a later link in the inheritance chain), split by
+    // concern when this file hit its size ceiling.
 
     // Snapping sub-groups
     P_CONFIG_GROUP(snappingBehaviorGroup, "Snapping.Behavior")
@@ -117,9 +112,11 @@ public:
     // and are read through Settings' gap getters.
     P_CONFIG_GROUP(snappingGapsGroup, "Snapping.Gaps")
 
-    // Display (mode-neutral) — per-mode disable lists. Lives outside Snapping.*
-    // because the values gate the whole product (snap + autotile), not just
-    // snapping. v3 schema; in v2 these were under Snapping.Behavior.Display.
+    // Display (mode-neutral): the v3 home of the per-mode disable lists, which
+    // moved into rules.json in v4. Nothing reads or writes it any more. It is
+    // listed only in Settings::managedGroupNames, so reset() drops any husk a
+    // partial v3 migration left behind. (The v3→v4 migration reads it through
+    // the frozen Legacy::v3DisplayGroup.)
     P_CONFIG_GROUP(displayGroup, "Display")
 
     // Animations sub-groups
@@ -197,7 +194,8 @@ public:
     // each frame does rather than gating when frames happen.
     P_CONFIG_GROUP(decorationsPerformanceGroup, "Decorations.Performance")
 
-    // Parent groups (for purge enumeration — covers all sub-groups)
+    // Parent groups: Settings::managedGroupNames lists them so reset() drops
+    // each whole subtree in one deleteGroup.
     P_CONFIG_GROUP(shortcutsGroup, "Shortcuts")
     P_CONFIG_GROUP(editorGroup, "Editor")
 
@@ -205,8 +203,10 @@ public:
     P_CONFIG_GROUP(editorShortcutsGroup, "Editor.Shortcuts")
     P_CONFIG_GROUP(editorSnappingGroup, "Editor.Snapping")
     P_CONFIG_GROUP(editorFillOnDropGroup, "Editor.FillOnDrop")
+    P_CONFIG_GROUP(editorBackgroundGroup, "Editor.Background")
 
-    // Unmanaged groups (not purged by save(), written independently)
+    // Lives in session.json, not config.json, so no config.json save or
+    // purge touches it. Written by WindowTrackingAdaptor (see below).
     P_CONFIG_GROUP(windowTrackingGroup, "WindowTracking")
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -230,45 +230,26 @@ public:
 
     P_CONFIG_KEY(activeLayoutIdKey, "ActiveLayoutId")
 
-    // Snap mode — last used zone info. Only the zone id is persisted (see
-    // windowtrackingadaptor/saveload.cpp); the companion screen / class /
-    // desktop keys had no reader and no writer left and are gone.
+    // Snap mode — last used zone info. Only the zone id is persisted (windowtrackingadaptor/
+    // saveload.cpp); the companion screen / class / desktop keys had no reader or writer left.
     P_CONFIG_KEY(lastUsedZoneIdKey, "LastUsedZoneId")
 
     // User-snapped classes
     P_CONFIG_KEY(userSnappedClassesKey, "UserSnappedClasses")
 
-    // Unified, engine-agnostic per-window placement record (WindowPlacementStore) —
-    // the SOLE persisted per-window restore key for both snap and autotile.
+    // Unified per-window placement record (WindowPlacementStore), the sole persisted restore key.
     P_CONFIG_KEY(windowPlacementsKey, "WindowPlacements")
 
-    // Scrolling strip-structure snapshots (per-context column groupings,
-    // tabbed flags, sizes, focus, view anchor) — ScrollEngine::serializeStripState
-    // blob, restored into the engine's arrival-restore stash on load.
+    // Scrolling strip snapshots (column groupings, tabs, sizes, focus, view anchor): the
+    // ScrollEngine::serializeStripState blob, restored into the arrival-restore stash on load.
     P_CONFIG_KEY(scrollStripsKey, "ScrollStrips")
 
-    // Legacy per-window restore keys — superseded by WindowPlacements. Retained
-    // ONLY so saveState() can deleteKey() them, scrubbing them from any session.json
-    // written by an older build. Never written, never read.
-    P_CONFIG_KEY(windowZoneAssignmentsFullKey, "WindowZoneAssignmentsFull")
-    P_CONFIG_KEY(pendingRestoreQueuesKey, "PendingRestoreQueues")
-    P_CONFIG_KEY(preTileGeometriesFullKey, "PreTileGeometriesFull")
-    P_CONFIG_KEY(preTileGeometriesKey, "PreTileGeometries")
-    P_CONFIG_KEY(preFloatZoneAssignmentsKey, "PreFloatZoneAssignments")
-    P_CONFIG_KEY(preFloatScreenAssignmentsKey, "PreFloatScreenAssignments")
-    P_CONFIG_KEY(autotileWindowOrdersKey, "AutotileWindowOrders")
-    P_CONFIG_KEY(autotilePendingRestoresKey, "AutotilePendingRestores")
-    P_CONFIG_KEY(floatRestoreQueuesKey, "FloatRestoreQueues")
+    // The virtual desktop ids the session last saw, in order; the next start diffs them against KWin's.
+    P_CONFIG_KEY(knownDesktopIdsKey, "KnownDesktopIds")
 
-    // Obsolete keys (cleaned up on save to prevent stale data)
-    P_CONFIG_KEY(obsoleteFloatingWindowsKey, "FloatingWindows")
-    P_CONFIG_KEY(obsoletePendingWindowScreenAssignmentsKey, "PendingWindowScreenAssignments")
-    P_CONFIG_KEY(obsoletePendingWindowDesktopAssignmentsKey, "PendingWindowDesktopAssignments")
-    P_CONFIG_KEY(obsoletePendingWindowLayoutAssignmentsKey, "PendingWindowLayoutAssignments")
-    P_CONFIG_KEY(obsoletePendingWindowZoneNumbersKey, "PendingWindowZoneNumbers")
-    P_CONFIG_KEY(obsoleteWindowZoneAssignmentsKey, "WindowZoneAssignments")
-    P_CONFIG_KEY(obsoleteWindowScreenAssignmentsKey, "WindowScreenAssignments")
-    P_CONFIG_KEY(obsoleteWindowDesktopAssignmentsKey, "WindowDesktopAssignments")
+    // Each monitor's last compositor-reported size in device pixels, keyed by its stable identifier; the next start
+    // seeds the screen-shape rule fields with it until the compositor reports again.
+    P_CONFIG_KEY(screenPixelSizesKey, "ScreenPixelSizes")
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Trigger JSON Field Names
@@ -296,18 +277,17 @@ public:
 
     P_CONFIG_KEY(triggersKey, "Triggers")
     P_CONFIG_KEY(toggleActivationKey, "ToggleActivation")
-    // Hold-mode release grace in ms; generic like toggleActivationKey and
-    // shared by Snapping.Behavior, Snapping.Behavior.ZoneSpan, Tiling.Behavior
-    // and Scrolling.Behavior.
+    // Hold-mode release grace in ms, generic like toggleActivationKey and
+    // shared by every group that declares a grace; the schema rows are the
+    // list.
     P_CONFIG_KEY(releaseGraceMsKey, "ReleaseGraceMs")
 
-    // Snapping.Behavior.ZoneSpan
-    // (uses enabledKey, modifierKey, triggersKey, toggleActivationKey and
-    //  releaseGraceMsKey)
+    // Snapping.Behavior.ZoneSpan declares no key of its own; it reuses the
+    // shared leaves above (appendActivationSchema has the rows).
 
-    // Snapping.Behavior.SnapAssist
+    // Snapping.Behavior.SnapAssist (also reuses shared leaves; see
+    // appendBehaviorSchema)
     P_CONFIG_KEY(featureEnabledKey, "FeatureEnabled")
-    // (also uses enabledKey and triggersKey)
 
     // Snapping.Behavior.Display
     P_CONFIG_KEY(showOnAllMonitorsKey, "ShowOnAllMonitors")
@@ -497,8 +477,8 @@ public:
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Scrolling.TabIndicator
-    // (also uses enabledKey, widthKey, positionKey — shared leaf names,
-    // disambiguated by group)
+    // (also reuses shared leaf names declared elsewhere, disambiguated by
+    // group; appendScrollingSchema has the rows)
     // ═══════════════════════════════════════════════════════════════════════════
 
     P_CONFIG_KEY(styleKey, "Style")
@@ -524,10 +504,8 @@ public:
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Scrolling.Behavior
-    // (also uses focusNewWindowsKey, focusFollowsMouseKey,
-    // respectMinimumSizeKey, stickyWindowHandlingKey, insertPositionKey,
-    // restoreOnLoginKey, restoreFloatedOnLoginKey, keepFloatingAboveKey —
-    // shared leaf names, disambiguated by group)
+    // (also reuses shared leaf names declared elsewhere, disambiguated by
+    // group; appendScrollingSchema has the rows)
     // ═══════════════════════════════════════════════════════════════════════════
 
     P_CONFIG_KEY(centerShortColumnsKey, "CenterShortColumns")
@@ -554,7 +532,8 @@ public:
     P_CONFIG_KEY(focusNewWindowsKey, "FocusNewWindows")
     P_CONFIG_KEY(focusFollowsMouseKey, "FocusFollowsMouse")
     P_CONFIG_KEY(respectMinimumSizeKey, "RespectMinimumSize")
-    // (also uses stickyWindowHandlingKey)
+    // (Tiling.Behavior also reuses shared leaf names declared elsewhere;
+    // appendAutotilingSchema has the rows)
     P_CONFIG_KEY(dragBehaviorKey, "DragBehavior")
     P_CONFIG_KEY(overflowBehaviorKey, "OverflowBehavior")
     P_CONFIG_KEY(lockedScreensKey, "LockedScreens")
@@ -587,9 +566,12 @@ public:
     P_CONFIG_KEY(smartGapsKey, "SmartGaps")
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // Config Keys — Exclusions
+    // Config Keys — Exclusions, Animations.WindowFiltering and
+    // Decorations.WindowFiltering
     // ═══════════════════════════════════════════════════════════════════════════
 
+    // Exclusions declares only the two size thresholds; transientWindowsKey is
+    // a leaf of the two WindowFiltering groups.
     P_CONFIG_KEY(transientWindowsKey, "TransientWindows")
     P_CONFIG_KEY(minimumWindowWidthKey, "MinimumWindowWidth")
     P_CONFIG_KEY(minimumWindowHeightKey, "MinimumWindowHeight")
@@ -638,15 +620,12 @@ public:
     // ═══════════════════════════════════════════════════════════════════════════
 
     // (uses enabledKey)
-    // Phase 4 sub-commit 6: animation fields migrated from 5 per-field
-    // keys (duration / easingCurve / minDistance / sequenceMode /
-    // staggerInterval) to a single Profile JSON blob under animationProfileKey.
-    // Those v1 spellings are folded into the Profile blob by `migrateV1ToV2`,
-    // which reads them through the frozen `v1Animation*Key` accessors in the
-    // Legacy section below, not through this one — the live per-field accessors
-    // that used to sit here had no caller at all and are gone. The per-field accessor surface on
-    // Settings (animationDuration / etc.) is unaffected: it projects through the
-    // Profile blob at read/write time for QML Q_PROPERTY binding compatibility.
+    // The motion profile (duration, easing curve, minimum distance, sequence
+    // mode, stagger interval) is one Profile object under animationProfileKey.
+    // The v1 per-field spellings are folded into it by `migrateV1ToV2`, which
+    // reads them through the frozen `v1Animation*Key` accessors in the Legacy
+    // section below. The per-field accessors on Settings (animationDuration
+    // and the rest) project through the Profile object at read/write time.
     P_CONFIG_KEY(animationProfileKey, "Profile")
     // Animations.WindowFiltering knob — distinct from the snapping
     // `Exclusions` group above (which has no equivalent NotificationsAndOsd
@@ -654,9 +633,9 @@ public:
     // the Animations.WindowFiltering schema in `settingsschema.cpp`.
     P_CONFIG_KEY(notificationsAndOsdKey, "NotificationsAndOsd")
 
-    // Phase 6: ShaderProfileTree JSON blob — per-event shader effect
-    // selection layered alongside the motion Profile (separate tree,
-    // same dot-path namespace — see design doc decision AA).
+    // ShaderProfileTree JSON blob: per-event shader effect selection layered
+    // alongside the motion Profile (a separate tree over the same dot-path
+    // event namespace).
     P_CONFIG_KEY(shaderProfileTreeKey, "ShaderProfileTree")
     /// Per-event motion overrides (curve, duration, stagger, ...), the timing
     /// twin of ShaderProfileTree above and the config home the per-event
@@ -668,6 +647,8 @@ public:
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Shortcuts.Global
+    // (the workspace verb and slot keys of this group live in
+    // configkeys_workspaces.h)
     // ═══════════════════════════════════════════════════════════════════════════
 
     P_CONFIG_KEY(openEditorKey, "OpenEditor")
@@ -810,6 +791,12 @@ public:
     P_CONFIG_KEY(modifierKey, "Modifier")
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // Config Keys — Editor.Background
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // (uses opacityKey)
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Virtual Screens
     // The "VirtualScreen:" prefix is intentional — parsing must use
     // groupName.mid(prefix.size()) to extract the physical screen ID,
@@ -843,16 +830,16 @@ public:
     P_CONFIG_GROUP(scrollingZoneSelectorGroupPrefix, P_PER_SCREEN_PREFIX_SCROLLING_ZONE_SELECTOR ":")
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // Legacy v1/v2/v3/v4 accessors — for migration code, plus the two
-    // documented non-migration readers (configdefaults.cpp's
-    // v1RenderingBackendKey read and settings.cpp's v4 stash-key list).
+    // Legacy accessors: the v1/v2/v3/v4 on-disk shapes plus the v8
+    // overlay-lift marker, for migration code, plus the one documented
+    // non-migration reader (Settings::purgeStaleKeys' v4 stash-key list).
     //
     // Wrapped in a nested `Legacy` struct so a stray
-    // ConfigKeys::v1ActivationGroup() call outside configmigration.cpp
+    // ConfigKeys::v1ActivationGroup() call outside the migration files
     // fails at the read-time `Legacy::` prefix lookup, surfacing the
     // accidental dependence at code-review time rather than as a
-    // silent regression. configmigration.cpp uses the qualified form
-    // `ConfigKeys::Legacy::v1*` throughout.
+    // silent regression. The configmigration*.cpp files use the qualified
+    // form `ConfigKeys::Legacy::v1*` throughout.
     // ═══════════════════════════════════════════════════════════════════════════
 
     struct Legacy
@@ -883,8 +870,8 @@ public:
         P_CONFIG_GROUP(v1AutotilingGroup, "Autotiling")
         P_CONFIG_GROUP(v1AutotileShortcutsGroup, "AutotileShortcuts")
         P_CONFIG_GROUP(v1AnimationsGroup, "Animations") // = v2 animationsGroup
-        // v1 animation per-field keys — Phase-4 migration packs these into the
-        // v2 `Profile` JSON blob (see configmigration.cpp::migrateV1ToV2).
+        // v1 animation per-field keys: migrateV1ToV2 (configmigration_v2.cpp)
+        // packs these into the v2 `Profile` JSON blob.
         // The accessors exist solely so migration code is unambiguous about
         // "reading legacy field" vs "reading new blob"; production reads after
         // migration go through `Profile::JsonField*` constants.
@@ -1044,8 +1031,8 @@ public:
         // configs. Do not consolidate these two accessors.
         //
         // The same freeze policy applies to every accessor in this `Legacy`
-        // struct: each one names a v1/v2/v3/v4 on-disk shape the runtime no
-        // longer touches. The `v3*` group/key accessors below duplicate live
+        // struct: each one names an on-disk shape (v1 through v4, plus the v8
+        // marker) the runtime no longer touches. The `v3*` group/key accessors below duplicate live
         // ConfigDefaults literals on purpose — the v3→v4 migration must read
         // from the path that existed in v3 configs on disk, even if a future
         // schema bump renames the live accessor. Consolidating Legacy accessors
@@ -1056,7 +1043,7 @@ public:
 
         // v4 migration scratch-root keys — set on the root by `migrateV3ToV4`
         // and consumed by `finalizeV4Conversion`. `Settings::purgeStaleKeys`
-        // (src/config/settings.cpp) ALSO references these to preserve them
+        // ALSO references these to preserve them
         // across save() cycles when the chain stalls (see the stalled-chain
         // gate in `finalizeV4Conversion`); routing both call sites through
         // the same frozen accessor stops a future rename in one file from
@@ -1138,82 +1125,30 @@ public:
     // ═══════════════════════════════════════════════════════════════════════════
     // Filesystem paths under XDG_DATA_HOME
     //
-    // Daemon, settings app, and editor all read/write the same per-user
-    // layouts directory. Hoisted into one accessor so a rename only touches one
-    // site. The sibling "plasmazones" and "plasmazones/algorithms" spellings
-    // used to sit here for the same reason, but neither had a caller: the
-    // algorithms directory is spelled by Constants::ScriptedAlgorithmSubdir
-    // (core/types/constants.h), which is what every consumer actually uses.
+    // The data families the daemon, settings app and editor locate, as
+    // RELATIVE sub-paths: the form QStandardPaths::locate / locateAll and the
+    // registries' subdirectory arguments take. Hoisted into one accessor each
+    // so a rename only touches one site. The ConfigDefaults::user*Subdir()
+    // accessors are the same paths with the leading '/' a writableLocation()
+    // concatenation needs, derived from these. The algorithms directory is
+    // spelled by Constants::ScriptedAlgorithmSubdir (core/types/constants.h)
+    // and the surface packs by PhosphorSurfaceShaders::surfacePackDataSubdir.
     // ═══════════════════════════════════════════════════════════════════════════
     P_CONFIG_KEY(layoutsSubdir, "plasmazones/layouts")
+    P_CONFIG_KEY(animationsSubdir, "plasmazones/animations")
+    P_CONFIG_KEY(overlaysSubdir, "plasmazones/overlays")
+    P_CONFIG_KEY(profilesSubdir, "plasmazones/profiles")
+    P_CONFIG_KEY(pointerSubdir, "plasmazones/pointer")
+    P_CONFIG_KEY(curvesSubdir, "plasmazones/curves")
 
 private:
     // Non-instantiable
     ConfigKeys() = delete;
 };
 
-// ─── Disable-rule label helpers ─────────────────────────────────────────────
-// Shared between the live Settings disable-list writer
-// (Settings::writeDisableEntries) and the v3→v4 migration's disable-rule
-// builders. Both call sites must produce the same `Rule::name` string for
-// a given (mode, screen, desktop, activity) tuple so that resaving an existing
-// disable list (e.g. after a UI edit) doesn't fork into two slightly different
-// labels for what is otherwise the same rule.
-//
-// These are NOT translated. `Rule::name` is the persisted identity
-// surface in rules.json; running the app under different locales must
-// not change its on-disk text. The rule editor surfaces the name verbatim,
-// matching the historic behaviour.
-inline QString autotileDisableRulePrefix()
-{
-    return QStringLiteral("Autotile off · ");
-}
-
-inline QString snappingDisableRulePrefix()
-{
-    return QStringLiteral("Snapping off · ");
-}
-
-inline QString scrollingDisableRulePrefix()
-{
-    return QStringLiteral("Scrolling off · ");
-}
-
-/// Persistent label-prefix for the Rule::name field of a per-mode
-/// disable rule. Exhaustive switch — a future `Mode` enum value added in
-/// `AssignmentEntry.h` without an entry here fires a `Q_UNREACHABLE`
-/// diagnostic rather than silently producing an empty prefix that lands
-/// in the persisted `Rule::name` as bare ` · DP-1` (parseable but
-/// anonymous, and identical across modes — losing the screen→mode
-/// affinity that makes the rule editor scannable).
-inline QString disableRulePrefixFor(PhosphorZones::AssignmentEntry::Mode mode)
-{
-    switch (mode) {
-    case PhosphorZones::AssignmentEntry::Snapping:
-        return snappingDisableRulePrefix();
-    case PhosphorZones::AssignmentEntry::Autotile:
-        return autotileDisableRulePrefix();
-    case PhosphorZones::AssignmentEntry::Scrolling:
-        return scrollingDisableRulePrefix();
-    }
-    Q_UNREACHABLE();
-    return QString();
-}
-
-inline QString disableRuleDesktopSuffix(int desktop)
-{
-    return QStringLiteral(" · Desktop ") + QString::number(desktop);
-}
-
-inline QString disableRuleActivitySuffix()
-{
-    return QStringLiteral(" · Activity");
-}
-
 } // namespace PlasmaZones
 
-#undef P_CONFIG_KEY
-#undef P_CONFIG_GROUP
+#include "configkeymacro_undef.h"
 // P_PER_SCREEN_PREFIX_* deliberately NOT undef'd: perscreenresolver.cpp
 // consumes them after including this header (the single-definition-point
 // contract above). Do not "clean up" by undef'ing them here.

@@ -59,6 +59,14 @@ set(plasmazones_settings_SRCS
     # anonymous namespace in pagestate; internal linkage cannot span two TUs).
     controller/settingscontroller_pagekeys.h
     controller/settingscontroller_pagekeys.cpp
+    # The dynamic-workspaces surface: feature gate, cap banner, named list,
+    # workspace-name rule and the chord-recorder helpers.
+    controller/settingscontroller_workspaces.cpp
+    # The cached getScreenStates answer and its refresh bookkeeping (coalescing,
+    # request numbering, keep-last-on-error), split out so it unit-tests
+    # without D-Bus.
+    controller/screenstatescache.h
+    controller/screenstatescache.cpp
     # Pure page→root scoping helpers for the animation and decoration domains
     # (root dispatch, prefix match, scoped tree diff), split from pagestate so
     # they unit-test without the whole settings-app object graph.
@@ -129,8 +137,6 @@ set(plasmazones_settings_SRCS
     pages/windowappearancecontroller.cpp
     pages/snappingbehaviorcontroller.h
     pages/snappingbehaviorcontroller.cpp
-    pages/snappingeffectscontroller.h
-    pages/snappingeffectscontroller.cpp
     pages/overlayspagecontroller.h
     pages/overlayspagecontroller.cpp
     pages/overlayspagecontroller_sets.cpp
@@ -184,7 +190,7 @@ set(plasmazones_settings_SRCS
     services/settingsstagingdomain.cpp
     # Rules page — the unified rule surface. RuleController
     # owns one RuleModel (QAbstractListModel) and talks to the
-    # daemon's org.plasmazones.Rules adaptor.
+    # daemon's org.phosphor_works.Placement.Rules adaptor.
     rules/rulemodel.h
     rules/rulemodel.cpp
     # Label composition + summaries, split from rulemodel.cpp for file-size.
@@ -200,10 +206,8 @@ set(plasmazones_settings_SRCS
     # (matchFields/operatorsForField/actionTypes/defaultPayloadFor),
     # validation entry points. Same class, separate TU, no API change.
     rules/rulecontroller_views.cpp
-    # RuleController label-lookup setters (screen / activity / zone /
-    # virtual-desktop / snapping-layout / tiling-algorithm / shader-effect /
-    # overlay-shader / decoration-pack) plus the QML curve-label resolver.
-    # Thin pass-throughs into RuleModel.
+    # RuleController's label-lookup and provider setters plus the QML
+    # curve-label resolver. Thin pass-throughs into RuleModel.
     rules/rulecontroller_lookups.cpp
     # RuleController per-page dirty split + managed-baseline reset/discard.
     rules/rulecontroller_baseline.cpp
@@ -219,6 +223,11 @@ set(plasmazones_settings_SRCS
     rules/ruleauthoring_actions.cpp
     rules/ruletemplates.h
     rules/ruletemplates.cpp
+    # Option lists built from live state for the rule editor's pickers (the
+    # Zone condition's zones, the running-windows rows). Free functions, so
+    # test_rule_picker_options compiles them without the controller.
+    rules/rulepickeroptions.h
+    rules/rulepickeroptions.cpp
     # QAbstractItemModel adapter that exposes a rule's match expression
     # to QtQuick.Controls.TreeView for read-only preview. Registered as a
     # QML type via the qt_add_qml_module call below.
@@ -426,6 +435,7 @@ qt_add_qml_module(plasmazones-settings
         qml/pages/rules/ActionListEditor.qml
         qml/pages/rules/ActionRow.qml
         qml/pages/rules/ActionParamEditors.qml
+        qml/pages/rules/ActionParamPickers.qml
         qml/pages/rules/ActionPresetEditor.qml
         qml/pages/rules/ActionShaderParamsEditor.qml
         qml/pages/animations/InertAnimationEventChip.qml
@@ -436,12 +446,17 @@ qt_add_qml_module(plasmazones-settings
         qml/pages/screens/MonitorStatePage.qml
         qml/pages/screens/VirtualScreensPage.qml
         qml/pages/screens/VirtualScreenPreview.qml
+        qml/pages/workspaces/WorkspacesBehaviorPage.qml
+        qml/pages/workspaces/NamedWorkspacesPage.qml
+        qml/pages/workspaces/NamedWorkspaceRow.qml
+        qml/pages/workspaces/WorkspacesShortcutsPage.qml
         # Sub-components (copied from KCM)
         qml/pages/layouts/QuickLayoutSlotsCard.qml
         qml/dialogs/WindowPickerDialog.qml
         qml/pages/layouts/LayoutComboBox.qml
         qml/pages/layouts/LayoutContextMenu.qml
         qml/components/WideComboBox.qml
+        qml/components/MatchValueCombo.qml
         qml/dialogs/FontPickerDialog.qml
         qml/components/ColorButton.qml
         qml/components/InputCapture.qml
@@ -590,6 +605,8 @@ qt_add_qml_module(plasmazones-settings
         qml/pages/wizard/WizardConfigCard.qml
         qml/pages/wizard/WizardPreviewFrame.qml
         qml/js/WizardUtils.js
+        qml/js/MatchWireValue.js
+        qml/js/ExportFileName.js
     NO_PLUGIN
 )
 
@@ -623,6 +640,12 @@ target_link_libraries(plasmazones-settings
         PhosphorShaders::PhosphorShaders  # ShaderRegistry::wallpaperPath / loadWallpaperImage,
                                           # called directly by the decoration preview
                                           # controller — same case as PhosphorAudio above
+        PhosphorWorkspaces::PhosphorWorkspaces  # WorkspaceReconciler::DefaultDesktopCap, which the
+                                                # workspaces cap banner and the Named page's position
+                                                # bound read (settingscontroller_workspaces.cpp). A
+                                                # header constant: the link is for the include path
+        PhosphorShortcuts::PhosphorShortcuts  # GlobalShortcutBlock: the in-page chord recorders
+                                              # suspend global shortcuts while they capture
         PhosphorFsLoader::PhosphorFsLoader  # SchemaValidator — validates whatsnew.json on load
         PhosphorAnimation::PhosphorAnimation  # motion runtime + QML module
         PhosphorAnimationQmlplugin  # Generated by qt_add_qml_module (STATIC)
@@ -656,4 +679,4 @@ if(BUILD_PHOSPHOR_SHELL)
 endif()
 
 install(TARGETS plasmazones-settings DESTINATION ${KDE_INSTALL_BINDIR})
-install(FILES org.plasmazones.settings.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES org.phosphor_works.Facet.desktop DESTINATION ${KDE_INSTALL_APPDIR})

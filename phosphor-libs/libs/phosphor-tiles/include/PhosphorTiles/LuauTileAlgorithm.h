@@ -7,7 +7,7 @@
 #include "TileScriptMetadata.h"
 #include "TilingAlgorithm.h"
 
-#include <phosphortiles_export.h>
+#include "phosphortiles_export.h"
 
 #include <QString>
 #include <QVariantMap>

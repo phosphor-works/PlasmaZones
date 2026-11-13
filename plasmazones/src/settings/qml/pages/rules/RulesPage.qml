@@ -8,6 +8,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.phosphor.animation
 import org.plasmazones.settings
+import "../../js/MatchWireValue.js" as MatchWireValue
 
 /**
  * @brief The unified Rules page.
@@ -64,7 +65,17 @@ SettingsFlickable {
         if (typeof window !== "undefined" && window && window._pageOwnedModalOpen !== undefined)
             window._pageOwnedModalOpen = anyModalOpen;
     }
+    // The daemon's screenStatesChanged keeps the screen states the tiles
+    // evaluate against current. They are re-read whenever the page comes
+    // into view too, which also covers a signal missed while the daemon was
+    // restarting (the window regaining focus is covered by
+    // SettingsController itself).
+    onVisibleChanged: {
+        if (visible)
+            settingsController.scheduleScreenStatesRefresh();
+    }
     Component.onCompleted: {
+        settingsController.scheduleScreenStatesRefresh();
         // Hand the controller the canonical curve-naming function so the
         // rule-list action summary renders "Curve: Standard (Cubic)" /
         // "Curve: Spring (12.00, 1.00)" like the editor's curve button,
@@ -104,9 +115,30 @@ SettingsFlickable {
         // Backs the RouteToDesktop action's virtual-desktop picker.
         readonly property int virtualDesktopCount: settingsController.virtualDesktopCount
         readonly property var virtualDesktopNames: settingsController.virtualDesktopNames
+        // The dynamic-workspaces state the RouteToWorkspace picker, its
+        // read-only summary and the RouteToDesktop picker's hint read.
+        // `workspacesAvailable` is false in a build without the feature;
+        // `workspacesEnabled` is the user's switch; `workspacesActive` adds
+        // KWin's per-output setting (or a pending consent to turn it on),
+        // without which the daemon sits dormant and installs no route
+        // resolver, so a workspace rule is inert whatever it names.
+        readonly property bool workspacesAvailable: settingsController.workspacesAvailable
+        readonly property bool workspacesEnabled: settingsController.settings.workspacesEnabled
+        readonly property bool workspacesActive: settingsController.workspacesActive
+        // The declared named workspaces, `{id, name}` per entry keyed by
+        // `namedEntryFields`, in list order: one controller property shared
+        // with the Quick Shortcuts page rather than a derivation per page.
+        readonly property var namedWorkspaces: settingsController.namedWorkspaces
+        readonly property var namedEntryFields: settingsController.namedEntryFields
+        // The preset bridges the shader-override editors and the read-only
+        // summary resolve a preset through. Without them a rule's preset
+        // picker reads "Missing preset" and its rows stay hidden.
+        readonly property var animationPresets: settingsController.animationPresets
+        readonly property var overlayPresets: settingsController.overlayPresets
+        readonly property var surfacePresets: settingsController.surfacePresets
         // `AnimationsPageController` — exposes `eventSections()` and
         // `availableShaderEffects()` for the animationEvent / shaderEffect
-        // picker editors in ActionRow.
+        // picker editors in ActionParamEditors.
         readonly property var animationsController: settingsController.animationsPage
         // The global default animation duration, read by the curve-editor
         // dialog in ActionParamEditors to set its preview tempo. Threaded
@@ -118,12 +150,13 @@ SettingsFlickable {
         // editor (OverrideOverlayShader) and its read-only name resolution.
         readonly property var overlaysPage: settingsController.overlaysPage
         // `DecorationPageController` — exposes `availableShaderEffects()` (the
-        // surface-pack catalog) for the decorationChain editor in ActionRow
-        // (OverrideDecorationChain) and its read-only name resolution.
+        // surface-pack catalog) for the decorationChain editor in
+        // ActionParamEditors (OverrideDecorationChain) and its read-only name
+        // resolution.
         readonly property var decorationPage: settingsController.decorationPage
         // `TilingAlgorithmController` — exposes `customParamsForAlgorithm(id)` (the
         // Luau-declared custom-param schema) for the SetAlgorithmParam inline
-        // params editor in ActionRow.
+        // params editor in ActionParamEditors.
         readonly property var tilingAlgorithmPage: settingsController.tilingAlgorithmPage
         // Reference to the page-level WindowPickerDialog — exposed via the
         // bridge so MatchLeafEditor can open the picker without having to
@@ -213,10 +246,20 @@ SettingsFlickable {
                 if (hay.indexOf(search) < 0)
                     continue;
             }
-            // Monitor filter — keep only rules whose ScreenId predicate(s) name
-            // the selected monitor (an exact id match, not a substring scan).
+            // Monitor filter — keep only rules that address the selected
+            // monitor (RuleModel::screenIdsOf). A whole-id match, not a
+            // substring scan, and ignoring case as the rule engine's Equals
+            // does, so a hand-edited pin in another case still lists.
             if (page.monitorFilter.length > 0) {
-                if (!entry.screenIds || entry.screenIds.indexOf(page.monitorFilter) < 0)
+                var ids = entry.screenIds || [];
+                var addressed = false;
+                for (var s = 0; s < ids.length; ++s) {
+                    if (MatchWireValue.same(ids[s], page.monitorFilter)) {
+                        addressed = true;
+                        break;
+                    }
+                }
+                if (!addressed)
                     continue;
             }
             out.push(entry);
@@ -254,9 +297,9 @@ SettingsFlickable {
     // rows in their stale pre-move order. The remaining entries (Section /
     // ScreenIds / ConditionCount / ActionCount / IsComposite /
     // ValidationIssueCount / InertAnimationActionCount) are also read when
-    // building the rows but currently
-    // change only through the roles-less updateRule path; they're kept so a
-    // future targeted emitter carrying them rebuilds without a second edit here.
+    // building the rows but currently change only through the roles-less
+    // updateRule path; they're kept so a future targeted emitter carrying
+    // them rebuilds without a second edit here.
     readonly property var _summaryRoles: [RuleModel.SectionRole, RuleModel.MatchSummaryRole, RuleModel.ActionSummaryRole, RuleModel.ScreenIdsRole, RuleModel.ConditionCountRole, RuleModel.ActionCountRole, RuleModel.IsCompositeRole, RuleModel.ValidationIssueCountRole, RuleModel.InertAnimationActionCountRole, RuleModel.PriorityRole]
 
     contentHeight: mainCol.implicitHeight
@@ -330,6 +373,40 @@ SettingsFlickable {
         }
 
         target: settingsController
+    }
+
+    // The tiles also read two inputs that are not rules, through providers
+    // the controller calls on every rebuild: the global default assignment (a
+    // screen whose rules fill a layout slot but set no engine mode runs the
+    // default's engine) and the colour scheme a ColorScheme condition
+    // compares against. Neither change moves a list or the rule model, so
+    // each re-runs the tiles here.
+    Connections {
+        function onSnappingEnabledChanged() {
+            page.tilesRevision++;
+        }
+
+        function onAutotileEnabledChanged() {
+            page.tilesRevision++;
+        }
+
+        function onDefaultLayoutIdChanged() {
+            page.tilesRevision++;
+        }
+
+        function onDefaultAutotileAlgorithmChanged() {
+            page.tilesRevision++;
+        }
+
+        function onSuppressDefaultLayoutAssignmentChanged() {
+            page.tilesRevision++;
+        }
+
+        function onSystemColorSchemeChanged() {
+            page.tilesRevision++;
+        }
+
+        target: appSettings
     }
 
     // Surface asyncCommit failures (force-save daemon errors, partial-
@@ -495,11 +572,17 @@ SettingsFlickable {
             // `tilesRevision` invalidates this binding whenever the upstream
             // lists (layouts/activities/screens) change — including content-
             // only changes like a layout rename that wouldn't move a length
-            // counter. See the `Connections { target: settingsController }`
-            // above for the bump points.
+            // counter, and when the global default assignment or the colour
+            // scheme changes. See the `Connections` blocks on
+            // settingsController and appSettings above for the bump points.
+            // `modelRevision` re-runs it on every
+            // staged rule edit, since the tiles show what the staged rules do,
+            // and `screenStates` when a screen's desktop, activity or
+            // assignment moves.
             tiles: {
                 void (page.tilesRevision); // touch to re-run when the monitor lists change
-                return page.controller.monitorOverview(settingsController.screens);
+                void (page.modelRevision); // touch to re-run when a staged rule changes
+                return page.controller.monitorOverview(settingsController.screens, settingsController.screenStates);
             }
             selectedScreenId: page.monitorFilter
             onMonitorSelected: function (screenId) {

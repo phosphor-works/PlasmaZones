@@ -8,6 +8,7 @@ import org.kde.kirigami as Kirigami
 import org.plasmazones.settings
 
 import "../../js/FontUtils.js" as FontUtils
+import "../../js/MatchWireValue.js" as MatchWireValue
 
 /**
  * @brief Read-only match-expression preview backed by
@@ -22,7 +23,8 @@ import "../../js/FontUtils.js" as FontUtils
  *
  * Wire → user-label resolution stays on the QML side, keyed off the
  * controller's `matchFields()` / `operatorsForField()` tables already
- * cached on `RulesPage`. The C++ model deliberately exposes only
+ * cached on `RulesPage`, its zone options, and the app-settings lists
+ * the leaf editor's pickers read. The C++ model deliberately exposes only
  * the raw wire fields so the label-resolution logic lives in exactly
  * one place per axis (this file for the read-only view; the editor
  * components for authoring).
@@ -30,8 +32,9 @@ import "../../js/FontUtils.js" as FontUtils
 ColumnLayout {
     id: root
 
-    /// The RuleController — supplies the wire→label tables for
-    /// fields and operators. Threaded down from `RulesPage`.
+    /// The RuleController — supplies the wire→label tables for fields and
+    /// operators, and the zone options a Zone leaf's label comes from.
+    /// Threaded down from `RulesPage`.
     required property var controller
     /// Cached `controller.matchFields()` table. Same caching rationale as
     /// `RuleEditorBody` — the Q_INVOKABLE allocates a fresh list per call.
@@ -40,12 +43,12 @@ ColumnLayout {
     /// `{ all | any | none: [...] }`. Re-assigning this rebuilds the
     /// backing model and re-expands the tree.
     required property var matchJson
-    /// Composite app-settings surface (screens + activities), threaded down
-    /// from `RulesPage`. Used by `_valueLabel` to resolve screen-id /
-    /// activity-uuid leaves to the same friendly labels the leaf editor
-    /// shows. Optional — when null, screen/activity leaves fall back to the
-    /// raw wire value (still better than nothing, mirrors the editor's own
-    /// dangling-pin fallback).
+    /// Composite app-settings surface threaded down from `RulesPage`. Used by
+    /// `_valueLabel` to resolve screen ids, activity ids, layout ids and
+    /// desktop numbers to the same friendly labels the leaf editor shows.
+    /// Optional — when null, those leaves fall back to the raw wire value
+    /// (still better than nothing, mirrors the editor's own dangling-pin
+    /// fallback).
     property var appSettings: null
 
     /// Wire→label resolver for a field. Returns the wire string unchanged
@@ -85,8 +88,8 @@ ColumnLayout {
 
     /// Wire→valueKind helper for `_valueLabel`. Returns the field's controller-side
     /// kind string (any of the kinds MatchLeafEditor dispatches on: string, number,
-    /// bool, screen, activity, windowType, virtualDesktop, mode, orientation,
-    /// colorScheme, layout) or "string" for unknown fields — the safest default
+    /// bool, screen, activity, windowType, virtualDesktop, mode, orientation, aspectRatio,
+    /// colorScheme, layout, zone) or "string" for unknown fields — the safest default
     /// since `String(value)` is what a plain-string render would do anyway.
     function _valueKind(wire) {
         for (var i = 0; i < root.matchFieldOptions.length; ++i) {
@@ -103,8 +106,10 @@ ColumnLayout {
     ///   - activity → `appSettings.activities.name` for the matching id
     ///   - windowType → the enum option's label from the field entry
     ///   - layout → `appSettings.activeLayoutMatchOptions` displayName for the matching id
-    ///   - mode / orientation / colorScheme → the token's option label from the field entry
-    ///   - everything else (string, number) → `String(value)`
+    ///   - zone → `controller.zoneMatchOptions` displayName for the matching id
+    ///   - mode / orientation / aspectRatio / colorScheme → the token's option label from the field entry
+    ///   - number → the locale-grouped number, with a pixel unit on the screen size fields (a Pid stays plain)
+    ///   - everything else (string) → `String(value)`
     /// Falls back to the raw wire value when a lookup misses (e.g. the
     /// rule references an unplugged monitor or removed activity), matching
     /// the editor's dangling-pin fallback.
@@ -120,13 +125,13 @@ ColumnLayout {
             var screens = root.appSettings.screens;
             if (screens) {
                 for (var i = 0; i < screens.length; ++i) {
-                    if (screens[i].name === value) {
+                    if (MatchWireValue.same(screens[i].name, value)) {
                         // displayLabel carries make/model/resolution + connector;
                         // mark the primary monitor to match the editor's picker.
                         var label = screens[i].displayLabel || String(value);
                         // Same disambiguation as the two monitor PICKERS
                         // (MatchLeafEditor's screenValueEditor and
-                        // ActionParamEditors' _screenIdEditor): one source
+                        // ActionParamPickers' _screenIdEditor): one source
                         // string with one context, so a translator cannot leave
                         // the tree and the picker rendering a monitor
                         // differently.
@@ -142,7 +147,7 @@ ColumnLayout {
             var activities = root.appSettings.activities;
             if (activities) {
                 for (var j = 0; j < activities.length; ++j) {
-                    if (activities[j].id === value)
+                    if (MatchWireValue.same(activities[j].id, value))
                         return activities[j].name || String(value);
                 }
             }
@@ -157,8 +162,18 @@ ColumnLayout {
             var layouts = root.appSettings.activeLayoutMatchOptions;
             if (layouts) {
                 for (var L = 0; L < layouts.length; ++L) {
-                    if (layouts[L].id === value)
+                    if (MatchWireValue.same(layouts[L].id, value))
                         return layouts[L].displayName || String(value);
+                }
+            }
+        }
+        if (kind === "zone" && root.controller) {
+            // Same "<layout> — <zone>" options the editor's zone picker offers.
+            var zones = root.controller.zoneMatchOptions;
+            if (zones) {
+                for (var Z = 0; Z < zones.length; ++Z) {
+                    if (MatchWireValue.same(zones[Z].id, value))
+                        return zones[Z].displayName || String(value);
                 }
             }
         }
@@ -172,25 +187,26 @@ ColumnLayout {
                     continue;
                 var opts = entry.options || [];
                 for (var o = 0; o < opts.length; ++o) {
-                    if (opts[o].value === value)
+                    if (MatchWireValue.same(opts[o].value, value))
                         return opts[o].label || String(value);
                 }
                 break;
             }
         }
-        // Closed string-token dropdowns (Mode, Screen orientation, Color scheme)
-        // — resolve the token to its friendly label from the field entry's
-        // options, the same way windowType does, so the tree shows "Portrait"
-        // not the raw "portrait". Every closed-vocabulary kind belongs in this
+        // Closed string-token dropdowns (Mode, Screen orientation, Screen aspect
+        // ratio, Color scheme) — resolve the token to its friendly label from
+        // the field entry's options, the same way windowType does, so the tree
+        // shows "Portrait" not the raw "portrait", and an aspect ratio carries
+        // its portrait marker. Every closed-vocabulary kind belongs in this
         // list: a kind missing here renders its untranslated wire token.
-        if (kind === "mode" || kind === "orientation" || kind === "colorScheme") {
+        if (kind === "mode" || kind === "orientation" || kind === "aspectRatio" || kind === "colorScheme") {
             for (var m = 0; m < root.matchFieldOptions.length; ++m) {
                 var modeEntry = root.matchFieldOptions[m];
                 if (modeEntry.wire !== fieldWire)
                     continue;
                 var modeOpts = modeEntry.options || [];
                 for (var mo = 0; mo < modeOpts.length; ++mo) {
-                    if (modeOpts[mo].value === value)
+                    if (MatchWireValue.same(modeOpts[mo].value, value))
                         return modeOpts[mo].label || String(value);
                 }
                 break;
@@ -207,6 +223,21 @@ ColumnLayout {
             var idx = parseInt(value, 10) - 1;
             if (idx >= 0 && idx < names.length && names[idx])
                 return names[idx];
+        }
+        // A number reads as the collapsed summary shows it
+        // (RuleAuthoring::numericMatchValueLabel): the locale's digit
+        // grouping, and a pixel unit on the two screen size fields. A Pid is
+        // an identifier, so it keeps plain digits, and so does a value that
+        // is not a number (a hand-edited rule).
+        if (fieldWire === "pid")
+            return String(value);
+
+        if ((kind === "number" || kind === "virtualDesktop") && value !== "" && isFinite(Number(value))) {
+            var number = Number(value).toLocaleString(Qt.locale(), "f", 0);
+            if (fieldWire === "screenWidth" || fieldWire === "screenHeight")
+                return i18nc("a screen size in pixels, such as 2,560 px", "%1 px", number);
+
+            return number;
         }
         return String(value);
     }

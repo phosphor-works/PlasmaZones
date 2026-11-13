@@ -3,11 +3,12 @@
 
 #pragma once
 
-// Umbrella include for PhosphorShortcuts. Pulls in the three public headers so
-// a consumer can `#include <PhosphorShortcuts/PhosphorShortcuts.h>` once and be
+// Umbrella include for PhosphorShortcuts. Pulls in every public header so a
+// consumer can `#include <PhosphorShortcuts/PhosphorShortcuts.h>` once and be
 // done.
 
 #include <PhosphorShortcuts/IAdhocRegistrar.h>
 #include <PhosphorShortcuts/IBackend.h>
 #include <PhosphorShortcuts/Registry.h>
 #include <PhosphorShortcuts/Factory.h>
+#include <PhosphorShortcuts/GlobalShortcutBlock.h>

@@ -6,10 +6,9 @@
 // editor's per-param Loader dispatches on, and the default-seeded payload a
 // freshly-added or type-switched action starts from.
 //
-// Own translation unit rather than ruleauthoring_actions.cpp: that file owns
-// the picker side (category dispatch, type labels, the assembled type list) and
-// the two ladders together push it past the size ceiling. The seam is the same
-// one the action-description ladder was split along.
+// Own translation unit rather than ruleauthoring_actions.cpp, which owns the
+// picker side (category dispatch, type labels, the assembled type list). The
+// seam is the same one the action-description ladder was split along.
 
 #include "ruleauthoring.h"
 #include "ruleauthoring_p.h"
@@ -128,7 +127,7 @@ QString paramLabel(const QString& type, const QString& key)
         return PhosphorI18n::tr("Center short columns (off = leave the space at the end of the column)");
     }
     if (type == ActionType::SetScrollRespectMinimumSize && key == ActionParam::Value) {
-        return PhosphorI18n::tr("Respect minimum window sizes (off = let columns go narrower)");
+        return PhosphorI18n::tr("Respect minimum window sizes (off = let columns go narrower than their windows)");
     }
     if (type == ActionType::SetScrollCropStraddlers && key == ActionParam::Value) {
         return PhosphorI18n::tr("Crop columns at the screen edge (off = keep them whole)");
@@ -376,6 +375,9 @@ QString paramLabel(const QString& type, const QString& key)
     if (type == ActionType::RouteToDesktop && key == ActionParam::TargetDesktop) {
         return PhosphorI18n::tr("Desktop");
     }
+    if (type == ActionType::RouteToWorkspace && key == ActionParam::TargetWorkspaceName) {
+        return PhosphorI18n::tr("Workspace");
+    }
     if (key == ActionParam::Event) {
         return PhosphorI18n::tr("Event");
     }
@@ -413,6 +415,11 @@ QString paramHint(const QString& type, const QString& key)
             "Zone names like “Editor, Terminal”, found in whichever layout is active. "
             "Give numbers, names, or both.");
     }
+    if (type == ActionType::RouteToWorkspace && key == ActionParam::TargetWorkspaceName) {
+        return PhosphorI18n::tr(
+            "The rule follows this workspace when you rename it. If you remove the workspace, the "
+            "rule does nothing until a workspace with the same name is declared again.");
+    }
     if (type == ActionType::OverrideOverlayShader && key == ActionParam::LayoutId) {
         return PhosphorI18n::tr(
             "Global default changes the shader for every layout in the matched context. "
@@ -430,30 +437,29 @@ QString paramHint(const QString& type, const QString& key)
 /// read the same truth instead of each hardcoding the type ladder.
 bool actionAcceptsAccent(const QString& typeWire)
 {
-    return typeWire == QString(PhosphorRules::ActionType::SetBorderColorActive)
-        || typeWire == QString(PhosphorRules::ActionType::SetBorderColorInactive)
-        || typeWire == QString(PhosphorRules::ActionType::SetTintColor);
+    return typeWire == PhosphorRules::ActionType::SetBorderColorActive
+        || typeWire == PhosphorRules::ActionType::SetBorderColorInactive
+        || typeWire == PhosphorRules::ActionType::SetTintColor;
 }
 
 } // namespace
 
 QString paramEmptyValueLabel(const QString& typeWire, const QString& key)
 {
-    if (typeWire == QString(PhosphorRules::ActionType::SetTabIndicatorFontFamily)
-        && key == QString(PhosphorRules::ActionParam::Value)) {
+    if (typeWire == PhosphorRules::ActionType::SetTabIndicatorFontFamily && key == PhosphorRules::ActionParam::Value) {
         return PhosphorI18n::tr("System font");
     }
-    if (typeWire == QString(PhosphorRules::ActionType::OverrideOverlayShader)) {
+    if (typeWire == PhosphorRules::ActionType::OverrideOverlayShader) {
         // Both of this action's empty values are real choices, mirroring the
         // OverlayShaderTree the rule overrides: an empty node is the tree's
         // global default, and an empty shader is its "no shader" suppression
         // node. The wording is the assignments page's own for the same two
         // states, uncontexted / contexted exactly as it spells them, so each
         // shares that page's catalogue entry and translations.
-        if (key == QString(PhosphorRules::ActionParam::LayoutId)) {
+        if (key == PhosphorRules::ActionParam::LayoutId) {
             return PhosphorI18n::tr("Global default");
         }
-        if (key == QString(PhosphorRules::ActionParam::EffectId)) {
+        if (key == PhosphorRules::ActionParam::EffectId) {
             return PhosphorI18n::tr("None", "@item no overlay shader assigned");
         }
     }
@@ -633,21 +639,28 @@ QVariantMap defaultPayloadFor(const QString& typeWire)
             // (a 1-based ordinal) before the user picks a desktop.
             payload[key] = 1;
         } else {
-            // Picker kinds (snappingLayout, scrollingTemplate, tilingAlgorithm,
-            // animationEvent, shaderEffect, overlayShader, curveEditor,
-            // screenId) and plain strings all start empty. The tab-indicator
-            // font family is a plain string rather than a picker, and empty is
-            // a meaningful value for it (it means the system font), so unlike
-            // the pickers its seeded rule is already savable. The openTabGroup
-            // name is the other plain string, and there empty is the reject
-            // case, so like the pickers it stays unsavable until named. Four
-            // kinds are seeded above instead:
-            // zoneOrdinals and virtualDesktop because their validators reject an
-            // empty value, zoneNames and decorationChain because an empty ARRAY
-            // (not an empty string) is their valid starting shape. The
-            // user has to choose a value before the rule is savable, and
-            // `canSave` surfaces the gap explicitly. Seeding a placeholder here
-            // would mask the "user has to pick" state.
+            // Every other kind starts as an empty string: the picker kinds
+            // (snappingLayout, scrollingTemplate, tilingAlgorithm,
+            // animationEvent, shaderEffect, overlayShader, overlayLayout,
+            // curveEditor, screenId, workspaceName) and the plain strings.
+            //
+            // For most of them empty is the reject case, so the user has to
+            // choose a value before the rule is savable and `canSave`
+            // surfaces the gap. Seeding a placeholder here would mask that
+            // "user has to pick" state. The openTabGroup name is such a plain
+            // string.
+            //
+            // A few take empty as a real choice, so their seeded rule is
+            // savable as it stands: the tab-indicator font family (empty is
+            // the system font), and OverrideOverlayShader's overlayLayout and
+            // overlayShader (empty is the global default and no shader, see
+            // paramEmptyValueLabel). The array and number kinds seeded above
+            // are there because an empty string is not their valid shape.
+            //
+            // A workspaceName payload also carries the entry id
+            // (ActionParam::TargetWorkspaceId), which has no ParamSchema
+            // entry of its own: the picker writes it beside the name, and
+            // nothing here may drop it.
             payload[key] = QString();
         }
     }

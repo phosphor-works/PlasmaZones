@@ -6,6 +6,7 @@
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorProtocol/WindowTypeEnum.h>
 
+#include <core/output.h>
 #include <effect/effecthandler.h>
 #include <virtualdesktops.h>
 #include <window.h>
@@ -89,24 +90,40 @@ PhosphorProtocol::WindowType windowTypeFor(KWin::EffectWindow* w)
     return WindowType::Unknown;
 }
 
-QString centreScreenOrientation(KWin::EffectWindow* w)
+const KWin::LogicalOutput* centreScreenOutput(KWin::EffectWindow* w)
 {
     if (!w) {
-        return {};
+        return nullptr;
     }
     // Position-resolved output (screenAt on the frame centre), NOT w->screen():
     // KWin can assign a window the wrong one of two identical-model outputs
     // (discussion #724).
     const QPointF centreF = w->frameGeometry().center();
-    const auto* output = KWin::effects->screenAt(QPoint(qRound(centreF.x()), qRound(centreF.y())));
-    if (!output) {
-        return {};
+    return KWin::effects->screenAt(QPoint(qRound(centreF.x()), qRound(centreF.y())));
+}
+
+QSize outputPixelSize(const KWin::LogicalOutput* output)
+{
+    if (!output || output->isPlaceholder()) {
+        return QSize();
     }
-    const QRect g = output->geometry();
-    if (!g.isValid()) {
-        return {};
+    return output->pixelSize();
+}
+
+void stampScreenShape(PhosphorRules::WindowQuery& query, const QSize& pixelSize)
+{
+    if (pixelSize.isEmpty()) {
+        return;
     }
-    return g.height() > g.width() ? QStringLiteral("portrait") : QStringLiteral("landscape");
+    // The exact mode, not the logical geometry times the scale: a fractional
+    // scale over a logical size KWin has rounded to whole pixels lands a pixel
+    // off (2560x1440 at 150% read back as 2561 wide).
+    const int width = pixelSize.width();
+    const int height = pixelSize.height();
+    query.screenOrientation = PhosphorRules::orientationTokenFor(width, height);
+    query.screenWidth = width;
+    query.screenHeight = height;
+    query.screenAspectRatio = PhosphorRules::aspectRatioTokenFor(width, height);
 }
 
 PhosphorRules::WindowQuery ruleQueryFor(KWin::EffectWindow* w, const QString& screenId, bool isFloating, bool isSnapped,
@@ -152,17 +169,15 @@ PhosphorRules::WindowQuery ruleQueryFor(KWin::EffectWindow* w, const QString& sc
     // virtualDesktop / activity are derived here, mirroring the daemon-side
     // setWindowMetadata derivation in window_identity.cpp (0 / "" = all/unknown).
     query.screenId = screenId;
-    // Orientation of the window's screen ("portrait" when taller than wide), so a
-    // window rule can match ScreenOrientation the same way a context rule does.
+    // The shape of the window's screen (orientation, size, aspect ratio), so a
+    // window rule can match those fields the same way a context rule does.
     // Only derived from the frame centre when the caller has no screen id to
     // offer: a centre-resolved output is wrong for a scroll strip's off-screen
     // parked windows, so a caller that HAS an id (the effect's ruleQuery()
-    // funnel) derives the field from that id instead and only falls back to
-    // this helper when the id resolves to no output.
+    // funnel) derives the fields from that id instead and only falls back to
+    // the centre when the id resolves to no output.
     if (screenId.isEmpty()) {
-        if (const QString orientation = centreScreenOrientation(w); !orientation.isEmpty()) {
-            query.screenOrientation = orientation;
-        }
+        stampScreenShape(query, outputPixelSize(centreScreenOutput(w)));
     }
     // `WindowQuery` fields are `std::optional` — leaving a field disengaged
     // makes a predicate over it inert (returns false). Engaging it with an
@@ -235,13 +250,12 @@ PhosphorRules::WindowQuery ruleQueryFor(KWin::EffectWindow* w, const QString& sc
         query.isMaximized = (kw->maximizeMode() == KWin::MaximizeFull);
         // KWin::Window-only accessory / capability flags (not exposed on
         // EffectWindow). Always engaged when the underlying window exists.
-        // NO INVALIDATION EDGE, deliberately: these flags rarely change
-        // after map (X11 clients and KWin window rules can flip them), and
-        // no change-signal is connected for them — a verdict scoped on one
-        // refreshes at the next natural invalidation (focus, placement,
-        // class swap, rule edit) rather than on its own edge. Accepted
-        // staleness; wiring five rarely-firing signals was judged not worth
-        // the connection overhead per window.
+        // skip-taskbar, skip-pager and maximizable have change edges
+        // (window_output_connections.cpp, windowflagedges.h) that refresh the
+        // daemon's copy and drop the cached verdicts. KWin has no change
+        // signal for isResizable / isMovable, so a verdict scoped on those two
+        // refreshes at the next natural invalidation (focus, placement, class
+        // swap, rule edit).
         query.skipTaskbar = kw->skipTaskbar();
         query.skipPager = kw->skipPager();
         query.isResizable = kw->isResizable();
@@ -282,8 +296,8 @@ PhosphorRules::WindowQuery ruleQueryFor(KWin::EffectWindow* w, const QString& sc
     // snapshot by the caller's applyOwnLayerFlags pass when a SetWindowLayer
     // rule or the keep-floating-above default owns the window — see
     // window_filtering.cpp — so a `WHEN KeepAbove` predicate never reads its
-    // own rule's effect. A MANUAL keep-above toggle
-    // (window menu) has no cache-invalidation edge, deliberately: routing it
+    // own rule's effect. A MANUAL keep-above or keep-below toggle refreshes
+    // the daemon's copy but drops no cached verdict, deliberately: routing it
     // through invalidateRuleCacheForStateChange would re-run the layer
     // reconcile and instantly re-assert the rule over the user's toggle,
     // which the reconcile's own docs rule out. A verdict scoped on these
@@ -300,7 +314,8 @@ PhosphorRules::WindowQuery ruleQueryFor(KWin::EffectWindow* w, const QString& sc
     // KWin-version behaviour this code cannot verify statically. Do not
     // scope a SetHideTitleBar rule on HasDecoration; a substitution needs a
     // pre-rule snapshot sourced from the DecorationManager's restore state
-    // if this ever bites in practice.
+    // if this ever bites in practice. Its change edge refreshes only the
+    // daemon's copy for the same reason.
     query.hasDecoration = w->hasDecoration();
     query.skipSwitcher = w->isSkipSwitcher();
     const QRectF frame = w->frameGeometry();

@@ -26,7 +26,7 @@ namespace PlasmaZones {
  * filters in QML over this one model.
  *
  * The model is staging: it holds an in-memory `QList<Rule>` that the
- * `RuleController` populates from the daemon's `org.plasmazones.Rules`
+ * `RuleController` populates from the daemon's `org.phosphor_works.Placement.Rules`
  * D-Bus surface, mutates locally as the user edits, and flushes back to the
  * daemon on commit. The model never talks to D-Bus itself.
  *
@@ -37,15 +37,17 @@ namespace PlasmaZones {
  *   - `monitor`     — context-only rule (ScreenId / VirtualDesktop / Activity)
  *                     whose actions are layout / engine / disable. The
  *                     "Monitor & Layout" group.
- *   - `application` — a window-property rule (AppId / WindowClass / …) whose
- *                     actions are float / exclude / opacity / engine.
+ *   - `application` — a window-property rule (AppId / WindowClass / …, or
+ *                     window state such as Zone / IsSnapped / IsFloating)
+ *                     whose actions are float / exclude / opacity / engine.
  *   - `activity`    — reserved alias for context-only rules pinned to an
  *                     Activity only (still surfaces under `monitor` visually,
  *                     but the chip filter distinguishes them).
  *   - `animation`   — any rule carrying an OverrideAnimation* action.
  *   - `advanced`    — anything that "graduated": a composite match a
  *                     specialized section cannot represent, or a mixed action
- *                     set. The Advanced / Custom group.
+ *                     set, plus a context-only rule that names no screen
+ *                     (a ColorScheme-only match). The Advanced / Custom group.
  *
  * A rule "graduates" to `advanced` the moment its shape exceeds what a
  * specialized section can edit without data loss — the specialized views then
@@ -92,7 +94,7 @@ public:
         ConditionCountRole, ///< number of leaf predicates in the match tree
         ActionCountRole, ///< number of actions
         IsCompositeRole, ///< true if the match is a non-trivial composite
-        ScreenIdsRole, ///< QStringList of ScreenId leaf values in the match
+        ScreenIdsRole, ///< QStringList of the monitors the match addresses (screenIdsOf)
         ValidationIssueCountRole, ///< int — number of semantic validation
                                   ///< issues the rule carries (a context-domain
                                   ///< action paired with a window-property match,
@@ -199,9 +201,14 @@ public:
     /// `RuleController` so the per-Field label table lives in exactly one place.
     static QString fieldLabel(PhosphorRules::Field field);
 
-    /// Every non-empty `ScreenId` leaf value found anywhere in @p match.
-    /// Shared with `RuleController` so the recursive walk lives in one
-    /// place — the model exposes it as `ScreenIdsRole`.
+    /// The value of every non-empty `ScreenId` Equals leaf @p match reaches
+    /// without passing through a `none` group: the monitors the rule
+    /// addresses, as opposed to ones it excludes. The values are kept as
+    /// written, so a consumer compares them ignoring case, as the rule
+    /// engine's Equals does. The one walk: the model exposes it as
+    /// `ScreenIdsRole` (the Rules page's monitor filter), and
+    /// `RuleController::screenSizeHint` (which monitors the editor's note
+    /// names) reads it too.
     static QStringList screenIdsOf(const PhosphorRules::MatchExpression& match);
 
     /// Display label for an action type id that no built-in label covers —
@@ -242,6 +249,13 @@ public:
     /// "Work" rather than the bare number "2" (matching the editor's desktop picker).
     /// Install-once setter; read live on every `data()`. Unknown numbers round-trip.
     void setVirtualDesktopLabelLookup(LabelLookup fn);
+
+    /// Inject the named-workspace entry id → current name resolver used by the
+    /// RouteToWorkspace action summary, so a rule follows its workspace's
+    /// renames. The resolver answers EMPTY for an id no declared workspace
+    /// carries, and the summary then shows the name the action stored.
+    /// Install-once setter; read live on every `data()`.
+    void setWorkspaceLabelLookup(LabelLookup fn);
 
     /// Inject the layoutId / algorithm-token → display-name resolvers used by
     /// the action summary so `SetSnappingLayout` and `SetTilingAlgorithm`
@@ -325,6 +339,7 @@ private:
     LabelLookup m_activityLookup;
     LabelLookup m_zoneLookup;
     LabelLookup m_virtualDesktopLookup;
+    LabelLookup m_workspaceLookup;
     // Split so a SetSnappingLayout action whose layoutId happens to
     // tokenise (e.g. matches an algorithm token by coincidence) and a
     // SetTilingAlgorithm action with a UUID-shaped algorithm name

@@ -5,7 +5,8 @@
 //
 // Centralises every daemon-broadcast subscription the settings UI relies
 // on for live updates:
-//   * Settings reload + async running-windows reply (Settings interface)
+//   * Settings reload, the Editor.*-only reload, and the async
+//     running-windows reply (Settings interface)
 //   * Layout list / property / assignment mutations + quick-slot updates
 //     (LayoutRegistry interface)
 //   * Virtual-desktop + activity changes (LayoutRegistry interface)
@@ -15,6 +16,8 @@
 //     restart.
 //   * Scrolling strip wake-ups (Scrolling interface) — relayed straight back
 //     out as `scrollingStripChanged` for the Monitors page's live thumbnail.
+//   * Screen geometry changes (Screen interface) — refresh the cached primary
+//     scale behind the local fixed-zone previews.
 //
 // The D-Bus wire-up is a natural seam away from `settingscontroller.cpp`. The
 // helper lambda and subscriptions are cohesive, only call into D-Bus
@@ -70,6 +73,16 @@ void SettingsController::wireDaemonSubscriptions(QStringList& failedSubscription
     // Listen for external settings changes from the daemon.
     const QString settingsIface = QString(PhosphorProtocol::Service::Interface::Settings);
     subscribeDaemonSignal(settingsIface, QStringLiteral("settingsChanged"), SLOT(onExternalSettingsChanged()));
+    // A reload that moved only Editor.* settings (typically the layout
+    // editor's own write) is announced on its own signal, so the daemon's
+    // other settingsChanged subscribers are spared it.
+    subscribeDaemonSignal(settingsIface, QStringLiteral("editorSettingsChanged"),
+                          SLOT(onExternalEditorSettingsChanged()));
+    // Not runningChanged: the daemon takes its bus name before its config
+    // migration runs, so a look at config.json then can still find the file
+    // the migration is about to move aside. daemonReady comes after.
+    subscribeDaemonSignal(QString(PhosphorProtocol::Service::Interface::LayoutRegistry), QStringLiteral("daemonReady"),
+                          SLOT(onDaemonReady()));
 
     // Async window picker reply channel. Emitted by SettingsAdaptor whenever
     // the KWin effect answers a runningWindowsRequested call via
@@ -105,6 +118,19 @@ void SettingsController::wireDaemonSubscriptions(QStringList& failedSubscription
     // screenLayoutChanged(QString,QString,int) fires when assignments change (hotkeys, scripts, toggle)
     subscribeDaemonSignal(layoutIface, QStringLiteral("screenLayoutChanged"),
                           SLOT(onScreenLayoutChanged(QString, QString, int)));
+    // activeLayoutForScreenChanged reports a change to a screen's resolved
+    // layout, whether a desktop switch, a rule edit or an assignment edit
+    // moved it, where screenLayoutChanged reports only assignment edits.
+    // screenStatesChanged reports a change to any field getScreenStates
+    // answers except the display names, so a desktop or activity switch that keeps the layout and a
+    // change in a screen's tiled-window count arrive too. All three re-read
+    // the cached screen states the Rules page's monitor tiles evaluate
+    // against. The Rules page coming into view and the window regaining
+    // focus re-read them as well, which also covers a signal missed while the
+    // daemon was restarting.
+    subscribeDaemonSignal(layoutIface, QStringLiteral("activeLayoutForScreenChanged"),
+                          SLOT(scheduleScreenStatesRefresh()));
+    subscribeDaemonSignal(layoutIface, QStringLiteral("screenStatesChanged"), SLOT(scheduleScreenStatesRefresh()));
     // quickLayoutSlotsChanged fires when quick layout slots are modified externally
     subscribeDaemonSignal(layoutIface, QStringLiteral("quickLayoutSlotsChanged"), SIGNAL(quickLayoutSlotsChanged()));
 
@@ -130,6 +156,14 @@ void SettingsController::wireDaemonSubscriptions(QStringList& failedSubscription
     // change on a context that only later becomes current.
     const QString scrollingIface = QString(PhosphorProtocol::Service::Interface::Scrolling);
     subscribeDaemonSignal(scrollingIface, QStringLiteral("stripChanged"), SIGNAL(scrollingStripChanged(QString)));
+
+    // Screen geometry changes, a settled fractional scale among them, refresh
+    // the cached primary scale that recalcLocalLayouts reads. Not filtered to
+    // the primary screen here: the refresh asks for the current primary and
+    // reloads only on a real change, so a change on another screen costs one
+    // asynchronous round trip and nothing else.
+    subscribeDaemonSignal(QString(PhosphorProtocol::Service::Interface::Screen),
+                          QStringLiteral("screenGeometryChanged"), SLOT(refreshPrimaryScreenScale()));
 
     // Window-rules → settings-side mirror store. The daemon owns
     // rules.json; when it persists a change via setAllRules() the

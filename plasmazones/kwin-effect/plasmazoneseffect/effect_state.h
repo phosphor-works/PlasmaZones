@@ -11,14 +11,19 @@
 /// .cpp files is unqualified (inside PlasmaZonesEffect member functions), so it
 /// resolves here via ordinary namespace lookup. Included by plasmazoneseffect.h.
 
+#include "tilinghandler/scrolldecisions.h" // ScrollOfferedColumn's answer state
+
 #include <PhosphorCompositor/DecorationDefaults.h> // WindowAppearanceScope
 
 #include <QColor>
 #include <QHash>
+#include <QObject>
 #include <QPointer>
 #include <QRect>
+#include <QRectF>
 #include <QSet>
 #include <QString>
+#include <QVariantList>
 #include <QtGlobal>
 
 #include <cstdint>
@@ -27,6 +32,7 @@
 
 namespace KWin {
 class EffectWindow;
+class LogicalOutput;
 }
 
 namespace PlasmaZones {
@@ -86,7 +92,7 @@ struct WindowAppearanceDefault
     }
 };
 
-/// Debounced frame-geometry shadow push state per window. The window pointer
+/// Throttled frame-geometry shadow push state per window. The window pointer
 /// rides along so the flush runs the exclusion gate once per flush. See
 /// PlasmaZonesEffect::m_pendingFrameGeometry.
 struct PendingFrameGeometry
@@ -136,13 +142,59 @@ struct WindowLayerSnapshot
     bool keepBelow = false;
 };
 
-/// The rect a scrolling batch last commanded for an X11 window, plus the
-/// counter-assert burst budget. See PlasmaZonesEffect::m_scrollCommandedRects.
+/// The rect a scrolling batch last commanded for a window the counter-assert
+/// guards, plus its burst budget. See PlasmaZonesEffect::m_scrollCommandedRects.
 struct ScrollCommandedRect
 {
     QRect rect;
     qint64 burstStartMs = 0;
     int burstCount = 0;
+    quint64 commandStamp = 0; ///< the stamp of the strip apply that recorded this rect (WindowCommandStamps)
+    bool outOfView = false; ///< @c rect leaves the strip's output (a park or a cropped straddler)
+    bool parked = false; ///< @c rect lies off every output (TilingHandler::rectAtScrollPark)
+    /// The foreign size the counter-assert last put an X11 window back from
+    /// under this command (ScrollDecisions::x11ForeignSizeVerdict); empty for
+    /// none. Written only where the put-back is made, and never for a size
+    /// within rounding of @c rect. A batch writes a fresh entry, so a new
+    /// command starts with none.
+    QSize putBackSize{};
+    /// The size the counter-assert learned under this command: an X11 client
+    /// that insisted on it from a frame that read as its answer. Empty for
+    /// none. Only this size, or one within rounding of @c rect, is read as the
+    /// client's answer (ScrollDecisions::x11SizeAnswersColumn).
+    QSize learnedSize{};
+};
+
+/// The column a strip batch last delivered to a window, and where the
+/// client's answer to it stands. See PlasmaZonesEffect::m_scrollOfferedColumn.
+struct ScrollOfferedColumn
+{
+    QRect rect;
+    ScrollDecisions::ColumnAnswer answer = ScrollDecisions::ColumnAnswer::Read;
+    /// The frame size last read as the client's answer, which a Read answer is
+    /// compared against so a frame change that kept it reports nothing.
+    QSize answeredSize;
+    /// Id of the commit watch serving an Owed answer
+    /// (PlasmaZonesEffect::armColumnAnswerWatch), 0 for none. Inside the value
+    /// so every remover of the entry retires the watch without knowing it
+    /// exists: a watch that finds no entry, or an entry naming another id,
+    /// disconnects itself on the next commit.
+    quint64 answerWatch = 0;
+    /// The budget for putting back a resize KWin requested on its own account
+    /// (PlasmaZonesEffect::noteForeignStripRequest), spent through
+    /// ScrollDecisions::shouldCounterAssert like ScrollCommandedRect's and
+    /// re-armed by every delivery of a column (recordStripOffer).
+    qint64 putBackBurstStartMs = 0;
+    int putBackBurstCount = 0;
+    /// The window's command stamp when the column was delivered
+    /// (WindowCommandStamps): still current while no newer command has
+    /// replaced the delivery, which tells a scroll handoff's echo whether the
+    /// entry is the destination batch's own.
+    quint64 commandStamp = 0;
+    /// The connection of the commit watch named by @c answerWatch. Reads false
+    /// once it is disconnected, by the watch retiring itself or by its surface
+    /// going away, so a watch that can no longer serve the entry is replaced.
+    QMetaObject::Connection answerWatchConnection;
 };
 
 /// Minimize-shader stamp: the time and generation of the transition a minimize
@@ -152,6 +204,19 @@ struct MinimizeShaderStamp
 {
     qint64 timeMs = 0;
     quint64 generation = 0;
+};
+
+/// A window KWin is still moving after the effect stopped tracking the drag
+/// (the left button came up with another held), or a move the tracker never
+/// took. Its crossings wait for the drain, which runs once KWin's move has
+/// finished and, for a dropped drag, the drop's outcome has been applied
+/// (F751).
+struct MoveTailHold
+{
+    QPointer<KWin::EffectWindow> window;
+    bool awaitingOutcome = false; ///< a drop was dispatched for it
+    bool finished = false; ///< windowFinishUserMovedResized fired
+    quint64 generation = 0; ///< the drag generation of the drop it waits on (0 for a move the tracker never took)
 };
 
 /// Per-drag activation / float tracking. Grouped from PlasmaZonesEffect's
@@ -191,15 +256,206 @@ struct DragActivationState
     // any resize the user made while floating. Only the tiled→float transition
     // wants the pre-autotile size restore.
     bool startedFloating = false;
+
+    // A snapping excursion suspended the dragged tile mid-drag
+    // (TilingHandler::suspendTileForSnapDrag); callEndDrag settles it once the
+    // drop has an answer.
+    bool tileSuspended = false;
+
+    MoveTailHold tail;
+};
+
+/// Per-window geometry command stamp: the one supersession model every deferred
+/// apply shares. Every geometry command for a window (applyWindowGeometry, a
+/// drag-end dispatch, an effect-side float, the untrack funnel, and each entry a
+/// cascade schedules) bumps the window's stamp from one monotonic counter. A
+/// deferred apply (the snap and tile cascades, the screen-change cascade, the
+/// mid-drag replay) captures the stamp it was scheduled under and drops itself
+/// at fire time when a newer command has bumped it since.
+///
+/// Per WINDOW, not per screen: a per-screen epoch let a newer batch that does
+/// not carry a window void that window's pending entry (over-cancel), and let a
+/// single-window command leave an older pending entry standing (under-cancel).
+/// Keyed by raw pointer and erased when the window is deleted; the counter is
+/// session-monotonic, so a recycled address never matches a captured stamp.
+struct WindowCommandStamps
+{
+    quint64 bump(const KWin::EffectWindow* w)
+    {
+        return w ? (byWindow[w] = ++seq) : 0;
+    }
+    /// True when @p stamp is still @p w's latest command. A zero stamp (the
+    /// entry had no live window when it was scheduled) is never superseded.
+    bool isCurrent(const KWin::EffectWindow* w, quint64 stamp) const
+    {
+        return stamp == 0 || byWindow.value(w) == stamp;
+    }
+    quint64 current(const KWin::EffectWindow* w) const
+    {
+        return byWindow.value(w);
+    }
+    /// Put back a stamp read before an apply that only RE-ASSERTS a command
+    /// already issued (the scroll counter-assert): that apply is not a new
+    /// command, so it must not void an entry scheduled after the one it
+    /// re-asserts.
+    void reinstate(const KWin::EffectWindow* w, quint64 stamp)
+    {
+        if (w && stamp != 0) {
+            byWindow[w] = stamp;
+        }
+    }
+    /// A drop is the user's own placement, so it gets a mark of its own: a
+    /// reply to a request sent before the window's latest drop answers a
+    /// placement the user has since replaced (F884). Only drops count. A
+    /// daemon apply between a request and its reply (the open path's
+    /// size-only restore) is part of the answer, not a newer one.
+    void noteDrop(const KWin::EffectWindow* w)
+    {
+        if (w) {
+            dropsByWindow[w] = ++seq;
+        }
+    }
+    quint64 lastDrop(const KWin::EffectWindow* w) const
+    {
+        return dropsByWindow.value(w);
+    }
+    void forget(const KWin::EffectWindow* w)
+    {
+        byWindow.remove(w);
+        dropsByWindow.remove(w);
+        staleAcks.remove(w);
+    }
+    /// Supersede every pending deferred apply at once (daemon loss, F405):
+    /// each window's stamp moves on, so no captured stamp is current any more.
+    void supersedeAll()
+    {
+        for (auto it = byWindow.begin(); it != byWindow.end(); ++it) {
+            it.value() = ++seq;
+        }
+        staleAcks.clear();
+    }
+
+    /// A command KWin applied WITHOUT a configure (it asked for the size the
+    /// client already has) while an older configure for a different size was
+    /// still unacked. That older configure stays outstanding, and when the
+    /// client acks it the stale size lands. The frame-change hook answers that
+    /// ack once by re-issuing @c target, valid only while @c stamp is current.
+    struct StaleAck
+    {
+        QRect target;
+        quint64 stamp = 0;
+    };
+    QHash<const KWin::EffectWindow*, StaleAck> staleAcks;
+    /// After a command that sets no rect (a skipped float-restore): the answer
+    /// an armed StaleAck owes is still owed, so it follows @p w's current
+    /// stamp, as a repeat of its rect does in applyWindowGeometry (F1115).
+    /// @p previous is the stamp that was current before that command: only
+    /// an ack still current then is carried, and one a command in between
+    /// already voided stays void (F1131).
+    void carryStaleAck(const KWin::EffectWindow* w, quint64 previous)
+    {
+        if (const auto stale = staleAcks.find(w); stale != staleAcks.end() && stale->stamp == previous) {
+            stale->stamp = current(w);
+        }
+    }
+
+    QHash<const KWin::EffectWindow*, quint64> byWindow;
+    QHash<const KWin::EffectWindow*, quint64> dropsByWindow;
+    quint64 seq = 0;
+};
+
+/// The desktop and activity fields of a metadata push, in the form the wire
+/// carries them: the first desktop's x11 number (0: every desktop or
+/// unknown) and the full list only for a window on several, the first
+/// activity (empty: every activity) and the full list only for several.
+struct WindowContextFields
+{
+    int virtualDesktop = 0;
+    QVariantList desktops;
+    QString activity;
+    QVariantList activities;
+};
+
+/// The interactive RESIZE in progress, from windowStartUserMovedResized until
+/// its end is settled (F486, F701): while it holds, the window's screen
+/// crossings and its desktop and activity edges wait, and
+/// PlasmaZonesEffect::drainResizeHold resolves them once. One at a time, since
+/// KWin runs one interactive move or resize. Call sites compare
+/// `m_resizeHold.window == w`.
+struct ResizeHold
+{
+    enum ContextAxis : quint8 {
+        DesktopAxis = 1,
+        ActivityAxis = 2
+    };
+    QPointer<KWin::EffectWindow> window;
+    QRect startGeometry; ///< the pre-resize frame, the #652 report's baseline
+    /// The context the window had when the resize began: every metadata push
+    /// reports it while an edit is held, so the daemon does not carry the
+    /// window into a context mid-gesture (F665).
+    WindowContextFields context;
+    bool finished = false; ///< KWin ended the gesture; the drain waits for the client
+    QRectF requested; ///< moveResizeGeometry() at the finish, what the deadline drains
+    quint64 commandStampAtFinish = 0;
+    quint8 heldAxes = 0; ///< ContextAxis bits whose handler waits for the drain
+    QMetaObject::Connection ackWatch;
+    QMetaObject::Connection commitWatch; ///< the client's commits, for one that keeps its size (F1096)
+    quint64 generation = 0; ///< bumped per hold, read by the deadline timer
+};
+
+/// A window's desktop or activity edit that waits for the move that caused it
+/// to settle (EE, windowcontexthold.h). The held context is the window's
+/// context stamp (PlasmaZonesEffect::m_contextStampPerWindow), which a held
+/// edit does not advance, so every push reports it and the release classifies
+/// the live sets against it once. The resize hold keeps precedence: an edit it
+/// holds never reaches this record, and a release during a resize hands the
+/// axes to it.
+struct ContextHold
+{
+    quint8 reasons = 0; ///< WindowContextHold::Reason bits still standing
+    quint8 heldAxes = 0; ///< ResizeHold::ContextAxis bits waiting for the release
+    const KWin::LogicalOutput* committedAtHold = nullptr; ///< OutputInFlight's backstop baseline
+    quint64 generation = 0; ///< read by the in-flight deadline timer
+};
+
+/// PlasmaZones' own move of a window to another output, from the apply that
+/// commits it until the window lands there (F161). The destination's desktop is
+/// read when it lands, as KWin's Move to Screen reads it (F717).
+struct PzCrossing
+{
+    const KWin::LogicalOutput* target = nullptr; ///< compared, never dereferenced
+    QString sourceDesktopId; ///< the desktop the source output showed at the apply
+    bool visibleOnSource = false; ///< on that desktop and not parked for an arrival (F693)
+    /// The desktop the window was put on deliberately and keeps at the landing:
+    /// the one an open's placement routed it to (F719), or a workspace move's
+    /// target when that move lands while the crossing is still out (F364).
+    QString pinnedDesktopId;
+};
+
+/// Every context hold (window_context_hold.cpp). Raw keys, erased in the
+/// windowDeleted cleanup.
+struct ContextHoldState
+{
+    QHash<const KWin::EffectWindow*, ContextHold> holds;
+    /// Drag subjects from dragStarted until the drop's outcome is applied and
+    /// KWin's move has ended. Not DragTracker::isDragging(), which drops the
+    /// subject at the left button's release, before the outcome (F751).
+    QSet<const KWin::EffectWindow*> dragLatched;
+    quint64 seq = 0; ///< hands out ContextHold::generation
+    /// Re-armed by every apply that commits, consumed where the window lands.
+    QHash<const KWin::EffectWindow*, PzCrossing> pzCrossings;
+    /// The desktop an open's RouteToDesktop moved the window to, until the
+    /// open's next apply takes it into its PzCrossing.
+    QHash<const KWin::EffectWindow*, QString> pinnedDesktops;
 };
 
 /// Daemon readiness / virtual-screen fetch gate state. Grouped from
 /// PlasmaZonesEffect's trailing member block; see PlasmaZonesEffect::m_daemonGate.
-/// Cached daemon D-Bus service registration state, updated via QDBusServiceWatcher
-/// signals to avoid synchronous isServiceRegistered() calls that block the
-/// compositor thread.
 struct DaemonGateState
 {
+    /// Cached daemon D-Bus service registration state, updated via
+    /// QDBusServiceWatcher signals to avoid synchronous isServiceRegistered()
+    /// calls that block the compositor thread.
     bool serviceRegistered = false;
     /// True between sending registerBridge and receiving its reply. Prevents
     /// the Introspect probe + daemonReady signal racing into two concurrent
@@ -234,20 +490,31 @@ struct DaemonGateState
     /// authoritative source of the window's intended VS during these applies, so the crossing check
     /// is unsafe and must be skipped.
     bool inGeometryApply = false;
-    /// Per-screen supersession epoch for slotApplyGeometriesBatch cascades.
-    /// When cascade stagger is enabled, a daemon geometry batch spreads its
-    /// per-window moves across QTimer::singleShot ticks. A rapid second batch
-    /// (e.g. holding the rotate shortcut) starts its own cascade while the
-    /// first one's ticks are still queued; the older batch's later-firing
-    /// timers would then clobber the newer batch's positions, leaving windows
-    /// in stale zones. Each batch bumps and captures the epoch for every screen
-    /// it targets. A staggered apply drops itself when its screen's epoch has
-    /// advanced, and the z-order restore drops only when every screen it
-    /// targeted has advanced. Per-screen, not global, so a batch on
-    /// one output never strands an in-flight cascade on another — mirrors the
-    /// autotile cascade guard (m_tileStaggerGenByScreen).
-    QHash<QString, uint64_t> batchGenByScreen;
+    bool quietApplyLog = false; ///< a heartbeat view tick's tile apply: applyWindowGeometry logs at debug (F100)
+    /// The tile apply departs from where the window was last seen, after a request KWin made itself may already have
+    /// put the window at the batch's rect: the answer to a column maximize or restore the interception claimed
+    /// (F989), or a batch whose quick-tile drop KWin's untile answered with an immediate move (CR2-24). The leg from
+    /// the caller's origin is owed all the same (ScrollDecisions::departureOwesLeg).
+    bool departureLegOwed = false;
+    /// The window whose commit applyWindowGeometry's ANIMATED arm is making
+    /// right now (null otherwise). That arm commits before it retargets its
+    /// own leg, and the frame-change hook's strip retarget must not answer
+    /// the synchronous re-entry, or it zeroes the leg's velocity first.
+    const KWin::EffectWindow* animatedApplyCommit = nullptr;
+    /// See WindowCommandStamps.
+    WindowCommandStamps commandStamps;
     int pendingVsConfigReplies = 0; ///< countdown for fetchAllVirtualScreenConfigs async replies
+    /// Countdown for the LIVE (generation 0) fetchVirtualScreenConfig replies, which the counter
+    /// above deliberately does not cover — it is the startup batch's own tally. Both exist because
+    /// virtualScreensReady is ONE flag for the whole effect while onVirtualScreensChanged is a
+    /// PER-SCREEN signal, so a virtual-screen reconfigure touching several monitors closes the gate
+    /// once and issues one fetch per monitor. Without this, the first reply to land reopened the gate
+    /// for all the others, and the window-crossing detector then ran against a half-updated
+    /// m_virtualScreenDefs — the same phantom crossing the gate exists to prevent. A superseded
+    /// reply for one screen did it too. Every live fetch increments this exactly once and every
+    /// reply path discharges it exactly once, through restoreReadyIfLive, which is already
+    /// contractually reached by all of them.
+    int pendingLiveVsConfigReplies = 0;
     uint64_t vsConfigGeneration = 0; ///< generation counter for fetchAllVirtualScreenConfigs
     /// Per-physId fetchVirtualScreenConfig sequence. Every fetch bumps its
     /// physId's entry; the async reply applies to m_virtualScreenDefs only if
@@ -276,13 +543,25 @@ struct IdCacheState
     // Cleared on screen geometry changes (add/remove/reconfigure).
     QHash<QString, QString> screenIdCache;
 
-    // Connected physical screen ids (outputScreenId per KWin output),
-    // rebuilt lazily after every screenIdCache invalidation. Lets the
+    // Connected physical screen ids (outputScreenId per KWin output), rebuilt
+    // EAGERLY by both screen handlers and lazily after the other invalidation
+    // points (virtual-screen change, geometry change, the bridge). Lets the
     // scroll-override path (getWindowScreenId — a per-candidate call inside
     // both focus-follows-mouse stacking walks) test output liveness with a
     // set lookup instead of an O(outputs) string-building scan per call.
     QSet<QString> connectedPhysicalIds;
     bool connectedPhysicalIdsValid = false;
+
+    // Screen id RECORDED PER OUTPUT, so a removal reads the spelling its state was published
+    // under instead of recomputing one. The recompute is unreliable on a MULTI-output removal of
+    // identical monitors: KWin prunes every removed output from its list before emitting the
+    // first screenRemoved, so once the cache is dropped mid-handler the duplicate scan can no
+    // longer see the departed twin, and a suffixed "baseId/connector" key collapses to a bare
+    // baseId. That defeats the teardown clear keyed on it. Deliberately NOT cleared by
+    // clearScreenIdCache, which is the whole point: it must survive the mid-handler drop.
+    // Erased when its output goes, and on add, so a raw pointer cannot outlive the output or be
+    // read after a later hotplug lands at the same address.
+    QHash<const KWin::LogicalOutput*, QString> screenIdByOutput;
 
     // Window ID cache: EffectWindow* → "appId|uuid" (populated on first getWindowId call,
     // cleared in slotWindowClosed/windowDeleted). Eliminates 3-5 QString allocations per

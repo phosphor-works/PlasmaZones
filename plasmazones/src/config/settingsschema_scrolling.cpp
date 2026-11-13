@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The scrolling half of the settings schema: the Scrolling knobs and
-// the Shortcuts.Scrolling chords. Split out of settingsschema.cpp for
-// file-size; the shared validator helpers live in settingsschema_p.h and the
-// three entry points (appendScrollingSchema, appendScrollingZoneSelectorSchema,
+// the Shortcuts.Scrolling chords. Split out of settingsschema.cpp by domain.
+// The shared validator helpers live in settingsschema_p.h and the three entry
+// points (appendScrollingSchema, appendScrollingZoneSelectorSchema,
 // appendScrollingShortcutsSchema) are declared alongside every other
 // appendXxxSchema in settingsschema.h.
 
@@ -497,8 +497,8 @@ void appendScrollingSchema(PhosphorConfig::Schema& schema)
          QStringLiteral("Remove the outer gaps while the strip holds a single column, so that column sits against the "
                         "screen edge at its own width.")},
         {CD::respectMinimumSizeKey(), CD::scrollingRespectMinimumSize(), QMetaType::Bool,
-         QStringLiteral("Keep columns at least as wide and tall as their windows' minimum size, which can push other "
-                        "windows off screen.")},
+         QStringLiteral("Keep columns at least as wide and tall as their windows' minimum size, and grow a column to "
+                        "fit a window that stays larger than it. Both can push other windows off screen.")},
         {CD::centerShortColumnsKey(), CD::scrollingCenterShortColumns(), QMetaType::Bool,
          QStringLiteral("Center the windows in a column that does not fill the screen, rather than leaving the unused "
                         "space at the end of the column.")},
@@ -712,8 +712,8 @@ void appendScrollingShortcutsSchema(PhosphorConfig::Schema& schema)
         {CD::viewPageForwardKey(), CD::scrollingViewPageForwardShortcut(), QMetaType::QString,
          QStringLiteral("Scrolls the view toward the end of the strip by a whole screen. Focus stays where it is.")},
         {CD::equalizeColumnWidthsKey(), CD::scrollingEqualizeColumnWidthsShortcut(), QMetaType::QString,
-         QStringLiteral("Gives every column fully on screen an equal share of the screen. Columns clipped at an edge "
-                        "are left alone.")},
+         QStringLiteral("Gives every column on screen an equal share of the screen. A column clipped at an edge "
+                        "comes fully into view.")},
         {CD::minimizeColumnWidthKey(), CD::scrollingMinimizeColumnWidthShortcut(), QMetaType::QString,
          QStringLiteral("Shrinks the focused column to the smallest size preset.")},
         {CD::equalizeWindowHeightsKey(), CD::scrollingEqualizeWindowHeightsShortcut(), QMetaType::QString,

@@ -3,16 +3,18 @@
 
 // SettingsController — the rule-list label lookups. The RuleController renders
 // its match / action summaries through resolver closures this controller
-// installs (screen and activity ids, desktop numbers, zone uuids and names,
-// layout uuids, algorithm tokens, shader and decoration pack ids, animation
-// event paths), plus the refresh wiring that keeps those labels live. Split
-// from settingscontroller.cpp for file-size; same class, separate TU.
+// installs (screen and activity ids, desktop numbers, named workspace ids,
+// zone ids, layout ids, algorithm tokens, animation, overlay shader and
+// decoration pack ids, animation event paths), the two zone enumerators its
+// pickers read, and the refresh wiring that keeps all of them live. Split from settingscontroller.cpp
+// for file-size; same class, separate TU.
 
 #include "settingscontroller.h"
 
 #include "core/interfaces/shaderregistry.h"
 #include "phosphor_i18n.h"
 #include "settings/rules/ruleauthoring.h"
+#include "settings/rules/rulepickeroptions.h"
 
 #include <PhosphorAnimation/AnimationShaderRegistry.h>
 #include <PhosphorLayoutApi/LayoutId.h>
@@ -24,6 +26,7 @@
 #include <PhosphorZones/Zone.h>
 
 #include <QSet>
+#include <QUuid>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -40,16 +43,15 @@ void SettingsController::refreshRuleLabels()
 
 void SettingsController::installRuleLabelLookups()
 {
-    // Wire screen / activity / layout label resolvers so the rule model and
-    // monitor-overview render friendly names instead of raw connector strings,
-    // activity UUIDs and layout UUIDs.
+    // Wire the label resolvers so the rule model and monitor-overview render
+    // friendly names instead of raw connector strings, activity UUIDs, layout
+    // UUIDs and the like.
     //
-    // The closures capture `this` and read live snapshot state on every call,
-    // so they need to be installed exactly ONCE — re-installing on every
-    // upstream change was wasteful (three model-wide `dataChanged` emits per
-    // signal × three signals = nine emits). Upstream changes are now routed
-    // to `RuleModel::refreshLabels()` which emits a single dataChanged
-    // covering every label-derived role.
+    // The closures capture `this` and read live state on every call, so they
+    // are installed exactly once, from the ctor. An upstream change does not
+    // re-install them: it reaches `RuleModel::refreshLabels()` through the
+    // connections at the end of this function, which emits a single
+    // dataChanged covering every label-derived role.
     m_rulesPage->setScreenLookup([this](const QString& screenId) -> QString {
         const QVariantList all = screens();
         for (const QVariant& sv : all) {
@@ -57,9 +59,11 @@ void SettingsController::installRuleLabelLookups()
             // Match against `name` (the connector / virtual-screen id) or
             // `screenId` (the daemon-stable screen identifier). The screen
             // payload built by `screenInfoListToVariantList` never emits an
-            // `id` key — comparing against `"id"` would be dead code.
-            if (m.value(QStringLiteral("name")).toString() == screenId
-                || m.value(QStringLiteral("screenId")).toString() == screenId) {
+            // `id` key — comparing against `"id"` would be dead code. Case is
+            // ignored, as the rule engine's Equals and the editor's picker
+            // ignore it, so all three agree on a hand-edited id.
+            if (m.value(QStringLiteral("name")).toString().compare(screenId, Qt::CaseInsensitive) == 0
+                || m.value(QStringLiteral("screenId")).toString().compare(screenId, Qt::CaseInsensitive) == 0) {
                 const QString label = m.value(QStringLiteral("displayLabel")).toString();
                 return label.isEmpty() ? screenId : label;
             }
@@ -69,7 +73,8 @@ void SettingsController::installRuleLabelLookups()
     m_rulesPage->setActivityLookup([this](const QString& activityId) -> QString {
         for (const QVariant& av : std::as_const(m_activities)) {
             const QVariantMap m = av.toMap();
-            if (m.value(QStringLiteral("id")).toString() == activityId) {
+            // Case ignored for the same reason as the screen lookup above.
+            if (m.value(QStringLiteral("id")).toString().compare(activityId, Qt::CaseInsensitive) == 0) {
                 const QString name = m.value(QStringLiteral("name")).toString();
                 return name.isEmpty() ? activityId : name;
             }
@@ -87,18 +92,19 @@ void SettingsController::installRuleLabelLookups()
         }
         return QString();
     });
-    // Zone (snap-zone UUID) → friendly "<layout> — <zone>" label, walking the
-    // local manual layouts for the zone whose id matches. Resolved live so a
-    // later layout/zone rename surfaces on the next refreshLabels(). The zone-name
-    // data is not in the LayoutPreview list (it carries geometry + numbers, not
-    // UUIDs), so this reads the registry's actual Zone objects directly. Unknown
-    // ids (deleted layout, hand-edited rule) round-trip verbatim.
+    // RouteToWorkspace targets a named entry by its persistent id. The summary
+    // shows that entry's CURRENT name, so a rename shows up on the rule at
+    // once; an id no entry carries resolves to empty and the summary falls
+    // back to the name the action stored.
+    m_rulesPage->setWorkspaceLookup([this](const QString& entryId) -> QString {
+        return namedWorkspaceName(entryId);
+    });
     // Distinct zone names for the SnapToZone "Zone names" picker, read from the
-    // same registry Zone objects as the lookup below and for the same reason
-    // (the preview list has no names). Deduplicated on the case-folded key the
-    // engine's zoneByName matches on, keeping the first spelling seen, and
-    // sorted with the locale collation the layout pickers use. Refreshed from
-    // the registry's layoutsChanged handler; the controller emits only on change.
+    // registry's Zone objects because the LayoutPreview list carries no zone
+    // names. Deduplicated on the case-folded key the engine's zoneByName
+    // matches on, keeping the first spelling seen, and sorted with locale-aware
+    // collation. Refreshed from the registry's layoutsChanged handler; the
+    // controller emits only on change.
     m_rulesPage->setZoneNamesProvider([this]() -> QStringList {
         QStringList names;
         if (!m_localLayoutManager) {
@@ -133,25 +139,41 @@ void SettingsController::installRuleLabelLookups()
         });
         return names;
     });
+    // Zone (snap-zone UUID) → the "<layout> — <zone>" label the Zone picker
+    // shows for it, read from the RuleController's cached zone options so the
+    // rule list, the read-only tree and the picker share one label for every
+    // zone, including the suffix a same-named layout carries. The comparison
+    // ignores case, as the rule engine's Equals does, so a hand-edited id in
+    // upper case still resolves. Unknown ids (deleted layout, hand-edited
+    // rule) round-trip verbatim.
     m_rulesPage->setZoneLookup([this](const QString& zoneId) -> QString {
-        if (zoneId.isEmpty() || !m_localLayoutManager) {
+        if (zoneId.isEmpty() || !m_rulesPage) {
             return zoneId;
         }
-        for (PhosphorZones::Layout* layout : m_localLayoutManager->layouts()) {
-            if (!layout) {
-                continue;
-            }
-            for (PhosphorZones::Zone* zone : layout->zones()) {
-                if (!zone || zone->id().toString() != zoneId) {
-                    continue;
-                }
-                const QString zoneName =
-                    zone->name().isEmpty() ? PhosphorI18n::tr("Zone %1").arg(zone->zoneNumber()) : zone->name();
-                const QString layoutName = layout->name();
-                return layoutName.isEmpty() ? zoneName : PhosphorI18n::tr("%1 — %2").arg(layoutName, zoneName);
+        const QVariantList options = m_rulesPage->zoneMatchOptions();
+        for (const QVariant& ov : options) {
+            const QVariantMap option = ov.toMap();
+            if (option.value(QStringLiteral("id")).toString().compare(zoneId, Qt::CaseInsensitive) == 0) {
+                return option.value(QStringLiteral("displayName")).toString();
             }
         }
         return zoneId;
+    });
+    // The zone lookup above reads the option list, and a zone rename changes
+    // that list without changing the layout list (LayoutPreview carries no
+    // zone names), so layoutsChanged alone would leave the rule list's Zone
+    // labels stale. Connected before the provider is installed, so the first
+    // publish below already re-renders the rule list.
+    connect(m_rulesPage, &RuleController::zoneMatchOptionsChanged, this, &SettingsController::refreshRuleLabels);
+    // Every zone of every local manual layout, for the Zone condition's picker
+    // and, through the lookup above, the rule list. Built by
+    // RulePickerOptions::zoneMatchOptions, which documents the id form, the
+    // labels and the order.
+    m_rulesPage->setZoneMatchOptionsProvider([this]() -> QVariantList {
+        if (!m_localLayoutManager) {
+            return {};
+        }
+        return RulePickerOptions::zoneMatchOptions(m_localLayoutManager->layouts());
     });
     // SettingsController::layouts() is the union of three id families:
     // snapping layouts (UUID-keyed), autotile entries (algorithm-token-keyed
@@ -211,9 +233,10 @@ void SettingsController::installRuleLabelLookups()
     // Dissolve" read as two rows and two sections' "Show" events cannot
     // collapse into one label. Both halves are the translated segment labels
     // the animations page and the event picker show
-    // (AnimationsPageController::segmentLabel). m_animationsPage
-    // already exists here (constructed earlier in this ctor); the null guard
-    // only covers the lookup being exercised after teardown has cleared it.
+    // (AnimationsPageController::segmentLabel). m_animationsPage already
+    // exists here (the SettingsController ctor builds it before calling
+    // installRuleLabelLookups); the null guard only covers the lookup being
+    // exercised after teardown has cleared it.
     m_rulesPage->setAnimationEventLookup([this](const QString& path) -> QString {
         if (path.isEmpty() || !m_animationsPage) {
             return path;
@@ -244,10 +267,11 @@ void SettingsController::installRuleLabelLookups()
     // the friendly name via the overlay shader registry (the same source the
     // rule editor's overlay-shader picker reads), so the list shows
     // "Overlay shader: <name>" rather than the raw id. Unknown ids round-trip
-    // verbatim (registry miss → empty name → raw id). m_overlayShaderRegistry is
-    // constructed later in this ctor; the `!m_overlayShaderRegistry` guard below
-    // covers that window — the lambda captures `this` and is invoked only lazily
-    // (on the model's first label render, after construction completes).
+    // verbatim (registry miss → empty name → raw id). m_overlayShaderRegistry
+    // is built later in the SettingsController ctor than the
+    // installRuleLabelLookups call; the `!m_overlayShaderRegistry` guard below
+    // covers that window — the lambda captures `this` and is invoked only
+    // lazily (on the model's first label render, after construction completes).
     auto resolveOverlayShaderLookup = [this](const QString& effectId) -> QString {
         if (effectId.isEmpty() || !m_overlayShaderRegistry) {
             return effectId;
@@ -269,6 +293,44 @@ void SettingsController::installRuleLabelLookups()
         return name.isEmpty() ? packId : name;
     };
     m_rulesPage->setDecorationPackLookup(resolveDecorationPackLookup);
+    // The monitor overview's two inputs that are not rules. The colour scheme
+    // is this process's palette, which follows the same session theme the
+    // daemon classifies.
+    m_rulesPage->setColorSchemeProvider([]() {
+        return Settings::systemColorSchemeToken();
+    });
+    // The global default a screen falls back to when a rule fills a layout
+    // slot but none sets the engine mode. Mirrors the daemon's level-1
+    // default (LayoutRegistry::resolveDefaultAssignmentEntry over the
+    // providers the daemon wires in init_services.cpp): nothing while the
+    // default is suppressed, Snapping with the default layout while snapping
+    // is on (an id whose layout is gone reads as no layout, and the reserved
+    // no-layout word passes through), else Autotile with the default
+    // algorithm while autotiling is on and one is set.
+    m_rulesPage->setDefaultAssignmentProvider([this]() -> PhosphorZones::AssignmentEntry {
+        PhosphorZones::AssignmentEntry entry;
+        if (m_settings.suppressDefaultLayoutAssignment()) {
+            return entry;
+        }
+        if (m_settings.snappingEnabled()) {
+            entry.mode = PhosphorZones::AssignmentEntry::Snapping;
+            QString layoutId = m_settings.defaultLayoutId();
+            if (!layoutId.isEmpty() && layoutId != PhosphorZones::NoSnappingLayout) {
+                const QUuid uuid = QUuid::fromString(layoutId);
+                if (uuid.isNull() || !m_localLayoutManager || !m_localLayoutManager->layoutById(uuid)) {
+                    layoutId.clear();
+                }
+            }
+            entry.snappingLayout = layoutId;
+            return entry;
+        }
+        const QString algorithm = m_settings.autotileEnabled() ? m_settings.defaultAutotileAlgorithm() : QString();
+        if (!algorithm.isEmpty()) {
+            entry.mode = PhosphorZones::AssignmentEntry::Autotile;
+            entry.tilingAlgorithm = algorithm;
+        }
+        return entry;
+    });
     connect(this, &SettingsController::screensChanged, this, &SettingsController::refreshRuleLabels);
     connect(this, &SettingsController::activitiesChanged, this, &SettingsController::refreshRuleLabels);
     connect(this, &SettingsController::layoutsChanged, this, &SettingsController::refreshRuleLabels);
@@ -276,6 +338,9 @@ void SettingsController::installRuleLabelLookups()
     // on renames too, like its screen/activity/layout siblings, or a rule's
     // "Desktop: Work" label stays stale until an unrelated refresh fires.
     connect(this, &SettingsController::virtualDesktopsChanged, this, &SettingsController::refreshRuleLabels);
+    // The workspace resolver reads the named list live; a rename or removal
+    // there changes what a RouteToWorkspace summary shows.
+    connect(this, &SettingsController::namedWorkspacesChanged, this, &SettingsController::refreshRuleLabels);
     // A shader-pack rescan (user drops in a new effect, or one is removed)
     // can change an id→name mapping; refresh so resolved Shader labels track it.
     connect(m_animationShaderRegistry, &PhosphorAnimationShaders::AnimationShaderRegistry::effectsChanged, this,

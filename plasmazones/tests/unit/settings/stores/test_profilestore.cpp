@@ -20,6 +20,9 @@
  *   - A file stamped with a different schema version is refused (skipped on
  *     load, rejected on import).
  *   - The committed active pointer round-trips through index.json.
+ *   - The active-modified compare runs each value through the settings
+ *     schema's coercion, so a value captured before a clamp tightened reads
+ *     clean against the clamped live value.
  */
 
 #include <QJsonArray>
@@ -39,7 +42,9 @@
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/Rule.h>
 
+#include "config/configdefaults.h"
 #include "config/configmigration.h"
+#include "phosphor_i18n.h"
 #include "settings/stores/profilestore.h"
 
 using namespace PlasmaZones;
@@ -55,8 +60,13 @@ QJsonObject baseDefaults()
     // work to do when the defaults seed carries the key, so a defaults stub
     // without it would leave that path unexecuted and make
     // machineScopedKeyStaysOutOfProfiles pass even against broken code.
+    //
+    // The window opacity is declared because isActiveModified compares only
+    // keys the defaults blob declares, as it does in production, and the
+    // clamp test compares that key.
     return QJsonObject{
         {QStringLiteral("GroupA"), QJsonObject{{QStringLiteral("k1"), 1}, {QStringLiteral("k2"), QStringLiteral("x")}}},
+        {ConfigDefaults::windowsAppearanceGroup(), QJsonObject{{ConfigDefaults::opacityKey(), 1.0}}},
         {QStringLiteral("GroupB"), QJsonObject{{QStringLiteral("b"), false}}},
         {QStringLiteral("Rendering"), QJsonObject{{QStringLiteral("Gpu"), QStringLiteral("auto")}}},
         // Animations.ShaderProfileTree is declared for the same reason: the
@@ -259,6 +269,78 @@ private Q_SLOTS:
         QVERIFY(m_store->activateProfile(id));
         QVERIFY2(m_lastApplied.isEmpty(),
                  "re-activation applied a blob: isActiveModified treated the machine-scoped pin as a modification");
+    }
+
+    /// A profile file placed in the folder by hand (or imported) is not
+    /// trusted to leave the machine-scoped keys out. Reading it strips
+    /// Rendering.Gpu and the Workspaces.Behavior ManageKWinPerOutput consent
+    /// latch from its delta, so neither is listed as a change nor written
+    /// back out by an export, while RebindKWinDesktopShortcuts in the same
+    /// group rides the profile like any preference.
+    ///
+    /// The diff and the export both read the record readProfileFile built, so
+    /// both fail if its Settings::stripMachineScopedKeys call is removed. The
+    /// activation leg alone would not: resolveConfig strips again.
+    void handPlacedFileLosesMachineScopedKeysOnRead()
+    {
+        const QString bracedId = QUuid::createUuid().toString();
+        const QString path =
+            m_dir->path() + QLatin1Char('/') + QUuid(bracedId).toString(QUuid::WithoutBraces) + QStringLiteral(".json");
+        const QJsonObject delta{
+            {ConfigDefaults::renderingGroup(), QJsonObject{{ConfigDefaults::gpuKey(), QStringLiteral("10de:1e84")}}},
+            {ConfigDefaults::workspacesBehaviorGroup(),
+             QJsonObject{{ConfigDefaults::manageKWinPerOutputKey(), true},
+                         {ConfigDefaults::rebindKWinDesktopShortcutsKey(), false}}},
+        };
+        const QJsonObject file{
+            {QStringLiteral("_version"), 5},
+            {QStringLiteral("id"), bracedId},
+            {QStringLiteral("name"), QStringLiteral("Hand placed")},
+            {QStringLiteral("config"), delta},
+        };
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(QJsonDocument(file).toJson());
+        }
+        m_store->refresh();
+
+        // The diff lists the rebind toggle and nothing machine-scoped.
+        QStringList listed;
+        for (const QVariant& v : m_store->configChanges(bracedId)) {
+            const QVariantMap row = v.toMap();
+            listed.append(row.value(QStringLiteral("rawGroup")).toString() + QLatin1Char('/')
+                          + row.value(QStringLiteral("rawKey")).toString());
+        }
+        const QString rebind = ConfigDefaults::workspacesBehaviorGroup() + QLatin1Char('/')
+            + ConfigDefaults::rebindKWinDesktopShortcutsKey();
+        QVERIFY2(listed.contains(rebind), qPrintable(listed.join(QLatin1String(", "))));
+        QVERIFY2(!listed.contains(ConfigDefaults::workspacesBehaviorGroup() + QLatin1Char('/')
+                                  + ConfigDefaults::manageKWinPerOutputKey()),
+                 qPrintable(listed.join(QLatin1String(", "))));
+        QVERIFY2(!listed.contains(ConfigDefaults::renderingGroup() + QLatin1Char('/') + ConfigDefaults::gpuKey()),
+                 qPrintable(listed.join(QLatin1String(", "))));
+
+        // The export carries the same record, so the same keys.
+        const QString destPath = m_dir->path() + QStringLiteral("/exported-hand-placed");
+        QVERIFY(m_store->exportProfile(bracedId, destPath));
+        QFile exported(destPath);
+        QVERIFY(exported.open(QIODevice::ReadOnly));
+        const QJsonObject exportedConfig =
+            QJsonDocument::fromJson(exported.readAll()).object().value(QStringLiteral("config")).toObject();
+        const QJsonObject exportedWorkspaces =
+            exportedConfig.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
+        QVERIFY(exportedWorkspaces.contains(ConfigDefaults::rebindKWinDesktopShortcutsKey()));
+        QVERIFY(!exportedWorkspaces.contains(ConfigDefaults::manageKWinPerOutputKey()));
+        QVERIFY(!exportedConfig.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
+
+        // Activation applies the rebind toggle and leaves both machine-scoped
+        // keys out of the staged blob, so the live values stay as they were.
+        QVERIFY(m_store->activateProfile(bracedId));
+        const QJsonObject appliedWorkspaces = m_lastApplied.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
+        QCOMPARE(appliedWorkspaces.value(ConfigDefaults::rebindKWinDesktopShortcutsKey()).toBool(true), false);
+        QVERIFY(!appliedWorkspaces.contains(ConfigDefaults::manageKWinPerOutputKey()));
+        QVERIFY(!m_lastApplied.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
     }
 
     /// Three-level chain: each node stores its delta against its parent, and
@@ -518,6 +600,82 @@ private Q_SLOTS:
         QCOMPARE(storedConfig(id).value(QStringLiteral("GroupA")).toObject().value(QStringLiteral("k1")).toInt(), 5);
     }
 
+    /// A profile captured before a schema clamp tightened carries a value the
+    /// live store can no longer hold. Activating it stages that value and the
+    /// store clamps it straight back, so the live config reads the clamped
+    /// floor. The active row must read clean then, or it stays modified with
+    /// nothing the user can do about it. A real divergence on the same key
+    /// still reads modified.
+    void preClampProfileValueReadsClean()
+    {
+        const QString group = ConfigDefaults::windowsAppearanceGroup();
+        const QString key = ConfigDefaults::opacityKey();
+        const double floor = ConfigDefaults::windowOpacityMin();
+        const double belowFloor = floor / 2.0;
+
+        // Capture a value below today's floor, as an older build allowed.
+        m_current = baseDefaults();
+        m_current[group] = QJsonObject{{key, belowFloor}};
+        const QString id = m_store->createProfile(QStringLiteral("Dim"), QString(), QString());
+        QVERIFY(!id.isEmpty());
+        QCOMPARE(storedConfig(id).value(group).toObject().value(key).toDouble(), belowFloor);
+
+        auto activeRowModified = [this]() {
+            const QVariantList rows = m_store->availableProfiles();
+            QVariantMap active;
+            for (const QVariant& row : rows) {
+                if (row.toMap().value(QStringLiteral("active")).toBool()) {
+                    active = row.toMap();
+                }
+            }
+            return active.value(QStringLiteral("modified")).toBool();
+        };
+
+        // The live store reports the clamped value, as Store::exportToJson
+        // does after activation imported the stale one.
+        m_current[group] = QJsonObject{{key, floor}};
+        QVERIFY2(!activeRowModified(), "a profile value the schema clamps to the live value must not read as modified");
+
+        // A value the clamp does not explain is still a modification.
+        m_current[group] = QJsonObject{{key, (floor + ConfigDefaults::windowOpacityMax()) / 2.0}};
+        QVERIFY(activeRowModified());
+    }
+
+    /// A current-version profile file can carry a key a later release
+    /// retired. The config no longer declares it, so activating the profile
+    /// cannot apply it (the store skips undeclared keys on import), and it
+    /// must not keep the active row modified.
+    void retiredKeyInAProfileFileIsIgnored()
+    {
+        const QUuid id = QUuid::createUuid();
+        QJsonObject delta;
+        delta.insert(QStringLiteral("GroupA"), QJsonObject{{QStringLiteral("k1"), 2}});
+        // A retired key in a group the config still declares, and a whole
+        // group it no longer declares.
+        delta.insert(QStringLiteral("GroupB"),
+                     QJsonObject{{QStringLiteral("b"), true}, {QStringLiteral("retired"), false}});
+        delta.insert(QStringLiteral("Gone"), QJsonObject{{QStringLiteral("k"), 1}});
+        QVERIFY(writeProfileFileFixture(id, 5, delta));
+
+        const QString bracedId = id.toString();
+        QVERIFY(m_store->activateProfile(bracedId));
+        QCOMPARE(groupAInt(m_lastApplied, QStringLiteral("k1")), 2);
+
+        // The live config now holds every declared value the profile sets.
+        m_current = baseDefaults();
+        m_current[QStringLiteral("GroupA")] =
+            QJsonObject{{QStringLiteral("k1"), 2}, {QStringLiteral("k2"), QStringLiteral("x")}};
+        m_current[QStringLiteral("GroupB")] = QJsonObject{{QStringLiteral("b"), true}};
+        bool activeModified = true;
+        for (const QVariant& row : m_store->availableProfiles()) {
+            const QVariantMap map = row.toMap();
+            if (map.value(QStringLiteral("active")).toBool()) {
+                activeModified = map.value(QStringLiteral("modified")).toBool();
+            }
+        }
+        QVERIFY2(!activeModified, "a key the config no longer declares must not keep the active profile modified");
+    }
+
     /// configChanges reports each overridden key with the value it had in the
     /// parent (schema defaults at the root) and the value this profile sets.
     void configDiffAgainstParent()
@@ -614,6 +772,55 @@ private Q_SLOTS:
         // The tree is unchanged: A is still the root of the chain.
         QCOMPARE(storedParent(a), QString());
         QCOMPARE(storedParent(c), QUuid(b).toString());
+    }
+
+    /// The cycle refusal explains itself, once per refused call, in the words
+    /// the Set Parent dialog's toast shows. A refusal that toasted nothing
+    /// would leave the picker looking broken.
+    void reparentUnderDescendantToastsReason()
+    {
+        m_current = baseDefaults();
+        const QString a = m_store->createProfile(QStringLiteral("A"), QString(), QString());
+        const QString b = m_store->createProfile(QStringLiteral("B"), QString(), a);
+
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(!m_store->setParent(a, b));
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(),
+                 PhosphorI18n::tr("A profile cannot inherit from itself or from a profile that inherits from it."));
+    }
+
+    /// selfAndDescendantIds is the exclusion list the Set Parent picker
+    /// applies: the profile itself plus every profile below it, and nothing
+    /// above it or beside it. A chain A → B → C with an unrelated root D pins
+    /// both halves, since an equality test in place of the ancestor walk
+    /// would return only the id itself.
+    void selfAndDescendantIdsCoversSubtree()
+    {
+        m_current = baseDefaults();
+        const QString a = m_store->createProfile(QStringLiteral("A"), QString(), QString());
+        const QString b = m_store->createProfile(QStringLiteral("B"), QString(), a);
+        const QString c = m_store->createProfile(QStringLiteral("C"), QString(), b);
+        const QString d = m_store->createProfile(QStringLiteral("D"), QString(), QString());
+        QVERIFY(!a.isEmpty() && !b.isEmpty() && !c.isEmpty() && !d.isEmpty());
+
+        const auto sorted = [](QStringList ids) {
+            std::sort(ids.begin(), ids.end());
+            return ids;
+        };
+        QCOMPARE(sorted(m_store->selfAndDescendantIds(a)), sorted(QStringList{a, b, c}));
+        QCOMPARE(sorted(m_store->selfAndDescendantIds(b)), sorted(QStringList{b, c}));
+        QCOMPARE(m_store->selfAndDescendantIds(c), QStringList{c});
+        QCOMPARE(m_store->selfAndDescendantIds(d), QStringList{d});
+        QVERIFY(m_store->selfAndDescendantIds(QUuid::createUuid().toString()).isEmpty());
+        QVERIFY(m_store->selfAndDescendantIds(QString()).isEmpty());
+
+        // The list and setParent's refusal agree: every id it names is refused
+        // as A's parent, and the one it leaves out (D) is accepted.
+        for (const QString& excluded : m_store->selfAndDescendantIds(a)) {
+            QVERIFY2(!m_store->setParent(a, excluded), qPrintable(excluded));
+        }
+        QVERIFY(m_store->setParent(a, d));
     }
 
     /// A pathologically nested structured value stops recursing at the depth
@@ -1368,6 +1575,44 @@ private Q_SLOTS:
         // Identical resolved settings → identical signature.
         QCOMPARE(rowById.value(imported).value(QStringLiteral("signature")).toString(),
                  rowById.value(original).value(QStringLiteral("signature")).toString());
+    }
+
+    /// A successful export confirms itself with exactly one toast naming the
+    /// profile. The save dialog has already closed by then, so without it the
+    /// export leaves nothing on screen.
+    void exportSuccessToastsOnce()
+    {
+        m_current = baseDefaults();
+        const QString id = m_store->createProfile(QStringLiteral("Work"), QString(), QString());
+        QVERIFY(!id.isEmpty());
+
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(m_store->exportProfile(id, m_dir->path() + QStringLiteral("/exported-profile")));
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(),
+                 PhosphorI18n::tr("Exported the profile “%1”.").arg(QStringLiteral("Work")));
+    }
+
+    /// An export whose id is unparseable finds no record and is refused with
+    /// one toast, because the Profiles page shows no failure banner of its own.
+    void exportUnresolvableSourceToastsOnce()
+    {
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(!m_store->exportProfile(QString(), m_dir->path() + QStringLiteral("/exported-profile")));
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(), PhosphorI18n::tr("Could not read that profile."));
+    }
+
+    /// An empty source (what urlToLocalFile hands over for a non-local pick)
+    /// is refused with one toast, because the Profiles page shows no failure
+    /// banner of its own.
+    void importEmptySourceToastsOnce()
+    {
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(m_store->importProfile(QString()).isEmpty());
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(), PhosphorI18n::tr("That file is not a readable profile."));
+        QCOMPARE(m_store->availableProfiles().size(), 0);
     }
 
     /// A successful setParent re-flattens the delta so the profile's RESOLVED

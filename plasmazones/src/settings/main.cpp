@@ -31,6 +31,7 @@
 #include <PhosphorAnimation/CurveLoader.h>
 #include <PhosphorAnimation/PhosphorCurve.h>
 #include <PhosphorRendering/ShaderEffect.h>
+#include <PhosphorShortcuts/GlobalShortcutBlock.h>
 #include <PhosphorAnimation/QtQuickClockManager.h>
 
 #include <QApplication>
@@ -94,17 +95,12 @@ bool activateRunningInstance(const QString& address)
 
 int main(int argc, char* argv[])
 {
-    // Opt out of MangoHud's implicit Vulkan layer injection. MangoHud's
-    // implicit_layer manifest attaches whenever MANGOHUD=1 is in the
-    // environment (e.g. set globally for games), and its NVIDIA stat-polling
-    // thread costs ~30% CPU continuously inside this process — we are a
-    // settings UI, not a game client. Both env vars are cleared:
-    // MANGOHUD=0 alone is not enough on all manifest versions; the explicit
-    // DISABLE_MANGOHUD opt-out is honored regardless of MANGOHUD's value.
-    // Must run before QApplication construction (which initializes the
-    // QtQuick render path and may load the Vulkan ICD chain).
-    qunsetenv("MANGOHUD");
-    qputenv("DISABLE_MANGOHUD", "1");
+    // No MangoHud opt-out here, unlike plasmazonesd. MangoHud attaches as an
+    // implicit Vulkan layer, and this app renders through OpenGL unless a
+    // Vulkan RHI is forced, so the layer never loads in the default case. An
+    // opt-out set in this process's environment would also reach every
+    // program QDesktopServices::openUrl starts (file manager, editor,
+    // browser), and openUrl takes no environment to strip it from.
 
     // QApplication (not QGuiApplication): the org.kde.desktop QtQuick Controls
     // style (qqc2-desktop-style) renders every control through a QtWidgets
@@ -113,14 +109,20 @@ int main(int argc, char* argv[])
     // context that fragile third-party QStyle plugins (e.g. Darkly) dereference
     // into a crash on the first paint frame. See discussion #262.
     QApplication app(argc, argv);
+    // Before anything can construct a Settings or run the migration: this
+    // process may start while the daemon runs on the last readable config,
+    // so an unparseable config.json is left in place rather than moved aside
+    // (see ConfigMigration::CorruptConfigHandling).
+    PlasmaZones::ConfigMigration::setCorruptConfigHandling(
+        PlasmaZones::ConfigMigration::CorruptConfigHandling::LeaveInPlace);
     PlasmaZones::loadTranslations(&app);
 
     app.setApplicationName(QStringLiteral("plasmazones-settings"));
     app.setApplicationVersion(PlasmaZones::VERSION_STRING);
     app.setOrganizationName(QStringLiteral("plasmazones"));
-    app.setOrganizationDomain(QStringLiteral("org.plasmazones"));
-    app.setDesktopFileName(QStringLiteral("org.plasmazones.settings"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("plasmazones-settings")));
+    app.setOrganizationDomain(QStringLiteral("phosphor-works.org"));
+    app.setDesktopFileName(QStringLiteral("org.phosphor_works.Facet"));
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.phosphor_works.Facet")));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(PhosphorI18n::tr("PlasmaZones Settings"));
@@ -173,14 +175,15 @@ int main(int argc, char* argv[])
     }
 
     // Ensure INI→JSON migration has run (the daemon does this too, but the
-    // settings app may start before the daemon on first upgrade). Same
-    // failure handling as the daemon: continue with whatever the backend can
-    // load, but say so, because the pages then show defaults for every
-    // setting the old config held.
+    // settings app may start before the daemon on first upgrade). A failure
+    // here is most often a config.json that does not parse, which this
+    // process leaves in place (LeaveInPlace above): the pages then show
+    // defaults, saves are refused until the file is repaired, and the window
+    // header says so. Continue either way.
     if (!PlasmaZones::ConfigMigration::ensureJsonConfig()) {
         qCWarning(PlasmaZones::lcCore)
-            << "Config migration reported a failure — continuing with whatever the backend can load,"
-            << "which may mean defaults for settings the old config held";
+            << "Config migration reported a failure — continuing with whatever the backend can load;"
+            << "an unparseable config.json is left in place and saves are refused until it is repaired";
     }
 
     // Bootstrap the per-process PhosphorProfileRegistry so QML
@@ -235,6 +238,14 @@ int main(int argc, char* argv[])
         qCCritical(PlasmaZones::lcCore) << "Cannot register D-Bus service and cannot reach existing instance; exiting";
         return 1;
     }
+
+    // The chord recorders suspend every global shortcut while they capture,
+    // and kglobalacceld keeps that suspension when the process that asked for
+    // it dies. A previous run that crashed mid-capture would have left the
+    // session without its keyboard shortcuts, so lift any such block now,
+    // once this process is known to be the only instance and before any
+    // recorder can take one.
+    PhosphorShortcuts::releaseStrandedGlobalShortcutBlock();
 
     // Register ZoneShaderItem for QML (live zone-shader preview in the settings
     // shader browser — mirrors daemon/main.cpp).

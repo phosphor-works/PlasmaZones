@@ -9,6 +9,7 @@
 // `<source-string>:<line>` diagnostic back to a file path.
 
 #include <PhosphorShaders/ShaderIncludeResolver.h>
+#include <PhosphorShaders/ShaderParamPreamble.h>
 
 #include <QDir>
 #include <QFile>
@@ -29,9 +30,11 @@ private:
 
 private Q_SLOTS:
 
-    // A single include is bracketed by `#line 1 1` (the header's own line 1)
-    // and `#line <n> 0` (the parent resumes at the line after the #include),
-    // and the header body is inlined between them.
+    // A single include is bracketed by a re-anchor to line 1 of source string 1
+    // (the header's own line 1) and one to line n of source string 0 (the
+    // parent resumes at the line after the #include), and the header body is
+    // inlined between them. Each re-anchor is PhosphorShaders::lineDirective,
+    // whose dialect-dependent numbering test_shader_param_preamble pins.
     void testSingleIncludeBracketing()
     {
         QTemporaryDir tmp;
@@ -52,10 +55,10 @@ private Q_SLOTS:
         // Header inlined.
         QVERIFY(out.contains(QStringLiteral("float helper()")));
         // Entering the include: its first line is line 1 of source string 1.
-        QVERIFY2(out.contains(QStringLiteral("#line 1 1")), qPrintable(out));
+        QVERIFY2(out.contains(PhosphorShaders::lineDirective(1, 1)), qPrintable(out));
         // Resuming the parent: the line after the #include (source line 3) in
         // source string 0.
-        QVERIFY2(out.contains(QStringLiteral("#line 3 0")), qPrintable(out));
+        QVERIFY2(out.contains(PhosphorShaders::lineDirective(3, 0)), qPrintable(out));
         // Nothing precedes #version (the resolver must never emit a #line
         // before the version directive).
         QVERIFY(out.trimmed().startsWith(QStringLiteral("#version 450")));
@@ -106,12 +109,48 @@ private Q_SLOTS:
         QCOMPARE(legend.size(), 3);
         QCOMPARE(QFileInfo(legend.at(1)).canonicalFilePath(), QFileInfo(outerPath).canonicalFilePath());
         QCOMPARE(QFileInfo(legend.at(2)).canonicalFilePath(), QFileInfo(innerPath).canonicalFilePath());
-        QVERIFY2(out.contains(QStringLiteral("#line 1 1")), qPrintable(out)); // enter outer
-        QVERIFY2(out.contains(QStringLiteral("#line 1 2")), qPrintable(out)); // enter inner
+        QVERIFY2(out.contains(PhosphorShaders::lineDirective(1, 1)), qPrintable(out)); // enter outer
+        QVERIFY2(out.contains(PhosphorShaders::lineDirective(1, 2)), qPrintable(out)); // enter inner
         // After inner, outer resumes at its line 2 (the "// outer tail").
-        QVERIFY2(out.contains(QStringLiteral("#line 2 1")), qPrintable(out));
+        QVERIFY2(out.contains(PhosphorShaders::lineDirective(2, 1)), qPrintable(out));
         // After outer, the top-level resumes at line 3 ("void main").
-        QVERIFY2(out.contains(QStringLiteral("#line 3 0")), qPrintable(out));
+        QVERIFY2(out.contains(PhosphorShaders::lineDirective(3, 0)), qPrintable(out));
+    }
+
+    // A source that re-anchors itself, as assembleEntryPoint does after a
+    // family prologue, keeps that numbering past a later include: the parent
+    // resumes at the line after the #include counted from the anchor, not
+    // from the top of the blob. Counting physically put every author line
+    // after an include the prologue's length past the fault.
+    void testSelfReanchorSurvivesALaterInclude()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        writeFile(tmp.filePath(QStringLiteral("header.glsl")), QStringLiteral("// header\n"));
+
+        // A two-line prologue, the re-anchor, then the author's own lines:
+        // the #include is the author's line 2 and `void main` line 3.
+        const QString source = QStringLiteral("#version 450\n// prologue\n") + PhosphorShaders::lineDirective(1, 0)
+            + QStringLiteral("// author line 1\n#include \"header.glsl\"\nvoid main() {}\n");
+
+        QString err;
+        const QString out = PhosphorShaders::ShaderIncludeResolver::expandIncludes(source, tmp.path(), {}, &err);
+
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        const QString resume = PhosphorShaders::lineDirective(3, 0);
+        QVERIFY2(out.contains(resume), qPrintable(out));
+        QVERIFY2(out.indexOf(resume) > out.indexOf(QStringLiteral("// header")), qPrintable(out));
+        // An anchor naming ANOTHER source string is not this source's own.
+        const QString anchor = PhosphorShaders::lineDirective(40, 7);
+        const QString foreign =
+            QStringLiteral("#version 450\n") + anchor + QStringLiteral("#include \"header.glsl\"\nvoid main() {}\n");
+        const QString foreignOut =
+            PhosphorShaders::ShaderIncludeResolver::expandIncludes(foreign, tmp.path(), {}, &err);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        // Counted physically: the #include follows the version line and the
+        // anchor's own lines, and the parent resumes on the line after it.
+        const int includeLine = 1 + int(anchor.count(QLatin1Char('\n'))) + 1;
+        QVERIFY2(foreignOut.contains(PhosphorShaders::lineDirective(includeLine + 1, 0)), qPrintable(foreignOut));
     }
 
     // A missing include is an error, not a silent passthrough.
@@ -171,7 +210,8 @@ private Q_SLOTS:
             PhosphorShaders::ShaderIncludeResolver::expandIncludes(source, tmp.path(), {}, nullptr, nullptr, nullptr);
         QVERIFY2(!out.isEmpty(), "empty include must not be treated as a failure");
         QVERIFY2(out.contains(QStringLiteral("void main()")), qPrintable(out));
-        QVERIFY2(out.contains(QStringLiteral("#line 1 1")), qPrintable(out)); // the include was still bracketed
+        QVERIFY2(out.contains(PhosphorShaders::lineDirective(1, 1)),
+                 qPrintable(out)); // the include was still bracketed
     }
 
     // Back-compat: the legend out-param is optional; omitting it still expands.
@@ -184,7 +224,7 @@ private Q_SLOTS:
         QString err;
         const QString out = PhosphorShaders::ShaderIncludeResolver::expandIncludes(source, tmp.path(), {}, &err);
         QVERIFY2(err.isEmpty(), qPrintable(err));
-        QVERIFY(out.contains(QStringLiteral("#line 1 1")));
+        QVERIFY(out.contains(PhosphorShaders::lineDirective(1, 1)));
     }
 
     // WHICH copy of a header wins when more than one root has it. Nothing
@@ -253,6 +293,63 @@ private Q_SLOTS:
         QVERIFY2(err.isEmpty(), qPrintable(err));
         QVERIFY2(out.contains(QStringLiteral("// from pack")), qPrintable(out));
         QVERIFY2(!out.contains(QStringLiteral("// from system")), qPrintable(out));
+    }
+
+    // An absolute include name is refused even when the file exists: a
+    // third-party pack must not inline arbitrary files from the system.
+    void absoluteIncludeNameIsRefused()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString headerPath = tmp.filePath(QStringLiteral("header.glsl"));
+        writeFile(headerPath, QStringLiteral("float helper() { return 1.0; }\n"));
+
+        const QString source =
+            QStringLiteral("#version 450\n#include \"") + headerPath + QStringLiteral("\"\nvoid main() {}\n");
+        QString err;
+        const QString out =
+            PhosphorShaders::ShaderIncludeResolver::expandIncludes(source, tmp.path(), {tmp.path()}, &err);
+        QVERIFY(out.isEmpty());
+        QVERIFY2(err.contains(QStringLiteral("Absolute include path")), qPrintable(err));
+    }
+
+    // A file over MaxIncludeBytes is an error, not a truncated include.
+    void oversizedIncludeIsRefused()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        QFile big(tmp.filePath(QStringLiteral("big.glsl")));
+        QVERIFY(big.open(QIODevice::WriteOnly));
+        big.write(QByteArray(PhosphorShaders::ShaderIncludeResolver::MaxIncludeBytes + 1, ' '));
+        big.close();
+
+        const QString source = QStringLiteral("#version 450\n#include \"big.glsl\"\nvoid main() {}\n");
+        QString err;
+        const QString out = PhosphorShaders::ShaderIncludeResolver::expandIncludes(source, tmp.path(), {}, &err);
+        QVERIFY(out.isEmpty());
+        QVERIFY2(err.contains(QStringLiteral("too large")), qPrintable(err));
+    }
+
+    // Each level includes the next one four times. Every file is small and the
+    // chain stays within MaxIncludeDepth, but the expansion would hold 4^9
+    // copies of the leaf: the resolver stops at MaxExpandedSize instead.
+    void repeatedIncludeFanOutIsBounded()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const int levels = 9;
+        writeFile(tmp.filePath(QStringLiteral("level%1.glsl").arg(levels)),
+                  QStringLiteral("// ") + QString(4000, QLatin1Char('x')) + QStringLiteral("\n"));
+        for (int i = levels - 1; i >= 1; --i) {
+            const QString line = QStringLiteral("#include \"level%1.glsl\"\n").arg(i + 1);
+            writeFile(tmp.filePath(QStringLiteral("level%1.glsl").arg(i)), line + line + line + line);
+        }
+
+        const QString source = QStringLiteral("#version 450\n#include \"level1.glsl\"\nvoid main() {}\n");
+        QString err;
+        const QString out = PhosphorShaders::ShaderIncludeResolver::expandIncludes(source, tmp.path(), {}, &err);
+        QVERIFY(out.isEmpty());
+        QVERIFY2(err.contains(QStringLiteral("Expanded shader too large")), qPrintable(err));
     }
 };
 

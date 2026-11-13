@@ -87,6 +87,58 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
     search->setPageKeywords(QStringLiteral("virtualscreens"),
                             {PhosphorI18n::tr("split"), PhosphorI18n::tr("subdivide"), PhosphorI18n::tr("region"),
                              PhosphorI18n::tr("monitor")});
+
+#ifdef USE_KDE_FRAMEWORKS
+    // Dynamic per-monitor workspaces (the three leaves under the "workspaces"
+    // drill parent), compiled in with the feature like the pages themselves.
+    // Multi-word phrases included whole: the ranker matches the query as one
+    // un-split needle. "niri" stays untranslated.
+    //
+    // The master toggle (workspacesEnabled) and the KWin per-output latch
+    // (workspacesManageKWinPerOutput) get keywords here rather than their own
+    // addSetting entries. Neither has a searchAnchor: the master toggle lives
+    // on the section's sidebar row, like the snapping / tiling / scrolling
+    // ones which are also uncatalogued, and the latch is reached through a
+    // consent warning rather than a settings row. An addSetting for either
+    // would publish an anchor that resolves to nothing on the page.
+    search->setPageKeywords(QStringLiteral("workspaces-behavior"),
+                            {PhosphorI18n::tr("workspace"), PhosphorI18n::tr("virtual desktop"),
+                             PhosphorI18n::tr("dynamic workspaces"), PhosphorI18n::tr("per monitor"),
+                             PhosphorI18n::tr("enable workspaces"), PhosphorI18n::tr("per output"),
+                             QStringLiteral("niri")});
+    addSection(search, QStringLiteral("workspaces-behavior"), QStringLiteral("workspacesBehavior"),
+               PhosphorI18n::tr("Behavior"));
+    addSetting(search, QStringLiteral("workspaces-behavior"), QStringLiteral("workspacesSnapBackOsdHint"),
+               PhosphorI18n::tr("Workspace hint"),
+               {PhosphorI18n::tr("osd"), PhosphorI18n::tr("hint"), PhosphorI18n::tr("snap back"),
+                PhosphorI18n::tr("another monitor")});
+    addSetting(search, QStringLiteral("workspaces-behavior"), QStringLiteral("workspacesRebindKWinShortcuts"),
+               PhosphorI18n::tr("Replace KWin desktop shortcuts"),
+               {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("kwin"), PhosphorI18n::tr("switch desktop"),
+                PhosphorI18n::tr("rebind")});
+    search->setPageKeywords(QStringLiteral("workspaces-named"),
+                            {PhosphorI18n::tr("workspace"), PhosphorI18n::tr("named workspace"),
+                             PhosphorI18n::tr("pin"), PhosphorI18n::tr("persistent"), PhosphorI18n::tr("rename"),
+                             PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("hotkey")});
+    addSection(search, QStringLiteral("workspaces-named"), QStringLiteral("workspacesNamedAdd"),
+               PhosphorI18n::tr("Add named workspace"));
+    addSection(search, QStringLiteral("workspaces-named"), QStringLiteral("workspacesNamedList"),
+               PhosphorI18n::tr("Named workspaces"));
+    // The page carries the in-page chord recorders for the workspace verbs
+    // as well as the quick slots, so both get a section anchor and the verbs'
+    // own words. The named workspaces' chords are recorded in their rows on
+    // the Named Workspaces page, reached through workspacesNamedList above.
+    search->setPageKeywords(QStringLiteral("workspaces-shortcuts"),
+                            {PhosphorI18n::tr("workspace"), PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("hotkey"),
+                             PhosphorI18n::tr("keybind"), PhosphorI18n::tr("keyboard"), PhosphorI18n::tr("key"),
+                             PhosphorI18n::tr("quick shortcut"), PhosphorI18n::tr("move window"),
+                             PhosphorI18n::tr("focus workspace"), PhosphorI18n::tr("move column"),
+                             PhosphorI18n::tr("reorder workspace"), PhosphorI18n::tr("move to monitor")});
+    addSection(search, QStringLiteral("workspaces-shortcuts"), QStringLiteral("workspaceVerbShortcuts"),
+               PhosphorI18n::tr("Workspace shortcuts"));
+    addSection(search, QStringLiteral("workspaces-shortcuts"), QStringLiteral("workspaceQuickShortcuts"),
+               PhosphorI18n::tr("Workspace quick shortcuts"));
+#endif
     // The three per-mode library pages (the old tabbed Layouts page, split).
     // Each hosts the shared LayoutBrowserPage, whose LayoutManageCard
     // (import / open folder) carries the manageLayouts anchor on every view.
@@ -291,15 +343,28 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                              PhosphorI18n::tr("spacing"), PhosphorI18n::tr("padding"), PhosphorI18n::tr("margin"),
                              PhosphorI18n::tr("blur"), PhosphorI18n::tr("performance")});
     search->setPageKeywords(QStringLiteral("rules"),
-                            {PhosphorI18n::tr("rule"), PhosphorI18n::tr("exclude"), PhosphorI18n::tr("float"),
-                             PhosphorI18n::tr("monitor"), PhosphorI18n::tr("priority"), PhosphorI18n::tr("activity")});
+                            {
+                                PhosphorI18n::tr("rule"),
+                                PhosphorI18n::tr("exclude"),
+                                PhosphorI18n::tr("float"),
+                                PhosphorI18n::tr("monitor"),
+                                PhosphorI18n::tr("priority"),
+                                PhosphorI18n::tr("activity"),
+#ifdef USE_KDE_FRAMEWORKS
+                                // The RouteToWorkspace action, offered only
+                                // where the feature is compiled in.
+                                PhosphorI18n::tr("workspace"),
+#endif
+                            });
     search->setPageKeywords(QStringLiteral("profiles"),
                             {PhosphorI18n::tr("profile"), PhosphorI18n::tr("profiles"), PhosphorI18n::tr("preset"),
                              PhosphorI18n::tr("switch"), PhosphorI18n::tr("import"), PhosphorI18n::tr("export"),
                              PhosphorI18n::tr("inherit"), PhosphorI18n::tr("create"), PhosphorI18n::tr("save")});
     search->setPageKeywords(QStringLiteral("editor"),
                             {PhosphorI18n::tr("editor"), PhosphorI18n::tr("layout"), PhosphorI18n::tr("design"),
-                             PhosphorI18n::tr("zones")});
+                             PhosphorI18n::tr("zones"), PhosphorI18n::tr("opacity"), PhosphorI18n::tr("background"),
+                             PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("split"), PhosphorI18n::tr("duplicate"),
+                             PhosphorI18n::tr("grid"), PhosphorI18n::tr("snap"), PhosphorI18n::tr("fill")});
     search->setPageKeywords(QStringLiteral("about"),
                             {PhosphorI18n::tr("about"), PhosphorI18n::tr("version"), PhosphorI18n::tr("license"),
                              PhosphorI18n::tr("credits")});
@@ -397,9 +462,6 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                 PhosphorI18n::tr("tiling")});
     addSection(search, QStringLiteral("general"), QStringLiteral("windowFiltering"),
                PhosphorI18n::tr("Window filtering"));
-    addSetting(search, QStringLiteral("general"), QStringLiteral("excludeTransient"),
-               PhosphorI18n::tr("Exclude transient windows"),
-               {PhosphorI18n::tr("dialog"), PhosphorI18n::tr("popup"), PhosphorI18n::tr("tooltip")});
     addSetting(search, QStringLiteral("general"), QStringLiteral("minimumWindowWidth"),
                PhosphorI18n::tr("Minimum window width"),
                {PhosphorI18n::tr("threshold"), PhosphorI18n::tr("narrow"), PhosphorI18n::tr("size")});
@@ -431,7 +493,7 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
     addSection(search, QStringLiteral("tiling-behavior"), QStringLiteral("focus"), PhosphorI18n::tr("Focus"));
 
     // ── Setting + section anchors: appearance / algorithm / behaviour rows ──
-    // Snapping › Overlay (appearance)
+    // Appearance › Overlays › Appearance
     addSection(search, QStringLiteral("overlays-appearance"), QStringLiteral("colors"), PhosphorI18n::tr("Colors"));
     addSection(search, QStringLiteral("overlays-appearance"), QStringLiteral("opacity"), PhosphorI18n::tr("Opacity"));
     addSection(search, QStringLiteral("overlays-appearance"), QStringLiteral("border"), PhosphorI18n::tr("Border"));
@@ -811,7 +873,11 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                PhosphorI18n::tr("Always re-insert on drag"), {PhosphorI18n::tr("strip"), PhosphorI18n::tr("insert")});
     addSetting(search, QStringLiteral("scrolling-window"), QStringLiteral("scrollingHoldToReinsert"),
                PhosphorI18n::tr("Hold to re-insert into strip"),
-               {PhosphorI18n::tr("modifier"), PhosphorI18n::tr("strip")});
+               {PhosphorI18n::tr("modifier"), PhosphorI18n::tr("strip"),
+                // The row reads "Hold to float instead" under always re-insert.
+                // The ranker never matches a query longer than a keyword, so
+                // "float" alone misses a search for "floating".
+                PhosphorI18n::tr("float"), PhosphorI18n::tr("float instead"), PhosphorI18n::tr("floating")});
     addSetting(search, QStringLiteral("scrolling-window"), QStringLiteral("scrollingTriggersToggleMode"),
                PhosphorI18n::tr("Toggle mode"), {PhosphorI18n::tr("tap"), PhosphorI18n::tr("strip preview")});
     addSetting(search, QStringLiteral("scrolling-window"), QStringLiteral("scrollingReleaseGracePeriod"),
@@ -891,7 +957,8 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                 PhosphorI18n::tr("column"), PhosphorI18n::tr("strip"), PhosphorI18n::tr("scroll")});
     addSetting(search, QStringLiteral("scrolling-window"), QStringLiteral("scrollingRespectMinimumSize"),
                PhosphorI18n::tr("Respect minimum size"),
-               {PhosphorI18n::tr("minimum"), PhosphorI18n::tr("size"), PhosphorI18n::tr("resize")});
+               {PhosphorI18n::tr("minimum"), PhosphorI18n::tr("size"), PhosphorI18n::tr("resize"),
+                PhosphorI18n::tr("wider"), PhosphorI18n::tr("overlap")});
     addSetting(search, QStringLiteral("scrolling-window"), QStringLiteral("scrollingCenterShortColumns"),
                PhosphorI18n::tr("Center short columns"),
                {PhosphorI18n::tr("center"), PhosphorI18n::tr("short"), PhosphorI18n::tr("column")});
@@ -977,7 +1044,8 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                PhosphorI18n::tr("Always re-insert on drag"), {PhosphorI18n::tr("stack"), PhosphorI18n::tr("insert")});
     addSetting(search, QStringLiteral("tiling-behavior"), QStringLiteral("holdToReinsert"),
                PhosphorI18n::tr("Hold to re-insert into stack"),
-               {PhosphorI18n::tr("modifier"), PhosphorI18n::tr("stack")});
+               {PhosphorI18n::tr("modifier"), PhosphorI18n::tr("stack"), PhosphorI18n::tr("float"),
+                PhosphorI18n::tr("float instead"), PhosphorI18n::tr("floating")});
     addSetting(search, QStringLiteral("tiling-behavior"), QStringLiteral("triggersToggleMode"),
                PhosphorI18n::tr("Toggle mode"), {PhosphorI18n::tr("tap"), PhosphorI18n::tr("stack preview")});
     addSetting(search, QStringLiteral("tiling-behavior"), QStringLiteral("releaseGracePeriod"),
@@ -1005,8 +1073,7 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
     addSetting(search, QStringLiteral("tiling-behavior"), QStringLiteral("focusFollowsMouse"),
                PhosphorI18n::tr("Focus follows mouse"), {PhosphorI18n::tr("focus"), PhosphorI18n::tr("pointer")});
     // Condensed simple-mode page anchors, split into their own TU by
-    // concern -- this catalog TU had crossed the file-size ceiling (the
-    // same split the animation-event anchors took).
+    // concern (the same split the animation-event anchors took).
     seedSimplePageAnchors(search);
 
     // Animations › General
@@ -1133,8 +1200,7 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                PhosphorI18n::tr("Saved sets"));
 
     // The per-event animation anchors live in their own TU
-    // (searchcatalog_animations.cpp) — the single catalog file had crossed
-    // the size ceiling.
+    // (searchcatalog_animations.cpp), split out by concern.
     seedAnimationEventAnchors(search);
 
     addSection(search, QStringLiteral("profiles"), QStringLiteral("saveCurrent"),
@@ -1142,6 +1208,47 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
     addSection(search, QStringLiteral("profiles"), QStringLiteral("importProfile"),
                PhosphorI18n::tr("Import a profile"));
     addSection(search, QStringLiteral("profiles"), QStringLiteral("profilesList"), PhosphorI18n::tr("Profiles"));
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Editor
+    // ═══════════════════════════════════════════════════════════════════════════
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorShortcuts"),
+               PhosphorI18n::tr("Keyboard Shortcuts"));
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorDuplicateShortcut"),
+               PhosphorI18n::tr("Duplicate zone"),
+               {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("clone"), PhosphorI18n::tr("copy")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSplitHorizontalShortcut"),
+               PhosphorI18n::tr("Split horizontally"), {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("divide")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSplitVerticalShortcut"),
+               PhosphorI18n::tr("Split vertically"), {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("divide")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorFillShortcut"), PhosphorI18n::tr("Fill space"),
+               {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("expand")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorResetShortcuts"),
+               PhosphorI18n::tr("Reset shortcuts"),
+               {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("defaults"), PhosphorI18n::tr("restore")});
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorSnapping"), PhosphorI18n::tr("Snapping"));
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorGridSnapping"),
+               PhosphorI18n::tr("Grid snapping"), {PhosphorI18n::tr("grid"), PhosphorI18n::tr("snap")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorEdgeSnapping"),
+               PhosphorI18n::tr("Edge snapping"),
+               {PhosphorI18n::tr("edge"), PhosphorI18n::tr("snap"), PhosphorI18n::tr("neighbor")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSnapIntervalX"),
+               PhosphorI18n::tr("Grid interval X"),
+               {PhosphorI18n::tr("grid"), PhosphorI18n::tr("spacing"), PhosphorI18n::tr("horizontal")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSnapIntervalY"),
+               PhosphorI18n::tr("Grid interval Y"),
+               {PhosphorI18n::tr("grid"), PhosphorI18n::tr("spacing"), PhosphorI18n::tr("vertical")});
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorSnapOverrideModifier"),
+               PhosphorI18n::tr("Override modifier"),
+               {PhosphorI18n::tr("modifier"), PhosphorI18n::tr("bypass"), PhosphorI18n::tr("snap")});
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorFillOnDrop"), PhosphorI18n::tr("Fill on Drop"));
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorFillOnDropModifier"),
+               PhosphorI18n::tr("Modifier key"),
+               {PhosphorI18n::tr("fill"), PhosphorI18n::tr("drop"), PhosphorI18n::tr("expand")});
+    addSection(search, QStringLiteral("editor"), QStringLiteral("editorAppearance"), PhosphorI18n::tr("Appearance"));
+    addSetting(search, QStringLiteral("editor"), QStringLiteral("editorBackgroundOpacity"),
+               PhosphorI18n::tr("Background opacity"),
+               {PhosphorI18n::tr("transparency"), PhosphorI18n::tr("transparent"), PhosphorI18n::tr("canvas")});
 }
 
 } // namespace PlasmaZones

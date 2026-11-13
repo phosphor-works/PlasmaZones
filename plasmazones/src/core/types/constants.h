@@ -46,6 +46,24 @@ inline constexpr const char* PGpuExportedVarsProperty = "_p_gpuExportedVars";
 /// into the child environment after scrubbing the exported names.
 inline constexpr const char* PGpuClearedVarsProperty = "_p_gpuClearedVars";
 
+/// Dynamic QCoreApplication property carrying the names of the daemon-private
+/// environment variables the daemon's main() INTRODUCED (a QStringList): unset
+/// in the environment the daemon inherited, and set by it for itself (the
+/// MangoHud opt-out, the scene graph's simple animation driver, the
+/// layer-shell QPA plugin). They describe the daemon, not the editor or the
+/// settings app, so spawn sites remove them from a child's environment. A
+/// variable the user had already set to the daemon's value is not listed and
+/// reaches the child unchanged.
+inline constexpr const char* PDaemonEnvIntroducedVarsProperty = "_p_daemonEnvIntroducedVars";
+
+/// Companion property: the daemon-private variables that WERE set in the
+/// environment the daemon inherited and that its main() unset or overwrote
+/// (a QVariantMap of name to the inherited value). Spawn sites put the
+/// inherited value back into the child environment. They read all four
+/// properties through childProcessEnvironment()
+/// (core/platform/childprocessenvironment.h).
+inline constexpr const char* PDaemonEnvInheritedVarsProperty = "_p_daemonEnvInheritedVars";
+
 // PhosphorZones::ZoneGeometryMode lives in libs/phosphor-zones —
 // `PhosphorZones::Zone.h` declares it inside `namespace PlasmaZones` so it's
 // visible to existing callers via the same name.  No alias needed here;
@@ -57,11 +75,11 @@ inline constexpr const char* PGpuClearedVarsProperty = "_p_gpuClearedVars";
  * These defaults are used by core module files that can't depend on config.
  * For user-configurable settings, see ConfigDefaults.
  *
- * PhosphorZones::Layout ratio constants (PriorityGridMainRatio, FocusSideRatio, etc.) are
+ * Layout ratio constants (PriorityGridMainRatio, FocusSideRatio, etc.) are
  * structural constants for built-in layouts.
  */
 namespace Defaults {
-// PhosphorZones::Zone-presentation defaults + layout-factory ratios live in
+// Zone-presentation defaults + layout-factory ratios live in
 // `PhosphorZones::ZoneDefaults` (libs/phosphor-zones).  All in-tree
 // callers reference them qualified directly — no using-alias here.
 
@@ -99,6 +117,19 @@ constexpr int MinimumZoneDisplaySizePx = 10; // Minimum zone size for display (c
  * the subdirectory ever needs to change.
  */
 inline constexpr QLatin1String ScriptedAlgorithmSubdir{"plasmazones/algorithms"};
+
+/**
+ * @brief PlasmaZones' id as a host of the placement API.
+ *
+ * plasmazonesd records itself under this id at start
+ * (@c PhosphorConfig::HostDirectory::writeRecord in daemon/main.cpp), and the
+ * descriptor the package installs, data/placement-hosts/plasmazones.json,
+ * carries the same string as its @c Id. They have to agree:
+ * @c PhosphorConfig::HostDirectory::resolve ignores a record that names a host
+ * with no descriptor. tests/unit/data/test_placement_host_descriptor.cpp reads
+ * the shipped descriptor and compares it with this constant.
+ */
+inline constexpr QLatin1String PlacementHostId{"plasmazones"};
 
 /**
  * @brief Maximum length for user-visible layout and zone names.
@@ -180,7 +211,7 @@ inline QString clampName(const QString& name, int maxLength = MaxLayoutNameLengt
  * @brief Editor-specific constants
  */
 namespace EditorConstants {
-// PhosphorZones::Zone size constraints (relative coordinates 0.0-1.0)
+// Zone size constraints (relative coordinates 0.0-1.0)
 constexpr qreal MinZoneSize = 0.05; // 5% minimum zone size
 
 // Fixed geometry constraints (absolute pixel coordinates)
@@ -188,9 +219,10 @@ constexpr int MinFixedZoneSize = 50; // Minimum fixed zone dimension in pixels
 
 // Snapping thresholds (relative coordinates 0.0-1.0, used in SnappingService)
 constexpr qreal EdgeThreshold = 0.02; // 2% threshold for snapping to zone edges
-constexpr qreal DefaultSnapInterval = 0.1; // 10% default grid snap interval
+// The grid snap interval's default is ConfigDefaults::editorSnapIntervalX/Y,
+// the one value the settings schema and the editor share.
 
-// PhosphorZones::Zone duplication offset
+// Zone duplication offset
 constexpr qreal DuplicateOffset = 0.02; // 2% offset when duplicating zones
 constexpr int DuplicateOffsetPixels = 20; // 20px offset when duplicating fixed zones
 
@@ -221,7 +253,10 @@ namespace JsonKeys {
 //
 // What remains below is the part of the screen-info D-Bus reply that this
 // namespace owns: fields `fetchScreens()` (src/settings/utils/screenprovider.cpp)
-// parses out of getScreenInfo.  It does not cover the whole reply — the
+// parses out of getScreenInfo, and the screen's scale and size in device
+// pixels, which the shared parseDaemonScreenScale
+// (plasmazones/src/common/daemonscreenscale.h) reads for both the layout
+// editor and the settings app.  It does not cover the whole reply — the
 // connector name and the geometry sub-keys come from ZoneJsonKeys.
 //
 // Only the fields with a caller are kept. Dropping the unread ones is safe
@@ -235,6 +270,15 @@ inline constexpr QLatin1String Manufacturer{"manufacturer"};
 inline constexpr QLatin1String Model{"model"};
 inline constexpr QLatin1String IsVirtualScreen{"isVirtualScreen"};
 inline constexpr QLatin1String VirtualDisplayName{"virtualDisplayName"};
+inline constexpr QLatin1String DevicePixelRatio{"devicePixelRatio"};
+inline constexpr QLatin1String PixelSize{"pixelSize"};
+// Where pixelSize came from: "reported" (the compositor's report, once the
+// daemon accepted it), "seeded" (the size last accepted for that monitor, in
+// this session or an earlier one) or "estimated" (logical size times scale). The daemon's rules see a
+// size only for the first two.
+inline constexpr QLatin1String PixelSizeSource{"pixelSizeSource"};
+inline constexpr QLatin1String PixelSizeSourceReported{"reported"};
+inline constexpr QLatin1String PixelSizeSourceSeeded{"seeded"};
 }
 
 namespace PerScreenKeys = PhosphorEngine::PerScreenKeys;

@@ -12,8 +12,8 @@ import org.plasmazones.common as PZCommon
  *
  * ActionRow's `_params` Repeater/Loader picks one of these `Component`s by the
  * param `kind` (never an action-type ladder). They live here rather than inline
- * so ActionRow stays under the file-size ceiling; the split is purely a home for
- * the Components, not a behavioural boundary.
+ * in ActionRow; the split is purely a home for the Components, not a
+ * behavioural boundary.
  *
  * Each Component body is UNCHANGED from when it lived in ActionRow: it still
  * reads `row.*` (the ActionRow instance, injected below) and `parent.modelData`
@@ -34,6 +34,14 @@ QtObject {
     /// Named once here so the two editors that offer the None row share it,
     /// matching MonitorStatePage's `_noLayoutToken` convention.
     readonly property string noLayoutToken: "none"
+
+    /// The three routing-target pickers (RouteToScreen / RouteToDesktop /
+    /// RouteToWorkspace), which live in their own file, ActionParamPickers.
+    /// ActionRow reaches them through `paramEditors.pickers._…Editor`; they
+    /// take the same `row` handle.
+    property ActionParamPickers pickers: ActionParamPickers {
+        row: editors.row
+    }
 
     // Param-editor Components — the `modelData` they reference is the
     // **Loader**'s `modelData` (set by Repeater), reached via `parent.modelData`
@@ -446,8 +454,9 @@ QtObject {
             // currentIndex at -1, and ComboBox's default `displayText` is
             // `currentText`, which is empty there — a blank combo that hides
             // what the rule pins, while the read-only summary shows the raw
-            // token. Fall back to the token for the same reason the layout,
-            // template, screen and desktop editors below do.
+            // token. Fall back to the token for the same reason the layout
+            // and template editors below and the screen and desktop pickers
+            // in ActionParamPickers do.
             displayText: currentIndex >= 0 ? currentText : (row.action[_param.key] || "")
             Accessible.name: _param.label
             onActivated: function (index) {
@@ -552,90 +561,6 @@ QtObject {
             Accessible.name: _param.label
             onActivated: function (index) {
                 row.actionEdited(row._withParam(_param.key, currentValue));
-            }
-        }
-    }
-
-    // Monitor picker for RouteToScreen. Mirrors the ScreenId match-condition
-    // editor (MatchLeafEditor's screenValueEditor): the user picks a friendly
-    // label while the wire value stays the canonical screen id. A stored id whose
-    // monitor is offline still surfaces (so the user sees what the rule pins to).
-    property Component _screenIdEditor: Component {
-        WideComboBox {
-            id: screenCombo
-
-            readonly property var _param: parent.modelData
-            readonly property var _screens: (row.appSettings && row.appSettings.screens) || []
-            model: _screens.map(function (s) {
-                var label = s.displayLabel || s.name || "";
-                if (s.isPrimary)
-                    // Composed inside one i18nc so translators control the
-                    // order and the separator survives RTL bidi runs.
-                    label = i18nc("monitor name, then the primary-monitor marker", "%1 · %2", label, i18n("Primary"));
-                return {
-                    "label": label,
-                    "name": s.name
-                };
-            })
-            textRole: "label"
-            valueRole: "name"
-            currentIndex: {
-                var target = row.action[_param.key] || "";
-                for (var i = 0; i < screenCombo._screens.length; ++i) {
-                    if (screenCombo._screens[i].name === target)
-                        return i;
-                }
-                return -1;
-            }
-            displayText: currentIndex >= 0 ? currentText : (row.action[_param.key] || i18n("Choose a monitor…"))
-            Accessible.name: _param.label
-            onActivated: function (index) {
-                if (currentValue !== row.action[_param.key])
-                    row.actionEdited(row._withParam(_param.key, currentValue));
-            }
-        }
-    }
-
-    // Virtual-desktop picker for RouteToDesktop. Lists 1..virtualDesktopCount,
-    // labelled with the desktop name when KWin reports one. The wire value is the
-    // 1-based desktop number. A stored desktop beyond the current count still
-    // surfaces its number so the rule's target stays legible.
-    property Component _virtualDesktopEditor: Component {
-        WideComboBox {
-            id: desktopCombo
-
-            readonly property var _param: parent.modelData
-            readonly property int _count: row.appSettings && row.appSettings.virtualDesktopCount > 0 ? row.appSettings.virtualDesktopCount : 1
-            readonly property var _names: (row.appSettings && row.appSettings.virtualDesktopNames) || []
-            model: {
-                var items = [];
-                for (var i = 1; i <= desktopCombo._count; ++i) {
-                    var name = desktopCombo._names.length >= i ? desktopCombo._names[i - 1] : "";
-                    items.push({
-                        // Composed inside one i18nc so translators control the
-                        // order and the separator, matching the monitor picker
-                        // above and the match-side desktop picker.
-                        "label": name && name.length > 0 ? i18nc("virtual desktop number, then its name", "%1: %2", i, name) : ("" + i),
-                        "value": i
-                    });
-                }
-                return items;
-            }
-            textRole: "label"
-            valueRole: "value"
-            currentIndex: {
-                var target = Number(row.action[_param.key]);
-                for (var i = 0; i < desktopCombo.model.length; ++i) {
-                    if (desktopCombo.model[i].value === target)
-                        return i;
-                }
-                return -1;
-            }
-            displayText: currentIndex >= 0 ? currentText : (row.action[_param.key] ? ("" + row.action[_param.key]) : i18n("Choose a desktop…"))
-            Accessible.name: _param.label
-            onActivated: function (index) {
-                if (currentValue !== row.action[_param.key])
-                    row.actionEdited(row._withParam(_param.key, currentValue));
             }
         }
     }
@@ -1022,12 +947,11 @@ QtObject {
     property Component _shaderEffectEditor: Component {
         // Cascading category menu (the same widget ActionRow.qml uses for its
         // action-type picker, and the animations page for its shader picker)
-        // instead of a flat combo, so
-        // shaders group by category. The list is path-aware: it is pre-filtered
-        // to the shaders that can drive this action's target event, so a
-        // geometry-only shader (window-morph) is omitted on a show/hide event,
-        // matching the animations page and the WHEN/THEN pickers in this same
-        // editor.
+        // instead of a flat combo, so shaders group by category. The list is
+        // path-aware: it is pre-filtered to the shaders that can drive this
+        // action's target event, so a geometry-only shader (window-morph) is
+        // omitted on a show/hide event, matching the animations page and the
+        // WHEN/THEN pickers in this same editor.
         PZCommon.CategoryMenuButton {
             readonly property var _param: parent.modelData
             // Reading `row.action.event` re-filters the list when the user
@@ -1054,9 +978,6 @@ QtObject {
         }
     }
 
-    // Overlay-shader picker for OverrideOverlayShader actions — the zone
-    // overlay shader registry (Appearance → Overlays), distinct from the
-    // animation shaders above. Wire value is the shader id.
     // The OverlayShaderTree NODE an OverrideOverlayShader rule targets — the
     // overlay twin of _animationEventEditor, where the animation rule picks the
     // event node it overrides. The rows are the assignments page's own cards
@@ -1096,6 +1017,9 @@ QtObject {
         }
     }
 
+    // Overlay-shader picker for OverrideOverlayShader actions — the zone
+    // overlay shader registry (Appearance → Overlays), distinct from the
+    // animation shaders above. Wire value is the shader id.
     property Component _overlayShaderEditor: Component {
         // Cascading category menu of the zone overlay shaders, grouped by
         // category. Same registry the Appearance → Overlays pages browse and
@@ -1129,10 +1053,9 @@ QtObject {
     }
 
     // Inline shader-uniform editor shared by both shader-override actions
-    // (OverrideAnimationShader and OverrideOverlayShader). Its body lives in
-    // ActionShaderParamsEditor.qml rather than here, because this file is past the
-    // size ceiling and the preset merge it needs could not be added in place — the
-    // same move ActionPresetEditor.qml made.
+    // (OverrideAnimationShader and OverrideOverlayShader). Its body, preset merge
+    // included, lives in ActionShaderParamsEditor.qml, as the preset combo's
+    // lives in ActionPresetEditor.qml.
     property Component _shaderParamsEditor: Component {
         ActionShaderParamsEditor {
             row: editors.row

@@ -7,7 +7,9 @@
 // cross-output and cross-mode focus/move crossings (along the strip, across
 // it, and from an empty screen). The strip math those verbs sit on is covered
 // in test_scrollstrip_ops; what this file owns is the feedback contract,
-// the activation/echo bookkeeping and the focus-side float memory.
+// the activation/echo bookkeeping and the focus-side float memory, plus the
+// odd end-to-end case where a verb's verdict depends on what an earlier
+// engine path (an interactive resize, say) left in the strip.
 
 #include <PhosphorEngine/ICrossSurfaceResolver.h>
 #include <PhosphorEngine/WindowRegistry.h>
@@ -20,10 +22,13 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include <limits>
+
 using namespace PhosphorScrollEngine;
 
 namespace Ax = ScrollTestUtils::Ax;
 
+using ScrollTestUtils::makeGappedProviderEngine;
 using ScrollTestUtils::makeProviderEngine;
 using ScrollTestUtils::TrailNeighbourResolver;
 
@@ -68,10 +73,12 @@ private Q_SLOTS:
     void absoluteWidthAndHeightIntents();
     void centerVisibleColumnsCentersOnceThenRefuses();
     void scrollViewByPercentPansWithoutMovingFocus();
+    void scrollViewByPxPansQuietly();
     void scrollViewSurvivesALateStashClaim();
     void refocusingTheActiveWindowHandsAPannedViewBack();
     void edgeAutoScrollThenCancelKeepsTheScrolledView();
     void equalizeAndMinimizeReportTheirFeedback();
+    void equalizeAfterAUserWidenRestoresTheSplit();
     void everyVerbAnswersNoWindowsOnAnEmptyScreen();
     void moveToFloatingAndBackAnswersEveryPress();
     void switchFocusRoundTripsBetweenLayers();
@@ -84,6 +91,7 @@ private Q_SLOTS:
     void focusEdgeWithNoNeighbourReportsNoTarget();
     void focusOntoAForeignModeNeighbourDefersToTheDaemon();
     void windowedFullscreenRefusesWhileTheFloatLayerHoldsFocus();
+    void columnVerbsRefuseWhileTheFloatLayerHoldsFocus();
 
 private:
     /// Bare engine: NO geometry providers and NO auto-echo. Only for tests
@@ -420,6 +428,79 @@ void TestScrollEngineVerbs::scrollViewByPercentPansWithoutMovingFocus()
     QCOMPARE(placement.count(), placementAfterPin);
 }
 
+void TestScrollEngineVerbs::scrollViewByPxPansQuietly()
+{
+    // The placement map pans through the pixel verb once per frame while its
+    // lens is dragged, so a success OSD per call kept the navigation card
+    // coming back for the whole drag. A pixel pan on a strip therefore reports
+    // nothing, while a successful one still detaches the view and marks the
+    // anchor for persistence. That holds for its refusals too: a drag held
+    // against the strip's end, or held still, would bring the card back on
+    // every frame just the same. Only the empty strip answers
+    // (everyVerbAnswersNoWindowsOnAnEmptyScreen).
+    QObject owner;
+    ScrollEngine* engine = makeProviderEngine(&owner, {QStringLiteral("S1")});
+    for (const char* id : {"app|a", "app|b", "app|c"}) {
+        engine->windowOpened(QString::fromLatin1(id), QStringLiteral("S1"), 0, 0);
+        engine->windowFocused(QString::fromLatin1(id), QStringLiteral("S1"));
+        engine->setColumnWidth(ColumnWidth::makeProportion(0.55), QStringLiteral("S1"));
+    }
+    ScrollState* state = stateFor(engine, QStringLiteral("S1"));
+    QVERIFY(state);
+    const int anchorBefore = state->strip().viewAnchor();
+
+    QSignalSpy feedback(engine, &PhosphorEngine::PlacementEngineBase::navigationFeedback);
+    QSignalSpy placement(engine, &PhosphorEngine::PlacementEngineBase::placementChanged);
+
+    // Backward has room (the view starts at the strip's end).
+    engine->scrollViewByPx(-137, QStringLiteral("S1"));
+    QCOMPARE(state->strip().viewAnchor(), anchorBefore + 137);
+    QVERIFY(state->strip().viewDetached());
+    QCOMPARE(state->strip().activeWindowId(), QStringLiteral("app|c"));
+    QCOMPARE(placement.count(), 1);
+    QCOMPARE(feedback.count(), 0);
+    engine->scrollViewByPx(-63, QStringLiteral("S1"));
+    QCOMPARE(state->strip().viewAnchor(), anchorBefore + 200);
+    QCOMPARE(feedback.count(), 0);
+
+    // The refusals are as quiet: a zero pan, and a pan pinned at the end it is
+    // asked to move toward. Neither moves anything, so neither marks the
+    // anchor for persistence either.
+    const int placementBeforeRefusals = placement.count();
+    engine->scrollViewByPx(0, QStringLiteral("S1"));
+    QCOMPARE(feedback.count(), 0);
+    QCOMPARE(state->strip().viewAnchor(), anchorBefore + 200);
+    QCOMPARE(placement.count(), placementBeforeRefusals);
+    // An extreme px is exported API's to receive: bounded at the entry, it
+    // pans to the strip's end like any over-long pan.
+    engine->scrollViewByPx(std::numeric_limits<int>::max(), QStringLiteral("S1"));
+    QCOMPARE(state->strip().viewAnchor(), anchorBefore);
+    const int placementAtEnd = placement.count();
+    QVERIFY(placementAtEnd > placementBeforeRefusals);
+    engine->scrollViewByPx(1, QStringLiteral("S1"));
+    QCOMPARE(state->strip().viewAnchor(), anchorBefore);
+    QCOMPARE(placement.count(), placementAtEnd);
+    engine->scrollViewByPx(std::numeric_limits<int>::min(), QStringLiteral("S1"));
+    const int anchorAtStart = state->strip().viewAnchor();
+    QVERIFY(anchorAtStart > anchorBefore);
+    const int placementAtStart = placement.count();
+    engine->scrollViewByPx(-1, QStringLiteral("S1"));
+    QCOMPARE(state->strip().viewAnchor(), anchorAtStart);
+    QCOMPARE(placement.count(), placementAtStart);
+    QCOMPARE(feedback.count(), 0);
+
+    // The percent verb behind the keyboard keeps its success OSD and its
+    // refusals. Forward, since the INT_MIN pan above left the view pinned at
+    // the strip's start; then a step too small to reach a pixel.
+    engine->scrollViewByPercent(25, QStringLiteral("S1"));
+    QCOMPARE(feedback.count(), 1);
+    QCOMPARE(feedback.last().at(0).toBool(), true);
+    engine->scrollViewByPercent(-0.01, QStringLiteral("S1"));
+    QCOMPARE(feedback.count(), 2);
+    QCOMPARE(feedback.last().at(0).toBool(), false);
+    QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("no_movement"));
+}
+
 void TestScrollEngineVerbs::scrollViewSurvivesALateStashClaim()
 {
     // A stash entry (here the in-session mode round trip) lives until every
@@ -661,6 +742,64 @@ void TestScrollEngineVerbs::equalizeAndMinimizeReportTheirFeedback()
     QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("equalize_heights"));
 }
 
+void TestScrollEngineVerbs::equalizeAfterAUserWidenRestoresTheSplit()
+{
+    // The commonest way columns become unequal: the user drags one column's
+    // trailing edge wider, which pushes its neighbour part way past the
+    // screen edge. Equalize must still split the screen between the two,
+    // since the neighbour intersects the viewport; counting only fully
+    // visible columns left one column in the group and the verb refused.
+    // Run on the GAPPED fixture so the split's gap term is observable at the
+    // engine layer too.
+    QObject owner;
+    ScrollEngine* engine = makeGappedProviderEngine(&owner, {QStringLiteral("S1")});
+    const auto params = ScrollTestUtils::gappedEngineParams();
+    const int even = (ScrollTestUtils::kMainExtent - ScrollTestUtils::kEngineInnerGap) / 2;
+    const QString a = QStringLiteral("app|a");
+    const QString b = QStringLiteral("app|b");
+    engine->windowOpened(a, QStringLiteral("S1"), 0, 0);
+    engine->windowOpened(b, QStringLiteral("S1"), 0, 0);
+    engine->windowFocused(a, QStringLiteral("S1"));
+    engine->retile(QStringLiteral("S1"));
+    QCoreApplication::processEvents();
+    ScrollState* state = stateFor(engine, QStringLiteral("S1"));
+    QVERIFY(state);
+    const QRect applied = ScrollTestUtils::tileRectOn(engine, QStringLiteral("S1"), a);
+    QCOMPARE(Ax::mainLen(applied), even);
+
+    QRect widened = Ax::t(applied);
+    widened.setWidth(widened.width() + 200);
+    engine->onWindowResized(a, applied, Ax::t(widened), QStringLiteral("S1"));
+    QCoreApplication::processEvents();
+    QVERIFY2(Ax::mainLen(ScrollTestUtils::tileRectOn(engine, QStringLiteral("S1"), a)) == even + 200,
+             "precondition: the user resize widened a");
+    // Asked of the model rather than of b's applied rect, which the edge
+    // clamp may have shortened: b intersects the viewport without lying
+    // wholly inside it.
+    QCOMPARE(state->strip().visibleColumnIndices(params), QVector<int>({0, 1}));
+    QCOMPARE(state->strip().fullyVisibleColumnIndices(params), QVector<int>({0}));
+
+    QSignalSpy feedback(engine, &PhosphorEngine::PlacementEngineBase::navigationFeedback);
+    engine->equalizeVisibleColumnWidths(QStringLiteral("S1"));
+    QCoreApplication::processEvents();
+    QCOMPARE(feedback.count(), 1);
+    QCOMPARE(feedback.last().at(0).toBool(), true);
+    QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("equalize"));
+    const QRect aAfter = ScrollTestUtils::tileRectOn(engine, QStringLiteral("S1"), a);
+    const QRect bAfter = ScrollTestUtils::tileRectOn(engine, QStringLiteral("S1"), b);
+    QCOMPARE(Ax::mainPos(aAfter), 0);
+    QCOMPARE(Ax::mainLen(aAfter), even);
+    QCOMPARE(Ax::mainLen(bAfter), even);
+    QCOMPARE(Ax::mainPos(bAfter) + Ax::mainLen(bAfter), ScrollTestUtils::kMainExtent);
+
+    // The engine's own layout pass ran between the presses, so this is the
+    // convergence the strip tests pin, seen through the engine.
+    engine->equalizeVisibleColumnWidths(QStringLiteral("S1"));
+    QCOMPARE(feedback.count(), 2);
+    QCOMPARE(feedback.last().at(0).toBool(), false);
+    QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("no_target"));
+}
+
 void TestScrollEngineVerbs::everyVerbAnswersNoWindowsOnAnEmptyScreen()
 {
     QObject owner;
@@ -681,12 +820,15 @@ void TestScrollEngineVerbs::everyVerbAnswersNoWindowsOnAnEmptyScreen()
     engine->moveFocusedToTiling(QStringLiteral("S1"));
     engine->switchFocusBetweenFloatingAndTiling(QStringLiteral("S1"));
     engine->scrollViewByPercent(25, QStringLiteral("S1"));
+    // The pixel pan's one report: with no strip there is nothing on screen
+    // to show the drag doing nothing.
+    engine->scrollViewByPx(25, QStringLiteral("S1"));
     engine->equalizeVisibleColumnWidths(QStringLiteral("S1"));
     engine->minimizeColumnWidth(QStringLiteral("S1"));
     engine->resetStripToDefaults(QStringLiteral("S1"));
     engine->toggleWindowedFullscreen(QStringLiteral("S1"));
 
-    QCOMPARE(feedback.count(), 15);
+    QCOMPARE(feedback.count(), 16);
     for (int i = 0; i < feedback.count(); ++i) {
         QCOMPARE(feedback.at(i).at(0).toBool(), false);
         QCOMPARE(feedback.at(i).at(2).toString(), QStringLiteral("no_windows"));
@@ -1166,6 +1308,83 @@ void TestScrollEngineVerbs::windowedFullscreenRefusesWhileTheFloatLayerHoldsFocu
     QCOMPARE(feedback.last().at(0).toBool(), true);
     QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("on"));
     QVERIFY(state->strip().isWindowedFullscreen(active));
+}
+
+// The verbs that restructure the strip around its active column refuse while
+// a float holds focus, as the directional move does: the active column is then
+// the one BEHIND the float, and acting on it moved a column the user was not
+// looking at, announced success, and focused it away from the float. The
+// column read the move-column-to-workspace verb uses refuses on the same test.
+void TestScrollEngineVerbs::columnVerbsRefuseWhileTheFloatLayerHoldsFocus()
+{
+    QObject owner;
+    ScrollEngine* engine = providerThreeWindows(&owner);
+    ScrollState* state = stateFor(engine, QStringLiteral("S1"));
+    QVERIFY(state);
+    QCOMPARE(state->strip().activeWindowId(), QStringLiteral("app|c"));
+    engine->setWindowFloat(QStringLiteral("app|c"), true, QStringLiteral("S1"));
+    QVERIFY(state->floatingHasFocus());
+    const QStringList order = state->strip().windowsInOrder();
+    const int columns = state->strip().columnCount();
+    QCOMPARE(columns, 2);
+
+    QSignalSpy feedback(engine, &PhosphorEngine::PlacementEngineBase::navigationFeedback);
+    // Returns what is wrong with the refusal, empty when it is right, and
+    // asserts nothing itself: a QCOMPARE in a lambda returns from the lambda
+    // only, so the test would carry on past it. Each call site asserts.
+    const auto refusalProblem = [&](const QString& action) -> QString {
+        QString problem;
+        if (feedback.count() != 1) {
+            problem = QStringLiteral("expected one feedback, got %1").arg(feedback.count());
+        } else if (feedback.last().at(0).toBool()) {
+            problem = QStringLiteral("reported success");
+        } else if (feedback.last().at(1).toString() != action) {
+            problem = QStringLiteral("action %1, expected %2").arg(feedback.last().at(1).toString(), action);
+        } else if (feedback.last().at(2).toString() != QLatin1String("no_target")) {
+            problem = QStringLiteral("reason %1, expected no_target").arg(feedback.last().at(2).toString());
+        } else if (feedback.last().at(3).toString() != QLatin1String("app|c")) {
+            problem = QStringLiteral("window %1, expected app|c").arg(feedback.last().at(3).toString());
+        } else if (state->strip().windowsInOrder() != order) {
+            problem = QStringLiteral("strip order changed");
+        } else if (state->strip().columnCount() != columns) {
+            problem = QStringLiteral("column count changed");
+        } else if (!state->floatingHasFocus()) {
+            problem = QStringLiteral("the float lost focus");
+        }
+        feedback.clear();
+        return problem;
+    };
+    QString problem;
+    engine->moveColumnToFirst(QStringLiteral("S1"));
+    problem = refusalProblem(QStringLiteral("move"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("moveColumnToFirst: ") + problem));
+    engine->moveColumnToLast(QStringLiteral("S1"));
+    problem = refusalProblem(QStringLiteral("move"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("moveColumnToLast: ") + problem));
+    engine->consumeWindowIntoColumn(QStringLiteral("S1"));
+    problem = refusalProblem(QStringLiteral("consume"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("consumeWindowIntoColumn: ") + problem));
+    engine->consumeOrExpelWindow(-1, QStringLiteral("S1"));
+    problem = refusalProblem(QStringLiteral("consume"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("consumeOrExpelWindow: ") + problem));
+    engine->expelWindowFromColumn(QStringLiteral("S1"));
+    problem = refusalProblem(QStringLiteral("expel"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("expelWindowFromColumn: ") + problem));
+
+    ScrollEngine::FocusedColumnRefusal reason = ScrollEngine::FocusedColumnRefusal::None;
+    QVERIFY(engine->focusedColumnWindows(QStringLiteral("S1"), &reason).isEmpty());
+    QCOMPARE(reason, ScrollEngine::FocusedColumnRefusal::FloatFocused);
+
+    // Focus back on the strip makes the same press act, so the float focus is
+    // the whole cause of the refusals above.
+    engine->setWindowFloat(QStringLiteral("app|c"), false, QStringLiteral("S1"));
+    QVERIFY(!state->floatingHasFocus());
+    QVERIFY(!engine->focusedColumnWindows(QStringLiteral("S1"), &reason).isEmpty());
+    QCOMPARE(reason, ScrollEngine::FocusedColumnRefusal::None);
+    feedback.clear();
+    engine->moveColumnToFirst(QStringLiteral("S1"));
+    QCOMPARE(feedback.count(), 1);
+    QCOMPARE(feedback.last().at(0).toBool(), true);
 }
 
 QTEST_GUILESS_MAIN(TestScrollEngineVerbs)
