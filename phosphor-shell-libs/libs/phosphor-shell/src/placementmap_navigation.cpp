@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #include <PhosphorShell/PlacementMap.h>
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
@@ -9,9 +10,10 @@
 
 namespace PhosphorShell {
 namespace {
-const QString Service = QStringLiteral("org.kde.KWin");
-const QString Path = QStringLiteral("/PlasmaZones/ShellOverview");
-const QString Interface = QStringLiteral("org.plasmazones.ShellOverview");
+namespace Overview = PhosphorProtocol::Service::ShellOverview;
+const QString Service = Overview::ServiceName;
+const QString Path = Overview::ObjectPath;
+const QString Interface = Overview::Interface;
 }
 void PlacementMapScreen::initializeNavigation()
 {

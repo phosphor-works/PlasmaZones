@@ -8,7 +8,7 @@
 #include <QTest>
 
 namespace {
-const QString Service = QStringLiteral("org.phosphor.test.UPower");
+const QString Service = QStringLiteral("org.phosphor_works.Test.UPower");
 const QString HostPath = QStringLiteral("/org/freedesktop/UPower");
 const QString BatteryPath = QStringLiteral("/org/freedesktop/UPower/devices/battery_BAT0");
 }

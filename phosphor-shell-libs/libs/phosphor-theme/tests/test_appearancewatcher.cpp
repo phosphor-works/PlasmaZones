@@ -49,7 +49,7 @@ private Q_SLOTS:
             const QByteArray contents = QByteArrayLiteral("[org.kde.kdecoration2]\nlibrary=") + plugin + '\n';
             return file.write(contents) == contents.size() && file.commit();
         };
-        QVERIFY(selectDecoration(QByteArrayLiteral("org.phosphor.decoration")));
+        QVERIFY(selectDecoration(QByteArrayLiteral("org.phosphor_works.Lambent.Decoration")));
         QTRY_VERIFY(watcher.desktopStyleActive());
         QVERIFY(store.beginPreview());
         QVERIFY(store.setValue(QStringLiteral("radius"), 26));

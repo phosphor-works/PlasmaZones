@@ -66,7 +66,7 @@ private Q_SLOTS:
         qDBusRegisterMetaType<LayoutNames>();
         qDBusRegisterMetaType<QList<LayoutNames>>();
         auto bus = QDBusConnection::sessionBus();
-        const QString service = QStringLiteral("org.phosphor.test.lockkeyboard");
+        const QString service = QStringLiteral("org.phosphor_works.Test.LockKeyboard");
         FakeLayouts layouts;
         QVERIFY(bus.registerService(service));
         QVERIFY(bus.registerObject(QStringLiteral("/Layouts"), &layouts,

@@ -31,7 +31,7 @@ QString firstId(const ShortcutCatalog& catalog)
 class ShortcutService : public QObject, protected QDBusContext
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.Control")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Control")
 public:
     bool delayed = false;
     bool fail = false;
@@ -69,7 +69,8 @@ public Q_SLOTS:
             return {};
         }
         if (fail) {
-            sendErrorReply(QStringLiteral("org.plasmazones.Error.Unavailable"), QStringLiteral("Test failure"));
+            sendErrorReply(QStringLiteral("org.phosphor_works.Placement.Error.Unavailable"),
+                           QStringLiteral("Test failure"));
             return {};
         }
         return payload;

@@ -49,7 +49,8 @@ private Q_SLOTS:
         const auto appearancePath = guard.configPath() + QStringLiteral("/appearance.json");
         const auto kwinPath = guard.configPath() + QStringLiteral("/kwinrc");
         QSettings kwin(kwinPath, QSettings::IniFormat);
-        kwin.setValue(QStringLiteral("org.kde.kdecoration2/library"), QStringLiteral("org.phosphor.decoration"));
+        kwin.setValue(QStringLiteral("org.kde.kdecoration2/library"),
+                      QStringLiteral("org.phosphor_works.Lambent.Decoration"));
         kwin.sync();
         AppearanceStore appearance(appearancePath);
         QVERIFY(appearance.setValue(QStringLiteral("surfacePacks"), true));

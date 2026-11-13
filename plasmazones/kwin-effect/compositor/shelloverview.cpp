@@ -16,10 +16,16 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <cmath>
+#include <string_view>
 namespace PlasmaZones {
 namespace {
-const QString ObjectPath = QStringLiteral("/PlasmaZones/ShellOverview");
+namespace Overview = PhosphorProtocol::Service::ShellOverview;
+// The class's Q_CLASSINFO spells the interface as a literal for moc.
+static_assert(std::string_view(Overview::Interface.data(), Overview::Interface.size())
+              == "org.phosphor_works.PlasmaZones.ShellOverview");
+const QString ObjectPath = Overview::ObjectPath;
 bool navigable(KWin::EffectWindow* window)
 {
     return window && !window->isDeleted() && !window->isSkipSwitcher()

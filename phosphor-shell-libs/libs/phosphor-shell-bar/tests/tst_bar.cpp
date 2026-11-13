@@ -79,8 +79,8 @@ public:
 
     Q_INVOKABLE QVariant call(const QString& method, const QVariantList& arguments)
     {
-        auto request =
-            QDBusMessage::createMethodCall(service(), QStringLiteral("/org/phosphor/TrayFixture"), service(), method);
+        auto request = QDBusMessage::createMethodCall(service(), QStringLiteral("/org/phosphor_works/Test/TrayFixture"),
+                                                      service(), method);
         request.setArguments(arguments);
         const auto reply = QDBusConnection::sessionBus().call(request, QDBus::BlockWithGui, 2500);
         if (reply.type() == QDBusMessage::ErrorMessage) {
@@ -103,7 +103,7 @@ public:
 private:
     static QString service()
     {
-        return QStringLiteral("org.phosphor.TrayFixture");
+        return QStringLiteral("org.phosphor_works.Test.TrayFixture");
     }
     QProcess m_process;
 };

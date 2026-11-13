@@ -24,7 +24,7 @@ namespace {
 namespace Service = PhosphorProtocol::Service;
 namespace Key = PhosphorProtocol::Service::SettingProperty;
 const QString LibraryKey = QStringLiteral("org.kde.kdecoration2/library");
-const QString Library = QStringLiteral("org.phosphor.decoration");
+const QString Library = QStringLiteral("org.phosphor_works.Lambent.Decoration");
 // Bounds every blocking call to the daemon, so a wedged daemon costs the
 // shell a short stall rather than D-Bus's 25 second default.
 constexpr int DaemonTimeoutMs = 2000;

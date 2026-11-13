@@ -10,7 +10,7 @@
 using PhosphorShellApp::ColorModeController;
 using PhosphorTheme::AppearanceStore;
 namespace {
-const QString Service = QStringLiteral("org.phosphor.test.colorMode");
+const QString Service = QStringLiteral("org.phosphor_works.Test.ColorMode");
 const QString Path = QStringLiteral("/org/freedesktop/portal/desktop");
 }
 class FakeColorPortal : public QObject, protected QDBusContext

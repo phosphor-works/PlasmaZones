@@ -34,8 +34,8 @@ both presentations. This follows the corrected interaction direction; the
 bottom shelves in the earlier Stage study are no longer the shell defaults.
 Wide content layouts remain available to custom composers.
 
-Stage uses the KWin effect's `org.plasmazones.ShellOverview` interface at
-`/PlasmaZones/ShellOverview` on `org.kde.KWin`. The effect transforms the real
+Stage uses the KWin effect's `org.phosphor_works.PlasmaZones.ShellOverview` interface at
+`/org/phosphor_works/PlasmaZones/ShellOverview` on `org.kde.KWin`. The effect transforms the real
 desktop windows and restores them when the shell closes, disconnects or loses
 the output. Per-instance tokens prevent an old closing popup from restoring a
 new preview on the same shell connection. The QML surface stays full-screen so its hit areas match its

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #include "../src/desktopstage.h"
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <QDBusConnection>
 #include <QTest>
 #include <memory>
@@ -8,7 +9,7 @@ using PhosphorShellDashboard::DesktopStage;
 class Compositor : public QObject
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.ShellOverview")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.PlasmaZones.ShellOverview")
 public:
     QRectF lastRect;
     QString lastScreen;
@@ -47,8 +48,8 @@ private Q_SLOTS:
     {
         auto bus = QDBusConnection::sessionBus();
         Compositor compositor;
-        QVERIFY(bus.registerService(QStringLiteral("org.kde.KWin")));
-        QVERIFY(bus.registerObject(QStringLiteral("/PlasmaZones/ShellOverview"), &compositor,
+        QVERIFY(bus.registerService(PhosphorProtocol::Service::ShellOverview::ServiceName));
+        QVERIFY(bus.registerObject(PhosphorProtocol::Service::ShellOverview::ObjectPath, &compositor,
                                    QDBusConnection::ExportAllSlots));
         {
             DesktopStage stage;
@@ -105,12 +106,12 @@ private Q_SLOTS:
             QCOMPARE(compositor.attempts, cancelled);
             QVERIFY(!pending.active());
         }
-        bus.unregisterObject(QStringLiteral("/PlasmaZones/ShellOverview"));
+        bus.unregisterObject(PhosphorProtocol::Service::ShellOverview::ObjectPath);
         DesktopStage unavailable;
         unavailable.show(QStringLiteral("test-output"), QRectF(0.2, 0.15, 0.5, 0.5), false);
         QTest::qWait(40);
         QVERIFY(!unavailable.active());
-        bus.unregisterService(QStringLiteral("org.kde.KWin"));
+        bus.unregisterService(PhosphorProtocol::Service::ShellOverview::ServiceName);
     }
 };
 QTEST_GUILESS_MAIN(TestDesktopStage)

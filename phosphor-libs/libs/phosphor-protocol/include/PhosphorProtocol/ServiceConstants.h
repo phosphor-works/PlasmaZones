@@ -360,6 +360,17 @@ inline constexpr QLatin1String Interface("org.phosphor_works.PlasmaZones.Editor"
 }
 }
 
+/// The KWin effect's shell-overview object, which the shell's placement map and
+/// dashboard stage drive. The effect registers it on KWin's own connection, so
+/// the bus name is KWin's and only the path and interface are PlasmaZones'.
+/// ShellOverview's Q_CLASSINFO repeats Interface as a literal, because moc needs
+/// one there; a static_assert beside it holds the two together.
+namespace ShellOverview {
+inline constexpr QLatin1String ServiceName("org.kde.KWin");
+inline constexpr QLatin1String ObjectPath("/org/phosphor_works/PlasmaZones/ShellOverview");
+inline constexpr QLatin1String Interface("org.phosphor_works.PlasmaZones.ShellOverview");
+}
+
 // Protocol version. Bumped when the D-Bus method/signal schema changes in a
 // backwards-incompatible way (e.g. dragStopped out-params changed, new
 // required signal). Both sides check the peer's version at bridge registration

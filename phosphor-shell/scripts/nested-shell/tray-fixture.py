@@ -6,13 +6,13 @@
 Source the nested session's env.sh, then run tray-fixture.py [scenario].
 For bus-only testing use dbus-run-session. No compositor is required.
 
-Control service/interface: org.phosphor.TrayFixture
-Control object: /org/phosphor/TrayFixture
+Control service/interface: org.phosphor_works.Test.TrayFixture
+Control object: /org/phosphor_works/Test/TrayFixture
 Methods: Status(), Events(), ClearEvents(), SetScenario(s), SetStatus(ss),
 SetRecording(b), Remove(s), Add(s), SetIconMode(ss), SetMenuProperty(sisv),
 RequestMenuItem(si). Status and Events return JSON for easy assertions.
 Scenarios: everyday, attention, recording, many20 (or many), few, empty.
-Each app owns org.phosphor.TrayFixture.Item.<id> on its own connection and
+Each app owns org.phosphor_works.Test.TrayFixture.Item.<id> on its own connection and
 exports /StatusNotifierItem and /Menu. Closing an item drops its connection.
 The event log includes activation coordinates, scrolls, menu IDs and actions.
 All actions affect this fixture only. Nothing launches or controls host apps.
@@ -31,7 +31,7 @@ import dbus.service
 from gi.repository import GLib, GLibUnix
 
 
-CONTROL = "org.phosphor.TrayFixture"
+CONTROL = "org.phosphor_works.Test.TrayFixture"
 SNI = "org.kde.StatusNotifierItem"
 MENU = "com.canonical.dbusmenu"
 PROPERTIES = "org.freedesktop.DBus.Properties"
@@ -508,7 +508,7 @@ class Fixture(dbus.service.Object):
     def __init__(self, scenario):
         self.bus = dbus.SessionBus()
         self.name = dbus.service.BusName(CONTROL, self.bus, do_not_queue=True)
-        super().__init__(self.bus, "/org/phosphor/TrayFixture")
+        super().__init__(self.bus, "/org/phosphor_works/Test/TrayFixture")
         self.events = deque(maxlen=500)
         self.sequence = 0
         self.items = {}

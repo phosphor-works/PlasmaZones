@@ -6,7 +6,7 @@ kcoreaddons_add_plugin(phosphor_decoration
     INSTALL_NAMESPACE "org.kde.kdecoration3"
 )
 set_target_properties(phosphor_decoration PROPERTIES
-    OUTPUT_NAME "org.phosphor.decoration"
+    OUTPUT_NAME "org.phosphor_works.Lambent.Decoration"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/org.kde.kdecoration3"
     UNITY_BUILD OFF
 )

@@ -25,7 +25,7 @@ namespace PlasmaZones {
 class ShellOverview : public QObject, protected QDBusContext
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.ShellOverview")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.PlasmaZones.ShellOverview")
 public:
     explicit ShellOverview(KWin::Effect* effect);
     ~ShellOverview() override;

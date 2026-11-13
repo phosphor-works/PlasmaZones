@@ -22,13 +22,13 @@ namespace Key = PhosphorProtocol::Service::SettingProperty;
 
 namespace DesktopStyleTestSupport {
 
-const QString kFakeService = QStringLiteral("org.plasmazones.test.desktopstyle");
-const QString kLateService = QStringLiteral("org.plasmazones.test.desktopstyle.late");
+const QString kFakeService = QStringLiteral("org.phosphor_works.Test.DesktopStyle");
+const QString kLateService = QStringLiteral("org.phosphor_works.Test.DesktopStyle.Late");
 
 class FakeDaemonSettings : public QObject
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.plasmazones.Settings")
+    Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Settings")
 public:
     static QVariantMap defaults()
     {
@@ -136,7 +136,7 @@ private Q_SLOTS:
         std::unique_ptr<DesktopStyleController> controller(make(dir));
         controller->apply({{QStringLiteral("gap"), 16}});
         kwin.sync();
-        QCOMPARE(kwin.value(m_libraryKey).toString(), QStringLiteral("org.phosphor.decoration"));
+        QCOMPARE(kwin.value(m_libraryKey).toString(), QStringLiteral("org.phosphor_works.Lambent.Decoration"));
         QCOMPARE(m_daemon.value(Key::InnerGap), 16);
         QCOMPARE(m_daemon.value(Key::OuterGap), 12);
         // Multiple engine reloads and style changes keep the original baseline.
@@ -312,7 +312,7 @@ private Q_SLOTS:
         QVERIFY(QDBusConnection::sessionBus().registerService(kLateService));
         QTRY_COMPARE(m_daemon.value(Key::InnerGap), 16);
         QSettings kwin(kwinPath, QSettings::IniFormat);
-        QCOMPARE(kwin.value(m_libraryKey).toString(), QStringLiteral("org.phosphor.decoration"));
+        QCOMPARE(kwin.value(m_libraryKey).toString(), QStringLiteral("org.phosphor_works.Lambent.Decoration"));
         QVERIFY(controller->restore());
         QCOMPARE(m_daemon.values, FakeDaemonSettings::defaults());
         QVERIFY(QDBusConnection::sessionBus().unregisterService(kLateService));

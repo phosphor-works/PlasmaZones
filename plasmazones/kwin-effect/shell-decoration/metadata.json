@@ -1,6 +1,6 @@
 {
     "KPlugin": {
-        "Id": "org.phosphor.decoration",
+        "Id": "org.phosphor_works.Lambent.Decoration",
         "Name": "Phosphor",
         "Description": "Window frames for the Phosphor shell",
         "Version": "1.0",

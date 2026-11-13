@@ -78,7 +78,7 @@ void AppearanceWatcher::reload()
     QSettings kwin(m_kwinPath, QSettings::IniFormat);
     const bool active = next.value(QStringLiteral("desktopStyle")).toBool()
         && kwin.value(QStringLiteral("org.kde.kdecoration2/library")).toString()
-            == QLatin1String("org.phosphor.decoration");
+            == QLatin1String("org.phosphor_works.Lambent.Decoration");
     if (next == m_values && active == m_desktopStyleActive)
         return;
     m_values = next;

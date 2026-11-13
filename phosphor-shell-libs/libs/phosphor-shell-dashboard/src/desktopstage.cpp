@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #include "desktopstage.h"
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
@@ -10,17 +11,17 @@
 #include <QUuid>
 namespace PhosphorShellDashboard {
 namespace {
+namespace Overview = PhosphorProtocol::Service::ShellOverview;
 QDBusMessage request(const QString& method)
 {
-    return QDBusMessage::createMethodCall(QStringLiteral("org.kde.KWin"), QStringLiteral("/PlasmaZones/ShellOverview"),
-                                          QStringLiteral("org.plasmazones.ShellOverview"), method);
+    return QDBusMessage::createMethodCall(Overview::ServiceName, Overview::ObjectPath, Overview::Interface, method);
 }
 }
 DesktopStage::DesktopStage(QObject* parent)
     : QObject(parent)
     , m_token(QUuid::createUuid().toString())
 {
-    auto* watcher = new QDBusServiceWatcher(QStringLiteral("org.kde.KWin"), QDBusConnection::sessionBus(),
+    auto* watcher = new QDBusServiceWatcher(Overview::ServiceName, QDBusConnection::sessionBus(),
                                             QDBusServiceWatcher::WatchForUnregistration, this);
     connect(watcher, &QDBusServiceWatcher::serviceUnregistered, this, [this] {
         ++m_generation;

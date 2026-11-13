@@ -400,7 +400,7 @@ private Q_SLOTS:
 
     void testHostsShareAgentAndReleaseExport()
     {
-        const auto service = QStringLiteral("org.phosphor.test.SharedBluez");
+        const auto service = QStringLiteral("org.phosphor_works.Test.SharedBluez");
         auto first = std::make_unique<BluetoothHost>(QDBusConnection::sessionBus(), service);
         auto second = std::make_unique<BluetoothHost>(QDBusConnection::sessionBus(), service);
         QVERIFY(first->agent());
