@@ -181,9 +181,12 @@ private Q_SLOTS:
     {
         // Fails the test on every warning the QML engine reports against a
         // location, which its message text carries as `<url>:<line>`: a .qml
-        // or .js file, or <Unknown File> for a component built from data and
-        // for a section created with a property it does not declare. Also on
-        // a TypeError a script reports, and on the warning injectIfAssignable
+        // or .js file, or <Unknown File> for a component built from data. A
+        // section created with a property it does not declare is reported
+        // against FacetExtensionFrame.qml, at its setSource call: the
+        // section's Loader is synchronous here, since nothing in this test
+        // creates a frame inside an asynchronous incubation. Also on a
+        // TypeError a script reports, and on the warning injectIfAssignable
         // logs for a property it could not set, neither of which need carry
         // a location. A test that expects a warning declares it with
         // QTest::ignoreMessage, which takes precedence.

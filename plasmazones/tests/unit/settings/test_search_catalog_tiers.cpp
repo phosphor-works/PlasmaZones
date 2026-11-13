@@ -538,6 +538,26 @@ bool rootRequiresController(const QString& src, bool* ok)
     return false;
 }
 
+/// True when the ROOT object of the QML in @p src (comments stripped) declares
+/// a `settingsApp` property in its own body, required or not. PageHost creates
+/// a passing-context page with `controller` AND `settingsApp` as initial
+/// properties, and Qt cannot set an initial property the root does not
+/// declare. Same root-only scope and LIMITATION as rootRequiresController.
+bool rootDeclaresSettingsApp(const QString& src)
+{
+    const int rootOpen = src.indexOf(QLatin1Char('{'));
+    if (rootOpen < 0) {
+        return false;
+    }
+    for (const Block& b : parseBlocks(src)) {
+        if (b.start == rootOpen) {
+            static const QRegularExpression kDeclared(QStringLiteral("\\bproperty\\s+[\\w.<>]+\\s+settingsApp\\b"));
+            return ownBody(src, b).contains(kDeclared);
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 class TestSearchCatalogTiers : public QObject
@@ -1374,6 +1394,7 @@ private Q_SLOTS:
         const QList<Registration> regs = registrationsInOrder(regSrc);
         QSet<QString> passing;
         QSet<QString> requiring;
+        QSet<QString> declaringSettingsApp;
         QStringList problems;
         int qmlPages = 0;
         for (const Registration& r : regs) {
@@ -1406,6 +1427,9 @@ private Q_SLOTS:
             if (rootRequiresController(qml, &ok)) {
                 requiring.insert(r.id);
             }
+            if (rootDeclaresSettingsApp(qml)) {
+                declaringSettingsApp.insert(r.id);
+            }
             if (!ok) {
                 problems << QStringLiteral("%1: no root object parsed in %2").arg(r.id, file);
             }
@@ -1433,6 +1457,16 @@ private Q_SLOTS:
                  qPrintable(QStringLiteral("pages registered with passesContext whose QML root declares no required "
                                            "`controller`: %1")
                                 .arg(notRequired.join(QLatin1String(", ")))));
+        // PageHost hands a passing page `settingsApp` as well, so its root must
+        // declare it too. A regex that stops matching fails here rather than
+        // passing vacuously, since `passing` is already known non-empty.
+        const QSet<QString> noSettingsAppSet = passing - declaringSettingsApp;
+        QStringList noSettingsApp(noSettingsAppSet.cbegin(), noSettingsAppSet.cend());
+        noSettingsApp.sort();
+        QVERIFY2(noSettingsApp.isEmpty(),
+                 qPrintable(QStringLiteral("pages registered with passesContext whose QML root declares no "
+                                           "`settingsApp` property: %1")
+                                .arg(noSettingsApp.join(QLatin1String(", ")))));
     }
 
 private:

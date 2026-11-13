@@ -58,6 +58,7 @@ library provides:
 | `PhosphorControl::FacetModuleMetadata`    | A module's embedded metadata (id, name, icon, category, parent module, the categories it defines, pages and their anchors, extension points, extensions, search entries, and whether it registers search providers), parsed and validated per locale |
 | `PhosphorControl::FacetContext`           | What a module registers into: its page controllers, by local page id, its headless staging domains, the domain and QML of each section it adds to another module's page, and its search providers (`registerSearchProvider`). It also hands out one config backend per file, shared by every module that writes it |
 | `PhosphorControl::FacetHost`              | Finds Facet modules through a `PhosphorRegistry::PluginCatalog`, fills the page registry with placeholders, resolves extensions against their target pages, and loads a module the first time one of its pages, or a page it extends, is opened, and loads every module with search providers that is available (not loaded yet, and neither failed nor turned off after a crash) while a search query is not blank. With a `SearchController` it lists every module's pages and search entries before they load |
+| `PhosphorControl::ModulePlaceholderPage`  | The controller of a page that stands in for a Facet module's page while the module is not loaded: the module's name, whether it failed or was turned off after a crash, the host's reason, and `retry()`. `FacetHost` registers one per placeholder, and `FacetModulePage` shows it |
 | `PhosphorControl::FacetSlotModel`         | The sections in one slot of one page, for `FacetSlot`: reads `extensionsFor` again on `extensionsChanged` and keeps the row of a section that stays |
 | `PhosphorControl::FacetTestHost`          | Loads one module headless and checks it against the module contract, for the module's own CI: metadata, registration, staging, search providers, extension targets and anchor stability. Lives in the separate `PhosphorControl::PhosphorControlTest` library |
 | `phosphor-facet-metadata`                 | Build tool behind `phosphor_add_facet_module_metadata()`: validates a module's metadata, adds `Key[<lang>]` translations from its `.ts` files, and writes its anchor list and lupdate strings |
@@ -165,9 +166,10 @@ set before any of the page's bindings run: `controller`, the page's
 `PageController`, and `settingsApp`, the `ApplicationController`. The page's
 root must declare both, and it may make them `required`. A root that leaves
 one out still loads, but Qt logs "Cannot assign to non-existent property"
-for it with no file or line to trace it to. `PageHost` does not create such a
-page while the registry has no controller for it: the page area says the page
-could not be shown, and a later `bindPage` creates it.
+for it, and the message may carry no usable file location to trace it to.
+`PageHost` does not create such a page while the registry has no controller
+for it: the page area says the page could not be shown, and a later
+`bindPage` creates it.
 
 A module that was loading when the process died is disabled, at the next start
 and every start after, until `retryModule` (or the placeholder page's retry

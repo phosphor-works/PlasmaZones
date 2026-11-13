@@ -57,18 +57,20 @@ SettingsFlickable {
     readonly property bool algoSupportsMasterCount: AlgoCaps.supportsMasterCount(algoCapabilities)
     readonly property bool algoSupportsCustomParams: AlgoCaps.supportsCustomParams(algoCapabilities)
     // Custom param definitions for the selected algorithm. The binding
-    // depends on selectedAlgorithm and on the catalog entry
-    // (algoCapabilities), which is a fresh object every time
-    // availableAlgorithms re-reads — so a Luau hot-reload that changes the
-    // script's parameter declarations rebuilds the controls. Because
+    // depends on selectedAlgorithm and on _cachedAlgos, which is a fresh list
+    // every time availableAlgorithms re-reads, so a Luau hot-reload that
+    // changes the script's parameter declarations rebuilds the controls. It
+    // reads those two directly rather than through algoCapabilities and
+    // algoSupportsCustomParams: both of those also depend on
+    // selectedAlgorithm, and whether this binding saw them before or after
+    // their own update on a switch depended on notification order, so a
+    // switch that flipped the capability flag could evaluate it (and rebuild
+    // the Repeater and re-seed liveCustomParams) twice. Because
     // customParamsForAlgorithm() is a Q_INVOKABLE (not a Q_PROPERTY with
     // NOTIFY), QML's binding engine will NOT re-call it when saved values
     // change — so the Repeater model stays stable during slider drags.
     readonly property var customParamDefs: {
-        // Read for the dependency alone: the declarations live in the script,
-        // and the catalog entry is what changes when the script reloads.
-        void (root.algoCapabilities);
-        if (!root.algoSupportsCustomParams)
+        if (!AlgoCaps.supportsCustomParams(AlgoCaps.capabilitiesFor(root._cachedAlgos, root.selectedAlgorithm)))
             return [];
 
         return root.controller.customParamsForAlgorithm(root.selectedAlgorithm);
@@ -126,8 +128,11 @@ SettingsFlickable {
 
     onSelectedAlgorithmChanged: _seedLiveAlgoSettings()
     // A Luau hot-reload can change the algorithm's own defaults, which
-    // algorithmSettingsFor() falls back to for an unsaved field.
-    onAlgoCapabilitiesChanged: _seedLiveAlgoSettings()
+    // algorithmSettingsFor() falls back to for an unsaved field. Keyed on the
+    // catalog list rather than algoCapabilities, which also changes on every
+    // algorithm switch and so re-seeded a second time on top of the handler
+    // above. TilingSimplePage re-seeds on the same signal.
+    on_CachedAlgosChanged: _seedLiveAlgoSettings()
 
     Component.onCompleted: {
         _seedLiveCustomParams(root.customParamDefs);

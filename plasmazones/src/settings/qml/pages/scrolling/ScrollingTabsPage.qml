@@ -321,7 +321,7 @@ SettingsFlickable {
                         stepSize: root._scrollConsts.tabLengthStep
                         value: appSettings.scrollingTabIndicatorLengthProportion
                         formatValue: function (v) {
-                            return Math.round(v * 100) + "%";
+                            return i18nc("a whole-number percentage", "%1%", Math.round(v * 100));
                         }
                         onMoved: function (newValue) {
                             appSettings.scrollingTabIndicatorLengthProportion = newValue;

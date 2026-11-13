@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
-// A page controller with nothing to stage, for the QML tests that need a page
+// A page controller with nothing to stage, for the tests that need a page
 // in the registry and do not care what it holds. tests/CMakeLists.txt lists
 // this header among the sources of each test that includes it, which is how
 // AUTOMOC sees its Q_OBJECT.

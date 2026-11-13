@@ -554,8 +554,7 @@ void SettingsAdaptor::initializeRegistry()
 
     // Window filtering — the per-app / per-class exclusion lists
     // (excludedApplications, excludedWindowClasses) retired in v4 along
-    // with their settings page; only the three global knobs below remain.
-    REGISTER_BOOL_SETTING("excludeTransientWindows", excludeTransientWindows, setExcludeTransientWindows)
+    // with their settings page; only the two global size thresholds below remain.
     REGISTER_INT_SETTING("minimumWindowWidth", minimumWindowWidth, setMinimumWindowWidth)
     REGISTER_INT_SETTING("minimumWindowHeight", minimumWindowHeight, setMinimumWindowHeight)
 

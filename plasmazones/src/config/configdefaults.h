@@ -573,9 +573,8 @@ public:
     // tiler (krohnkite, dwm, xmonad) without setup. The companion
     // krohnkite-parity behaviors are already on by default elsewhere here:
     // autotileFocusNewWindows, autotileSmartGaps (sole window fills the
-    // screen), autotileRespectMinimumSize, and excludeTransientWindows
-    // (dialogs / utility windows float), with new windows inserted at the
-    // stack end rather than as master.
+    // screen) and autotileRespectMinimumSize, with new windows inserted at
+    // the stack end rather than as master.
     static bool autotileEnabled()
     {
         return true;

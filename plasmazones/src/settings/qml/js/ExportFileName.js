@@ -3,6 +3,11 @@
 
 .pragma library
 
+// Drops the characters forDisplayName documents as refused.
+function _strip(text) {
+    return String(text || "").replace(/[\/\\:*?"<>|#%]/g, "").trim();
+}
+
 /**
  * The file name an export's save dialog opens with: "<display name>.<suffix>",
  * so the user does not start from an empty field.
@@ -14,9 +19,11 @@
  * cut the name short. Everything else, non-ASCII letters included, is kept,
  * because the name is the user's own.
  *
- * @p fallback names the file when nothing usable is left.
+ * @p fallback names the file when nothing usable is left. It goes through the
+ * same strip, because a caller may pass a translated word and a translation
+ * can carry any of those characters too.
  */
 function forDisplayName(displayName, suffix, fallback) {
-    const name = String(displayName || "").replace(/[\/\\:*?"<>|#%]/g, "").trim();
-    return (name.length > 0 ? name : fallback) + "." + suffix;
+    const name = _strip(displayName);
+    return (name.length > 0 ? name : _strip(fallback)) + "." + suffix;
 }

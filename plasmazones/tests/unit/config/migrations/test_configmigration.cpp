@@ -860,6 +860,9 @@ private Q_SLOTS:
                                     "MinimumZoneDisplaySizePx=60\n"
                                     "\n"
                                     "[Exclusions]\n"
+                                    // Retired global transient toggle. The migration never copies it,
+                                    // so the schema-coverage assertion pins that it never surfaces as
+                                    // an undeclared v2 destination key.
                                     "ExcludeTransientWindows=true\n"
                                     "MinimumWindowWidth=100\n"
                                     "MinimumWindowHeight=100\n"

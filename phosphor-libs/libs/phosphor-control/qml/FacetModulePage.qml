@@ -26,8 +26,8 @@ Item {
     required property ModulePlaceholderPage controller
     /** Not read here. Declared because PageHost passes it to every module
      *  page when it creates one, and a page that does not declare it makes
-     *  Qt log "Cannot assign to non-existent property" with no file or line
-     *  to trace it to. */
+     *  Qt log "Cannot assign to non-existent property", which may carry no
+     *  usable file location to trace it to. */
     required property ApplicationController settingsApp
 
     readonly property string _name: root.controller.moduleName

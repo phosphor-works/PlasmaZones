@@ -20,6 +20,9 @@
  *   - A file stamped with a different schema version is refused (skipped on
  *     load, rejected on import).
  *   - The committed active pointer round-trips through index.json.
+ *   - The active-modified compare runs each value through the settings
+ *     schema's coercion, so a value captured before a clamp tightened reads
+ *     clean against the clamped live value.
  */
 
 #include <QJsonArray>
@@ -39,6 +42,7 @@
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/Rule.h>
 
+#include "config/configdefaults.h"
 #include "config/configmigration.h"
 #include "phosphor_i18n.h"
 #include "settings/stores/profilestore.h"
@@ -517,6 +521,47 @@ private Q_SLOTS:
         QVERIFY(m_store->updateProfileFromCurrent(id));
         QVERIFY(!activeRowModified());
         QCOMPARE(storedConfig(id).value(QStringLiteral("GroupA")).toObject().value(QStringLiteral("k1")).toInt(), 5);
+    }
+
+    /// A profile captured before a schema clamp tightened carries a value the
+    /// live store can no longer hold. Activating it stages that value and the
+    /// store clamps it straight back, so the live config reads the clamped
+    /// floor. The active row must read clean then, or it stays modified with
+    /// nothing the user can do about it. A real divergence on the same key
+    /// still reads modified.
+    void preClampProfileValueReadsClean()
+    {
+        const QString group = ConfigDefaults::windowsAppearanceGroup();
+        const QString key = ConfigDefaults::opacityKey();
+        const double floor = ConfigDefaults::windowOpacityMin();
+        const double belowFloor = floor / 2.0;
+
+        // Capture a value below today's floor, as an older build allowed.
+        m_current = baseDefaults();
+        m_current[group] = QJsonObject{{key, belowFloor}};
+        const QString id = m_store->createProfile(QStringLiteral("Dim"), QString(), QString());
+        QVERIFY(!id.isEmpty());
+        QCOMPARE(storedConfig(id).value(group).toObject().value(key).toDouble(), belowFloor);
+
+        auto activeRowModified = [this]() {
+            const QVariantList rows = m_store->availableProfiles();
+            QVariantMap active;
+            for (const QVariant& row : rows) {
+                if (row.toMap().value(QStringLiteral("active")).toBool()) {
+                    active = row.toMap();
+                }
+            }
+            return active.value(QStringLiteral("modified")).toBool();
+        };
+
+        // The live store reports the clamped value, as Store::exportToJson
+        // does after activation imported the stale one.
+        m_current[group] = QJsonObject{{key, floor}};
+        QVERIFY2(!activeRowModified(), "a profile value the schema clamps to the live value must not read as modified");
+
+        // A value the clamp does not explain is still a modification.
+        m_current[group] = QJsonObject{{key, (floor + ConfigDefaults::windowOpacityMax()) / 2.0}};
+        QVERIFY(activeRowModified());
     }
 
     /// configChanges reports each overridden key with the value it had in the
@@ -1434,6 +1479,16 @@ private Q_SLOTS:
         QCOMPARE(toasts.count(), 1);
         QCOMPARE(toasts.first().first().toString(),
                  PhosphorI18n::tr("Exported the profile “%1”.").arg(QStringLiteral("Work")));
+    }
+
+    /// An export whose id names no profile file (an unparseable id) is refused
+    /// with one toast, the same reason the missing-record arm gives.
+    void exportUnresolvableSourceToastsOnce()
+    {
+        QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
+        QVERIFY(!m_store->exportProfile(QString(), m_dir->path() + QStringLiteral("/exported-profile")));
+        QCOMPARE(toasts.count(), 1);
+        QCOMPARE(toasts.first().first().toString(), PhosphorI18n::tr("Could not read that profile."));
     }
 
     /// An empty source (what urlToLocalFile hands over for a non-local pick)

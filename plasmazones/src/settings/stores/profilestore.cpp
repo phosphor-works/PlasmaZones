@@ -7,6 +7,7 @@
 #include "config/configkeys.h"
 #include "config/configmigration.h"
 #include "config/configmigration_util.h"
+#include "config/settingsschema.h"
 #include "config/settingsvaluelabels.h"
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
@@ -410,6 +411,48 @@ void stripMachineScopedKeys(QJsonObject& config)
             git.value() = group;
         }
     }
+}
+
+/// @p value as the settings store would hold it: converted to the KeyDef's
+/// expectedType the way Store::importFromJson converts an incoming JSON
+/// number, then passed through the KeyDef's validator, the coercion
+/// Store::write and Store::exportToJson both apply. An undeclared key passes
+/// through unconverted.
+QVariant coercedConfigValue(const QString& group, const QString& key, const QJsonValue& value)
+{
+    QVariant v = value.toVariant();
+    const PhosphorConfig::KeyDef* def = cachedSettingsSchema().findKey(group, key);
+    if (!def) {
+        return v;
+    }
+    if (def->expectedType != QMetaType::UnknownType && v.typeId() != static_cast<int>(def->expectedType)) {
+        QVariant converted = v;
+        if (converted.convert(QMetaType(def->expectedType))) {
+            v = converted;
+        }
+    }
+    return def->validator ? def->validator(v) : v;
+}
+
+/// Whether applying a profile's @p profileValue would leave the live
+/// @p liveValue where it is. A raw match settles it. Otherwise both sides go
+/// through the schema's coercion, so a value the profile captured before a
+/// clamp tightened (Windows.Opacity 0.05 under a 0.1 floor) matches the
+/// clamped value the live store reports, while any real divergence still
+/// differs after coercion.
+bool configValuesEquivalent(const QString& group, const QString& key, const QJsonValue& profileValue,
+                            const QJsonValue& liveValue)
+{
+    if (profileValue == liveValue) {
+        return true;
+    }
+    // A key the live blob does not carry is a divergence, never a coercion
+    // match: an invalid QVariant can validate to the same floor a stale
+    // profile value clamps to.
+    if (liveValue.isUndefined()) {
+        return false;
+    }
+    return coercedConfigValue(group, key, profileValue) == coercedConfigValue(group, key, liveValue);
 }
 
 } // namespace
@@ -902,6 +945,13 @@ bool ProfileStore::isActiveModified(const QHash<QUuid, Record>& all) const
     // so a wholesale group compare would read a live GPU pin as a permanent
     // modification; comparing only the keys the blob carries tolerates the
     // machine-scoped extras while still catching every real divergence.
+    //
+    // Each value is compared through the schema's coercion
+    // (configValuesEquivalent), not raw: a profile delta stores what was
+    // captured, while the live blob is Store::exportToJson's validated read.
+    // A raw compare made a profile captured before a clamp tightened read as
+    // modified forever, since activating it stages the stale value and the
+    // store clamps it straight back.
     if (m_config.currentConfig) {
         const QJsonObject resolved = resolveConfig(uid, all);
         const QJsonObject current = m_config.currentConfig();
@@ -912,7 +962,7 @@ bool ProfileStore::isActiveModified(const QHash<QUuid, Record>& all) const
             const QJsonObject resolvedGroup = git.value().toObject();
             const QJsonObject currentGroup = current.value(git.key()).toObject();
             for (auto kit = resolvedGroup.constBegin(); kit != resolvedGroup.constEnd(); ++kit) {
-                if (currentGroup.value(kit.key()) != kit.value()) {
+                if (!configValuesEquivalent(git.key(), kit.key(), kit.value(), currentGroup.value(kit.key()))) {
                     return true;
                 }
             }
@@ -1251,8 +1301,13 @@ bool ProfileStore::exportProfile(const QString& id, const QString& destLocalPath
         return false;
     }
     const QUuid uid(id);
+    // An unparseable id or an unresolvable profiles folder leaves no source to
+    // read. Toast it like the missing-record arm below: the Profiles page shows
+    // no failure banner of its own, so a silent return would read as nothing
+    // happening.
     const QString sourcePath = profileFilePath(uid);
     if (sourcePath.isEmpty()) {
+        Q_EMIT toastRequested(PhosphorI18n::tr("Could not read that profile."));
         return false;
     }
     // Export the RECORD, not the raw file bytes: a pre-current profile is

@@ -76,9 +76,13 @@ P_STORE_SET_BOOL(setFilterLayoutsByAspectRatio, snappingBehaviorDisplayGroup, fi
 
 // ── Global exclusion knobs (PhosphorConfig::Store-backed) ──────────────────
 //
-// Three global behavioural knobs survive in the `Exclusions` group:
-// `excludeTransientWindows` (boolean), `minimumWindowWidth` (int px),
-// `minimumWindowHeight` (int px). Per-app / per-class exclusion lists
+// Two global size thresholds survive in the `Exclusions` group:
+// `minimumWindowWidth` (int px) and `minimumWindowHeight` (int px). The
+// group carries no transient-window knob: nothing in snapping or tiling
+// read one, so it was retired rather than left as a dead toggle (a stale
+// `TransientWindows` key in an existing config is dropped silently). The
+// animation and decoration filters below keep their own transient knobs,
+// which the KWin effect does read. Per-app / per-class exclusion lists
 // retired in v4 — the migration in src/config/configmigration.cpp drains
 // the legacy lists into Application-subject Rules, and runtime
 // evaluators in SnapEngine, the KWin effect, and the WTA
@@ -89,12 +93,10 @@ P_STORE_SET_BOOL(setFilterLayoutsByAspectRatio, snappingBehaviorDisplayGroup, fi
 // UI moved these knobs into a card relabeled "Window filtering" on the
 // General page (see src/settings/qml/GeneralPage.qml). Renaming the
 // group would require a v4→v5 schema migration to remap every existing
-// user config without losing the three preserved knobs — disproportionate
+// user config without losing the preserved knobs — disproportionate
 // for a label change. The accessor name `exclusionsGroup()` keeps the
 // disk shape, and the runtime UI label is independent.
 
-P_STORE_GET(bool, excludeTransientWindows, exclusionsGroup, transientWindowsKey, bool)
-P_STORE_SET_BOOL(setExcludeTransientWindows, exclusionsGroup, transientWindowsKey, excludeTransientWindowsChanged)
 P_STORE_GET(int, minimumWindowWidth, exclusionsGroup, minimumWindowWidthKey, int)
 P_STORE_SET_INT(setMinimumWindowWidth, exclusionsGroup, minimumWindowWidthKey, minimumWindowWidthChanged)
 P_STORE_GET(int, minimumWindowHeight, exclusionsGroup, minimumWindowHeightKey, int)
@@ -105,7 +107,8 @@ P_STORE_SET_INT(setMinimumWindowHeight, exclusionsGroup, minimumWindowHeightKey,
 // Four global animation-filtering knobs in `Animations.WindowFiltering`:
 // `animationExcludeTransientWindows`, `animationExcludeNotificationsAndOsd`,
 // `animationMinimumWindowWidth`, `animationMinimumWindowHeight`. Mirrors
-// the Exclusions block above (plus a NotificationsAndOsd knob), stored
+// the Exclusions block's size thresholds above (plus transient and
+// NotificationsAndOsd knobs), stored
 // independently so a user can disable animations for an app while still
 // snapping it (or vice versa). Per-app / per-class animation exclusion
 // lists retired in v4 — they fold into ExcludeAnimations Rules.
@@ -127,7 +130,8 @@ P_STORE_SET_INT(setAnimationMinimumWindowHeight, animationsWindowFilteringGroup,
 //
 // Three global decoration-filtering knobs in `Decorations.WindowFiltering`:
 // `decorationExcludeTransientWindows`, `decorationMinimumWindowWidth`,
-// `decorationMinimumWindowHeight`, mirroring the Exclusions block. Stored
+// `decorationMinimumWindowHeight`, the Exclusions block's size thresholds
+// plus a transient knob. Stored
 // independently so the KWin effect's border pass can be tuned separately
 // from snapping and animation filtering. Reuses the shared leaf keys; only
 // the group differs. Consumed effect-side via the generic settingsChanged

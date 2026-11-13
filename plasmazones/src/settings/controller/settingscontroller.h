@@ -4,7 +4,7 @@
 // Central controller for the standalone settings application.
 // Manages page navigation, layout CRUD (via D-Bus), screen info, and owns
 // the shared Settings instance. Per-page Q_PROPERTY surfaces are split out
-// into page-scoped sub-controllers (EditorPageController, …) hung off this
+// into page-scoped sub-controllers (GeneralPageController, …) hung off this
 // class via child Q_PROPERTYs so QML reads `settingsController.<page>.<prop>`.
 //
 // What remains here after that split is the root object QML binds to. Its Q_PROPERTY
@@ -172,9 +172,12 @@ class SettingsController : public QObject
     Q_PROPERTY(QString scopeScreenName READ scopeScreenName WRITE setScopeScreenName NOTIFY scopeScreenNameChanged)
 
     // Per-page sub-controllers still read off this object. A page whose
-    // registry entry passes context (the Editor, Tiling → Window and
-    // Decorations → General pages among them) receives its controller from
-    // PageHost as `controller` instead and has no property here.
+    // registry entry passes context receives its own controller from PageHost
+    // as `controller`. Such a page has no property here unless code outside
+    // the page also reads its controller: generalPage, overlaysPage,
+    // tilingAlgorithmPage and profilesPage stay for those readers (other
+    // pages, cards and Main.qml), while the Editor, Tiling → Window and
+    // Decorations → General pages have none.
     //
     // Snapping/Scrolling behavior pages — trigger surfaces moved to per-page controllers.
     Q_PROPERTY(SnappingBehaviorController* snappingBehaviorPage READ snappingBehaviorPage CONSTANT)

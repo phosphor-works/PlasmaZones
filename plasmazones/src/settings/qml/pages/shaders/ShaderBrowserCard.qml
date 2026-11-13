@@ -217,7 +217,10 @@ ItemDelegate {
                         return root.bridge.shaderEffectUsages(id) || [];
                     }
                     readonly property int _count: _usages.length > 0 ? root.usageCountFn(root.effect.id, _usages) : 0
-                    readonly property string _uncountedLabels: {
+                    // Every usage's label, joined. The tooltip always shows it,
+                    // and the chip shows it in the no-counted-usage arm, where
+                    // every usage is an uncounted one.
+                    readonly property string _usageLabels: {
                         var names = [];
                         for (var i = 0; i < _usages.length; i++)
                             names.push(_usages[i].label || _usages[i].path);
@@ -225,16 +228,11 @@ ItemDelegate {
                     }
 
                     visible: _usages.length > 0
-                    text: _count > 0 ? root.usageChipTextFn(_count) : _uncountedLabels
+                    text: _count > 0 ? root.usageChipTextFn(_count) : _usageLabels
                     font: Kirigami.Theme.smallFont
                     color: Kirigami.Theme.disabledTextColor
                     ToolTip.visible: chipHover.hovered && _usages.length > 0
-                    ToolTip.text: {
-                        var names = [];
-                        for (var i = 0; i < _usages.length; i++)
-                            names.push(_usages[i].label || _usages[i].path);
-                        return names.join(", ");
-                    }
+                    ToolTip.text: _usageLabels
                     ToolTip.delay: Kirigami.Units.toolTipDelay
 
                     HoverHandler {

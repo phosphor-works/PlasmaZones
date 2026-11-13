@@ -543,8 +543,9 @@ SettingsFlickable {
         // Exclude rules), so the page itself was deleted; these global
         // knobs survive here because they apply to ALL windows uniformly
         // rather than matching specific applications. The card's transient
-        // row is hidden: nothing in snapping or tiling reads the
-        // excludeTransientWindows setting it would edit.
+        // row is hidden: snapping and tiling have no transient-window
+        // setting, because placement always leaves dialogs and other
+        // transient windows alone.
         WindowFilterCard {
             Layout.fillWidth: true
 

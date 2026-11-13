@@ -14,19 +14,23 @@ import org.kde.kirigami as Kirigami
  * their own copy, and the copies had already drifted (one trimmed a trailing
  * slash off a dropped directory URL, the other did not).
  *
- * The host supplies the copy and the two actions. `importFn` takes the dropped
- * or chosen URL and returns whether it worked, which drives the banner. The
- * optional `openFolderFn` adds the "Open Folder" button, and `importFn` alone
- * is enough for a card whose only entry point is the drop zone.
+ * The host supplies the copy and the actions. `importFn` takes the dropped or
+ * chosen URL and returns the outcome (a bool or the stored name, see the
+ * property), which drives the banner. The optional `openFolderFn` adds the
+ * "Open Folder" button, and `importFn` alone is enough for a card whose only
+ * entry point is the drop zone.
  */
 SettingsCard {
     id: card
 
     /// Called with a URL (dropped, or chosen in the host's file dialog).
-    /// @return whether the import succeeded: a bool, or the name the imported
-    /// item was stored under (empty when it failed). A host whose store can
-    /// rename on import returns the name, so the banner names what the user
-    /// will find in the list rather than the file they dropped.
+    /// @return the outcome: a bool, or the name the imported item was stored
+    /// under ("" when it failed). A host whose store can rename on import
+    /// returns the name, so the banner names what the user will find in the
+    /// list rather than the file they dropped. `true` is a success with no
+    /// stored name to report (a plain bool host, or an import that worked but
+    /// whose stored name could not be looked up), and the banner then names
+    /// the dropped file.
     required property var importFn
     /// Opens the destination folder in the file manager. Null hides the button.
     property var openFolderFn: null

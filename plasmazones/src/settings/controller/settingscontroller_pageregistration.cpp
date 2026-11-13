@@ -218,9 +218,10 @@ void SettingsController::buildApplicationController()
     // Snapping children — organised by SUBJECT, one leaf each for the drag
     // Overlay's behaviour, the edge Zone Selector popup and the snapped Window,
     // plus a shared Configuration category. Every leaf is QML-only
-    // (regVirtual) and binds an existing per-feature controller: the simple
-    // page, Overlay and Window bind snappingBehaviorPage, and Zone Selector
-    // binds snappingZoneSelectorPage. The overlay's look lives under
+    // (regVirtual). The subject leaves bind an existing per-feature
+    // controller: the simple page, Overlay and Window bind
+    // snappingBehaviorPage, and Zone Selector binds snappingZoneSelectorPage.
+    // Layouts, Priority and Quick Shortcuts bind none. The overlay's look lives under
     // Appearance → Overlays (its Appearance page binds snappingZonesPage) and
     // the window border / title bar under Appearance → Decorations → General.
     // Those controllers stay exposed as Q_PROPERTY bridges on
@@ -406,7 +407,8 @@ void SettingsController::buildApplicationController()
     // like Snapping's Zone Selector (enable + trigger + position + preview
     // size; no arrangement page, the strip popup is one row along the strip).
     // Divider after it closes the mode-specific block before the shared
-    // Configuration category, the same seam its snapping twin carries.
+    // Configuration category, the seam Snapping's Window leaf carries there
+    // (Snapping's Zone Selector is followed by that Window leaf instead).
     regVirtual(QStringLiteral("scrolling-zoneselector"), QStringLiteral("scrolling"),
                PhosphorI18n::tr("Strip Selector", "@title settings sidebar page"),
                QStringLiteral("pages/scrolling/ScrollingZoneSelectorPage.qml"), QStringLiteral("view-choose"),

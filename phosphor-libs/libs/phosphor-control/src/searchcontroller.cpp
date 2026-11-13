@@ -256,8 +256,8 @@ QVector<SearchEntry> SearchController::buildIndex()
             continue;
         }
         // Reachable in NEITHER mode (its own tier and an ancestor's tier
-        // contradict, or the ancestry is unverifiable): no mode switch can
-        // ever land on it, so it is not a destination.
+        // contradict): no mode switch can ever land on it, so it is not a
+        // destination.
         const bool inSimple = m_app->registry()->allowedInMode(e.id, false);
         const bool inAdvanced = m_app->registry()->allowedInMode(e.id, true);
         if (!inSimple && !inAdvanced) {

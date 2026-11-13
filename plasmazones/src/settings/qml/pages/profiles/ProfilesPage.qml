@@ -287,9 +287,10 @@ SettingsFlickable {
             description: i18n("Add a profile exported from PlasmaZones.")
             idleText: i18nc("@info drop-zone idle label", "Drop a profile file here to import it")
             hoverText: i18nc("@info drop-zone hover label", "Release to import the profile")
-            // Returns the stored name (empty on failure). The store suffixes a
-            // name that is already taken, so the file's name can differ from
-            // what the list now shows.
+            // Returns the stored name, "" on failure, or true when the profile
+            // was imported but is not listed under its id (the banner then
+            // names the file). The store suffixes a name that is already
+            // taken, so the file's name can differ from what the list shows.
             importFn: url => root._importProfile(url)
             openImportDialogFn: () => importDialog.open()
             openFolderFn: () => root.bridge.openProfilesDirectory()
@@ -351,8 +352,10 @@ SettingsFlickable {
     }
 
     /// Import @p pathOrUrl, in the shape ImportDropCard's importFn returns:
-    /// the name the profile was stored under, or "" when the store refused it
-    /// (it has already toasted why).
+    /// the name the profile was stored under, "" when the store refused it
+    /// (it has already toasted why), or true when it was imported but is not
+    /// listed under the returned id, so the banner falls back to the file's
+    /// own name.
     function _importProfile(pathOrUrl) {
         const id = root.bridge.importProfile(pathOrUrl);
         if (id.length === 0)

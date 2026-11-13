@@ -57,10 +57,6 @@ class PHOSPHORCONTROL_EXPORT PageRegistry : public QObject
     /// behaviour. The value is app UI state — the app drives it (persisted
     /// however the app likes); the registry only consumes it for filtering.
     Q_PROPERTY(bool showAdvanced READ showAdvanced WRITE setShowAdvanced NOTIFY showAdvancedChanged)
-    /// The upward-walk depth bound, readable from QML so a consumer running
-    /// its own parent walk cannot drift from the C++ cap. CONSTANT because
-    /// the getter returns a static constexpr.
-    Q_PROPERTY(int maxParentChainHops READ maxParentChainHops CONSTANT)
 
 public:
     /// Per-entry visibility tier for the simple/advanced split. `Always`
@@ -86,15 +82,6 @@ public:
     /// than per walk: they have to agree with the registration bound, and a
     /// comment asking a human to keep constants in step is not a mechanism.
     static constexpr int MaxParentChainHops = 32;
-
-    /// The same bound, readable from QML. Breadcrumbs runs its own upward walk
-    /// with a seen-set cycle guard and needs the identical cap: a QML copy of
-    /// the literal is exactly the "two constants a human must keep in step"
-    /// the comment above rejects, one language further out.
-    int maxParentChainHops() const
-    {
-        return MaxParentChainHops;
-    }
 
     /**
      * Public-by-value view of a registry entry. Consumers receive copies

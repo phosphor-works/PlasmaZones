@@ -767,8 +767,7 @@ void appendEditorSchema(PhosphorConfig::Schema& schema)
 
 // ─── Exclusions + Animation + Decoration Window Filtering ───────────────────
 // Three distinct schema groups declared together:
-//   1. `Exclusions` — snapping/tiling minimum-size + transient-window
-//      globals.
+//   1. `Exclusions` — snapping/tiling minimum-size globals.
 //   2. `Animations.WindowFiltering` — animation-side equivalents plus a
 //      NotificationsAndOsd knob.
 //   3. `Decorations.WindowFiltering` — border/decoration-side equivalents.
@@ -785,9 +784,10 @@ void appendExclusionsSchema(PhosphorConfig::Schema& schema)
         // Rules. Re-declaring them here would let the schema-driven
         // backend silently re-write dead defaults under the Exclusions
         // group, re-introducing keys we explicitly migrated out in v3→v4.
-        // Only the three global knobs survive in this group.
-        {CD::transientWindowsKey(), CD::excludeTransientWindows(), QMetaType::Bool,
-         QStringLiteral("Leave dialogs, popups, and toolbars where they are instead of placing them.")},
+        // Only the two global size thresholds survive in this group. It
+        // declares no `TransientWindows` key: nothing in snapping or tiling
+        // read one, so the setting was retired, and leaving it undeclared
+        // lets purgeStaleKeys drop the stale key from an existing config.
         {CD::minimumWindowWidthKey(), CD::minimumWindowWidth(), QMetaType::Int,
          QStringLiteral("Windows narrower than this are left alone by every placement mode. Zero turns the width "
                         "threshold off."),
@@ -798,8 +798,8 @@ void appendExclusionsSchema(PhosphorConfig::Schema& schema)
          clampInt(CD::minimumWindowHeightMin(), CD::minimumWindowHeightMax())},
     };
 
-    // Animation window filtering — same shape as the Exclusions group
-    // above plus a NotificationsAndOsd knob, stored independently so a
+    // Animation window filtering — the Exclusions group's size thresholds
+    // plus transient and NotificationsAndOsd knobs, stored independently so a
     // user can disable animations for an app while still snapping it
     // (or vice versa).
     schema.groups[CD::animationsWindowFilteringGroup()] = {
@@ -819,8 +819,8 @@ void appendExclusionsSchema(PhosphorConfig::Schema& schema)
          clampInt(CD::animationMinimumWindowHeightMin(), CD::animationMinimumWindowHeightMax())},
     };
 
-    // Decoration window filtering — same shape as the Exclusions group,
-    // stored independently so the KWin effect's border pass can be tuned
+    // Decoration window filtering — the Exclusions group's size thresholds
+    // plus a transient knob, stored independently so the KWin effect's border pass can be tuned
     // separately from snapping and animation filtering. Reuses the shared
     // leaf keys; only the group differs.
     schema.groups[CD::decorationsWindowFilteringGroup()] = {
@@ -1152,10 +1152,11 @@ void appendWindowsSchema(PhosphorConfig::Schema& schema)
         {CD::focusFadeDurationKey(), CD::focusFadeDuration(), QMetaType::Int,
          QStringLiteral("How long decorations take to fade between focused and unfocused. Zero switches instantly."),
          clampInt(CD::focusFadeDurationMin(), CD::focusFadeDurationMax())},
-        // Plain opacity+tint layer: opacity/strength are [0.0, 1.0] doubles,
-        // the tint colour shares the border-colour shape (#AARRGGBB or the
-        // empty follow-the-accent sentinel) and the scope shares the closed
-        // token set.
+        // Plain opacity+tint layer: opacity and strength are doubles clamped to
+        // their ConfigDefaults Min/Max (opacity keeps a non-zero floor so no
+        // matched window is drawn invisible, strength runs from zero), the
+        // tint colour shares the border-colour shape (#AARRGGBB or the empty
+        // follow-the-accent sentinel) and the scope shares the closed token set.
         {CD::showOpacityTintKey(), CD::showWindowOpacityTint(), QMetaType::Bool,
          QStringLiteral("Fade and tint windows placed by PlasmaZones.")},
         {CD::opacityTintScopeKey(), CD::windowOpacityTintScope(), QMetaType::QString,

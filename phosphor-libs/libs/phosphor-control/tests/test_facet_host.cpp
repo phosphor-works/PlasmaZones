@@ -12,6 +12,7 @@
 #include <PhosphorControl/StagingDomain.h>
 
 #include "facet_fixtures.h"
+#include "simple_page.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -42,27 +43,10 @@
 
 using namespace PhosphorControl;
 using PhosphorControlTest::fixturePath;
+using PhosphorControlTest::SimplePage;
 using State = FacetHost::ModuleState;
 
 namespace {
-
-class SimplePage : public PageController
-{
-public:
-    using PageController::PageController;
-    bool isDirty() const override
-    {
-        return false;
-    }
-    void apply() override
-    {
-        Q_EMIT applyResult(true, QString());
-    }
-    void discard() override
-    {
-        Q_EMIT discardResult(true, QString());
-    }
-};
 
 // A search provider that lists nothing and counts how often it is asked: once
 // per rebuild of the search index.
@@ -76,6 +60,19 @@ public:
     }
     mutable int asked = 0;
 };
+
+// For a test that registers an application page under a category node's id
+// before start(), so it controls where the category's modules go: the host
+// still tries to add its own node there (FacetHost::ensureCategoryNode), and
+// the registry warns that the id is taken. QTest fails a test whose ignored
+// message never arrives, so a host that learns to leave a taken id alone
+// drops this call along with the warning.
+void expectCategoryNodeRefused(const QString& nodeId)
+{
+    QTest::ignoreMessage(QtWarningMsg,
+                         QRegularExpression(QStringLiteral("PageRegistry::registerPage: duplicate page id .%1.")
+                                                .arg(QRegularExpression::escape(nodeId))));
+}
 
 // PluginCatalog refuses a plugin, or a directory, that others can write.
 // Set the mode and confirm the filesystem kept it, so a test fails here and
@@ -616,6 +613,10 @@ private Q_SLOTS:
         h.controller.registerPage(new SimplePage(category, &h.controller), QString(), QStringLiteral("Input"), QUrl(),
                                   QString(), true, false, PageRegistry::PageVisibility::SimpleOnly);
         QVERIFY(h.registry()->hasPage(category));
+        // The application's page holds the category node's id, so the
+        // registry turns the host's own node away and the module goes under
+        // the application's page.
+        expectCategoryNodeRefused(category);
         QTest::ignoreMessage(QtWarningMsg,
                              QRegularExpression(QStringLiteral("PageRegistry: page .early:simple. declares counterpart "
                                                                ".early:main. which is itself unreachable")));
@@ -697,6 +698,8 @@ private Q_SLOTS:
         const QString category = FacetHost::categoryNodeId(QStringLiteral("input"));
         h.controller.registerPage(new SimplePage(category, &h.controller), parent, QStringLiteral("Input"), QUrl());
         QVERIFY(h.registry()->hasPage(category));
+        // As above, the host's own node for the category is turned away.
+        expectCategoryNodeRefused(category);
         QTest::ignoreMessage(
             QtWarningMsg,
             QRegularExpression(QStringLiteral("deeper than the %1 allowed").arg(PageRegistry::MaxParentChainHops)));

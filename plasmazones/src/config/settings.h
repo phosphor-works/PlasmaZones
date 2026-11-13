@@ -278,8 +278,6 @@ public:
     // Exclusions settings page; the lists folded into Rules and
     // the daemon serves the runtime evaluator from
     // PhosphorRules::ExclusionRules over the unified rule store.
-    Q_PROPERTY(bool excludeTransientWindows READ excludeTransientWindows WRITE setExcludeTransientWindows NOTIFY
-                   excludeTransientWindowsChanged)
     Q_PROPERTY(
         int minimumWindowWidth READ minimumWindowWidth WRITE setMinimumWindowWidth NOTIFY minimumWindowWidthChanged)
     Q_PROPERTY(
@@ -1152,8 +1150,6 @@ public:
     // Window filtering — PhosphorConfig::Store-backed. The per-app /
     // per-class exclusion list accessors retired in v4 — see the
     // Q_PROPERTY block above for the migration notes.
-    bool excludeTransientWindows() const override;
-    void setExcludeTransientWindows(bool exclude) override;
     int minimumWindowWidth() const override;
     void setMinimumWindowWidth(int width) override;
     int minimumWindowHeight() const override;

@@ -486,6 +486,9 @@ phosphorcontrol_add_fake_module(providerchecks MODE 48 METADATA [=[{
     "Extensions": [ { "Id": "first", "Target": "good:general", "Slot": "top", "Name": "First" } ] }]=])
 
 phosphorcontrol_add_test(test_facet_host)
+# Its page controller stub is simple_page.h, which declares Q_OBJECT in a
+# header: AUTOMOC runs moc on it only when it is one of the target's sources.
+target_sources(test_facet_host PRIVATE simple_page.h)
 phosphorcontrol_add_test(test_facet_test_host)
 target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
 # The anchors files phosphor_add_facet_module_metadata generates, so the test

@@ -4512,7 +4512,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/rulecontroller.cpp" line="729"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1066"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1116"/>
         <source>%1 (copy)</source>
         <translation>%1 (копия)</translation>
     </message>
@@ -6876,7 +6876,7 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="408"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="616"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="617"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/ThemeFallbackColorControl.qml.cpp" line="177"/>
         <source>Reset</source>
         <translation>Сбросить</translation>
@@ -8084,7 +8084,7 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1147"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="307"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="308"/>
         <source>Profiles</source>
         <translation>Профили</translation>
     </message>
@@ -9281,14 +9281,14 @@
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="53"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="112"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="672"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="216"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="221"/>
         <source>Algorithm</source>
         <translation>Алгоритм</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="674"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="55"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="295"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="300"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="287"/>
         <source>Max windows</source>
         <translation>Максимум окон</translation>
@@ -9322,8 +9322,8 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="678"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="52"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="340"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="347"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="345"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="352"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="240"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="247"/>
         <source>Master ratio</source>
@@ -9361,8 +9361,8 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="683"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="371"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="376"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="381"/>
         <source>Ratio step size</source>
         <translation>Шаг изменения соотношения</translation>
     </message>
@@ -9386,8 +9386,8 @@
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="62"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="686"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/NewAlgorithmDialog.qml.cpp" line="415"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="399"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="406"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="404"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="411"/>
         <source>Master count</source>
         <translation>Число главных окон</translation>
     </message>
@@ -9631,7 +9631,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="575"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1038"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="267"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="558"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="559"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="103"/>
         <source>Minimum window width</source>
         <translation>Минимальная ширина окна</translation>
@@ -9649,7 +9649,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1041"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="269"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="568"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="569"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="143"/>
         <source>Minimum window height</source>
         <translation>Минимальная высота окна</translation>
@@ -9666,13 +9666,13 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1046"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="578"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="579"/>
         <source>Configuration</source>
         <translation>Настройка</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1047"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="586"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="587"/>
         <source>Backup</source>
         <translation>Резервная копия</translation>
     </message>
@@ -9987,7 +9987,7 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1049"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="601"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="602"/>
         <source>Restore</source>
         <translation>Восстановить</translation>
     </message>
@@ -10808,83 +10808,84 @@
         <translation>Набор переименован, но старый файл удалить не удалось. Удалите его вручную из папки наборов.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="314"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1345"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="315"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1400"/>
         <source>Could not create the profiles folder.</source>
         <translation>Не удалось создать папку профилей.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="323"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="324"/>
         <source>Could not write the profile to disk.</source>
         <translation>Не удалось записать профиль на диск.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="978"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1031"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1028"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1081"/>
         <source>Please enter a name for the profile.</source>
         <translation>Введите имя профиля.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1037"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1087"/>
         <source>Another profile is named “%1”, so this one is now “%2”.</source>
         <translation>Другой профиль уже называется «%1», поэтому этот теперь называется «%2».</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1093"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1143"/>
         <source>A profile cannot inherit from itself or from a profile that inherits from it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1179"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1229"/>
         <source>Could not delete the profile.</source>
         <translation>Не удалось удалить профиль.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1227"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1277"/>
         <source>Could not apply this profile. Its settings do not match this version.</source>
         <translation>Не удалось применить этот профиль. Его параметры не соответствуют этой версии.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1250"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1300"/>
         <location filename="../src/settings/stores/shadersetstore.cpp" line="589"/>
         <source>Could not write to that location.</source>
         <translation>Не удалось записать в это расположение.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1266"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1310"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1321"/>
         <source>Could not read that profile.</source>
         <translation>Не удалось прочитать этот профиль.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1274"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1329"/>
         <location filename="../src/settings/stores/shadersetstore.cpp" line="615"/>
         <source>Could not write to %1.</source>
         <translation>Не удалось записать в %1.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1279"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1334"/>
         <source>Exported the profile “%1”.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1290"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1302"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1308"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1345"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1357"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1363"/>
         <source>That file is not a readable profile.</source>
         <translation>Этот файл не является читаемым профилем.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1325"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1380"/>
         <source>Imported profile</source>
         <translation>Импортированный профиль</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1328"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1383"/>
         <source>Could not find a free name for the imported profile.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1350"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1405"/>
         <source>Could not open the profiles folder.</source>
         <translation>Не удалось открыть папку профилей.</translation>
     </message>
@@ -14006,90 +14007,90 @@
         <translation>Прилипание и мозаичное размещение остаются отключёнными, пока вы не назначите раскладку. Правило может заново включить значение по умолчанию для отдельного экрана.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="556"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="557"/>
         <source>Windows narrower than this are excluded</source>
         <translation>Окна уже этого значения исключаются</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="557"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="558"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="545"/>
         <source>Disabled (no width threshold)</source>
         <translation>Отключено (без порога по ширине)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="566"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="567"/>
         <source>Windows shorter than this are excluded</source>
         <translation>Окна ниже этого значения исключаются</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="567"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="568"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="555"/>
         <source>Disabled (no height threshold)</source>
         <translation>Отключено (без порога по высоте)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="588"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="589"/>
         <source>Export all settings to a file</source>
         <translation>Экспортировать все параметры в файл</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="591"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="648"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="592"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="649"/>
         <source>Export Settings</source>
         <translation>Экспорт параметров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="603"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="604"/>
         <source>Import settings from a previously exported file</source>
         <translation>Импортировать параметры из ранее экспортированного файла</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="606"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="663"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="607"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="664"/>
         <source>Import Settings</source>
         <translation>Импорт параметров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="617"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="618"/>
         <source>Restore every setting on every page to its default value</source>
         <translation>Восстановить все параметры на всех страницах к значениям по умолчанию</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="621"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="622"/>
         <source>Reset to Defaults</source>
         <translation>Сбросить к умолчаниям</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="649"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="650"/>
         <source>PlasmaZones Config (*.json)</source>
         <translation>Конфигурация PlasmaZones (*.json)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="649"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="664"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="650"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="665"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="583"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="610"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="626"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="652"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="488"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="499"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="491"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="502"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetCard.qml.cpp" line="347"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetsPage.qml.cpp" line="308"/>
         <source>All files (*)</source>
         <translation>Все файлы (*)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="656"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="657"/>
         <source>Settings exported</source>
         <translation>Параметры экспортированы</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="664"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="665"/>
         <source>PlasmaZones Config (*.json *.conf *.ini *.rc)</source>
         <translation>Конфигурация PlasmaZones (*.json *.conf *.ini *.rc)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="668"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="669"/>
         <source>Settings imported</source>
         <translation>Параметры импортированы</translation>
     </message>
@@ -15106,6 +15107,7 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationProfileEditor.qml.cpp" line="626"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="106"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="510"/>
         <source>ms</source>
         <comment>milliseconds, unit appended to a slider value</comment>
@@ -16620,7 +16622,7 @@
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutContextMenu.qml.cpp" line="458"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutContextMenu.qml.cpp" line="487"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileRow.qml.cpp" line="230"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="470"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="473"/>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
@@ -16983,7 +16985,7 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutManageCard.qml.cpp" line="163"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="161"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="165"/>
         <source>Open Folder</source>
         <translation>Открыть папку</translation>
     </message>
@@ -17700,19 +17702,19 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileSwitcherHeader.qml.cpp" line="208"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="443"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="446"/>
         <source>Use this profile?</source>
         <translation>Использовать этот профиль?</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileSwitcherHeader.qml.cpp" line="209"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="444"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="447"/>
         <source>You have changes you have not saved yet. Switching to “%1” replaces them with that profile&apos;s settings.</source>
         <translation>У вас есть несохранённые изменения. Переключение на «%1» заменит их параметрами этого профиля.</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileSwitcherHeader.qml.cpp" line="213"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="448"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="451"/>
         <source>Use profile</source>
         <translation>Использовать профиль</translation>
     </message>
@@ -17749,23 +17751,23 @@
         <translation>Отпустите, чтобы импортировать профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="296"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="297"/>
         <source>Import a profile from a file</source>
         <translation>Импортировать профиль из файла</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="297"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="298"/>
         <source>Open the profiles folder</source>
         <translation>Открыть папку профилей</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="298"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="299"/>
         <source>Imported profile “%1”.</source>
         <comment>@info profile import success</comment>
         <translation>Импортирован профиль «%1».</translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="309"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="310"/>
         <source>%n profile</source>
         <translation>
             <numerusform>%n профиль</numerusform>
@@ -17774,39 +17776,39 @@
         </translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="316"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="317"/>
         <source>No profiles saved yet.</source>
         <translation>Пока нет сохранённых профилей.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="412"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="415"/>
         <source>profile</source>
         <comment>@item file name for an exported profile whose name has no usable characters</comment>
         <translation type="unfinished">профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="465"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="468"/>
         <source>Delete profile?</source>
         <translation>Удалить профиль?</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="466"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="469"/>
         <source>“%1” will be permanently deleted. Any profiles inheriting from it will be re-based on its parent, keeping their own settings.</source>
         <translation>«%1» будет удалён без возможности восстановления. Все профили, наследующие от него, будут перепривязаны к его родителю с сохранением собственных параметров.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="487"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="490"/>
         <source>Export Profile</source>
         <translation>Экспорт профиля</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="488"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="499"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="491"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="502"/>
         <source>PlasmaZones Profile (*.json)</source>
         <translation>Профиль PlasmaZones (*.json)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="498"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="501"/>
         <source>Import Profile</source>
         <translation>Импорт профиля</translation>
     </message>
@@ -19314,12 +19316,12 @@
         <translation>Размер предпросмотра подстраивается автоматически в зависимости от разрешения экрана.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="53"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="57"/>
         <source>Import…</source>
         <translation>Импорт…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="84"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="88"/>
         <source>the file</source>
         <comment>@item fallback name for a file with no usable name</comment>
         <translation>файл</translation>
@@ -20506,7 +20508,7 @@
         <translation>Создать алгоритм</translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="242"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="247"/>
         <source>Max %n window</source>
         <translation>
             <numerusform>Максимум %n окно</numerusform>
@@ -20515,54 +20517,54 @@
         </translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="297"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="302"/>
         <source>Maximum number of windows to tile on this screen</source>
         <translation>Максимальное число окон для размещения на этом экране</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="313"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="318"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="300"/>
         <source>Maximum windows</source>
         <translation>Максимум окон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="340"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="347"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="345"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="352"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="240"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="247"/>
         <source>Center ratio</source>
         <translation>Соотношение центра</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="342"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="347"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="242"/>
         <source>Width proportion allocated to the center column</source>
         <translation>Доля ширины, выделенная центральному столбцу</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="342"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="347"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="242"/>
         <source>Width proportion allocated to the master area</source>
         <translation>Доля ширины, выделенная области главного окна</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="373"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="378"/>
         <source>Amount the ratio changes per keyboard shortcut press</source>
         <translation>Величина изменения соотношения при нажатии клавиатурного сочетания</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="399"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="406"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="404"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="411"/>
         <source>Center count</source>
         <translation>Число в центре</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="401"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="406"/>
         <source>Number of windows in the center column</source>
         <translation>Число окон в центральном столбце</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="401"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="406"/>
         <source>Number of windows in the master area</source>
         <translation>Число окон в области главного окна</translation>
     </message>
@@ -22956,10 +22958,14 @@
         <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="227"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="328"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/SettingsSlider.qml.cpp" line="90"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/CurveEditorDialog.qml.cpp" line="231"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/ActionListView.qml.cpp" line="372"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="357"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="383"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="486"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="186"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="162"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="324"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="362"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="388"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="491"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="257"/>
         <source>%1%</source>
         <comment>a whole-number percentage</comment>
@@ -24524,11 +24530,11 @@
     </message>
     <message>
         <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="125"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="238"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="309"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="364"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="444"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="558"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="239"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="310"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="365"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="446"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="560"/>
         <source>General</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished"></translation>
@@ -24547,7 +24553,7 @@
     </message>
     <message>
         <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="149"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="629"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="631"/>
         <source>Appearance</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished"></translation>
@@ -24560,7 +24566,7 @@
     </message>
     <message>
         <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="180"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="440"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="442"/>
         <source>Animations</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Анимации</translation>
@@ -24597,213 +24603,213 @@
     </message>
     <message>
         <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="215"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="501"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="503"/>
         <source>Scrolling</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Прокрутка</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="249"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="642"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="250"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="644"/>
         <source>Layouts</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Раскладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="258"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="259"/>
         <source>Overlay</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Наложение</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="268"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="269"/>
         <source>Zone Selector</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Выбор зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="277"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="332"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="401"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="278"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="333"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="402"/>
         <source>Window</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Окно</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="283"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="346"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="420"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="284"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="347"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="422"/>
         <source>Configuration</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Настройка</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="286"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="349"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="423"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="287"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="350"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="425"/>
         <source>Priority</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Приоритет</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="291"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="354"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="428"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="292"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="355"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="430"/>
         <source>Quick Shortcuts</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Быстрые комбинации клавиш</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="324"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="466"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="567"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="647"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="325"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="468"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="569"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="649"/>
         <source>Library</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Библиотека</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="341"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="342"/>
         <source>Algorithm</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Алгоритм</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="373"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="374"/>
         <source>Templates</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Шаблоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="386"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="387"/>
         <source>Columns</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Столбцы</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="396"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="397"/>
         <source>Tabs</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Вкладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="411"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="413"/>
         <source>Strip Selector</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Выбор ленты</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="453"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="455"/>
         <source>Transitions</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Переходы</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="463"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="465"/>
         <source>Motion</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Движение</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="470"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="571"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="472"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="573"/>
         <source>Windows</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="474"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="575"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="476"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="577"/>
         <source>OSDs</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">OSD</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="479"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="622"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="481"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="624"/>
         <source>Overlays</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Наложения</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="483"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="485"/>
         <source>Desktop</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Рабочий стол</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="490"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="585"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="492"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="587"/>
         <source>Shell</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Оболочка</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="506"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="508"/>
         <source>Window Motion</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Движение окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="514"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="516"/>
         <source>Window Dragging</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Перетаскивание окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="518"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="520"/>
         <source>Side Panels</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Боковые панели</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="522"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="524"/>
         <source>Widgets</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Виджеты</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="527"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="529"/>
         <source>Layout Editor</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Редактор раскладок</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="532"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="534"/>
         <source>Presets</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Предустановки</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="537"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="598"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="650"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="539"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="600"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="652"/>
         <source>Sets</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Наборы</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="541"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="602"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="654"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="543"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="604"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="656"/>
         <source>Shaders</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Шейдеры</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="564"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="566"/>
         <source>Surfaces</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Поверхности</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="580"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="582"/>
         <source>Popups</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Всплывающие окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="593"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="595"/>
         <source>Pointer</source>
         <comment>@title settings sidebar page</comment>
         <translation type="unfinished">Указатель</translation>

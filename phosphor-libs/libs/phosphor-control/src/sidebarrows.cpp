@@ -6,7 +6,6 @@
 #include "PhosphorControl/PageRegistry.h"
 #include "PhosphorControl/SearchRanker.h"
 
-#include <QDebug>
 #include <QSet>
 
 #include <functional>
@@ -15,14 +14,12 @@ namespace PhosphorControl {
 
 namespace {
 
-// Nesting-depth bound for every walk here. Not a cycle guard: registerPage
-// requires a child's parent to be registered already, so the graph is acyclic
-// by construction and a descent always terminates (PageRegistry's
-// MaxParentChainHops documents the same reasoning for the upward walk). This
-// only bounds pathological nesting, and is deliberately larger than
-// ApplicationController's 32-hop parent-chain cap because these walks DESCEND
-// a tree (depth scales with nesting) while that one walks a single chain.
-constexpr int MaxWalkDepth = 64;
+// Every walk here descends PageRegistry's child index from a registered
+// parent, and carries no depth bound or cycle guard of its own. registerPage
+// refuses a parent that is not registered yet and a page with more than
+// PageRegistry::MaxParentChainHops ancestors, and never removes or reparents
+// an entry, so the tree is acyclic and no deeper than that: each descent
+// terminates, with recursion no deeper than MaxParentChainHops + 1 frames.
 
 // The one place a flat-mode override is applied as a plain title lookup — the
 // flat rail walk and the Q_INVOKABLE Breadcrumbs calls both go through here,
@@ -102,13 +99,13 @@ bool isExpanded(const QVariantMap& expandedCategories, const QString& id)
 // resolveDrillScope — reach it directly, so there is one implementation and
 // they cannot disagree about what "enterable" means. It stops at TWO because
 // all three only need zero / exactly-one / more-than-one:
-//   0  -> reachable only through MaxWalkDepth truncation: PageRegistry's
-//         visibility rule hides a virtual node unless a navigable descendant
-//         is visible, so every entry visibleChildPages hands back has at
-//         least one. The guard stays because it is cheap and stays correct
-//         if that rule ever loosens; if it DID fire, the tree walk drops the
-//         row, resolveDrillScope evicts the rail out of the scope, and the
-//         flat walk falls through to the dissolve branch.
+//   0  -> for a non-empty list, not reached today: PageRegistry's visibility
+//         rule hides a virtual node unless a navigable descendant is visible,
+//         so every entry visibleChildPages hands back has at least one. The
+//         callers' handling stays because it is cheap and stays correct if
+//         that rule ever loosens: the tree walk drops the row,
+//         resolveDrillScope evicts the rail out of the scope, and the flat
+//         walk falls through to the dissolve branch.
 //   1  -> the drill step is pure friction: the tree walk flattens the row to
 //         that descendant (under the PARENT's title and icon), the flat walk
 //         dissolves the parent and the lone leaf emits under ITS OWN title
@@ -122,41 +119,24 @@ bool isExpanded(const QVariantMap& expandedCategories, const QString& id)
 QList<PageRegistry::Entry> firstTwoNavigableUnder(const PageRegistry* registry, const QList<PageRegistry::Entry>& kids)
 {
     QList<PageRegistry::Entry> found;
-    const std::function<void(const QList<PageRegistry::Entry>&, int)> gather =
-        [&](const QList<PageRegistry::Entry>& sub, int d) {
-            for (const PageRegistry::Entry& g : sub) {
+    const std::function<void(const QList<PageRegistry::Entry>&)> gather = [&](const QList<PageRegistry::Entry>& sub) {
+        for (const PageRegistry::Entry& g : sub) {
+            if (found.size() > 1) {
+                return;
+            }
+            if (!g.qmlSource.isEmpty()) {
+                found.append(g);
                 if (found.size() > 1) {
                     return;
                 }
-                if (!g.qmlSource.isEmpty()) {
-                    found.append(g);
-                    if (found.size() > 1) {
-                        return;
-                    }
-                }
-                const QList<PageRegistry::Entry> grandKids = registry->visibleChildPages(g.id);
-                if (grandKids.isEmpty()) {
-                    continue;
-                }
-                // Warn like the other four walks in this file, but only when
-                // there ARE descendants going uncounted — a childless entry at
-                // the boundary loses nothing, and one warning per such leaf
-                // was pure noise. A truncated count is not a cosmetic
-                // omission: it flips a real drill target into "not
-                // enterable", so build() drops the row and resolveDrillScope
-                // evicts the rail out of the scope. Silence would leave
-                // nothing in the log explaining either.
-                if (d + 1 > MaxWalkDepth) {
-                    qWarning() << "SidebarRows: page tree nested deeper than" << MaxWalkDepth << "levels under id"
-                               << g.id
-                               << "— descendants below this point are not counted, so the category may not be offered "
-                                  "as a drill target";
-                    continue;
-                }
-                gather(grandKids, d + 1);
             }
-        };
-    gather(kids, 0);
+            const QList<PageRegistry::Entry> grandKids = registry->visibleChildPages(g.id);
+            if (!grandKids.isEmpty()) {
+                gather(grandKids);
+            }
+        }
+    };
+    gather(kids);
     return found;
 }
 
@@ -241,23 +221,17 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
     // rhythm and would put a seam after nearly every row. Consecutive and
     // trailing dividers collapse, since intervening rows may have filtered out.
     if (flattenTree && needle.isEmpty()) {
-        QSet<QString> seen;
-        seen.insert(QString());
-
-        // `depth` bounds the registry walk; `rowDepth` is the emitted indent,
-        // which only steps under a kept drill-parent header (dissolved
-        // categories add registry depth but no visual depth). Each child's
-        // visible-children list is fetched ONCE and handed to both the
-        // header decision and the recursion, matching the tree and search
-        // walks — visibleChildPages runs the subtree-descending visibility
-        // test per child, so a second fetch doubles the walk for nothing.
+        // `depth` is the registry depth, read only to find the top-level
+        // seam; `rowDepth` is the emitted indent, which only steps under a
+        // kept drill-parent header (dissolved categories add registry depth
+        // but no visual depth). Each child's visible-children list is
+        // fetched ONCE and handed to both the header decision and the
+        // recursion, matching the tree and search walks — visibleChildPages
+        // runs the subtree-descending visibility test per child, so a second
+        // fetch doubles the walk for nothing.
         const std::function<void(const QList<PageRegistry::Entry>&, int, int)> emitLeaves =
             [&](const QList<PageRegistry::Entry>& kids, int depth, int rowDepth) {
                 for (const PageRegistry::Entry& child : kids) {
-                    if (seen.contains(child.id)) {
-                        continue;
-                    }
-                    seen.insert(child.id);
                     const int before = out.size();
 
                     const QList<PageRegistry::Entry> childKids = m_registry->visibleChildPages(child.id);
@@ -268,14 +242,10 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
                     // exist, and a kept header is expanded (a collapsed
                     // header HIDES its subtree — that is not truncation).
                     const bool wantDescend = !childKids.isEmpty() && (!asHeader || expanded);
-                    if (wantDescend && depth + 1 > MaxWalkDepth) {
-                        qWarning() << "SidebarRows: page tree nested deeper than" << MaxWalkDepth << "levels under id"
-                                   << child.id << "— rows below this point are omitted from the rail";
-                    }
                     if (asHeader) {
                         out.append(makeRow(child.id, flatTitleOf(child.id, child.title, flatTitleOverrides),
                                            child.iconSource, false, rowDepth, true, false, expanded, false));
-                        if (wantDescend && depth + 1 <= MaxWalkDepth) {
+                        if (wantDescend) {
                             emitLeaves(childKids, depth + 1, rowDepth + 1);
                         }
                     } else {
@@ -283,7 +253,7 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
                             out.append(makeRow(child.id, flatTitleOf(child.id, child.title, flatTitleOverrides),
                                                child.iconSource, true, rowDepth, false, false, false, false));
                         }
-                        if (wantDescend && depth + 1 <= MaxWalkDepth) {
+                        if (wantDescend) {
                             emitLeaves(childKids, depth + 1, rowDepth);
                         }
                     }
@@ -305,25 +275,9 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
 
     // ── TREE ────────────────────────────────────────────────────────────
     if (needle.isEmpty()) {
-        // Flat seen-set over every VISITED id (parent and child), seeded with
-        // the scope root. A parent-id-only guard would miss sibling-level
-        // duplicates, because each parent walk starts with only its own marker.
-        QSet<QString> seen;
-        seen.insert(currentParentId);
-
         const std::function<void(const QString&, int, const QList<PageRegistry::Entry>&)> walk =
             [&](const QString& parentId, int depth, const QList<PageRegistry::Entry>& kids) {
-                if (depth > MaxWalkDepth) {
-                    qWarning() << "SidebarRows: page tree nested deeper than" << MaxWalkDepth << "levels under id"
-                               << parentId << "— rows below this point are omitted from the rail";
-                    return;
-                }
                 for (const PageRegistry::Entry& child : kids) {
-                    if (seen.contains(child.id)) {
-                        continue;
-                    }
-                    seen.insert(child.id);
-
                     // One lookup per child, reused for the has-children
                     // predicate AND the recursion.
                     const QList<PageRegistry::Entry> childKids = m_registry->visibleChildPages(child.id);
@@ -353,7 +307,6 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
                             rowPageId = found.first().id;
                             rowHasQml = true;
                             isDrill = false;
-                            seen.insert(found.first().id);
                         }
                     }
 
@@ -386,7 +339,6 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
     // ── SEARCH ──────────────────────────────────────────────────────────
     // A flat match list from every scope. Dividers are suppressed: they carry
     // no match metadata and would break the result list's reading order.
-    QSet<QString> seen;
     // Destinations already offered. A child's breadcrumb carries its ancestors'
     // titles, so a needle matching a CATEGORY title also matches every
     // descendant breadcrumb: the leaves emit their own rows, and then the
@@ -405,20 +357,14 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
     // though a second, un-emitted navigable descendant could have served it.
     // An emitted navigable child is still RECURSED INTO — the candidate may be
     // below it.
-    const std::function<PageRegistry::Entry(const QString&, int)> findFirstNavigable =
-        [&](const QString& parentId, int depth) -> PageRegistry::Entry {
-        if (depth > MaxWalkDepth) {
-            qWarning() << "SidebarRows: page tree nested deeper than" << MaxWalkDepth << "levels under id" << parentId
-                       << "— no landing destination is looked for below this point, so the category's search result is "
-                          "dropped";
-            return {};
-        }
+    const std::function<PageRegistry::Entry(const QString&)> findFirstNavigable =
+        [&](const QString& parentId) -> PageRegistry::Entry {
         const QList<PageRegistry::Entry> kids = m_registry->visibleChildPages(parentId);
         for (const PageRegistry::Entry& child : kids) {
             if (!child.qmlSource.isEmpty() && !emitted.contains(child.id)) {
                 return child;
             }
-            const PageRegistry::Entry desc = findFirstNavigable(child.id, depth + 1);
+            const PageRegistry::Entry desc = findFirstNavigable(child.id);
             if (!desc.id.isEmpty()) {
                 return desc;
             }
@@ -432,19 +378,9 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
     // already fetched this exact list to compute the has-children predicate —
     // search runs on every keystroke, so fetching it twice per node doubled the
     // walk for no new information.
-    const std::function<void(const QString&, const QList<PageRegistry::Entry>&, const QString&, int)> collect =
-        [&](const QString& parentId, const QList<PageRegistry::Entry>& kids, const QString& breadcrumb, int depth) {
-            if (depth > MaxWalkDepth) {
-                qWarning() << "SidebarRows: page tree nested deeper than" << MaxWalkDepth << "levels under id"
-                           << parentId << "— matches below this point are omitted from the results";
-                return;
-            }
+    const std::function<void(const QList<PageRegistry::Entry>&, const QString&)> collect =
+        [&](const QList<PageRegistry::Entry>& kids, const QString& breadcrumb) {
             for (const PageRegistry::Entry& child : kids) {
-                if (seen.contains(child.id)) {
-                    continue;
-                }
-                seen.insert(child.id);
-
                 const QList<PageRegistry::Entry> grandKids = m_registry->visibleChildPages(child.id);
                 const bool grand = !grandKids.isEmpty();
 
@@ -465,7 +401,7 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
                 // Always recurse so descendants can match. grandKids is handed
                 // down rather than re-fetched inside.
                 if (grand) {
-                    collect(child.id, grandKids, childBreadcrumb, depth + 1);
+                    collect(grandKids, childBreadcrumb);
                 }
 
                 // Folded on both sides via the SAME helper the global index uses, so
@@ -488,7 +424,7 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
                     // REPLACES the breadcrumb, so there a descendant can fail to
                     // match while the category matches, and this row is the only
                     // thing that would offer the destination.
-                    const PageRegistry::Entry landing = findFirstNavigable(child.id, depth + 1);
+                    const PageRegistry::Entry landing = findFirstNavigable(child.id);
                     if (!landing.id.isEmpty()) {
                         out.append(makeRow(landing.id, childBreadcrumb, landing.iconSource, true, 0, false, false,
                                            false, false));
@@ -505,7 +441,7 @@ QVariantList SidebarRows::build(bool flattenTree, const QString& searchText, con
     // inside "Snapping" searching for a Rules page would get an empty list and
     // no reason why. It would also make the ancestor breadcrumb above
     // pointless: every result would share the same prefix.
-    collect(QString(), m_registry->visibleChildPages(QString()), QString(), 0);
+    collect(m_registry->visibleChildPages(QString()), QString());
     return out;
 }
 
