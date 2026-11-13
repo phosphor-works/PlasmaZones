@@ -720,9 +720,11 @@ void TilingHandler::fetchDaemonPreTileGeometries(const QSet<QString>& added, con
 
 void TilingHandler::noteContextSwitched(const QString& physicalScreenId)
 {
-    // Called for every desktop switch the effect reports to the daemon (the
-    // report is what makes the daemon switch and announce), and for an activity
-    // switch with an empty id (every output).
+    // Called for every desktop switch KWin makes on an output (from the
+    // effect's per-output desktopChanged handler, beside the report that makes
+    // the daemon switch and announce), and for an activity switch with an
+    // empty id (every output). Not for a report alone: a forced answer or a
+    // re-sent value switches nothing, and no announce would settle the mark.
     //
     // A batch the daemon emitted for the context an output just left can still
     // be processed before the switch's announce (only batches resolved after

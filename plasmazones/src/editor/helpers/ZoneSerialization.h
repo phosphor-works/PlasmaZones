@@ -9,7 +9,7 @@
 namespace PlasmaZones {
 
 /**
- * @brief PhosphorZones::Zone serialization utilities for clipboard and import/export
+ * @brief Zone serialization utilities for clipboard and import/export
  *
  * Centralizes zone ⇄ JSON conversion for clipboard operations,
  * import/export, and other persistence needs.

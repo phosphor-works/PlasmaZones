@@ -150,6 +150,7 @@ void Daemon::start()
     connectScrollingShortcuts();
     initializeAutotile();
     initializeUnifiedController();
+    initializeWorkspaces();
     connectLayoutSignals();
     connectOverlaySignals();
 
@@ -328,13 +329,13 @@ void Daemon::stop()
     // first attempt.
     m_idleArmRetriesLeft = kIdleArmRetries;
     // The idle service's own signals die with it, but the connections idle.cpp made whose
-    // sender OUTLIVES it are still live: the two settings signals, the debounce timer (a
+    // sender OUTLIVES it are still live: the settings signals, the debounce timer (a
     // value member), and the bridgeRegistered push when a compositor bridge exists (that
-    // one is conditional, so it is three or four). A settings write between stop() and
-    // ~Daemon would still run their lambdas. Sever exactly those.
+    // one is conditional). A settings write between stop() and ~Daemon would still run
+    // their lambdas. Sever exactly those (m_idleConnections).
     //
     // NOT a blanket disconnect(m_settings.get(), nullptr, this, nullptr). That severs
-    // EVERY m_settings→this connection: the eight-signal gap-resnap sweep, the
+    // EVERY m_settings→this connection: the gap-resnap sweep, the
     // batch settingsChanged handler, the adjacent-threshold handler, the
     // animation-profile republish, the system colour-scheme re-resolve, the two
     // idle-timeout handlers this function is actually here for, and the
@@ -342,16 +343,37 @@ void Daemon::stop()
     // the list grows, and a stale number reads as an audit of a set nobody
     // re-counted. Most of them are made in the constructor or init(), which
     // start() does NOT re-run. A stop()→start() cycle (which this daemon supports
-    // deliberately, and says so in three places) would come back up with them
-    // silently gone.
+    // deliberately) would come back up with them silently gone.
     teardownIdleConnections();
+
+    // Dynamic workspaces, torn down BEFORE the shortcut grabs go: the
+    // teardown unregisters the adhoc named chords and restores KWin's stolen
+    // desktop-switch chords, and both of those need a live Registry. It sits
+    // ahead of the bus name for the same reason as the release below: once a
+    // successor owns the name it may already have taken the chords over, and
+    // a late restore would hand them back to KWin underneath it. Without this
+    // a stopped daemon kept a WorkspaceController wired to KWin and went on
+    // mutating virtual desktops, and the stolen chords stayed on "none" for
+    // as long as the daemon was down. The chord restore runs on EVERY stop of
+    // a started daemon, logout included and with the feature off too (the
+    // backup outlives a restart), not only on a toggle-off. At logout
+    // kglobalacceld may already be gone; every raw kglobalaccel call goes out
+    // with autostart off, so such a restore fails at once, keeps its backup
+    // entry for the next run, and never spawns a standalone kglobalacceld.
+    // start() builds the controller, so the teardown runs for a started
+    // daemon only; the next started one gives back what this one could not.
+    if (m_running) {
+        teardownWorkspaces();
+    }
 
     // Release the shortcut grabs BEFORE the bus name. A successor started with
     // --replace, or by bus activation, can register its own shortcuts as soon
     // as the name is free, and KGlobalAccel keys a shortcut by component and
     // action name alone: no process identity reaches kglobalacceld. The
-    // QActions this release destroys tell kglobalacceld setInactive (and
-    // removeAllShortcuts, for the transient ids, tells it unregister) for
+    // backend this release destroys takes its QActions with it, and each
+    // QAction's destruction makes the KGlobalAccel client send setInactive
+    // (the grab goes, the kglobalshortcutsrc record stays), while the backend
+    // destructor unregisters only the transient ids. Those calls name
     // "plasmazonesd" and each id, which after the successor registered would
     // ungrab the SUCCESSOR's keys. Sent on this connection ahead of the name
     // release, those calls reach kglobalacceld before anything the successor
@@ -376,7 +398,7 @@ void Daemon::stop()
     // and the SettingsAdaptor dtor's save-on-teardown would deref a freed
     // Settings object. Each adaptor's detach() is null-safe + idempotent.
     //
-    // WHY ONLY THESE FOUR: SettingsAdaptor has the confirmed dtor-UAF
+    // WHY ONLY THESE: SettingsAdaptor has the confirmed dtor-UAF
     // (debounced save timer flush). ShaderAdaptor + ControlAdaptor have
     // non-trivial signal wiring + cached state that benefits from
     // explicit teardown for the same "queued D-Bus call lands during
@@ -388,7 +410,7 @@ void Daemon::stop()
     // raw-Qt-parented RuleAdaptor only runs its own destructor
     // *after* that, as part of QObject child cleanup.
     //
-    // The other eleven raw-Qt-parented adaptors (LayoutAdaptor,
+    // The other raw-Qt-parented adaptors (LayoutAdaptor,
     // OverlayAdaptor, ZoneDetectionAdaptor, WindowTrackingAdaptor,
     // DBusScreenAdaptor, WindowDragAdaptor, CompositorBridgeAdaptor,
     // SnapAdaptor, TilingAdaptor, AutotileAdaptor, ScrollingAdaptor) all
@@ -827,6 +849,11 @@ void Daemon::stop()
     // arm's source outlives the stop, so leaving a seed behind here would carry
     // a dead session's focus into the next one's first flip.
     m_transitionFocusSeed.clear();
+    // The outputs whose desktop reports were seen (takeFirstDesktopReport),
+    // per-session like the state above. A restarted session has seen no
+    // report of its own, so an output's first one after the restart shows no
+    // card, as at a fresh start.
+    m_desktopReportedScreens.clear();
     // m_lastEngineOrders is the one per-context cache this block deliberately
     // LEAVES ALONE. It is not change-gate state: it holds the window order
     // captured when a context left a tiling engine, and a stop() does not close
@@ -847,10 +874,11 @@ void Daemon::stop()
     // OSD of the new session.
     m_screensSettlingUntil = {};
 
-    // The shortcut grabs and the Portal session were released above the
-    // running gate, before the bus name: registerShortcuts() on the next
-    // start() lazily recreates the registry and backend, and starting from an
-    // empty entry table avoids the second run's re-registration warning.
+    // Dynamic workspaces, the shortcut grabs and the Portal session were all
+    // released above the running gate, before the bus name: registerShortcuts()
+    // on the next start() lazily recreates the registry and backend, and
+    // starting from an empty entry table avoids the second run's
+    // re-registration warning.
 
     // stop() deliberately does NOT unregister the settings-driven entries
     // (`Global`, …), shed the shell-family-seed partition, or clear the

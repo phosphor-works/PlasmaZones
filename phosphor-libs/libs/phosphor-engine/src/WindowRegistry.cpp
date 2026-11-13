@@ -190,6 +190,11 @@ QStringList WindowRegistry::instancesWithAppId(const QString& appId) const
     return m_appIdIndex.values(appId);
 }
 
+QStringList WindowRegistry::instanceIds() const
+{
+    return m_records.keys();
+}
+
 bool WindowRegistry::contains(const QString& instanceId) const
 {
     return m_records.contains(instanceId);
@@ -331,11 +336,9 @@ int WindowRegistry::remapDesktops(const DesktopRemap& remap)
     // Only the records the compositor has not re-pushed since the renumber
     // began: a push carries the NEW numbering, and remapping it again would
     // shift it twice (the desktop manager's map reaches the daemon after
-    // KWin's own signal, and the effect's pushes can land in between).
-    if (remap.isIdentity()) {
-        m_desktopRenumberPending.clear();
-        return 0;
-    }
+    // KWin's own signal, and the effect's pushes can land in between). An
+    // identity map moves no record and ends the snapshot like any other.
+    //
     // Walked off a copy and checked against the live set each time: a
     // metadataChanged subscriber can push another pending record, which then
     // carries the new numbering too.
@@ -352,21 +355,29 @@ int WindowRegistry::remapDesktops(const DesktopRemap& remap)
         }
         const WindowMetadata oldMeta = it.value();
         WindowMetadata newMeta = oldMeta;
-        // A window on a removed desktop goes where KWin sends it, the desktop
-        // that takes its number (DesktopRemap::successor); 0 stays "all".
-        newMeta.virtualDesktop = remap.successor(oldMeta.virtualDesktop);
+        // Where KWin puts a window whose desktop goes (Workspace's desktop
+        // removal handling): a window on several desktops just leaves the
+        // removed one, and only a window left on none is sent to the desktop
+        // that takes the removed one's number (DesktopRemap::successor). So a
+        // span maps entry by entry and drops its removed entries, and the
+        // successor applies only when no entry survives. 0 stays "all".
         newMeta.virtualDesktops.clear();
         for (const int desktop : oldMeta.virtualDesktops) {
-            const int moved = remap.successor(desktop);
+            const int moved = remap.map(desktop);
             if (moved > 0 && !newMeta.virtualDesktops.contains(moved)) {
                 newMeta.virtualDesktops.append(moved);
             }
         }
-        // The field's invariant: a list only for several desktops, its first
-        // entry the single desktop field.
-        if (newMeta.virtualDesktops.size() == 1) {
+        if (newMeta.virtualDesktops.isEmpty()) {
+            // A single desktop, or a span every entry of which went: the
+            // single field is the span's first entry (the invariant below).
+            newMeta.virtualDesktop = remap.successor(oldMeta.virtualDesktop);
+        } else if (newMeta.virtualDesktops.size() == 1) {
+            // The field's invariant: a list only for several desktops, its
+            // first entry the single desktop field.
+            newMeta.virtualDesktop = newMeta.virtualDesktops.first();
             newMeta.virtualDesktops.clear();
-        } else if (!newMeta.virtualDesktops.isEmpty()) {
+        } else {
             newMeta.virtualDesktop = newMeta.virtualDesktops.first();
         }
         if (newMeta == oldMeta) {
@@ -384,6 +395,11 @@ int WindowRegistry::remapDesktops(const DesktopRemap& remap)
         qCInfo(lcWindowRegistry) << "remapDesktops: renumbered the desktops of" << changed << "window(s)";
     }
     return changed;
+}
+
+void WindowRegistry::endDesktopRenumber()
+{
+    m_desktopRenumberPending.clear();
 }
 
 void WindowRegistry::indexInsert(const QString& instanceId, const QString& appId)

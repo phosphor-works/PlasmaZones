@@ -29,18 +29,46 @@ inline bool acceptAny(const QJsonObject&)
     return true;
 }
 
-/// Validates that @p params has a non-empty string at @p key.
-inline bool hasNonEmptyString(const QJsonObject& params, QLatin1StringView key)
+/// The RAW length ceiling hasNonBlankStringWithin applies before it trims.
+/// That helper bounds the TRIMMED value, and the loader stores the value
+/// verbatim, so without a ceiling on the raw string a payload padded with any
+/// amount of whitespace would load and ride through to every reader. Same
+/// number as the id and token cap (MaxChainPackIdLength), which is what bounded
+/// these values before their trimmed caps existed.
+inline constexpr int kMaxRawBlankPaddedLength = MaxChainPackIdLength;
+
+/// Validates that @p params has a string at @p key that is non-blank and at
+/// most @p maxLength characters, both measured on the TRIMMED string, and at
+/// most kMaxRawBlankPaddedLength characters raw. For the free-form identity
+/// and name strings, where hasBoundedNonEmptyString measures the raw string.
+/// Measuring the trimmed form here keeps the loader and the read-side
+/// resolvers judging the same string, so a padded value cannot pass one and
+/// fail the other. The loader still stores the value VERBATIM; trimming is a
+/// read-side concern, mirroring the SnapToZone zone-name contract.
+///
+/// That makes trimming a REQUIREMENT of every consumer of a value validated
+/// here, not an observation about them: a reader that compares without
+/// trimming lets a padded payload pass the loader and then match nothing.
+inline bool hasNonBlankStringWithin(const QJsonObject& params, QLatin1StringView key, int maxLength)
 {
     const QJsonValue v = params.value(key);
-    return v.isString() && !v.toString().isEmpty();
+    if (!v.isString()) {
+        return false;
+    }
+    const QString raw = v.toString();
+    if (raw.size() > qMax(maxLength, kMaxRawBlankPaddedLength)) {
+        return false;
+    }
+    const QString trimmed = raw.trimmed();
+    return !trimmed.isEmpty() && trimmed.size() <= maxLength;
 }
 
-/// hasNonEmptyString plus a length cap. Every id or token a rule names
-/// (engine mode, layout, algorithm, template, screen, animation event) is
-/// carried into evaluator and cache keys verbatim, and rules.json is
-/// hand-editable, so an unbounded string is the one free-form input this
-/// vocabulary would otherwise accept without a ceiling.
+/// Validates that @p params has a non-empty string at @p key of at most
+/// @p maxLength characters, measured raw. Every id or token a rule names
+/// (engine mode, layout, algorithm, template, animation event) is carried
+/// into evaluator and cache keys verbatim, and rules.json is hand-editable,
+/// so an unbounded string is the one free-form input this vocabulary would
+/// otherwise accept without a ceiling.
 inline bool hasBoundedNonEmptyString(const QJsonObject& params, QLatin1StringView key, int maxLength)
 {
     const QJsonValue v = params.value(key);
@@ -65,12 +93,13 @@ inline bool hasOptionalBoundedString(const QJsonObject& params, QLatin1StringVie
 }
 
 /// Validates that @p params has a string at @p key, EMPTY INCLUDED. The
-/// counterpart to hasNonEmptyString, for the slots where empty is a value the
-/// user can mean rather than an unfilled field. The tab-indicator font family
-/// is the one such slot today: empty there means "the system font", which is
-/// how a rule takes one screen back to the default after a global family was
-/// picked. Every slot naming an ID or a token wants hasNonEmptyString instead,
-/// because an empty id resolves to nothing downstream.
+/// counterpart to hasBoundedNonEmptyString, for the slots where empty is a
+/// value the user can mean rather than an unfilled field. The tab-indicator
+/// font family is the one such slot today: empty there means "the system
+/// font", which is how a rule takes one screen back to the default after a
+/// global family was picked. Every slot naming an ID or a token wants
+/// hasBoundedNonEmptyString instead, because an empty id resolves to nothing
+/// downstream.
 inline bool hasStringAllowingEmpty(const QJsonObject& params, QLatin1StringView key)
 {
     return params.value(key).isString();
@@ -229,7 +258,7 @@ inline constexpr double kMaxSplitPercent = 90.0;
 inline constexpr double kMinSplitRatio = kMinSplitPercent / 100.0;
 inline constexpr double kMaxSplitRatio = kMaxSplitPercent / 100.0;
 // Scrolling column-width bounds. The RATIO pair is the installed
-// PhosphorRules/RuleAction.h constants (shared with the zones-layer context
+// PhosphorRules/ActionParams.h constants (shared with the zones-layer context
 // resolver); the percent pair derives from it so the descriptor display
 // range and the stored fraction can never drift.
 inline constexpr double kMinColumnWidthRatio = MinColumnWidthRatio;
@@ -241,7 +270,7 @@ inline constexpr double kMinFfmMaxScrollRatio = MinFocusFollowsMouseMaxScrollRat
 inline constexpr double kMaxFfmMaxScrollRatio = MaxFocusFollowsMouseMaxScrollRatio;
 inline constexpr double kMinFfmMaxScrollPercent = kMinFfmMaxScrollRatio * 100.0;
 inline constexpr double kMaxFfmMaxScrollPercent = kMaxFfmMaxScrollRatio * 100.0;
-// ScrollFactor multiplier bounds. Aliased from the installed RuleAction.h
+// ScrollFactor multiplier bounds. Aliased from the installed ActionParams.h
 // constants (the kMinColumnWidthRatio pattern) so the descriptor validator and
 // the KWin-effect consumer re-validation check the same numbers. The wire
 // value is the multiplier itself — a fraction below 1 slows scrolling — so the
@@ -262,7 +291,7 @@ inline constexpr double kMaxScrollFactorPercent = kMaxScrollFactor * 100.0;
 // so it serves both directions: those two below zero, and WIDTH (floor 1) and
 // LENGTH (floor 0.05) above it. Only the bounds whose floor really is zero use
 // the zero-floored helper.
-// Aliased from the installed RuleAction.h constants, the kMinColumnWidthRatio
+// Aliased from the installed ActionParams.h constants, the kMinColumnWidthRatio
 // pattern, so the descriptor validators and the zones-layer context resolver
 // check the same numbers rather than two hand-mirrored copies.
 inline constexpr double kMinTabIndicatorGap = MinTabIndicatorGap;

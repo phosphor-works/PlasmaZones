@@ -844,6 +844,24 @@ public:
     /// a view already in range is untouched. The detach latch is left alone
     /// — a pan still owns a clamped view.
     void clampViewIntoStrip(const ScrollLayoutParams& params);
+    /// How far the view hangs past each end of the strip, in main-axis px:
+    /// @c leading before the first column (a negative view offset) and
+    /// @c trailing past the last offset that still ends on the strip. 0 on a
+    /// side whose view is in range, and on both without an active column or
+    /// against a degenerate work area. The centering mutators store either
+    /// kind on purpose (a centered first or last column).
+    struct ViewOverhang
+    {
+        int leading = 0;
+        int trailing = 0;
+    };
+    ViewOverhang viewOverhang(const ScrollLayoutParams& params) const;
+    /// Pull the view back toward the strip until it hangs past the leading
+    /// end by at most @p keepLeading px and past the trailing end by at most
+    /// @p keepTrailing px (each 0 for none): a both-edge clamp that keeps a
+    /// measured overhang the caller wants to survive. The detach latch is
+    /// left alone, as clampViewIntoStrip leaves it.
+    void clampViewOverhang(const ScrollLayoutParams& params, int keepLeading, int keepTrailing);
     /// Re-apply the centering policy to the current active column (settings
     /// change / work-area change) using the current anchor as the "no
     /// scroll" baseline. A DETACHED view is left entirely alone, not even

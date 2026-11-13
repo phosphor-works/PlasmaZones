@@ -115,6 +115,7 @@ bool ScrollEngine::floatWindowInternal(ScrollState* state, const PhosphorEngine:
     }
     if (sourceColumn.tiles.size() > 1) {
         restore.tileIndex = tileIdx;
+        restore.leaveSequence = ++m_floatLeaveSequence;
         // Anchor on a surviving sibling so the stack can be re-located even
         // after column indices shift (prefer the neighbour above, else below).
         restore.stackAnchor = sourceColumn.anchorSiblingFor(restore.tileIndex);

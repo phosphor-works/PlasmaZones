@@ -386,8 +386,9 @@ PhosphorUi.SettingsAppWindow {
                 accessibleName: i18n("Toggle daemon")
                 // The switch is fully controlled (checked is bound to
                 // daemonRunning and never self-toggles), so it stays visually
-                // "on" until the daemon actually stops. Turning OFF kills tiling
-                // + snapping for the whole session, so confirm first; turning ON
+                // "on" until the daemon actually stops. Turning OFF stops every
+                // placement mode (and dynamic workspaces, where the build has
+                // them) for the whole session, so confirm first; turning ON
                 // applies immediately.
                 // Routes through confirmDialogs.daemonStop (a root-level dialog
                 // in ConfirmDialogs.qml) so the page-nav shortcut guard can see
@@ -696,6 +697,11 @@ PhosphorUi.SettingsAppWindow {
                 window.sidebar.drillOut();
         }
 
+        function onWorkspacesEnabledChanged() {
+            if (!appSettings.workspacesEnabled && window.sidebar.currentParentId === "workspaces")
+                window.sidebar.drillOut();
+        }
+
         target: appSettings
     }
 
@@ -706,9 +712,10 @@ PhosphorUi.SettingsAppWindow {
     // window-root menus (layoutContextMenu, pageActionsMenu) is open,
     // the shortcut
     // overlay, the global search dropdown, the sidebar profile switcher's
-    // dropdown, the active page's own modal stack (RulesPage's
-    // forceSaveConfirm / addRuleWizard / ruleEditorSheet /
-    // windowPickerDialog), OR a native child window (QtQuick FileDialog,
+    // dropdown, the active page's own modal stack (RulesPage's `anyModalOpen`,
+    // which is the one predicate covering forceSaveConfirm, addRuleWizard,
+    // ruleEditorSheet, windowPickerDialog, colorParamDialog and
+    // curveParamDialog), OR a native child window (QtQuick FileDialog,
     // system color picker, etc.) is open. The `window.active` check
     // covers native child windows — when they grab focus the main window
     // goes inactive. The inline-dialog checks cover Kirigami.PromptDialog
@@ -717,9 +724,9 @@ PhosphorUi.SettingsAppWindow {
     // while interacting with any of these prompts.
     /// Cross-cutting flag that pages opt into by writing through
     /// `window._pageOwnedModalOpen` when they open / close their own
-    /// modal stack. RulesPage publishes its
-    /// addRuleWizard / windowPickerDialog / ruleEditorSheet /
-    /// forceSaveConfirm aggregate state here so page-navigation
+    /// modal stack. RulesPage publishes its `anyModalOpen` aggregate
+    /// (addRuleWizard, windowPickerDialog, ruleEditorSheet,
+    /// colorParamDialog, curveParamDialog, forceSaveConfirm) here so page-navigation
     /// shortcuts (Ctrl+PgUp / PgDown) cannot drag the user off the
     /// page while a destructive modal is open. Pages without modals
     /// never touch this property and contribute false by default.
@@ -892,8 +899,9 @@ PhosphorUi.SettingsAppWindow {
     //      one of its descendants for a collapsed category header) is
     //      dirty. The user sees pending edits hiding inside categories
     //      without having to drill in.
-    //   2. Inline SettingsSwitch on the snapping / tiling rows so a
-    //      whole feature can be disabled without drilling in.
+    //   2. Inline SettingsSwitch on the snapping / tiling / scrolling /
+    //      workspaces rows so a whole feature can be disabled without
+    //      drilling in.
     // Simple mode gets a mostly flat rail: category headers dissolve and
     // every visible page becomes a top-level row, except that a multi-leaf
     // drill parent (the three placement modes, each showing General + its
@@ -1026,14 +1034,20 @@ PhosphorUi.SettingsAppWindow {
             // "id" to "pageId" (the prior name shadowed the QML id:
             // directive); read `entry.pageId` accordingly.
             readonly property var entry: parent ? parent.modelData : null
-            // Match the three placement-mode parent rows. Both rails render
-            // them as rows of their own now — the advanced tree as drill
-            // parents, the simple flat rail as expandable multi-leaf headers
-            // (see SidebarRows' flat walk) — so the inline enable toggle
-            // keys off exactly these three ids in both modes.
+            // Match the three placement-mode parent rows and the workspaces
+            // one. Both rails render them as rows of their own — the advanced
+            // tree as drill parents, the simple flat rail as expandable
+            // multi-leaf headers (see SidebarRows' flat walk; the workspaces
+            // parent keeps two simple-mode leaves, Behavior and Named
+            // Workspaces, so it stays a header there too) — so the inline
+            // enable toggle keys off exactly these four ids in both modes.
             readonly property bool isSnapping: entry && entry.pageId === "snapping"
             readonly property bool isTiling: entry && entry.pageId === "tiling"
             readonly property bool isScrolling: entry && entry.pageId === "scrolling"
+            // The dynamic-workspaces drill parent carries the same inline
+            // enable toggle as the three placement modes. A build without the
+            // feature registers no such page; the gate says so here as well.
+            readonly property bool isWorkspaces: settingsController.workspacesAvailable && entry && entry.pageId === "workspaces"
             // The id whose dirty state this row REPRESENTS, which is not
             // always the id it renders. Simple mode condenses a whole subtree
             // down to one visible row, and that row's own dirty state covers
@@ -1047,14 +1061,15 @@ PhosphorUi.SettingsAppWindow {
             readonly property string dirtyScopeId: entry ? settingsController.dirtyScopeFor(entry.pageId) : ""
             // The section-toggle's own scope, deliberately NOT dirtyScopeId.
             // pendingSection feeds discardPage() / beginExternalEdit() and a
-            // subtitle that names one of exactly three features, so it must
-            // stay bounded to the three ids those consumers handle.
+            // subtitle that names one of the four toggleable features
+            // (snapping, tiling, scrolling, workspaces), so it must stay
+            // bounded to the four ids those consumers handle.
             // dirtyScopeId is an unbounded walk result and could hop past them.
             // Spelled out rather than defaulting to "scrolling" in the else
-            // branch: the three flags are not exhaustive over every row, and
+            // branch: the four flags are not exhaustive over every row, and
             // an empty id is a visibly inert scope rather than a silent write
-            // to scrollingEnabled from a row that is none of the three.
-            readonly property string sectionId: isSnapping ? "snapping" : (isTiling ? "tiling" : (isScrolling ? "scrolling" : ""))
+            // to scrollingEnabled from a row that is none of them.
+            readonly property string sectionId: isSnapping ? "snapping" : (isTiling ? "tiling" : (isScrolling ? "scrolling" : (isWorkspaces ? "workspaces" : "")))
             readonly property bool isCollapsibleHeader: entry && entry._isCollapsibleHeader === true
             readonly property bool isCollapsibleExpanded: isCollapsibleHeader && entry._isExpanded === true
             property int _dirtyTick: 0
@@ -1116,12 +1131,12 @@ PhosphorUi.SettingsAppWindow {
                 }
             }
 
-            // ── Snapping / Tiling / Scrolling toggle ────────────────
+            // ── Snapping / Tiling / Scrolling / Workspaces toggle ───
             SettingsSwitch {
                 id: sectionToggle
 
-                visible: trailingRow.isSnapping || trailingRow.isTiling || trailingRow.isScrolling
-                checked: trailingRow.isSnapping ? appSettings.snappingEnabled : (trailingRow.isTiling ? appSettings.autotileEnabled : (trailingRow.isScrolling ? appSettings.scrollingEnabled : false))
+                visible: trailingRow.isSnapping || trailingRow.isTiling || trailingRow.isScrolling || trailingRow.isWorkspaces
+                checked: trailingRow.isSnapping ? appSettings.snappingEnabled : (trailingRow.isTiling ? appSettings.autotileEnabled : (trailingRow.isScrolling ? appSettings.scrollingEnabled : (trailingRow.isWorkspaces ? appSettings.workspacesEnabled : false)))
                 // "Enable Snapping", not the bare feature name: the row itself
                 // already announces the title (SidebarRow's Accessible.name),
                 // so the switch has to name the ACTION or the two controls are
@@ -1132,7 +1147,7 @@ PhosphorUi.SettingsAppWindow {
                     // when the page underneath has unsaved edits — those
                     // edits would silently apply through the
                     // beginExternalEdit/endExternalEdit pair (which commits
-                    // the snapping/tiling enable flag plus whatever dirty
+                    // the toggled feature's enable flag plus whatever dirty
                     // state the page has staged). Prompt before clobbering.
                     // Enabling is safe — it doesn't discard anything — so
                     // we only gate the disable path.
@@ -1160,7 +1175,16 @@ PhosphorUi.SettingsAppWindow {
                         appSettings.autotileEnabled = newValue;
                     else if (trailingRow.isScrolling)
                         appSettings.scrollingEnabled = newValue;
+                    else if (trailingRow.isWorkspaces)
+                        appSettings.workspacesEnabled = newValue;
                     settingsController.endExternalEdit();
+                    // Turned on from the rail while KWin's per-output desktops
+                    // are off and no consent is pending: the feature would sit
+                    // dormant, and the only thing that says so (the consent
+                    // warning) is on the Behavior page. Open that page so the
+                    // warning is in front of the user who just flipped it.
+                    if (trailingRow.isWorkspaces && newValue && !settingsController.workspacesActive)
+                        settingsController.activePage = "workspaces-behavior";
                 }
             }
         }

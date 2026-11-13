@@ -357,23 +357,46 @@ private Q_SLOTS:
     void testDisplayOrderUniqueWithinCategory()
     {
         // No consumer reads displayOrder today (the shipped picker sorts by
-        // label), but the field exists for one, and two of the twelve overlay
-        // orders come from loop tables — a collision would be silent until a
-        // consumer appears and the rule editor reordered under it. Pin
-        // (category, displayOrder) uniqueness across every registered type.
+        // label), but the field exists for one, and some orders come from
+        // loop tables (the OverlayColor and OverlayOpacity tables in
+        // ruleaction_builtins_engine.cpp, the RestorePolicy table in
+        // ruleaction_builtins_appearance.cpp), so a collision would be silent
+        // until a consumer appears and the rule editor reordered under it.
+        // Pin (category, displayOrder) uniqueness across every registered
+        // type.
+        //
+        // registeredTypes() walks a QHash, so the scan is sorted first and
+        // every collision is collected before asserting: the failure report
+        // then names the same pairs on every run instead of whichever one the
+        // hash order happened to reach first.
         const ActionRegistry& reg = ActionRegistry::instance();
+        QStringList types = reg.registeredTypes();
+        types.sort();
         QHash<QString, QString> seen; // "category|order" -> first type
-        for (const QString& type : reg.registeredTypes()) {
+        QStringList missing;
+        QStringList collisions;
+        for (const QString& type : std::as_const(types)) {
             const auto desc = reg.descriptor(type);
-            QVERIFY2(desc.has_value(), qPrintable(type));
+            if (!desc.has_value()) {
+                missing.append(type);
+                continue;
+            }
             const QString key = desc->category + QLatin1Char('|') + QString::number(desc->displayOrder);
-            QVERIFY2(!seen.contains(key),
-                     qPrintable(QStringLiteral("(%1, %2) collides: %3 vs %4")
-                                    .arg(desc->category)
-                                    .arg(desc->displayOrder)
-                                    .arg(seen.value(key), type)));
+            const auto it = seen.constFind(key);
+            if (it != seen.constEnd()) {
+                collisions.append(QStringLiteral("(%1, %2) collides: %3 vs %4")
+                                      .arg(desc->category)
+                                      .arg(desc->displayOrder)
+                                      .arg(it.value(), type));
+                continue;
+            }
             seen.insert(key, type);
         }
+        QVERIFY2(
+            missing.isEmpty(),
+            qPrintable(
+                QStringLiteral("Registered types with no descriptor: %1").arg(missing.join(QStringLiteral(", ")))));
+        QVERIFY2(collisions.isEmpty(), qPrintable(collisions.join(QStringLiteral("; "))));
         QVERIFY2(seen.size() > 10, "The scan itself is broken (almost nothing registered).");
     }
 
@@ -387,7 +410,8 @@ private Q_SLOTS:
         // leak into the process-global singleton for the rest of the binary's
         // lifetime — see the file-level comment for the cross-test
         // independence pattern.
-        const QString customType = QStringLiteral("_zz_pwrTestCustomAction");
+        constexpr QLatin1StringView customTypeToken{"_zz_pwrTestCustomAction"};
+        const QString customType = QString(customTypeToken);
         QVERIFY(!reg.isRegistered(customType));
 
         reg.registerAction(ActionDescriptor{.type = customType,
@@ -401,7 +425,7 @@ private Q_SLOTS:
                                                 },
                                             .terminal = false});
         QVERIFY(reg.isRegistered(customType));
-        QCOMPARE(reg.slotFor(makeAction(QLatin1StringView("_zz_pwrTestCustomAction"))), QStringLiteral("custom-slot"));
+        QCOMPARE(reg.slotFor(makeAction(customTypeToken)), QStringLiteral("custom-slot"));
 
         // Clean up: unregister the sentinel so the singleton is left pristine
         // for any later test (and so the binary does not carry a bespoke type).
@@ -422,9 +446,14 @@ private Q_SLOTS:
     /// which is exactly what "pixels" did until this round. Failing here is
     /// far cheaper than noticing it in the rule editor.
     ///
-    /// The list mirrors ActionRow.qml's dispatch plus the struct doc on
-    /// ParamSchema. Adding a kind means adding it in BOTH places, and this
-    /// canary is what makes the omission loud.
+    /// The list mirrors the struct doc on ParamSchema and the settings
+    /// layer's kind consumers: ActionRow.qml's editor dispatch (the editor
+    /// components it picks live in ActionParamEditors.qml and
+    /// ActionParamPickers.qml), ActionListView.qml's read-only value
+    /// formatting, and the default-payload seeding in
+    /// ruleauthoring_actionparams.cpp. Adding a kind means teaching every one
+    /// of those consumers about it, and this canary is what makes an
+    /// omission from the vocabulary loud.
     void everyParamKindIsInTheKnownVocabulary()
     {
         static const QSet<QString> known = {
@@ -446,6 +475,7 @@ private Q_SLOTS:
             QStringLiteral("curveEditor"),
             QStringLiteral("screenId"),
             QStringLiteral("virtualDesktop"),
+            QStringLiteral("workspaceName"),
             QStringLiteral("decorationChain"),
             QStringLiteral("shaderPreset"),
         };
@@ -524,7 +554,7 @@ private Q_SLOTS:
 
         // EMPTY is accepted too, which the vocabulary documents as equivalent to
         // absent ("the action's own params are the whole tuning"). A validator
-        // tightened to hasNonEmptyString-style checking would pass every other
+        // tightened to reject the empty string would pass every other
         // assertion here.
         anim.insert(QString(ActionParam::PresetId), QString());
         overlay.insert(QString(ActionParam::PresetId), QString());

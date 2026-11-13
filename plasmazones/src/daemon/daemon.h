@@ -397,7 +397,7 @@ private:
      * All daemon navigation/signal paths that need to branch on "is this screen
      * in autotile mode?" use this method instead of checking the engine pointer
      * directly, which is how the single-source-of-truth invariant is enforced
-     * inside the daemon. The router itself (src/core/screenmoderouter.cpp) IS
+     * inside the daemon. The router itself (src/core/resolve/screenmoderouter.cpp) IS
      * the underlying source and inspects `m_autotileEngine->isActiveOnScreen`
      * directly — every other caller (navigation/signal/start/osd paths) routes
      * through `isAutotileScreen` or `m_screenModeRouter->isAutotileMode`.
@@ -575,6 +575,26 @@ private:
     /// seed-all ordering).
     void captureScrollingOrders(const QSet<QString>& scrollingScreens);
     void initializeUnifiedController();
+    /// Construct + wire the dynamic-workspaces controller. Called from start()
+    /// and re-entered by the settings rearm (workspacesEnabled or
+    /// workspacesManageKWinPerOutput changed on a running daemon). Its first
+    /// call connects that rearm whatever the gate says. It builds the
+    /// controller only when the workspacesEnabled setting is on and KWin's
+    /// per-output virtual desktops are on, or are off with consent to manage
+    /// them (workspacesManageKWinPerOutput), in which case it turns them on in
+    /// kwinrc first. Otherwise, or with a controller already up, it builds
+    /// nothing and the daemon behaves as without the feature.
+    void initializeWorkspaces();
+    /// Teardown for initializeWorkspaces. Called from stop() (a started daemon
+    /// only) and from the settings rearm when the feature is switched off at
+    /// runtime. With a controller up it severs the wiring, drops the adhoc
+    /// named chords and their id list, destroys the controller (whose dtor
+    /// writes the final state file), and clears the adaptor's workspace route
+    /// resolver. EVERY call, a controller or not, then hands KWin back the
+    /// desktop-switch chords the takeover stole, from the backup that outlives
+    /// a restart. A restored chord leaves the backup, so a second call retries
+    /// only what the first could not restore.
+    void teardownWorkspaces();
     void connectLayoutSignals();
     void connectOverlaySignals();
     void finalizeStartup();
@@ -734,6 +754,17 @@ private:
      * subdivided output has no context of its own.
      */
     void showDesktopSwitchOsdForScreen(const QString& screenId, const QString& activity);
+
+    /**
+     * @brief Whether this per-output desktop report is the output's FIRST
+     *        since start() or since it was plugged in, recording it as seen.
+     *
+     * The effect's bring-up re-sync reports every output's desktop to a fresh
+     * daemon, which is not a switch, so the screenDesktopChanged handler shows
+     * no desktop-switch card for it; the full context pass still runs (F869).
+     * Seeds (applyScreenDesktopSeed) count as seen.
+     */
+    bool takeFirstDesktopReport(const QString& screenId);
 
     /**
      * @brief Show per-screen OSD for all effective screens. Iterates
@@ -1296,9 +1327,9 @@ private:
     /// stop()→start() cycle and log the unsupported notice again each time.
     bool m_idleUnsupported = false;
 
-    /// Every connection setupIdleService made whose SENDER outlives m_idleService: the two
+    /// Every connection setupIdleService made whose SENDER outlives m_idleService: the
     /// settings signals, the debounce timer (a value member), and bridgeRegistered when a
-    /// compositor bridge exists (conditional, so three or four). Held so
+    /// compositor bridge exists (conditional). Held so
     /// stop() severs exactly these — not, say, every connection m_settings has to us, most
     /// of which are made in the constructor or init() and would never come back on a
     /// stop()→start() cycle — and so a re-armed service cannot stack duplicates.
@@ -1374,6 +1405,31 @@ private:
 
     // Unified layout management
     std::unique_ptr<UnifiedLayoutController> m_unifiedLayoutController;
+    /// Dynamic per-monitor workspaces. Null unless the feature gate passed
+    /// (initializeWorkspaces). Its existence is what the desktop renumber and
+    /// count handlers (desktop_renumber.cpp) consult to hold the window rules
+    /// as written while the controller creates and reaps desktops.
+    std::unique_ptr<WorkspaceController> m_workspaceController;
+    /// One-time guard for the settings connects that re-enter
+    /// initializeWorkspaces on a runtime enable (lambdas cannot use
+    /// Qt::UniqueConnection).
+    bool m_workspaceRearmConnected = false;
+    /// Lifetime anchor for EVERY connection initializeWorkspaces makes beyond
+    /// the rearm pair: all of them use this object as the receiver context, so
+    /// a runtime disable (or re-enable) severs them wholesale by resetting it.
+    /// Without this, verb lambdas outlive m_workspaceController (null deref on
+    /// the next chord) and a re-enable duplicates every connection.
+    std::unique_ptr<QObject> m_workspaceWiring;
+    /// Per-output desktop reports seen, by the desktop manager's screen id
+    /// (takeFirstDesktopReport): a screen missing here gets no card for its
+    /// next report. Dropped per screen on unplug and rename, and wholesale in
+    /// stop().
+    QSet<QString> m_desktopReportedScreens;
+    /// Adhoc named-workspace shortcut ids currently registered, so a runtime
+    /// disable can unregister them: their callbacks capture the daemon and
+    /// reach the controller through m_workspaceController, which the disable
+    /// destroys.
+    QStringList m_workspaceNamedShortcutIds;
 
     // Scripted algorithm loader (file watcher for user-defined Luau algorithms).
     // m_algorithmRegistry is declared up at the top of the member block with

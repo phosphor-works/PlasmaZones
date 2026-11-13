@@ -27,6 +27,7 @@ class ScreenManager;
 }
 
 namespace PhosphorEngine {
+class DesktopRemap;
 class IPlacementEngine;
 class WindowRegistry;
 struct WindowMetadata;
@@ -220,6 +221,17 @@ public:
     /// (restore-then-retile churn). One deferred emission carries the final
     /// state of the whole pass.
     void notifyEngineScreensChanged(bool isDesktopSwitch);
+    /// The desktop list was renumbered by @p remap. Queues a desktop-switch announce when the effect is or may be
+    /// owed one, and for no other renumber: an announce the effect saw no switch for voids every output's in-flight
+    /// applies (C32). Two cases. The effect drops a desktop-switch announce whose per-screen desktop stamps disagree
+    /// with its report cache, which it re-reads into the new numbering, so the last switch announce may have been
+    /// lost when the renumber moved or removed a desktop it stamped: lost if it reached the effect after KWin's
+    /// renumber, which the daemon cannot tell apart from one taken before it, so it re-sends either way (C61). And a
+    /// removed desktop a screen was showing switches that output to its successor, which usually takes the removed
+    /// number, so the effect's per-output report is a repeat it never sends while its output waits for an announce
+    /// (C57). Stamps of screens that are gone decide nothing and are dropped (C64). A queued announce is stamped
+    /// when it goes out, so it already carries the new numbering.
+    void reannounceAfterRenumber(const PhosphorEngine::DesktopRemap& remap);
     /// Run @p work right behind a queued screens announce, or now when none
     /// is queued. For a placement the effect judges against the managed set
     /// it last heard: a desktop switch off a scrolling desktop re-applies snap
@@ -773,6 +785,13 @@ private:
     /// Coalescing state for notifyEngineScreensChanged (see its doc).
     bool m_screensAnnouncePending = false;
     bool m_pendingIsDesktopSwitch = false;
+    /// The desktop the last announce sent stamped for each screen, kept in the live numbering across renumbers
+    /// (reannounceAfterRenumber moves it and drops the screens that are gone), and whether that announce was a
+    /// desktop switch: an announce that is no switch passes the effect's staleness gate whatever it stamps and
+    /// settles what a dropped one owed, while the stamps still say which desktop each screen shows for the
+    /// removed-desktop case. clearEngine empties both.
+    QHash<QString, int> m_lastAnnounceScreenDesktops;
+    bool m_lastAnnounceWasSwitch = false;
     /// Tile batches relayed while the coalesced screens announce was still
     /// queued, emitted in arrival order right behind it. The effect answers
     /// a desktop-switch announce by voiding every in-flight staggered apply,

@@ -26,6 +26,14 @@ import "../js/SearchAnchorHelpers.js" as SearchAnchors
  * content reads its data from the Loader that hosts it: `parent.rowModelData`,
  * `parent.rowIndex`, `parent.rowReorderable`.
  *
+ * Keyboard: each row's host item is the tab stop. Alt+Up / Alt+Down move it,
+ * and Space, Enter or Return call the row content's `toggle()` when it has one
+ * (ExpandableRowDelegate does, and is told through `keyboardHosted` that the
+ * host owns its focus). A row content may publish `accessibleRowName`, which
+ * then names the row for assistive technology instead of `accessibleNameOf`:
+ * a row that edits its own name in place can keep that current, which a
+ * resolver reading the unchanged `items` entry cannot.
+ *
  * RuleSectionList is the reference consumer (rules priority list); the
  * decoration ChainEditor is the second. See RuleSectionList for the original
  * per-comment rationale of each mechanic — the logic here is a faithful move.
@@ -80,6 +88,16 @@ Item {
     // invalidate the map; reassigned whole on each publish so bindings re-run.
     property var delegateHeights: ({})
 
+    // The id of the row a keyboard reorder just moved. A consumer commits a
+    // move by REPLACING its `items` array, which the Repeater treats as a full
+    // model reset: every delegate is destroyed and rebuilt, and the one that
+    // had focus dies with it, so a second Alt+Up would go nowhere. Each rebuilt
+    // delegate checks this against its own id and takes focus back when it
+    // matches, which lands focus on the moved row at its NEW index. Cleared by
+    // the delegate that claims it, so an ordinary rebuild (a reload, a filter
+    // change) never steals focus from elsewhere in the page.
+    property string pendingFocusId: ""
+
     // Per-id expansion state, for consumers whose row content expands. Keyed by
     // id and held HERE rather than on the row for the same reason the height
     // cache is: an `items` reassignment is a full model reset, so per-delegate
@@ -121,6 +139,20 @@ Item {
             delegateHeights = next;
         if (keptExpanded !== Object.keys(expandedIds).length)
             expandedIds = nextExpanded;
+        // A pending focus restore whose row is gone from the model (removed
+        // rather than moved) can never be claimed, so drop it here instead of
+        // letting it sit and grab focus off a later unrelated rebuild.
+        if (pendingFocusId.length > 0 && next[pendingFocusId] === undefined && !_containsId(pendingFocusId))
+            pendingFocusId = "";
+    }
+
+    function _containsId(itemId) {
+        for (var i = 0; i < items.length; ++i) {
+            var item = items[i];
+            if (item !== undefined && item !== null && root.idOf(item) === itemId)
+                return true;
+        }
+        return false;
     }
 
     function isRowExpanded(itemId) {
@@ -164,6 +196,32 @@ Item {
         return arr;
     }
 
+    // Bring a row into view inside the nearest scrolling ancestor. A keyboard
+    // reorder moves the focused row, and the next chord would otherwise act
+    // on a row the user can no longer see.
+    function _ensureVisible(item) {
+        var flick = root.parent;
+        while (flick && !(flick.contentItem !== undefined && typeof flick.contentY === "number" && typeof flick.contentHeight === "number"))
+            flick = flick.parent;
+        if (!flick || !item)
+            return;
+        var top = item.mapToItem(flick.contentItem, 0, 0).y;
+        var bottom = top + item.height;
+        var next = flick.contentY;
+        if (top < next)
+            next = top;
+        else if (bottom > next + flick.height)
+            next = bottom - flick.height;
+        flick.contentY = Math.max(0, Math.min(next, Math.max(0, flick.contentHeight - flick.height)));
+    }
+
+    // Reset the drag state a pressed grip set up, without committing a move.
+    function _endDrag() {
+        root.isDragging = false;
+        root.dragFromIndex = -1;
+        root.dropTargetIndex = -1;
+    }
+
     function cumulativeY(idx) {
         return root._offsets[Math.max(0, Math.min(idx, items.length))] || 0;
     }
@@ -183,6 +241,11 @@ Item {
     Layout.preferredHeight: totalHeight
     implicitHeight: totalHeight
     clip: true
+
+    // The rows announce themselves as ListItems, so the container announcing
+    // itself as a List is what lets assistive technology report "item 2 of 5"
+    // instead of five unrelated items.
+    Accessible.role: Accessible.List
 
     Repeater {
         model: root.items
@@ -229,9 +292,26 @@ Item {
             // makes the two halves symmetric by construction. Same shape as
             // LayoutGridDelegate and ProfileRow.
             property string _anchorId: ""
+            // True from this row's grip press until its release or cancel.
+            // An external `items` change rebuilds every delegate, and one
+            // destroyed mid-drag never sees its release, so its destruction
+            // handler ends the drag instead.
+            property bool _dragging: false
 
             Component.onCompleted: {
                 root.setDelegateHeight(delegateRoot._itemId, actualHeight);
+                // Take back the focus a keyboard reorder lost when the commit
+                // reset the model (see root.pendingFocusId). Cleared first, so
+                // no later rebuild claims it a second time.
+                if (root.pendingFocusId.length > 0 && root.pendingFocusId === delegateRoot._itemId) {
+                    root.pendingFocusId = "";
+                    delegateRoot.forceActiveFocus(Qt.OtherFocusReason);
+                    Qt.callLater(function () {
+                        if (typeof delegateRoot === "undefined" || !delegateRoot)
+                            return;
+                        root._ensureVisible(delegateRoot);
+                    });
+                }
                 if (root.anchorPrefix.length > 0) {
                     Qt.callLater(function () {
                         // The coalesced callback can fire after this row has
@@ -250,6 +330,8 @@ Item {
                 }
             }
             Component.onDestruction: {
+                if (delegateRoot._dragging)
+                    root._endDrag();
                 // Empty means registration never happened (no anchor prefix,
                 // no hosting page, or the row died before the callLater ran),
                 // so there is nothing to shed.
@@ -265,14 +347,81 @@ Item {
             y: baseY + visualOffset
             z: dragArea.drag.active ? 100 : 0
             activeFocusOnTab: true
+
+            // Focus ring. The row is keyboard-reachable and Alt+Up/Down acts
+            // on whichever row holds focus, so without a visual there is no
+            // way to tell which row the next chord will move. Same recipe as
+            // SettingsCard's focusable header.
+            // Declared BEFORE the row content but stacked above it: every
+            // consumer's row is an ItemDelegate whose styled background fills
+            // the row on hover and press, which is exactly when the user is
+            // interacting, so a ring painting underneath would be dimmed or
+            // hidden at the only moment it matters.
+            Rectangle {
+                anchors.fill: parent
+                z: 1
+                visible: delegateRoot.activeFocus
+                color: "transparent"
+                radius: Kirigami.Units.smallSpacing
+                border.width: 1
+                border.color: Kirigami.Theme.focusColor
+            }
+
+            // Whether the loaded row content expands (ExpandableRowDelegate's
+            // `expandable` plus its `toggle()`), read once per access because
+            // the Loader's item can change.
+            readonly property bool _rowExpandable: !!rowLoader.item && rowLoader.item.expandable === true && typeof rowLoader.item.toggle === "function"
+
             Accessible.role: Accessible.ListItem
-            Accessible.name: root.accessibleNameOf ? root.accessibleNameOf(modelData) : (root.idOf(modelData) || "")
+            Accessible.name: {
+                var published = rowLoader.item ? rowLoader.item.accessibleRowName : undefined;
+                if (typeof published === "string" && published.length > 0)
+                    return published;
+                return root.accessibleNameOf ? root.accessibleNameOf(modelData) : (root.idOf(modelData) || "");
+            }
+            Accessible.expandable: delegateRoot._rowExpandable
+            Accessible.expanded: delegateRoot._rowExpandable && rowLoader.item.expanded === true
+            // The row is keyboard-reachable and the keys that act on it are
+            // not discoverable any other way, so they are announced with the
+            // row. A row that cannot be moved says so instead, rather than
+            // offering a chord that does nothing. "Row", not "Position": a
+            // row may carry a field of its own called Position.
+            Accessible.description: {
+                var parts = [];
+                if (root.reorderingEnabled) {
+                    if (!delegateRoot.reorderable)
+                        parts.push(i18n("This row cannot be reordered."));
+                    else
+                        parts.push(i18n("Row %1 of %2. Press Alt+Up or Alt+Down to move this row.", delegateRoot.index + 1, root.items.length));
+                }
+                if (delegateRoot._rowExpandable)
+                    parts.push(i18n("Press Enter or Space to show or hide its details."));
+                return parts.join(" ");
+            }
 
             Keys.onPressed: event => {
+                // Only for keys pressed on the row itself. A key a control
+                // inside the row leaves unaccepted propagates up to here, and
+                // Alt+Up in the row's own text field or spin box must not
+                // move the row out from under the user mid-edit.
+                if (!delegateRoot.activeFocus)
+                    return;
+                if ((event.modifiers & ~Qt.KeypadModifier) === Qt.NoModifier && (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+                    if (delegateRoot._rowExpandable) {
+                        event.accepted = true;
+                        rowLoader.item.toggle();
+                    }
+                    return;
+                }
                 if (!(event.modifiers & Qt.AltModifier))
                     return;
                 if (!delegateRoot.reorderable)
                     return;
+                // Held in locals: a committed move resets the model, which
+                // destroys this delegate inside moveRequested(), and its ids
+                // (root, delegateRoot) stop resolving after that.
+                var column = root;
+                var movedId = delegateRoot._itemId;
                 var snapshot = root.items;
                 var from = delegateRoot.index;
                 var to = from;
@@ -289,7 +438,28 @@ Item {
                 } else {
                     return;
                 }
-                root.moveRequested(from, to);
+                // Claimed by whichever rebuilt delegate carries this id, so
+                // the moved row keeps focus and the next Alt+Up/Down goes to
+                // the same row rather than nowhere.
+                column.pendingFocusId = movedId;
+                column.moveRequested(from, to);
+                // A consumer may DECLINE the move, for instance when the
+                // source index falls outside its own model by the time the
+                // move arrives. No rebuild follows a decline, so no
+                // delegate can ever claim the arm, and the prune above only
+                // drops an id that has left `items` — this one is still there.
+                // The arm would sit until some later, unrelated rebuild
+                // claimed it and yanked focus to that row. A commit always
+                // REPLACES `items` (that is what resets the Repeater and makes
+                // the whole restore necessary), so an unchanged array means
+                // the move did not happen: disarm. Guarded on the id as well,
+                // because a synchronous rebuild may already have claimed and
+                // cleared it, and re-clearing then would be harmless but the
+                // guard keeps the two halves honest. Only the locals are read
+                // here: on a committed move this delegate is already
+                // destroyed.
+                if (column.items === snapshot && column.pendingFocusId === movedId)
+                    column.pendingFocusId = "";
             }
 
             RowLayout {
@@ -314,6 +484,12 @@ Item {
                         source: "handle-sort"
                         visible: delegateRoot.reorderable
                         opacity: dragArea.containsMouse || dragArea.drag.active ? 0.7 : 0.3
+
+                        // The grip is the only affordance for reordering and
+                        // nothing else names the keyboard alternative.
+                        ToolTip.visible: dragArea.containsMouse && !dragArea.drag.active
+                        ToolTip.delay: Kirigami.Units.toolTipDelay
+                        ToolTip.text: i18n("Drag to reorder, or press Alt+Up or Alt+Down.")
                     }
 
                     // Pinned indicator for non-reorderable rows.
@@ -339,16 +515,36 @@ Item {
                         drag.maximumY: Math.max(0, root.totalHeight - delegateRoot.actualHeight)
 
                         onPressed: {
+                            // Take focus onto the row first, so an edit still
+                            // open in one of its fields (a half-typed rename)
+                            // commits on its focus loss before the reorder
+                            // rewrites the model, instead of being lost to it.
+                            delegateRoot.forceActiveFocus(Qt.MouseFocusReason);
+                            // A commit the store did not take as written makes
+                            // the consumer rebuild its rows from the store,
+                            // which destroys this one; there is then nothing
+                            // left to drag.
+                            if (typeof delegateRoot === "undefined" || !delegateRoot || !delegateRoot.modelData)
+                                return;
+                            delegateRoot._dragging = true;
                             root.dragFromIndex = delegateRoot.index;
                             root.dropTargetIndex = delegateRoot.index;
                             root.isDragging = true;
                         }
+                        // A grab taken away mid-drag (a popup, a window
+                        // switch) ends the drag without a drop.
+                        onCanceled: {
+                            delegateRoot._dragging = false;
+                            root._endDrag();
+                            delegateRoot.y = Qt.binding(function () {
+                                return delegateRoot.baseY + delegateRoot.visualOffset;
+                            });
+                        }
                         onReleased: {
                             var from = root.dragFromIndex;
                             var to = root.dropTargetIndex;
-                            root.isDragging = false;
-                            root.dragFromIndex = -1;
-                            root.dropTargetIndex = -1;
+                            delegateRoot._dragging = false;
+                            root._endDrag();
                             // Snap the delegate back to its layout position
                             // before the consumer mutation reorders the model.
                             delegateRoot.y = Qt.binding(function () {
@@ -379,6 +575,14 @@ Item {
                     id: rowLoader
 
                     Layout.fillWidth: true
+                    // Top-aligned, never centered: a row SHORTER than the grip
+                    // column would otherwise render vertically centered while
+                    // collapsed and snap to the top the moment its expansion
+                    // makes it the tallest child — an upward jump on expand.
+                    // Rows taller than the grip (every pre-existing consumer)
+                    // are unaffected: the tallest child sits at the top either
+                    // way.
+                    Layout.alignment: Qt.AlignTop
 
                     property var rowModelData: delegateRoot.modelData
                     property int rowIndex: delegateRoot.index
@@ -395,6 +599,11 @@ Item {
                     }
 
                     sourceComponent: root.rowDelegate
+                    // The host row is the tab stop (see the class comment).
+                    onLoaded: {
+                        if (item && item.keyboardHosted !== undefined)
+                            item.keyboardHosted = true;
+                    }
                 }
             }
 

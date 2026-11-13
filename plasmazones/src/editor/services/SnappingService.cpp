@@ -12,8 +12,8 @@ using namespace PlasmaZones;
 
 SnappingService::SnappingService(QObject* parent)
     : QObject(parent)
-    , m_snapIntervalX(EditorConstants::DefaultSnapInterval)
-    , m_snapIntervalY(EditorConstants::DefaultSnapInterval)
+    , m_snapIntervalX(ConfigDefaults::editorSnapIntervalX())
+    , m_snapIntervalY(ConfigDefaults::editorSnapIntervalY())
     , m_edgeThreshold(EditorConstants::EdgeThreshold)
 {
 }

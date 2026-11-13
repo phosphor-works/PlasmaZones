@@ -7,8 +7,8 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 /**
- * @brief The slot-priority helper hint + completeness gate + semantic
- *        validation inline messages.
+ * @brief The slot-priority helper hint, the completeness gate, the semantic
+ *        validation messages and the placement-mode inert-action hint.
  *
  * Lives in the footer of both `RuleEditorSheet` and `AddRuleWizard` so the
  * messaging surface stays identical between the create and edit flows.
@@ -29,6 +29,10 @@ ColumnLayout {
     /// message between "no actions", "action without a type" and "blank
     /// match leaf".
     required property var workingRule
+    /// Translated hint naming actions a placement-mode condition keeps from
+    /// applying (RuleController::modeScopedInertHint). Empty hides it. It
+    /// informs and never blocks Save.
+    required property string modeScopedHint
     /// True when at least one action is still a type-less placeholder (the
     /// user added it but hasn't picked a type). Drives a distinct completeness
     /// hint so the message doesn't misreport it as a blank condition.
@@ -117,5 +121,13 @@ ColumnLayout {
             var heading = root.validationIssues.length === 1 ? i18n("This rule has a problem:") : i18n("This rule has problems:");
             return heading + "\n" + lines.join("\n");
         }
+    }
+
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        Layout.preferredWidth: 0
+        type: Kirigami.MessageType.Information
+        visible: root.modeScopedHint.length > 0
+        text: root.modeScopedHint
     }
 }

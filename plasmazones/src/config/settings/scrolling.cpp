@@ -27,20 +27,20 @@ namespace PlasmaZones {
 using settings_detail::clampColumnWidthForKind;
 using settings_detail::reseedColumnWidthForKind;
 
-// ISettings gives five scrolling getters a defaulted body returning a
-// hardcoded value, so a stub or a partial implementer answers without
-// reaching a Settings instance. That header cannot call ConfigDefaults (the
-// interface layer does not depend on the config layer), so the agreement is
-// pinned here, in a TU that sees both: three of the five just below, the
-// same-app tab-grouping toggle after the crop-straddlers pin, and the
-// drop-indicator default with its paint block further down. See the note
-// above the five defaults in isettings.h.
-static_assert(ConfigDefaults::scrollingTabIndicatorEnabled(),
-              "ISettings::scrollingTabIndicatorEnabled defaults to true — update it with this default");
-static_assert(ConfigDefaults::scrollingRestoreFloatedWindowsOnLogin(),
-              "ISettings::scrollingRestoreFloatedWindowsOnLogin defaults to true — update it with this default");
-static_assert(!ConfigDefaults::scrollingKeepFloatingAbove(),
-              "ISettings::scrollingKeepFloatingAbove defaults to false — update it with this default");
+// ISettings gives a run of scrolling getters a defaulted body, so a stub or a
+// partial implementer answers without reaching a Settings instance. That
+// header cannot call ConfigDefaults (the interface layer does not depend on
+// the config layer), so it names each default as a constant and the agreement
+// is pinned here, in a TU that sees both. Both sides are compared, so an edit
+// to EITHER file breaks the build. See the note above the constants in
+// isettings.h.
+static_assert(ConfigDefaults::scrollingTabIndicatorEnabled() == ISettings::ScrollingTabIndicatorEnabledDefault,
+              "ConfigDefaults and ISettings disagree on the tab indicator default");
+static_assert(ConfigDefaults::scrollingRestoreFloatedWindowsOnLogin()
+                  == ISettings::ScrollingRestoreFloatedWindowsOnLoginDefault,
+              "ConfigDefaults and ISettings disagree on the scroll-float restore default");
+static_assert(ConfigDefaults::scrollingKeepFloatingAbove() == ISettings::ScrollingKeepFloatingAboveDefault,
+              "ConfigDefaults and ISettings disagree on the keep-floating-above default");
 // The scrolling literal also claims parity with the autotile canonical (the
 // scrolling chain link cannot reference the leaf configdefaults.h); this TU
 // sees both, so the claim is a compile-time pin rather than a comment.
@@ -54,21 +54,23 @@ static_assert(!ConfigDefaults::scrollingCropStraddlers(),
               "IScrollSettings::scrollingCropStraddlers defaults to false — update it with this default");
 // Same-app tab grouping carries the defaulted getter on BOTH interfaces
 // (ISettings for the D-Bus registry, IScrollSettings for the engine), each
-// answering false; one pin covers both because Settings overrides them with
-// a single body.
-static_assert(
-    !ConfigDefaults::scrollingGroupSameAppAsTabs(),
-    "ISettings/IScrollSettings::scrollingGroupSameAppAsTabs default to false — update them with this default");
+// answering false. The ISettings side is a named constant and compared both
+// ways; the IScrollSettings body is a literal, so that side is the
+// one-directional pin the crop-straddlers assert above is.
+static_assert(ConfigDefaults::scrollingGroupSameAppAsTabs() == ISettings::ScrollingGroupSameAppAsTabsDefault,
+              "ConfigDefaults and ISettings disagree on the same-app tab grouping default");
+static_assert(!ConfigDefaults::scrollingGroupSameAppAsTabs(),
+              "IScrollSettings::scrollingGroupSameAppAsTabs defaults to false — update it with this default");
 // The strip-axis tri-state gets the identical pin: IScrollSettings'
 // defaulted getter answers 0 (Auto), and an implementor that has not heard
 // of the option must resolve the axis from its work area, never force one.
 static_assert(ConfigDefaults::scrollingStripAxis() == ConfigDefaults::scrollingStripAxisAuto(),
               "IScrollSettings::scrollingStripAxis defaults to 0 (Auto) — update it with this default");
-// The edge auto-scroll block, same class but BIDIRECTIONAL, unlike the
-// literal-compare asserts above and below: IScrollSettings names its four
-// defaults as constants, so these compare the two sides directly and an edit
-// to EITHER file breaks the build. That is the property the surrounding
-// asserts only approximate.
+// The edge auto-scroll block, bidirectional like the ISettings pins:
+// IScrollSettings names its four defaults as constants, so these compare the
+// two sides directly and an edit to EITHER file breaks the build. The
+// crop-straddlers, strip-axis and same-app pins above compare against a
+// literal instead, because those IScrollSettings bodies name no constant.
 static_assert(ConfigDefaults::scrollingDragScrollEnabled()
                   == PhosphorEngine::IScrollSettings::kDragScrollEnabledDefault,
               "ConfigDefaults and IScrollSettings disagree on the edge auto-scroll master switch default");
@@ -88,22 +90,26 @@ static_assert(ConfigDefaults::scrollingDragScrollMaxSpeedMax()
                   == PhosphorEngine::IScrollSettings::kDragScrollMaxSpeedCeiling,
               "ConfigDefaults and IScrollSettings disagree on the edge auto-scroll maximum speed ceiling");
 // The tab indicator's paint half carries the same interface-side defaults, for
-// the same reason: the overlay service reads them through ISettings.
-static_assert(ConfigDefaults::scrollingTabIndicatorStyle() == 1,
-              "ISettings::scrollingTabIndicatorStyle defaults to 1 (segment bar) — update it with this default");
-static_assert(ConfigDefaults::scrollingTabIndicatorGapsBetweenTabs() == 0,
-              "ISettings::scrollingTabIndicatorGapsBetweenTabs defaults to 0 — update it with this default");
-static_assert(ConfigDefaults::scrollingTabIndicatorCornerRadius() == 0,
-              "ISettings::scrollingTabIndicatorCornerRadius defaults to 0 (square) — update it with this default");
-static_assert(ConfigDefaults::scrollingTabIndicatorFontWeight() == 700,
-              "ISettings::scrollingTabIndicatorFontWeight defaults to 700 (bold, what the pills already looked like) "
-              "— update it with this default");
-static_assert(!ConfigDefaults::scrollingTabIndicatorFontItalic(),
-              "ISettings::scrollingTabIndicatorFontItalic defaults to false — update it with this default");
-static_assert(!ConfigDefaults::scrollingTabIndicatorFontUnderline(),
-              "ISettings::scrollingTabIndicatorFontUnderline defaults to false — update it with this default");
-static_assert(!ConfigDefaults::scrollingTabIndicatorFontStrikeout(),
-              "ISettings::scrollingTabIndicatorFontStrikeout defaults to false — update it with this default");
+// the same reason: the D-Bus settings registry publishes them through
+// ISettings for the KWin effect that paints the pills.
+static_assert(ConfigDefaults::scrollingTabIndicatorStyle() == ISettings::ScrollingTabIndicatorStyleDefault,
+              "ConfigDefaults and ISettings disagree on the tab indicator style default");
+static_assert(ConfigDefaults::scrollingTabIndicatorGapsBetweenTabs()
+                  == ISettings::ScrollingTabIndicatorGapsBetweenTabsDefault,
+              "ConfigDefaults and ISettings disagree on the tab indicator gap default");
+static_assert(ConfigDefaults::scrollingTabIndicatorCornerRadius()
+                  == ISettings::ScrollingTabIndicatorCornerRadiusDefault,
+              "ConfigDefaults and ISettings disagree on the tab indicator corner radius default");
+static_assert(ConfigDefaults::scrollingTabIndicatorFontWeight() == ISettings::ScrollingTabIndicatorFontWeightDefault,
+              "ConfigDefaults and ISettings disagree on the tab label font weight default");
+static_assert(ConfigDefaults::scrollingTabIndicatorFontItalic() == ISettings::ScrollingTabIndicatorFontItalicDefault,
+              "ConfigDefaults and ISettings disagree on the tab label italic default");
+static_assert(ConfigDefaults::scrollingTabIndicatorFontUnderline()
+                  == ISettings::ScrollingTabIndicatorFontUnderlineDefault,
+              "ConfigDefaults and ISettings disagree on the tab label underline default");
+static_assert(ConfigDefaults::scrollingTabIndicatorFontStrikeout()
+                  == ISettings::ScrollingTabIndicatorFontStrikeoutDefault,
+              "ConfigDefaults and ISettings disagree on the tab label strikeout default");
 // The drop indicator's paint keys, same story: the overlay service reads them
 // through ISettings, so a stub answering from the interface body must agree.
 // The two COLOUR defaults have no assert here and cannot get one: QColor is not
@@ -115,15 +121,16 @@ static_assert(!ConfigDefaults::scrollingTabIndicatorFontStrikeout(),
 // non-constexpr reason, and test_scrolling_settings.cpp pins their SCHEMA
 // defaults (via ConfigDefaults) at runtime. Their ISettings-body agreement
 // still rests on the doc comment in isettings.h.
-static_assert(ConfigDefaults::scrollingDropIndicatorEnabled(),
-              "ISettings::scrollingDropIndicatorEnabled defaults to true — update it with this default");
-static_assert(ConfigDefaults::scrollingDropIndicatorOpacity() == 0.25,
-              "ISettings::scrollingDropIndicatorOpacity defaults to 0.25 — update it with this default");
-static_assert(ConfigDefaults::scrollingDropIndicatorBorderWidth() == 2,
-              "ISettings::scrollingDropIndicatorBorderWidth defaults to 2 — update it with this default");
-static_assert(ConfigDefaults::scrollingDropIndicatorBorderRadius() == 8,
-              "ISettings::scrollingDropIndicatorBorderRadius defaults to 8 (the zone overlay's radius) — update it "
-              "with this default");
+static_assert(ConfigDefaults::scrollingDropIndicatorEnabled() == ISettings::ScrollingDropIndicatorEnabledDefault,
+              "ConfigDefaults and ISettings disagree on the drop indicator default");
+static_assert(ConfigDefaults::scrollingDropIndicatorOpacity() == ISettings::ScrollingDropIndicatorOpacityDefault,
+              "ConfigDefaults and ISettings disagree on the drop indicator opacity default");
+static_assert(ConfigDefaults::scrollingDropIndicatorBorderWidth()
+                  == ISettings::ScrollingDropIndicatorBorderWidthDefault,
+              "ConfigDefaults and ISettings disagree on the drop indicator border width default");
+static_assert(ConfigDefaults::scrollingDropIndicatorBorderRadius()
+                  == ISettings::ScrollingDropIndicatorBorderRadiusDefault,
+              "ConfigDefaults and ISettings disagree on the drop indicator border radius default");
 
 P_STORE_GET(bool, scrollingEnabled, scrollingGroup, enabledKey, bool)
 P_STORE_SET_BOOL(setScrollingEnabled, scrollingGroup, enabledKey, scrollingEnabledChanged)

@@ -81,8 +81,10 @@ namespace PlasmaZones {
 /// the window-movement animation events rides it too, for a different reason:
 /// a rule action scoped to a retired event lives in that same sidecar, so the
 /// v7 config step cannot reach it (see renameRetiredAnimationEventPaths).
-/// Those three are the only cleanups that run outside the chain — anything
-/// else touching the config root needs a version bump.
+/// The strip of the managed appearance baseline rules older builds seeded
+/// rides it for the first reason (see stripManagedAppearanceBaselineRules).
+/// These are the only cleanups that run outside the chain. Anything else
+/// touching the config root needs a version bump.
 /// v5: the per-mode Snapping/Tiling appearance and gap settings fold into the
 ///     unified Windows / Gaps groups (see migrateV4ToV5).
 /// v6: the snapping zone colours and the Windows border/tint colours become
@@ -272,9 +274,11 @@ public:
     /// ConfigSchemaVersion — that pin is why an already-converted rules.json
     /// survives a config schema bump without a rebuild). It is NOT a strict no-op — it
     /// retries the still-pending tail steps (strip surviving `_v4*Stash`
-    /// keys, retire a still-present assignments.json, and the two rules.json
-    /// fix-ups `pruneRetiredProviderDefaultRule` and `repairSeededSteamRule`,
-    /// which DO write the sidecar) so a partial earlier
+    /// keys, retire a still-present assignments.json, and the rules.json
+    /// fix-ups `pruneRetiredProviderDefaultRule`, `repairSeededSteamRule`,
+    /// `renameRetiredAnimationEventPaths` and
+    /// `stripManagedAppearanceBaselineRules`, which DO write the sidecar) so a
+    /// partial earlier
     /// run that crashed between rules.json commit and the tail
     /// converges to a clean state on the next startup. The rule-rebuild
     /// path itself NEVER runs from the cleanup branch.
@@ -459,6 +463,21 @@ public:
     ///                 via ConfigDefaults).
     /// @return true on success or a clean no-op; false on an I/O failure.
     static bool renameRetiredAnimationEventPaths(const QString& jsonPath);
+
+    /// Remove the managed appearance baseline rules (border, title bar and gap,
+    /// under three fixed ids) that older builds seeded into rules.json.
+    /// Window appearance defaults moved into config.json, so such a rule is a
+    /// leftover that would keep applying its actions while the rules page
+    /// offers no way to delete it. A user rule carrying one of the ids is left
+    /// alone (only `managed` rules are removed). Runs from
+    /// finalizeV4Conversion's cleanup path, beside the other fix-ups to rows
+    /// this code seeded into the sidecar. Idempotent: once the rules are gone
+    /// there is nothing left to match.
+    ///
+    /// @param jsonPath Path to config.json (rules.json is derived as a sibling
+    ///                 via ConfigDefaults).
+    /// @return true on success or a clean no-op; false on an I/O failure.
+    static bool stripManagedAppearanceBaselineRules(const QString& jsonPath);
 
     /// Part of the v4 conversion: read every `*.json` layout in @p layoutsDir,
     /// split its embedded per-layout settings into the @p sidecarPath store

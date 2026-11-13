@@ -459,13 +459,17 @@ public:
     /// logs, rather than shipping a card that looks like it failed to load.
     void showScrollingStripOsd(const QString& name, const QVariantList& zones, bool verticalAxis,
                                const QString& emptyCaption, const QString& screenId = QString());
-    /// The card always wears the failure glyph "dialog-cancel". Both callers
-    /// (showContextDisabledOsd and showNotAssignedOsd) explain why a
-    /// requested change had no effect, which is what the glyph says. A
-    /// positive announcement does not belong on this card at all — the
-    /// scrolling mode switch, which briefly did reuse it, now renders its own
-    /// strip preview.
+    /// A short text card wearing the failure glyph "dialog-cancel". Its
+    /// callers (showContextDisabledOsd, showNotAssignedOsd, the workspace
+    /// snap-back hint) explain why a requested change had no effect or was
+    /// undone, which is what the glyph says. A layout or mode announcement
+    /// does not belong on this card at all: the scrolling mode switch, which
+    /// briefly did reuse it, now renders its own strip preview.
     void showDisabledOsd(const QString& reason, const QString& screenId = QString());
+    /// The same card wearing the information glyph "dialog-information": for
+    /// a hint that reports something done on the user's behalf (a workspace
+    /// closed and its window was moved to the current one), not a refusal.
+    void showInfoOsd(const QString& message, const QString& screenId = QString());
 
     /**
      * @brief Pre-create the per-screen passive overlay shell for all connected
@@ -486,6 +490,9 @@ public:
     void warmUpNotifications();
 
 private:
+    /// The card showDisabledOsd and showInfoOsd share: @p text over the
+    /// layout-OSD outline, wearing @p iconName.
+    void showMessageCard(const QString& text, const QString& screenId, const QString& iconName);
     /**
      * @brief The isAnyModeLocked mode lens the LAYOUT PICKER reads a lock
      * through, for @p screenId.

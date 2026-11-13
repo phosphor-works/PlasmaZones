@@ -94,6 +94,18 @@ void WindowTrackingAdaptor::pruneStaleWindows(const QStringList& aliveWindowIds)
     // the shadow keys above, so a claimer that never had a frame shadow is
     // reached too.
     m_service->placementStore().releaseOpenClaimsExcept(aliveInstances);
+    // The open-routing verdicts of windows that died with no close signal.
+    // Each is latched until close, so a silently dead window's entry would
+    // otherwise stand until its id is reused, and that reuse would then skip
+    // its own open's routing.
+    const auto deadRoute = [&aliveInstances](const auto& it) {
+        return !aliveInstances.contains(PhosphorIdentity::WindowId::extractInstanceId(it.key()));
+    };
+    m_openRoutes.removeIf(deadRoute);
+    m_openRoutePass.removeIf(deadRoute);
+    m_snapOpenPlacements.removeIf([&aliveInstances](const QString& shadowId) {
+        return !aliveInstances.contains(PhosphorIdentity::WindowId::extractInstanceId(shadowId));
+    });
     // The reopen contract at daemon start: a live window whose OWN record
     // names another screen than the one its frame is on left that screen
     // while no daemon was watching, and stays where it is. Its engine slots

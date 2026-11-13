@@ -158,8 +158,6 @@ public:
     virtual void setDragActivationTriggers(const QVariantList& triggers) = 0;
     virtual bool zoneSpanEnabled() const = 0;
     virtual void setZoneSpanEnabled(bool enabled) = 0;
-    virtual DragModifier zoneSpanModifier() const = 0;
-    virtual void setZoneSpanModifier(DragModifier modifier) = 0;
     virtual QVariantList zoneSpanTriggers() const = 0;
     virtual void setZoneSpanTriggers(const QVariantList& triggers) = 0;
     virtual bool zoneSpanToggleMode() const = 0;

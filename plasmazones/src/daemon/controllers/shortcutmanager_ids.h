@@ -5,9 +5,12 @@
 
 #include <QString>
 
-// Shortcut id vocabulary shared by the registration table
-// (shortcutmanager.cpp) and the cheatsheet catalog
-// (shortcutmanager_catalog.cpp).
+// Shortcut id vocabulary. One definition for every reader: the registration
+// table (shortcutmanager_table.cpp), the entry build and the slot loops
+// (shortcutmanager.cpp), the adhoc collision guard
+// (shortcutmanager_adhoc.cpp), the cheatsheet catalog
+// (shortcutmanager_catalog.cpp), and the daemon's named-workspace chord
+// binding, which builds its adhoc ids with the builders below.
 
 namespace PlasmaZones {
 namespace ShortcutIds {
@@ -38,6 +41,51 @@ inline constexpr auto kIdToggleWindowFloat = "toggle_window_float";
 // saved chord (same reasoning as toggle_autotile's label-only rename below —
 // the C++ constant is free to carry the mode-neutral name, the string is not).
 inline constexpr auto kIdSwitchFocusFloatTiling = "scroll_switch_focus_float_tiling";
+// Dynamic per-monitor workspaces (mode-neutral; gated on the feature).
+inline constexpr auto kIdWorkspaceFocusUp = "workspace_focus_up";
+inline constexpr auto kIdWorkspaceFocusDown = "workspace_focus_down";
+inline constexpr auto kIdWorkspaceMoveWindowUp = "workspace_move_window_up";
+inline constexpr auto kIdWorkspaceMoveWindowDown = "workspace_move_window_down";
+inline constexpr auto kIdWorkspaceMoveColumnUp = "workspace_move_column_up";
+inline constexpr auto kIdWorkspaceMoveColumnDown = "workspace_move_column_down";
+inline constexpr auto kIdWorkspaceReorderUp = "workspace_reorder_up";
+inline constexpr auto kIdWorkspaceReorderDown = "workspace_reorder_down";
+inline constexpr auto kIdWorkspaceMoveToMonitorLeft = "workspace_move_to_monitor_left";
+inline constexpr auto kIdWorkspaceMoveToMonitorRight = "workspace_move_to_monitor_right";
+// Workspace quick-shortcut slots (settings-backed, unset by default). The
+// prefix joins the adhoc collision guard like the quick-layout/snap-to-zone
+// families.
+inline constexpr auto kWorkspaceMoveSlotPrefix = "workspace_move_slot_";
+inline QString workspaceMoveSlotId(int slotZeroBased)
+{
+    return QLatin1String(kWorkspaceMoveSlotPrefix) + QString::number(slotZeroBased + 1);
+}
+inline constexpr auto kWorkspaceFocusSlotPrefix = "workspace_focus_slot_";
+inline QString workspaceFocusSlotId(int slotZeroBased)
+{
+    return QLatin1String(kWorkspaceFocusSlotPrefix) + QString::number(slotZeroBased + 1);
+}
+// Named-workspace adhoc chords, one focus and one move id per declared entry.
+// Keyed by the entry's persistent id, so renaming a workspace keeps its
+// chords' ids (and with them their place in kglobalacceld's dispatch order).
+// An entry without an id (a hand-edited config whose list was never re-saved)
+// is identified by its trimmed name instead, the same fallback every other
+// consumer of the declarations uses. The prefixes live here with the rest of
+// the vocabulary because they are on-disk record keys under the
+// "plasmazonesd" component and must never be renamed, and because the
+// cheatsheet catalog recognises the family by them.
+inline constexpr auto kWorkspaceNamedFocusPrefix = "workspace_named_focus:";
+inline constexpr auto kWorkspaceNamedMovePrefix = "workspace_named_move:";
+/// @p entryKey is the entry's id, or its trimmed name when it has none.
+inline QString workspaceNamedFocusId(const QString& entryKey)
+{
+    return QLatin1String(kWorkspaceNamedFocusPrefix) + entryKey;
+}
+/// @p entryKey is the entry's id, or its trimmed name when it has none.
+inline QString workspaceNamedMoveId(const QString& entryKey)
+{
+    return QLatin1String(kWorkspaceNamedMovePrefix) + entryKey;
+}
 inline constexpr auto kIdSwapWindowLeft = "swap_window_left";
 inline constexpr auto kIdSwapWindowRight = "swap_window_right";
 inline constexpr auto kIdSwapWindowUp = "swap_window_up";
@@ -111,22 +159,22 @@ inline constexpr auto kIdScrollMinimizeColumnWidth = "scroll_minimize_column_wid
 inline constexpr auto kIdScrollEqualizeWindowHeights = "scroll_equalize_window_heights";
 inline constexpr auto kIdScrollMinimizeWindowHeight = "scroll_minimize_window_height";
 
-// The indexed slot families are prefix-keyed rather than enumerated above.
-// Exported so the id builders below and the cheatsheet catalog's
-// prefix classification read from ONE definition: a hardcoded copy in the
-// catalog compiled clean through a rename and silently dropped every row of
-// the family into the "Other" bucket.
+// Prefixes of the indexed slot families whose builders follow. The workspace
+// slot prefixes sit with their builders further up. Exported so the id
+// builders and the cheatsheet catalog's prefix classification read from ONE
+// definition: a hardcoded copy in the catalog compiled clean through a rename
+// and silently dropped every row of the family into the "Other" bucket.
 inline constexpr auto kQuickLayoutPrefix = "quick_layout_";
 inline constexpr auto kSnapToZonePrefix = "snap_to_zone_";
 inline constexpr auto kScrollFocusTabPrefix = "scroll_focus_tab_";
 
-/// How many slots each indexed family has. All three families are 1-9 (the
-/// digit row), and the number appears in the default-getter array bounds, the
+/// How many slots each indexed family has. Every family is 1-9 (the digit
+/// row), and the number appears in the default-getter array checks, the
 /// registration loops and the cheatsheet's expected-token lists. Exported for
-/// the same reason as the prefixes above: those sites live in two translation
-/// units, and a bare literal in each lets them drift apart silently — the
-/// cheatsheet's malformed-spec guard cannot catch it, because both sides of
-/// the comparison are built from the same local literal.
+/// the same reason as the prefixes above: those sites live in separate
+/// translation units, and a bare literal in each lets them drift apart
+/// silently — the cheatsheet's malformed-spec guard cannot catch it, because
+/// both sides of the comparison are built from the same local literal.
 inline constexpr int kIndexedSlotCount = 9;
 
 inline QString quickLayoutId(int slotZeroBased)

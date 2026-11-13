@@ -265,6 +265,14 @@ bool ScrollEngine::beginDragInsertPreview(const QString& rawWindowId, const QStr
                 preview.priorActiveAtBegin = priorState->strip().activeWindowId();
             }
             priorState->strip().takeWindow(windowId, priorParams);
+            // The take is the window leaving its shared column, so the slot
+            // is stamped as floatWindowInternal stamps one. The commit's
+            // degrade arm keeps the slot as the float's FloatRestore, and a
+            // hidden member replayed with no stamp would be put back as the
+            // column's oldest leave whatever left after it (C78).
+            if (preview.priorSlot.tileIndex >= 0) {
+                preview.priorSlot.leaveSequence = ++m_floatLeaveSequence;
+            }
             // The take can leave the view over trailing dead space
             // (removeWindowInternal keeps it on purpose); this strip stays on
             // show for the whole hold, so settle it over real columns now —
@@ -576,6 +584,7 @@ void ScrollEngine::commitDragInsertPreview()
             carried.column = -1;
             carried.tileIndex = -1;
             carried.stackAnchor.clear();
+            carried.leaveSequence = 0;
         }
         // The float capture's exclusivity invariant (ScrollStashTypes.h):
         // every m_floatRestore entry carries this false, and a drag-captured

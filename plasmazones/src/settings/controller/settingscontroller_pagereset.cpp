@@ -217,17 +217,21 @@ void SettingsController::resetPage(const QString& page)
         const auto& manifest = pageOwnedConfigKeys();
         const auto ownedIt = manifest.constFind(page);
         if (ownedIt != manifest.constEnd()) {
-            // The mode enable switches are manifest-owned (for dirty/save/
-            // discard) but a page Reset must not flip the mode itself, and
-            // the two cross-page default selections are manifest-owned the
-            // same way but set from the library pages, which the owner page
-            // shows no row for — strip both exemption lists before handing
-            // the list to resetKeys.
+            // The feature enable switches are manifest-owned (for dirty/save/
+            // discard) but a page Reset must not flip the feature itself; the
+            // cross-page default selections are manifest-owned the same way
+            // but set from the library pages, which the owner page shows no
+            // row for; and a recorded consent was given through a
+            // confirmation, not a row. Strip all three exemption lists before
+            // handing the list to resetKeys.
             Settings::ConfigKeyList keys = *ownedIt;
             for (const Settings::ConfigKey& exempt : resetExemptModeEnableKeys()) {
                 keys.removeAll(exempt);
             }
             for (const Settings::ConfigKey& exempt : resetExemptDefaultSelectionKeys()) {
+                keys.removeAll(exempt);
+            }
+            for (const Settings::ConfigKey& exempt : resetExemptConsentKeys()) {
                 keys.removeAll(exempt);
             }
             // Suppress onSettingsPropertyChanged for the reset's NOTIFY storm;
@@ -708,7 +712,7 @@ void SettingsController::discardPage(const QString& page)
         return;
     }
     // Dispatch on pageSupportsDiscard, not manifest membership: the ordering and
-    // Quick Shortcuts children are deliberately absent from the config manifest
+    // per-mode Quick Shortcuts children are deliberately absent from the config manifest
     // (they revert through their own staged machinery) yet isPageDirty recurses
     // into them, so a parent is reported dirty when only they are edited. A
     // manifest-only walk would leave those staged edits in place, and the

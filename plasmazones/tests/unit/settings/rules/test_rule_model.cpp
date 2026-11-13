@@ -120,6 +120,8 @@ private Q_SLOTS:
     void boolMatchConditionRendersOnOff();
     void shaderAndCurveLabelsResolveThroughLookups();
     void routeActionsRenderFriendlyLabels();
+    void routeTargetsTrimBoundAndFollowWorkspaceRenames();
+    void fractionActionsRejectStringValues();
     void scrollingActionsRenderDistinctLabels();
     void snapToZoneSummaryQuotesNamesAndFiltersTargets();
     void animationOverridesSummariseWithTheirEvent();
@@ -893,6 +895,126 @@ void TestRuleModel::routeActionsRenderFriendlyLabels()
     QCOMPARE(summaryAt(0), QStringLiteral("Open on monitor: LG Ultra HD · DP-2"));
 }
 
+void TestRuleModel::routeTargetsTrimBoundAndFollowWorkspaceRenames()
+{
+    // RouteToScreen: the loader bounds the TRIMMED id and stores it verbatim,
+    // so the summary trims before resolving, and an id past the wire bound
+    // falls back to the bare label instead of filling the row.
+    const auto screenRuleWith = [](const QString& screenId) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.priority = 200;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::Equals, QStringLiteral("firefox"));
+        RuleAction route;
+        route.type = QString(ActionType::RouteToScreen);
+        route.params.insert(ActionParam::TargetScreenId, screenId);
+        rule.actions = {route};
+        return rule;
+    };
+    // RouteToWorkspace carries the entry's persistent id plus the name it had
+    // when picked. A null id leaves the key out, the shape an id-less entry
+    // is picked with.
+    const QString entryId = QUuid::createUuid().toString();
+    const auto workspaceRuleWith = [](const QString& id, const QString& name) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.priority = 199;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::Equals, QStringLiteral("konsole"));
+        RuleAction route;
+        route.type = QString(ActionType::RouteToWorkspace);
+        if (!id.isNull()) {
+            route.params.insert(ActionParam::TargetWorkspaceId, id);
+        }
+        route.params.insert(ActionParam::TargetWorkspaceName, name);
+        rule.actions = {route};
+        return rule;
+    };
+
+    RuleModel model;
+    model.setRules({
+        screenRuleWith(QStringLiteral("  DP-2  ")),
+        screenRuleWith(QString(PhosphorRules::MaxScreenIdLength + 1, QLatin1Char('x'))),
+        workspaceRuleWith(entryId, QStringLiteral("  Web  ")),
+        workspaceRuleWith(QString(), QStringLiteral("Mail")),
+        workspaceRuleWith(entryId, QString(PhosphorRules::MaxWorkspaceNameLength + 1, QLatin1Char('n'))),
+    });
+    const auto summaryAt = [&](int row) {
+        return model.data(model.index(row, 0), RuleModel::ActionSummaryRole).toString();
+    };
+
+    model.setScreenLabelLookup([](const QString& id) {
+        return id == QLatin1String("DP-2") ? QStringLiteral("LG Ultra HD · DP-2") : id;
+    });
+    // The lookup answers a live name for the entry id only, and records
+    // whether it was ever asked about anything else.
+    QString renamedTo = QStringLiteral("Renamed");
+    QStringList askedIds;
+    model.setWorkspaceLabelLookup([&](const QString& id) {
+        askedIds.append(id);
+        return id == entryId ? renamedTo : QString();
+    });
+    model.refreshLabels();
+
+    // Fails if the trim before the screen lookup is dropped (the padded id
+    // would miss the lookup and render raw).
+    QCOMPARE(summaryAt(0), QStringLiteral("Open on monitor: LG Ultra HD · DP-2"));
+    // Fails if the MaxScreenIdLength bound is dropped.
+    QCOMPARE(summaryAt(1), QStringLiteral("Open on monitor"));
+    // The id resolves to the entry's CURRENT name, whatever was stored.
+    QCOMPARE(summaryAt(2), QStringLiteral("Open on workspace “Renamed”"));
+    // No id: the stored name, and the lookup is never asked.
+    QCOMPARE(summaryAt(3), QStringLiteral("Open on workspace “Mail”"));
+    // A live name wins even when the stored one is past its bound.
+    QCOMPARE(summaryAt(4), QStringLiteral("Open on workspace “Renamed”"));
+    for (const QString& asked : std::as_const(askedIds)) {
+        QCOMPARE(asked, entryId);
+    }
+    QVERIFY(!askedIds.isEmpty());
+
+    // The entry is gone (the lookup answers empty): the stored name, trimmed,
+    // and the bare label when the stored name is past its bound.
+    renamedTo.clear();
+    model.refreshLabels();
+    QCOMPARE(summaryAt(2), QStringLiteral("Open on workspace “Web”"));
+    QCOMPARE(summaryAt(3), QStringLiteral("Open on workspace “Mail”"));
+    QCOMPARE(summaryAt(4), QStringLiteral("Open on workspace"));
+}
+
+void TestRuleModel::fractionActionsRejectStringValues()
+{
+    // A staged editor payload can hold a string that spells a number. The
+    // validators refuse it at load, so the summary must not render it as a
+    // confident percent: it renders the invalid marker like a bool would.
+    const auto ruleWith = [](QLatin1StringView type, const QJsonValue& value) {
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.priority = 200;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::Equals, QStringLiteral("firefox"));
+        RuleAction action;
+        action.type = QString(type);
+        action.params.insert(ActionParam::Value, value);
+        rule.actions = {action};
+        return rule;
+    };
+
+    RuleModel model;
+    model.setRules({
+        ruleWith(ActionType::SetOpacity, QStringLiteral("0.5")),
+        ruleWith(ActionType::SetTintStrength, QStringLiteral("0.5")),
+        ruleWith(ActionType::SetOpacity, 0.5),
+        ruleWith(ActionType::SetTintStrength, 0.5),
+    });
+    const auto summaryAt = [&](int row) {
+        return model.data(model.index(row, 0), RuleModel::ActionSummaryRole).toString();
+    };
+    QCOMPARE(summaryAt(0), QStringLiteral("Opacity (invalid)"));
+    QCOMPARE(summaryAt(1), QStringLiteral("Tint strength (invalid)"));
+    // The numeric controls keep their percent, so the two legs above are
+    // about the string, not about the branch.
+    QCOMPARE(summaryAt(2), QStringLiteral("Opacity: 50%"));
+    QCOMPARE(summaryAt(3), QStringLiteral("Tint strength: 50%"));
+}
+
 void TestRuleModel::scrollingActionsRenderDistinctLabels()
 {
     // Pin the summaries of the three scrolling actions added by the
@@ -974,7 +1096,7 @@ void TestRuleModel::actionLabelPrefixesAreUnique()
     // the shape a duplicated copy-paste produces) and assert the resulting
     // labels are pairwise distinct.
     //
-    // The three RouteTo*/zone actions legitimately share a family prefix only
+    // The RouteTo* and zone actions legitimately share a family prefix only
     // through their VALUE, so comparing whole labels at the no-value shape is
     // the right granularity: it is exactly the text a user sees before
     // filling the value in.

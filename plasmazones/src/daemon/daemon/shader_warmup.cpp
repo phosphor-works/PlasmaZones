@@ -47,11 +47,11 @@ void Daemon::setupAnimationShaderEffects()
     // `user > sys-highest > ... > sys-lowest` after the user dir is
     // appended last.
     QStringList animDirs = QStandardPaths::locateAll(
-        QStandardPaths::GenericDataLocation, QStringLiteral("plasmazones/animations"), QStandardPaths::LocateDirectory);
+        QStandardPaths::GenericDataLocation, ConfigDefaults::animationsSubdir(), QStandardPaths::LocateDirectory);
     std::reverse(animDirs.begin(), animDirs.end());
 
-    const QString userAnimDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-        + QStringLiteral("/plasmazones/animations");
+    const QString userAnimDir =
+        QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + ConfigDefaults::userAnimationsSubdir();
     if (!animDirs.contains(userAnimDir))
         animDirs.append(userAnimDir);
 

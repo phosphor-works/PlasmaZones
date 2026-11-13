@@ -6,6 +6,7 @@
 #include <PhosphorShortcuts/IAdhocRegistrar.h>
 
 #include <QKeySequence>
+#include <QList>
 #include <QObject>
 #include <QString>
 #include <QVariantList>
@@ -13,6 +14,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace PhosphorShortcuts {
 class IBackend;
@@ -67,10 +69,29 @@ public:
 
 public Q_SLOTS:
     void registerShortcuts();
-    /// Re-applies current sequences after a settings save; returns true when
-    /// something actually changed and cheatsheetModelChanged was emitted.
-    bool updateShortcuts();
+    /// Re-applies current sequences and the gated families' active flags
+    /// after a settings save. Flushes and emits cheatsheetModelChanged only
+    /// when something actually moved.
+    void updateShortcuts();
     void unregisterShortcuts();
+
+public:
+    /**
+     * Whether the dynamic-workspaces family (the table rows marked
+     * workspaceGated and both workspace slot families) may hold grabs. The
+     * daemon sets it from the workspace controller's real state, true only
+     * while a controller runs, so a feature switched on in settings but held
+     * dormant (per-output desktops off, consent not given) parks the family
+     * instead of leaving inert system-wide grabs. Defaults to false, which
+     * is also what a build with the feature compiled out keeps: the family is
+     * still registered and parked there, so its chords stay assignable.
+     * A change re-applies the shortcuts like a settings save does.
+     */
+    void setWorkspaceFamilyActive(bool active);
+    bool workspaceFamilyActive() const
+    {
+        return m_workspaceFamilyActive;
+    }
 
 public:
     /**
@@ -81,10 +102,12 @@ public:
      * Idempotent — re-registering the same id updates the callback in place;
      * the description is updated in the registry record but is not re-sent to
      * the backend for an already-registered id (Registry::bind contract).
-     * Ids colliding with the settings-driven table or any of the three
-     * indexed slot prefixes are rejected with a warning: an adhoc unregister
-     * on such an id would purge the persistent binding's saved
-     * kglobalshortcutsrc record.
+     * Ids colliding with the settings-driven table or any indexed slot
+     * family's prefix are rejected with a warning: an adhoc unregister on
+     * such an id would purge the persistent binding's saved
+     * kglobalshortcutsrc record. The named-workspace chords are adhoc by
+     * design and are not refused; they are the one adhoc family the
+     * cheatsheet catalog lists (see catalogRows).
      */
     void registerAdhocShortcut(const QString& id, const QKeySequence& sequence, const QString& description,
                                std::function<void()> callback) override;
@@ -105,6 +128,20 @@ public:
     void registerAdhocShortcuts(
         const QVector<PhosphorShortcutsIntegration::IAdhocRegistrar::AdhocBinding>& bindings) override;
     void unregisterAdhocShortcuts(const QStringList& ids) override;
+
+    /// Foreign-component rebind (Registry pass-through; KGlobalAccel backend
+    /// only). The dynamic-workspaces stock-shortcut takeover uses these;
+    /// false on the other backends, whose callers fall back to
+    /// snap-back-with-hint.
+    bool setForeignShortcuts(const QString& componentName, const QString& actionName,
+                             const QList<QKeySequence>& sequences);
+    /// Tri-state read, see PhosphorShortcuts::IBackend::foreignShortcuts. A
+    /// nullopt means the query FAILED (no registry yet, wrong backend,
+    /// kglobalacceld unreachable) and says nothing about the action's real
+    /// binding; an engaged empty list means the action is genuinely unbound.
+    /// Callers must not treat the two the same: clearing a chord on the
+    /// strength of a failed query loses the user's binding with no backup.
+    std::optional<QList<QKeySequence>> foreignShortcuts(const QString& componentName, const QString& actionName) const;
 
     /**
      * Catalog of every settings-driven shortcut for the cheatsheet overlay,
@@ -128,8 +165,12 @@ public:
      *   the row's tooltip; always present, empty when the action needs none),
      *   templatesDescription (translated QString — Templates-capability
      *   variant of description, falling back to it when the row has none).
-     * Ad-hoc/transient grabs never appear. Empty before registerShortcuts()
-     * and again after unregisterShortcuts() (the daemon stop path).
+     * Ad-hoc/transient grabs never appear, except the named-workspace
+     * chords (one row each, under Workspaces). Parked rows never appear
+     * either: a family whose feature is off, or the workspace focus pair
+     * while KWin keeps its stock chords, holds no grab and nothing the user
+     * presses reaches it. Empty before registerShortcuts() and again after
+     * unregisterShortcuts() (the daemon stop path).
      */
     QVariantList cheatsheetModel() const;
 
@@ -167,13 +208,14 @@ public:
     };
 
     /**
-     * Every action id in the file-local STATIC registration table, in
-     * declaration order. The three indexed slot families (quick_layout_N,
-     * snap_to_zone_N, scroll_focus_tab_N, kIndexedSlotCount ids each) are
-     * registered separately by buildEntries() and are NOT returned here —
-     * this is the static portion of the registration surface, not all of it.
+     * Every action id in the STATIC registration table
+     * (shortcutmanager_table.cpp), in declaration order. The indexed slot
+     * families (kIndexedSlotCount ids each) are registered separately by
+     * buildEntries() and are NOT returned here — this is the static portion
+     * of the registration surface, not all of it.
      *
-     * The table is a file-local array with internal linkage, and
+     * The table is an array in its own TU reached only through
+     * ShortcutTable::staticEntries(), and
      * cheatsheetModel() is a COMPRESSED view of it (a directional quad or a
      * digit family collapses into a single row, so its later members have no
      * rows of their own). Neither
@@ -186,8 +228,11 @@ public:
      * Pure family-compression pass over cheatsheet rows (static so tests can
      * drive it without a shortcut backend). A family collapses into one row
      * when every member is assigned, carries exactly one trigger, ends in its
-     * expected token, and shares the modifier prefix; any deviation keeps the
-     * individual rows. Returns the surviving rows, unsorted.
+     * expected token, and shares the modifier prefix. A family whose members
+     * are ALL unassigned collapses too, into one unassigned row, so an
+     * unbound slot family reads as one line rather than a wall of empty
+     * ones. Any other deviation keeps the individual rows. Returns the
+     * surviving rows, unsorted.
      */
     static QVector<QVariantMap> compressCheatsheetFamilies(QVector<QVariantMap> rows,
                                                            const QVector<CheatsheetFamily>& families);
@@ -211,16 +256,35 @@ public:
 Q_SIGNALS:
     /**
      * The cheatsheet catalog's contents changed: a sequence was rebound
-     * (in-process or externally via System Settings / compositor) or the
-     * registration batch settled. Consumers re-query cheatsheetModel().
+     * (in-process or externally via System Settings / compositor), a gated
+     * family was parked or revived, a named-workspace chord was bound or
+     * released, or the registration batch settled. Consumers re-query
+     * cheatsheetModel().
      *
-     * Settings saves emit this only when a sequence actually moved; external
-     * rebinds surface through the Registry::triggersChanged relay, which
+     * Settings saves emit this only when a sequence or an active flag
+     * actually moved; external rebinds surface through the
+     * Registry::triggersChanged relay (filtered to catalogued ids), which
      * depends on the backend reporting them (KGlobalAccel does, the D-Bus
      * fallback backend does not) — on a non-reporting backend an open sheet
      * reflects an external rebind on its next show rather than live.
      */
     void cheatsheetModelChanged();
+
+    // Dynamic per-monitor workspaces (delta -1 = up, +1 = down; the daemon
+    // resolves the acting screen and forwards to the WorkspaceController).
+    void workspaceFocusRequested(int delta);
+    void workspaceMoveWindowRequested(int delta);
+    void workspaceMoveColumnRequested(int delta);
+    void workspaceReorderRequested(int delta);
+    /// Only NavigationDirection::Left or Right is ever emitted.
+    void workspaceMoveToMonitorRequested(NavigationDirection direction);
+    /// Quick-shortcut slot (1-based): send the active window to the named
+    /// workspace the settings app assigned to that slot. Not positional: the
+    /// target is the same workspace whichever monitor acts.
+    void workspaceMoveSlotRequested(int slot);
+    /// Switch the acting monitor to workspace `slot` (1-based) of its own
+    /// list (focus-slot family, positional per monitor).
+    void workspaceFocusSlotRequested(int slot);
 
     void openEditorRequested();
     void openSettingsRequested();
@@ -312,6 +376,14 @@ private:
         QString id;
         QKeySequence defaultSeq;
         QString description;
+        // Dynamic-workspaces family: active only while
+        // m_workspaceFamilyActive (see entryActive()).
+        bool workspaceGated = false;
+        // The workspace focus pair, whose defaults are KWin's own stock
+        // "Switch One Desktop Up/Down" chords: parked while the stock
+        // takeover is off and the chord is still the stock one, because KWin
+        // registered first and wins the key (see entryActive()).
+        bool sharesKWinStockChord = false;
         // Reads the current key sequence from m_settings (handles per-slot
         // getters for the quick-layout / snap-to-zone arrays).
         std::function<QKeySequence()> currentSeq;
@@ -373,9 +445,24 @@ private:
     QVector<QVariantMap> catalogRows() const;
     /// Category blocks in display order, then authored row order within.
     static void sortCatalogRows(QVector<QVariantMap>& rows);
-    /// Re-applies every entry's current sequence; returns true when any
-    /// binding actually differed from the registry's stored sequence.
+    /// Re-applies every entry's current sequence and active flag; returns
+    /// true when any sequence or any active flag actually differed from what
+    /// the registry held.
     bool rebindAll();
+    /// Whether @p e may hold a grab with @p seq as its current sequence.
+    bool entryActive(const Entry& e, const QKeySequence& seq) const;
+    /// Delete every record the platform keeps under this component that is
+    /// not one of the settings-driven ids: adhoc grabs a crashed earlier run
+    /// left behind (kglobalacceld keeps a dead client's grab for the whole
+    /// session) and ids since renamed or removed. Runs once per
+    /// registerShortcuts(), before anything adhoc can be bound.
+    void purgeStaleRecords();
+    /// Whether @p id is an adhoc id the catalog lists (a named-workspace
+    /// chord), so binding or releasing it changes the cheatsheet.
+    static bool isCataloguedAdhocId(const QString& id);
+    /// Emits cheatsheetModelChanged when an adhoc op since the last call
+    /// touched a catalogued id.
+    void publishAdhocCatalogChange();
     /// updateShortcuts' body. @p deferFlush leaves the rebinds pending AND
     /// the cheatsheetModelChanged emit to the caller — settleRegistration
     /// coalesces the flush with the drained adhoc ops into ONE backend round
@@ -400,6 +487,10 @@ private:
 
     bool m_registrationInProgress = false;
     bool m_settingsDirty = false;
+    bool m_workspaceFamilyActive = false;
+    // Set when an adhoc bind/unbind touched a catalogued id, consumed by
+    // publishAdhocCatalogChange() after the flush that carried it.
+    bool m_adhocCatalogDirty = false;
     // Set by the adhoc batch forms while their loop runs the per-id paths,
     // so those paths skip their trailing flush and the batch flushes once.
     bool m_suppressAdhocFlush = false;

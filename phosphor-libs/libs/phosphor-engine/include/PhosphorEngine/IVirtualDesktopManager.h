@@ -28,8 +28,14 @@ public:
         return currentDesktop();
     }
 
-    /// True when at least two screens are on different virtual desktops, i.e.
-    /// per-output virtual desktops are in effect. Default: false.
+    /// True when at least two recorded screens are on different virtual
+    /// desktops right now. Default: false.
+    ///
+    /// Superseded and kept only for the installed API: no production code
+    /// calls it, only phosphor-workspaces' own tests. It is NOT a test for
+    /// per-output virtual desktops being enabled, since two screens showing
+    /// the same desktop answer false in that mode too; read KWin's setting
+    /// for that.
     virtual bool perScreenModeActive() const
     {
         return false;

@@ -490,6 +490,9 @@ private Q_SLOTS:
         StubPlacementEngine scroll;
         m_wta->setEngines(m_snapEngine, nullptr, &scroll);
         const QString dest = QStringLiteral("DP-2");
+        // The scroll engine runs the destination, so it takes the window and
+        // the window is told to leave fullscreen first.
+        scroll.activeScreens = {dest};
         PhosphorZones::AssignmentEntry scrolling;
         scrolling.mode = PhosphorZones::AssignmentEntry::Scrolling;
         m_layoutManager->setAssignmentEntryDirect(dest, 0, QString(), scrolling);
@@ -516,6 +519,41 @@ private Q_SLOTS:
         QVERIFY2(!m_snapEngine->isWindowTracked(w), "the other desktop's zone on the monitor left must go too");
         QCOMPARE(snapSlotState(w), QString(PhosphorEngine::WindowPlacement::stateReleased()));
         QVERIFY2(scroll.releasedOffScreen.isEmpty(), "the arriving engine must not be released");
+    }
+
+    // A tiling engine that does not run the destination refuses the receive,
+    // which re-homes the window where it was. That window never asked to
+    // leave fullscreen, so no hand-back is sent.
+    void crossModeMove_noFullscreenHandBackWhenTheTargetDoesNotRunTheScreen()
+    {
+        StubPlacementEngine scroll;
+        // The engine does not run the destination (activeScreens stays empty)
+        // and, like the real one, refuses a window handed to a screen it does
+        // not run.
+        scroll.refuseReceive = true;
+        m_wta->setEngines(m_snapEngine, nullptr, &scroll);
+        const QString dest = QStringLiteral("DP-2");
+        PhosphorZones::AssignmentEntry scrolling;
+        scrolling.mode = PhosphorZones::AssignmentEntry::Scrolling;
+        m_layoutManager->setAssignmentEntryDirect(dest, 0, QString(), scrolling);
+        m_layoutManager->assignLayout(m_screenId, 0, QString(), m_testLayout);
+        const QString w = QStringLiteral("app|crossmode-refused");
+        snapOnTwoDesktops(w, m_screenId);
+
+        QSignalSpy handBackSpy(m_wta, &WindowTrackingAdaptor::fullscreenHandBackRequested);
+        QSignalSpy markerSpy(m_wta, &WindowTrackingAdaptor::windowOutputMoveExpected);
+        Q_EMIT m_snapEngine->crossModeMoveRequested(w, dest, 0, QStringLiteral("right"));
+
+        // The move reached the receive, so the missing hand-back is the
+        // destination gate's doing and not an early return.
+        QCOMPARE(scroll.received.size(), 1);
+        QVERIFY(!scroll.isWindowTracked(w));
+        // The refusal re-homed the window where it was, and no output move
+        // was announced for it.
+        QVERIFY2(m_snapEngine->isWindowTracked(w), "the refused window must be re-homed into snapping");
+        QCOMPARE(m_snapEngine->screenForTrackedWindow(w), m_screenId);
+        QCOMPARE(markerSpy.count(), 0);
+        QCOMPARE(handBackSpy.count(), 0);
     }
 
     // A rule routing a window onto a snapping monitor takes its open float

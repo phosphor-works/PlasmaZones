@@ -20,6 +20,10 @@
 #include <PhosphorZones/LayoutSettingsStore.h>
 
 #include <PhosphorConfig/Schema.h>
+#include <PhosphorRules/ActionTypes.h>
+#include <PhosphorRules/Rule.h>
+#include <PhosphorRules/RuleAction.h>
+#include <PhosphorRules/RuleSet.h>
 
 #include <QSet>
 
@@ -387,11 +391,11 @@ private Q_SLOTS:
     // The daemon's boot-time read of the rendering backend sees a v1
     // config.json's choice only once ensureJsonConfig() has run. A v1 JSON
     // holds it as Rendering.RenderingBackend, which readRenderingConfigFromDisk
-    // does not read, and the legacy INI fallback finds nothing because the
-    // INI→JSON step renamed the INI away long ago. daemon/main.cpp therefore
-    // reads the backend after the migration (test_daemon_lifecycle_order pins
-    // that order). The first QCOMPARE is the reason for that order; the second
-    // fails if the v1→v2 step stops carrying the key to Rendering.Backend.
+    // does not read, and it reads nothing but the migrated JSON.
+    // daemon/main.cpp therefore reads the backend after the migration
+    // (test_daemon_lifecycle_order pins that order). The first QCOMPARE is the
+    // reason for that order; the second fails if the v1→v2 step stops carrying
+    // the key to Rendering.Backend.
     void testRenderingBootReadSeesV1JsonBackendOnlyAfterMigration()
     {
         IsolatedConfigGuard guard;
@@ -406,6 +410,94 @@ private Q_SLOTS:
         QVERIFY(ConfigMigration::ensureJsonConfig());
 
         QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, QStringLiteral("vulkan"));
+    }
+
+    // config.json stores the default backend as an ABSENT key, so a config
+    // without Rendering/Backend means "default", never "look elsewhere". A
+    // legacy plasmazonesrc left beside it (a restored backup, a second
+    // install, a failed rename) is migration input only, and must not
+    // override the default on every start. Fails if readRenderingConfigFromDisk
+    // regains its fallback to the legacy INI.
+    void testRenderingBootReadIgnoresLegacyIniBesideJson()
+    {
+        IsolatedConfigGuard guard;
+        writeIniFile(ConfigDefaults::legacyConfigFilePath(), QStringLiteral("RenderingBackend=vulkan\n"));
+        QVERIFY(QFile::exists(ConfigDefaults::legacyConfigFilePath()));
+
+        // Before any config.json exists: still the default.
+        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, ConfigDefaults::renderingBackend());
+
+        // A current-version config.json with no Rendering/Backend key.
+        QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
+        QFile f(ConfigDefaults::configFilePath());
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(QStringLiteral("{\"_version\":%1,\"Rendering\":{}}").arg(PlasmaZones::ConfigSchemaVersion).toUtf8());
+        f.close();
+        QVERIFY(QFile::exists(ConfigDefaults::legacyConfigFilePath()));
+
+        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, ConfigDefaults::renderingBackend());
+        QVERIFY(ConfigDefaults::renderingBackend() != QLatin1String("vulkan"));
+    }
+
+    // v1 kept the zone-span chord as a single ZoneSpanModifier scalar beside
+    // the ZoneSpanTriggers list. v2 has only the list, so a v1 config with the
+    // scalar and no list must come out with a one-entry list built from it,
+    // and no Modifier key. Fails if migrateV1ToV2 stops folding the scalar in
+    // (the list would be absent and the user's chord would reset to Ctrl), or
+    // starts writing the scalar into v2 again.
+    void testMigrateZoneSpanModifier_withoutTriggers_becomesTriggerList()
+    {
+        IsolatedConfigGuard guard;
+        writeIniFile(ConfigDefaults::legacyConfigFilePath(),
+                     QStringLiteral("[Activation]\n"
+                                    "ZoneSpanEnabled=true\n"
+                                    "ZoneSpanModifier=4\n"));
+
+        QVERIFY(ConfigMigration::ensureJsonConfig());
+
+        const QJsonObject zoneSpan = readJsonConfig(ConfigDefaults::configFilePath())
+                                         .value(QStringLiteral("Snapping"))
+                                         .toObject()
+                                         .value(QStringLiteral("Behavior"))
+                                         .toObject()
+                                         .value(QStringLiteral("ZoneSpan"))
+                                         .toObject();
+        QVERIFY2(zoneSpan.value(ConfigDefaults::triggersKey()).isArray(),
+                 qPrintable(QString::fromUtf8(QJsonDocument(zoneSpan).toJson(QJsonDocument::Compact))));
+        const QJsonArray triggers = zoneSpan.value(ConfigDefaults::triggersKey()).toArray();
+        QCOMPARE(triggers.size(), 1);
+        const QJsonObject entry = triggers.first().toObject();
+        QCOMPARE(entry.value(ConfigDefaults::triggerModifierField()).toInt(-1), static_cast<int>(DragModifier::Meta));
+        QCOMPARE(entry.value(ConfigDefaults::triggerMouseButtonField()).toInt(-1), 0);
+        QVERIFY(!zoneSpan.contains(ConfigDefaults::modifierKey()));
+    }
+
+    // A v1 config carrying both keeps its list verbatim: the list already
+    // superseded the scalar in v1, so folding the scalar over it would
+    // replace the user's real chord. Still no Modifier key.
+    void testMigrateZoneSpanModifier_withTriggers_keepsList()
+    {
+        IsolatedConfigGuard guard;
+        writeIniFile(ConfigDefaults::legacyConfigFilePath(),
+                     QStringLiteral("[Activation]\n"
+                                    "ZoneSpanModifier=4\n"
+                                    "ZoneSpanTriggers=[{\"modifier\":3,\"mouseButton\":1}]\n"));
+
+        QVERIFY(ConfigMigration::ensureJsonConfig());
+
+        const QJsonObject zoneSpan = readJsonConfig(ConfigDefaults::configFilePath())
+                                         .value(QStringLiteral("Snapping"))
+                                         .toObject()
+                                         .value(QStringLiteral("Behavior"))
+                                         .toObject()
+                                         .value(QStringLiteral("ZoneSpan"))
+                                         .toObject();
+        const QJsonArray triggers = zoneSpan.value(ConfigDefaults::triggersKey()).toArray();
+        QCOMPARE(triggers.size(), 1);
+        const QJsonObject entry = triggers.first().toObject();
+        QCOMPARE(entry.value(ConfigDefaults::triggerModifierField()).toInt(-1), static_cast<int>(DragModifier::Alt));
+        QCOMPARE(entry.value(ConfigDefaults::triggerMouseButtonField()).toInt(-1), 1);
+        QVERIFY(!zoneSpan.contains(ConfigDefaults::modifierKey()));
     }
 
     // =========================================================================
@@ -1089,6 +1181,66 @@ private Q_SLOTS:
         // No migration ran — every field (including the version stamp)
         // is preserved byte-for-byte.
         QCOMPARE(after, root);
+    }
+
+    // =========================================================================
+    // rules.json fix-ups on the cleanup path
+    // =========================================================================
+
+    /// The managed appearance baseline rules an older build seeded into
+    /// rules.json are stripped on start-up. A user rule survives, and so does
+    /// an UNMANAGED rule that carries one of the baseline ids, because only
+    /// the seeded rows are ours to remove. A second run is a clean no-op.
+    void testCleanup_stripsManagedAppearanceBaselineRules()
+    {
+        IsolatedConfigGuard guard;
+        // The frozen ids, spelled here independently of the code under test.
+        const QUuid border(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000002}"));
+        const QUuid titleBar(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000003}"));
+        const QUuid gap(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000004}"));
+
+        const auto ruleWith = [](const QUuid& id, const QString& name, bool managed) {
+            PhosphorRules::Rule rule;
+            rule.id = id;
+            rule.name = name;
+            rule.managed = managed;
+            rule.actions.append(PhosphorRules::RuleAction{QString(PhosphorRules::ActionType::Exclude), {}});
+            return rule;
+        };
+        const QUuid user = QUuid::createUuid();
+        PhosphorRules::RuleSet seeded;
+        QCOMPARE(seeded.setRules({ruleWith(border, QStringLiteral("Border"), true),
+                                  ruleWith(titleBar, QStringLiteral("Title bar"), true),
+                                  ruleWith(gap, QStringLiteral("Hand-made"), false),
+                                  ruleWith(user, QStringLiteral("Mine"), false)}),
+                 4);
+        QDir().mkpath(QFileInfo(ConfigDefaults::rulesFilePath()).absolutePath());
+        QVERIFY(seeded.saveToFile(ConfigDefaults::rulesFilePath()));
+
+        QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
+        QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(
+            ConfigDefaults::configFilePath(),
+            QJsonObject{{QStringLiteral("_version"), PlasmaZones::ConfigSchemaVersion}}));
+
+        QVERIFY(ConfigMigration::ensureJsonConfig());
+
+        const auto after = PhosphorRules::RuleSet::loadFromFile(ConfigDefaults::rulesFilePath());
+        QVERIFY(after.has_value());
+        QVERIFY(!after->ruleById(border).has_value());
+        QVERIFY(!after->ruleById(titleBar).has_value());
+        QVERIFY(after->ruleById(gap).has_value());
+        QVERIFY(after->ruleById(user).has_value());
+        QCOMPARE(after->rules().size(), 2);
+
+        // Nothing left to strip: the second pass reports success and leaves
+        // the file as the first one wrote it.
+        QFile rulesFile(ConfigDefaults::rulesFilePath());
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        const QByteArray firstPass = rulesFile.readAll();
+        rulesFile.close();
+        QVERIFY(ConfigMigration::stripManagedAppearanceBaselineRules(ConfigDefaults::configFilePath()));
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        QCOMPARE(rulesFile.readAll(), firstPass);
     }
 };
 

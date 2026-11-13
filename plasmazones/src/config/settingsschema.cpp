@@ -3,35 +3,37 @@
 
 // This TU stays whole deliberately. It is a flat sequence of one
 // appendXxxSchema function per config domain plus the validator helpers several of them
-// share — one file-local (validStringOr), the rest at namespace scope in
-// settingsschema_p.h or declared in settingsschema.h because the per-domain TUs share
-// them too (canonicalCommaList, canonicalThemeFallbackColor, canonicalTriggerList). The
-// domains big enough to carry their own weight are already split
-// (settingsschema_scrolling.cpp's three entry points and settingsschema_tiling.cpp's
-// one). What remains here is small enough that moving a domain out would drag its
-// helpers into a header for a single consumer; appendShortcutsSchema is the longest,
-// being one flat list of string keys. When a domain grows logic of its own, split it
-// the way scrolling and tiling were.
+// share. Helpers only this file uses stay file-local (validStringOr); the ones the
+// per-domain TUs share too sit at namespace scope in settingsschema_p.h or are declared
+// in settingsschema.h (canonicalCommaList, canonicalThemeFallbackColor,
+// canonicalTriggerList). The domains big enough to carry their own weight are already
+// split: settingsschema_scrolling.cpp, settingsschema_tiling.cpp,
+// settingsschema_workspaces.cpp, settingsschema_overlayshaders.cpp and
+// settingsschema_shadertrees.cpp. What remains here is small enough that
+// moving a domain out would drag its helpers into a header for a single consumer;
+// appendShortcutsSchema is the longest, being one flat list of string keys. When a
+// domain grows logic of its own, split it the way those were.
 
 #include "settingsschema.h"
-
-#include <QColor>
 
 #include "settingsschemachoices.h"
 #include "settingsschema_p.h"
 
 #include "configdefaults.h"
 #include "configmigration.h"
-#include <PhosphorRules/ActionParams.h>
 #include "core/types/enums.h"
 
 #include <PhosphorAnimation/CurveRegistry.h>
-#include <PhosphorSurface/DecorationProfileTree.h>
 #include <PhosphorProtocol/ServiceConstants.h>
-#include <QtGlobal>
+#include <PhosphorRules/ActionParams.h>
 #include <PhosphorScreens/ScreenIdentity.h>
+#include <PhosphorSurface/DecorationProfileTree.h>
+
+#include <QColor>
+#include <QtGlobal>
 
 #include <iterator>
+#include <optional>
 
 using namespace Qt::StringLiterals;
 
@@ -62,6 +64,10 @@ PhosphorConfig::Schema buildSettingsSchema()
     appendScrollingSchema(s);
     appendScrollingZoneSelectorSchema(s);
     appendWindowsSchema(s);
+    // Unconditional even where USE_KDE_FRAMEWORKS=OFF compiles the feature
+    // out: purgeStaleKeys deletes undeclared keys on save, so a guarded call
+    // would wipe the workspace config an ON build on the same machine reads.
+    appendWorkspacesSchema(s);
     appendGapsSchema(s);
     appendDecorationsSchema(s);
 
@@ -120,67 +126,104 @@ QVariant canonicalThemeFallbackColor(const QVariant& v)
     return QString();
 }
 
-/// Canonicalize a trigger list: cap size, coerce each entry to a
-/// {modifier:int, mouseButton:int} QVariantMap. Runs on every read and
-/// every write so the flush loop enforces the cap even when the setter
-/// path is bypassed (e.g. a hand-edited config file carrying 12 entries).
-/// Namespace scope (declared in settingsschema.h): shared with
-/// settingsschema_scrolling.cpp and settingsschema_tiling.cpp, whose
-/// Scrolling.Behavior and Tiling.Behavior groups carry the drag-insert
-/// trigger lists. The Scrolling.Wheel.Focus and Scrolling.Wheel.View groups
-/// go through canonicalWheelTriggerList instead, which wraps this one.
-QVariant canonicalTriggerList(const QVariant& v)
+namespace {
+/// Canonicalize ONE trigger entry to a {modifier:int, mouseButton:int} map,
+/// or nullopt when the entry is malformed and must be dropped. The shared
+/// per-entry half of canonicalTriggerList and canonicalWheelTriggerList.
+std::optional<QVariantMap> canonicalTriggerEntry(const QVariant& entry)
+{
+    // Skip non-map entries instead of coercing them to zero-valued
+    // triggers, so a corrupt config with a string element can't smuggle a
+    // {modifier:0, mouseButton:0} phantom trigger in.
+    if (entry.typeId() != QMetaType::QVariantMap) {
+        return std::nullopt;
+    }
+    const QVariantMap src = entry.toMap();
+    // Field-level ok-flags, for the same drop-malformed reason as the entry
+    // gate above: a partially-garbage entry ({modifier: "alt", mouseButton:
+    // 1}) used to coerce its bad field to 0, and modifier 0 means "don't
+    // care" to the drag readers, silently widening a configured "Alt + Left"
+    // trigger to "Left button, any modifier". No default is passed to
+    // value(), so a MISSING field reads as an invalid QVariant whose toInt
+    // reports !ok and the entry is dropped too: an empty map is the same
+    // phantom trigger as a garbage one. Every in-tree producer writes both
+    // fields.
+    bool modOk = false;
+    bool btnOk = false;
+    const int modifier = src.value(ConfigKeys::triggerModifierField()).toInt(&modOk);
+    const int mouseButton = src.value(ConfigKeys::triggerMouseButtonField()).toInt(&btnOk);
+    // Range half of the hardening, one step past the type (ok-flag) half, in
+    // each field's OWN vocabulary: `modifier` is a DragModifier ENUMERATOR
+    // (the drag readers switch on it), not a Qt modifier mask, and
+    // `mouseButton` is a Qt::MouseButtons bitmask (matched with `&`). A
+    // numeric-but-impossible field is dropped like a malformed type instead
+    // of being persisted verbatim as a trigger no event can ever match.
+    // Qt::AllButtons, NOT Qt::MouseButtonMask: the mask is 0xffffffff, whose
+    // int cast is -1, and `x & ~(-1)` is always 0, a check that rejects
+    // nothing. AllButtons is the real any-valid-button set, and a negative
+    // int's sign bit lies outside it, so negatives fail too.
+    if (!modOk || !btnOk || modifier < static_cast<int>(DragModifier::Disabled) || modifier > MaxDragModifier
+        || (mouseButton & ~static_cast<int>(Qt::AllButtons)) != 0) {
+        return std::nullopt;
+    }
+    QVariantMap canon;
+    canon[ConfigKeys::triggerModifierField()] = modifier;
+    canon[ConfigKeys::triggerMouseButtonField()] = mouseButton;
+    return canon;
+}
+
+/// Whether a canonical entry is a usable WHEEL chord. See
+/// canonicalWheelTriggerList for why each case is refused.
+bool isWheelChord(const QVariantMap& canon)
+{
+    const int modifier = canon.value(ConfigKeys::triggerModifierField()).toInt();
+    const int mouseButton = canon.value(ConfigKeys::triggerMouseButtonField()).toInt();
+    if (modifier == static_cast<int>(DragModifier::AlwaysActive)) {
+        return false;
+    }
+    return !(modifier == static_cast<int>(DragModifier::Disabled) && mouseButton == 0);
+}
+
+/// The list loop both validators share. The cap counts KEPT entries, so the
+/// wheel filter runs before an entry takes a slot: a list whose leading
+/// entries the filter drops still keeps up to the cap of valid ones.
+QVariant canonicalTriggerListFiltered(const QVariant& v, bool (*keep)(const QVariantMap&))
 {
     const QVariantList raw = v.toList();
     QVariantList out;
-    out.reserve(qMin(raw.size(), kSchemaMaxTriggersPerAction));
+    out.reserve(qMin(static_cast<int>(raw.size()), kSchemaMaxTriggersPerAction));
     for (const QVariant& entry : raw) {
         if (out.size() >= kSchemaMaxTriggersPerAction) {
             break;
         }
-        // Skip non-map entries instead of coercing them to zero-valued
-        // triggers — matches the legacy reader's "drop malformed" behaviour
-        // so a corrupt config with a string element can't smuggle a
-        // {modifier:0, mouseButton:0} phantom trigger in.
-        if (entry.typeId() != QMetaType::QVariantMap) {
+        const std::optional<QVariantMap> canon = canonicalTriggerEntry(entry);
+        if (!canon || (keep && !keep(*canon))) {
             continue;
         }
-        const QVariantMap src = entry.toMap();
-        // Field-level ok-flags, for the same drop-malformed reason as the
-        // entry gate above: a partially-garbage entry ({modifier: "alt",
-        // mouseButton: 1}) used to coerce its bad field to 0, and modifier 0
-        // means "don't care" to the drag readers — silently widening a
-        // configured "Alt + Left" trigger to "Left button, any modifier".
-        bool modOk = false;
-        bool btnOk = false;
-        const int modifier = src.value(ConfigKeys::triggerModifierField(), 0).toInt(&modOk);
-        const int mouseButton = src.value(ConfigKeys::triggerMouseButtonField(), 0).toInt(&btnOk);
-        // Range half of the hardening, one step past the type (ok-flag)
-        // half, in each field's OWN vocabulary: `modifier` is a DragModifier
-        // ENUMERATOR (the drag readers switch on it), not a Qt modifier
-        // mask, and `mouseButton` is a Qt::MouseButtons bitmask (matched
-        // with `&`). A numeric-but-impossible field is dropped like a
-        // malformed type instead of being persisted verbatim as a trigger
-        // no event can ever match.
-        // Qt::AllButtons, NOT Qt::MouseButtonMask: the mask is 0xffffffff,
-        // whose int cast is -1, and `x & ~(-1)` is always 0 — a check that
-        // rejects nothing. AllButtons is the real any-valid-button set, and
-        // a negative int's sign bit lies outside it, so negatives fail too.
-        if (!modOk || !btnOk || modifier < static_cast<int>(DragModifier::Disabled) || modifier > MaxDragModifier
-            || (mouseButton & ~static_cast<int>(Qt::AllButtons)) != 0) {
-            continue;
-        }
-        QVariantMap canon;
-        canon[ConfigKeys::triggerModifierField()] = modifier;
-        canon[ConfigKeys::triggerMouseButtonField()] = mouseButton;
-        out.append(canon);
+        out.append(*canon);
     }
     return QVariant(out);
 }
+} // namespace
 
-/// Canonicalize a WHEEL chord list: canonicalTriggerList, then drop any entry
-/// naming DragModifier::AlwaysActive, and drop any entry left with neither a
-/// modifier nor a mouse button.
+/// Canonicalize a trigger list: cap size, coerce each entry to a
+/// {modifier:int, mouseButton:int} QVariantMap, drop malformed entries.
+/// Runs on every read and every write so the flush loop enforces the cap
+/// even when the setter path is bypassed (e.g. a hand-edited config file
+/// carrying more entries than the cap). Namespace scope (declared in
+/// settingsschema.h): shared with settingsschema_scrolling.cpp and
+/// settingsschema_tiling.cpp, whose Scrolling.Behavior and Tiling.Behavior
+/// groups carry the drag-insert trigger lists. The Scrolling.Wheel.Focus and
+/// Scrolling.Wheel.View groups go through canonicalWheelTriggerList instead.
+QVariant canonicalTriggerList(const QVariant& v)
+{
+    return canonicalTriggerListFiltered(v, nullptr);
+}
+
+/// Canonicalize a WHEEL chord list: canonicalTriggerList's per-entry
+/// canonicalization, plus a drop of any entry naming
+/// DragModifier::AlwaysActive and of any entry left with neither a modifier
+/// nor a mouse button.
 ///
 /// AlwaysActive is a drag-only sentinel and it does not survive the move to
 /// exact matching. modifierMaskFor has no case for it, so it folds to
@@ -194,38 +237,20 @@ QVariant canonicalTriggerList(const QVariant& v)
 /// Dropped here rather than in canonicalTriggerList, which the drag lists
 /// share and which must keep storing the sentinel (TriggerUtils builds it
 /// deliberately for the always-active drag case).
+///
+/// A mouse button is a legal wheel chord (hold the button, turn the wheel),
+/// and the capture UI authors it as button-only or modifier-only, never
+/// combined, matching the drag rows. The exact matcher already keeps the two
+/// shapes distinct: modifiers compare exactly, so a button-only entry
+/// (modifier Disabled) matches only with no chord modifier held, and a
+/// modifier-only entry cannot be satisfied by a button alone. Buttons
+/// themselves stay subset-matched, so a hand-edited modifier+button combo can
+/// be shadowed by the same bare modifier; the combo is unreachable from the
+/// UI, so the exposure is a hand-edit shadowing a hand-edit. An entry with
+/// neither half claims nothing and goes.
 QVariant canonicalWheelTriggerList(const QVariant& v)
 {
-    const QVariantList canon = canonicalTriggerList(v).toList();
-    QVariantList out;
-    out.reserve(canon.size());
-    for (const QVariant& entry : canon) {
-        const QVariantMap src = entry.toMap();
-        const int modifier = src.value(ConfigKeys::triggerModifierField(), 0).toInt();
-        const int mouseButton = src.value(ConfigKeys::triggerMouseButtonField(), 0).toInt();
-        if (modifier == static_cast<int>(DragModifier::AlwaysActive)) {
-            continue;
-        }
-        // A mouse button is a legal wheel chord (hold the button, turn the
-        // wheel), and the capture UI authors it as button-only or
-        // modifier-only, never combined — matching the drag rows. The exact
-        // matcher already keeps the two shapes distinct: modifiers compare
-        // exactly, so a button-only entry (modifier Disabled) matches only
-        // with no chord modifier held, and a modifier-only entry cannot be
-        // satisfied by a button alone. Buttons themselves stay
-        // subset-matched, so a hand-edited modifier+button combo can be
-        // shadowed by the same bare modifier — the combo is unreachable from
-        // the UI, so the exposure is a hand-edit shadowing a hand-edit.
-        // An entry with neither half claims nothing and goes.
-        if (modifier == static_cast<int>(DragModifier::Disabled) && mouseButton == 0) {
-            continue;
-        }
-        QVariantMap canonEntry;
-        canonEntry[ConfigKeys::triggerModifierField()] = modifier;
-        canonEntry[ConfigKeys::triggerMouseButtonField()] = mouseButton;
-        out.append(canonEntry);
-    }
-    return QVariant(out);
+    return canonicalTriggerListFiltered(v, &isWheelChord);
 }
 
 // ─── Shaders ────────────────────────────────────────────────────────────────
@@ -385,52 +410,48 @@ void appendOrderingSchema(PhosphorConfig::Schema& schema)
 }
 
 // ─── Animations ─────────────────────────────────────────────────────────────
-// Phase 4 sub-commit 6 — storage format is a single Profile JSON blob
-// (`Animations.Profile`) replacing the pre-migration five per-field
-// entries (Duration / EasingCurve / MinDistance / SequenceMode /
-// StaggerInterval). Per decision S, the old keys are dead on disk; no
-// migration code. Users with configs predating this schema lose their
-// animation customisation and read back the library-default Profile.
+// The motion profile is one nested JSON object (`Animations.Profile`) holding
+// the curve, duration, minimum distance, sequence mode and stagger interval.
+// migrateV1ToV2 folds the v1 per-field keys into it (clamped), writing it as a
+// JSON string that Store::read's legacy-string fallback parses on first load;
+// the next save stores the nested object.
 //
-// The per-field accessor surface on Settings (animationDuration / etc.)
-// is preserved as projections over the Profile blob — see settings.cpp.
+// The per-field accessors on Settings (animationDuration and the rest) are
+// projections over the object, in settings/animationprofile.cpp.
 //
-// Validation: the Profile JSON string is stored as-is. Clamping happens
-// at the library level (Profile::effective* + WindowAnimator::clampProfile
-// on the hot path) rather than in the schema, because the
-// schema's per-field QMetaType::Int validator can't see inside the
-// JSON. A malformed blob falls back to the library default via
-// Profile::fromJson's permissive parse — consistent with the "garbage
-// in disk → sensible defaults on read" invariant the rest of the
-// v3 config uses.
+// Validation: the schema does not clamp inside the object. Clamping happens
+// at the library level (Profile::effective* and WindowAnimator::clampProfile
+// on the hot path), and a malformed object falls back to the library default
+// through Profile::fromJson's permissive parse, the "garbage on disk, sensible
+// defaults on read" invariant the rest of the config keeps.
 
 void appendAnimationsSchema(PhosphorConfig::Schema& schema)
 {
     using CD = ConfigDefaults;
-    // Default-Profile JSON resolution needs a CurveRegistry. The daemon's
-    // per-process registry is wired at startup (`daemon/main.cpp`), but
-    // standalone settings / unit tests construct Settings without injecting
-    // one — for those paths we fall back to this function-local static that
-    // auto-registers the builtins (spring, cubic-bezier, elastic, bounce).
-    // The static persists across Settings re-construction.
-    static PhosphorAnimation::CurveRegistry sSchemaRegistry;
+    // Building the default Profile resolves the default curve string, which
+    // needs a CurveRegistry. The schema is built without access to any
+    // process's injected registry, so it uses the shared builtins-only one
+    // that Settings also falls back to when constructed without a registry.
+    // Only the builtin curve types matter here, since the default curve is
+    // one of them.
+    PhosphorAnimation::CurveRegistry& registry = ConfigDefaults::fallbackCurveRegistry();
     schema.groups[CD::animationsGroup()] = {
         {CD::enabledKey(), CD::animationsEnabled(), QMetaType::Bool,
          QStringLiteral("Whether window transitions play at all. Off, windows appear and disappear with no motion.")},
-        // Profile and ShaderProfileTree persist as nested JSON objects
+        // Profile and the two trees persist as nested JSON objects
         // (QVariantMap) so the on-disk config shows their structure
-        // directly. Existing string-blob configs are migrated transparently
-        // by Store::read's legacy-string fallback on first load.
-        {CD::animationProfileKey(), CD::animationProfile(sSchemaRegistry), QMetaType::QVariantMap,
+        // directly. A string-blob value, as migrateV1ToV2 writes the Profile,
+        // is parsed by Store::read's legacy-string fallback on first load.
+        {CD::animationProfileKey(), CD::animationProfile(registry), QMetaType::QVariantMap,
          QStringLiteral("The active motion profile: easing curve, duration, stagger interval and sequence mode. "
-                        "The animations page writes this; it is not meant to be edited by hand.")},
+                        "The animations page writes this, so it is not meant to be edited by hand.")},
         {CD::shaderProfileTreeKey(), CD::shaderProfileTree(), QMetaType::QVariantMap,
          QStringLiteral("Per-context overrides of which animation shader each transition uses. The animations page "
                         "writes this, so it is not meant to be edited by hand."),
          sanitizeShaderProfileTree},
         {CD::motionProfileTreeKey(), CD::motionProfileTree(), QMetaType::QVariantMap,
          QStringLiteral("Per-context overrides of animation timing: each context's easing curve and duration. "
-                        "The animations page writes this; it is not meant to be edited by hand."),
+                        "The animations page writes this, so it is not meant to be edited by hand."),
          sanitizeMotionProfileTree},
     };
 }
@@ -485,7 +506,7 @@ void appendPerformanceSchema(PhosphorConfig::Schema& schema)
     };
 }
 
-// ─── PhosphorZones::Zone Geometry (Snapping.Gaps) ──────────────────────────────────────────
+// ─── Zone Geometry (Snapping.Gaps) ──────────────────────────────────────────
 // The adjacency threshold only; the shared inner/outer gaps live in Gaps.
 
 void appendZoneGeometrySchema(PhosphorConfig::Schema& schema)
@@ -502,38 +523,26 @@ void appendZoneGeometrySchema(PhosphorConfig::Schema& schema)
 }
 
 // ─── Shortcuts ──────────────────────────────────────────────────────────────
-// THREE sub-groups: Global (editor/settings launchers, zone navigation,
-// snap-to-zone numbered slots, layout rotation/swap, virtual-screen rotation),
-// Tiling (autotile master/ratio/count controls + retile toggle), and Scrolling,
-// declared in settingsschema_scrolling.cpp and appended at the end. All QString
-// keys, no validators needed. The layout editor's own shortcuts are not here:
+// Shortcuts.Global (the editor, settings and cheatsheet launchers, layout
+// switching and the quick-layout slots, zone move/focus/swap/span, the
+// snap-to-zone and scrolling focus-tab slots, window rotation and cycling,
+// virtual-screen swap and rotation, and the dynamic-workspaces verbs and
+// slots from settingsschema_workspaces.cpp), Shortcuts.Tiling (autotile
+// master/ratio/count controls and retile), and Shortcuts.Scrolling, declared
+// in settingsschema_scrolling.cpp and appended at the end. All QString keys,
+// no validators needed. The layout editor's own shortcuts are not here:
 // appendEditorSchema declares them under Editor.Shortcuts.
-
-namespace {
-// Helper: append a string KeyDef with no validator. Cuts the noise in the
-// schema below when every entry is the same shape.
-//
-// `description` is what the action DOES, in the user's terms, for the
-// settings UI and the generated documentation to share. Every call below
-// passes one. The parameter stays optional so an entry added before anyone
-// has written its sentence still compiles; the schema dump emits the field
-// unconditionally, so a blank one is a query away rather than a source grep.
-inline void addShortcut(QVector<PhosphorConfig::KeyDef>& list, const QString& key, const QString& defaultValue,
-                        const QString& description = {})
-{
-    list.append({key, defaultValue, QMetaType::QString, description});
-}
-} // namespace
 
 void appendShortcutsSchema(PhosphorConfig::Schema& schema)
 {
     using CD = ConfigDefaults;
+    using SchemaRows::addShortcut;
 
     QVector<PhosphorConfig::KeyDef> globals;
-    addShortcut(globals, CD::openEditorKey(), CD::openEditorShortcut(), QStringLiteral("Open zone editor."));
-    addShortcut(globals, CD::openSettingsKey(), CD::openSettingsShortcut(), QStringLiteral("Open settings."));
+    addShortcut(globals, CD::openEditorKey(), CD::openEditorShortcut(), QStringLiteral("Opens the zone editor."));
+    addShortcut(globals, CD::openSettingsKey(), CD::openSettingsShortcut(), QStringLiteral("Opens the settings app."));
     addShortcut(globals, CD::toggleCheatsheetKey(), CD::toggleCheatsheetShortcut(),
-                QStringLiteral("Open the shortcut cheatsheet."));
+                QStringLiteral("Opens the shortcut cheatsheet."));
     addShortcut(globals, CD::previousLayoutKey(), CD::previousLayoutShortcut(),
                 QStringLiteral("Switches this screen to the previous layout in the list."));
     addShortcut(globals, CD::nextLayoutKey(), CD::nextLayoutShortcut(),
@@ -573,11 +582,11 @@ void appendShortcutsSchema(PhosphorConfig::Schema& schema)
     addShortcut(globals, CD::focusZoneDownKey(), CD::focusZoneDownShortcut(),
                 QStringLiteral("Moves focus to the window in the zone below the focused one."));
     addShortcut(globals, CD::pushToEmptyZoneKey(), CD::pushToEmptyZoneShortcut(),
-                QStringLiteral("Push focused window to the nearest empty zone."));
+                QStringLiteral("Moves the focused window into the first empty zone of the layout."));
     addShortcut(globals, CD::restoreWindowSizeKey(), CD::restoreWindowSizeShortcut(),
-                QStringLiteral("Restore focused window to its pre-snap size."));
+                QStringLiteral("Returns the focused window to the size it had before it was snapped."));
     addShortcut(globals, CD::toggleWindowFloatKey(), CD::toggleWindowFloatShortcut(),
-                QStringLiteral("Toggle focused window's floating state."));
+                QStringLiteral("Floats the focused window, or places it back when it is already floating."));
     addShortcut(
         globals, CD::switchFocusFloatTilingKey(), CD::switchFocusFloatTilingShortcut(),
         QStringLiteral("Moves focus between the floating windows and the placed layout. It returns to the window that "
@@ -637,13 +646,14 @@ void appendShortcutsSchema(PhosphorConfig::Schema& schema)
     addShortcut(globals, CD::rotateWindowsCounterclockwiseKey(), CD::rotateWindowsCounterclockwiseShortcut(),
                 QStringLiteral("Moves every window one zone counter-clockwise within the current layout."));
     addShortcut(globals, CD::cycleWindowForwardKey(), CD::cycleWindowForwardShortcut(),
-                QStringLiteral("Moves the focused window to the next zone in the layout's order."));
+                QStringLiteral("Moves focus to the next window stacked in the focused window's zone."));
     addShortcut(globals, CD::cycleWindowBackwardKey(), CD::cycleWindowBackwardShortcut(),
-                QStringLiteral("Moves the focused window to the previous zone in the layout's order."));
+                QStringLiteral("Moves focus to the previous window stacked in the focused window's zone."));
     addShortcut(globals, CD::resnapToNewLayoutKey(), CD::resnapToNewLayoutShortcut(),
-                QStringLiteral("Reapply current layout."));
-    addShortcut(globals, CD::snapAllWindowsKey(), CD::snapAllWindowsShortcut(),
-                QStringLiteral("Snap every visible window to its best-fit zone."));
+                QStringLiteral("Reapplies the current layout to the windows on the screen."));
+    addShortcut(
+        globals, CD::snapAllWindowsKey(), CD::snapAllWindowsShortcut(),
+        QStringLiteral("Snaps the unsnapped windows into the empty zones in zone order until no empty zone is left."));
     addShortcut(globals, CD::layoutPickerKey(), CD::layoutPickerShortcut(),
                 QStringLiteral("Opens a picker to choose this screen's layout."));
     addShortcut(globals, CD::toggleLayoutLockKey(), CD::toggleLayoutLockShortcut(),
@@ -663,15 +673,19 @@ void appendShortcutsSchema(PhosphorConfig::Schema& schema)
     addShortcut(globals, CD::rotateVirtualScreensCounterclockwiseKey(),
                 CD::rotateVirtualScreensCounterclockwiseShortcut(),
                 QStringLiteral("Moves every virtual screen's windows one position counter-clockwise."));
+    // The dynamic-workspaces rows go last so the older rows keep their order
+    // in the schema dump. Unconditional in every build flavour, like the rest
+    // of the workspaces schema (see settingsschema_workspaces.cpp).
+    appendWorkspacesShortcutKeys(globals);
     schema.groups[CD::shortcutsGlobalGroup()] = std::move(globals);
 
     schema.groups[CD::shortcutsTilingGroup()] = {
         {CD::toggleKey(), CD::autotileToggleShortcut(), QMetaType::QString,
-         QStringLiteral("Cycle the focused screen's placement mode.")},
+         QStringLiteral("Cycles the focused screen's placement mode.")},
         {CD::focusMasterKey(), CD::autotileFocusMasterShortcut(), QMetaType::QString,
-         QStringLiteral("Focus the master window.")},
+         QStringLiteral("Moves focus to the master window.")},
         {CD::swapMasterKey(), CD::autotileSwapMasterShortcut(), QMetaType::QString,
-         QStringLiteral("Swap focused window with master.")},
+         QStringLiteral("Swaps the focused window with the master window.")},
         {CD::incMasterRatioKey(), CD::autotileIncMasterRatioShortcut(), QMetaType::QString,
          QStringLiteral("Gives the master area a larger share of the screen.")},
         {CD::decMasterRatioKey(), CD::autotileDecMasterRatioShortcut(), QMetaType::QString,
@@ -837,7 +851,7 @@ void appendExclusionsSchema(PhosphorConfig::Schema& schema)
 
 // ─── Display ────────────────────────────────────────────────────────────────
 // Snapping.Behavior.Display plus the Effects sub-group. Enum ints (OsdStyle,
-// OverlayDisplayMode) get clamp validators; lists use canonicalCommaList.
+// OverlayDisplayMode) get validIntOr snap-to-default validators.
 //
 // Per-mode disable lists (formerly Display.{Snapping,Autotile}Disabled*)
 // are NOT in the schema: as of the window-rule refactor (PR #477) every
@@ -899,7 +913,7 @@ void appendDisplaySchema(PhosphorConfig::Schema& schema)
 // Overlays lives in settingsschema_overlayshaders.cpp, split out by domain
 // the way the scrolling and tiling domains were.
 
-// ─── PhosphorZones::Zone Selector ──────────────────────────────────────────────────────────
+// ─── Zone Selector ──────────────────────────────────────────────────────────
 // Pops up at the edge of the screen during drag to let users pick which zone
 // to snap to. Toggle + trigger distance + preview geometry + grid config +
 // three enum-ints (Position, LayoutMode, SizeMode).
@@ -953,7 +967,7 @@ void appendZoneSelectorSchema(PhosphorConfig::Schema& schema)
         {CD::gridColumnsKey(), CD::gridColumns(), QMetaType::Int, QStringLiteral("Number of layout previews per row."),
          clampInt(CD::gridColumnsMin(), CD::gridColumnsMax())},
         {CD::sizeModeKey(), CD::sizeMode(), QMetaType::Int,
-         QStringLiteral("Whether preview size is chosen for you or taken from the width and height below."),
+         QStringLiteral("Whether preview size is chosen for you or taken from the preview width and height settings."),
          validIntOr({static_cast<int>(ZoneSelectorSizeMode::Auto), static_cast<int>(ZoneSelectorSizeMode::Manual)},
                     CD::sizeMode()),
          intChoices({{static_cast<int>(ZoneSelectorSizeMode::Auto), "auto"_L1},
@@ -965,9 +979,10 @@ void appendZoneSelectorSchema(PhosphorConfig::Schema& schema)
 }
 
 // ─── Activation ─────────────────────────────────────────────────────────────
-// Top-level Snapping.Enabled + the Snapping.Behavior scalar keys (drag
-// activation triggers, toggle-activation). Trigger lists are stored as JSON
-// strings; the backend auto-round-trips them as native JSON arrays.
+// Top-level Snapping.Enabled, the Snapping.Behavior keys (drag activation
+// triggers, toggle-activation, grace, focus behaviour) and the
+// Snapping.Behavior.ZoneSpan sub-group. Trigger lists are stored as native
+// JSON arrays of {modifier, mouseButton} objects.
 
 void appendActivationSchema(PhosphorConfig::Schema& schema)
 {
@@ -977,10 +992,9 @@ void appendActivationSchema(PhosphorConfig::Schema& schema)
          QStringLiteral("Whether snapping mode can be used at all. Off, it is skipped when cycling a screen's "
                         "placement mode.")},
     };
-    // Snapping.Behavior owns FIVE scalar keys directly — Triggers,
-    // ToggleActivation, ReleaseGraceMs, FocusNewWindows and FocusFollowsMouse — while the
-    // SnapAssist / ZoneSpan / WindowHandling / Display / AutotileDragInsert
-    // sub-groups each get their own Schema entry below (or already migrated).
+    // Snapping.Behavior's own keys. Its ZoneSpan sub-group follows here; the
+    // SnapAssist and WindowHandling sub-groups are declared by
+    // appendBehaviorSchema and Display by appendDisplaySchema.
     schema.groups[CD::snappingBehaviorGroup()] = {
         {CD::triggersKey(), CD::dragActivationTriggers(), QMetaType::QVariantList,
          QStringLiteral("Modifier and mouse-button combinations that show the zone overlay while a window is being "
@@ -1001,36 +1015,6 @@ void appendActivationSchema(PhosphorConfig::Schema& schema)
     schema.groups[CD::snappingBehaviorZoneSpanGroup()] = {
         {CD::enabledKey(), CD::zoneSpanEnabled(), QMetaType::Bool,
          QStringLiteral("Allow a window to be snapped across two or more adjacent zones.")},
-        {CD::modifierKey(), CD::zoneSpanModifier(), QMetaType::Int,
-         QStringLiteral("Modifier held while dragging to paint across zones."),
-         // DragModifier int values are contiguous but not ordered — each is a
-         // discrete named modifier combo. clampInt on an unknown value would
-         // reinterpret e.g. 99 as the highest valid enum (CtrlMeta),
-         // silently giving the user a much stricter capture rule than they
-         // asked for. Snap-to-default (Disabled = 0) instead so upgrade-
-         // mismatches or hand-edited configs fall back to "off" rather than
-         // a semantically-unrelated neighbour.
-         validIntOr({static_cast<int>(DragModifier::Disabled), static_cast<int>(DragModifier::Shift),
-                     static_cast<int>(DragModifier::Ctrl), static_cast<int>(DragModifier::Alt),
-                     static_cast<int>(DragModifier::Meta), static_cast<int>(DragModifier::CtrlAlt),
-                     static_cast<int>(DragModifier::CtrlShift), static_cast<int>(DragModifier::AltShift),
-                     static_cast<int>(DragModifier::AlwaysActive), static_cast<int>(DragModifier::AltMeta),
-                     static_cast<int>(DragModifier::CtrlAltMeta), static_cast<int>(DragModifier::MetaShift),
-                     static_cast<int>(DragModifier::CtrlMeta)},
-                    static_cast<int>(DragModifier::Disabled)),
-         intChoices({{static_cast<int>(DragModifier::Disabled), "disabled"_L1},
-                     {static_cast<int>(DragModifier::Shift), "shift"_L1},
-                     {static_cast<int>(DragModifier::Ctrl), "ctrl"_L1},
-                     {static_cast<int>(DragModifier::Alt), "alt"_L1},
-                     {static_cast<int>(DragModifier::Meta), "meta"_L1},
-                     {static_cast<int>(DragModifier::CtrlAlt), "ctrlAlt"_L1},
-                     {static_cast<int>(DragModifier::CtrlShift), "ctrlShift"_L1},
-                     {static_cast<int>(DragModifier::AltShift), "altShift"_L1},
-                     {static_cast<int>(DragModifier::AlwaysActive), "alwaysActive"_L1},
-                     {static_cast<int>(DragModifier::AltMeta), "altMeta"_L1},
-                     {static_cast<int>(DragModifier::CtrlAltMeta), "ctrlAltMeta"_L1},
-                     {static_cast<int>(DragModifier::MetaShift), "metaShift"_L1},
-                     {static_cast<int>(DragModifier::CtrlMeta), "ctrlMeta"_L1}})},
         {CD::triggersKey(), CD::zoneSpanTriggers(), QMetaType::QVariantList,
          QStringLiteral("Modifier and mouse-button combinations that span a drag across adjacent zones. Each entry is "
                         "a {modifier, mouseButton} pair."),
@@ -1045,7 +1029,7 @@ void appendActivationSchema(PhosphorConfig::Schema& schema)
 
 // ─── Behavior ───────────────────────────────────────────────────────────────
 // WindowHandling + SnapAssist sub-groups. The Autotile drag-insert triggers
-// live in Tiling.Behavior and get scheduled under the Autotiling migration.
+// live in Tiling.Behavior, declared by appendAutotilingSchema.
 
 void appendBehaviorSchema(PhosphorConfig::Schema& schema)
 {
@@ -1086,8 +1070,8 @@ void appendBehaviorSchema(PhosphorConfig::Schema& schema)
          QStringLiteral("Snapping and tiling stay off until you assign a layout. A rule can re-enable the default per "
                         "monitor.")},
         {CD::defaultLayoutIdKey(), CD::defaultLayoutId(), QMetaType::QString,
-         QStringLiteral("Layout a screen uses until it is given one of its own. Empty picks the first layout that fits "
-                        "the screen.")},
+         QStringLiteral("Layout a screen uses until it is given one of its own. Empty uses the layout that comes first "
+                        "in the default order the bundled layouts declare.")},
     };
     schema.groups[CD::snappingBehaviorSnapAssistGroup()] = {
         {CD::featureEnabledKey(), CD::snapAssistFeatureEnabled(), QMetaType::Bool,
@@ -1099,7 +1083,8 @@ void appendBehaviorSchema(PhosphorConfig::Schema& schema)
                         "snap. Each entry is a {modifier, mouseButton} pair."),
          canonicalTriggerList},
         {CD::releaseGraceMsKey(), CD::snapAssistGraceMs(), QMetaType::Int,
-         QStringLiteral("How long the snap-assist picker stays up after the trigger is released."),
+         QStringLiteral("How long a released snap-assist trigger still counts as held, so letting go just before the "
+                        "drop still brings up the picker."),
          clampInt(CD::triggerGraceMsMin(), CD::triggerGraceMsMax())},
     };
 }
@@ -1145,7 +1130,7 @@ void appendWindowsSchema(PhosphorConfig::Schema& schema)
          QStringLiteral("Border colour for unfocused windows. Empty follows the colour scheme."),
          canonicalThemeFallbackColor},
         {CD::hideTitleBarsKey(), CD::hideWindowTitleBars(), QMetaType::Bool,
-         QStringLiteral("Remove window title bars, restored when a window floats.")},
+         QStringLiteral("Remove window title bars. A window gets its title bar back when it floats.")},
         {CD::titleBarScopeKey(), CD::windowTitleBarScope(), QMetaType::QString,
          QStringLiteral("Which windows lose their title bar."), scopeValidator(CD::windowTitleBarScope()),
          tokenChoices({WAS::Tiled, WAS::Normal, WAS::All})},
@@ -1155,7 +1140,8 @@ void appendWindowsSchema(PhosphorConfig::Schema& schema)
         // Plain opacity+tint layer: opacity and strength are doubles clamped to
         // their ConfigDefaults Min/Max (opacity keeps a non-zero floor so no
         // matched window is drawn invisible, strength runs from zero), the
-        // tint colour shares the border-colour shape (#AARRGGBB or the empty
+        // tint colour shares the border colours' validator
+        // (canonicalThemeFallbackColor: any colour QColor parses, or the empty
         // follow-the-accent sentinel) and the scope shares the closed token set.
         {CD::showOpacityTintKey(), CD::showWindowOpacityTint(), QMetaType::Bool,
          QStringLiteral("Fade and tint windows placed by PlasmaZones.")},
@@ -1210,8 +1196,9 @@ void appendGapsSchema(PhosphorConfig::Schema& schema)
 // Per-surface decoration tree: a DecorationProfileTree (the user-applied surface
 // shader-pack chain) keyed on a dot-path surface namespace, persisted as a nested JSON
 // object — the same QVariantMap shape as the autotile PerAlgorithmSettings entry in
-// settingsschema_tiling.cpp and the animation ShaderProfileTree blob. Both are bounded in
-// settingsschema_shadertrees.cpp, which covers a hand-edited config.json.
+// settingsschema_tiling.cpp and the animation ShaderProfileTree blob. The decoration tree
+// and the shader tree are bounded in settingsschema_shadertrees.cpp, which covers a
+// hand-edited config.json.
 
 void appendDecorationsSchema(PhosphorConfig::Schema& schema)
 {
@@ -1224,8 +1211,8 @@ void appendDecorationsSchema(PhosphorConfig::Schema& schema)
         // every read (withSeedDefaults), so shipped default updates keep
         // flowing to configs that never customized those surfaces.
         {CD::decorationProfileTreeKey(), CD::decorationProfileTreeStoredDefault(), QMetaType::QVariantMap,
-         QStringLiteral("The decoration profiles themselves, as a baseline set plus per-window overrides. The "
-                        "decorations page writes this, so it is not meant to be edited by hand."),
+         QStringLiteral("The decoration profiles themselves, as a baseline set plus overrides for each kind of "
+                        "surface. The decorations page writes this, so it is not meant to be edited by hand."),
          sanitizeDecorationProfileTree},
     };
     // Mostly what the decoration chain is allowed to keep redrawing (an animated
@@ -1259,8 +1246,8 @@ void appendDecorationsSchema(PhosphorConfig::Schema& schema)
         // (headroom down to 0.25 for hand edits); the combo highlights the
         // nearest tier for an off-tier value.
         {CD::blurScaleMultiplierKey(), CD::decorationBlurScaleMultiplier(), QMetaType::Double,
-         QStringLiteral("Resolution the blur passes render at, relative to the window. Below 1 is cheaper and softer, "
-                        "above 1 is sharper and costs more."),
+         QStringLiteral("Resolution the blur passes render at, relative to the window. Below 1 is cheaper and softer. "
+                        "Above 1 is sharper and costs more."),
          clampDouble(CD::decorationBlurScaleMultiplierMin(), CD::decorationBlurScaleMultiplierMax())},
         {CD::suppressWhileFullscreenKey(), CD::decorationSuppressWhileFullscreen(), QMetaType::Bool,
          QStringLiteral("Draw no decorations on a monitor while a window on it is fullscreen. Other monitors keep "

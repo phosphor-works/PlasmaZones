@@ -51,7 +51,6 @@
 // std::make_unique<RuleStore> in the ctor needs the complete
 // type. The header forward-declares it to avoid pulling the
 // dependency graph into every consumer of SettingsController.
-#include <PhosphorRules/ActionParams.h>
 #include <PhosphorRules/RuleStore.h>
 #include <PhosphorRules/RuleStoreWatcher.h>
 
@@ -298,6 +297,7 @@ SettingsController::~SettingsController()
         m_rulesPage->setZoneNamesProvider({});
         m_rulesPage->setZoneMatchOptionsProvider({});
         m_rulesPage->setVirtualDesktopLookup({});
+        m_rulesPage->setWorkspaceLookup({});
         m_rulesPage->setSnappingLayoutLookup({});
         m_rulesPage->setTilingAlgorithmLookup({});
         // The shader resolver captures `this` and reaches m_animationShaderRegistry;
@@ -643,6 +643,12 @@ SettingsController::SettingsController(QObject* parent)
     wirePerScreenOverrideSignal(&Settings::perScreenZoneSelectorSettingsChanged);
     wirePerScreenOverrideSignal(&Settings::perScreenScrollingZoneSelectorSettingsChanged);
     wirePerScreenOverrideSignal(&Settings::perScreenScrollingSettingsChanged);
+
+    // Dynamic workspaces: the named-list forward and the inputs of
+    // workspacesActive. Every workspace chord and slot target is a Settings
+    // Q_PROPERTY, so the meta-object loop above already wires their dirty
+    // tracking.
+    wireWorkspaces();
 
     // The three ordering pages (and the layout library's Priority sort
     // availability) bind to the staged*OrderChanged signals only. When

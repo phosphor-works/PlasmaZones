@@ -11,6 +11,7 @@
 #include "core/platform/logging.h"
 #include "dbus/windowtrackingadaptor/windowtrackingadaptor.h"
 
+#include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorProtocol/WindowMarshalling.h>
 #include <PhosphorScreens/Manager.h>
@@ -19,6 +20,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -349,6 +351,14 @@ void TilingAdaptor::notifyEngineScreensChanged(bool isDesktopSwitch)
                     screenDesktops.insert(screenId, m_windowTrackingAdaptor->currentDesktopForScreen(screenId));
                 }
             }
+            // What a later renumber asks of this announce (reannounceAfterRenumber).
+            m_lastAnnounceScreenDesktops.clear();
+            m_lastAnnounceWasSwitch = desktopSwitch;
+            for (auto it = screenDesktops.constBegin(); it != screenDesktops.constEnd(); ++it) {
+                if (const int stamped = it.value().toInt(); stamped >= 1) {
+                    m_lastAnnounceScreenDesktops.insert(it.key(), stamped);
+                }
+            }
             Q_EMIT managedScreensChanged(announced, desktopSwitch, screenDesktops);
             relayEnabledChanged();
             // Tile batches that arrived while this announce was queued go
@@ -393,6 +403,71 @@ void TilingAdaptor::notifyEngineScreensChanged(bool isDesktopSwitch)
             reconcileMapStateWithAnnounce(announced);
         },
         Qt::QueuedConnection);
+}
+
+void TilingAdaptor::reannounceAfterRenumber(const PhosphorEngine::DesktopRemap& remap)
+{
+    // Only the desktops the last announce stamped decide it. A renumber that
+    // leaves every one of them in place owes nothing: a switch announce
+    // still matches the effect's renumbered cache, so it passed (or will
+    // pass) the staleness gate, and no output was moved. Re-sending anyway is
+    // an announce for a switch the effect never saw, which voids every
+    // output's in-flight applies and leaves a retile on an output the
+    // renumber never touched half applied (C32).
+    //
+    // A screen that is gone since that announce stamped it decides nothing
+    // (C64). The effect prunes its report cache to the live outputs, and its
+    // staleness gate passes a key it holds no report for, so the stamp could
+    // not have cost the announce, and a desktop it showed was shown on no
+    // output this renumber can move. Its entry is dropped here.
+    const QStringList liveScreens = m_screenManager ? m_screenManager->effectiveScreenIds() : QStringList();
+    bool owed = false;
+    for (auto it = m_lastAnnounceScreenDesktops.begin(); it != m_lastAnnounceScreenDesktops.end();) {
+        if (m_screenManager && !liveScreens.contains(it.key())) {
+            it = m_lastAnnounceScreenDesktops.erase(it);
+            continue;
+        }
+        const int desktop = it.value();
+        const int moved = remap.map(desktop);
+        // A removed desktop the screen was showing: KWin moved the output to
+        // the successor, and when that takes the removed number the effect
+        // reports nothing new while its output is owed an announce (C57).
+        // Owed whatever kind the last announce was.
+        if (moved == 0) {
+            owed = true;
+        } else if (m_lastAnnounceWasSwitch && moved != desktop) {
+            // A desktop the last switch announce stamped was renumbered. The
+            // effect drops that announce if it reached it after KWin's
+            // renumber re-read its report cache, and then nothing re-sends
+            // it: the effect re-reads silently, and the daemon announces
+            // again only on a later report or managed-set change. Whether it
+            // did arrive first, the daemon cannot tell. No message the
+            // effect sends is ordered after its handling of an announce, and
+            // every per-output report is answered with a switch announce
+            // (Daemon::start's screenDesktopChanged handler), so nearly every
+            // last announce is one. Re-sent whenever a stamped desktop moved,
+            // then, at a known cost: when the effect had taken the announce,
+            // the re-send has no switch behind it and voids every output's
+            // in-flight applies (the C32 cost). Not re-sending a lost one
+            // costs more: the effect stays on the managed set of the desktop
+            // it left, with the switched output owed an announce until the
+            // next one comes (C61).
+            owed = true;
+        }
+        // Kept in the live numbering, so the next renumber reads it against
+        // the list it changes. A removed desktop goes to its successor, as
+        // the screen showing it did.
+        const int live = moved == 0 ? remap.successor(desktop) : moved;
+        if (live >= 1) {
+            it.value() = live;
+            ++it;
+        } else {
+            it = m_lastAnnounceScreenDesktops.erase(it);
+        }
+    }
+    if (owed) {
+        notifyEngineScreensChanged(/*isDesktopSwitch=*/true);
+    }
 }
 
 void TilingAdaptor::relayEnabledChanged()

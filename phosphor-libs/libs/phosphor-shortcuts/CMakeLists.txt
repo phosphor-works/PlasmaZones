@@ -70,6 +70,7 @@ set(phosphorshortcuts_public_HDRS
     include/PhosphorShortcuts/IBackend.h
     include/PhosphorShortcuts/Registry.h
     include/PhosphorShortcuts/Factory.h
+    include/PhosphorShortcuts/GlobalShortcutBlock.h
 )
 
 set(phosphorshortcuts_private_HDRS
@@ -80,6 +81,7 @@ set(phosphorshortcuts_private_HDRS
 set(phosphorshortcuts_SRCS
     src/registry.cpp
     src/factory.cpp
+    src/globalshortcutblock.cpp
     src/dbustriggerbackend.cpp
     src/portalbackend.cpp
     src/shortcutslogging.cpp

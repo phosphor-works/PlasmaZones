@@ -12,7 +12,7 @@
 using namespace PlasmaZones;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PhosphorZones::Zone structural operations
+// Zone structural operations
 // ═══════════════════════════════════════════════════════════════════════════
 
 QString ZoneManager::duplicateZone(const QString& zoneId)

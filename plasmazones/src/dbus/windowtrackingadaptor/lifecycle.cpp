@@ -5,7 +5,8 @@
 // WindowTrackingAdaptor — window lifecycle
 //
 // Placement capture, close, metadata upserts, frame-geometry tracking, the
-// interactive-resize report, the sticky bit and the context-release relay.
+// interactive-resize report and drag subject, the sticky bit, the compositor's
+// per-output virtual desktop mode report and the context-release relay.
 // Screen changes live in screenleave.cpp, the focus and activation reports in
 // activation.cpp and the stale-window prune in prune.cpp.
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -21,6 +22,7 @@
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
+#include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorEngine/WindowRegistry.h>
 // Complete type required for the m_ruleEvaluator->evictCached calls below.
 #include <PhosphorRules/RuleEvaluator.h>
@@ -433,7 +435,7 @@ void WindowTrackingAdaptor::setWindowSticky(const QString& windowId, bool sticky
     if (windowId.isEmpty()) {
         return;
     }
-    // Delegate to service
+    // m_service is non-null post-construction (class invariant).
     m_service->setWindowSticky(windowId, sticky);
 }
 
@@ -542,6 +544,13 @@ void WindowTrackingAdaptor::windowClosed(const QString& windowId, int windowKind
             m_ruleEvaluator->evictCached(windowId);
         }
     }
+    // The open's routing verdict is latched until the window closes (route
+    // once per open), and the per-pass record is normally taken within the
+    // open round trip. Both are keyed by the shadow id. Dropping the latch
+    // here is what lets a reused window id route again on its next open.
+    m_openRoutes.remove(shadowId);
+    m_openRoutePass.remove(shadowId);
+    m_snapOpenPlacements.remove(shadowId);
 
     // Drop registry state last: consumers subscribed to windowDisappeared may
     // rely on other WTS state still being present during their cleanup.
@@ -838,6 +847,21 @@ void WindowTrackingAdaptor::setInteractiveDragWindow(const QString& windowId)
     m_interactiveDragWindow = windowId.isEmpty() ? QString() : shadowWindowId(windowId);
 }
 
+void WindowTrackingAdaptor::reportPerOutputDesktopsMode(bool enabled)
+{
+    // Gated like its siblings screenDesktopChanged and seedScreenDesktop: this
+    // report arms or disarms the whole dynamic-workspaces feature, so a bus
+    // caller other than the registered compositor must not be able to flip it.
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return;
+    }
+    if (m_perOutputDesktopsMode.has_value() && *m_perOutputDesktopsMode == enabled) {
+        return;
+    }
+    m_perOutputDesktopsMode = enabled;
+    Q_EMIT m_lifecycleRelay->perOutputDesktopsModeReported(enabled);
+}
+
 bool WindowTrackingAdaptor::isInteractiveDragWindow(const QString& windowId) const
 {
     return !windowId.isEmpty() && !m_interactiveDragWindow.isEmpty()
@@ -886,6 +910,85 @@ void WindowTrackingAdaptor::notifyWindowResized(const QString& windowId, int old
         return;
     }
     m_autotileEngine->onWindowResized(windowId, oldFrame, newFrame, screenId);
+}
+
+void WindowTrackingAdaptor::setDesktopSpanQuery(PhosphorEngine::DesktopSpanQuery query)
+{
+    m_desktopSpanQuery = std::move(query);
+}
+
+void WindowTrackingAdaptor::releaseSnapOutsideLiveContext(const QString& rawWindowId, const QString& screenId)
+{
+    PhosphorSnapEngine::SnapEngine* const snap = snapEngine();
+    if (!snap || rawWindowId.isEmpty() || screenId.isEmpty()) {
+        return;
+    }
+    const QString windowId = shadowWindowId(rawWindowId);
+    // The bus screen, not the raw report: the effect can report a split
+    // monitor's physical id, and against that every membership on one of its
+    // virtual screens reads as off-screen and would be released with the rest
+    // (C42). resolveBusScreen picks the virtual screen the frame is in.
+    bool guessed = false;
+    QString liveScreen = resolveBusScreen(screenId, windowId, &guessed);
+    if (liveScreen.isEmpty()) {
+        return;
+    }
+    // A physical id whose frame did not pick the virtual screen: with no
+    // frame shadow yet (or one not on that monitor) resolveBusScreen guesses
+    // one from the cursor or takes the first, and a guess can name the
+    // sibling of the virtual screen the window is held on, which would
+    // release its real membership (C63). The snap engine's own hold on that
+    // monitor answers instead: the virtual screen whose shown context holds
+    // the window, else the one its held key names. Holding it on none of
+    // them, the window loses nothing there and the guess stands, so a stale
+    // membership elsewhere is still released. Held on more than one of them,
+    // which one it is on is unknown, and nothing is released.
+    PhosphorScreens::ScreenManager* const screens = m_service->screenManager();
+    if (guessed && screens) {
+        const QString reportedId = PhosphorScreens::ScreenIdentity::idForName(screenId);
+        QStringList holders;
+        for (const QString& child : screens->virtualScreenIdsFor(reportedId)) {
+            const auto* const state =
+                static_cast<const PhosphorSnapEngine::SnapState*>(std::as_const(*snap).stateForScreen(child));
+            if (state && (state->isWindowSnapped(windowId) || state->isFloating(windowId))) {
+                holders.append(child);
+            }
+        }
+        if (holders.isEmpty()) {
+            if (const std::optional<PhosphorEngine::PlacementStateKey> held = snap->heldKeyForWindow(windowId);
+                held && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(held->screenId, reportedId)) {
+                holders.append(held->screenId);
+            }
+        }
+        if (holders.size() > 1) {
+            qCDebug(lcDbusWindow) << "releaseSnapOutsideLiveContext:" << windowId << "reported on" << screenId
+                                  << "is held on" << holders << "and none is known to be its own, releasing nothing";
+            return;
+        }
+        if (!holders.isEmpty()) {
+            liveScreen = holders.constFirst();
+        }
+    }
+    const PhosphorEngine::DesktopSpan span =
+        m_desktopSpanQuery ? m_desktopSpanQuery(windowId) : PhosphorEngine::DesktopSpan{};
+    const PhosphorEngine::MembershipReconcileResult result = snap->releaseWindowOutsideSpan(windowId, liveScreen, span);
+    if (result.released.isEmpty()) {
+        return;
+    }
+    qCInfo(lcDbusWindow) << "placed again on" << liveScreen << ":" << windowId << "gives up" << result.released.size()
+                         << "snap membership(s) it held elsewhere";
+    // The bookkeeping TilingAdaptor::applyMembershipResult drives for a
+    // membership pass's snap release, for the same reasons: the persisted
+    // record still names the released zone, and so does the effect's zone
+    // cache until it hears "unsnapped" for each context left.
+    captureWindowPlacement(windowId, QString(), /*fromStateChange=*/true);
+    QSet<QString> relayed;
+    for (const auto& [releasedId, key] : result.released) {
+        if (!relayed.contains(key.screenId)) {
+            relayed.insert(key.screenId);
+            relayWindowReleasedFromContext(releasedId, key.screenId);
+        }
+    }
 }
 
 void WindowTrackingAdaptor::relayWindowReleasedFromContext(const QString& windowId, const QString& screenId)

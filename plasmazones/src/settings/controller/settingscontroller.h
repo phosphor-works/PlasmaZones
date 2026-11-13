@@ -44,6 +44,8 @@ namespace PhosphorSurfaceShaders {
 class SurfaceShaderRegistry;
 }
 
+class QFileSystemWatcher;
+
 namespace PhosphorPointerShaders {
 class PointerShaderRegistry;
 }
@@ -328,7 +330,7 @@ public:
     Q_INVOKABLE void discardPage(const QString& page);
 
     /// The per-page config-key manifest: page id → the (group, key) pairs that
-    /// page owns. Phase-1 scope is the KConfig-backed settings pages; pages not
+    /// page owns. Scope is the config-store-backed settings pages; pages not
     /// listed here revert through their own staged machinery rather than the
     /// config manifest (see resetPage / discardPage), not because they lack
     /// Reset/Discard. Public + static so the manifest (and its hand-maintained
@@ -336,15 +338,135 @@ public:
     /// without a SettingsController instance.
     static const QHash<QString, Settings::ConfigKeyList>& pageOwnedConfigKeys();
 
-    /// The mode enable master switches: manifest-owned for dirty/save/discard
-    /// but excluded from per-page Reset (a page Reset must not flip its mode).
+    /// The feature enable master switches behind a sidebar toggle (the three
+    /// placement modes and dynamic workspaces): manifest-owned for
+    /// dirty/save/discard but excluded from per-page Reset (a page Reset must
+    /// not switch its feature off or on).
     static const Settings::ConfigKeyList& resetExemptModeEnableKeys();
+
+    /// Consent this machine's user gave through a confirmation rather than a
+    /// settings row: manifest-owned for dirty/save/discard, excluded from
+    /// per-page Reset (the page shows no row to reset it from). A factory
+    /// reset (defaults()) still clears it, along with everything else.
+    static const Settings::ConfigKeyList& resetExemptConsentKeys();
 
     /// Whether @p page is one of the three per-mode library pages. QML bridge
     /// over the shared PlasmaZones::isLibraryPage predicate
     /// (settingscontroller_pagekeys.h) so the id triple has one home — the
     /// window-scoped layoutOperationFailed fallback in Main.qml keys off it.
     Q_INVOKABLE bool isLibraryPage(const QString& page) const;
+
+    // ── Dynamic workspaces (settingscontroller_workspaces.cpp) ──────────────
+
+    /// Whether this build carries dynamic workspaces at all. A
+    /// USE_KDE_FRAMEWORKS=OFF build compiles the feature out (it needs KConfig
+    /// to touch kwinrc), registers none of its pages, and QML hides every
+    /// other surface that names it on this.
+    Q_PROPERTY(bool workspacesAvailable READ workspacesAvailable CONSTANT)
+    bool workspacesAvailable() const;
+
+    /// Whether KWin runs with per-output virtual desktops on, through the same
+    /// kwinrc reader the daemon's gate uses (common/kwinperoutputdesktops.h).
+    /// The Workspaces page's consent flow consults this before enabling.
+    /// Always false in a build without the feature.
+    Q_INVOKABLE bool kwinPerOutputDesktopsEnabled() const;
+
+    /// Whether dynamic workspaces actually run: the feature is enabled AND
+    /// either KWin's per-output desktops are on or the user consented to
+    /// PlasmaZones turning them on. Enabled without either, the daemon leaves
+    /// the feature dormant, so the Workspaces banner and the rule editor's
+    /// workspace picker read this rather than the enable flag. Follows the
+    /// in-memory settings (pending edits included) and the user's kwinrc,
+    /// which is watched while the app runs.
+    Q_PROPERTY(bool workspacesActive READ workspacesActive NOTIFY workspacesActiveChanged)
+    bool workspacesActive() const;
+
+    /// True while KWin's desktop count, as the daemon reports it, sits at
+    /// WorkspaceReconciler::DefaultDesktopCap (the Workspaces banner: the
+    /// daemon stops appending a trailing empty and refuses named creates
+    /// there). The daemon can learn a LOWER ceiling from the compositor at
+    /// runtime; that learned value is not on the wire, so this compares
+    /// against the default only. False while the count did not come from the
+    /// daemon. Moves only with virtualDesktopCount.
+    Q_PROPERTY(bool workspacesAtCap READ workspacesAtCap NOTIFY virtualDesktopsChanged)
+    bool workspacesAtCap() const;
+
+    /// C++ constants mirrored for QML, which has no other way to read them:
+    /// WorkspaceReconciler::DefaultDesktopCap (the authoring bound on a
+    /// declaration's Position; the daemon clamps a position to the
+    /// workspace's slice on its own side), ConfigDefaults::WorkspaceSlotCount,
+    /// ConfigDefaults::WorkspaceNameMaxLength (the Add and rename fields
+    /// bound a name against it so the user is refused at the field instead
+    /// of the validator dropping the entry) and
+    /// ConfigDefaults::WorkspaceNamedEntryMaxCount (the Add form refuses past
+    /// it).
+    Q_PROPERTY(int workspacesDesktopCap READ workspacesDesktopCap CONSTANT)
+    Q_PROPERTY(int workspaceSlotCount READ workspaceSlotCount CONSTANT)
+    Q_PROPERTY(int workspaceNameMaxLength READ workspaceNameMaxLength CONSTANT)
+    Q_PROPERTY(int workspaceNamedEntryMaxCount READ workspaceNamedEntryMaxCount CONSTANT)
+    int workspacesDesktopCap() const;
+    int workspaceSlotCount() const;
+    int workspaceNameMaxLength() const;
+    int workspaceNamedEntryMaxCount() const;
+
+    /// The field names inside one Workspaces.Named entry map, keyed by role:
+    /// `id`, `name`, `output`, `position`, `focusShortcut`, `moveShortcut`,
+    /// each mapped to its ConfigDefaults::namedEntry*Field() spelling, so QML
+    /// never repeats the config's field names as literals.
+    Q_PROPERTY(QVariantMap namedEntryFields READ namedEntryFields CONSTANT)
+    QVariantMap namedEntryFields() const;
+
+    /// The declared named workspaces in list order, each a map of the entry's
+    /// id and name fields (namedEntryFields' `id` and `name` keys). The id is
+    /// empty for an entry no writer has stamped yet. The one derivation of
+    /// the declared list the slot picker, the rule editor's workspace picker
+    /// and the rule summaries share.
+    Q_PROPERTY(QVariantList namedWorkspaces READ namedWorkspaces NOTIFY namedWorkspacesChanged)
+    QVariantList namedWorkspaces() const;
+    /// The current name of the declared workspace carrying @p entryId, or
+    /// empty when none does (the caller then shows the name it stored).
+    Q_INVOKABLE QString namedWorkspaceName(const QString& entryId) const;
+
+    /// The shared workspace-name rule (PlasmaZones::checkWorkspaceName) for
+    /// QML, on the RAW field text: `{accepted: bool, verdict: "accepted" |
+    /// "empty" | "tooLong" | "forbiddenCharacter", name: canonical name, set
+    /// only when accepted}`. Duplicate names are the caller's to compare.
+    Q_INVOKABLE QVariantMap checkWorkspaceName(const QString& raw) const;
+    /// A fresh persistent id for a new named entry (braced QUuid).
+    Q_INVOKABLE QString newWorkspaceEntryId() const;
+    /// @p entries with a fresh id stamped on every entry that has no usable
+    /// one; entries that carry an id keep it. The page writes the whole list
+    /// through this, since the validator keeps ids but never mints them.
+    Q_INVOKABLE QVariantList withWorkspaceEntryIds(const QVariantList& entries) const;
+
+    /// @p chord in Qt's canonical PortableText spelling (modifiers in Meta,
+    /// Ctrl, Alt, Shift order), the spelling the config stores and the daemon
+    /// registers. Empty for an empty or unparseable chord. Recorders write
+    /// this, and every chord compare goes through it.
+    Q_INVOKABLE QString canonicalShortcut(const QString& chord) const;
+    /// Whether @p chord is already taken by another global PlasmaZones
+    /// shortcut, pending edits included: every Settings chord property and
+    /// every named workspace's focus and move chord. @p selfKey names the
+    /// field being recorded so it does not conflict with itself: the Settings
+    /// property name (e.g. "workspaceMoveSlot3Shortcut"), or for a named
+    /// entry's chord the key namedEntryShortcutKey returns; empty when the
+    /// field is not stored yet. Answers `{conflict: false}` or
+    /// `{conflict: true, owner: <property name or entry key>, label:
+    /// <the taken action's display label>}`. The daemon dispatches a chord to
+    /// the first registration only, so a conflicting chord would never fire.
+    Q_INVOKABLE QVariantMap workspaceShortcutConflict(const QString& chord, const QString& selfKey) const;
+    /// The selfKey for named @p entry's chord field @p field
+    /// (namedEntryFields' `focusShortcut` or `moveShortcut` value).
+    Q_INVOKABLE QString namedEntryShortcutKey(const QVariantMap& entry, const QString& field) const;
+    /// Session-wide global-shortcut suspension for the chord recorders
+    /// (PhosphorShortcuts/GlobalShortcutBlock.h). Block when a recorder starts
+    /// capturing and unblock on every way the capture ends. Holds are
+    /// counted, so each true needs exactly one false, and the block lifts when
+    /// the last hold is given back. When canBlockGlobalShortcuts() is false, a
+    /// chord another program already grabs cannot be recorded, and the
+    /// recorder should say so.
+    Q_INVOKABLE bool canBlockGlobalShortcuts() const;
+    Q_INVOKABLE bool setGlobalShortcutsBlocked(bool blocked);
 
     /// The default snapping layout and default scrolling template:
     /// manifest-owned for dirty/save/discard but excluded from per-page Reset.
@@ -849,6 +971,10 @@ Q_SIGNALS:
     /// object at all — so this is effectively a wiring-bug signal there.
     void pageDiscardFailed(const QString& page, const QString& reason);
     void screensChanged();
+    void workspacesActiveChanged();
+    /// The declared named-workspace list moved (forwarded from
+    /// Settings::workspacesNamedEntriesChanged).
+    void namedWorkspacesChanged();
     void screenStatesChanged();
     void scopeScreenNameChanged();
     /// Emitted whenever any per-screen override map changes (set or clear,
@@ -987,8 +1113,15 @@ private:
     void installRuleLabelLookups();
     /// Re-emit the rule model's label-derived roles; connected to every
     /// upstream change a resolver reads (screens, activities, layouts, zone
-    /// options, desktop names, the three shader registries).
+    /// options, desktop names, named workspaces, the three shader
+    /// registries).
     void refreshRuleLabels();
+    /// Connect the dynamic-workspaces inputs (settingscontroller_workspaces.cpp):
+    /// the named-list forward, and the enable flag, consent latch and kwinrc
+    /// watch that feed workspacesActive. Ctor-only.
+    void wireWorkspaces();
+    /// Recompute workspacesActive from its inputs, announcing a change.
+    void refreshWorkspacesActive();
     void setNeedsSave(bool needs);
     /// Reload the config store from disk keeping every unsaved edit
     /// (Settings::reloadPreservingLocalEdits) with dirty tracking suppressed,
@@ -1374,6 +1507,11 @@ private:
     /// REFUSES or DESTROYS on the strength of the count must gate on this.
     bool m_virtualDesktopCountFromDaemon = false;
     QStringList m_virtualDesktopNames;
+    /// workspacesActive as last announced (refreshWorkspacesActive).
+    bool m_workspacesActive = false;
+    /// Follows the user's kwinrc for KWin's per-output flag. Child QObject;
+    /// null in a build without dynamic workspaces.
+    QFileSystemWatcher* m_kwinConfigWatcher = nullptr;
     bool m_activitiesAvailable = false;
     QVariantList m_activities;
     QString m_currentActivity;

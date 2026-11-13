@@ -524,6 +524,11 @@ void RuleModel::setVirtualDesktopLabelLookup(LabelLookup fn)
     m_virtualDesktopLookup = std::move(fn);
 }
 
+void RuleModel::setWorkspaceLabelLookup(LabelLookup fn)
+{
+    m_workspaceLookup = std::move(fn);
+}
+
 void RuleModel::setSnappingLayoutLabelLookup(LabelLookup fn)
 {
     m_snappingLayoutLookup = std::move(fn);

@@ -35,7 +35,6 @@
 #include "core/interfaces/interfaces.h"
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
-#include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorEngine/ICrossSurfaceResolver.h>
 #include <PhosphorEngine/NavigationContext.h>
 #include <PhosphorSnapEngine/INavigationStateProvider.h>

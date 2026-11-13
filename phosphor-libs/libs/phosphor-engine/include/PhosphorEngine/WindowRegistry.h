@@ -187,6 +187,13 @@ public:
     /// at the head, so this is not arrival order: callers that need a FIFO
     /// sequence must order the result themselves.
     QStringList instancesWithAppId(const QString& appId) const;
+    /// Every instance holding a METADATA RECORD, unordered. Canonical-only
+    /// instances (a canonical id frozen before any metadata push arrived) are
+    /// NOT listed: they carry no context to seed from, which is what every
+    /// consumer of this wants (the dynamic-workspaces population census seeds
+    /// derived per-window state at attach time rather than replaying history).
+    /// Use contains() for the same record-backed question about one id.
+    QStringList instanceIds() const;
     bool contains(const QString& instanceId) const;
     int size() const;
     /// Remove every record and canonical mapping, firing windowDisappeared
@@ -215,14 +222,25 @@ public:
     /// applies to. Called when KWin's desktop list starts changing (the
     /// desktop manager's desktopListChanging): any upsert or remove after this
     /// drops its instance from the snapshot, since its push already carries
-    /// the new numbering.
+    /// the new numbering. The snapshot lasts until remapDesktops or
+    /// endDesktopRenumber ends it; calling this while one is held replaces it.
     void beginDesktopRenumber();
     /// Move the desktop fields of every instance still in the snapshot through
-    /// @p remap (a removed desktop goes to its successor, where KWin sends its
-    /// windows), emit metadataChanged for each record that changed, and end the
-    /// snapshot. Without a beginDesktopRenumber first it changes nothing.
+    /// @p remap the way KWin moves the windows: a window on several desktops
+    /// keeps the surviving ones (renumbered) and drops the removed ones, and a
+    /// window left on no desktop goes to the removed desktop's successor
+    /// (DesktopRemap::successor). Emit metadataChanged for each record that
+    /// changed, and end the snapshot. Without a beginDesktopRenumber first it
+    /// changes nothing, and an identity @p remap changes nothing but still
+    /// ends the snapshot.
     /// Returns the count changed (F763).
     int remapDesktops(const DesktopRemap& remap);
+    /// End the snapshot without moving anything. For the end of a desktop-list
+    /// change that renumbered nothing (an append, a rename) or was given up
+    /// on, which brings no remapDesktops call (the desktop manager's
+    /// desktopListChangeSettled): a snapshot left held would hand a later,
+    /// unrelated renumber records that were pushed in the live numbering.
+    void endDesktopRenumber();
 
 Q_SIGNALS:
     void windowAppeared(const QString& instanceId);

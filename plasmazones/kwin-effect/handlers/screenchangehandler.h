@@ -232,6 +232,10 @@ private:
                              const QHash<QString, QString>& sources = {});
     /// Replay crossings deferred since the last settle, once nothing is in progress.
     void replayDeferredCrossings();
+    /// The end of a screen change, once nothing is in progress: replay the
+    /// deferred crossings, then drain the desktop-arrival parks whose windows
+    /// came into view while the change ran. A no-op while one still is.
+    void finishScreenChange();
     void replayCrossing(KWin::EffectWindow* w, const QString& oldScreenId);
     /// Release the edits held for @p w's crossing, once no crossing of it waits any more.
     void releaseSettleHold(KWin::EffectWindow* w);

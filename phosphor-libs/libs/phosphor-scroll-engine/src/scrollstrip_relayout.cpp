@@ -790,6 +790,35 @@ void ScrollStrip::clampViewIntoStrip(const ScrollLayoutParams& params)
     }
 }
 
+ScrollStrip::ViewOverhang ScrollStrip::viewOverhang(const ScrollLayoutParams& params) const
+{
+    ViewOverhang overhang;
+    // Degenerate-area guard, same as clampedAnchor's: nothing here is a
+    // position against a zero-length work area.
+    if (m_activeColumnIdx < 0 || m_activeColumnIdx >= m_columns.size() || mainExtent(params) <= 0) {
+        return overhang;
+    }
+    const int viewOffset = viewOffsetFor(params);
+    const int maxViewOffset = qMax(0, stripExtentPx(params) - mainExtent(params));
+    overhang.leading = qMax(0, -viewOffset);
+    overhang.trailing = qMax(0, viewOffset - maxViewOffset);
+    return overhang;
+}
+
+void ScrollStrip::clampViewOverhang(const ScrollLayoutParams& params, int keepLeading, int keepTrailing)
+{
+    // Degenerate-area guard, same as clampedAnchor's: the clamp would
+    // collapse ANY anchor against a zero-length work area.
+    if (m_activeColumnIdx < 0 || m_activeColumnIdx >= m_columns.size() || mainExtent(params) <= 0) {
+        return;
+    }
+    const int activeMainPos = columnStripPos(m_activeColumnIdx, params);
+    const int maxViewOffset = qMax(0, stripExtentPx(params) - mainExtent(params));
+    const int viewOffset = activeMainPos - m_viewAnchor;
+    const int bounded = qBound(-qMax(0, keepLeading), viewOffset, maxViewOffset + qMax(0, keepTrailing));
+    m_viewAnchor = activeMainPos - bounded;
+}
+
 void ScrollStrip::updateViewForFocus(const ScrollLayoutParams& params)
 {
     // A detached view belongs to the user's pan, not to the policy (class

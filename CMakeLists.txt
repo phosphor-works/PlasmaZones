@@ -167,7 +167,7 @@ add_compile_definitions(PLASMAZONES_SHADERS_ENABLED)
 # With it, the conversion is gone and a violation is a compile error naming
 # the exact line, which no pattern-matching linter can do as precisely.
 #
-# Verified clean before enabling: every TU in the compile database (1776, with
+# Verified clean before enabling: every TU in the compile database (with
 # BUILD_PHOSPHOR_SHELL=ON and BUILD_TOOLS=ON) was recompiled with the define
 # and none reported a conversion error, so this fixed no existing code and can
 # only catch new violations.
@@ -175,13 +175,18 @@ add_compile_definitions(QT_NO_CAST_FROM_ASCII)
 
 # KDE Frameworks integration.
 # ON (default): full KDE integration - KWin effect, KCM, KGlobalAccel shortcuts,
-#               PlasmaActivities when it is found.
+#               and dynamic per-monitor workspaces (KConfig reads kwinrc and
+#               makes the consented PerOutputVirtualDesktops write).
 # OFF: portable build without the KWin effect, the KCM, KGlobalAccel or
-#      PlasmaActivities. It is not free of KDE dependencies: ECM is required
+#      dynamic workspaces, which compile out under the USE_KDE_FRAMEWORKS
+#      define below. It is not free of KDE dependencies: ECM is required
 #      in both modes (find_package(ECM) above), the settings app is built in
 #      both and requires KF6 Kirigami (plasmazones/src/settings/CMakeLists.txt),
 #      and the editor's and settings app's QML import org.kde.kirigami at run
 #      time. Shortcuts use XDG Portal or D-Bus trigger fallback.
+# Activity support is not part of this switch: PhosphorWorkspaces looks for
+# PlasmaActivities itself (phosphor-libs/libs/phosphor-workspaces/CMakeLists.txt)
+# and links it in either mode when it is installed.
 option(USE_KDE_FRAMEWORKS "Build with KDE Frameworks integration" ON)
 
 # Opt-in build for the in-progress phosphor-shell desktop shell and its
@@ -226,28 +231,8 @@ if(USE_KDE_FRAMEWORKS)
     find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS
         KCMUtils
         GlobalAccel   # KGlobalAccel shortcut backend + KCM
+        Config        # KConfig for the kwinrc read and the consented kwinrc write (QSettings would rewrite the whole file)
     )
-
-    # KActivities/PlasmaActivities is optional (for activity-based layouts)
-    find_package(PlasmaActivities QUIET)
-    if(NOT PlasmaActivities_FOUND)
-        find_package(KF6Activities QUIET COMPONENTS Activities)
-        if(KF6Activities_FOUND)
-            set(PlasmaActivities_FOUND TRUE)
-        endif()
-    endif()
-    if(NOT PlasmaActivities_FOUND)
-        find_package(KActivities QUIET)
-        if(KActivities_FOUND)
-            set(PlasmaActivities_FOUND TRUE)
-        endif()
-    endif()
-
-    if(PlasmaActivities_FOUND)
-        message(STATUS "PlasmaActivities found - activity-based layouts enabled")
-    else()
-        message(STATUS "PlasmaActivities/KActivities not found - activity support disabled")
-    endif()
 else()
     message(STATUS "Building WITHOUT KDE Frameworks (portable Qt-only mode)")
 endif()
@@ -416,47 +401,116 @@ set(PHOSPHOR_ENGINE_TARGETS
 # leaks (FD exhaustion, GC pauses, JSValue retention across reloads) had
 # nowhere to be fixed without a full rewrite.
 #
-# Refuse to configure if any engine target ever picks up a Qml/Quick
-# link. Cheap guardrail over the targets' DIRECT link lists only — an
-# intermediate in-tree lib that PUBLICly links Qt6::Qml would pass
-# undetected (the engine target's own entries name the lib, not Qml).
-# Failures here mean someone linked Qml/Quick onto an engine target
-# directly or wired a target up wrong.
+# Refuse to configure if any engine target reaches Qml/Quick anywhere in its
+# link closure: its own direct links (PUBLIC and PRIVATE), then the
+# INTERFACE_LINK_LIBRARIES of every target those name, recursively, through
+# in-tree libraries and imported Qt targets alike. A check over the direct
+# lists alone let PhosphorRegistry's PUBLIC Qt6::Qml reach every engine
+# through PhosphorEngine -> PhosphorLayoutApi -> PhosphorRegistry, so the
+# engines compiled with QT_QML_LIB while this guard reported them clean. The
+# failure names the whole chain, so the offending edge is visible.
 #
-# Track whether ANY entry matched a real target so the firewall can't
-# silently degrade to a no-op if PHOSPHOR_ENGINE_TARGETS goes stale
-# (e.g. an engine lib gets renamed but the list doesn't follow). A
-# zero-match firewall would let a future Qml link through unnoticed,
-# which is exactly the failure mode the rationale above is designed
-# to prevent.
+# Every entry must also match a real target, so the firewall can't
+# silently degrade if PHOSPHOR_ENGINE_TARGETS goes stale (e.g. an engine
+# lib gets renamed but the list doesn't follow). An unmatched entry would
+# let a future Qml link into that engine through unnoticed, which is
+# exactly the failure mode the rationale above is designed to prevent.
+
+# Strip the link-list wrappers that carry a target name through to the link
+# step, and answer the bare item. Directory-scope markers (`::@...`, recorded
+# when target_link_libraries runs in a directory other than the target's) and
+# install-only entries answer empty, since neither names a build-tree target.
+function(_phosphor_engine_link_item _raw _out)
+    set(_item "${_raw}")
+    if(_item MATCHES "^::@" OR _item MATCHES "^\\$<INSTALL_INTERFACE:")
+        set(${_out} "" PARENT_SCOPE)
+        return()
+    endif()
+    while(_item MATCHES "^\\$<(LINK_ONLY|BUILD_INTERFACE|BUILD_LOCAL_INTERFACE):(.*)>$")
+        set(_item "${CMAKE_MATCH_2}")
+    endwhile()
+    if(TARGET "${_item}")
+        get_target_property(_aliased "${_item}" ALIASED_TARGET)
+        if(_aliased)
+            set(_item "${_aliased}")
+        endif()
+    endif()
+    set(${_out} "${_item}" PARENT_SCOPE)
+endfunction()
+
+# Breadth-first walk of <engine>'s link closure. Sets <out> to the chain
+# "engine -> ... -> Qt6::Qml" for the first Qml/Quick target reached, or to
+# empty when the closure is clean. Each target is visited once, so a diamond in
+# the graph costs nothing extra and a cycle cannot loop.
+function(_phosphor_engine_qml_chain _engine _out)
+    set(_queue "")
+    set(_seen "${_engine}")
+    get_target_property(_direct ${_engine} LINK_LIBRARIES)
+    if(NOT _direct)
+        set(_direct "")
+    endif()
+    get_target_property(_iface ${_engine} INTERFACE_LINK_LIBRARIES)
+    if(_iface)
+        list(APPEND _direct ${_iface})
+    endif()
+    foreach(_raw IN LISTS _direct)
+        _phosphor_engine_link_item("${_raw}" _item)
+        if(_item STREQUAL "" OR _item IN_LIST _seen)
+            continue()
+        endif()
+        list(APPEND _seen "${_item}")
+        list(APPEND _queue "${_item}")
+        string(MAKE_C_IDENTIFIER "${_item}" _key)
+        set(_p_via_${_key} "${_engine}")
+    endforeach()
+    while(_queue)
+        list(POP_FRONT _queue _node)
+        if(_node MATCHES "^Qt6?::(Qml|Quick)(Private)?$")
+            set(_chain "${_node}")
+            set(_cursor "${_node}")
+            while(NOT _cursor STREQUAL _engine)
+                string(MAKE_C_IDENTIFIER "${_cursor}" _key)
+                set(_cursor "${_p_via_${_key}}")
+                set(_chain "${_cursor} -> ${_chain}")
+            endwhile()
+            set(${_out} "${_chain}" PARENT_SCOPE)
+            return()
+        endif()
+        if(NOT TARGET "${_node}")
+            continue()
+        endif()
+        get_target_property(_next "${_node}" INTERFACE_LINK_LIBRARIES)
+        if(NOT _next)
+            continue()
+        endif()
+        foreach(_raw IN LISTS _next)
+            _phosphor_engine_link_item("${_raw}" _item)
+            if(_item STREQUAL "" OR _item IN_LIST _seen)
+                continue()
+            endif()
+            list(APPEND _seen "${_item}")
+            list(APPEND _queue "${_item}")
+            string(MAKE_C_IDENTIFIER "${_item}" _key)
+            set(_p_via_${_key} "${_node}")
+        endforeach()
+    endwhile()
+    set(${_out} "" PARENT_SCOPE)
+endfunction()
+
 set(_p_engine_unmatched "")
 foreach(_p_engine_lib IN LISTS PHOSPHOR_ENGINE_TARGETS)
     if(NOT TARGET ${_p_engine_lib})
         list(APPEND _p_engine_unmatched ${_p_engine_lib})
+        continue()
     endif()
-    if(TARGET ${_p_engine_lib})
-        get_target_property(_p_engine_links ${_p_engine_lib} LINK_LIBRARIES)
-        if(_p_engine_links)
-            foreach(_p_link IN LISTS _p_engine_links)
-                if(_p_link MATCHES "(^|::)Qt6::(Qml|Quick)(Private)?$")
-                    message(FATAL_ERROR
-                        "Engine library '${_p_engine_lib}' links '${_p_link}'. "
-                        "Engine libs must stay QML-free, see comment above this "
-                        "check in CMakeLists.txt for rationale.")
-                endif()
-            endforeach()
-        endif()
-        get_target_property(_p_engine_iface ${_p_engine_lib} INTERFACE_LINK_LIBRARIES)
-        if(_p_engine_iface)
-            foreach(_p_link IN LISTS _p_engine_iface)
-                if(_p_link MATCHES "(^|::)Qt6::(Qml|Quick)(Private)?$")
-                    message(FATAL_ERROR
-                        "Engine library '${_p_engine_lib}' publicly links '${_p_link}'. "
-                        "Engine libs must stay QML-free, see comment above this "
-                        "check in CMakeLists.txt for rationale.")
-                endif()
-            endforeach()
-        endif()
+    _phosphor_engine_qml_chain(${_p_engine_lib} _p_engine_chain)
+    if(_p_engine_chain)
+        message(FATAL_ERROR
+            "Engine library '${_p_engine_lib}' reaches the QML engine through "
+            "its link closure: ${_p_engine_chain}. Engine libs must stay "
+            "QML-free, see the comment above this check in CMakeLists.txt "
+            "for the rationale. Drop the Qml/Quick edge from the library that "
+            "carries it, or move the engine's dependency off that library.")
     endif()
 endforeach()
 if(_p_engine_unmatched)

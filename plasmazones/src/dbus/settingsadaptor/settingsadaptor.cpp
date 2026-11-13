@@ -11,6 +11,7 @@
 #include "core/utils/dbusvariantutils.h"
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorProtocol/ServiceConstants.h>
+#include <PhosphorRules/ActionParams.h>
 #include "core/platform/logging.h"
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -457,10 +458,13 @@ namespace {
 ///
 /// CLAUDE.md: "Input validation at system boundaries." This is that boundary: every one of
 /// the three per-screen writers is a D-Bus slot reachable by any process on the session bus.
+///
+/// The length bound is PhosphorRules::MaxScreenIdLength, the one screen-id bound the rules
+/// loader and the named-workspace output pin use as well, so an id this setter accepts is one
+/// a rule can name.
 bool isPlausibleScreenId(const QString& screenId)
 {
-    constexpr int kMaxScreenIdLength = 256;
-    if (screenId.isEmpty() || screenId.size() > kMaxScreenIdLength) {
+    if (screenId.isEmpty() || screenId.size() > PhosphorRules::MaxScreenIdLength) {
         return false;
     }
     return std::none_of(screenId.cbegin(), screenId.cend(), [](QChar c) {

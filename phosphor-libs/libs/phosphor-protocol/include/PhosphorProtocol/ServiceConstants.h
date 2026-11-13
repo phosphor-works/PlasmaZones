@@ -802,9 +802,52 @@ inline constexpr QLatin1String Interface("org.phosphor_works.PlasmaZones.Editor"
 //       no v11. getScreenInfo gains pixelSizeSource beside pixelSize in the
 //       same change, which a reader that does not know the key never looks
 //       at.
+//
+//   v11: the dynamic-workspaces wire (per-monitor workspaces over KWin's
+//       per-output virtual desktops). It bumps because none of it is
+//       additive in the sense the after-v10 notes rely on: a v10 effect would
+//       pass the handshake, never connect the moves and switches below, and
+//       the daemon would commit engine and workspace state for compositor
+//       actions that never happen. Windows would not move while the engines
+//       re-homed them, a workspace verb would do nothing visible, and the
+//       owner-wins correction would never land.
+//
+//       WindowTracking gains setScreenDesktopRequested (s s i): switch ONE
+//       output's current desktop, named by its stable VirtualDesktop::id()
+//       rather than a number a concurrent renumber can re-point, with a
+//       ScreenDesktopSwitchPurpose (a user focus verb is shown like any user
+//       switch, a daemon correction is not). The compositor answers every
+//       request for an output it knows with a forced screenDesktopChanged
+//       carrying the output's live desktop.
+//
+//       WindowTracking gains windowWorkspaceMoveRequested (s s i s): a
+//       workspace move as ONE step carrying both legs, the destination
+//       desktop (by id, or by its 1-based number when the id is empty) and
+//       the destination output (empty keeps the window where it is). The
+//       compositor judges the arrival's visibility and focus on the
+//       destination output. An empty id with a number below 1 is the
+//       output-only form, which joins the desktop the destination shows,
+//       and does nothing when the output is unknown (an unknown output
+//       otherwise drops only the output leg); an id or number naming no
+//       desktop runs neither leg and the window is placed again where it is.
+//       A window on all desktops takes neither leg of a move with a desktop
+//       leg and is not placed again. Besides the workspace verbs, an engine's
+//       crossing sends it when it has to carry the window to another output
+//       itself. It replaces the pair of signals the branch first used (a
+//       desktop move by id, and a separate output move), which made the
+//       compositor judge the desktop move on the output the window was
+//       leaving. Neither of those ever shipped.
+//
+//       WindowTracking gains reportPerOutputDesktopsMode (b): the
+//       compositor's actual per-output-virtual-desktops mode, the
+//       authoritative arm of the feature gate.
+//
+//       The dynamic-workspaces map stream the branch carried for a future
+//       overview (a signal and its replay method) is removed before release:
+//       nothing read it.
 
-inline constexpr int ApiVersion = 10;
-inline constexpr int MinPeerApiVersion = 10;
+inline constexpr int ApiVersion = 11;
+inline constexpr int MinPeerApiVersion = 11;
 
 // Scrolling.reportCommittedSize tolerance, in logical pixels, on each axis:
 // a size a client committed within this many pixels of the rect the strip

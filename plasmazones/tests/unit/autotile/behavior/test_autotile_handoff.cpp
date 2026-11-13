@@ -397,6 +397,60 @@ private Q_SLOTS:
         QVERIFY(tiled.last().at(0).toString().contains(QLatin1String("win-stay")));
     }
 
+    // A receive into a desktop the screen is not showing (ctx.toDesktop, the
+    // re-home of a refused handoff) lands in that desktop's state and leaves
+    // the context in view alone: no retile of the shown desktop, whose tiles
+    // would be re-applied for nothing. The background desktop is memoed and
+    // retiles when it is shown (C62, C128).
+    void testHandoffReceive_backgroundDesktopLeavesTheViewAloneAndRetilesOnReturn()
+    {
+        AutotileEngine engine(nullptr, nullptr, nullptr, PlasmaZones::TestHelpers::testRegistry());
+        const QString screen = QLatin1String(Screen1);
+        const QString resident = QStringLiteral("win-bg-resident");
+        const QString shown = QStringLiteral("win-shown");
+        const QString arriving = QStringLiteral("win-arrives");
+        engine.setCurrentDesktopForScreen(screen, 1);
+        engine.setAutotileScreens({screen});
+        engine.windowOpened(resident, screen);
+        QCoreApplication::processEvents();
+        PhosphorTiles::TilingState* desktop1 = engine.tilingStateForScreen(screen);
+        QVERIFY(desktop1);
+
+        engine.setCurrentDesktopForScreen(screen, 2);
+        engine.windowOpened(shown, screen);
+        QCoreApplication::processEvents();
+        PhosphorTiles::TilingState* desktop2 = engine.tilingStateForScreen(screen);
+        QVERIFY(desktop2 && desktop2 != desktop1);
+        // No screen geometry here: applyTiling reuses the last zones when the
+        // recalculation bails, so seed them, or a retile of the desktop in
+        // view would emit nothing and the check below could not see it.
+        desktop2->setCalculatedZones({QRect(0, 0, 1920, 1080)});
+
+        QSignalSpy tiled(&engine, &AutotileEngine::windowsTiled);
+        PhosphorEngine::IPlacementEngine::HandoffContext ctx;
+        ctx.windowId = arriving;
+        ctx.toScreenId = screen;
+        ctx.toDesktop = 1;
+        ctx.fromEngineId = PhosphorEngine::WindowPlacement::snapEngineId();
+        ctx.wasFloating = false;
+        engine.handoffReceive(ctx);
+        QCoreApplication::processEvents();
+
+        QVERIFY(desktop1->containsWindow(arriving));
+        QVERIFY(!desktop2->containsWindow(arriving));
+        QCOMPARE(engine.heldKeyForWindow(arriving)
+                     .value_or(PhosphorEngine::PlacementStateKey{QString(), 0, QString()})
+                     .desktop,
+                 1);
+        QCOMPARE(tiled.count(), 0);
+
+        desktop1->setCalculatedZones({QRect(0, 0, 960, 1080), QRect(960, 0, 960, 1080)});
+        engine.setCurrentDesktopForScreen(screen, 1);
+        QCoreApplication::processEvents();
+        QVERIFY(tiled.count() >= 1);
+        QVERIFY(tiled.last().at(0).toString().contains(arriving));
+    }
+
     void testHandoffRelease_untrackedWindowIsNoop()
     {
         AutotileEngine engine(nullptr, nullptr, nullptr, PlasmaZones::TestHelpers::testRegistry());

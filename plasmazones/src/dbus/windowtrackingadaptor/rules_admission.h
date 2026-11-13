@@ -89,10 +89,24 @@ inline const QSet<PhosphorRules::Field>& unanswerableWindowFields()
     return fields;
 }
 
-/// Admission test for a resolver that stamps ScreenId but NOT Mode — the shape
-/// every resolveCached caller on this path shares. Passed identically by all
-/// six so the memo they share stays coherent (see resolveCachedFiltered's
-/// precondition).
+/// Admission test for a resolver that stamps ScreenId but NOT Mode: every
+/// caller that shares the evaluator's per-window memo (resolveCachedFiltered),
+/// which must all pass this same test so the memo stays coherent (see
+/// resolveCachedFiltered's precondition). Those are the open-routing channels
+/// (applyOpenDesktopRouting, applyOpenScreenRouting,
+/// applyOpenRoutingForTiling), the SnapToZone directive when it seeds the memo
+/// (placementZonesByRule), and the RestorePosition and RestoreToZoneOnLogin
+/// predicates (shouldRestoreFloatedPosition, shouldRestoreToZoneOnLogin).
+///
+/// CONSEQUENCE FOR RULE AUTHORS: a rule whose match references Field::Mode
+/// never applies any action those callers read: RouteToWorkspace,
+/// RouteToScreen, RouteToDesktop, SnapToZone at open, RestorePosition and
+/// RestoreToZoneOnLogin. The exclusion is not a local oversight: every cached
+/// caller must pass an EQUIVALENT admit or the memo they share stops being
+/// coherent, so lifting it for some of them is not a valid change. Making
+/// Mode-scoped rules apply there means stamping Mode on every cached caller
+/// (they do not all have the desktop and activity a mode lookup needs) or
+/// splitting the memo, a rules-library change, not a call-site one.
 inline bool admitScreenStamped(const PhosphorRules::Rule& rule)
 {
     return !rule.match.referencesAnyField(neverStampedFields())
@@ -100,10 +114,13 @@ inline bool admitScreenStamped(const PhosphorRules::Rule& rule)
         && !rule.match.negatesAnyField(unanswerableWindowFields());
 }
 
-/// Admission test for a resolver that stamps BOTH ScreenId and Mode
-/// (shouldFloatByRule, scrollOpenRuleParams, shouldRestoreSizeOnUnsnap). Mode
-/// stays admitted; only the never-stamped context fields are excluded, plus
-/// the negated-only guard on the window fields this query cannot answer.
+/// Admission test for a resolver that stamps BOTH ScreenId and Mode: the
+/// uncached resolvers that know the window's desktop and activity (the float
+/// verdict, the unfloat's zone fallback, the restore-size-on-unsnap verdict
+/// and the scroll open params), reached directly or through
+/// admissionForStamped. Mode stays admitted; only the never-stamped context
+/// fields are excluded, plus the negated-only guard on the window fields this
+/// query cannot answer.
 inline bool admitScreenAndModeStamped(const PhosphorRules::Rule& rule)
 {
     return !rule.match.referencesAnyField(neverStampedFields())

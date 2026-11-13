@@ -56,6 +56,9 @@ Build-Depends:
  qt6-svg-dev | libqt6svg6-dev,
  libkf6kcmutils-dev (>= 6.26.0),
  libkf6globalaccel-dev (>= 6.26.0),
+# KF6Config: plasmazones_core and the daemon link KF6::ConfigCore to read
+# kwinrc and make the consented PerOutputVirtualDesktops write.
+ libkf6config-dev (>= 6.26.0),
  libkf6colorscheme-dev (>= 6.26.0) | kf6-kcolorscheme-dev (>= 6.26.0),
  libkf6kirigami-dev (>= 6.26.0) | kf6-kirigami-dev (>= 6.26.0) | libkirigami-dev (>= 6.26.0),
  kwin-dev (>= 6.7.0),

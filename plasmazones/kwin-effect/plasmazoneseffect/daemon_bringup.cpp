@@ -31,23 +31,18 @@
 #include <window.h>
 #include <workspace.h>
 
-#include <QColor>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QPointer>
 #include <QSet>
 #include <QStringList>
-#include <QTimer>
-
-#include <algorithm>
-#include <memory>
-#include <utility>
 
 namespace PlasmaZones {
 
@@ -280,12 +275,25 @@ void PlasmaZonesEffect::continueDaemonReadySetup()
         qCDebug(lcEffect) << "Re-sent cursor screen (physical fallback):" << cursorScreenId;
     }
 
+    // Report the compositor's ACTUAL per-output-desktops mode (dynamic
+    // workspaces' authoritative gate arm: the daemon's kwinrc read can
+    // disagree with the running compositor when the file changed without a
+    // reconfigure). Read straight off VirtualDesktopManager, whose
+    // perOutputVirtualDesktopsChanged the effect also watches for the runtime
+    // edge. Ahead of the desktop re-sync below, on the same ordered
+    // connection, so the daemon knows which mode the per-screen reports
+    // describe before it acts on them.
+    reportPerOutputDesktopsMode();
+
     // Re-sync each output's current virtual desktop (Plasma 6.7 per-output virtual
     // desktops, #648). The daemon may have just (re)registered with an empty
     // per-screen map, so push the authoritative value for every screen — bypassing
-    // reportScreenDesktop's dedup — and refresh the dedup cache to match.
+    // reportScreenDesktop's dedup — and refresh the dedup cache to match. Not
+    // for KWin's placeholder output, which stands in while no real output is
+    // connected and names no screen the daemon has (F870), as onScreenAdded's
+    // seed skips it.
     for (auto* output : KWin::effects->screens()) {
-        auto* vd = KWin::effects->currentDesktop(output);
+        auto* vd = output && !output->isPlaceholder() ? KWin::effects->currentDesktop(output) : nullptr;
         if (!vd) {
             continue;
         }
@@ -338,12 +346,21 @@ void PlasmaZonesEffect::continueDaemonReadySetup()
     // session would persist in the effect, causing isWindowFloating() to return true
     // for windows that are no longer floating.
     {
+        // Generation-guarded like the registerBridge watcher: the clear below is
+        // UNCONDITIONAL, so a superseded cycle's (typically error) reply landing
+        // after the successor's own bringup would wipe the FRESH cycle's float
+        // set with no re-seed, leaving every window reading as non-floating.
+        const quint64 floatGeneration = m_daemonGate.bridgeRegistrationGeneration;
         auto* watcher = new QDBusPendingCallWatcher(
             PhosphorProtocol::ClientHelpers::asyncCall(PhosphorProtocol::Service::Interface::WindowTracking,
                                                        QStringLiteral("getFloatingWindows")),
             this);
-        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher* w) {
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, floatGeneration](QDBusPendingCallWatcher* w) {
             w->deleteLater();
+            if (m_daemonGate.bridgeRegistrationGeneration != floatGeneration) {
+                qCInfo(lcEffect) << "getFloatingWindows reply from a superseded daemon cycle — ignoring";
+                return;
+            }
             QDBusPendingReply<QStringList> reply = *w;
             // Clear the stale local float set unconditionally. This reply lands
             // during daemon bringup, so the freshly-registered daemon's float
@@ -768,6 +785,24 @@ void PlasmaZonesEffect::connectNavigationSignals()
                                           QStringLiteral("windowDesktopMoveRequested"), this,
                                           SLOT(slotWindowDesktopMoveRequested(QString, int)));
 
+    // A dynamic-workspace verb's move: the desktop by its stable id and, when
+    // the verb moves the window to another monitor, that output, carried out
+    // as one step (applyWorkspaceMove). Every workspace verb's window rides
+    // it, whether an engine tracks the window or not; the positional signal
+    // above keeps every other desktop move.
+    QDBusConnection::sessionBus().connect(PhosphorProtocol::Service::Name, PhosphorProtocol::Service::ObjectPath,
+                                          PhosphorProtocol::Service::Interface::WindowTracking,
+                                          QStringLiteral("windowWorkspaceMoveRequested"), this,
+                                          SLOT(slotWindowWorkspaceMoveRequested(QString, QString, int, QString)));
+
+    // Per-output desktop switch command, by desktop id: the workspace focus
+    // verbs (shown like any switch) and the owner-wins return (a correction,
+    // carried out without the desktop-switch transition).
+    QDBusConnection::sessionBus().connect(PhosphorProtocol::Service::Name, PhosphorProtocol::Service::ObjectPath,
+                                          PhosphorProtocol::Service::Interface::WindowTracking,
+                                          QStringLiteral("setScreenDesktopRequested"), this,
+                                          SLOT(slotSetScreenDesktopRequested(QString, QString, int)));
+
     // Daemon-initiated cross-output move: the daemon already migrated its
     // tiling state and reflowed both outputs; record the window so the
     // autotile handler's reactive outputChanged path updates bookkeeping only
@@ -896,6 +931,22 @@ void PlasmaZonesEffect::connectNavigationSignals()
     // here would be a build-order bug, not a runtime condition. Worded as
     // "wired", not "connected", because the returns are not checked.
     qCDebug(lcEffect) << "Navigation D-Bus signal subscriptions wired";
+}
+
+void PlasmaZonesEffect::reportPerOutputDesktopsMode()
+{
+    auto* vdm = KWin::VirtualDesktopManager::self();
+    if (!vdm || !m_daemonGate.serviceRegistered) {
+        // Nothing is lost while the daemon is away: continueDaemonReadySetup
+        // calls this again as part of every (re)registration, so the first
+        // thing the successor hears is the current mode.
+        return;
+    }
+    const bool perOutput = vdm->isPerOutputVirtualDesktops();
+    PhosphorProtocol::ClientHelpers::fireAndForget(this, PhosphorProtocol::Service::Interface::WindowTracking,
+                                                   QStringLiteral("reportPerOutputDesktopsMode"), {perOutput},
+                                                   QStringLiteral("reportPerOutputDesktopsMode"));
+    qCDebug(lcEffect) << "Reported per-output desktops mode:" << perOutput;
 }
 
 } // namespace PlasmaZones

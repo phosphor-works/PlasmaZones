@@ -14,7 +14,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
-#include <QSettings>
 #include <QStandardPaths>
 
 namespace PlasmaZones {
@@ -133,49 +132,36 @@ ConfigDefaults::RenderingBootConfig ConfigDefaults::readRenderingConfigFromDisk(
     // parse the file once for both keys. The daemon calls it twice: for the
     // GPU pin before QGuiApplication exists, and for the backend after the
     // config migration.
+    //
+    // The backend is read only from the migrated JSON. When the file is
+    // absent, unparseable or does not carry the key, the backend is the
+    // default: config.json stores the default as an absent key, so "absent"
+    // is the ordinary case and must not consult any other source. The legacy
+    // INI is migration input only (ConfigMigration::ensureJsonConfig converts
+    // and renames it), and the daemon reads the backend after that migration
+    // has run. The GPU pin is read before the migration, which is safe because
+    // Rendering.Gpu postdates the v1 formats and no migration step moves it.
     RenderingBootConfig out{renderingBackend(), gpuDevice()};
-    bool backendFound = false;
     const QString jsonPath = configFilePath();
-    if (QFile::exists(jsonPath)) {
-        QFile f(jsonPath);
-        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QJsonParseError err;
-            QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
-            if (err.error == QJsonParseError::NoError && doc.isObject()) {
-                const QJsonObject rendering = doc.object().value(renderingGroup()).toObject();
-                if (rendering.contains(backendKey())) {
-                    out.backend = normalizeRenderingBackend(rendering.value(backendKey()).toString(renderingBackend()));
-                    backendFound = true;
-                }
-                if (rendering.contains(gpuKey())) {
-                    out.gpuDevice = normalizeGpuDevice(rendering.value(gpuKey()).toString(gpuDevice()));
-                }
-            }
-        }
+    if (!QFile::exists(jsonPath)) {
+        return out;
     }
-
-    // Backend fallback: read from the legacy INI when the JSON is absent,
-    // unparseable, or doesn't carry the key, which in practice means a start
-    // whose migration failed (a successful migration renames the INI away).
-    // Not a v1 config.json: it holds the backend as
-    // Rendering.RenderingBackend, which is read neither here nor above, so the
-    // daemon reads the backend only after ConfigMigration::ensureJsonConfig()
-    // has renamed the key. The GPU pin it reads before the migration, which
-    // is safe because Rendering.Gpu postdates the v1 formats and no migration
-    // step moves it. For the same reason there is no INI fallback for it.
-    if (!backendFound) {
-        const QString iniPath = legacyConfigFilePath();
-        if (QFile::exists(iniPath)) {
-            QSettings cfg(iniPath, QSettings::IniFormat);
-            // v1 INI key name — the INI file predates the v2 rename to "Backend".
-            // Routed through the frozen `Legacy::v1RenderingBackendKey()` accessor
-            // shared with `migrateIniToJson` / `migrateV1ToV2` so a future rename
-            // of the literal can't drift one consumer behind the others.
-            const QString raw = cfg.value(ConfigKeys::Legacy::v1RenderingBackendKey(), renderingBackend()).toString();
-            out.backend = normalizeRenderingBackend(raw);
-        }
+    QFile f(jsonPath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return out;
     }
-
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        return out;
+    }
+    const QJsonObject rendering = doc.object().value(renderingGroup()).toObject();
+    if (rendering.contains(backendKey())) {
+        out.backend = normalizeRenderingBackend(rendering.value(backendKey()).toString(renderingBackend()));
+    }
+    if (rendering.contains(gpuKey())) {
+        out.gpuDevice = normalizeGpuDevice(rendering.value(gpuKey()).toString(gpuDevice()));
+    }
     return out;
 }
 
@@ -193,6 +179,12 @@ QString ConfigDefaultsShaders::normalizeGpuDevice(const QString& raw)
     static const QRegularExpression pciPair(
         QRegularExpression::anchoredPattern(QStringLiteral("[0-9a-f]{4}:[0-9a-f]{4}")));
     return pciPair.match(normalized).hasMatch() ? normalized : gpuDevice();
+}
+
+PhosphorAnimation::CurveRegistry& ConfigDefaults::fallbackCurveRegistry()
+{
+    static PhosphorAnimation::CurveRegistry registry;
+    return registry;
 }
 
 QVariantMap ConfigDefaults::animationProfile(const PhosphorAnimation::CurveRegistry& registry)

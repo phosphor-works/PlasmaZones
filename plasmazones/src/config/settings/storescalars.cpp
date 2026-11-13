@@ -321,9 +321,30 @@ P_STORE_GET(int, minimumZoneDisplaySizePx, performanceGroup, minimumZoneDisplayS
 P_STORE_SET_INT(setMinimumZoneDisplaySizePx, performanceGroup, minimumZoneDisplaySizePxKey,
                 minimumZoneDisplaySizePxChanged)
 
-// ── PhosphorZones::Zone geometry (PhosphorConfig::Store-backed) ────────────────────────────
-// Inner/outer gaps (uniform + per-side) plus adjacency threshold. Schema
-// clampInt validators enforce the same ranges readValidatedInt used to.
+// ── Zone geometry (PhosphorConfig::Store-backed) ────────────────────────────
+// The adjacency threshold; the schema's clampInt validator bounds it on write.
+
+P_STORE_GET(int, adjacentThreshold, snappingGapsGroup, adjacentThresholdKey, int)
+P_STORE_SET_INT(setAdjacentThreshold, snappingGapsGroup, adjacentThresholdKey, adjacentThresholdChanged)
+
+// ── Display (PhosphorConfig::Store-backed) ──────────────────────────────────
+// showZonesOnAllMonitors lives in snappingBehaviorDisplayGroup; the OSD and
+// effect toggles live in snappingEffectsGroup.
+
+P_STORE_GET(bool, showZonesOnAllMonitors, snappingBehaviorDisplayGroup, showOnAllMonitorsKey, bool)
+P_STORE_SET_BOOL(setShowZonesOnAllMonitors, snappingBehaviorDisplayGroup, showOnAllMonitorsKey,
+                 showZonesOnAllMonitorsChanged)
+
+P_STORE_GET(bool, showZoneNumbers, snappingEffectsGroup, showNumbersKey, bool)
+P_STORE_SET_BOOL(setShowZoneNumbers, snappingEffectsGroup, showNumbersKey, showZoneNumbersChanged)
+P_STORE_GET(bool, flashZonesOnSwitch, snappingEffectsGroup, flashOnSwitchKey, bool)
+P_STORE_SET_BOOL(setFlashZonesOnSwitch, snappingEffectsGroup, flashOnSwitchKey, flashZonesOnSwitchChanged)
+P_STORE_GET(bool, showOsdOnLayoutSwitch, snappingEffectsGroup, osdOnLayoutSwitchKey, bool)
+P_STORE_SET_BOOL(setShowOsdOnLayoutSwitch, snappingEffectsGroup, osdOnLayoutSwitchKey, showOsdOnLayoutSwitchChanged)
+P_STORE_GET(bool, showOsdOnDesktopSwitch, snappingEffectsGroup, osdOnDesktopSwitchKey, bool)
+P_STORE_SET_BOOL(setShowOsdOnDesktopSwitch, snappingEffectsGroup, osdOnDesktopSwitchKey, showOsdOnDesktopSwitchChanged)
+P_STORE_GET(bool, showNavigationOsd, snappingEffectsGroup, navigationOsdKey, bool)
+P_STORE_SET_BOOL(setShowNavigationOsd, snappingEffectsGroup, navigationOsdKey, showNavigationOsdChanged)
 
 // ── Shared inner/outer gaps (PhosphorConfig::Store-backed, "Gaps" group) ─────
 // Read on demand through m_store (validator clamps to the declared gap range);

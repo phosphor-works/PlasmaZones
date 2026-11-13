@@ -12,6 +12,9 @@
 #include <QKeySequence>
 #include <QSet>
 #include <QString>
+#include <QVariantMap>
+
+#include <memory>
 
 class QDBusPendingCallWatcher;
 class QDBusObjectPath;
@@ -33,6 +36,13 @@ public:
     void updateShortcut(const QString& id, const QKeySequence& defaultSeq, const QKeySequence& newTrigger) override;
     void unregisterShortcut(const QString& id) override;
     void flush() override;
+    /// True: this backend grabs no keys, so an unbound id is exactly as
+    /// triggerable over D-Bus as a bound one, and it can only fire ids it has
+    /// been told about.
+    bool registersUnboundIds() const override
+    {
+        return true;
+    }
 
 public Q_SLOTS:
     Q_SCRIPTABLE void TriggerAction(const QString& id);
@@ -56,6 +66,12 @@ public:
     void unregisterShortcut(const QString& id) override;
     void flush() override;
     std::optional<QStringList> currentTriggers(const QString& id) const override;
+    /// False: XDG GlobalShortcuts has no per-id release, so a grab that
+    /// reached the compositor stays with the session (see unregisterShortcut).
+    bool suspendReleasesGrab() const override
+    {
+        return false;
+    }
 
 private Q_SLOTS:
     void onSessionCreated(QDBusPendingCallWatcher* watcher);
@@ -156,13 +172,22 @@ public:
                           const QString& description, bool persistent) override;
     void updateShortcut(const QString& id, const QKeySequence& defaultSeq, const QKeySequence& newTrigger) override;
     void unregisterShortcut(const QString& id) override;
+    void suspendShortcut(const QString& id) override;
+    void storeShortcut(const QString& id, const QKeySequence& seq) override;
+    void forgetShortcut(const QString& id) override;
+    std::optional<QStringList> storedShortcutIds() const override;
     void flush() override;
     std::optional<QStringList> currentTriggers(const QString& id) const override;
+    bool setForeignShortcuts(const QString& componentName, const QString& actionName,
+                             const QList<QKeySequence>& sequences) override;
+    std::optional<QList<QKeySequence>> foreignShortcuts(const QString& componentName,
+                                                        const QString& actionName) const override;
 
 private:
     // QAction ownership is an implementation detail of this backend —
-    // KGlobalAccel's C++ API demands QAction* values. They are deleteLater'd
-    // on unregisterShortcut / destructor.
+    // KGlobalAccel's C++ API demands QAction* values. unregisterShortcut
+    // deleteLater's its action; suspendShortcut and the destructor delete
+    // theirs synchronously (see suspendShortcut for why).
     class Impl;
     std::unique_ptr<Impl> m_impl;
 };

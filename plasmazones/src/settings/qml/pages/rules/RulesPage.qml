@@ -115,9 +115,30 @@ SettingsFlickable {
         // Backs the RouteToDesktop action's virtual-desktop picker.
         readonly property int virtualDesktopCount: settingsController.virtualDesktopCount
         readonly property var virtualDesktopNames: settingsController.virtualDesktopNames
+        // The dynamic-workspaces state the RouteToWorkspace picker, its
+        // read-only summary and the RouteToDesktop picker's hint read.
+        // `workspacesAvailable` is false in a build without the feature;
+        // `workspacesEnabled` is the user's switch; `workspacesActive` adds
+        // KWin's per-output setting (or a pending consent to turn it on),
+        // without which the daemon sits dormant and installs no route
+        // resolver, so a workspace rule is inert whatever it names.
+        readonly property bool workspacesAvailable: settingsController.workspacesAvailable
+        readonly property bool workspacesEnabled: settingsController.settings.workspacesEnabled
+        readonly property bool workspacesActive: settingsController.workspacesActive
+        // The declared named workspaces, `{id, name}` per entry keyed by
+        // `namedEntryFields`, in list order: one controller property shared
+        // with the Quick Shortcuts page rather than a derivation per page.
+        readonly property var namedWorkspaces: settingsController.namedWorkspaces
+        readonly property var namedEntryFields: settingsController.namedEntryFields
+        // The preset bridges the shader-override editors and the read-only
+        // summary resolve a preset through. Without them a rule's preset
+        // picker reads "Missing preset" and its rows stay hidden.
+        readonly property var animationPresets: settingsController.animationPresets
+        readonly property var overlayPresets: settingsController.overlayPresets
+        readonly property var surfacePresets: settingsController.surfacePresets
         // `AnimationsPageController` — exposes `eventSections()` and
         // `availableShaderEffects()` for the animationEvent / shaderEffect
-        // picker editors in ActionRow.
+        // picker editors in ActionParamEditors.
         readonly property var animationsController: settingsController.animationsPage
         // The global default animation duration, read by the curve-editor
         // dialog in ActionParamEditors to set its preview tempo. Threaded
@@ -129,12 +150,13 @@ SettingsFlickable {
         // editor (OverrideOverlayShader) and its read-only name resolution.
         readonly property var overlaysPage: settingsController.overlaysPage
         // `DecorationPageController` — exposes `availableShaderEffects()` (the
-        // surface-pack catalog) for the decorationChain editor in ActionRow
-        // (OverrideDecorationChain) and its read-only name resolution.
+        // surface-pack catalog) for the decorationChain editor in
+        // ActionParamEditors (OverrideDecorationChain) and its read-only name
+        // resolution.
         readonly property var decorationPage: settingsController.decorationPage
         // `TilingAlgorithmController` — exposes `customParamsForAlgorithm(id)` (the
         // Luau-declared custom-param schema) for the SetAlgorithmParam inline
-        // params editor in ActionRow.
+        // params editor in ActionParamEditors.
         readonly property var tilingAlgorithmPage: settingsController.tilingAlgorithmPage
         // Reference to the page-level WindowPickerDialog — exposed via the
         // bridge so MatchLeafEditor can open the picker without having to

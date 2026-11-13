@@ -5,7 +5,7 @@
 // nothing used to compare the four:
 //
 //   1. the config schema group Shortcuts.Scrolling (settingsschema_scrolling.cpp)
-//   2. ShortcutManager's registration table          (shortcutmanager.cpp)
+//   2. ShortcutManager's registration table          (shortcutmanager_table.cpp)
 //   3. the cheatsheet catalog                        (shortcutmanager_catalog.cpp)
 //   4. the D-Bus settings registry                   (settingsadaptor_registry_scrolling.cpp)
 //
@@ -15,11 +15,11 @@
 // never binds. A stale count comment in the catalog (it claimed 20 rows for a
 // 21-row group) is the evidence that hand-counting this family does drift.
 //
-// List 2 comes from staticShortcutIds(), which exists because the table has
-// internal linkage and cheatsheetModel() is a COMPRESSED view of it: an
-// opposed pair that is fully bound collapses into one row, so the pair's
-// second member has no row of its own and the model cannot enumerate the
-// registration surface.
+// List 2 comes from staticShortcutIds(), which exists because the table is
+// reached only through ShortcutTable::staticEntries() in its own TU and
+// cheatsheetModel() is a COMPRESSED view of it: a family that is fully bound
+// collapses into one row, so its later members have no row of their own and
+// the model cannot enumerate the registration surface.
 //
 // List 3 is pinned over the rows that do survive: every scrolling row must
 // carry the catalog's scrolling mode. An id the catalog does not know still
@@ -65,9 +65,10 @@ namespace {
 /// A backend that grabs nothing, so the test needs no compositor.
 ///
 /// It does NOT stop families from compressing: the registry reports each
-/// action's bound default, so an opposed pair with two real defaults still
-/// collapses. That is why list 2 is read from the registration table rather
-/// than from the model — see the file comment.
+/// action's bound default, so a directional quad or digit family whose
+/// defaults follow the pattern still collapses. That is why list 2 is read
+/// from the registration table rather than from the model (see the file
+/// comment).
 class SilentBackend : public PhosphorShortcuts::IBackend
 {
     Q_OBJECT

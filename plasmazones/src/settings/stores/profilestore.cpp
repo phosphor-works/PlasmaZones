@@ -7,6 +7,7 @@
 #include "config/configkeys.h"
 #include "config/configmigration.h"
 #include "config/configmigration_util.h"
+#include "config/settings.h"
 #include "config/settingsschema.h"
 #include "config/settingsvaluelabels.h"
 #include "core/platform/logging.h"
@@ -265,7 +266,13 @@ bool ProfileStore::readProfileFile(const QString& path, Record* out) const
     out->name = root.value(kProfNameKey).toString();
     out->description = root.value(kProfDescriptionKey).toString();
     out->parent = QUuid(root.value(kProfParentKey).toString()); // null for a root profile
-    out->configDelta = root.value(kProfConfigKey).toObject();
+    // After any migration above, so a key a migration step produced is
+    // stripped too. A profile file is user-reachable (hand-placed in the
+    // profiles folder, or imported), and nothing else stops it from carrying
+    // a machine-scoped key into activation or back out through an export.
+    QJsonObject configDelta = root.value(kProfConfigKey).toObject();
+    Settings::stripMachineScopedKeys(configDelta);
+    out->configDelta = configDelta;
 
     const QJsonObject rules = root.value(kProfRulesKey).toObject();
     out->ruleOrder = parseUuidArray(rules.value(kProfOrderKey).toArray());
@@ -373,45 +380,27 @@ QHash<QUuid, ProfileStore::Record> ProfileStore::loadAll() const
 
 namespace {
 
-/// Keys that name THIS machine's hardware and must never ride into profiles.
-/// A captured delta would ship a hardware identity into an export another
-/// machine cannot satisfy, and applying one from an existing record would
-/// silently repoint the render GPU on profile switch (with no daemon-running
-/// gate or restart notice). Enforced on the capture side (diffConfig) and by
-/// stripping the key from resolveConfig's returned blob — NOT inside
-/// overlayConfig: the resolve seed comes from defaultConfig(), which carries
-/// EVERY declared key including this one at its default, so a skip during
-/// overlay would let that seeded default survive into the resolved blob and
-/// RESET the user's live pin on every profile activation. Removing the key
-/// from the resolved blob instead leaves the live value untouched, because
-/// Store::importFromJson only writes keys present in the blob. Currently
-/// just Rendering.Gpu, a PCI vendor:device pair.
-bool isMachineScopedKey(const QString& group, const QString& key)
-{
-    return group == ConfigKeys::renderingGroup() && key == ConfigKeys::gpuKey();
-}
-
-void stripMachineScopedKeys(QJsonObject& config)
-{
-    for (auto git = config.begin(); git != config.end(); ++git) {
-        if (!git.value().isObject()) {
-            continue;
-        }
-        QJsonObject group = git.value().toObject();
-        bool changed = false;
-        for (auto kit = group.begin(); kit != group.end();) {
-            if (isMachineScopedKey(git.key(), kit.key())) {
-                kit = group.erase(kit);
-                changed = true;
-            } else {
-                ++kit;
-            }
-        }
-        if (changed) {
-            git.value() = group;
-        }
-    }
-}
+// Machine-scoped keys (Settings::isMachineScopedKey) describe THIS machine
+// rather than a set of preferences: Rendering.Gpu names hardware another
+// machine cannot satisfy, and Workspaces.Behavior ManageKWinPerOutput records
+// the consent this machine's user gave for PlasmaZones to turn on KWin's
+// per-output desktops. No profile may carry either: importing one authored
+// elsewhere must not grant the consent or repoint the render GPU, and
+// switching profiles must not silently withdraw or move them.
+//
+// Enforced at three points, each with the shared Settings predicate:
+//   * on capture, diffConfig skips them, so a saved delta never holds one;
+//   * on read, readProfileFile strips them from the stored delta, so a
+//     hand-placed or imported file cannot smuggle one in, and an export
+//     (which re-serialises the read record) never re-emits one;
+//   * on resolve, resolveConfig strips them from the returned blob. NOT
+//     inside overlayConfig: the resolve seed comes from defaultConfig(), which
+//     carries EVERY declared key including these at their defaults, so a skip
+//     during overlay would let that seeded default survive into the resolved
+//     blob and RESET the user's live value on every profile activation.
+//     Removing the key from the resolved blob instead leaves the live value
+//     untouched, because Store::importFromJson only writes keys present in the
+//     blob.
 
 /// @p value as the settings store would hold it: converted to the KeyDef's
 /// expectedType the way Store::importFromJson converts an incoming JSON
@@ -487,7 +476,7 @@ QJsonObject ProfileStore::diffConfig(const QJsonObject& full, const QJsonObject&
         const QJsonObject baseGroup = base.value(git.key()).toObject();
         QJsonObject deltaGroup;
         for (auto kit = fullGroup.constBegin(); kit != fullGroup.constEnd(); ++kit) {
-            if (isMachineScopedKey(git.key(), kit.key())) {
+            if (Settings::isMachineScopedKey(git.key(), kit.key())) {
                 continue;
             }
             if (baseGroup.value(kit.key()) != kit.value()) {
@@ -519,16 +508,14 @@ QJsonObject ProfileStore::resolveConfig(const QUuid& id, const QHash<QUuid, Reco
     for (const QUuid& node : chain) {
         overlayConfig(resolved, all.value(node).configDelta);
     }
-    // Single choke point for the machine-scoped exclusion: every consumer of
-    // a resolved blob (activation staging, the active-modified compare, the
-    // profile signature, and the parent-resolved diff baselines) sees a blob
-    // with no hardware-identity keys, and an absent key is a no-op on apply
-    // (see isMachineScopedKey above). Profile EXPORT copies the profile file
-    // verbatim and never resolves, so exports are protected by diffConfig's
-    // capture-side skip instead. The null-parent diff baseline is the raw
-    // defaultConfig() and stays deliberately unstripped: diffConfig's own
-    // skip enforces the invariant on that path.
-    stripMachineScopedKeys(resolved);
+    // The resolve-side machine-scoped exclusion (see the note at the top of
+    // this section): every consumer of a resolved blob (activation
+    // staging, the active-modified compare, the profile signature, and the
+    // parent-resolved diff baselines) sees a blob with no machine-scoped keys,
+    // and an absent key is a no-op on apply. The null-parent diff baseline is
+    // the raw defaultConfig() and stays deliberately unstripped: diffConfig's
+    // own skip enforces the invariant on that path.
+    Settings::stripMachineScopedKeys(resolved);
     return resolved;
 }
 
@@ -1314,9 +1301,9 @@ bool ProfileStore::exportProfile(const QString& id, const QString& destLocalPath
     // Export the RECORD, not the raw file bytes: a pre-current profile is
     // migrated forward in memory by loadAll, and exporting the stale bytes
     // would hand out a file that stops being importable the moment a future
-    // build raises the version floor. The record's delta was captured with
-    // the machine-scoped-key skip applied, so re-serialising keeps exports
-    // free of machine-scoped keys exactly like the verbatim copy did.
+    // build raises the version floor. readProfileFile stripped every
+    // machine-scoped key from the record's delta, so re-serialising keeps the
+    // export free of them even for a hand-placed file that carried one.
     // An unparseable id or an unresolvable profiles folder finds no record
     // either. The toast matters: the Profiles page shows no failure banner of
     // its own, so a silent return would read as nothing happening.

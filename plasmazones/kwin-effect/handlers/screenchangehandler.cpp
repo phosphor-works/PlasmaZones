@@ -19,6 +19,7 @@
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
 #include <QPointer>
+#include <QScopeGuard>
 
 Q_LOGGING_CATEGORY(lcScreenChange, "kwin.effect.plasmazones.screenchange", QtWarningMsg)
 
@@ -138,6 +139,11 @@ void ScreenChangeHandler::applyScreenGeometryChange()
                            << "- previous:" << m_lastVirtualScreenGeometry << "- current:" << currentGeometry;
 
     m_pendingScreenChange = false;
+    // A change that ends inside this call (no settle report sent, no reapply
+    // started) has no reply left to finish it.
+    const auto finish = qScopeGuard([this]() {
+        finishScreenChange();
+    });
 
     // Only reposition windows when the virtual screen SIZE changed.
     // Position-only changes (e.g. exiting KDE panel edit mode) should not move windows.
@@ -244,19 +250,32 @@ void ScreenChangeHandler::fetchAndApplyWindowGeometries()
         }
         if (self->m_reapplyPending) {
             self->m_reapplyPending = false;
+            // Still in progress across the hop to the re-fetch (C93): a settle
+            // reply landing in that gap would otherwise read nothing in
+            // progress and finish the change ahead of the re-fetch. Set after
+            // the apply above, which runs outside a reapply as it always has.
+            self->m_reapplyInProgress = true;
             QTimer::singleShot(0, self, [self]() {
                 // m_stopped as well as the QPointer: stop() can run between
                 // this continuation being posted and dispatched, and the
                 // fetch would then issue a D-Bus call during teardown (same
-                // guard the queued client-area report carries).
-                if (self && !self->m_stopped) {
-                    self->fetchAndApplyWindowGeometries();
+                // guard the queued client-area report carries). Stopping is
+                // final (the effect's destructor), so the flag left set then
+                // has no reader.
+                if (!self || self->m_stopped) {
+                    return;
                 }
+                self->m_reapplyInProgress = false;
+                self->fetchAndApplyWindowGeometries();
+                // A re-fetch that could not start (no daemon) leaves nothing
+                // in progress, and nothing else would finish the change. One
+                // that started finishes it from its own reply.
+                self->finishScreenChange();
             });
         } else {
             // A crossing deferred while this reapply was in flight has no
             // settle of its own left to replay it.
-            self->replayDeferredCrossings();
+            self->finishScreenChange();
         }
     });
 }

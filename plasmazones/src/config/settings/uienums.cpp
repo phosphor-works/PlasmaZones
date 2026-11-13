@@ -155,7 +155,7 @@ P_STORE_SET_INT(setDecorationMinimumWindowHeight, decorationsWindowFilteringGrou
 // into `ExcludeAnimations` Rules. The settings accessors had no
 // consumers after the KWin effect rewired off the loadSettingAsync fetches.
 
-// ── PhosphorZones::Zone Selector (PhosphorConfig::Store-backed) ────────────────────────────
+// ── Zone Selector (PhosphorConfig::Store-backed) ────────────────────────────
 // Three enum-ints exposed via both the typed setter and an Int adapter for
 // QML binding. Stored as int, the schema clamps the range.
 

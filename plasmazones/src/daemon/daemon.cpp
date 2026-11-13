@@ -29,6 +29,7 @@
 #include "overlayservice.h"
 #include "controllers/unifiedlayoutcontroller.h"
 #include "controllers/shortcutmanager.h"
+#include "controllers/workspacecontroller.h"
 #include "rendering/zoneentryscaffold.h"
 #include "rendering/zoneshadernoderhi.h"
 #include <PhosphorIdentity/VirtualScreenId.h>
@@ -48,7 +49,6 @@
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorWorkspaces/ActivityManager.h>
-#include "core/types/baselinecleanup.h"
 #include "core/types/constants.h"
 #include "core/resolve/crosssurfaceresolver.h"
 #include "core/utils/geometryutils.h"
@@ -149,7 +149,7 @@ Daemon::Daemon(QObject* parent)
     , m_ruleStore(std::make_unique<PhosphorRules::RuleStore>(ConfigDefaults::rulesFilePath()))
     , m_ruleStoreWatcher(std::make_unique<PhosphorRules::RuleStoreWatcher>(*m_ruleStore))
     , m_layoutManager(
-          std::make_unique<PhosphorZones::LayoutRegistry>(m_ruleStore.get(), QStringLiteral("plasmazones/layouts")))
+          std::make_unique<PhosphorZones::LayoutRegistry>(m_ruleStore.get(), ConfigDefaults::layoutsSubdir()))
     , m_layoutComputeService(std::make_unique<PhosphorZones::LayoutComputeService>(nullptr))
     // m_curveRegistry / m_profileRegistry are default-constructed (no
     // init-list entries) — daemon.h declares them between m_layoutComputeService
@@ -209,30 +209,12 @@ Daemon::Daemon(QObject* parent)
     // because that idiom reads as an accidental typo.
     ensureScreenIdResolver();
 
-    // The daemon no longer seeds the managed baseline appearance rules (borders,
-    // title bars, gaps): those defaults now live in the config store. Strip any
-    // stale copies a previous branch build wrote to rules.json so a carried-over
-    // file does not keep three orphaned managed rules alive. Match only the fixed
-    // baseline ids AND managed==true — a user's own rule is never touched. Rebuild
-    // the list once via setAllRules (a single persist + rulesChanged) instead of
-    // per-rule removeRule, and gate it on removedAny so a clean store (second
-    // startup, or a fresh install) neither persists nor emits. The store loaded in
-    // its constructor. Settings IS already a rulesChanged consumer (it subscribes
-    // in its own ctor, constructed above), so a strip here reaches
-    // Settings::onRuleStoreChanged; that only recomputes its gap fingerprint and
-    // its downstream settingsChanged / perScreen* signals have no connected
-    // listeners yet (the adaptors and geometry wiring land later in setup), so the
-    // second-order effect is inert.
-    if (m_ruleStore && !stripStaleManagedAppearanceBaselines(*m_ruleStore)) {
-        qCWarning(lcDaemon) << "Failed to persist rules.json after stripping stale baseline appearance rules";
-    }
-
-    // Start watching rules.json only now: the strip above may have just
-    // rewritten the file, and start() runs one immediate synchronous reload
-    // that must see the stripped set (an idempotent no-op against what the
-    // strip left in memory). From here on an out-of-process edit reaches the
-    // store through the same rulesChanged path a D-Bus reloadRules takes, so
-    // the rule engines, exclusion slice and reconcile passes all follow it.
+    // Start watching rules.json now that the store has loaded in its
+    // constructor: start() runs one immediate synchronous reload (an
+    // idempotent no-op against what the store already holds). From here on an
+    // out-of-process edit reaches the store through the same rulesChanged path
+    // a D-Bus reloadRules takes, so the rule engines, exclusion slice and
+    // reconcile passes all follow it.
     m_ruleStoreWatcher->start();
 
     // Configure geometry update debounce timer
@@ -254,8 +236,8 @@ Daemon::Daemon(QObject* parent)
     // Construct the daemon-owned tile-algorithm registry up front so the
     // layout-source bundle below can bind its autotile source to it. The
     // registry was previously a process-global singleton; per-daemon
-    // ownership is the plugin-architecture-friendly shape (see
-    // project_plugin_based_compositor.md). The bundled algorithms ship as Luau
+    // ownership lets every composition root inject its own instance instead
+    // of reaching for a global. The bundled algorithms ship as Luau
     // scripts and are loaded (with user scripts) by ScriptedAlgorithmLoader
     // during init().
     // Pass nullptr as Qt parent: the unique_ptr owns lifetime and the
@@ -324,9 +306,10 @@ bool Daemon::init()
     // init() decomposes into ordered phase methods (definitions split across
     // daemon/shader_warmup.cpp, daemon/animation_profiles.cpp,
     // daemon/init_services.cpp, daemon/init_adaptors.cpp,
-    // daemon/init_engines.cpp). The call order below is byte-order faithful to the
-    // former monolithic init() and MUST NOT be reordered — later phases borrow
-    // members the earlier phases construct and wire.
+    // daemon/init_engines.cpp, daemon/init_dbus_service.cpp). The call order
+    // below is byte-order faithful to the former monolithic init() and MUST NOT
+    // be reordered — later phases borrow members the earlier phases construct
+    // and wire.
     // Both shader registries live here rather than in the ctor because stop()
     // resets them: a stop() -> init() -> start() cycle would otherwise leave
     // them null for the rest of the process, with the overlay service's

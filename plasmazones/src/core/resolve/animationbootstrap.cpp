@@ -35,13 +35,12 @@ namespace {
 // the seed tag is special.
 constexpr QLatin1StringView kSecondaryProfilesOwnerTag{"plasmazones-secondary-profiles"};
 
-QString writableUserDir(QLatin1StringView xdgRelative)
+QString writableUserDir(const QString& xdgRelative)
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QLatin1Char('/')
-        + QString(xdgRelative);
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QLatin1Char('/') + xdgRelative;
 }
 
-QStringList discoverDataDirs(QLatin1StringView xdgRelative)
+QStringList discoverDataDirs(const QString& xdgRelative)
 {
     // `QStandardPaths::locateAll` returns directories in priority order —
     // the writable user location FIRST, system dirs AFTER. Reverse it so the
@@ -49,8 +48,8 @@ QStringList discoverDataDirs(QLatin1StringView xdgRelative)
     // loader documents as its input: it reverse-iterates that and applies
     // FIRST-registration-wins, so the user dir claims its keys before any
     // system dir gets to. Matches LayoutManager::loadLayouts.
-    QStringList dirs = QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QString(xdgRelative),
-                                                 QStandardPaths::LocateDirectory);
+    QStringList dirs =
+        QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, xdgRelative, QStandardPaths::LocateDirectory);
     std::reverse(dirs.begin(), dirs.end());
 
     // locateAll returns an empty list when none of the candidate dirs
@@ -83,7 +82,7 @@ AnimationLoaderHandles constructAnimationLoaders(PhosphorAnimation::CurveRegistr
     using namespace PhosphorAnimation;
 
     AnimationLoaderHandles handles;
-    handles.dirs.curveDirs = discoverDataDirs(QLatin1StringView{"plasmazones/curves"});
+    handles.dirs.curveDirs = discoverDataDirs(ConfigDefaults::curvesSubdir());
 
     // Materialise the curves dir eagerly so live-reload works on fresh
     // installs. `WatchedDirectorySet`'s parent-watch climb refuses to
@@ -98,8 +97,8 @@ AnimationLoaderHandles constructAnimationLoaders(PhosphorAnimation::CurveRegistr
     // NOT for live reload: nothing watches it since schema v8. It holds the
     // user's saved-preset library, which the animations page creates on
     // demand, and the v8 migration reads pre-v8 override files out of it.
-    QDir().mkpath(writableUserDir(QLatin1StringView{"plasmazones/curves"}));
-    QDir().mkpath(writableUserDir(QLatin1StringView{"plasmazones/profiles"}));
+    QDir().mkpath(writableUserDir(ConfigDefaults::curvesSubdir()));
+    QDir().mkpath(writableUserDir(ConfigDefaults::profilesSubdir()));
 
     // Construct the loader with NO initial load — callers run the scan
     // explicitly (runInitialCurveLoad → seedShellAnimationFamilies →

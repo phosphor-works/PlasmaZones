@@ -75,11 +75,11 @@ inline constexpr const char* PDaemonEnvInheritedVarsProperty = "_p_daemonEnvInhe
  * These defaults are used by core module files that can't depend on config.
  * For user-configurable settings, see ConfigDefaults.
  *
- * PhosphorZones::Layout ratio constants (PriorityGridMainRatio, FocusSideRatio, etc.) are
+ * Layout ratio constants (PriorityGridMainRatio, FocusSideRatio, etc.) are
  * structural constants for built-in layouts.
  */
 namespace Defaults {
-// PhosphorZones::Zone-presentation defaults + layout-factory ratios live in
+// Zone-presentation defaults + layout-factory ratios live in
 // `PhosphorZones::ZoneDefaults` (libs/phosphor-zones).  All in-tree
 // callers reference them qualified directly — no using-alias here.
 
@@ -211,7 +211,7 @@ inline QString clampName(const QString& name, int maxLength = MaxLayoutNameLengt
  * @brief Editor-specific constants
  */
 namespace EditorConstants {
-// PhosphorZones::Zone size constraints (relative coordinates 0.0-1.0)
+// Zone size constraints (relative coordinates 0.0-1.0)
 constexpr qreal MinZoneSize = 0.05; // 5% minimum zone size
 
 // Fixed geometry constraints (absolute pixel coordinates)
@@ -219,9 +219,10 @@ constexpr int MinFixedZoneSize = 50; // Minimum fixed zone dimension in pixels
 
 // Snapping thresholds (relative coordinates 0.0-1.0, used in SnappingService)
 constexpr qreal EdgeThreshold = 0.02; // 2% threshold for snapping to zone edges
-constexpr qreal DefaultSnapInterval = 0.1; // 10% default grid snap interval
+// The grid snap interval's default is ConfigDefaults::editorSnapIntervalX/Y,
+// the one value the settings schema and the editor share.
 
-// PhosphorZones::Zone duplication offset
+// Zone duplication offset
 constexpr qreal DuplicateOffset = 0.02; // 2% offset when duplicating zones
 constexpr int DuplicateOffsetPixels = 20; // 20px offset when duplicating fixed zones
 

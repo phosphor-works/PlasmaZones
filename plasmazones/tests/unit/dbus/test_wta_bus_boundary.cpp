@@ -491,6 +491,78 @@ private Q_SLOTS:
         QCOMPARE(rec->freeGeometryByScreen.value(vs1), frame);
         QVERIFY(!rec->freeGeometryByScreen.contains(dead));
     }
+
+    // A window placed again where it is, reported by a split monitor's
+    // physical id, keeps its snap membership on the virtual screen its frame
+    // is in. Matched against the raw physical id, that membership read as one
+    // on another screen and was released (C42).
+    void liveContextReleaseOnAPhysicalIdOfASplitMonitorKeepsTheFramesVirtualScreen()
+    {
+        FloatBackFixture f;
+        QVERIFY(f.screenMgr->setVirtualScreenConfig(kRight, TestHelpers::makeSplitConfig(kRight)));
+        const QString vs1 = QStringLiteral("DP-2/vs:1");
+        f.layouts->assignLayout(vs1, 1, QString(), f.layout);
+        f.snap->setCurrentDesktopForScreen(vs1, 1);
+        const QString windowId = f.registerWindow(QStringLiteral("split-live"));
+        f.snap->commitSnap(windowId, f.zone(0), vs1);
+        f.setFrame(windowId, QRect(3000, 100, 400, 300)); // the right half of DP-2
+        QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
+        bool guessed = true;
+        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId, &guessed), vs1);
+        QVERIFY2(!guessed, "the frame picked the virtual screen");
+
+        f.wta->releaseSnapOutsideLiveContext(windowId, kRight);
+
+        QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
+        QCOMPARE(f.snap->zoneForWindow(windowId), f.zone(0));
+
+        // Control: a report from the other monitor does release it.
+        f.wta->releaseSnapOutsideLiveContext(windowId, kLeft);
+        QVERIFY(f.snap->zoneForWindow(windowId).isEmpty());
+    }
+
+    // The same report with no frame shadow to pick the virtual screen: the
+    // bus resolve falls back to the monitor's first virtual screen, the
+    // sibling of the one the window is snapped on. The snap engine's own hold
+    // decides instead, and the membership stays (C63).
+    void liveContextReleaseOnAPhysicalIdWithNoFrameKeepsTheHeldVirtualScreen()
+    {
+        FloatBackFixture f;
+        QVERIFY(f.screenMgr->setVirtualScreenConfig(kRight, TestHelpers::makeSplitConfig(kRight)));
+        const QString vs1 = QStringLiteral("DP-2/vs:1");
+        QCOMPARE(f.screenMgr->virtualScreenIdsFor(kRight).constFirst(), QStringLiteral("DP-2/vs:0"));
+        f.layouts->assignLayout(vs1, 1, QString(), f.layout);
+        f.snap->setCurrentDesktopForScreen(vs1, 1);
+        const QString windowId = f.registerWindow(QStringLiteral("split-frameless"));
+        f.snap->commitSnap(windowId, f.zone(0), vs1);
+        QVERIFY(f.wta->frameGeometry(windowId).isNull());
+        bool guessed = false;
+        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId, &guessed), QStringLiteral("DP-2/vs:0"));
+        QVERIFY(guessed);
+
+        f.wta->releaseSnapOutsideLiveContext(windowId, kRight);
+
+        QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
+        QCOMPARE(f.snap->zoneForWindow(windowId), f.zone(0));
+    }
+
+    // The cursor arm of the same fallback: with the cursor last reported on
+    // one of the monitor's virtual screens and no frame to go by, that screen
+    // answers, and it is still a guess (C104).
+    void busScreenOfAPhysicalIdTakesTheCursorsVirtualScreenAsAGuess()
+    {
+        FloatBackFixture f;
+        QVERIFY(f.screenMgr->setVirtualScreenConfig(kRight, TestHelpers::makeSplitConfig(kRight)));
+        const QString vs1 = QStringLiteral("DP-2/vs:1");
+        f.wta->cursorScreenChanged(vs1);
+        QCOMPARE(f.wta->lastCursorScreenName(), vs1);
+        const QString windowId = f.registerWindow(QStringLiteral("split-cursor"));
+        QVERIFY(f.wta->frameGeometry(windowId).isNull());
+
+        bool guessed = false;
+        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId, &guessed), vs1);
+        QVERIFY(guessed);
+    }
 };
 
 QTEST_MAIN(TestWtaBusBoundary)

@@ -963,10 +963,10 @@ void WindowDragAdaptor::dragMoved(const QString& windowId, int cursorX, int curs
     // mode the raw held-state is resolved through the same rising-edge latch as
     // activation (#563): tap the span modifier once to start spanning, tap
     // again to stop, instead of holding it. The sentinel is EXCLUDED like the
-    // activation read above — the legacy scalar ZoneSpanModifier key admits
-    // alwaysActive (schema value 8) and its Triggers synthesis carries it
-    // into this list, where an unconditional match would latch paint-to-span
-    // for the whole drag. The latch is evaluated every tick (not just when
+    // activation read above: the trigger list admits alwaysActive (a v1
+    // ZoneSpanModifier of alwaysActive migrates into it as a one-entry list),
+    // and an unconditional match would latch paint-to-span for the whole
+    // drag. The latch is evaluated every tick (not just when
     // the overlay is active) so a release→press while the overlay is off is
     // still seen on the next active tick.
     const ActivationDecision zoneSpanDecision =

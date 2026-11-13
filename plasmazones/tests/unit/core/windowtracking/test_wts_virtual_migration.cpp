@@ -40,7 +40,6 @@
 #include "core/interfaces/interfaces.h"
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
-#include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include <PhosphorScreens/Manager.h>
 #include "FakePhysicalScreenSource.h"

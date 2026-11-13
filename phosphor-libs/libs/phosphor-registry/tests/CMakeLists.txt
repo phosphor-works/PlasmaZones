@@ -152,9 +152,9 @@ list(APPEND phosphorregistry_fixture_targets phosphor_registry_fixture_plain)
 
 function(phosphorregistry_add_test name)
     add_executable(${name} ${name}.cpp)
-    # Core / Gui / Qml propagate PUBLIC from PhosphorRegistry. Qt6::Test
-    # is test-specific. Qt6::Quick is needed by the QQuickItem helpers
-    # used in test_registry_helpers.h.
+    # Core propagates PUBLIC from PhosphorRegistry, which links nothing
+    # QML. Qt6::Test is test-specific. Qt6::Quick (and through it Gui and
+    # Qml) is needed by the QQuickItem helpers used in test_registry_helpers.h.
     target_link_libraries(${name}
         PRIVATE
             PhosphorRegistry::PhosphorRegistry

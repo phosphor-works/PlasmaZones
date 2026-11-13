@@ -23,9 +23,6 @@
 #include <virtualdesktops.h>
 #include <workspace.h>
 
-#include <QDBusConnection>
-#include <QDBusPendingCall>
-#include <QDBusPendingCallWatcher>
 #include <QLoggingCategory>
 #include <QPointer>
 #include <QScopedValueRollback>
@@ -523,8 +520,24 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // show the outgoing desktop's value for the frames between the switch and the
     // push. Not corrected here: the effect cannot resolve the daemon's
     // assignment cascade, so there is no local value to fold instead.
+    //
+    // Once per event-loop turn, not once per signal: KWin emits desktopChanged
+    // for every output a switch moves, so under global virtual desktops one
+    // switch arrives as one signal per output, and each ran the whole sweep
+    // (F433). The queued sweep runs after the turn's switch signals, before the
+    // frame that shows the switch.
     connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this, [this]() {
-        updateAllDecorations();
+        if (m_desktopSwitchSweepQueued) {
+            return;
+        }
+        m_desktopSwitchSweepQueued = true;
+        QMetaObject::invokeMethod(
+            this,
+            [this]() {
+                m_desktopSwitchSweepQueued = false;
+                updateAllDecorations();
+            },
+            Qt::QueuedConnection);
     });
 
     // Snap restores for windows the daemon relocated to a desktop that was not
@@ -533,34 +546,35 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // catch-scan; the effect holds no snap membership to sweep (the daemon
     // carries a moved window's zone itself), so its arm drains a park list here.
     //
-    // Queued, not run inline. Two other desktopChanged handlers feed the daemon
-    // the state this restore is resolved against, and both land in a LATER event
-    // loop turn: scheduleClientAreaReport defers the work-area push through its
-    // own queued continuation, and the per-output desktop report is pushed
-    // further down this function. Driving the resolve synchronously here put the
-    // D-Bus call on the wire ahead of both, so the daemon answered it against the
-    // OUTGOING desktop's work area and screen mode. Deferring to the same later
-    // turn puts this after them in registration order.
-    connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this, [this]() {
+    // Queued, not run inline. The daemon resolves this restore against the
+    // work area and the screen's desktop, and both reach it after this handler
+    // runs: scheduleClientAreaReport's work-area push is a continuation queued
+    // by a handler registered above, and the per-output desktop report is sent
+    // inline by a handler registered further down this function. Driving the
+    // resolve synchronously here put the D-Bus call on the wire ahead of both,
+    // so the daemon answered it against the OUTGOING desktop's work area and
+    // screen mode. A continuation queued here runs after the inline report and
+    // after the work-area continuation queued before it. Coalesced to one
+    // drain per turn like the sweep above, for the same per-output burst.
+    const auto queueArrivalDrain = [this]() {
+        if (m_desktopArrivalDrainQueued) {
+            return;
+        }
+        m_desktopArrivalDrainQueued = true;
         QMetaObject::invokeMethod(
             this,
             [this]() {
+                m_desktopArrivalDrainQueued = false;
                 m_snapHandler->slotDesktopChangedRestoreArrivals();
             },
             Qt::QueuedConnection);
-    });
+    };
+    connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this, queueArrivalDrain);
 
     // A park can also be held by a window whose desktop is in view but whose
     // ACTIVITY is not, and that case is released by an activity switch rather
     // than a desktop one. Same queued shape and the same drain.
-    connect(KWin::effects, &KWin::EffectsHandler::currentActivityChanged, this, [this]() {
-        QMetaObject::invokeMethod(
-            this,
-            [this]() {
-                m_snapHandler->slotDesktopChangedRestoreArrivals();
-            },
-            Qt::QueuedConnection);
-    });
+    connect(KWin::effects, &KWin::EffectsHandler::currentActivityChanged, this, queueArrivalDrain);
 
     // Seam diagnostics (docs/strip-identity-seam-plan.md, stage 0). The zero
     // point for the other lcStripDiag sites: everything they report is read as
@@ -568,10 +582,10 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // rather than folded into a neighbouring lambda, so removing the
     // instrumentation is a whole-block delete with no behaviour attached to it.
     //
-    // Registered AFTER three other desktopChanged handlers, and Qt delivers
+    // Registered AFTER the desktopChanged handlers above, and Qt delivers
     // direct connections in registration order, so this line printing first is
-    // a property of those two not logging under this category rather than
-    // something the ordering guarantees. Both are effect-internal and neither
+    // a property of those handlers not logging under this category rather than
+    // something the ordering guarantees. They are effect-internal and none
     // reaches an lcStripDiag site synchronously today. If a future handler
     // ahead of this one ever does, move this connect above them rather than
     // reasoning about the interleaving.
@@ -593,24 +607,71 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // current — which flips merely on cursor movement between monitors on
     // different desktops (#648). This signal does NOT fire on cursor movement,
     // only on an actual desktop change for an output, so it is the deterministic
-    // source. `output == nullptr` is a global all-output switch (per-output mode
-    // off); fan out to every screen so the daemon has one code path.
+    // source. KWin names the output on every emission: a global switch (per-output
+    // mode off) arrives as one emission per output it moved, each naming its own.
+    // The output-less arm reads every output instead, kept so an emission without
+    // one is still answered rather than dropped.
+    //
+    // Each switch KWin made (old != new) is also where the context-switch mark
+    // goes: a tile batch the daemon resolved for the context an output just left
+    // must not untile the incoming one (F793). Here and not on the report, whose
+    // dedup misses for reasons that are no switch at all (F886). The reverse
+    // also happens: when the desktop an output shows is removed, KWin moves the
+    // output to the desktop that followed it, which takes the removed one's
+    // number, so the report dedups while the context did change. (Removing the
+    // last desktop moves the output to the new last one, under another number,
+    // and that report goes out.) The mark still goes on,
+    // since a batch built for the removed desktop's context must not untile
+    // the successor's tiles, and the announce that settles it is the daemon's
+    // renumber re-announce (Daemon::onDesktopsRenumbered). KWin's
+    // placeholder output, which stands in while no real output is connected,
+    // has no screen the daemon knows and is neither reported nor marked (F870).
     connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this,
-            [this](KWin::VirtualDesktop*, KWin::VirtualDesktop* newDesktop, KWin::EffectWindow*,
+            [this](KWin::VirtualDesktop* oldDesktop, KWin::VirtualDesktop* newDesktop, KWin::EffectWindow*,
                    KWin::LogicalOutput* output) {
                 if (!newDesktop) {
                     return;
                 }
+                const auto reportOne = [this](KWin::LogicalOutput* out, KWin::VirtualDesktop* shown, bool switched) {
+                    if (!out || out->isPlaceholder() || !shown) {
+                        return;
+                    }
+                    const QString screenId = outputScreenId(out);
+                    reportScreenDesktop(screenId, static_cast<int>(shown->x11DesktopNumber()));
+                    if (switched && !screenId.isEmpty()) {
+                        m_tilingHandler->noteContextSwitched(screenId);
+                    }
+                };
+                // KWin always names the old desktop here: its own currentChanged
+                // handler (VirtualDesktopManager's plasma-desktop sync) reads
+                // the old desktop's id unguarded.
+                const bool switched = oldDesktop != newDesktop;
                 if (output) {
-                    reportScreenDesktop(outputScreenId(output), static_cast<int>(newDesktop->x11DesktopNumber()));
+                    reportOne(output, newDesktop, switched);
                     return;
                 }
-                for (auto* out : KWin::effects->screens()) {
-                    if (auto* vd = KWin::effects->currentDesktop(out)) {
-                        reportScreenDesktop(outputScreenId(out), static_cast<int>(vd->x11DesktopNumber()));
-                    }
+                for (KWin::LogicalOutput* out : KWin::effects->screens()) {
+                    reportOne(out, KWin::effects->currentDesktop(out), switched);
                 }
             });
+
+    // Live per-output-desktops mode. The bringup report samples this once, but
+    // the compositor property is writable at runtime (System Settings, or the
+    // daemon's own consented kwinrc write followed by a reconfigure). The
+    // daemon gates dynamic workspaces on it: a `false` edge turns the feature
+    // dormant until per-output desktops come back, and a `true` edge re-arms
+    // it. Without this connection the daemon would act on a stale mode until
+    // its next restart. KWin emits the change only after it has switched the
+    // outputs, which is why slotSetScreenDesktopRequested reads the mode
+    // itself rather than relying on this report. The daemon change-gates the
+    // value, so a repeat costs nothing. The connection is made once (this
+    // wiring runs once per effect) and torn down with the effect by QObject's
+    // receiver-side auto-disconnect.
+    if (auto* vdm = KWin::VirtualDesktopManager::self()) {
+        connect(vdm, &KWin::VirtualDesktopManager::perOutputVirtualDesktopsChanged, this, [this] {
+            reportPerOutputDesktopsMode();
+        });
+    }
 
     // The strip view spring is per-OUTPUT while scroll state is
     // per-(screen, desktop, activity), so a desktop switch orphans any
@@ -694,6 +755,25 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
             [this](KWin::VirtualDesktop* oldDesktop, KWin::VirtualDesktop* newDesktop, KWin::EffectWindow*,
                    KWin::LogicalOutput* output) {
                 if (!oldDesktop || !newDesktop) {
+                    return;
+                }
+                // No blend for a correction the daemon asked for (the
+                // owner-wins return): a switch the user did not make, which
+                // would cost two output-sized captures on top of the switch
+                // that provoked it. A user switch whose leg is still blending
+                // on this output is the switch being undone, so that leg ends
+                // here too rather than blending toward a desktop the output no
+                // longer shows (F242). The reporting, decoration, strip and
+                // client-area handlers all still run. A user focus verb's
+                // switch is not a correction and blends like any other.
+                if (m_correctiveDesktopSwitch) {
+                    if (output) {
+                        m_desktopTransition.cancelSwitch(output);
+                    } else {
+                        for (KWin::LogicalOutput* const out : KWin::effects->screens()) {
+                            m_desktopTransition.cancelSwitch(out);
+                        }
+                    }
                     return;
                 }
                 // Honour the global animations master toggle, exactly as the two
@@ -787,13 +867,16 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // guard — a freed pointer must simply not linger and be matched against a
     // live desktop.
     //
-    // KWin renumbers the desktops after one is removed, inserted or moved, and
-    // reports a desktop change only for an output whose desktop went away. The
-    // per-output dedup cache holds numbers, so it is re-read here, silently: the
-    // daemon renumbers its own map, and a report now could reach it first and be
-    // shifted twice. Left stale, a later switch to the desktop now carrying the
-    // cached number was dropped, and the announce gate compared the daemon's
-    // new numbers with the old ones (F798).
+    // KWin renumbers the desktops after one is removed, inserted or moved. An
+    // output whose desktop was removed is switched to a successor, and that
+    // switch is reported through desktopChanged, already in the new numbering,
+    // before desktopRemoved fires. Every other output keeps its desktop under a
+    // number that may have shifted, which a cache of numbers cannot follow, so
+    // the cache is re-read here, silently: the daemon renumbers its own map,
+    // and a report now could reach it first and be shifted twice. Left stale, a
+    // later switch to the desktop now carrying the cached number was dropped,
+    // and the announce gate compared the daemon's new numbers with the old ones
+    // (F798).
     const auto resyncReportedDesktops = [this]() {
         for (KWin::LogicalOutput* const output : KWin::effects->screens()) {
             const KWin::VirtualDesktop* const vd = output ? KWin::effects->currentDesktop(output) : nullptr;

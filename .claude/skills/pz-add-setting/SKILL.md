@@ -25,7 +25,7 @@ and clamping come from the schema.
 
 `configdefaults.h` is split by area: `_appearance`, `_gaps`, `_limits`,
 `_screens`, `_scrolling`, `_scrolling_behavior`, `_scrolling_shortcuts`,
-`_shaders`. Pick the matching one.
+`_shaders`, `_workspaces`. Pick the matching one.
 
 ```cpp
 static bool enableAudioVisualizer() { return false; }
@@ -37,10 +37,13 @@ static constexpr int audioSpectrumBarCountMax() { return 256; }
 
 ### 2. `plasmazones/src/config/configkeys.h` — the group and key accessors
 
-`configkeys.h`, NOT `configdefaults.h`. The `P_CONFIG_GROUP` / `P_CONFIG_KEY`
-macros are defined in configkeys.h and every accessor lives there (or in
-`configkeys_scrolling.h` for a scrolling group); configdefaults.h declares
-none of them. They are reachable as `ConfigDefaults::fooGroup()` only because
+`configkeys.h`, NOT `configdefaults.h`. Every accessor lives there, or in
+`configkeys_scrolling.h` for a scrolling group and `configkeys_workspaces.h`
+for a workspaces group; configdefaults.h declares none of them. The
+`P_CONFIG_GROUP` / `P_CONFIG_KEY` macros come from `configkeymacro.h`, which
+each of those headers includes at its top and undoes with
+`configkeymacro_undef.h` at its end, so a new per-domain header follows the
+same pair. They are reachable as `ConfigDefaults::fooGroup()` only because
 ConfigDefaults inherits through that chain, so the CALL is always spelled
 `ConfigDefaults::` even though the DECLARATION is not in that file.
 
@@ -57,8 +60,8 @@ This is the step that is easy to miss and the reason a setting silently reads
 back as `false` or `0`: **the store gets its default and its type from the
 schema**, not from the getter. Split across `settingsschema.cpp`,
 `settingsschema_tiling.cpp`, `settingsschema_scrolling.cpp`,
-`settingsschema_overlayshaders.cpp`, `settingsschema_shaderbounds.cpp` and
-`settingsschema_shadertrees.cpp`.
+`settingsschema_overlayshaders.cpp`, `settingsschema_shaderbounds.cpp`,
+`settingsschema_shadertrees.cpp` and `settingsschema_workspaces.cpp`.
 
 ```cpp
 schema.groups[CD::shadersAudioGroup()] = {

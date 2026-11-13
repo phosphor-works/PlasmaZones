@@ -119,6 +119,24 @@ struct StashedColumn
     /// the far side of a restart.
     bool shownTabRestored = false;
     bool heightOwnerRestored = false;
+    /// Recorded by ScrollEngine::stashColumnForDesktopMove for a column moved
+    /// here from another desktop, rather than captured from this context's
+    /// own strip. Its index among the entry's columns says nothing about
+    /// where it belongs on a strip it never stood in, so its first arrival
+    /// opens the column where a fresh arrival would (the screen's insert
+    /// position) instead of at that index. Later arrivals join it through the
+    /// ordinary sibling lookup.
+    ///
+    /// Also what marks the column as a move RECORD rather than this context's
+    /// own structure: an arrival somewhere else takes the window's tile out of
+    /// it (ScrollEngine::forgetMovedColumnsElsewhere), because the move it
+    /// records did not land.
+    ///
+    /// Persisted, unlike the two latches above, so both answers survive a
+    /// daemon restart that keeps the window ids: a move still pending at the
+    /// restart opens where a fresh arrival would, and is still given up by an
+    /// arrival elsewhere.
+    bool arrivesAsMove = false;
 };
 
 /// One stashed strip: the structural columns plus the focus/view pair
@@ -146,6 +164,17 @@ struct StashedStrip
     /// neither: the position lands, the policy immediately reclaims it, and
     /// the view jumps on the first layout pass after the restore.
     bool viewDetached = false;
+    /// Whether viewAnchor and viewDetached above carry a view at all. A
+    /// capture of a live strip does (ScrollEngine::buildStashFromState), and
+    /// so does an entry staged from a blob that wrote the anchor. An entry
+    /// that hands over its focus without a view does not: a strip moved to a
+    /// monitor whose work area has another main-axis length
+    /// (ScrollEngine::stashStripForOutputMove), whose anchor names another
+    /// view there. Without it the restore applies the focus alone and the
+    /// centering policy places the view, as for an axis flip. A zero anchor
+    /// is a real view (the focused column at the leading edge), so the anchor
+    /// cannot say this itself.
+    bool viewCarried = false;
     /// The axis this stash was captured under.
     ///
     /// The stash is a THIRD carrier of axis-dependent state, alongside the
@@ -272,6 +301,15 @@ struct FloatRestore
     /// columns close while the window floats, and a stale index would
     /// splice the window into a stranger's stack.
     QString stackAnchor;
+    /// When the window left its shared column, from an engine-wide counter
+    /// (floatWindowInternal stamps it beside tileIndex, and a drag stamps the
+    /// slot it takes the window out of, which a drop that degrades to a float
+    /// keeps). Each tileIndex is a slot in the column as it stood at that
+    /// leave, so putting several of a column's departed tiles back at once
+    /// replays the leaves newest first (see
+    /// ScrollEngine::columnTilesWithHiddenMembers). 0 for an entry no leave
+    /// stamped (no shared column to go back into).
+    quint64 leaveSequence = 0;
     /// Minimum frame size (Tile::minWidth) at float time — the tile that held
     /// it dies with takeWindow, and dropping it would strip the
     /// relayout clamps until the compositor happens to re-report.

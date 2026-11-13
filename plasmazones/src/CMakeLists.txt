@@ -19,15 +19,14 @@ endif()
 # ═══════════════════════════════════════════════════════════════════════════════
 add_subdirectory(shared)
 
-# Wayland layer-shell protocol code generation moved to PhosphorWayland library.
-# PlasmaZones uses PhosphorWayland::LayerSurface via compatibility wrappers in core/.
+# Wayland layer-shell protocol code generation lives in the PhosphorWayland
+# library; nothing in this tier runs wayland-scanner.
 
 # Core library sources
 set(plasmazones_core_SRCS
     phosphor_qml_i18n.h
     phosphor_qml_i18n.cpp
     core/types/constants.h
-    core/types/baselinecleanup.h
     core/platform/logging.h
     core/platform/logging.cpp
     core/utils/translationloader.h
@@ -81,6 +80,8 @@ set(plasmazones_core_SRCS
     common/stripcardserialize.h
     common/screenidresolver.cpp
     common/screenidresolver.h
+    common/kwinperoutputdesktops.cpp
+    common/kwinperoutputdesktops.h
     common/layoutbundlebuilder.cpp
     common/layoutbundlebuilder.h
     core/platform/supportreport.cpp
@@ -113,6 +114,7 @@ set(plasmazones_core_SRCS
     config/settings/storescalars.cpp
     config/settings/shortcuts.cpp
     config/settings/scrolling.cpp
+    config/settings/workspaces.cpp
     config/settings.h
     config/configdefaults.cpp
     config/configbackends.h
@@ -130,6 +132,7 @@ set(plasmazones_core_SRCS
     config/settingsschema_shadertrees.cpp
     config/settingsschema_scrolling.cpp
     config/settingsschema_tiling.cpp
+    config/settingsschema_workspaces.cpp
     config/settingsschemachoices.h
     config/settingsvaluelabels.cpp
     config/settingsvaluelabels.h
@@ -338,44 +341,24 @@ target_include_directories(plasmazones_core SYSTEM PRIVATE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/phosphor-libs/libs/phosphor-shortcuts/include>
 )
 
-# Conditionally link PlasmaActivities/KActivities if available
-if(PlasmaActivities_FOUND)
-    # Check for Plasma 6 target first
-    if(TARGET Plasma::Activities)
-        target_link_libraries(plasmazones_core
-            PUBLIC
-                Plasma::Activities
-        )
-        target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-        message(STATUS "Linking PlasmaActivities via Plasma::Activities target")
-    elseif(TARGET KF6::Activities)
-        target_link_libraries(plasmazones_core
-            PUBLIC
-                KF6::Activities
-        )
-        target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-        message(STATUS "Linking PlasmaActivities via KF6::Activities target")
-    else()
-        # Fallback to library name lookup
-        find_library(PLASMA_ACTIVITIES_LIBRARY NAMES PlasmaActivities KActivities)
-        if(PLASMA_ACTIVITIES_LIBRARY)
-            target_link_libraries(plasmazones_core
-                PUBLIC
-                    ${PLASMA_ACTIVITIES_LIBRARY}
-            )
-            target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-            message(STATUS "Linking PlasmaActivities via library: ${PLASMA_ACTIVITIES_LIBRARY}")
-        else()
-            message(WARNING "PlasmaActivities found but no linkable target/library available")
-        endif()
-    endif()
+# Activities are not linked here: ActivityManager lives in PhosphorWorkspaces,
+# which finds PlasmaActivities itself and keeps the link PRIVATE, and nothing
+# in this target includes an activities header.
+
+# kwinrc read and the consented write of PerOutputVirtualDesktops
+# (common/kwinperoutputdesktops.cpp), the only KConfig user under plasmazones/:
+# the daemon and the settings app reach it through this library and need no
+# link of their own. Dynamic workspaces compile out of the
+# USE_KDE_FRAMEWORKS=OFF build, so the link exists only where the feature
+# does. PRIVATE: no plasmazones_core header exposes a KConfig type.
+if(USE_KDE_FRAMEWORKS)
+    target_link_libraries(plasmazones_core PRIVATE KF6::ConfigCore)
 endif()
 
 target_include_directories(plasmazones_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/plasmazones>  # For shared/ headers (virtualscreenid.h)
         $<INSTALL_INTERFACE:include/plasmazones>
 )
 
@@ -550,6 +533,8 @@ set(plasmazones_daemon_SRCS
     daemon/controllers/shortcutmanager_adhoc.cpp
     daemon/controllers/shortcutmanager_catalog.cpp
     daemon/controllers/shortcutmanager_ids.h
+    daemon/controllers/shortcutmanager_table.cpp
+    daemon/controllers/shortcutmanager_table.h
     daemon/daemon/start.cpp
     daemon/daemon/desktop_renumber.cpp
     daemon/daemon/evacuees.cpp
@@ -557,6 +542,7 @@ set(plasmazones_daemon_SRCS
     daemon/daemon/autotile_init.cpp
     daemon/daemon/scrolling_init.cpp
     daemon/daemon/scrolling.cpp
+    daemon/daemon/workspaces.cpp
     daemon/daemon/signals.cpp
     daemon/daemon/shader_warmup.cpp
     daemon/daemon/animation_profiles.cpp
@@ -637,6 +623,10 @@ set(plasmazones_daemon_SRCS
     # Mode tracking and smart toggle (Unified Layout Model)
     daemon/controllers/unifiedlayoutcontroller.cpp
     daemon/controllers/unifiedlayoutcontroller.h
+    # Dynamic per-monitor workspaces
+    daemon/controllers/workspacecontroller.cpp
+    daemon/controllers/workspacecontroller_verbs.cpp
+    daemon/controllers/workspacecontroller.h
     # Shader rendering: ZoneShaderItem from plasmazones_rendering
 )
 
@@ -677,8 +667,9 @@ target_link_libraries(plasmazonesd
         PhosphorOverlay::PhosphorOverlay  # per-screen shell-host + slot mechanism (Phase 2 onward)
         # Frozen-snapshot per-screen mode + disable/lock cascade façade.
         # The daemon owns a `ContextResolver` over three local adapters
-        # (DaemonWorkspaceStateAdapter / ScreenModeAdapter / SettingsGateAdapter
-        # in daemon/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
+        # (DaemonWorkspaceStateAdapter / DaemonScreenModeAdapter /
+        # DaemonSettingsGateAdapter in
+        # daemon/controllers/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
         # + OverlayService borrow it via `Daemon::contextResolver()`.
         PhosphorContextResolver::PhosphorContextResolver
         # Daemon is headless: runs under QGuiApplication. No Qt6::Widgets

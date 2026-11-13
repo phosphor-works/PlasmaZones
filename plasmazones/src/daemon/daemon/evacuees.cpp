@@ -115,7 +115,10 @@ void Daemon::applyScreenDesktopSeed(const QString& screenId, int desktop)
     // while the desktop manager answers the live one (F700). Not a switch,
     // so no OSD, no drag cancel and no switch announce: the engines take the
     // desktop, the managed screens are recomputed, and the windows spanning
-    // that desktop get their share.
+    // that desktop get their share. The seed tells this daemon what the output
+    // shows, so the output's next report is a switch and gets its card
+    // (takeFirstDesktopReport).
+    m_desktopReportedScreens.insert(screenId);
     if (m_autotileEngine) {
         m_autotileEngine->setCurrentDesktopForScreen(screenId, desktop);
     }

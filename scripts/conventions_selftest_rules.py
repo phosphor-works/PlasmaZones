@@ -599,6 +599,14 @@ def _remaining_rule_failures(partition_readable) -> list[str]:
         # A dot-path that is not one of the known v2 groups must not match, or the rule
         # would fire on every dotted string literal in the tree.
         cfg_other = write("src/daemon/z.cpp", 'auto s = QStringLiteral("Some.Other.Thing");\n')
+        # One probe per top-level v2 segment the alternation names beyond Snapping, so
+        # dropping any single segment from CONFIG_DOTPATH fails here. Workspaces was the
+        # segment a new feature's groups landed under while the rule could not see it.
+        cfg_segments = {
+            seg: write(f"src/daemon/seg_{seg.lower()}.cpp", f'auto g = QStringLiteral("{seg}.Sub.Key");\n')
+            for seg in ("Tiling", "Scrolling", "Workspaces", "General", "Appearance", "Editor", "Shell",
+                        "Rules", "Profiles", "Shortcuts", "Animations", "Decorations", "Shaders")
+        }
 
         # js-pragma. The pragma must be inside the window, on its own line, and each of
         # the four filename filters mirrors one of Qt's own.
@@ -625,7 +633,8 @@ def _remaining_rule_failures(partition_readable) -> list[str]:
         try:
             i18n = {v.path for v in rule_i18n_cpp(
                 [i18n_include, i18n_call, i18n_comment, i18n_test, i18n_allowed, i18n_member])}
-            cfg = {v.path for v in rule_config_keys([cfg_bad, cfg_accessor, cfg_def, cfg_test, cfg_other])}
+            cfg = {v.path for v in rule_config_keys(
+                [cfg_bad, cfg_accessor, cfg_def, cfg_test, cfg_other, *cfg_segments.values()])}
             # The MESSAGES too, not just which paths were reported: js_bom is reported by
             # either of two arms, and membership alone cannot tell them apart. Dropping the
             # BOM term from the window arithmetic left it reported by the not-alone-on-its-
@@ -667,6 +676,9 @@ def _remaining_rule_failures(partition_readable) -> list[str]:
         ):
             if (path in cfg) != want:
                 bad.append(f"rule_config_keys {'missed' if want else 'reported'} {why}")
+        for seg, path in cfg_segments.items():
+            if path not in cfg:
+                bad.append(f"rule_config_keys missed an inline {seg}.* dot-path, a v2 top-level group")
 
         js = set(js_msg)
         # The fourth field is a substring the MESSAGE must carry, for a probe that two arms

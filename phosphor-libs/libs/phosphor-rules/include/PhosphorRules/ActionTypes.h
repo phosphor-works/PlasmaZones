@@ -122,6 +122,29 @@ inline constexpr QLatin1StringView RouteToScreen{"routeToScreen"};
 /// open-path placement actions. Sticky (on-all-desktops) windows are left alone.
 /// Daemon-consumed on the open path. Domain Window.
 inline constexpr QLatin1StringView RouteToDesktop{"routeToDesktop"};
+/// Route a matched window to a NAMED dynamic workspace on open. Carries the
+/// declaration's persistent entry id (`ActionParam::TargetWorkspaceId`) and
+/// the name it had when the rule was written (`ActionParam::TargetWorkspaceName`,
+/// required; a rule written before ids existed carries the name alone). The
+/// daemon resolves the id against the live named-workspace declarations,
+/// falls back to the name when no declaration carries the id, and moves the
+/// window to whichever desktop, and onto whichever monitor, currently
+/// realizes it. A no-op when neither resolves or dynamic workspaces are off.
+/// Sticky (on-all-desktops) windows are left alone, as with RouteToDesktop.
+/// Distinct from RouteToDesktop's positional number: the id survives a
+/// rename, renumbering, pinning changes and monitor moves.
+///
+/// Precedence over the other two routes is by ACTION, not by rule priority,
+/// because each route fills its own slot (ActionSlot::RouteWorkspace). When a
+/// cascade carries this route and its target is declared, it decides the
+/// desktop even if the RouteToDesktop came from a higher-priority rule: a
+/// realized workspace places the window there, and one that is declared but
+/// momentarily unresolvable leaves the window on its spawn desktop rather than
+/// applying the number. When the workspace realizes, it also decides the
+/// monitor, and a RouteToScreen in the same cascade is skipped. Only an
+/// undeclared target (or workspaces off) lets the other two routes apply.
+/// Daemon-consumed on the open path. Domain Window.
+inline constexpr QLatin1StringView RouteToWorkspace{"routeToWorkspace"};
 inline constexpr QLatin1StringView OverrideAnimationShader{"overrideAnimationShader"};
 /// Per-window override of the decoration surface-pack chain (border-sweep /
 /// glow / frosted-glass, ...). Carries an ordered pack-id array

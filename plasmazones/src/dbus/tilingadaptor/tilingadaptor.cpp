@@ -389,6 +389,10 @@ void TilingAdaptor::dispatchWindowOpened(const PhosphorProtocol::WindowOpenedEnt
             return;
         }
     }
+    // Whether this announce is the window's first placement, the only kind its
+    // open routing runs for. Read before the claim below, which writes this
+    // window's placement record.
+    const bool firstPlacement = m_windowTrackingAdaptor && m_windowTrackingAdaptor->isFirstTilingPlacement(entry);
     // Claim this instance's placement record before any selector reads one, the
     // same reason the snap channel does it at the head of resolveWindowRestore.
     // The two open channels and every later re-drive must agree on WHICH record
@@ -420,19 +424,26 @@ void TilingAdaptor::dispatchWindowOpened(const PhosphorProtocol::WindowOpenedEnt
         svc->claimPlacementForOpen(entry.windowId, entry.screenId, openingEngineId);
     }
 
-    // Window-rule open routing (RouteToScreen / RouteToDesktop). The WTA owns the
-    // rule store + evaluator and the desktop/output-move relay signals. It emits a
-    // RouteToDesktop move and, for a RouteToScreen pin onto a DIFFERENT engine-managed
-    // monitor, returns that screen so we insert the window into its placement state
-    // instead of the spawn screen's (snap-mode targets are handled by the snap
-    // placement path, so the returned screen is always empty or engine-managed).
-    // Routing runs ONCE per open: applyOpenRoutingForTiling has side
-    // effects (RouteToDesktop move request, expected-output-move arming),
-    // so a parked entry must not re-run it on retry — the routed screen is
-    // baked into the parked entry instead.
+    // Window-rule open routing (RouteToWorkspace / RouteToScreen /
+    // RouteToDesktop). The WTA owns the rule store + evaluator and the move
+    // relay signals. It emits the workspace or desktop move and, for a
+    // declared workspace's owner or a RouteToScreen pin on a DIFFERENT
+    // engine-managed monitor, returns that screen so we insert the window into
+    // its placement state instead of the spawn screen's (snap-mode targets are
+    // handled by the snap placement path, so the returned screen is always
+    // empty or engine-managed).
+    //
+    // First placements only, like the snap channel: this channel also hears
+    // every re-announce of a window that is already placed (a daemon restart's
+    // bring-up, a mode flip, a desktop return), and routing one of those again
+    // yanked a window the user had since moved back to its rule's destination.
+    // Within one open the WTA routes once and only re-publishes its verdict to
+    // a second caller (the snap channel's resolve of the same open), and a
+    // parked entry is not re-dispatched through here, so its retry never
+    // re-runs the routing: the routed screen is baked into the parked entry.
     PhosphorProtocol::WindowOpenedEntry routedEntry = entry;
     bool ruleRouted = false;
-    if (m_windowTrackingAdaptor) {
+    if (m_windowTrackingAdaptor && firstPlacement) {
         const QString routed =
             m_windowTrackingAdaptor->applyOpenRoutingForTiling(entry.windowId, entry.screenId, &ruleRouted);
         if (!routed.isEmpty()) {
@@ -464,6 +475,11 @@ void TilingAdaptor::setWindowTrackingAdaptor(WindowTrackingAdaptor* wta)
         if (self) {
             self->dispatchOpenToClaimingEngine(e, /*allowPark=*/false, /*allowCrossScreenClaim=*/false);
         }
+    });
+    // The span the membership pass reads, for the adaptor's own release of a
+    // window placed again where a refused move left it.
+    wta->setDesktopSpanQuery([self = QPointer<TilingAdaptor>(this)](const QString& windowId) {
+        return self ? self->desktopSpanQuery()(windowId) : PhosphorEngine::DesktopSpan{};
     });
 }
 
@@ -705,6 +721,13 @@ void TilingAdaptor::windowReannounced(const QString& windowId, const QString& sc
 {
     if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
         return;
+    }
+    // A re-announce places the window again where it actually is. A snap
+    // membership it still holds anywhere else is stale: the effect re-announces
+    // a window whose workspace move the compositor refused, after the
+    // snap-target handoff had already filed it under the destination (F581).
+    if (m_windowTrackingAdaptor && !windowId.isEmpty() && !screenId.isEmpty()) {
+        m_windowTrackingAdaptor->releaseSnapOutsideLiveContext(windowId, screenId);
     }
     announceWindow("windowReannounced", windowId, screenId, minWidth, minHeight, /*focusEligible=*/false);
 }
@@ -1106,6 +1129,10 @@ void TilingAdaptor::clearEngine()
     ++m_announceGeneration;
     m_screensAnnouncePending = false;
     m_pendingIsDesktopSwitch = false;
+    // The effect a restart talks to settles its owed announce on the new
+    // session's first one, so a renumber owes nothing for this session's.
+    m_lastAnnounceScreenDesktops.clear();
+    m_lastAnnounceWasSwitch = false;
     // Held behind the announce just voided, and naming the dead session's
     // windows and rects — a restart's first announce must not flush them.
     m_tileBatchesHeldForAnnounce.clear();

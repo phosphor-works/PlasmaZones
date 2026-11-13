@@ -302,13 +302,22 @@ public:
      *        optional RouteToDesktop target — for an opening window because a placement rule matched
      *        it. Daemon-injected, keyed by the live windowId plus the screen the
      *        window is opening on (so a rule carrying a `ScreenId` constraint
-     *        resolves against the window's current screen), evaluated by
-     *        calculateSnapToPlacementRule for the open path's highest-priority level,
-     *        the Meta+F unfloat's rule tier and the Snap.snapToAppRule bus slot, and by
-     *        routedOpenDesktop for the float terminals. See PlacementDirective. Both
-     *        lists empty ⇒ no SnapToZone rule matched; multiple targets across the
-     *        two lists request a zone span (their unioned bounding rect). The engine stays settings/rule-
-     *        store-agnostic (LGPL boundary) — it only asks. When UNSET (default) no
+     *        resolves against the window's current screen). The open path
+     *        (resolveWindowRestore) resolves it ONCE per pass and feeds the same
+     *        directive to calculateSnapToPlacementRule and to the desktop its
+     *        float terminals pin to; the Meta+F unfloat's rule tier and the
+     *        Snap.snapToAppRule bus slot resolve it on their own. See
+     *        PlacementDirective. Both lists empty ⇒ no SnapToZone rule matched;
+     *        multiple targets across the two lists request a zone span (their
+     *        unioned bounding rect). The engine stays settings/rule-store-agnostic
+     *        (LGPL boundary) — it only asks.
+     *
+     *        Not a pure query. The daemon's resolver hands the open's routing
+     *        verdict (the desktop and monitor its routing pass sent the window
+     *        to, a realized RouteToWorkspace included) to the FIRST resolve of
+     *        the pass and to nothing after it, so a second resolve in the same
+     *        pass sees only the rules' own RouteToScreen and RouteToDesktop.
+     *        Resolve once and pass the directive along. When UNSET (default) no
      *        window is rule-snapped and the engine keeps its historical open
      *        behaviour (path unit tests rely on this). Same lifetime contract as
      *        setFloatPredicate — clear with `{}` before destroying any captured state.
@@ -336,6 +345,24 @@ public:
     /// is empty): zone with the last-used naming it, float bit, residence,
     /// pre-float home and persisted per-desktop entry. Emits nothing.
     void releaseWindowOffScreen(const QString& windowId, const QString& keepScreenId) override;
+
+    /// Silently release every membership @p windowId holds outside where it
+    /// actually is: one off @p screenId (in any spelling of it), and, when
+    /// @p span is known, one in a context @p span does not cover. This is what
+    /// a refused workspace move leaves behind: the snap-target handoff
+    /// re-keyed the window into the destination's store before the compositor
+    /// was asked, and the compositor kept the window where it was. Each
+    /// membership goes the way releaseWindowOffScreen releases one (zone with
+    /// the last-used naming it, float bit, residence, pre-float home and
+    /// persisted per-desktop entry), and a pre-float home off @p screenId goes
+    /// too. An unknown span releases only the memberships off @p screenId.
+    ///
+    /// Emits nothing. The answer lists each released (window, key) in
+    /// MembershipReconcileResult::released so the caller drives the placement
+    /// re-capture and the effect's zone mirror as it does after a membership
+    /// pass.
+    PhosphorEngine::MembershipReconcileResult releaseWindowOutsideSpan(const QString& windowId, const QString& screenId,
+                                                                       const PhosphorEngine::DesktopSpan& span);
 
     // Evacuee park (src/evacueepark.cpp; the contract is IPlacementEngine's).
     QStringList parkOutput(const QString& physicalScreenId) override;
@@ -1036,7 +1063,10 @@ private:
                                     PhosphorEngine::RestoreReason reason, bool placedBefore);
     /// The sizes a snapped window on @p screenId can have in @p desktop's context.
     QList<QSize> managedSizesOnScreen(const QString& screenId, int desktop) const;
-    /// The RouteToDesktop target of the rule matching an opening window (0 = none); the float terminals pin to it.
+    /// The RouteToDesktop target of the rule matching an opening window (0 = none), for applyNoMatchFloatDefault
+    /// only: the in-tree float terminals take the desktop from resolveWindowRestore's single resolve. This is a
+    /// resolve of its own, so after an open pass has already resolved (and taken the routing verdict, see
+    /// PlacementZonesResolver) it answers from the rules' own RouteToDesktop, not from a workspace route.
     int routedOpenDesktop(const QString& windowId, const QString& screenId) const;
 
     /// Canonicalize a raw windowId to its stable first-seen composite via the

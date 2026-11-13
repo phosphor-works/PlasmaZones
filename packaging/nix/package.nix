@@ -155,10 +155,12 @@ stdenv.mkDerivation (finalAttrs: {
                           # (QT_PLUGIN_PATH, QML2_IMPORT_PATH, etc.) at runtime
                           # without manual environment variable management.
   ]
-  # KDE Frameworks bring their own CMake modules and code generators
-  # (kconfig_add_kcfg_files, etc.) that must run on the build machine.
+  # KDE Frameworks bring their own CMake modules and code generators that
+  # must run on the build machine. The KF6Config package imports KConfig's
+  # code-generator tool when it is found, although PlasmaZones generates
+  # nothing from it since its .kcfg schemas were removed.
   ++ lib.optionals withKdeFrameworks [
-    kdePackages.kconfig   # Provides KConfigXT code generator used by the KCM
+    kdePackages.kconfig   # KF6Config's CMake package and its generator tool
   ];
 
   buildInputs = [
@@ -198,7 +200,7 @@ stdenv.mkDerivation (finalAttrs: {
   ]
   ++ lib.optionals withKdeFrameworks [
     # ── KDE Frameworks 6 ─────────────────────────────────────────────────────
-    kdePackages.kconfig           # KConfig: persistent settings storage
+    kdePackages.kconfig           # KConfig: dynamic workspaces read kwinrc and make the consented PerOutputVirtualDesktops write
     kdePackages.kcoreaddons       # KCoreAddons: KPluginFactory, KAboutData, etc.
     kdePackages.kcmutils          # KCMUtils: KDE System Settings module support
     kdePackages.kglobalaccel      # KGlobalAccel: system-wide keyboard shortcuts
@@ -214,8 +216,9 @@ stdenv.mkDerivation (finalAttrs: {
     kdePackages.kwin
 
     # ── Optional KDE extras ───────────────────────────────────────────────────
-    # PlasmaActivities enables per-activity zone layouts. The CMakeLists
-    # searches for it with QUIET so the build succeeds without it.
+    # PlasmaActivities enables per-activity zone layouts. Only
+    # phosphor-libs/libs/phosphor-workspaces searches for it, with QUIET, so
+    # the build succeeds without it.
     kdePackages.plasma-activities  # was: kactivities in KF5
   ];
 

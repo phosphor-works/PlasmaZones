@@ -141,19 +141,6 @@ public:
         Q_EMIT zoneSpanEnabledChanged();
         Q_EMIT settingsChanged();
     }
-    DragModifier zoneSpanModifier() const override
-    {
-        return m_zoneSpanModifier;
-    }
-    void setZoneSpanModifier(DragModifier value) override
-    {
-        if (m_zoneSpanModifier == value) {
-            return;
-        }
-        m_zoneSpanModifier = value;
-        Q_EMIT zoneSpanModifierChanged();
-        Q_EMIT settingsChanged();
-    }
     QVariantList zoneSpanTriggers() const override
     {
         return m_zoneSpanTriggers;
@@ -3157,7 +3144,6 @@ private:
         static_cast<AutotileDragBehavior>(ConfigDefaults::autotileDragBehavior());
     AutotileOverflowBehavior m_autotileOverflowBehavior =
         static_cast<AutotileOverflowBehavior>(ConfigDefaults::autotileOverflowBehavior());
-    DragModifier m_zoneSpanModifier = static_cast<DragModifier>(ConfigDefaults::zoneSpanModifier());
     OsdStyle m_osdStyle = static_cast<OsdStyle>(ConfigDefaults::osdStyle());
     OverlayDisplayMode m_overlayDisplayMode = static_cast<OverlayDisplayMode>(ConfigDefaults::overlayDisplayMode());
     // Empty, matching ConfigDefaults::shaderProfileTree() — which is a QVariantMap and so
@@ -3187,7 +3173,9 @@ private:
     QHash<int, QStringList> m_disabledMonitors;
     QHash<int, QStringList> m_disabledDesktops;
     QHash<int, QStringList> m_disabledActivities;
-    QStringList m_lockedScreens = ConfigDefaults::lockedScreens();
+    // Empty, as in production: ConfigDefaults::autotileLockedScreens() is the empty string,
+    // the comma-joined form of no screen locked.
+    QStringList m_lockedScreens;
     QVariantList m_autotileDragInsertTriggers = ConfigDefaults::autotileDragInsertTriggers();
     QVariantList m_scrollingDragInsertTriggers = ConfigDefaults::scrollingDragInsertTriggers();
     QVariantList m_scrollingWheelFocusTriggers = ConfigDefaults::scrollingWheelFocusTriggers();

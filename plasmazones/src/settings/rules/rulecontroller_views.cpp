@@ -53,6 +53,31 @@ using PhosphorRules::MatchExpression;
 using PhosphorRules::Rule;
 using PhosphorRules::RuleAction;
 
+/// @p items joined as a prose list in the language the sentence around it is
+/// translated into. QLocale::createSeparatedList would follow the system
+/// locale instead, which need not be the translation's language, and put an
+/// English "and" inside a translated sentence.
+QString translatedProseList(const QStringList& items)
+{
+    if (items.isEmpty()) {
+        return {};
+    }
+    QString joined = items.constFirst();
+    for (qsizetype i = 1; i + 1 < items.size(); ++i) {
+        joined = PhosphorI18n::tr("%1, %2", "a list built so far, then its next item").arg(joined, items.at(i));
+    }
+    // A pair and the end of a longer list are separate messages, because a
+    // language may join them differently (English style guides differ on a
+    // comma before the "and" of three or more items).
+    if (items.size() == 2) {
+        joined = PhosphorI18n::tr("%1 and %2", "a list of exactly two items").arg(joined, items.constLast());
+    } else if (items.size() > 2) {
+        joined = PhosphorI18n::tr("%1 and %2", "a list of three or more items built so far, then its last item")
+                     .arg(joined, items.constLast());
+    }
+    return joined;
+}
+
 /// The device-pixel size of @p screen (a `SettingsController::screens` map)
 /// when the daemon's rules see one: the compositor's report, or the seeded
 /// size, the one last accepted for that monitor in this session or an
@@ -712,6 +737,61 @@ QVariantList RuleController::validationIssuesForJson(const QVariantMap& ruleJson
         out.append(m);
     }
     return out;
+}
+
+QString RuleController::modeScopedInertHint(const QVariantMap& ruleJson) const
+{
+    const QJsonObject obj = QJsonObject::fromVariantMap(ruleJson);
+    const QJsonValue matchValue = obj.value(QLatin1String("match"));
+    if (!matchValue.isObject()) {
+        return {};
+    }
+    const auto match = MatchExpression::fromJson(matchValue.toObject());
+    if (!match || !match->referencesAnyField({Field::Mode})) {
+        return {};
+    }
+    // The action types whose daemon readers resolve under admitScreenStamped
+    // (rules_admission.h). Keep in step with that predicate's documented list.
+    static const QSet<QString> neverApplied = {
+        QString(ActionType::RouteToWorkspace),        QString(ActionType::RouteToScreen),
+        QString(ActionType::RouteToDesktop),          QString(ActionType::RestorePosition),
+        QString(ActionType::SetRestoreToZoneOnLogin),
+    };
+    QStringList inert;
+    bool snapsAtOpen = false;
+    const QJsonValue actionsValue = obj.value(QLatin1String("actions"));
+    if (actionsValue.isArray()) {
+        for (const QJsonValue& v : actionsValue.toArray()) {
+            const QString type = v.toObject().value(QLatin1String("type")).toString();
+            if (neverApplied.contains(type)) {
+                const QString label = PhosphorI18n::tr("“%1”").arg(RuleAuthoring::actionTypeLabel(type));
+                if (!inert.contains(label)) {
+                    inert.append(label);
+                }
+            } else if (type == ActionType::SnapToZone) {
+                snapsAtOpen = true;
+            }
+        }
+    }
+    QStringList sentences;
+    if (inert.size() == 1) {
+        sentences.append(PhosphorI18n::tr("%1 never takes effect in a rule that checks the placement mode, because it "
+                                          "is decided before the mode is known. Move it to a rule without a mode "
+                                          "condition.")
+                             .arg(inert.constFirst()));
+    } else if (inert.size() > 1) {
+        sentences.append(PhosphorI18n::tr("%1 never take effect in a rule that checks the placement mode, because "
+                                          "they are decided before the mode is known. Move them to a rule without a "
+                                          "mode condition.")
+                             .arg(translatedProseList(inert)));
+    }
+    if (snapsAtOpen) {
+        sentences.append(PhosphorI18n::tr("“%1” does not place a window when it opens in a rule that checks the "
+                                          "placement mode, because the opening placement is decided before the mode "
+                                          "is known.")
+                             .arg(RuleAuthoring::actionTypeLabel(QString(ActionType::SnapToZone))));
+    }
+    return sentences.join(QLatin1Char(' '));
 }
 
 bool RuleController::matchIsContextOnly(const QVariantMap& matchJson) const

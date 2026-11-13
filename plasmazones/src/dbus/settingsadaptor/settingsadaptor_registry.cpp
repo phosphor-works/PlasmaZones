@@ -691,9 +691,8 @@ void SettingsAdaptor::initializeRegistry()
         if (!m_cachedShaderSearchPaths.isEmpty()) {
             return m_cachedShaderSearchPaths;
         }
-        QStringList paths =
-            QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QStringLiteral("plasmazones/animations"),
-                                      QStandardPaths::LocateDirectory);
+        QStringList paths = QStandardPaths::locateAll(
+            QStandardPaths::GenericDataLocation, ConfigDefaults::animationsSubdir(), QStandardPaths::LocateDirectory);
         // REVERSE into ascending priority, exactly as the daemon's own registry
         // population does (shader_warmup.cpp). This list is registered verbatim
         // by the effect via addSearchPaths, and MetadataPackScanStrategy
@@ -707,7 +706,7 @@ void SettingsAdaptor::initializeRegistry()
         // processes.
         std::reverse(paths.begin(), paths.end());
         const QString userDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-            + QStringLiteral("/plasmazones/animations");
+            + ConfigDefaults::userAnimationsSubdir();
         if (!paths.contains(userDir))
             paths.append(userDir);
         m_cachedShaderSearchPaths =
@@ -873,6 +872,63 @@ void SettingsAdaptor::initializeRegistry()
         REGISTER_CONCRETE_STRING("rotateVirtualScreensCounterclockwiseShortcut",
                                  rotateVirtualScreensCounterclockwiseShortcut,
                                  setRotateVirtualScreensCounterclockwiseShortcut)
+
+        // Dynamic-workspaces verb chords and the per-slot focus / move chords
+        REGISTER_CONCRETE_STRING("workspaceFocusUpShortcut", workspaceFocusUpShortcut, setWorkspaceFocusUpShortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusDownShortcut", workspaceFocusDownShortcut,
+                                 setWorkspaceFocusDownShortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveWindowUpShortcut", workspaceMoveWindowUpShortcut,
+                                 setWorkspaceMoveWindowUpShortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveWindowDownShortcut", workspaceMoveWindowDownShortcut,
+                                 setWorkspaceMoveWindowDownShortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveColumnUpShortcut", workspaceMoveColumnUpShortcut,
+                                 setWorkspaceMoveColumnUpShortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveColumnDownShortcut", workspaceMoveColumnDownShortcut,
+                                 setWorkspaceMoveColumnDownShortcut)
+        REGISTER_CONCRETE_STRING("workspaceReorderUpShortcut", workspaceReorderUpShortcut,
+                                 setWorkspaceReorderUpShortcut)
+        REGISTER_CONCRETE_STRING("workspaceReorderDownShortcut", workspaceReorderDownShortcut,
+                                 setWorkspaceReorderDownShortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveToMonitorLeftShortcut", workspaceMoveToMonitorLeftShortcut,
+                                 setWorkspaceMoveToMonitorLeftShortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveToMonitorRightShortcut", workspaceMoveToMonitorRightShortcut,
+                                 setWorkspaceMoveToMonitorRightShortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot1Shortcut", workspaceFocusSlot1Shortcut,
+                                 setWorkspaceFocusSlot1Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot2Shortcut", workspaceFocusSlot2Shortcut,
+                                 setWorkspaceFocusSlot2Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot3Shortcut", workspaceFocusSlot3Shortcut,
+                                 setWorkspaceFocusSlot3Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot4Shortcut", workspaceFocusSlot4Shortcut,
+                                 setWorkspaceFocusSlot4Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot5Shortcut", workspaceFocusSlot5Shortcut,
+                                 setWorkspaceFocusSlot5Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot6Shortcut", workspaceFocusSlot6Shortcut,
+                                 setWorkspaceFocusSlot6Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot7Shortcut", workspaceFocusSlot7Shortcut,
+                                 setWorkspaceFocusSlot7Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot8Shortcut", workspaceFocusSlot8Shortcut,
+                                 setWorkspaceFocusSlot8Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceFocusSlot9Shortcut", workspaceFocusSlot9Shortcut,
+                                 setWorkspaceFocusSlot9Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot1Shortcut", workspaceMoveSlot1Shortcut,
+                                 setWorkspaceMoveSlot1Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot2Shortcut", workspaceMoveSlot2Shortcut,
+                                 setWorkspaceMoveSlot2Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot3Shortcut", workspaceMoveSlot3Shortcut,
+                                 setWorkspaceMoveSlot3Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot4Shortcut", workspaceMoveSlot4Shortcut,
+                                 setWorkspaceMoveSlot4Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot5Shortcut", workspaceMoveSlot5Shortcut,
+                                 setWorkspaceMoveSlot5Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot6Shortcut", workspaceMoveSlot6Shortcut,
+                                 setWorkspaceMoveSlot6Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot7Shortcut", workspaceMoveSlot7Shortcut,
+                                 setWorkspaceMoveSlot7Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot8Shortcut", workspaceMoveSlot8Shortcut,
+                                 setWorkspaceMoveSlot8Shortcut)
+        REGISTER_CONCRETE_STRING("workspaceMoveSlot9Shortcut", workspaceMoveSlot9Shortcut,
+                                 setWorkspaceMoveSlot9Shortcut)
     }
 
 // Clean up macros (local scope)

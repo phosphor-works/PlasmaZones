@@ -13,7 +13,8 @@
 // can arrive before the move that caused it has settled: mid-drag, before a
 // size-changing Move to Screen is acked, while the crossing waits for a
 // screen-change settle, or when PlasmaZones re-desks the window at a crossing
-// of its own (pzReDesk) before the crossing body has run. A held edit pushes the context the window had and runs
+// of its own (pzReDesk) before the crossing body has run, or between the two
+// legs of PlasmaZones' own workspace move. A held edit pushes the context the window had and runs
 // once at the release, after the crossing notice, so no daemon reconcile carries
 // the window into a context nobody is looking at mid-move. Kept free of KWin
 // types so it is unit-testable on its own; PlasmaZonesEffect::holdContextEdit
@@ -26,6 +27,10 @@ enum Reason : quint8 {
     OutputInFlight = 2, ///< KWin moved it to an output the client has not committed to yet
     SettlePending = 4, ///< its crossing waits for the screen-change settle
     PzCrossing = 8, ///< PlasmaZones re-desked it at its own crossing, until the crossing body ran
+    /// PlasmaZones' own workspace move, until both of its legs ran. The output
+    /// leg's KWin re-desk (finishInteractiveOutputChange) is an intermediate
+    /// set the desktop leg replaces at once, so the edit runs on the final one.
+    WorkspaceMove = 16,
 };
 
 struct Inputs

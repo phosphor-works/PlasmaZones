@@ -13,6 +13,7 @@
 
 #include "config/configdefaults.h"
 #include "config/configmigration.h"
+#include "config/configmigration_util.h"
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 #include "phosphor_i18n.h"
@@ -25,6 +26,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 
 namespace PlasmaZones {
 namespace {
@@ -117,6 +119,87 @@ QByteArray withoutUtf8Bom(const QByteArray& bytes)
     return bytes.startsWith(kUtf8Bom) ? bytes.mid(kUtf8Bom.size()) : bytes;
 }
 
+/// The config.json document at @p path as an object, or an empty object when
+/// the file is missing, unreadable or not a JSON object.
+QJsonObject readConfigDocument(const QString& path)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(withoutUtf8Bom(file.readAll()));
+    return doc.isObject() ? doc.object() : QJsonObject();
+}
+
+/// Every (group, key) Settings::isMachineScopedKey names, enumerated off the
+/// schema-defaults blob (`{group: {key: value}}`, every declared key) so the
+/// predicate stays the one source of the set.
+Settings::ConfigKeyList machineScopedConfigKeys(const QJsonObject& defaultsBlob)
+{
+    Settings::ConfigKeyList keys;
+    for (auto groupIt = defaultsBlob.constBegin(); groupIt != defaultsBlob.constEnd(); ++groupIt) {
+        if (!groupIt.value().isObject()) {
+            continue;
+        }
+        const QJsonObject group = groupIt.value().toObject();
+        for (auto keyIt = group.constBegin(); keyIt != group.constEnd(); ++keyIt) {
+            if (Settings::isMachineScopedKey(groupIt.key(), keyIt.key())) {
+                keys.append({groupIt.key(), keyIt.key()});
+            }
+        }
+    }
+    return keys;
+}
+
+/// Give the imported config.json at @p path this machine's own values of the
+/// machine-scoped @p keys: the imported document's values are dropped and
+/// @p liveRoot's (the config as it was before the import, in the same nested
+/// shape) are carried over, a key absent there staying absent so its default
+/// applies. An import then neither grants nor withdraws this machine's
+/// consent, and never repoints its render GPU. Returns false when the file
+/// cannot be read or rewritten.
+bool carryMachineScopedKeys(const QString& path, const QJsonObject& liveRoot, const Settings::ConfigKeyList& keys)
+{
+    QFile in(path);
+    if (!in.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(in.readAll());
+    in.close();
+    if (!doc.isObject()) {
+        return false;
+    }
+    QJsonObject root = doc.object();
+    bool changed = false;
+    for (const Settings::ConfigKey& groupKey : keys) {
+        const QString& group = groupKey.first;
+        const QString& key = groupKey.second;
+        const QJsonValue live = groupObjectAtPath(liveRoot, group).value(key);
+        QJsonObject importedGroup = groupObjectAtPath(root, group);
+        if (importedGroup.value(key) == live) {
+            continue;
+        }
+        if (live.isUndefined()) {
+            importedGroup.remove(key);
+        } else {
+            importedGroup.insert(key, live);
+        }
+        const QStringList segments = group.split(QLatin1Char('.'), Qt::SkipEmptyParts);
+        if (importedGroup.isEmpty()) {
+            removeGroupAtSegments(root, segments);
+        } else {
+            setGroupAtSegments(root, segments, importedGroup);
+        }
+        changed = true;
+    }
+    if (!changed) {
+        return true;
+    }
+    QSaveFile out(path);
+    const QByteArray bytes = QJsonDocument(root).toJson(QJsonDocument::Indented);
+    return out.open(QIODevice::WriteOnly) && out.write(bytes) == bytes.size() && out.commit();
+}
+
 } // namespace
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -180,6 +263,19 @@ bool SettingsController::exportAllSettings(const QString& filePath)
     // atomically, so a failed export leaves whatever was at the destination
     // alone instead of unlinking it up front to make room.
     if (!m_settings.exportTo(safeFilePath)) {
+        // exportTo refuses, writing nothing, while config.json cannot be read
+        // even after looking again: the store then holds a stand-in, and an
+        // export of it would be a valid-looking file of defaults or of an old
+        // state. That is a different fault from an unwritable destination.
+        if (m_settings.configUnreadable()) {
+            qCWarning(PlasmaZones::lcCore)
+                << "exportAllSettings: config file unreadable, nothing exported:" << m_settings.configFilePath();
+            Q_EMIT settingsTransferFailed(
+                PhosphorI18n::tr("Nothing was exported because %1 cannot be read. Repair that file, then try "
+                                 "again.")
+                    .arg(m_settings.configFilePath()));
+            return false;
+        }
         qCWarning(PlasmaZones::lcCore) << "Failed to export settings to:" << safeFilePath;
         Q_EMIT settingsTransferFailed(
             PhosphorI18n::tr("Could not write the export. Check that the folder is writable."));
@@ -304,6 +400,12 @@ bool SettingsController::importAllSettings(const QString& filePath)
     // restore — and whatever this import wrote would stay behind as the live
     // config. The failure path below uses this to clean that up.
     const bool hadExistingConfig = QFile::exists(configPath);
+    // This machine's config as it stands, read before anything overwrites it:
+    // the machine-scoped keys are carried over from here once the imported
+    // document has landed (carryMachineScopedKeys). An unreadable or missing
+    // config yields an empty object, so those keys fall back to their
+    // defaults, which grant nothing.
+    const QJsonObject preImportRoot = readConfigDocument(configPath);
 
     // Backup current config
     const QString backupPath = configPath + QStringLiteral(".bak");
@@ -478,6 +580,21 @@ bool SettingsController::importAllSettings(const QString& filePath)
                 }
             }
         }
+    }
+
+    // Whichever arm wrote the file, the document now on disk is the
+    // sender's, migrated to this schema. Its machine-scoped keys belong to the
+    // sender's machine (Settings::isMachineScopedKey): replace them with this
+    // machine's own before anything reads the file. A failure here is a write
+    // failure like the ones above, and restores the backup below.
+    if (ok && configWritten
+        && !carryMachineScopedKeys(configPath, preImportRoot,
+                                   machineScopedConfigKeys(m_settings.defaultConfigJson()))) {
+        qCWarning(PlasmaZones::lcCore) << "importAllSettings: could not keep this machine's own values of the "
+                                          "machine-scoped keys in"
+                                       << configPath;
+        Q_EMIT settingsTransferFailed(PhosphorI18n::tr("Could not replace your settings with that file."));
+        ok = false;
     }
 
     if (!ok && !configWritten) {

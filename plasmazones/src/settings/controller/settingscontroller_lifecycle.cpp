@@ -393,13 +393,17 @@ void SettingsController::save()
     // reset through singleShot(0) drains those queued signals first, so
     // onExternalSettingsChanged() sees m_saving=true and returns early.
     //
-    // A reload deferred while edits were pending is superseded by this save.
-    // onExternalSettingsChanged() already adopted the external change's
-    // untouched config keys when it arrived, so the whole-schema flush above
-    // wrote them back as they were, and re-reading disk afterwards would find
-    // nothing new. Clear the flag so the clean transition below doesn't fire
-    // a pointless reload.
-    m_pendingExternalReload = false;
+    // A reload deferred while edits were pending is superseded by a save that
+    // WROTE the config. onExternalSettingsChanged() already adopted the
+    // external change's untouched config keys when it arrived, so the
+    // whole-schema flush above wrote them back as they were, and re-reading
+    // disk afterwards would find nothing new. Cleared only on a written
+    // config: a refused or failed write leaves the external change unread on
+    // disk, and the deferred reload is what picks it up once the pages are
+    // clean again.
+    if (configWritten) {
+        m_pendingExternalReload = false;
+    }
     setNeedsSave(false);
     // Window-rule failure handling moved to RuleController itself
     // (see pushToDaemonAsync): a failed/partial-drop push keeps the page
@@ -434,10 +438,6 @@ void SettingsController::save()
 
 void SettingsController::defaults()
 {
-    // A factory reset rewrites the whole schema to disk just like save()
-    // does, superseding any reload deferred while edits were pending —
-    // clear the flag for the same reason save() does.
-    m_pendingExternalReload = false;
     // Hold m_loading = true through the ENTIRE reset cleanup, not just
     // the reset() call. revertPending() emits pendingChangesChanged
     // synchronously and the staged-order reset transitions through
@@ -463,6 +463,11 @@ void SettingsController::defaults()
                                QString(m_settings.configUnreadable() ? ReasonConfigUnreadable : ReasonResetNotWritten));
         return;
     }
+    // A factory reset that landed rewrote the whole schema to disk just like
+    // save() does, superseding any reload deferred while edits were pending.
+    // Cleared only past the refusal above: a reset that wrote nothing leaves
+    // the external change unread, and the deferred reload must still run.
+    m_pendingExternalReload = false;
 
     m_staging.clearAll();
     // Gate the staged-order NOTIFY emits on transition (same rationale
@@ -498,7 +503,8 @@ void SettingsController::defaults()
     // whatever was staged. Stage the clears the same way per-page Reset does —
     // through the same helper — so "Restore Defaults" actually unassigns the
     // slots instead of leaving the user's assignments behind on the three
-    // Quick Shortcuts pages. The clears flush on the next Save, which is what
+    // per-mode Quick Shortcuts pages (the Workspaces one holds config keys,
+    // which reset() above already cleared). The clears flush on the next Save, which is what
     // leaves those pages legitimately dirty below.
     //
     // The loop runs over WIRE MODES, matching AssignmentEntry::Mode — the same

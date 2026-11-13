@@ -6,8 +6,10 @@
 //
 // The open-path half of the rule resolvers: the SnapToZone placement directive
 // (zone ordinals and names, re-validated by one shared reader), the
-// RouteToScreen / RouteToDesktop open-routing on the snap and tiling channels,
-// and the "does a rule own this window's target" verdict both channels share.
+// RouteToWorkspace / RouteToScreen / RouteToDesktop open-routing on the snap
+// and tiling channels (run once per open, its verdict latched until the window
+// closes), and the "does a rule own this window's target" verdict both
+// channels share.
 // The restore predicates, stampers and per-window param builders live in
 // rules.cpp; the admission tests both TUs share are in rules_admission.h.
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -20,6 +22,7 @@
 #include "core/platform/logging.h"
 #include <PhosphorEngine/GeometryUtils.h>
 #include <PhosphorEngine/WindowRegistry.h>
+#include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>
@@ -182,25 +185,56 @@ PhosphorSnapEngine::PlacementDirective WindowTrackingAdaptor::placementZonesByRu
 
     PhosphorSnapEngine::PlacementDirective directive;
 
-    // RouteToScreen target (optional, independent of SnapToZone): pin the placement
-    // to a specific monitor. A non-empty target moves the window there and resolves
-    // its zone on that screen. The id is the canonical screen-id form the picker and
-    // the runtime both use; the snap engine declines the route if the target is not
-    // currently a snapping-mode screen, so an absent / autotile / disabled target is
-    // safe here.
-    if (const auto route = resolved.slot(QString(PhosphorRules::ActionSlot::RouteScreen))) {
-        directive.targetScreenId = route->params.value(QString(PhosphorRules::ActionParam::TargetScreenId)).toString();
-    }
+    // The open's routing verdict, TAKEN rather than read: this builder also
+    // serves SnapEngine::unfloatToZone, an arbitrarily later non-open path,
+    // and the per-pass record is what keeps the open's answer from reaching
+    // it (see m_openRoutePass). A pass that published nothing (the unfloat,
+    // a restore that is no first placement) takes an empty verdict and reads
+    // the rule's own RouteToScreen and RouteToDesktop below.
+    const OpenRouteVerdict routed = m_openRoutePass.take(shadowWindowId(windowId));
 
-    // RouteToDesktop target (optional): when set, the zones resolve on this
-    // desktop's layout and the snap commits in this desktop's context, so a
-    // combined SnapToZone + RouteToDesktop rule lands the window in the right zone
-    // of the destination desktop. The desktop MOVE itself is emitted separately by
-    // applyOpenDesktopRouting (engine-neutral); this only steers the snap placement.
-    if (const auto route = resolved.slot(QString(PhosphorRules::ActionSlot::RouteDesktop))) {
-        const int desktop = route->params.value(QString(PhosphorRules::ActionParam::TargetDesktop)).toInt(0);
-        if (desktop >= 1) {
-            directive.targetDesktop = desktop;
+    if (routed.workspaceDeclared) {
+        // A declared workspace decides both the desktop and the monitor, over
+        // any RouteToDesktop or RouteToScreen in the same cascade
+        // (route_precedence; see the RouteToWorkspace descriptor). Realized,
+        // it names the desktop the window is landing on and its owner
+        // monitor. The daemon's registry still reports the spawn output while
+        // the output leg is in flight, so an unpinned directive would snap the
+        // window into a zone of the screen it is leaving. Parked (declared but
+        // momentarily unresolvable) or refused for a sticky window, it names
+        // neither, and the zones resolve where the window opened.
+        if (!routed.screen.isEmpty()) {
+            directive.targetScreenId = workspaceLandingScreen(windowId, placementScreen, routed.screen);
+        }
+        if (routed.desktop >= 1) {
+            directive.targetDesktop = routed.desktop;
+        }
+    } else {
+        // RouteToScreen target (optional, independent of SnapToZone): pin the
+        // placement to a specific monitor. A non-empty target moves the window
+        // there and resolves its zone on that screen. The id is the canonical
+        // screen-id form the picker and the runtime both use; the snap engine
+        // declines the route if the target is not currently a snapping-mode
+        // screen, so an absent / autotile / disabled target is safe here.
+        if (const auto route = resolved.slot(QString(PhosphorRules::ActionSlot::RouteScreen))) {
+            // Trimmed at the read site: the loader validates the TRIMMED
+            // string but stores the param verbatim, and
+            // ScreenIdentity::screensMatch does no trimming of its own, so a
+            // padded id passes validation and then matches no monitor at all.
+            directive.targetScreenId =
+                route->params.value(QString(PhosphorRules::ActionParam::TargetScreenId)).toString().trimmed();
+        }
+        // RouteToDesktop target (optional): when set, the zones resolve on
+        // this desktop's layout and the snap commits in this desktop's
+        // context, so a combined SnapToZone + RouteToDesktop rule lands the
+        // window in the right zone of the destination desktop. The desktop
+        // MOVE itself is emitted separately by the routing pass
+        // (emitOpenRoutingIfMatched); this only steers the snap placement.
+        if (const auto route = resolved.slot(QString(PhosphorRules::ActionSlot::RouteDesktop))) {
+            const int desktop = route->params.value(QString(PhosphorRules::ActionParam::TargetDesktop)).toInt(0);
+            if (desktop >= 1) {
+                directive.targetDesktop = desktop;
+            }
         }
     }
 
@@ -222,45 +256,133 @@ PhosphorSnapEngine::PlacementDirective WindowTrackingAdaptor::placementZonesByRu
     return directive;
 }
 
-bool WindowTrackingAdaptor::emitRouteToDesktopIfMatched(const PhosphorRules::ResolvedActions& resolved,
-                                                        const QString& windowId)
+bool WindowTrackingAdaptor::emitOpenRoutingIfMatched(const PhosphorRules::ResolvedActions& resolved,
+                                                     const QString& windowId)
 {
+    const QString key = shadowWindowId(windowId);
+    // Once per open (route_once). Both open channels route a window that
+    // opens on a tiling screen (the snap facade's resolve and the tiling
+    // dispatch), and the effect re-announces the same open on a mode flip, a
+    // desktop return or a daemon-side re-drive. Each of those re-ran the
+    // moves below: a second workspace move left a stale move watch that
+    // suppressed the reunion, and a re-announce yanked a window the user had
+    // since moved back to the rule's destination. The first pass latches its
+    // verdict until the window closes, and every later pass only re-publishes
+    // it to the placement builders of that pass.
+    if (const auto latched = m_openRoutes.constFind(key); latched != m_openRoutes.constEnd()) {
+        m_openRoutePass.insert(key, *latched);
+        return latched->matched;
+    }
+    const OpenRouteVerdict verdict = routeOpenByRules(resolved, windowId);
+    m_openRoutes.insert(key, verdict);
+    m_openRoutePass.insert(key, verdict);
+    return verdict.matched;
+}
+
+WindowTrackingAdaptor::OpenRouteVerdict
+WindowTrackingAdaptor::routeOpenByRules(const PhosphorRules::ResolvedActions& resolved, const QString& windowId)
+{
+    OpenRouteVerdict verdict;
+    // Named-workspace routing outranks the positional desktop number and the
+    // monitor pin when a cascade carries them too (route_precedence): the
+    // workspace is the stronger identity (it survives renumbering and monitor
+    // moves), and its desktop belongs to its owner monitor's slice, which the
+    // spawn monitor or a RouteToScreen target never shows under per-output
+    // virtual desktops. The daemon's workspace wiring resolves the target
+    // against the live declarations; an undeclared one answers 0 and the
+    // positional route below still applies.
+    const std::optional<PhosphorRules::RuleAction> workspaceRoute =
+        resolved.slot(QString(PhosphorRules::ActionSlot::RouteWorkspace));
+    if (workspaceRoute && m_workspaceRouteResolver) {
+        // Both trimmed at the read site: the loader validates the trimmed
+        // strings but stores them verbatim, and the declarations hold their
+        // names trimmed, so a padded param would match no workspace and fall
+        // through to the positional route.
+        const QString entryId =
+            workspaceRoute->params.value(QString(PhosphorRules::ActionParam::TargetWorkspaceId)).toString().trimmed();
+        const QString name =
+            workspaceRoute->params.value(QString(PhosphorRules::ActionParam::TargetWorkspaceName)).toString().trimmed();
+        if (!entryId.isEmpty() || !name.isEmpty()) {
+            QString ownerScreen;
+            // moveOutput is always true: a declared workspace decides the
+            // monitor as well as the desktop, so the route carries its own
+            // output leg and a RouteToScreen in the cascade stands down.
+            const int routedDesktop =
+                m_workspaceRouteResolver(entryId, name, windowId, /*moveOutput=*/true, &ownerScreen);
+            if (routedDesktop > 0) {
+                verdict.matched = true;
+                verdict.workspaceDeclared = true;
+                // A sticky window is already on every workspace: the resolver
+                // answers the realized desktop (so the positional route stands
+                // down) but issues no move. Publishing that desktop would file
+                // the window's placement under a desktop it never lands on.
+                if (m_service->isWindowSticky(shadowWindowId(windowId))) {
+                    qCInfo(lcDbusWindow) << "open-routing:" << windowId << "is on all desktops, so the route to"
+                                         << "workspace" << name << "moves nothing";
+                    return verdict;
+                }
+                verdict.desktop = routedDesktop;
+                verdict.screen = ownerScreen;
+                qCInfo(lcDbusWindow) << "open-routing: routed" << windowId << "to named workspace" << name << "(desktop"
+                                     << routedDesktop << "on" << ownerScreen << ")";
+                return verdict;
+            }
+            if (routedDesktop < 0) {
+                // Declared but momentarily unresolvable (a structural op in
+                // flight, or its desktop has no live number yet). The
+                // controller parks the route and re-issues it once the
+                // workspace resolves, so the window opens where it spawned
+                // and moves then. The positional RouteToDesktop is the
+                // author's fallback for a name this session does not HAVE,
+                // not for one that is briefly unreadable, so it does not
+                // stand in, and neither does a RouteToScreen: the parked
+                // move carries the workspace's own monitor.
+                verdict.matched = true;
+                verdict.workspaceDeclared = true;
+                qCInfo(lcDbusWindow) << "open-routing: named workspace" << name
+                                     << "is declared but not resolvable right now; its route for" << windowId
+                                     << "is parked until it resolves";
+                return verdict;
+            }
+        }
+    }
+
     const std::optional<PhosphorRules::RuleAction> route =
         resolved.slot(QString(PhosphorRules::ActionSlot::RouteDesktop));
     if (!route) {
-        return false;
+        return verdict;
     }
-    // MATCHED is the answer this function gives, and it does not depend on the
-    // target being usable: a rule that named this window's desktop matched
-    // whether or not its payload survived the guard below. Hence one return,
-    // with the emit conditional inside. No production caller reads the answer
-    // today; the routing tests are its consumer.
+    // MATCHED does not depend on the target being usable: a rule that named
+    // this window's desktop matched whether or not its payload survived the
+    // guard below.
     //
     // The read is deliberately defensive even though stored rules cannot reach
     // the else. Both routes into the store validate this parameter against the
     // RouteToDesktop descriptor (ruleaction_builtins_engine.cpp), which requires
-    // an integral double in [1, MaxVirtualDesktopOrdinal): addRule goes through
-    // Rule::isValid -> ActionRegistry::validate, and a hand-edited rules.json
-    // goes through RuleAction::fromJson, which drops the action on the same
-    // check. What the guard survives is a later relaxation of those bounds, and
-    // an in-process producer that fills the slot directly.
+    // an integral double in [1, MaxVirtualDesktopOrdinal], both ends included:
+    // addRule goes through Rule::isValid -> ActionRegistry::validate, and a
+    // hand-edited rules.json goes through RuleAction::fromJson, which drops the
+    // action on the same check. What the guard survives is a later relaxation
+    // of those bounds, and an in-process producer that fills the slot directly.
     //
     // No upper bound here on purpose: the descriptor owns that, and the effect
     // re-guards the target against the LIVE desktop list before moving anything,
     // which is the only bound that is authoritative at that moment.
+    verdict.matched = true;
     const int desktop = route->params.value(QString(PhosphorRules::ActionParam::TargetDesktop)).toInt(0);
     if (desktop >= 1) {
         qCInfo(lcDbusWindow) << "open-routing: routing" << windowId << "to virtual desktop" << desktop;
         Q_EMIT windowDesktopMoveRequested(windowId, desktop);
+        verdict.desktop = desktop;
     } else {
         // Logged rather than passed over: the validators above make this
         // unreachable from a stored rule, so seeing it means one of them has
         // been relaxed or bypassed, and the window silently keeps whatever
         // desktop it opened on.
         qCWarning(lcDbusWindow) << "open-routing: matched RouteToDesktop for" << windowId
-                                << "carries an unusable target" << desktop << "— not moving the window";
+                                << "carries an unusable target" << desktop << "- not moving the window";
     }
-    return true;
+    return verdict;
 }
 
 bool WindowTrackingAdaptor::applyOpenDesktopRouting(const QString& windowId, const QString& screenId)
@@ -284,8 +406,102 @@ bool WindowTrackingAdaptor::applyOpenDesktopRouting(const QString& windowId, con
     // screen-stamped query, and the float / restore predicates read that verdict later.
     stampScreenContext(*query, screenId);
     ensureRuleEvaluator();
-    return emitRouteToDesktopIfMatched(
+    return emitOpenRoutingIfMatched(
         m_ruleEvaluator->resolveCachedFiltered(windowId, *query, admitWith(&admitScreenStamped, *query)), windowId);
+}
+
+void WindowTrackingAdaptor::clearOpenWorkspaceRoute(const QString& windowId)
+{
+    m_openRoutePass.remove(shadowWindowId(windowId));
+}
+
+void WindowTrackingAdaptor::republishOpenRoute(const QString& windowId)
+{
+    const QString key = shadowWindowId(windowId);
+    if (const auto latched = m_openRoutes.constFind(key); latched != m_openRoutes.constEnd()) {
+        m_openRoutePass.insert(key, *latched);
+    }
+}
+
+bool WindowTrackingAdaptor::hasSnapOpenPlacement(const QString& windowId) const
+{
+    return m_snapOpenPlacements.contains(shadowWindowId(windowId));
+}
+
+void WindowTrackingAdaptor::markSnapOpenPlacement(const QString& windowId)
+{
+    m_snapOpenPlacements.insert(shadowWindowId(windowId));
+}
+
+QString WindowTrackingAdaptor::openRouteLandingScreen(const QString& windowId, const QString& screenId) const
+{
+    const OpenRouteVerdict latched = m_openRoutes.value(shadowWindowId(windowId));
+    if (!latched.workspaceDeclared || latched.screen.isEmpty()) {
+        return screenId;
+    }
+    return workspaceLandingScreen(windowId, screenId, latched.screen);
+}
+
+bool WindowTrackingAdaptor::isFirstTilingPlacement(const PhosphorProtocol::WindowOpenedEntry& entry) const
+{
+    // A genuine open (Tiling.windowOpened) always is. A re-announce
+    // (windowsOpenedBatch, windowReannounced: a mode flip, a desktop return, a
+    // daemon restart's bring-up) is one only for a window the placement store
+    // holds no record of, which is the window whose open this daemon never
+    // saw placed: one that opened while the daemon was down or not yet ready.
+    // A window that was placed once has a record, so its re-announce does not
+    // route it again and a window the user moved since stays where it is.
+    // Read BEFORE the open's placement claim, which writes this window's
+    // record.
+    if (entry.focusEligible) {
+        return true;
+    }
+    return !m_service->placementStore().peekExact(entry.windowId).has_value();
+}
+
+PhosphorZones::AssignmentEntry::Mode WindowTrackingAdaptor::runningModeFor(const QString& screenId, int desktop,
+                                                                           const QString& activity) const
+{
+    if (m_contextModeResolver) {
+        return m_contextModeResolver(screenId, desktop, activity);
+    }
+    return m_layoutManager ? m_layoutManager->modeForScreen(screenId, desktop, activity)
+                           : PhosphorZones::AssignmentEntry::Snapping;
+}
+
+QString WindowTrackingAdaptor::workspaceLandingScreen(const QString& windowId, const QString& currentScreenId,
+                                                      const QString& ownerScreenId) const
+{
+    if (ownerScreenId.isEmpty()) {
+        return currentScreenId;
+    }
+    // The workspace map keys monitors by their PHYSICAL id, while the engines
+    // key a split monitor by its virtual screens. On the window's own monitor
+    // it keeps the sub-screen it is on (split_target).
+    if (!currentScreenId.isEmpty()
+        && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(currentScreenId, ownerScreenId)) {
+        return currentScreenId;
+    }
+    PhosphorScreens::ScreenManager* screens = m_service->screenManager();
+    if (!screens || PhosphorIdentity::VirtualScreenId::isVirtual(ownerScreenId)
+        || !screens->hasVirtualScreens(ownerScreenId)) {
+        return ownerScreenId;
+    }
+    // Another split monitor: the sub-screen the window's frame centre lands
+    // in once carried onto that monitor, else its first sub-screen.
+    const QRect frame = frameGeometry(windowId);
+    const QString fromPhysical = PhosphorIdentity::VirtualScreenId::extractPhysicalId(currentScreenId);
+    const QRect fromArea = fromPhysical.isEmpty() ? QRect() : screens->screenGeometry(fromPhysical);
+    const QRect toArea = screens->screenGeometry(ownerScreenId);
+    if (frame.isValid() && fromArea.isValid() && toArea.isValid()) {
+        const QRect carried = PhosphorEngine::GeometryUtils::carryRectOntoArea(frame, fromArea, toArea);
+        const QString sub = screens->virtualScreenAt(carried.center(), ownerScreenId);
+        if (!sub.isEmpty()) {
+            return sub;
+        }
+    }
+    const QStringList subs = screens->virtualScreenIdsFor(ownerScreenId);
+    return subs.isEmpty() ? ownerScreenId : subs.constFirst();
 }
 
 void WindowTrackingAdaptor::evictRuleVerdicts(const QString& windowId)
@@ -339,6 +555,17 @@ bool WindowTrackingAdaptor::applyOpenScreenRouting(const QString& windowId, cons
     // same rule minus its SnapToZone action moved it fine. So the route below is
     // honoured whether or not a Placement slot rode along; a Placement slot with
     // no route still claims ownership (see the tail of this function).
+    // A declared workspace already decided this open's monitor
+    // (route_precedence): its route carries its own output leg, now or once a
+    // parked route resolves, so a RouteToScreen in the same cascade stands
+    // down rather than sending the window somewhere the workspace move then
+    // takes it away from. The rule system still owns the window's target.
+    // Read from the open's latched verdict: the per-pass record was already
+    // taken by the placement builder that ran inside the engine's resolve.
+    const OpenRouteVerdict openRoute = m_openRoutes.value(shadowWindowId(windowId));
+    if (openRoute.workspaceDeclared) {
+        return true;
+    }
     const std::optional<PhosphorRules::RuleAction> route =
         resolved.slot(QString(PhosphorRules::ActionSlot::RouteScreen));
     if (!route) {
@@ -348,7 +575,8 @@ bool WindowTrackingAdaptor::applyOpenScreenRouting(const QString& windowId, cons
         // fallback does not relocate it.
         return hasValidPlacementTarget(resolved);
     }
-    const QString target = route->params.value(QString(PhosphorRules::ActionParam::TargetScreenId)).toString();
+    const QString target =
+        route->params.value(QString(PhosphorRules::ActionParam::TargetScreenId)).toString().trimmed();
     if (target.isEmpty()) {
         return false;
     }
@@ -459,11 +687,17 @@ bool WindowTrackingAdaptor::applyOpenScreenRouting(const QString& windowId, cons
         announceOutputMove(windowId, landed, screenId, tiling);
         Q_EMIT applyGeometryRequested(windowId, x, y, w, h, QString(), landed, false,
                                       static_cast<int>(PhosphorProtocol::PlacementPurpose::UserVerb));
-        int routedDesktop = 0;
-        if (const auto desktopRoute = resolved.slot(QString(PhosphorRules::ActionSlot::RouteDesktop))) {
-            routedDesktop = desktopRoute->params.value(QString(PhosphorRules::ActionParam::TargetDesktop)).toInt(0);
+        // Sent to a desktop not in view there: its arrival places it. The
+        // desktop is the one the open's routing pass actually sent it to (a
+        // positional RouteToDesktop; a workspace route returned above). A
+        // window whose open this daemon did not route has only the rule to go
+        // by.
+        int routedDesktop = openRoute.desktop;
+        if (!m_openRoutes.contains(shadowWindowId(windowId))) {
+            if (const auto desktopRoute = resolved.slot(QString(PhosphorRules::ActionSlot::RouteDesktop))) {
+                routedDesktop = desktopRoute->params.value(QString(PhosphorRules::ActionParam::TargetDesktop)).toInt(0);
+            }
         }
-        // Sent to a desktop not in view there: its arrival places it.
         const bool offView = routedDesktop >= 1 && routedDesktop != currentDesktopForScreen(landed);
         if (!offView && m_routedOpenDispatcher) {
             PhosphorProtocol::WindowOpenedEntry entry;
@@ -510,11 +744,15 @@ QString WindowTrackingAdaptor::applyOpenRoutingForTiling(const QString& windowId
     const PhosphorRules::ResolvedActions resolved =
         m_ruleEvaluator->resolveCachedFiltered(windowId, *query, admitWith(&admitScreenStamped, *query));
 
-    // RouteToDesktop is engine-neutral — emit it for autotile windows too.
-    // Deliberately NOT folded into `directiveMatched`: a desktop route says
-    // nothing about which monitor the window belongs on, so it must not veto
-    // the reopen claim the way a RouteToScreen match does.
-    emitRouteToDesktopIfMatched(resolved, windowId);
+    // The desktop and workspace routes are engine-neutral: emitted for
+    // tiling windows too, once per open (see emitOpenRoutingIfMatched). The
+    // caller runs this only for a first placement (isFirstTilingPlacement), so
+    // a re-announced window is never routed again.
+    emitOpenRoutingIfMatched(resolved, windowId);
+    // Taken right after the pass that published it, for the same single-use
+    // reason placementZonesByRule takes it: nothing further down may leave a
+    // routed answer standing for a later non-open reader.
+    const OpenRouteVerdict routed = m_openRoutePass.take(shadowWindowId(windowId));
 
     const auto markMatched = [&] {
         if (directiveMatched) {
@@ -531,56 +769,75 @@ QString WindowTrackingAdaptor::applyOpenRoutingForTiling(const QString& windowId
         markMatched();
     }
 
-    // RouteToScreen: redirect the window onto a different ENGINE-OWNED monitor
-    // (autotile or scrolling). The snap open path handles snap-mode targets
-    // itself (the placement directive), so here we only honour a target whose
-    // mode an engine claims — a snap or disabled target is left to the
-    // window's spawn screen (cross-engine routing is out of scope). Returning the target tells the caller to insert
-    // the window into that screen's tiling state; the output-move marker stops the
+    // The redirect target, a monitor an engine (autotile or scrolling) runs
+    // on the destination desktop. Returning it tells the caller to insert the
+    // window into that screen's tiling state; the output-move marker stops the
     // effect from re-processing the resulting outputChanged as a fresh open.
+    // The snap open path handles snap-mode targets itself (the placement
+    // directive), so a snap or disabled target is left to the spawn screen.
     //
     // The RETURN and the MATCH signal are deliberately separate answers: the
     // return names a redirect target (empty = "insert on the spawn screen"),
     // while @p directiveMatched reports that a rule OWNS this window's
-    // monitor — true on every matched-route exit below, including
+    // monitor, true on every matched-route exit below, including
     // already-on-target and target-not-connected. The snap twin
     // (applyOpenScreenRouting) folds both into one bool; overloading THIS
     // function's empty return the same way is what let the two channels
     // apply opposite reopen-claim precedence.
-    const std::optional<PhosphorRules::RuleAction> route =
-        resolved.slot(QString(PhosphorRules::ActionSlot::RouteScreen));
-    if (!route) {
-        return QString();
+    QString target;
+    int destDesktop = 0;
+    if (routed.workspaceDeclared) {
+        // A declared workspace owns the monitor over any RouteToScreen in the
+        // cascade (route_precedence), and its route carries the output leg to
+        // the workspace's owner. Without this redirect the engine inserted the
+        // window on the spawn screen while that leg took it to the owner. A
+        // parked or sticky-refused route names no owner: the window opens on
+        // its spawn screen.
+        markMatched();
+        if (routed.screen.isEmpty()) {
+            return QString();
+        }
+        target = workspaceLandingScreen(windowId, screenId, routed.screen);
+        destDesktop = routed.desktop;
+    } else {
+        const std::optional<PhosphorRules::RuleAction> route =
+            resolved.slot(QString(PhosphorRules::ActionSlot::RouteScreen));
+        if (!route) {
+            return QString();
+        }
+        target = route->params.value(QString(PhosphorRules::ActionParam::TargetScreenId)).toString().trimmed();
+        if (target.isEmpty()) {
+            return QString();
+        }
+        markMatched();
+        // When the cascade also routed the desktop (RouteToDesktop), the window
+        // lands on THAT desktop of the target screen, so the mode check below
+        // reads the destination desktop, not the target's current one. Mirrors
+        // the snap path (calculateSnapToPlacementRule), which gates on the
+        // routed desktop.
+        destDesktop = routed.desktop;
     }
-    const QString target = route->params.value(QString(PhosphorRules::ActionParam::TargetScreenId)).toString();
-    if (target.isEmpty()) {
-        return QString();
-    }
-    markMatched();
     // screensMatch for the same reason the snap twin uses it: a differently
     // spelled id for the SAME monitor must read as "already there". A raw
     // compare would return the target as a distinct screen and the caller would
     // key tiling state under a second name for one output.
-    if (!m_layoutManager || PhosphorScreens::ScreenIdentity::screensMatch(target, screenId)) {
+    if (PhosphorScreens::ScreenIdentity::screensMatch(target, screenId)) {
         return QString();
     }
-    // When the same rule also pins a target desktop (RouteToDesktop), the window
-    // lands on THAT desktop of the target screen, so gate the autotile-mode check
-    // against the destination desktop — not the target's current desktop. Mirrors
-    // the snap path (calculateSnapToPlacementRule), which gates modeForScreen on the
-    // routed desktop. Absent / 0 ⇒ the target screen's current desktop.
-    int destDesktop = currentDesktopForScreen(target);
-    if (const auto desktopRoute = resolved.slot(QString(PhosphorRules::ActionSlot::RouteDesktop))) {
-        const int d = desktopRoute->params.value(QString(PhosphorRules::ActionParam::TargetDesktop)).toInt(0);
-        if (d >= 1) {
-            destDesktop = d;
-        }
+    if (destDesktop < 1) {
+        destDesktop = currentDesktopForScreen(target);
     }
-    const auto targetMode = m_layoutManager->modeForScreen(target, destDesktop, m_layoutManager->currentActivity());
+    // The mode that context RUNS, not the configured one: a tiling mode
+    // switched off or a disabled context runs snapping, and redirecting into
+    // it on the configured answer would hand the open to an engine that does
+    // not run there, leaving it unclaimed with an output-move marker armed for
+    // a move no engine places.
+    const auto targetMode =
+        runningModeFor(target, destDesktop, m_layoutManager ? m_layoutManager->currentActivity() : QString());
     if (targetMode != PhosphorZones::AssignmentEntry::Mode::Autotile
         && targetMode != PhosphorZones::AssignmentEntry::Mode::Scrolling) {
-        qCDebug(lcDbusWindow) << "applyOpenRoutingForTiling: RouteToScreen target" << target
-                              << "is not in a tiling-family mode — not redirecting" << windowId;
+        qCDebug(lcDbusWindow) << "applyOpenRoutingForTiling: route target" << target
+                              << "does not run a tiling-family mode, not redirecting" << windowId;
         return QString();
     }
     // Connectivity guard, mirroring the snap twin (applyOpenScreenRouting):
@@ -593,8 +850,8 @@ QString WindowTrackingAdaptor::applyOpenRoutingForTiling(const QString& windowId
     // itself may still be null (an unconfigured test fixture), so that is the
     // one thing checked.
     if (m_service->screenManager() && !m_service->screenManager()->screenAvailableGeometry(target).isValid()) {
-        qCInfo(lcDbusWindow) << "applyOpenRoutingForTiling: RouteToScreen target" << target
-                             << "is not connected — window opens on its spawn screen";
+        qCInfo(lcDbusWindow) << "applyOpenRoutingForTiling: route target" << target
+                             << "is not connected, window opens on its spawn screen";
         return QString();
     }
     qCInfo(lcDbusWindow) << "applyOpenRoutingForTiling: routing" << windowId << "to engine-managed screen" << target;

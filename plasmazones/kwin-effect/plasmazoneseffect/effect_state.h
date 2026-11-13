@@ -426,7 +426,10 @@ struct PzCrossing
     const KWin::LogicalOutput* target = nullptr; ///< compared, never dereferenced
     QString sourceDesktopId; ///< the desktop the source output showed at the apply
     bool visibleOnSource = false; ///< on that desktop and not parked for an arrival (F693)
-    QString pinnedDesktopId; ///< the desktop the open's placement routed it to, kept (F719)
+    /// The desktop the window was put on deliberately and keeps at the landing:
+    /// the one an open's placement routed it to (F719), or a workspace move's
+    /// target when that move lands while the crossing is still out (F364).
+    QString pinnedDesktopId;
 };
 
 /// Every context hold (window_context_hold.cpp). Raw keys, erased in the

@@ -70,8 +70,11 @@ QStringList WindowTrackingAdaptor::knownWindowIds() const
     return m_frameGeometry.keys();
 }
 
-QString WindowTrackingAdaptor::resolveBusScreen(const QString& reported, const QString& windowId) const
+QString WindowTrackingAdaptor::resolveBusScreen(const QString& reported, const QString& windowId, bool* guessed) const
 {
+    if (guessed) {
+        *guessed = false;
+    }
     if (reported.isEmpty()) {
         return {};
     }
@@ -94,10 +97,16 @@ QString WindowTrackingAdaptor::resolveBusScreen(const QString& reported, const Q
         }
         if (PhosphorIdentity::VirtualScreenId::isVirtual(m_lastCursorScreenId)
             && PhosphorScreens::ScreenIdentity::belongsToPhysicalScreen(m_lastCursorScreenId, id)) {
+            if (guessed) {
+                *guessed = true;
+            }
             return m_lastCursorScreenId;
         }
         const QStringList children = mgr->virtualScreenIdsFor(id);
         if (!children.isEmpty()) {
+            if (guessed) {
+                *guessed = true;
+            }
             return children.first();
         }
     }

@@ -15,6 +15,8 @@
 
 #include <utility>
 
+#include <QScopeGuard>
+
 namespace PlasmaZones {
 
 namespace {
@@ -267,6 +269,17 @@ void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& s
                              << heldGeometry;
         return true;
     };
+    // An arrival restore runs for the desktop the window is on now. A snap
+    // membership it holds anywhere else is stale, which is what a refused
+    // workspace move leaves: the snap-target handoff filed the window under
+    // the destination before the compositor was asked, the compositor kept it
+    // here, and the effect re-drives this restore for where it stayed (F581,
+    // F811). For an arrival that did happen the window holds nothing outside
+    // where it is, and nothing is released.
+    if (reason == PhosphorEngine::RestoreReason::DesktopReapply
+        || reason == PhosphorEngine::RestoreReason::DesktopArrival) {
+        m_adaptor->releaseSnapOutsideLiveContext(windowId, screenId);
+    }
     // A move that was not an open's continuation (the desktop shortcut, a
     // cross-mode handoff, the shell) re-applies the zone the window holds where
     // it landed and nothing else: no claim, no routing, no auto-assign, last
@@ -277,10 +290,65 @@ void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& s
     }
     // An open's continuation resolves its rules against the screen it arrived
     // on: the verdict cached at the spawn screen answered for the wrong one
-    // (F332).
+    // (F332). Its placement builder reads the destination its open was routed
+    // to (the latched verdict), not the rule's positional RouteToDesktop: for
+    // a window routed to a named workspace the number names another desktop.
     if (reason == PhosphorEngine::RestoreReason::DesktopArrival) {
         m_adaptor->evictRuleVerdicts(windowId);
+        m_adaptor->republishOpenRoute(windowId);
     }
+
+    // Engine-neutral routing (RouteToWorkspace, RouteToDesktop) runs first: a
+    // window can be routed whether or not it snaps (and even when it matches
+    // no SnapToZone rule at all), so it must not sit behind the shouldSnap
+    // early-return below. First placements only, Open AND PendingSweep (a
+    // window whose open resolve arrived before the daemon was ready never got
+    // past the readiness gate above, so the sweep is its first placement): the
+    // other re-drives act on a window the user may have moved to another
+    // desktop since, and routing it again yanks it back at every daemon
+    // restart; the desktop-arrival re-drive IS the landing of a move already
+    // made. The tiling dispatch applies the same first-placement gate, and the
+    // routing itself runs once per open (a second channel's call for the same
+    // open only re-reads the verdict).
+    //
+    // A pending sweep is a first placement only for a window whose open this
+    // channel has not placed yet. The sweep re-drives every visible window
+    // the daemon does not track as snapped, so it also reaches one whose open
+    // went through here and left it floating or free. Treated as a first
+    // placement, that window was resolved on its workspace's owner monitor
+    // and taken by its RouteToScreen again, wherever the refused or undone
+    // move left it (C31). The routing latch cannot tell the two apart: the
+    // tiling channel's announce latches it as well, and when that announce
+    // was flushed first (an open queued before the daemon was ready) this
+    // sweep is still the open's first snap pass, the one that claims on the
+    // landing screen and applies a RouteToScreen the tiling channel leaves
+    // to this path (C60).
+    const bool firstPlacement =
+        isOpen || (reason == PhosphorEngine::RestoreReason::PendingSweep && !m_adaptor->hasSnapOpenPlacement(windowId));
+    if (firstPlacement) {
+        m_adaptor->markSnapOpenPlacement(windowId);
+    }
+    // The screen the open chain places the window on. A route to a declared
+    // workspace sends the window to that workspace's owner monitor, so the
+    // chain resolves there (snap_spawn); placing it on the spawn screen would
+    // snap it into a zone of the monitor it is leaving, and the output leg
+    // would then carry the snapped rect across.
+    QString engineScreen = screenId;
+    if (firstPlacement) {
+        m_adaptor->applyOpenDesktopRouting(windowId, screenId);
+        engineScreen = m_adaptor->openRouteLandingScreen(windowId, screenId);
+    }
+    // Whatever that published belongs to THIS pass and nothing later. The
+    // placement builders take the record when they run, but not every path
+    // reaches one: a scrolling or tiling screen defers by mode, and a window
+    // carrying a cross-screen snapped record can report a snap without the
+    // zone builder running at all. A guard rather than a call at each exit,
+    // because this slot has several and the reader it would leak to
+    // (unfloatToZone, via the same placement builder) fires long after, on a
+    // Meta+F.
+    const auto routeRecordGuard = qScopeGuard([this, &windowId] {
+        m_adaptor->clearOpenWorkspaceRoute(windowId);
+    });
 
     // Claim this instance's placement record BEFORE anything reads one. At
     // login every uuid is fresh, so every selector over this appId bucket falls
@@ -289,42 +357,27 @@ void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& s
     // without it an already-home window could consume a sibling's record
     // outright, and a multi-window app's later re-resolve could answer from a
     // different record than the one its open used. The claim takes only a
-    // record the OPENING screen's engine can restore on this output (the
-    // reopen contract), so two instances of one app on two monitors each keep
-    // the record of their own monitor instead of the first opener taking the
-    // newest wherever it lives.
+    // record the engine of the screen the window is PLACED on can restore on
+    // that output (the reopen contract), so two instances of one app on two
+    // monitors each keep the record of their own monitor instead of the first
+    // opener taking the newest wherever it lives. That screen is the routed
+    // one when a workspace route moved the window, which is why the claim
+    // follows the routing (the routing reads no placement record): claimed
+    // against the spawn screen, a routed window took a sibling's record there.
     //
-    // Open AND PendingSweep. The sweep re-resolves windows that are already
-    // OPEN, but for the placement store it CAN still be a first touch: a window
-    // whose open resolve arrived before the daemon was ready never got past the
-    // readiness gate above, so it never claimed anything. For one that did
-    // already claim, the claim is idempotent and this is harmless. Without
-    // this the pairing guard was absent in exactly the slow-daemon login the
-    // feature exists for. The other drivers are re-entries (Unminimize,
-    // DesktopArrival) or run with stable uuids (DaemonRestartSweep).
-    if (isOpen || reason == PhosphorEngine::RestoreReason::PendingSweep) {
-        svc->claimPlacementForOpen(windowId, screenId,
-                                   m_engine->isSnapModeScreen(screenId)
-                                       ? QString(PhosphorEngine::WindowPlacement::snapEngineId())
-                                       : svc->owningModeEngineId(windowId, screenId));
-    }
-
-    // Engine-neutral RouteToDesktop runs first — a window can be routed to a
-    // desktop whether or not it snaps (and even when it doesn't match a
-    // SnapToZone rule at all), so it must not sit behind the shouldSnap
-    // early-return below. First placements only, the same set that claims:
-    // the sweeps and the unminimize re-drive act on a window the user may
-    // have moved to another desktop since, and routing it again yanks it
-    // back at every daemon restart; the desktop-arrival re-drive IS the
-    // landing of a move already made. (The tiling dispatch routes once per
-    // open for the same reason.)
-    const bool firstPlacement = isOpen || reason == PhosphorEngine::RestoreReason::PendingSweep;
+    // Open AND PendingSweep, for the reason given above. For a window that
+    // did already claim, the claim is idempotent and this is harmless. The
+    // other drivers are re-entries (Unminimize, DesktopArrival) or run with
+    // stable uuids (DaemonRestartSweep).
     if (firstPlacement) {
-        m_adaptor->applyOpenDesktopRouting(windowId, screenId);
+        svc->claimPlacementForOpen(windowId, engineScreen,
+                                   m_engine->isSnapModeScreen(engineScreen)
+                                       ? QString(PhosphorEngine::WindowPlacement::snapEngineId())
+                                       : svc->owningModeEngineId(windowId, engineScreen));
     }
 
     const PhosphorEngine::WindowKind kind = PhosphorEngine::clampWindowKindFromWire(windowKind);
-    SnapResult result = m_engine->resolveWindowRestore(windowId, screenId, sticky, kind, reason);
+    SnapResult result = m_engine->resolveWindowRestore(windowId, engineScreen, sticky, kind, reason);
 
     if (!result.shouldSnap) {
         // A window the engine already holds in a zone on the desktop it landed

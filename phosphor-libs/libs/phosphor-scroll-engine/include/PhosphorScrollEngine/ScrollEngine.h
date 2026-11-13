@@ -115,10 +115,11 @@ public:
     /// LOAD-BEARING).
     void setActiveScreens(const QSet<QString>& screens) override;
     /// NOTE: activeScreen() is deliberately NOT overridden. m_activeScreen
-    /// is this engine's private "which output does a hint-less shortcut act
-    /// on" memory, consumed only by resolveOperationScreen; nothing outside
-    /// asks for it, and exposing an unguarded reader invited a caller to
-    /// treat a screen this engine may have stopped managing as current.
+    /// is this engine's private, focus-tracked memory of the last scrolling
+    /// screen it acted on, and it can be stale while focus sits on a screen
+    /// this engine does not scroll. Exposing an unguarded reader invited a
+    /// caller to treat that memory, or a screen this engine may have stopped
+    /// managing, as the current one.
     void setActiveScreenHint(const QString& screenId) override;
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -468,6 +469,100 @@ public:
 
     PhosphorEngine::IPlacementState* stateForScreen(const QString& screenId) override;
     const PhosphorEngine::IPlacementState* stateForScreen(const QString& screenId) const override;
+    /// Why focusedColumnWindows answered empty, so the caller can tell the
+    /// user which of the distinct situations it hit.
+    enum class FocusedColumnRefusal : quint8 {
+        None, ///< Not refused: the answer names the column.
+        NotScrolling, ///< @p screenId is not a screen this engine scrolls (exact id, see below).
+        NoColumn, ///< The screen scrolls but its current strip has no active column.
+        FloatFocused, ///< A floating window holds focus, so no column is the one in front of the user.
+    };
+    /// The focused column of @p screenId's current strip, in tile order, for
+    /// a verb that relocates the column as a whole (the dynamic-workspaces
+    /// move-column-to-workspace verb).
+    ///
+    /// @p screenId must be the EXACT screen this engine keys the strip by,
+    /// the virtual "<phys>/vs:N" id on a subdivided monitor. There is no
+    /// physical-to-virtual resolution and no active-screen fallback: a
+    /// monitor split into several scrolling sub-screens has no single answer
+    /// for its physical id, and any guess would relocate a column the user
+    /// never addressed.
+    ///
+    /// Refuses under float focus, the same refusal the column verbs give
+    /// (refuseUnderFloatFocus): the strip's active column is then the one
+    /// behind the float, not the one the user is looking at.
+    ///
+    /// The answer includes the column's HIDDEN members: a window of a shared
+    /// column that is out of the strip because it is minimized or held for
+    /// its own fullscreen, placed at the slot it will return to. Those are
+    /// part of the column and travel with it. A window the user floated is
+    /// not, and is left out. Minimized is read from the window registry's
+    /// tri-state answer, and an unknown state is treated as not minimized.
+    ///
+    /// @p reason, when given, says why the answer is empty (None otherwise).
+    QStringList focusedColumnWindows(const QString& screenId, FocusedColumnRefusal* reason = nullptr) const;
+    /// The column-preserving half of the move-column-to-workspace verb.
+    ///
+    /// The verb moves each window to @p targetDesktop one by one, and each
+    /// arrives there on its own, so without this record they would land as
+    /// one column per window. This records the column holding @p windowIds
+    /// on @p screenId's current strip as a strip-stash column under the
+    /// context the windows will be adopted into, (@p screenId,
+    /// @p targetDesktop, current activity), so the arrivals rejoin one column
+    /// with its width, display, tab, height owner and per-tile heights. The
+    /// column opens where a fresh arrival would (the screen's insert
+    /// position, never into the active column), not at an index of a strip
+    /// it never stood in.
+    ///
+    /// Call it after focusedColumnWindows answered @p windowIds and BEFORE
+    /// the first window is released, and only when @p targetDesktop runs
+    /// scrolling on @p screenId: the record waits for arrivals this engine
+    /// adopts. @p screenId is the exact strip key, as for
+    /// focusedColumnWindows. @p windowIds keeps the caller's order and
+    /// membership (the column as the user addressed it); windows no longer
+    /// tracked on the strip are skipped.
+    ///
+    /// The record carries no focus, view anchor or blueprint cursor: those
+    /// belong to the strip the column leaves. An entry already stashed for
+    /// the destination keeps its own, and the column is appended to it.
+    ///
+    /// Returns false, recording nothing, when the screen does not scroll,
+    /// none of @p windowIds is on its current strip, or the destination
+    /// context is the current one (a sticky-pinned screen keys every desktop
+    /// by its pin, so the windows would arrive back in the strip they left).
+    bool stashColumnForDesktopMove(const QString& screenId, const QStringList& windowIds, int targetDesktop);
+    /// The column-preserving half of the move-workspace-to-monitor verb.
+    ///
+    /// That verb keeps the workspace's desktop and moves its windows to
+    /// another monitor, each arriving there on its own, so without this
+    /// record the strip would be rebuilt as one column per window. This
+    /// records every column of the strip on @p sourceStripScreenId for
+    /// @p desktop, in strip order and with each column's hidden members
+    /// (as stashColumnForDesktopMove carries them), cut down to
+    /// @p windowIds, under (@p targetStripScreenId, @p desktop, current
+    /// activity). The arrivals on the target strip rejoin their columns in
+    /// the stashed order, with width, display, tab, height owner and per-tile
+    /// heights. A fresh record also carries the strip's focus and blueprint
+    /// spent-ness, since the whole strip moves; an entry already stashed for
+    /// the destination keeps its own and gains the columns after its own.
+    /// The view (anchor and pan) goes with the focus only when the
+    /// destination context's work area has the source's main-axis length on
+    /// the same axis, since the anchor is pixels into a strip whose column
+    /// extents follow the work area. Otherwise the record carries no view
+    /// (StashedStrip::viewCarried) and the centering policy places one
+    /// around the restored focus.
+    ///
+    /// Both ids are exact strip keys (a "<phys>/vs:N" id on a split
+    /// monitor). A sticky pin on either screen keys that side by the pin.
+    /// Call it after the sticky filter and BEFORE the first window is
+    /// released, with only the ids that will actually move, and only when
+    /// @p desktop runs scrolling on @p targetStripScreenId.
+    ///
+    /// Returns false, recording nothing, for an empty or identical pair of
+    /// ids, a desktop below 1, no strip state for the source, or no listed
+    /// window on it.
+    bool stashStripForOutputMove(const QString& sourceStripScreenId, const QString& targetStripScreenId, int desktop,
+                                 const QStringList& windowIds);
     /// The tab-indicator geometry @p screenId resolves to: the configured
     /// values with any per-screen rule override layered on per property.
     ///
@@ -966,8 +1061,9 @@ public:
 
     /// Scrolling-mode resolver: whether a context runs Scrolling as the daemon resolves it (feature switch and
     /// disabled cascade included, F1137). claimCrossScreenReopen asks it of the RECORDED context (unset: it never
-    /// claims), and readoptParked of a context not in view, which gets nothing back once it stopped scrolling
-    /// (unset: every context still scrolls).
+    /// claims), readoptParked of a context not in view, which gets nothing back once it stopped scrolling
+    /// (unset: every context still scrolls), and handoffReceive of a background desktop it receives into, on the
+    /// same terms as readoptParked.
     void setScrollingModeResolver(ModeResolver resolver)
     {
         m_scrollingModeResolver = std::move(resolver);
@@ -1156,7 +1252,10 @@ private:
     ScrollState* stateForKey(const PhosphorEngine::PlacementStateKey& key, bool createIfMissing);
     ScrollState* stateForWindow(const QString& canonicalId, PhosphorEngine::PlacementStateKey* outKey = nullptr) const;
     /// The screen the engine should operate on for a screen-hinted verb:
-    /// @p screenId when it is a scrolling screen, else the active screen.
+    /// @p screenId when it is a scrolling screen, else the remembered active
+    /// screen when that is still scrolling, else the lexicographically
+    /// smallest scrolling screen (so repeated hint-less presses land
+    /// deterministically). Empty only when no screen scrolls at all.
     QString resolveOperationScreen(const QString& screenId) const;
     /// Latch-guarded tab-strip clear: emits the "[]" payload once for a
     /// screen that had a strip showing, no-op otherwise.
@@ -1299,13 +1398,39 @@ private:
     /// the state regardless. @p params is the caller's already-resolved layout params (the only caller holds them).
     bool restoreFromStripStash(ScrollState* state, const PhosphorEngine::PlacementStateKey& key,
                                const QString& windowId, const ScrollLayoutParams& params, int minWidth, int minHeight);
+    /// The tiles of @p state's column @p columnIndex in tile order, with the column's hidden members (see
+    /// focusedColumnWindows) inserted at the slot they return to, their leaves replayed newest first. A live
+    /// tile carries its height, minimized and windowed-fullscreen state; a hidden member carries only the height
+    /// its FloatRestore entry kept (a float leaves windowed fullscreen behind, see FloatRestore::windowedFullscreen).
+    /// Empty for a bad index.
+    QVector<StashedTile> columnTilesWithHiddenMembers(const ScrollState* state, int columnIndex) const;
+    /// The shared tail of stashColumnForDesktopMove and stashStripForOutputMove: append @p columns to the stash entry
+    /// for @p destKey (created when absent, @p fresh says which), after taking their windows out of the entry's
+    /// existing columns, focus and consumed set, and stamp the entry newest. Returns the entry.
+    StashedStrip& mergeMovedColumnsIntoStash(const PhosphorEngine::PlacementStateKey& destKey,
+                                             const QVector<StashedColumn>& columns, bool* fresh);
+    /// The float-focus refusal the column verbs share: when a floating window holds focus, the strip's active
+    /// column is the one behind it, so a verb that acts on that column refuses with no_target (naming the float
+    /// as the source) instead of restructuring a column the user is not looking at. True when it refused.
+    bool refuseUnderFloatFocus(const ScrollState* state, const QString& action, const QString& screenId);
     /// Drop stash entries whose key @p stale answers true for — called by
     /// the same prunes that reap context states.
     void sweepStripStash(const std::function<bool(const PhosphorEngine::PlacementStateKey&)>& stale);
     // engine_stashleave.cpp
     /// Erase @p windowId's tile from every stash entry whose key @p left answers true for (a context it left).
+    /// With @p movedColumnsOnly only the columns a move recorded (StashedColumn::arrivesAsMove) give the tile
+    /// up, and the window's readoptParked grants stay: a mode-round-trip column under another desktop is still
+    /// the window's if it spans that desktop.
     void forgetStashedWindowWhere(const QString& windowId,
-                                  const std::function<bool(const PhosphorEngine::PlacementStateKey&)>& left);
+                                  const std::function<bool(const PhosphorEngine::PlacementStateKey&)>& left,
+                                  bool movedColumnsOnly = false);
+    /// The arrival half of the move record: @p windowId was placed under @p arrivalKey, so a column a move
+    /// recorded for it under any other key is one it never reached (the move was refused, or the window was
+    /// moved on), and it gives that column up (forgetStashedWindowWhere with movedColumnsOnly). A key the
+    /// window still holds a membership in keeps the tile: a window on several desktops arrives in each, and
+    /// its column-mates still to arrive there find their column through it. Call it after the window has left
+    /// the contexts it is leaving.
+    void forgetMovedColumnsElsewhere(const QString& windowId, const PhosphorEngine::PlacementStateKey& arrivalKey);
     /// pruneStaleWindows' sweep of the stash on aliveness, and the restart-move arm.
     void sweepStripStashForAliveness(const QSet<QString>& aliveWindowIds);
     // engine_desktopremap.cpp
@@ -1337,13 +1462,28 @@ private:
     /// wrong ones through the screen-only form — the anchor it then derives is
     /// measured with the desktop-in-view's gaps and can survive the desktop
     /// return, because updateViewForFocus leaves a fully visible column alone.
-    /// A background key resolves everything against itself: its gap rules,
-    /// its override map and its own strip's column count for smart gaps. The
-    /// screen's CURRENT key resolves exactly as layoutParamsForScreen does
-    /// (gaps asked for desktop 0, "what the screen shows now"), so under a
-    /// sticky pin the pinned key gets the gaps the apply used.
-    ScrollLayoutParams layoutParamsForKey(const PhosphorEngine::PlacementStateKey& key,
-                                          int columnCountOverride = -1) const;
+    /// A background key resolves everything against itself (see @p unseen):
+    /// its gap rules, its override map and its own strip's column count for
+    /// smart gaps. The screen's CURRENT key resolves exactly as
+    /// layoutParamsForScreen does (gaps asked for desktop 0, "what the screen
+    /// shows now"), so under a sticky pin the pinned key gets the gaps the
+    /// apply used.
+    ///
+    /// @param unseen What a background key with no override map of its own
+    /// reads. Only a context the screen has shown has one (applyPerScreenConfig
+    /// files the map under the screen's current key), so a desktop the screen
+    /// never showed reads the global defaults by default. ScreenCurrent reads
+    /// the screen's current map instead: its per-monitor settings (strip axis,
+    /// column sizing) hold for every desktop of the screen, at the price of
+    /// also borrowing the shown desktop's own rules and template. For a caller
+    /// predicting the params a context the screen has not shown yet will lay
+    /// out against (stashStripForOutputMove).
+    enum class UnseenContextOverrides : quint8 {
+        Defaults,
+        ScreenCurrent,
+    };
+    ScrollLayoutParams layoutParamsForKey(const PhosphorEngine::PlacementStateKey& key, int columnCountOverride = -1,
+                                          UnseenContextOverrides unseen = UnseenContextOverrides::Defaults) const;
 
     /// Auto-resolve the strip axis from a FINAL work area. Private because
     /// callers must not pass a rect that has not been through the outer-gap
@@ -1922,6 +2062,8 @@ private:
     qint64 m_fuzzyClaimGraceMs;
     /// Ever-increasing stamp source for StashedStrip::sequence.
     quint64 m_stashSequence = 0;
+    /// Ever-increasing stamp source for FloatRestore::leaveSequence.
+    quint64 m_floatLeaveSequence = 0;
     /// Screens with a retile queued this event-loop pass (coalescing).
     QSet<QString> m_pendingRetiles;
     /// Whether the last tabStripsChanged emission for a screen was

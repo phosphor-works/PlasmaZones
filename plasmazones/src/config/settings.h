@@ -3,13 +3,16 @@
 
 #pragma once
 
-// One class declaration whose bulk is the Q_PROPERTY / getter / setter /
-// signal quadruple that every setting must carry. The DEFINITIONS are split by
-// domain under src/config/settings/ (scrolling.cpp, and siblings), which is
+// One class declaration whose bulk is the accessor surface of the settings:
+// getters and setters, and for most of them a Q_PROPERTY and a NOTIFY signal
+// (the Editor.* keys, the per-screen maps and the per-mode disable lists carry
+// no Q_PROPERTY). The DEFINITIONS are split by domain under
+// plasmazones/src/config/settings/ (scrolling.cpp, and siblings), which is
 // where the real per-concern boundary is. Growth of the accessor surface is
 // expected, new non-accessor logic in this header is not.
 
 #include "core/types/constants.h"
+#include "core/types/overlayshadertree.h"
 #include "core/interfaces/interfaces.h"
 #include "configbackends.h"
 #include "configdefaults.h"
@@ -17,7 +20,6 @@
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorAnimation/Profile.h>
 #include <PhosphorAnimation/ShaderProfileTree.h>
-#include "core/types/overlayshadertree.h"
 #include <PhosphorConfig/Store.h>
 #include <PhosphorRules/RuleStore.h>
 #include <PhosphorScreens/VirtualScreen.h>
@@ -25,17 +27,15 @@
 #include <PhosphorSnapEngine/ISnapSettings.h>
 #include <PhosphorTileEngine/IAutotileSettings.h>
 
-#include <QFont>
 #include <QHash>
-
-#include <array>
-#include <QJsonValue>
+#include <QJsonObject>
 #include <QList>
 #include <QPair>
 #include <QUuid>
 #include <QVariantMap>
 #include <QVector>
 
+#include <array>
 #include <memory>
 #include <optional>
 
@@ -60,8 +60,8 @@ class PLASMAZONES_EXPORT Settings : public ISettings,
     Q_INTERFACES(PhosphorEngine::IAutotileSettings PhosphorEngine::ISnapSettings PhosphorEngine::IScrollSettings)
 
 public:
-    /** Maximum number of activation triggers per action (drag activation, zone span,
-     *  snap assist, autotile drag-insert, scrolling drag-insert).
+    /** Maximum number of activation triggers in one trigger list (every list
+     *  writeTriggerList and setZoneSpanTriggers store, the wheel chords included).
      *  Source of truth lives in ConfigDefaults::maxTriggersPerAction() so both this
      *  public accessor and the schema-side validator (canonicalTriggerList) read
      *  from the same constant without either side depending on the other. */
@@ -82,8 +82,9 @@ public:
      *
      * @param backend Non-owned backend pointer (must outlive this Settings)
      * @param curveRegistry Non-owned curve registry pointer used for Profile
-     *                      JSON parsing. If nullptr, falls back to a local
-     *                      static registry (standalone tests). Must outlive
+     *                      JSON parsing. If nullptr, falls back to
+     *                      ConfigDefaults::fallbackCurveRegistry()
+     *                      (standalone tests). Must outlive
      *                      this Settings. Supplying at construction time
      *                      guarantees the initial `load()` resolves curves
      *                      through the caller's registry, preserving
@@ -114,8 +115,6 @@ public:
     Q_PROPERTY(QVariantList dragActivationTriggers READ dragActivationTriggers WRITE setDragActivationTriggers NOTIFY
                    dragActivationTriggersChanged)
     Q_PROPERTY(bool zoneSpanEnabled READ zoneSpanEnabled WRITE setZoneSpanEnabled NOTIFY zoneSpanEnabledChanged)
-    Q_PROPERTY(
-        int zoneSpanModifier READ zoneSpanModifierInt WRITE setZoneSpanModifierInt NOTIFY zoneSpanModifierChanged)
     Q_PROPERTY(
         QVariantList zoneSpanTriggers READ zoneSpanTriggers WRITE setZoneSpanTriggers NOTIFY zoneSpanTriggersChanged)
     Q_PROPERTY(
@@ -260,7 +259,7 @@ public:
     Q_PROPERTY(bool suppressDefaultLayoutAssignment READ suppressDefaultLayoutAssignment WRITE
                    setSuppressDefaultLayoutAssignment NOTIFY suppressDefaultLayoutAssignmentChanged)
 
-    // PhosphorZones::Layout filtering
+    // Layout filtering
     Q_PROPERTY(bool filterLayoutsByAspectRatio READ filterLayoutsByAspectRatio WRITE setFilterLayoutsByAspectRatio
                    NOTIFY filterLayoutsByAspectRatioChanged)
 
@@ -309,7 +308,7 @@ public:
     // `PhosphorRules::ExclusionRules::excludeAnimationsRulesFrom`
     // produces from the unified rule store.
 
-    // PhosphorZones::Zone Selector
+    // Zone Selector
     Q_PROPERTY(bool zoneSelectorEnabled READ zoneSelectorEnabled WRITE setZoneSelectorEnabled NOTIFY
                    zoneSelectorEnabledChanged)
     Q_PROPERTY(int zoneSelectorTriggerDistance READ zoneSelectorTriggerDistance WRITE setZoneSelectorTriggerDistance
@@ -387,6 +386,99 @@ public:
                    scrollingDragInsertToggleChanged)
     Q_PROPERTY(int scrollingDragInsertGraceMs READ scrollingDragInsertGraceMs WRITE setScrollingDragInsertGraceMs NOTIFY
                    scrollingDragInsertGraceMsChanged)
+
+    // Workspaces Settings (Workspaces.* and their Shortcuts.Global chord leaves),
+    // dynamic per-monitor workspaces.
+    Q_PROPERTY(bool workspacesEnabled READ workspacesEnabled WRITE setWorkspacesEnabled NOTIFY workspacesEnabledChanged)
+    Q_PROPERTY(bool workspacesManageKWinPerOutput READ workspacesManageKWinPerOutput WRITE
+                   setWorkspacesManageKWinPerOutput NOTIFY workspacesManageKWinPerOutputChanged)
+    Q_PROPERTY(bool workspacesSnapBackOsdHint READ workspacesSnapBackOsdHint WRITE setWorkspacesSnapBackOsdHint NOTIFY
+                   workspacesSnapBackOsdHintChanged)
+    Q_PROPERTY(QVariantList workspacesNamedEntries READ workspacesNamedEntries WRITE setWorkspacesNamedEntries NOTIFY
+                   workspacesNamedEntriesChanged)
+    Q_PROPERTY(bool workspacesRebindKWinShortcuts READ workspacesRebindKWinShortcuts WRITE
+                   setWorkspacesRebindKWinShortcuts NOTIFY workspacesRebindKWinShortcutsChanged)
+    // The workspace chords and quick-slot targets. Q_PROPERTY presence is
+    // load-bearing, as it is for the scrolling shortcuts below: the reload,
+    // profile-overlay and per-page reset/discard change detection walks the
+    // metaobject property table, and a key without a property would move
+    // silently on those paths. Every slot gets its own NOTIFY, because
+    // SettingsController wires every property's NOTIFY once per property and
+    // a shared one would be connected several times over.
+    Q_PROPERTY(QString workspaceFocusUpShortcut READ workspaceFocusUpShortcut WRITE setWorkspaceFocusUpShortcut NOTIFY
+                   workspaceFocusUpShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusDownShortcut READ workspaceFocusDownShortcut WRITE setWorkspaceFocusDownShortcut
+                   NOTIFY workspaceFocusDownShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveWindowUpShortcut READ workspaceMoveWindowUpShortcut WRITE
+                   setWorkspaceMoveWindowUpShortcut NOTIFY workspaceMoveWindowUpShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveWindowDownShortcut READ workspaceMoveWindowDownShortcut WRITE
+                   setWorkspaceMoveWindowDownShortcut NOTIFY workspaceMoveWindowDownShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveColumnUpShortcut READ workspaceMoveColumnUpShortcut WRITE
+                   setWorkspaceMoveColumnUpShortcut NOTIFY workspaceMoveColumnUpShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveColumnDownShortcut READ workspaceMoveColumnDownShortcut WRITE
+                   setWorkspaceMoveColumnDownShortcut NOTIFY workspaceMoveColumnDownShortcutChanged)
+    Q_PROPERTY(QString workspaceReorderUpShortcut READ workspaceReorderUpShortcut WRITE setWorkspaceReorderUpShortcut
+                   NOTIFY workspaceReorderUpShortcutChanged)
+    Q_PROPERTY(QString workspaceReorderDownShortcut READ workspaceReorderDownShortcut WRITE
+                   setWorkspaceReorderDownShortcut NOTIFY workspaceReorderDownShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveToMonitorLeftShortcut READ workspaceMoveToMonitorLeftShortcut WRITE
+                   setWorkspaceMoveToMonitorLeftShortcut NOTIFY workspaceMoveToMonitorLeftShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveToMonitorRightShortcut READ workspaceMoveToMonitorRightShortcut WRITE
+                   setWorkspaceMoveToMonitorRightShortcut NOTIFY workspaceMoveToMonitorRightShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot1Shortcut READ workspaceFocusSlot1Shortcut WRITE setWorkspaceFocusSlot1Shortcut
+                   NOTIFY workspaceFocusSlot1ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot1Shortcut READ workspaceMoveSlot1Shortcut WRITE setWorkspaceMoveSlot1Shortcut
+                   NOTIFY workspaceMoveSlot1ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot2Shortcut READ workspaceFocusSlot2Shortcut WRITE setWorkspaceFocusSlot2Shortcut
+                   NOTIFY workspaceFocusSlot2ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot2Shortcut READ workspaceMoveSlot2Shortcut WRITE setWorkspaceMoveSlot2Shortcut
+                   NOTIFY workspaceMoveSlot2ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot3Shortcut READ workspaceFocusSlot3Shortcut WRITE setWorkspaceFocusSlot3Shortcut
+                   NOTIFY workspaceFocusSlot3ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot3Shortcut READ workspaceMoveSlot3Shortcut WRITE setWorkspaceMoveSlot3Shortcut
+                   NOTIFY workspaceMoveSlot3ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot4Shortcut READ workspaceFocusSlot4Shortcut WRITE setWorkspaceFocusSlot4Shortcut
+                   NOTIFY workspaceFocusSlot4ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot4Shortcut READ workspaceMoveSlot4Shortcut WRITE setWorkspaceMoveSlot4Shortcut
+                   NOTIFY workspaceMoveSlot4ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot5Shortcut READ workspaceFocusSlot5Shortcut WRITE setWorkspaceFocusSlot5Shortcut
+                   NOTIFY workspaceFocusSlot5ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot5Shortcut READ workspaceMoveSlot5Shortcut WRITE setWorkspaceMoveSlot5Shortcut
+                   NOTIFY workspaceMoveSlot5ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot6Shortcut READ workspaceFocusSlot6Shortcut WRITE setWorkspaceFocusSlot6Shortcut
+                   NOTIFY workspaceFocusSlot6ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot6Shortcut READ workspaceMoveSlot6Shortcut WRITE setWorkspaceMoveSlot6Shortcut
+                   NOTIFY workspaceMoveSlot6ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot7Shortcut READ workspaceFocusSlot7Shortcut WRITE setWorkspaceFocusSlot7Shortcut
+                   NOTIFY workspaceFocusSlot7ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot7Shortcut READ workspaceMoveSlot7Shortcut WRITE setWorkspaceMoveSlot7Shortcut
+                   NOTIFY workspaceMoveSlot7ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot8Shortcut READ workspaceFocusSlot8Shortcut WRITE setWorkspaceFocusSlot8Shortcut
+                   NOTIFY workspaceFocusSlot8ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot8Shortcut READ workspaceMoveSlot8Shortcut WRITE setWorkspaceMoveSlot8Shortcut
+                   NOTIFY workspaceMoveSlot8ShortcutChanged)
+    Q_PROPERTY(QString workspaceFocusSlot9Shortcut READ workspaceFocusSlot9Shortcut WRITE setWorkspaceFocusSlot9Shortcut
+                   NOTIFY workspaceFocusSlot9ShortcutChanged)
+    Q_PROPERTY(QString workspaceMoveSlot9Shortcut READ workspaceMoveSlot9Shortcut WRITE setWorkspaceMoveSlot9Shortcut
+                   NOTIFY workspaceMoveSlot9ShortcutChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot1Target READ workspaceSlot1Target WRITE setWorkspaceSlot1Target NOTIFY
+                   workspaceSlot1TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot2Target READ workspaceSlot2Target WRITE setWorkspaceSlot2Target NOTIFY
+                   workspaceSlot2TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot3Target READ workspaceSlot3Target WRITE setWorkspaceSlot3Target NOTIFY
+                   workspaceSlot3TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot4Target READ workspaceSlot4Target WRITE setWorkspaceSlot4Target NOTIFY
+                   workspaceSlot4TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot5Target READ workspaceSlot5Target WRITE setWorkspaceSlot5Target NOTIFY
+                   workspaceSlot5TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot6Target READ workspaceSlot6Target WRITE setWorkspaceSlot6Target NOTIFY
+                   workspaceSlot6TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot7Target READ workspaceSlot7Target WRITE setWorkspaceSlot7Target NOTIFY
+                   workspaceSlot7TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot8Target READ workspaceSlot8Target WRITE setWorkspaceSlot8Target NOTIFY
+                   workspaceSlot8TargetChanged)
+    Q_PROPERTY(QVariantMap workspaceSlot9Target READ workspaceSlot9Target WRITE setWorkspaceSlot9Target NOTIFY
+                   workspaceSlot9TargetChanged)
 
     // Scrolling Settings (Scrolling)
     Q_PROPERTY(bool scrollingEnabled READ scrollingEnabled WRITE setScrollingEnabled NOTIFY scrollingEnabledChanged)
@@ -567,7 +659,7 @@ public:
     Q_PROPERTY(QString overlayShaderTreeJson READ overlayShaderTreeJson WRITE setOverlayShaderTreeJson NOTIFY
                    overlayShaderTreeChanged)
 
-    // Decorations.Performance — three bounds on WHEN the decoration chain
+    // Decorations.Performance — the bounds on WHEN the decoration chain
     // animates, plus the blur-scale multiplier that shrinks the per-frame work.
     Q_PROPERTY(bool decorationAnimateFocusedOnly READ decorationAnimateFocusedOnly WRITE setDecorationAnimateFocusedOnly
                    NOTIFY decorationAnimateFocusedOnlyChanged)
@@ -728,7 +820,8 @@ public:
     Q_PROPERTY(QString audioInputMethod READ audioInputMethod WRITE setAudioInputMethod NOTIFY audioInputMethodChanged)
     Q_PROPERTY(QString audioInputSource READ audioInputSource WRITE setAudioInputSource NOTIFY audioInputSourceChanged)
 
-    // Global Shortcuts (configurable via KCM, registered with KGlobalAccel)
+    // Global Shortcuts (registered by ShortcutManager through its
+    // PhosphorShortcuts backend)
     Q_PROPERTY(
         QString openEditorShortcut READ openEditorShortcut WRITE setOpenEditorShortcut NOTIFY openEditorShortcutChanged)
     Q_PROPERTY(QString openSettingsShortcut READ openSettingsShortcut WRITE setOpenSettingsShortcut NOTIFY
@@ -804,7 +897,7 @@ public:
     Q_PROPERTY(QString spanWindowDownShortcut READ spanWindowDownShortcut WRITE setSpanWindowDownShortcut NOTIFY
                    spanWindowDownShortcutChanged)
 
-    // Snap to PhosphorZones::Zone by Number Shortcuts (Meta+Ctrl+1-9)
+    // Snap to Zone by Number Shortcuts (Meta+Ctrl+1-9)
     Q_PROPERTY(QString snapToZone1Shortcut READ snapToZone1Shortcut WRITE setSnapToZone1Shortcut NOTIFY
                    snapToZone1ShortcutChanged)
     Q_PROPERTY(QString snapToZone2Shortcut READ snapToZone2Shortcut WRITE setSnapToZone2Shortcut NOTIFY
@@ -851,14 +944,14 @@ public:
     Q_PROPERTY(QString rotateWindowsCounterclockwiseShortcut READ rotateWindowsCounterclockwiseShortcut WRITE
                    setRotateWindowsCounterclockwiseShortcut NOTIFY rotateWindowsCounterclockwiseShortcutChanged)
 
-    // Cycle Windows in PhosphorZones::Zone Shortcuts (Meta+Alt+. / Meta+Alt+,)
+    // Cycle Windows in Zone Shortcuts (Meta+Alt+. / Meta+Alt+,)
     // Cycles focus between windows stacked in the same zone
     Q_PROPERTY(QString cycleWindowForwardShortcut READ cycleWindowForwardShortcut WRITE setCycleWindowForwardShortcut
                    NOTIFY cycleWindowForwardShortcutChanged)
     Q_PROPERTY(QString cycleWindowBackwardShortcut READ cycleWindowBackwardShortcut WRITE setCycleWindowBackwardShortcut
                    NOTIFY cycleWindowBackwardShortcutChanged)
 
-    // Resnap to New PhosphorZones::Layout (Meta+Ctrl+Z, easy pinky key)
+    // Resnap to New Layout (Meta+Ctrl+Z, easy pinky key)
     Q_PROPERTY(QString resnapToNewLayoutShortcut READ resnapToNewLayoutShortcut WRITE setResnapToNewLayoutShortcut
                    NOTIFY resnapToNewLayoutShortcutChanged)
 
@@ -866,11 +959,11 @@ public:
     Q_PROPERTY(QString snapAllWindowsShortcut READ snapAllWindowsShortcut WRITE setSnapAllWindowsShortcut NOTIFY
                    snapAllWindowsShortcutChanged)
 
-    // PhosphorZones::Layout Picker (Meta+Alt+Space — browse and switch layouts interactively)
+    // Layout Picker (Meta+Alt+Space — browse and switch layouts interactively)
     Q_PROPERTY(QString layoutPickerShortcut READ layoutPickerShortcut WRITE setLayoutPickerShortcut NOTIFY
                    layoutPickerShortcutChanged)
 
-    // Toggle PhosphorZones::Layout Lock (Meta+Ctrl+L)
+    // Toggle Layout Lock (Meta+Ctrl+L)
     Q_PROPERTY(QString toggleLayoutLockShortcut READ toggleLayoutLockShortcut WRITE setToggleLayoutLockShortcut NOTIFY
                    toggleLayoutLockShortcutChanged)
 
@@ -931,10 +1024,6 @@ public:
     void setDragActivationTriggers(const QVariantList& triggers) override;
     bool zoneSpanEnabled() const override;
     void setZoneSpanEnabled(bool enabled) override;
-    DragModifier zoneSpanModifier() const override;
-    void setZoneSpanModifier(DragModifier modifier) override;
-    int zoneSpanModifierInt() const;
-    void setZoneSpanModifierInt(int modifier);
     QVariantList zoneSpanTriggers() const override;
     void setZoneSpanTriggers(const QVariantList& triggers) override;
     bool zoneSpanToggleMode() const override;
@@ -1091,6 +1180,7 @@ public:
     bool keepWindowsInZonesOnResolutionChange() const override;
     void setKeepWindowsInZonesOnResolutionChange(bool keep) override;
     bool moveNewWindowsToLastZone() const override;
+    void setMoveNewWindowsToLastZone(bool move) override;
     // ISnapSettings::focusNewWindows() — delegates to the Snapping.Behavior store
     // value (snappingFocusNewWindows). The snap engine reads this on AutoRestored
     // commits to focus auto-placed-on-open windows.
@@ -1100,7 +1190,6 @@ public:
     // unfloatToZone to decide whether a no-pre-float-zone unfloat snaps to a
     // fallback zone or stays floating.
     bool unfloatFallbackToZone() const override;
-    void setMoveNewWindowsToLastZone(bool move) override;
     bool restoreOriginalSizeOnUnsnap() const override;
     void setRestoreOriginalSizeOnUnsnap(bool restore) override;
     StickyWindowHandling snappingStickyWindowHandling() const override;
@@ -1179,7 +1268,7 @@ public:
     // (+ their add*/remove* convenience methods) retired in v4 — see the
     // Q_PROPERTY block above for the migration notes.
 
-    // PhosphorZones::Zone Selector — PhosphorConfig::Store-backed.
+    // Zone Selector — PhosphorConfig::Store-backed.
     bool zoneSelectorEnabled() const override;
     void setZoneSelectorEnabled(bool enabled) override;
     int zoneSelectorTriggerDistance() const override;
@@ -1395,13 +1484,141 @@ public:
     void setScrollingDragInsertGraceMs(int ms) override;
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // Scrolling Settings (IScrollSettings + Scrolling group)
+    // Workspaces Settings (Workspaces.* + the Shortcuts.Global chord leaves)
+    //
+    // Dynamic per-monitor workspaces. Store-backed like the scrolling block
+    // below, and every key here carries a Q_PROPERTY (see the note on the
+    // workspace Q_PROPERTY block).
     // ═══════════════════════════════════════════════════════════════════════════
+    bool workspacesEnabled() const;
+    void setWorkspacesEnabled(bool enabled);
+    bool workspacesManageKWinPerOutput() const;
+    void setWorkspacesManageKWinPerOutput(bool enabled);
+    bool workspacesSnapBackOsdHint() const;
+    void setWorkspacesSnapBackOsdHint(bool enabled);
+    QVariantList workspacesNamedEntries() const;
+    void setWorkspacesNamedEntries(const QVariantList& entries);
+    bool workspacesRebindKWinShortcuts() const;
+    void setWorkspacesRebindKWinShortcuts(bool enabled);
+    QString workspaceFocusUpShortcut() const;
+    void setWorkspaceFocusUpShortcut(const QString& shortcut);
+    QString workspaceFocusDownShortcut() const;
+    void setWorkspaceFocusDownShortcut(const QString& shortcut);
+    QString workspaceMoveWindowUpShortcut() const;
+    void setWorkspaceMoveWindowUpShortcut(const QString& shortcut);
+    QString workspaceMoveWindowDownShortcut() const;
+    void setWorkspaceMoveWindowDownShortcut(const QString& shortcut);
+    QString workspaceMoveColumnUpShortcut() const;
+    void setWorkspaceMoveColumnUpShortcut(const QString& shortcut);
+    QString workspaceMoveColumnDownShortcut() const;
+    void setWorkspaceMoveColumnDownShortcut(const QString& shortcut);
+    QString workspaceReorderUpShortcut() const;
+    void setWorkspaceReorderUpShortcut(const QString& shortcut);
+    QString workspaceReorderDownShortcut() const;
+    void setWorkspaceReorderDownShortcut(const QString& shortcut);
+    QString workspaceMoveToMonitorLeftShortcut() const;
+    void setWorkspaceMoveToMonitorLeftShortcut(const QString& shortcut);
+    QString workspaceMoveToMonitorRightShortcut() const;
+    void setWorkspaceMoveToMonitorRightShortcut(const QString& shortcut);
 
+    /// The quick-slot families, addressed by a 0-based index below
+    /// ConfigDefaults::WorkspaceSlotCount. An out-of-range index reads empty
+    /// and writes nothing. Each slot also has its own Q_PROPERTYs below
+    /// (workspaceFocusSlotNShortcut, workspaceMoveSlotNShortcut,
+    /// workspaceSlotNTarget), which is what QML binds and what announces a
+    /// change: the indexed forms are for C++ callers that loop over slots.
+    ///
+    /// Move-slot chords (WorkspaceMoveSlotN): send the focused window to the
+    /// named workspace the slot targets. Unbound by default.
+    QString workspaceMoveSlotShortcut(int index) const;
+    void setWorkspaceMoveSlotShortcut(int index, const QString& shortcut);
+    /// Focus-slot chords (WorkspaceFocusSlotN): switch the acting monitor to
+    /// the Nth workspace of its own list. Positional, so they read no target.
+    QString workspaceFocusSlotShortcut(int index) const;
+    void setWorkspaceFocusSlotShortcut(int index, const QString& shortcut);
+    /// Quick-slot targets (Workspaces.Slots): the named workspace a move slot
+    /// sends the window to, stored as the declaration's persistent id
+    /// (TargetIdN) plus the name it carried when assigned (TargetN). A
+    /// resolver looks the id up first and falls back to the stored name, so a
+    /// slot whose workspace was removed and declared again under the same name
+    /// comes back to life. Both empty means unassigned.
+    QString workspaceSlotTargetId(int index) const;
+    QString workspaceSlotTargetName(int index) const;
+    /// Both halves as one map, keyed by ConfigDefaults::namedEntryIdField()
+    /// and ConfigDefaults::namedEntryNameField(): the value of the per-slot
+    /// workspaceSlotNTarget property.
+    QVariantMap workspaceSlotTarget(int index) const;
+    /// Assign slot @p index to the named workspace whose id is @p entryId,
+    /// taking the name from the current declaration list. An empty id clears
+    /// the slot. An id no declaration carries is refused and changes nothing,
+    /// so a caller must hand over an id it read from the list (a declaration
+    /// without an id cannot be targeted until the list is saved with one).
+    Q_INVOKABLE void setWorkspaceSlotTarget(int index, const QString& entryId);
+    QString workspaceFocusSlot1Shortcut() const;
+    void setWorkspaceFocusSlot1Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot1Shortcut() const;
+    void setWorkspaceMoveSlot1Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot2Shortcut() const;
+    void setWorkspaceFocusSlot2Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot2Shortcut() const;
+    void setWorkspaceMoveSlot2Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot3Shortcut() const;
+    void setWorkspaceFocusSlot3Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot3Shortcut() const;
+    void setWorkspaceMoveSlot3Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot4Shortcut() const;
+    void setWorkspaceFocusSlot4Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot4Shortcut() const;
+    void setWorkspaceMoveSlot4Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot5Shortcut() const;
+    void setWorkspaceFocusSlot5Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot5Shortcut() const;
+    void setWorkspaceMoveSlot5Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot6Shortcut() const;
+    void setWorkspaceFocusSlot6Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot6Shortcut() const;
+    void setWorkspaceMoveSlot6Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot7Shortcut() const;
+    void setWorkspaceFocusSlot7Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot7Shortcut() const;
+    void setWorkspaceMoveSlot7Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot8Shortcut() const;
+    void setWorkspaceFocusSlot8Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot8Shortcut() const;
+    void setWorkspaceMoveSlot8Shortcut(const QString& shortcut);
+    QString workspaceFocusSlot9Shortcut() const;
+    void setWorkspaceFocusSlot9Shortcut(const QString& shortcut);
+    QString workspaceMoveSlot9Shortcut() const;
+    void setWorkspaceMoveSlot9Shortcut(const QString& shortcut);
+    /// The per-slot target properties. The setter reads only the id field of
+    /// @p target and resolves the name itself, as setWorkspaceSlotTarget does.
+    QVariantMap workspaceSlot1Target() const;
+    void setWorkspaceSlot1Target(const QVariantMap& target);
+    QVariantMap workspaceSlot2Target() const;
+    void setWorkspaceSlot2Target(const QVariantMap& target);
+    QVariantMap workspaceSlot3Target() const;
+    void setWorkspaceSlot3Target(const QVariantMap& target);
+    QVariantMap workspaceSlot4Target() const;
+    void setWorkspaceSlot4Target(const QVariantMap& target);
+    QVariantMap workspaceSlot5Target() const;
+    void setWorkspaceSlot5Target(const QVariantMap& target);
+    QVariantMap workspaceSlot6Target() const;
+    void setWorkspaceSlot6Target(const QVariantMap& target);
+    QVariantMap workspaceSlot7Target() const;
+    void setWorkspaceSlot7Target(const QVariantMap& target);
+    QVariantMap workspaceSlot8Target() const;
+    void setWorkspaceSlot8Target(const QVariantMap& target);
+    QVariantMap workspaceSlot9Target() const;
+    void setWorkspaceSlot9Target(const QVariantMap& target);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Scrolling Settings (IScrollSettings + Scrolling group)
+    //
     // Store-backed scalars; the enum int values rely on the schema
     // validators (validIntOr), like every other stored scalar. The width
     // VALUE is the exception: its clamp is kind-aware and lives in the
     // hand-written setter below.
+    // ═══════════════════════════════════════════════════════════════════════════
     bool scrollingEnabled() const;
     void setScrollingEnabled(bool enabled);
     int scrollingCenterFocusedColumn() const override;
@@ -1441,7 +1658,8 @@ public:
     // Scrolling.TabIndicator. The geometry half also satisfies IScrollSettings
     // (the engine reads it to size and place the indicator, and to shrink the
     // column when PlaceWithinColumn is set); the paint half satisfies ISettings
-    // for the overlay service. Hence the mixed `override` marking.
+    // for the D-Bus settings registry, which publishes it to the KWin effect
+    // that paints the pills. Hence the mixed `override` marking.
     bool scrollingTabIndicatorEnabled() const override;
     void setScrollingTabIndicatorEnabled(bool enabled) override;
     int scrollingTabIndicatorStyle() const override;
@@ -1698,18 +1916,17 @@ public:
     void setAutotileRetileShortcut(const QString& shortcut);
 
     // Animation Settings (applies to both snapping and autotiling geometry
-    // changes) — backed by PhosphorConfig::Store (see settingsschema.cpp).
-    // Phase 4 sub-commit 6: storage format migrated to a single Profile
-    // JSON blob; per-field accessors below are projections. The `animationProfile`
-    // getter / setter is the new canonical surface for consumers that want
-    // the whole Profile atomically (daemon's WindowAnimator config-reload path,
-    // plugin-authored profile presets).
+    // changes), backed by PhosphorConfig::Store. Stored as a single Profile
+    // JSON blob; the per-field accessors below are projections. The
+    // `animationProfile` getter / setter is the canonical surface for
+    // consumers that want the whole Profile atomically (daemon's
+    // WindowAnimator config-reload path, plugin-authored profile presets).
     bool animationsEnabled() const override;
     void setAnimationsEnabled(bool enabled) override;
     /// The single Profile blob backing every per-field accessor below.
     /// Not a Q_PROPERTY — QML consumers that need the typed Profile
-    /// should use the sub-commit-2 `PhosphorProfile` Q_GADGET; this
-    /// returns a C++-only PhosphorAnimation::Profile value.
+    /// should use the `PhosphorProfile` Q_GADGET; this returns a C++-only
+    /// PhosphorAnimation::Profile value.
     PhosphorAnimation::Profile animationProfile() const;
 
     /// Whether the user has actually written the global animation Profile,
@@ -1850,11 +2067,13 @@ private:
     void writeLockedScreens(const QStringList& screens);
 
     /// Coerce the shared scrolling column-width VALUE into the range its
-    /// current KIND allows. Called from load(), from applyConfigOverlayStaged,
-    /// and from the per-page mutators discardKeys() / resetKeys() — between
-    /// them, every path by which a value can reach the store without passing
-    /// the kind-aware setter (hand edit, config import, Discard reload,
-    /// profile staging, per-page Discard and Reset).
+    /// current KIND allows. Called from the reload body (which load(),
+    /// reloadPreservingLocalEdits() and reset() all run, reset()'s refused-
+    /// commit arm included), from applyConfigOverlayStaged, and from the
+    /// per-page mutators discardKeys() / resetKeys(). Between them that is
+    /// every path by which a value can reach the store without passing the
+    /// kind-aware setter (hand edit, config import, Discard reload, factory
+    /// reset, profile staging, per-page Discard and Reset).
     ///
     /// The per-page pair matters even though the two width keys are co-owned
     /// by one page manifest today: relying on that co-ownership would make a
@@ -1944,7 +2163,8 @@ public:
     QString audioInputSource() const override;
     void setAudioInputSource(const QString& source) override;
 
-    // Global Shortcuts (for KGlobalAccel) — PhosphorConfig::Store-backed.
+    // Global Shortcuts — PhosphorConfig::Store-backed. ShortcutManager
+    // registers them through its PhosphorShortcuts backend.
     QString openEditorShortcut() const;
     void setOpenEditorShortcut(const QString& shortcut);
     QString openSettingsShortcut() const;
@@ -2189,8 +2409,11 @@ public:
     /// free: without it the staged groups would sit in the live root and be
     /// committed by a later sync() or the backend's flush-on-destruction.
     ///
-    /// Returns false if the write fails, or if the backend is not JSON-backed
-    /// (exports are config.json documents).
+    /// Returns false if the write fails, if the backend is not JSON-backed
+    /// (exports are config.json documents), or if config.json cannot be read
+    /// even after looking again (configUnreadable() then stays true): the
+    /// backend holds a stand-in in that state, and exporting it would write a
+    /// valid-looking file of defaults or of an old state.
     bool exportTo(const QString& filePath);
 
     // ── Per-page reset / discard support (settings app) ─────────────────────
@@ -2210,7 +2433,9 @@ public:
     /// plus editorSettingsChanged() once if any moved, and
     /// animationProfileChanged() when the Profile blob moved.
     ///
-    /// SCOPE: it does NOT re-emit the per-mode disable-list signals
+    /// SCOPE: re-emits the Q_PROPERTY NOTIFY signals (+ settingsChanged), the
+    /// Editor.* signals (+ editorSettingsChanged) and animationProfileChanged.
+    /// It does NOT re-emit the per-mode disable-list signals
     /// (disabled*Changed) or the per-screen signals (perScreen*SettingsChanged)
     /// load() also fires. No page manifest owns a disable-list or per-screen
     /// key today; a page that ever does needs this extended to re-emit those.
@@ -2222,6 +2447,21 @@ public:
     void resetKeys(const ConfigKeyList& keys);
 
     // ── Settings-profiles support (settings app) ────────────────────────────
+    /// Keys that belong to this machine rather than to a set of preferences,
+    /// so no profile and no full-settings import may carry them from one
+    /// machine to another. Rendering.Gpu names hardware another machine
+    /// cannot satisfy. Workspaces.Behavior ManageKWinPerOutput records the
+    /// consent this machine's user gave for PlasmaZones to write KWin's
+    /// PerOutputVirtualDesktops key, which an import from elsewhere must never
+    /// grant (and a profile switch must never silently withdraw).
+    /// The one predicate every capture, apply and import path consults.
+    static bool isMachineScopedKey(const QString& group, const QString& key);
+    /// Remove every isMachineScopedKey() key from a config blob shaped
+    /// `{group: {key: value}}`, in place. Store::importFromJson skips a key
+    /// the blob does not carry, so applying a stripped blob leaves the live
+    /// values of those keys untouched.
+    static void stripMachineScopedKeys(QJsonObject& config);
+
     /// The complete current config as one JSON blob — every schema-declared
     /// key at its current in-memory value (schema default for never-written
     /// keys), stamped with `_version`. Thin pass-through to Store::exportToJson.
@@ -2246,8 +2486,11 @@ public:
     ///
     /// SCOPE: every schema-declared key the blob carries, which includes the
     /// Editor.* keys and the animation Profile blob as well as the Q_PROPERTY
-    /// ones; each family gets the same re-emit as load(). Per-screen maps,
-    /// virtual-screen configs, and per-mode disable lists are NOT staged here.
+    /// ones; each family gets the same re-emit as load(). A key the blob does
+    /// not carry keeps its live value, which is how the machine-scoped keys the
+    /// profile layer strips (isMachineScopedKey) survive a profile switch.
+    /// Per-screen maps, virtual-screen configs, and per-mode disable lists are
+    /// NOT staged here.
     /// @return false when the store refused the blob (schema version mismatch)
     /// — in that case nothing was staged and no signal fired.
     bool applyConfigOverlayStaged(const QJsonObject& fullConfigBlob);
@@ -2260,11 +2503,9 @@ public:
     /// inert in both cases and the resolvers' negation guards hold rules that
     /// negate it out. Static: it is the one place the palette is classified.
     ///
-    /// Callers: eventFilter()'s flip detection and the seed in
-    /// trackSystemPaletteChanges(), the daemon's registry colour-scheme
-    /// provider, and colorSchemeToken() below — which is the path injected
-    /// consumers (the WindowTrackingAdaptor query builder) take, so a test
-    /// double can substitute a fixed scheme.
+    /// colorSchemeToken() below is the injectable view of it: a consumer that
+    /// reaches the scheme through its injected settings can have a test double
+    /// substitute a fixed one.
     static QString systemColorSchemeToken();
 
     /// ISettings' injectable view of systemColorSchemeToken().
@@ -2321,6 +2562,52 @@ Q_SIGNALS:
     /// signals per the existing NOTIFY wiring.
     void animationProfileChanged();
 
+    /// Workspaces (dynamic per-monitor workspaces): one NOTIFY per key, the
+    /// quick slots included. Declared here rather than on ISettings because
+    /// every consumer holds the concrete Settings and reads the value there.
+    void workspacesEnabledChanged();
+    void workspacesManageKWinPerOutputChanged();
+    void workspacesSnapBackOsdHintChanged();
+    void workspacesNamedEntriesChanged();
+    void workspacesRebindKWinShortcutsChanged();
+    void workspaceFocusUpShortcutChanged();
+    void workspaceFocusDownShortcutChanged();
+    void workspaceMoveWindowUpShortcutChanged();
+    void workspaceMoveWindowDownShortcutChanged();
+    void workspaceMoveColumnUpShortcutChanged();
+    void workspaceMoveColumnDownShortcutChanged();
+    void workspaceReorderUpShortcutChanged();
+    void workspaceReorderDownShortcutChanged();
+    void workspaceMoveToMonitorLeftShortcutChanged();
+    void workspaceMoveToMonitorRightShortcutChanged();
+    void workspaceFocusSlot1ShortcutChanged();
+    void workspaceFocusSlot2ShortcutChanged();
+    void workspaceFocusSlot3ShortcutChanged();
+    void workspaceFocusSlot4ShortcutChanged();
+    void workspaceFocusSlot5ShortcutChanged();
+    void workspaceFocusSlot6ShortcutChanged();
+    void workspaceFocusSlot7ShortcutChanged();
+    void workspaceFocusSlot8ShortcutChanged();
+    void workspaceFocusSlot9ShortcutChanged();
+    void workspaceMoveSlot1ShortcutChanged();
+    void workspaceMoveSlot2ShortcutChanged();
+    void workspaceMoveSlot3ShortcutChanged();
+    void workspaceMoveSlot4ShortcutChanged();
+    void workspaceMoveSlot5ShortcutChanged();
+    void workspaceMoveSlot6ShortcutChanged();
+    void workspaceMoveSlot7ShortcutChanged();
+    void workspaceMoveSlot8ShortcutChanged();
+    void workspaceMoveSlot9ShortcutChanged();
+    void workspaceSlot1TargetChanged();
+    void workspaceSlot2TargetChanged();
+    void workspaceSlot3TargetChanged();
+    void workspaceSlot4TargetChanged();
+    void workspaceSlot5TargetChanged();
+    void workspaceSlot6TargetChanged();
+    void workspaceSlot7TargetChanged();
+    void workspaceSlot8TargetChanged();
+    void workspaceSlot9TargetChanged();
+
     // NOTE: do not redeclare signals already on ISettings here.
     // Re-declaring a base-class Q_SIGNAL produces a second moc index
     // and `connect(s, &ISettings::xChanged, ...)` then misses the
@@ -2349,22 +2636,17 @@ private:
     /// object (see eventFilter). Called once per constructor, after load().
     void trackSystemPaletteChanges();
 
-    /// Member-function-pointer alias used by the indexed shortcut setters
-    /// (quickLayoutShortcut / snapToZoneShortcut) when fanning out to the
-    /// per-index NOTIFY signal.
+    /// Member-function-pointer alias used by the indexed shortcut setters when
+    /// fanning out to the per-index NOTIFY signal.
     using ShortcutSignalFn = void (Settings::*)();
 
     /// Member-function-pointer alias for the per-trigger-list NOTIFY signal
     /// passed into @ref writeTriggerList.
     using TriggerListSignalFn = void (Settings::*)();
 
-    /// Shared trigger-list setter used by the "plain" setters (activation,
-    /// snap-assist, autotile-insert, scrolling-insert, and the two wheel
-    /// chords). Caps at
+    /// Shared trigger-list setter used by every trigger-list setter. Caps at
     /// @c MaxTriggersPerAction, round-trips through the schema's validator,
     /// and only emits @p specificSignal + @c settingsChanged on a real change.
-    /// @c setZoneSpanTriggers does its own dance because it also synchronises
-    /// the legacy single-modifier key.
     void writeTriggerList(const QString& group, const QString& key, const QVariantList& triggers,
                           TriggerListSignalFn specificSignal);
 
@@ -2402,10 +2684,10 @@ private:
     QStringList disableEntriesFor(PhosphorZones::AssignmentEntry::Mode mode, int axisInt) const;
 
     // ─── load() / save() helpers ────────────────────────────────────────
-    // Only non-Store groups need dedicated helpers now. Store-backed groups
-    // (Activation/Display/ZoneGeometry/Behavior/ZoneSelector/Shortcut/
-    // Autotiling/Editor/Appearance/Rendering/Shaders/Ordering) persist via
-    // setters and flush via m_configBackend->commit() in save().
+    // Only the state outside the schema (the per-screen override maps and the
+    // virtual-screen configs) needs dedicated helpers. Every schema group
+    // persists through its setters and flushes via m_configBackend->commit()
+    // in save().
     void loadPerScreenOverrides(PhosphorConfig::IBackend* backend);
     void loadVirtualScreenConfigs(PhosphorConfig::IBackend* backend);
     void saveAllPerScreenOverrides(PhosphorConfig::IBackend* backend);
@@ -2434,13 +2716,6 @@ private:
     QVector<QVariant> snapshotEditorSettings() const;
     bool emitChangedEditorSettings(const QVector<QVariant>& before);
 
-    /// Shared body of load() and reloadPreservingLocalEdits(). With
-    /// @p preserveLocalEdits the keys isKeyModified() reports are re-applied
-    /// over the reparsed document, the baseline is captured from disk before
-    /// that, and the per-screen / virtual-screen members, the owned rule store
-    /// and the per-mode disable lists are not reloaded (except as
-    /// reloadMembersFromRepairedConfig describes).
-    void reloadFromDisk(bool preserveLocalEdits);
     /// The per-screen and virtual-screen members, captured whole.
     struct MemberState
     {
@@ -2451,6 +2726,26 @@ private:
         QHash<QString, PhosphorScreens::VirtualScreenConfig> virtualScreens;
     };
     MemberState captureMemberState() const;
+
+    /// Everything a reload announces, captured before the reload mutates it:
+    /// the Q_PROPERTY values, the animation Profile state, the Editor.*
+    /// settings, the per-screen members, and (when captured with
+    /// @p withDisableLists) the per-mode disable lists in canonical form.
+    struct AnnouncedState;
+    AnnouncedState captureAnnouncedState(bool withDisableLists) const;
+
+    /// Shared body of load(), reloadPreservingLocalEdits() and reset(). With
+    /// @p preserveLocalEdits the keys isKeyModified() reports are re-applied
+    /// over the reparsed document, the baseline is captured from disk before
+    /// that, and the per-screen / virtual-screen members, the owned rule store
+    /// and the per-mode disable lists are not reloaded (except as
+    /// reloadMembersFromRepairedConfig describes).
+    ///
+    /// The change signals compare against @p before when one is given, and
+    /// against a capture taken on entry otherwise. reset() passes the state it
+    /// captured before deleting anything, so one reload announces every value
+    /// the reset moved, each signal once and settingsChanged() at most once.
+    void reloadFromDisk(bool preserveLocalEdits, const AnnouncedState* before = nullptr);
     /// Reload the per-screen and virtual-screen members from a config.json
     /// that reads cleanly again, carrying over what was changed in memory
     /// while it could not be read (a three-way merge against
@@ -2469,14 +2764,24 @@ private:
     /// Every schema key isKeyModified() reports, with its current value.
     QList<LocalEdit> collectLocalEdits() const;
     /// Write @p edits back through the store (raw writes, no announcement).
-    void reapplyLocalEdits(const QList<LocalEdit>& edits);
+    /// An edit to the Workspaces.Named list is merged per entry with what the
+    /// store holds now (mergeNamedEntriesForReload in settings.cpp), against
+    /// @p namedBaseline, the list that edit was made against, so a rewrite
+    /// another process made to an entry the user did not touch survives. The
+    /// merge also re-homes m_namedEntryStampOrigins onto what disk holds.
+    void reapplyLocalEdits(const QList<LocalEdit>& edits, const QVariantList& namedBaseline);
+    /// The Workspaces.Named list in m_baseline: what a local edit to it was
+    /// made against, for reapplyLocalEdits.
+    QVariantList namedEntriesBaseline() const;
 
     /// The animation Profile blob's state, for change detection across a
     /// load / discard / reset.
     ///
     /// `animationProfileChanged` is a bare signal with no backing Q_PROPERTY,
-    /// so the meta-object loop above never re-emits it — only the setters do,
-    /// and those three paths bypass them. That matters beyond a stale reader:
+    /// so the meta-object loop above never re-emits it. Only the setters do,
+    /// and every bulk path (the reload body, applyConfigOverlayStaged,
+    /// discardKeys, resetKeys and reset) bypasses them, so each of those
+    /// diffs this state itself. That matters beyond a stale reader:
     /// the daemon and the settings app both choose which registry LAYER the
     /// global profile occupies from `hasExplicitAnimationProfile()`, so a
     /// missed emission leaves the layer wrong until the process restarts.
@@ -2494,11 +2799,25 @@ private:
     AnimationProfileState animationProfileState() const;
     void emitAnimationProfileChangeIfMoved(const AnimationProfileState& before);
 
-    // Refresh the committed baseline — the last-persisted value of every
-    // schema-declared key. Called at the end of load() and save() (the only
-    // points where the in-memory store equals disk); discardKeys() reverts to
+    struct AnnouncedState
+    {
+        QVector<QVariant> properties;
+        AnimationProfileState animationProfile;
+        QVector<QVariant> editor;
+        MemberState members;
+        bool hasDisableLists = false;
+        QHash<PhosphorZones::AssignmentEntry::Mode, QStringList> disabledMonitors;
+        QHash<PhosphorZones::AssignmentEntry::Mode, QStringList> disabledDesktops;
+        QHash<PhosphorZones::AssignmentEntry::Mode, QStringList> disabledActivities;
+    };
+
+    // Refresh the committed baseline, the last-persisted value of every
+    // schema-declared key. Called wherever the in-memory store equals disk:
+    // at the end of a full reload (load(), and reset() through it), after a
+    // successful save(), and in the edit-preserving reload right after the
+    // reparse, before the kept edits go back on top. discardKeys() reverts to
     // this baseline and isKeyModified() compares against it. Private: mutating
-    // the baseline anywhere but a load/save commit point desyncs dirty tracking.
+    // the baseline anywhere else desyncs dirty tracking.
     void captureBaseline();
 
     // Palette-following colours: resolve one of the theme-fallback roles from
@@ -2524,9 +2843,11 @@ private:
     // definition in settings/storescalars.cpp for why.
     static QColor resolveThemeColor(const QString& raw, SystemColorRole role);
 
-    // Groups that reset() deletes exhaustively (excludes unmanaged groups like
-    // Updates). NOT used by save() — save() iterates the schema and lets
-    // purgeStaleKeys() handle cleanup.
+    // The top-level groups that hold the schema, which reset() deletes
+    // exhaustively. reset() also sweeps the root-group container and the
+    // per-screen groups beside them (see there); a group no schema key lives in
+    // any more is left to purgeStaleKeys(). NOT used by save() — save()
+    // iterates the schema and lets purgeStaleKeys() handle cleanup.
     static QStringList managedGroupNames();
     // Delete every per-screen override group, plus the container they nest
     // under. Three things are swept:
@@ -2548,11 +2869,9 @@ private:
     void purgeStaleKeys();
 
     /// Reparse the backend from disk IF it holds no pending writes.
-    /// Called by every composite-value setter (animation Profile blob,
-    /// shader/decoration profile trees, autotile per-algorithm map,
-    /// snapping and tiling trigger lists including the zoneSpan pair)
-    /// before its stale-sensitive read; see the definition for the
-    /// cross-process coherence rationale.
+    /// Called by the composite-value setters (the read-modify-write and
+    /// read-back-compare ones, whose read must not be stale) before that
+    /// read; see the definition for the cross-process coherence rationale.
     void refreshCleanBackendFromDisk();
 
     // Patch one field of the Profile JSON blob and emit the canonical
@@ -2602,18 +2921,28 @@ private:
     std::unique_ptr<PhosphorConfig::IBackend> m_ownedBackend;
     PhosphorConfig::IBackend* m_configBackend = nullptr; // always valid after construction
 
-    // Declarative store built on top of the backend. Every setting migrated
-    // from hand-written load*/save* functions routes through here. See
-    // settingsschema.cpp for the current list of migrated groups.
+    // Declarative store built on top of the backend. Every schema-declared key
+    // routes through here. The schema comes from buildSettingsSchema(), whose
+    // groups are spread over settingsschema.cpp and its per-domain
+    // settingsschema_*.cpp siblings.
     std::unique_ptr<PhosphorConfig::Store> m_store;
 
     // Committed baseline: the last-persisted value of every schema-declared
-    // key, keyed group → {key → value}. Refreshed by captureBaseline() at the
-    // end of load() and save(). Backs per-page Discard (revert to baseline)
+    // key, keyed group → {key → value}. Refreshed by captureBaseline() (see
+    // there for when). Backs per-page Discard (revert to baseline)
     // and value-based per-page dirty checks (isKeyModified). A runtime theme
     // switch never touches it: the palette-following zone colours store the
     // empty sentinel and resolve in their getters, so nothing is written.
     QHash<QString, QVariantMap> m_baseline;
+
+    // Which id-less Workspaces.Named entry of the baseline each id the
+    // settings page stamped replaced: stamped id → that entry's name.
+    // Recorded by setWorkspacesNamedEntries, which still sees the list from
+    // before the stamp, so a rename written together with the stamp cannot
+    // hide the pairing. Re-homed onto disk's names by every preserving
+    // reload's merge (reapplyLocalEdits), and cleared by a full reload and a
+    // successful save, after which no stamp is unsaved.
+    QHash<QString, QString> m_namedEntryStampOrigins;
 
     // Raised (RAII, via QScopedValueRollback) around eventFilter()'s
     // palette-change NOTIFY fan-out; surfaced through
@@ -2664,9 +2993,10 @@ private:
     //
     // The owning ctor calls `load()` on the owned store; the borrowing ctor
     // does not — the owner is responsible for having loaded already.
-    // load() reloads the active store from disk so cross-process deltas
-    // surface; the disabled*/setDisabled*/is*Disabled accessors read/write
-    // through `m_ruleStore` (a raw pointer that always tracks the
+    // A full reload (reloadFromDisk) reloads the store from disk only when it
+    // is owned, so cross-process deltas surface there; a borrowed store is
+    // reloaded by its owner. The disabled*/setDisabled*/is*Disabled accessors
+    // read/write through `m_ruleStore` (a raw pointer that always tracks the
     // active store — owned or borrowed).
     std::unique_ptr<PhosphorRules::RuleStore> m_ownedRuleStore;
     PhosphorRules::RuleStore* m_ruleStore = nullptr;
@@ -2686,48 +3016,28 @@ private:
     // spuriously fire settingsChanged. Bound to the store's rulesChanged signal.
     void onRuleStoreChanged();
 
-    // Fingerprint of every gap action across the rule set, used to gate the
-    // per-screen gap re-sync in onRuleStoreChanged so only real gap edits fire it.
-    QString gapRulesFingerprint() const;
+    // The part of one rule that decides what its gap actions contribute: who
+    // it is, whether it is on, what it matches, and the gap actions
+    // themselves. Its place in the evaluation order is carried by its
+    // position in gapRuleSlices()' list rather than by the raw priority.
+    struct GapRuleSlice
+    {
+        QUuid id;
+        bool enabled = true;
+        PhosphorRules::MatchExpression match;
+        QList<PhosphorRules::RuleAction> gapActions;
+        bool operator==(const GapRuleSlice&) const = default;
+    };
 
-    // Snapshot of all gap actions across the rule set; gates the per-screen gap
-    // re-sync in onRuleStoreChanged so non-gap rule writes (mode/assignment
-    // toggles) don't fire it. Seeded in connectRuleStoreGapReactivity.
-    QString m_cachedGapFingerprint;
+    // Every rule carrying a gap action, as a slice, in evaluation order. Used
+    // to gate the per-screen gap re-sync in onRuleStoreChanged so only a real
+    // gap edit fires it.
+    QList<GapRuleSlice> gapRuleSlices() const;
 
-    // Activation
-    // Activation is stored in m_store.
-
-    // Display
-    // Display is stored in m_store; no cached members here.
-
-    // Appearance
-    // Appearance + Labels + Opacity + Border are stored in m_store; no
-    // cached members here.
-
-    // PhosphorZones::Zone settings
-    // PhosphorZones::Zone geometry is stored in m_store; no cached members here.
-
-    // Performance and behavior
-    // Performance is stored in m_store; no cached members here.
-
-    // Window behavior
-    // Behavior (WindowHandling + SnapAssist) is stored in m_store.
-
-    // Default layout (used when no explicit assignment exists)
-    // defaultLayoutId stored in m_store.
-
-    // PhosphorZones::Layout filtering
-    // filterLayoutsByAspectRatio is stored in m_store.
-
-    // Ordering
-    // Ordering is stored in m_store; no cached members here.
-
-    // Exclusions
-    // Exclusions are stored in m_store; no cached members here.
-
-    // PhosphorZones::Zone Selector
-    // PhosphorZones::Zone selector is stored in m_store.
+    // gapRuleSlices() as last announced; gates the per-screen gap re-sync in
+    // onRuleStoreChanged so non-gap rule writes (mode/assignment toggles)
+    // don't fire it. Seeded in connectRuleStoreGapReactivity.
+    QList<GapRuleSlice> m_cachedGapRuleSlices;
 
     // Virtual screen configurations (physicalScreenId -> config)
     QHash<QString, PhosphorScreens::VirtualScreenConfig> m_virtualScreenConfigs;
@@ -2747,23 +3057,14 @@ private:
     // by perScreenGapOverrides and surfaced as getPerScreenSnappingSettings. There
     // is no separate per-screen snapping store.
 
-    // Autotiling Settings
-    // Autotiling stored in m_store.
-
-    // Animation Settings (applies to both snapping and autotiling geometry changes)
-    // Animations are stored in m_store; no cached members here.
-
     // Non-owned CurveRegistry for animation profile parsing. Injected at
     // construction (daemon composition root) or later through
     // setCurveRegistry(); null for standalone Settings instances that fall
-    // back to a local static registry. Profile reads parse on demand, so a
+    // back to ConfigDefaults::fallbackCurveRegistry(). Profile reads parse on demand, so a
     // registry handed over after construction applies from the next read on;
     // setCurveRegistry() documents why it should still come before the
     // first one.
     PhosphorAnimation::CurveRegistry* m_curveRegistry = nullptr;
-
-    // Additional Autotiling Settings
-    // Autotiling (continued) stored in m_store.
 };
 
 } // namespace PlasmaZones
