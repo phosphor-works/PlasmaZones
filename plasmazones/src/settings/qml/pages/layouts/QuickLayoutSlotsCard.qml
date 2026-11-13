@@ -109,9 +109,10 @@ SettingsCard {
 
         Repeater {
             // One row per quick-layout slot. Nine is the slot count the whole
-            // stack agrees on (ConfigDefaults' QuickLayoutSlotCount, the nine
-            // Meta+Alt+digit shortcuts, and the controller's own 1..9 bounds
-            // check); a tenth row would have no key to reach it.
+            // stack agrees on (PhosphorProtocol::Service::QuickLayoutSlotCount
+            // in ServiceConstants.h, which this literal mirrors by hand, the
+            // nine Meta+Alt+digit shortcuts, and the controller's own 1..9
+            // bounds check); a tenth row would have no key to reach it.
             model: 9
 
             delegate: ColumnLayout {

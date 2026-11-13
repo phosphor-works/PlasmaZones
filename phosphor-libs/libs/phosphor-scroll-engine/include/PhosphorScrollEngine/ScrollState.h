@@ -6,7 +6,7 @@
 #include <PhosphorEngine/IPlacementState.h>
 #include <PhosphorScrollEngine/ScrollStrip.h>
 #include <PhosphorScrollEngine/StripAxis.h>
-#include <phosphorscrollengine_export.h>
+#include "phosphorscrollengine_export.h"
 
 #include <QObject>
 #include <QRect>

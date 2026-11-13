@@ -2,16 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.phosphor.control
 
 SettingsFlickable {
     id: root
 
-    // Page-scoped Q_PROPERTY surface lives on the sub-controller; appSettings
-    // references stay direct (those are Settings Q_PROPERTYs not wrapped here).
-    readonly property var settingsBridge: settingsController.tilingBehaviorPage
+    // PageHost sets both before the page's bindings run, because this page's
+    // registry entry passes context (PageRegistry::Entry::passesContext).
+    // `controller` is this page's TilingBehaviorController. appSettings
+    // references stay direct (those are Settings Q_PROPERTYs not wrapped
+    // there). settingsApp is declared even though this page does not read it:
+    // PageHost passes it to every such page, and assigning it to a page that
+    // lacks the property logs an error on every build.
+    required property QtObject controller
+    required property ApplicationController settingsApp
 
     contentHeight: content.implicitHeight
     clip: true
@@ -42,10 +48,10 @@ SettingsFlickable {
                     SettingsSwitch {
                         id: alwaysReinsertSwitch
 
-                        checked: root.settingsBridge.alwaysReinsertIntoStack
+                        checked: root.controller.alwaysReinsertIntoStack
                         accessibleName: i18n("Always re-insert into stack on drag")
                         onToggled: function (newValue) {
-                            root.settingsBridge.alwaysReinsertIntoStack = newValue;
+                            root.controller.alwaysReinsertIntoStack = newValue;
                         }
                     }
                 }
@@ -59,7 +65,7 @@ SettingsFlickable {
                 SettingsRow {
                     title: alwaysReinsertSwitch.checked ? i18n("Hold to float instead") : i18n("Hold to re-insert into stack")
                     searchAnchor: "holdToReinsert"
-                    description: alwaysReinsertSwitch.checked ? i18n("Hold a modifier or mouse button while dragging a window to float it instead of inserting it into the autotile stack.") : i18n("Hold a modifier or mouse button while dragging a window to dynamically insert it into the autotile stack at the cursor position")
+                    description: alwaysReinsertSwitch.checked ? i18n("Hold a modifier or mouse button while dragging a window to float it instead of inserting it into the autotile stack.") : i18n("Hold a modifier or mouse button while dragging a window to dynamically insert it into the autotile stack at the cursor position.")
 
                     ModifierAndMouseCheckBoxes {
                         width: TriggerLabels.editorPreferredWidth
@@ -67,11 +73,11 @@ SettingsFlickable {
                         // See the scrolling twin: the sentinel eats a stored
                         // slot that this list does not show.
                         reservedTriggerSlots: alwaysReinsertSwitch.checked ? 1 : 0
-                        triggers: root.settingsBridge.autotileDragInsertTriggers
-                        defaultTriggers: root.settingsBridge.defaultAutotileDragInsertTriggers
+                        triggers: root.controller.autotileDragInsertTriggers
+                        defaultTriggers: root.controller.defaultAutotileDragInsertTriggers
                         tooltipEnabled: false
                         onTriggersModified: triggers => {
-                            root.settingsBridge.autotileDragInsertTriggers = triggers;
+                            root.controller.autotileDragInsertTriggers = triggers;
                         }
                     }
                 }
@@ -106,8 +112,8 @@ SettingsFlickable {
                     description: alwaysReinsertSwitch.checked ? i18n("How long a window stays out of the stack after the trigger is released, so a window dropped just after letting go of the trigger still floats. Helps when the trigger is a mouse button released with the drop. Set 0 to turn it off.") : i18n("How long the stack preview stays active after the re-insert trigger is released, so a window dropped just after letting go of the trigger still lands in the stack. Helps when the trigger is a mouse button released with the drop. Set 0 to turn it off.")
                     accessibleName: alwaysReinsertSwitch.checked ? i18n("Release grace period for floating instead of inserting") : i18n("Release grace period for re-insert into stack")
                     enabled: !insertToggleSwitch.checked
-                    minMs: root.settingsBridge.triggerGraceMsMin
-                    maxMs: root.settingsBridge.triggerGraceMsMax
+                    minMs: root.controller.triggerGraceMsMin
+                    maxMs: root.controller.triggerGraceMsMax
                     graceMs: appSettings.autotileDragInsertGraceMs
                     onGraceModified: value => appSettings.autotileDragInsertGraceMs = value
                 }

@@ -17,9 +17,11 @@ class RuleController;
 
 /// Page controller for the "Profiles" settings page (id "profiles").
 ///
-/// Owns the ProfileStore (handed to QML as the `bridge` property, so bindings
-/// read `settingsController.profilesPage.bridge.availableProfiles()` etc.) and
-/// bridges the profile feature into the Save-footer lifecycle.
+/// Owns the ProfileStore (handed to QML as the `bridge` property: the Profiles
+/// page reads it as `controller.bridge`, through the `controller` PageHost
+/// passes it, and the window chrome reads `settingsController.profilesPage.bridge`
+/// for the toasts and the footer message) and bridges the profile feature into
+/// the Save-footer lifecycle.
 ///
 /// The store writes profile FILES immediately (create / rename / delete /
 /// duplicate / import / export / reparent). Only two things follow the footer:

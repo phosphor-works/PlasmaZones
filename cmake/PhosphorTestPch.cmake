@@ -32,7 +32,8 @@
 # the PCH and parses the header as text. GCC also takes one PCH across -fPIC,
 # -fPIE and non-PIC compiles, so the library directories that turn on
 # CMAKE_POSITION_INDEPENDENT_CODE share it too. A target with a precompiled
-# header of its own keeps it.
+# header of its own keeps it, and one that sets DISABLE_PRECOMPILE_HEADERS
+# goes without.
 #
 # GCC only. Clang validates a PCH strictly and fails the compile on the
 # mismatches GCC tolerates (a PIC level, a macro the PCH did not have), so a
@@ -127,7 +128,9 @@ function(phosphor_share_test_pch)
         endif()
         get_target_property(_own ${_target} PRECOMPILE_HEADERS)
         get_target_property(_reuse ${_target} PRECOMPILE_HEADERS_REUSE_FROM)
-        if(_own OR _reuse)
+        # A target that opted out builds without one, and must not wait for it.
+        get_target_property(_off ${_target} DISABLE_PRECOMPILE_HEADERS)
+        if(_own OR _reuse OR _off)
             continue()
         endif()
         # A target that does not compile C++ has nothing to precompile for.

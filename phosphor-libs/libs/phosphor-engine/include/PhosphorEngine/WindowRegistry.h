@@ -5,7 +5,7 @@
 
 #include <PhosphorEngine/IWindowRegistry.h>
 #include <PhosphorProtocol/WindowTypeEnum.h>
-#include <phosphorengine_export.h>
+#include "phosphorengine_export.h"
 #include <QHash>
 #include <QMultiHash>
 #include <QObject>

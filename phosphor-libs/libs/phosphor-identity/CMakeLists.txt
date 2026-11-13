@@ -99,7 +99,6 @@ target_link_libraries(PhosphorIdentity
 if(NOT DEFINED KDE_INSTALL_LIBDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
-    set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
 install(TARGETS PhosphorIdentity

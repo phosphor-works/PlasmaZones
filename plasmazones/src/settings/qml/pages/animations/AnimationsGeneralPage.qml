@@ -103,7 +103,7 @@ SettingsFlickable {
                     to: settingsController.generalPage.animationStaggerIntervalMax
                     stepSize: 10
                     value: page.appSettings.animationStaggerInterval
-                    valueSuffix: " ms"
+                    valueSuffix: " " + i18nc("milliseconds, unit appended to a slider value", "ms")
                     labelWidth: Kirigami.Units.gridUnit * 4
                     onMoved: value => {
                         page.appSettings.animationStaggerInterval = Math.round(value);

@@ -337,9 +337,9 @@ public:
 /**
  * @brief Global window-filtering knobs for the KWin effect
  *
- * Two independent filter sets, same shape: the snapping/tiling exclusion
- * globals (excludeTransientWindows + min-size) and the decoration/border
- * filter (decoration* + min-size). Both are consumed by the KWin effect; the
+ * Two independent filter sets: the snapping/tiling exclusion globals (the
+ * min-size thresholds only) and the decoration/border filter (a transient
+ * toggle plus its own min-size thresholds). Both are consumed by the KWin effect; the
  * decoration knobs are also surfaced in the standalone Window Appearance
  * settings page. Not exposed in the KCM.
  */
@@ -354,8 +354,6 @@ public:
     // (snap-engine, KWin effect, WTA placement prune) now route through
     // PhosphorRules::ExclusionRules over the unified rule store.
 
-    virtual bool excludeTransientWindows() const = 0;
-    virtual void setExcludeTransientWindows(bool exclude) = 0;
     virtual int minimumWindowWidth() const = 0;
     virtual void setMinimumWindowWidth(int width) = 0;
     virtual int minimumWindowHeight() const = 0;
@@ -364,7 +362,7 @@ public:
     // Decoration window filtering — gates the KWin effect's border /
     // decoration pass, independent of the snapping filter above so a user can
     // tune which windows get a border separately from which windows snap.
-    // Unlike the snapping filter, exclude-transient is a real toggle here: with
+    // Unlike the snapping filter, which has no transient toggle, this one does: with
     // it off the effect draws borders onto dialogs / popups. Defaults preserve
     // the prior behavior (transients were already never decorated; no size
     // threshold was ever applied).

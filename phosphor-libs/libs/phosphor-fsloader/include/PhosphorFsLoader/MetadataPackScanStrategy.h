@@ -623,8 +623,8 @@ QStringList MetadataPackScanStrategy<Payload>::performScan(const QStringList& di
         // are compiled and run on the GPU — so the containment that matters is
         // on the paths a pack DECLARES, not on the directory it was found
         // through, and it belongs in the parser that resolves them.
-        // PluginLoader is the counter-example in this library and uses
-        // QDir::NoSymLinks, because a plugin subdir leads to a dlopen.
+        // PluginCatalog in phosphor-registry is the counter-example and refuses
+        // a symlinked plugin file, because a plugin file leads to a dlopen.
         const QStringList subdirs = dirObj.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
         for (const QString& subdir : subdirs) {
             // Per-rescan DoS guard, counting subdirs considered rather than
@@ -786,12 +786,12 @@ QStringList MetadataPackScanStrategy<Payload>::performScan(const QStringList& di
         // The truncated set IS still committed, so `MetadataPackLoader::
         // reconcile` unregisters every pack that sorted past the cap even
         // though it is still on disk. That is deliberate here and differs from
-        // PluginLoader, which skips its removal sweep on a cap trip: a pack
-        // registry's accessors are queried by id from QML on every frame, and
-        // leaving entries registered that this scan never validated would serve
-        // stale payloads indefinitely. Dropping them is visible and recoverable
-        // (prune the search path, or raise the cap, and the next scan restores
-        // them); serving a stale pack is neither.
+        // PluginCatalog, which keeps what it knew about the plugins a cap trip
+        // left unreached: a pack registry's accessors are queried by id from
+        // QML on every frame, and leaving entries registered that this scan
+        // never validated would serve stale payloads indefinitely. Dropping them
+        // is visible and recoverable (prune the search path, or raise the cap,
+        // and the next scan restores them); serving a stale pack is neither.
     }
 
     // Sort by id once. Stable hash + stable accessor ordering both fall

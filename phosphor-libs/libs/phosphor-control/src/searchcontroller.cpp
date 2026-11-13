@@ -11,15 +11,17 @@
 #include <QDebug>
 #include <QLatin1Char>
 
+#include <utility>
+
 namespace PhosphorControl {
 
 namespace {
 
-// U+203A (›) — QStringLiteral, not QLatin1String: the separator is multibyte
-// UTF-8, which QLatin1String would reinterpret byte-per-char into mojibake.
+// The page-path separator ApplicationController::titlePathFor uses, so a
+// search breadcrumb and a toast's page path read the same.
 QString breadcrumbSeparator()
 {
-    return QStringLiteral(" › ");
+    return ApplicationController::titlePathSeparator();
 }
 
 QVariantMap toVariant(const SearchEntry& e)
@@ -39,6 +41,10 @@ QVariantMap toVariant(const SearchEntry& e)
     m.insert(QStringLiteral("actionId"), e.actionId);
     return m;
 }
+
+// How many times one answer builds the index while providers keep changing
+// it during the build (recompute).
+constexpr int MaxBuildsPerAnswer = 8;
 
 } // namespace
 
@@ -62,6 +68,9 @@ SearchController::SearchController(ApplicationController* app, QObject* parent)
         // GROWS at runtime (post-startup registerPage is a supported path),
         // so a late-registered page must reach the cache too.
         connect(m_app->registry(), &PageRegistry::pageRegistered, this, &SearchController::invalidate);
+        // PageRegistry::bindPage needs no connection of its own: the index
+        // reads only whether a page has QML, not which, and a bind that
+        // changes that also emits visibleSetChanged above.
     }
 }
 
@@ -112,7 +121,7 @@ void SearchController::setLimit(int n)
     recompute();
 }
 
-// The three content mutators below route through invalidate() rather than
+// The content mutators below route through invalidate() rather than
 // setting m_indexDirty themselves: content added while a query is live (the
 // normal case for registerProvider on async provider warm-up) must refresh the
 // visible list, not sit stale until the next keystroke.
@@ -137,12 +146,43 @@ void SearchController::registerProvider(ISearchProvider* provider)
     }
 }
 
+void SearchController::unregisterProvider(ISearchProvider* provider)
+{
+    if (m_providers.removeAll(provider) > 0) {
+        invalidate();
+    }
+}
+
 void SearchController::invalidate()
 {
     m_indexDirty = true;
+    // Held: releaseUpdates() rebuilds once, if nothing has rebuilt since.
+    // During a build (a provider's searchEntries() registering another, say):
+    // the build that runs goes round again (recompute).
+    if (m_updateHolds > 0 || m_building) {
+        return;
+    }
     // Refresh live results if a query is active; otherwise the rebuild happens
     // lazily on the next setQuery.
     if (!m_query.trimmed().isEmpty()) {
+        recompute();
+    }
+}
+
+void SearchController::holdUpdates()
+{
+    ++m_updateHolds;
+}
+
+void SearchController::releaseUpdates()
+{
+    if (m_updateHolds == 0) {
+        qWarning() << "SearchController: releaseUpdates() without holdUpdates() is ignored";
+        return;
+    }
+    // Only while the index is still stale: a setQuery() during the hold has
+    // rebuilt it with every change made before it.
+    if (--m_updateHolds == 0 && m_indexDirty && !m_query.trimmed().isEmpty()) {
         recompute();
     }
 }
@@ -161,18 +201,20 @@ QVector<SearchEntry> SearchController::buildIndex()
         return entries;
     }
 
-    // By reference: both walks below only READ (fill a title hash, filter the
-    // navigable leaves), and neither registers a page, so nothing can
-    // reallocate m_pages while the reference is live. Copying the catalogue
-    // here cost an Entry deep-copy per page on every index rebuild, which fires
-    // on every mode flip and every provider warm-up.
-    const QList<PageRegistry::Entry>& pages = m_app->registry()->allPagesRef();
+    // Tree order, the order the sidebar draws: the ranker breaks score ties
+    // by index position and then truncates, so equal-scoring pages list and
+    // drop in this order. Registration order would diverge from the rail
+    // whenever a host registers out of tree order (ModuleHost places a module
+    // after the modules it depends on). Pointers into the registry, so no
+    // Entry is copied: both walks below only READ, and neither mutates the
+    // registry while the pointers are live.
+    const QList<const PageRegistry::Entry*> pages = m_app->registry()->pagesInTreeOrder();
 
     // id → title map for breadcrumb assembly (parentChainFor yields ids).
     QHash<QString, QString> titles;
     titles.reserve(pages.size());
-    for (const PageRegistry::Entry& e : pages) {
-        titles.insert(e.id, e.title);
+    for (const PageRegistry::Entry* e : pages) {
+        titles.insert(e->id, e->title);
     }
 
     // Breadcrumb for a page: its ancestor titles, optionally with the page's own
@@ -206,15 +248,16 @@ QVector<SearchEntry> SearchController::buildIndex()
                                         : (inSimple ? SearchEntry::Mode::SimpleOnly : SearchEntry::Mode::AdvancedOnly);
     };
 
-    for (const PageRegistry::Entry& e : pages) {
+    for (const PageRegistry::Entry* entry : pages) {
+        const PageRegistry::Entry& e = *entry;
         // Only navigable leaves are search targets; category / drill parents
         // carry no QML and aren't a destination.
         if (e.qmlSource.isEmpty()) {
             continue;
         }
         // Reachable in NEITHER mode (its own tier and an ancestor's tier
-        // contradict, or the ancestry is unverifiable): no mode switch can
-        // ever land on it, so it is not a destination.
+        // contradict): no mode switch can ever land on it, so it is not a
+        // destination.
         const bool inSimple = m_app->registry()->allowedInMode(e.id, false);
         const bool inAdvanced = m_app->registry()->allowedInMode(e.id, true);
         if (!inSimple && !inAdvanced) {
@@ -321,13 +364,23 @@ QVector<SearchEntry> SearchController::buildIndex()
         entries.push_back(e);
     }
 
-    for (const ISearchProvider* provider : m_providers) {
+    // A copy, since a provider's searchEntries() may register or unregister
+    // providers. One unregistered by an earlier one in this pass is skipped
+    // rather than asked, as it may be gone. One registered in this pass is
+    // asked in the next, which recompute runs since the registration marked
+    // the index stale.
+    const QVector<ISearchProvider*> providers = m_providers;
+    for (ISearchProvider* const provider : providers) {
         // No null check: registerProvider rejects nullptr and dedupes, and
-        // there is no removal path, so an entry here is always non-null. A
-        // check would read as protection against the dangling-provider case the
-        // header warns about ("not owned; must outlive this"), which it cannot
-        // detect — ISearchProvider is not a QObject, so there is nothing to
-        // QPointer. Provider lifetime stays the caller's contract.
+        // unregisterProvider removes the entry outright, so an entry here is
+        // always non-null. A check would read as protection against the
+        // dangling-provider case the header warns about (a provider gone
+        // without unregisterProvider), which it cannot detect:
+        // ISearchProvider is not a QObject, so there is nothing to QPointer.
+        // Provider lifetime stays the caller's contract.
+        if (!m_providers.contains(provider)) {
+            continue;
+        }
         const QVector<SearchEntry> provided = provider->searchEntries();
         for (SearchEntry e : provided) {
             if (!classifyMode(e)) {
@@ -345,14 +398,35 @@ QVector<SearchEntry> SearchController::buildIndex()
 
 void SearchController::recompute()
 {
-    if (m_indexDirty) {
-        m_index = buildIndex();
-        // Fold every entry's matched fields once here rather than once per
-        // entry per keystroke inside the ranker.
-        for (SearchEntry& e : m_index) {
-            SearchRanker::prefold(e);
+    // Reached from a provider's searchEntries() (a setQuery or setLimit of its
+    // own): the build that runs ranks with the query and limit as they are
+    // once it is done.
+    if (m_building) {
+        return;
+    }
+    // A provider asked in a build can change what the index holds: register
+    // or unregister a provider, add an entry. Its invalidate() marks the index
+    // stale again, so the build runs again until nothing changed during one.
+    // Bounded, so a provider that changes something every time it is asked
+    // cannot hang the query; the index stays stale then, and the next query
+    // builds it again.
+    for (int builds = 0; m_indexDirty; ++builds) {
+        if (builds == MaxBuildsPerAnswer) {
+            qWarning() << "SearchController: the index changed while it was built" << MaxBuildsPerAnswer
+                       << "times in a row, so the last build is used; a search provider changes it whenever it is "
+                          "asked";
+            break;
         }
         m_indexDirty = false;
+        m_building = true;
+        QVector<SearchEntry> index = buildIndex();
+        m_building = false;
+        // Fold every entry's matched fields once here rather than once per
+        // entry per keystroke inside the ranker.
+        for (SearchEntry& e : index) {
+            SearchRanker::prefold(e);
+        }
+        m_index = std::move(index);
     }
 
     const QVector<SearchEntry> ranked = SearchRanker::rank(m_query, m_index, m_limit);

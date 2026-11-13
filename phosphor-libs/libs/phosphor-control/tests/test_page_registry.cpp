@@ -325,6 +325,76 @@ private Q_SLOTS:
         QCOMPARE(leaf.value(QStringLiteral("isCollapsible")).toBool(), true);
         QCOMPARE(leaf.value(QStringLiteral("hasDividerAfter")).toBool(), true);
         QCOMPARE(leaf.value(QStringLiteral("hasQmlSource")).toBool(), true);
+        // PageHost reads passesContext off pageData to decide how it creates
+        // the page, so the key is there with the flag clear, and follows it.
+        QVERIFY(leaf.contains(QStringLiteral("passesContext")));
+        QCOMPARE(leaf.value(QStringLiteral("passesContext")).toBool(), false);
+        reg.setPassesContext(QStringLiteral("p.c"), true);
+        QCOMPARE(reg.pageData(QStringLiteral("p.c")).value(QStringLiteral("passesContext")).toBool(), true);
+        QCOMPARE(
+            reg.childPagesData(QStringLiteral("p")).first().toMap().value(QStringLiteral("passesContext")).toBool(),
+            true);
+    }
+
+    void everyBindStampsPassesContext()
+    {
+        // A bound page is part of the control module contract, so PageHost
+        // creates it with its context set. Each of bindPage's three accepting
+        // arms sets the flag: a new controller, the same controller with new
+        // QML, and the same controller and QML again (which says nothing).
+        PageRegistry reg;
+        auto* placeholder = new StubPage(QStringLiteral("p"), &reg);
+        QVERIFY(reg.registerPage({QStringLiteral("p"), {}, QStringLiteral("P"), {}, QUrl(), placeholder}));
+        QVERIFY(!reg.entry(QStringLiteral("p")).passesContext);
+
+        auto* real = new StubPage(QStringLiteral("p"), &reg);
+        QVERIFY(reg.bindPage(QStringLiteral("p"), real, QUrl(QStringLiteral("qrc:/p.qml"))));
+        QVERIFY(reg.entry(QStringLiteral("p")).passesContext);
+        QCOMPARE(reg.pageData(QStringLiteral("p")).value(QStringLiteral("passesContext")).toBool(), true);
+
+        reg.setPassesContext(QStringLiteral("p"), false);
+        QVERIFY(!reg.entry(QStringLiteral("p")).passesContext);
+        QVERIFY(reg.bindPage(QStringLiteral("p"), real, QUrl(QStringLiteral("qrc:/p2.qml"))));
+        QVERIFY(reg.entry(QStringLiteral("p")).passesContext);
+
+        reg.setPassesContext(QStringLiteral("p"), false);
+        QSignalSpy bound(&reg, &PageRegistry::pageBound);
+        QVERIFY(reg.bindPage(QStringLiteral("p"), real, QUrl(QStringLiteral("qrc:/p2.qml"))));
+        QCOMPARE(bound.count(), 0);
+        QVERIFY(reg.entry(QStringLiteral("p")).passesContext);
+    }
+
+    void setPassesContextWarnsForAnUnknownPage()
+    {
+        PageRegistry reg;
+        QTest::ignoreMessage(QtWarningMsg,
+                             QRegularExpression(QStringLiteral("setPassesContext: unknown page .*no-such-page")));
+        reg.setPassesContext(QStringLiteral("no-such-page"), true);
+        QVERIFY(!reg.hasPage(QStringLiteral("no-such-page")));
+    }
+
+    void changesThatChangeNothingLeaveTheCatalogueWhereItIs()
+    {
+        // A no-op restamp, a no-op flag change and a refused bind write
+        // nothing, so they must not detach the list either: with an allPages()
+        // copy sharing it, a detach would move every Entry and pay a deep copy
+        // for nothing.
+        PageRegistry reg;
+        QVERIFY(buildTieredRegistry(reg));
+        auto* other = new StubPage(QStringLiteral("home"), &reg);
+        QVERIFY(reg.registerPage({QStringLiteral("other"), {}, QStringLiteral("Other"), {}, QUrl(), other}));
+        const QList<PageRegistry::Entry> shared = reg.allPages();
+        const PageRegistry::Entry* const before = &reg.allPagesRef().first();
+
+        reg.setPageVisibility(QStringLiteral("full"), PageRegistry::PageVisibility::AdvancedOnly);
+        QCOMPARE(&reg.allPagesRef().first(), before);
+        reg.setPassesContext(QStringLiteral("home"), false);
+        QCOMPARE(&reg.allPagesRef().first(), before);
+        // `other` reports the id "home" but is registered for "other".
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("already registered for another page")));
+        QVERIFY(!reg.bindPage(QStringLiteral("home"), other, QUrl(QStringLiteral("qrc:/Home.qml"))));
+        QCOMPARE(&reg.allPagesRef().first(), before);
+        QCOMPARE(shared.size(), reg.allPagesRef().size());
     }
 
     void parentIdOfAnswersAllThreeShapes()
@@ -612,31 +682,71 @@ private Q_SLOTS:
         QVERIFY(!reg.validateCounterparts());
     }
 
-    void reachabilityFailsClosedOnAnUnresolvableAncestorChain()
+    void validateCounterpartsOfSomeEntriesWarnsAboutThoseAlone()
     {
-        // pageAllowedInCurrentMode answers for search, keyboard next/prev and
-        // the mode gate. If it cannot verify a page's ancestry it must say
-        // "hidden": claiming visible would offer a row the rail cannot draw.
-        // The registry rejects unknown parents, so the only way to reach the
-        // guard is a chain deeper than the hop cap.
+        // A host that adds pages after the application checked its own asks
+        // about the new ones only, so a fault the application was already
+        // told about is not reported again.
+        using PV = PageRegistry::PageVisibility;
+        PageRegistry reg;
+        QVERIFY(buildTieredRegistry(reg));
+        for (const char* id : {"old", "new"}) {
+            const QString name = QString::fromLatin1(id);
+            PageRegistry::Entry e{name, {}, name, {}, QUrl(QStringLiteral("qrc:/X.qml")), new StubPage(name, &reg)};
+            e.visibility = PV::SimpleOnly;
+            e.counterpartId = QStringLiteral("missing-") + name;
+            QVERIFY(reg.registerPage(std::move(e)));
+        }
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("missing-old")));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("missing-new.*which is not registered")));
+        QVERIFY(!reg.validateCounterparts(QStringList{QStringLiteral("new"), QStringLiteral("no-such-page")}));
+        // The fixture's own reciprocal pair, an entry with no counterpart and
+        // an unknown id all pass.
+        QVERIFY(reg.validateCounterparts(QStringList{QStringLiteral("easy"), QStringLiteral("full"),
+                                                     QStringLiteral("home"), QStringLiteral("no-such-page")}));
+    }
+
+    void registrationRefusesAPageDeeperThanTheHopBound()
+    {
+        // Every upward walk (pageAllowedInCurrentMode, parentChainFor,
+        // Breadcrumbs) follows at most MaxParentChainHops parent links, so a
+        // page with more ancestors than that is refused at registration
+        // rather than drawn in the rail and then answered for as unreachable.
         PageRegistry reg;
         QString parent;
-        for (int i = 0; i < 40; ++i) {
+        for (int i = 0; i <= PageRegistry::MaxParentChainHops; ++i) {
             const QString id = QStringLiteral("n%1").arg(i);
             auto* p = new StubPage(id, &reg);
             PageRegistry::Entry e{id, parent, id, {}, QUrl(QStringLiteral("qrc:/N.qml")), p};
-            QVERIFY(reg.registerPage(std::move(e)));
+            QVERIFY2(reg.registerPage(std::move(e)), qPrintable(id));
             parent = id;
         }
-        // Shallow entries still resolve normally.
-        QVERIFY(reg.pageAllowedInCurrentMode(QStringLiteral("n0")));
-        // Pin the BOUNDARY, not just a value either side of it: n31 is 31 hops
-        // from the root and still resolves, n32 is the first to exceed the
-        // 32-hop cap. Asserting only a far-past-the-cap id would stay green if
-        // the constant moved.
-        QVERIFY(reg.pageAllowedInCurrentMode(QStringLiteral("n31")));
-        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("could not resolve the ancestor chain")));
-        QVERIFY(!reg.pageAllowedInCurrentMode(QStringLiteral("n32")));
+        // Pin the BOUNDARY, not a value either side of it: the page with
+        // exactly MaxParentChainHops ancestors is accepted and its whole
+        // chain is walked, the next one down is the first refused.
+        const QString deepest = QStringLiteral("n%1").arg(PageRegistry::MaxParentChainHops);
+        QVERIFY(reg.pageAllowedInCurrentMode(deepest));
+        reg.setPageVisibility(QStringLiteral("n0"), PageRegistry::PageVisibility::SimpleOnly);
+        // Hidden through its root, so the walk reached the root.
+        QVERIFY(!reg.pageAllowedInCurrentMode(deepest));
+
+        const QString tooDeep = QStringLiteral("n%1").arg(PageRegistry::MaxParentChainHops + 1);
+        auto* p = new StubPage(tooDeep, &reg);
+        QSignalSpy registered(&reg, &PageRegistry::pageRegistered);
+        QTest::ignoreMessage(
+            QtWarningMsg,
+            QRegularExpression(QStringLiteral("deeper than the %1 allowed").arg(PageRegistry::MaxParentChainHops)));
+        QVERIFY(!reg.registerPage({tooDeep, deepest, tooDeep, {}, QUrl(QStringLiteral("qrc:/N.qml")), p}));
+        QVERIFY(!reg.hasPage(tooDeep));
+        QCOMPARE(registered.count(), 0);
+        // A sibling of the deepest page is as deep as it, and accepted.
+        auto* sibling = new StubPage(QStringLiteral("sibling"), &reg);
+        QVERIFY(reg.registerPage({QStringLiteral("sibling"),
+                                  QStringLiteral("n%1").arg(PageRegistry::MaxParentChainHops - 1),
+                                  QStringLiteral("Sibling"),
+                                  {},
+                                  QUrl(QStringLiteral("qrc:/N.qml")),
+                                  sibling}));
     }
 
     void reachabilityFollowsTheAncestorChain()
@@ -726,6 +836,118 @@ private Q_SLOTS:
         reg.setPageVisibility(QStringLiteral("no-such-page"), PageRegistry::PageVisibility::SimpleOnly);
         QCOMPARE(modeSpy.count(), 1);
         QCOMPARE(visibleSpy.count(), 2);
+    }
+
+    void bindPageReplacesAControllerInPlace()
+    {
+        PageRegistry reg;
+        auto* placeholder = new StubPage(QStringLiteral("p"), &reg);
+        PageRegistry::Entry entry{QStringLiteral("p"),    {},     QStringLiteral("Title"),
+                                  QStringLiteral("icon"), QUrl(), placeholder};
+        entry.visibility = PageRegistry::PageVisibility::AdvancedOnly;
+        entry.counterpartId = QStringLiteral("q");
+        QVERIFY(reg.registerPage(std::move(entry)));
+        QSignalSpy bound(&reg, &PageRegistry::pageBound);
+        QSignalSpy visible(&reg, &PageRegistry::visibleSetChanged);
+
+        auto* real = new StubPage(QStringLiteral("p"), &reg);
+        QVERIFY(reg.bindPage(QStringLiteral("p"), real, QUrl(QStringLiteral("qrc:/p.qml"))));
+        QCOMPARE(bound.count(), 1);
+        // It gained a QML source, so it became navigable.
+        QCOMPARE(visible.count(), 1);
+        const PageRegistry::Entry after = reg.entry(QStringLiteral("p"));
+        QCOMPARE(after.controller.data(), real);
+        QCOMPARE(after.qmlSource, QUrl(QStringLiteral("qrc:/p.qml")));
+        QCOMPARE(after.title, QStringLiteral("Title"));
+        QCOMPARE(after.iconSource, QStringLiteral("icon"));
+        QCOMPARE(after.visibility, PageRegistry::PageVisibility::AdvancedOnly);
+        QCOMPARE(after.counterpartId, QStringLiteral("q"));
+
+        // The same controller and source again: nothing changed, nothing said.
+        QVERIFY(reg.bindPage(QStringLiteral("p"), real, QUrl(QStringLiteral("qrc:/p.qml"))));
+        QCOMPARE(bound.count(), 1);
+        // A new source for the same controller is a change, but the page
+        // stays navigable.
+        QVERIFY(reg.bindPage(QStringLiteral("p"), real, QUrl(QStringLiteral("qrc:/p2.qml"))));
+        QCOMPARE(bound.count(), 2);
+        QCOMPARE(visible.count(), 1);
+
+        // The bound controller now counts as registered.
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("controller already registered")));
+        QVERIFY(!reg.registerPage({QStringLiteral("r"), {}, QStringLiteral("R"), {}, QUrl(), real}));
+    }
+
+    void bindPageRefusals()
+    {
+        PageRegistry reg;
+        auto* p = new StubPage(QStringLiteral("p"), &reg);
+        QVERIFY(reg.registerPage({QStringLiteral("p"), {}, QStringLiteral("P"), {}, QUrl(), p}));
+        QSignalSpy bound(&reg, &PageRegistry::pageBound);
+
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("bindPage: unknown page")));
+        QVERIFY(!reg.bindPage(QStringLiteral("missing"), new StubPage(QStringLiteral("missing"), &reg), QUrl()));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("null controller")));
+        QVERIFY(!reg.bindPage(QStringLiteral("p"), nullptr, QUrl()));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("controller whose id is")));
+        QVERIFY(!reg.bindPage(QStringLiteral("p"), new StubPage(QStringLiteral("other"), &reg), QUrl()));
+        // A controller already registered for page s cannot be bound to p,
+        // even though its id says p.
+        auto* sneaky = new StubPage(QStringLiteral("p"), &reg);
+        QVERIFY(reg.registerPage({QStringLiteral("s"), {}, QStringLiteral("S"), {}, QUrl(), sneaky}));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("already registered for another page")));
+        QVERIFY(!reg.bindPage(QStringLiteral("p"), sneaky, QUrl()));
+        QCOMPARE(bound.count(), 0);
+        QCOMPARE(reg.controller(QStringLiteral("p")), p);
+    }
+
+    void registerPageCanTakeASiblingSlot()
+    {
+        PageRegistry reg;
+        for (const char* id : {"a", "c"}) {
+            QVERIFY(reg.registerPage({QString::fromLatin1(id),
+                                      {},
+                                      QString::fromLatin1(id),
+                                      {},
+                                      QUrl(),
+                                      new StubPage(QString::fromLatin1(id), &reg)}));
+        }
+        QVERIFY(reg.registerPage(
+            {QStringLiteral("b"), {}, QStringLiteral("b"), {}, QUrl(), new StubPage(QStringLiteral("b"), &reg)}, 1));
+        // Out of range appends.
+        QVERIFY(reg.registerPage(
+            {QStringLiteral("d"), {}, QStringLiteral("d"), {}, QUrl(), new StubPage(QStringLiteral("d"), &reg)}, 99));
+        QStringList order;
+        for (const PageRegistry::Entry& entry : reg.topLevelPages()) {
+            order.append(entry.id);
+        }
+        QCOMPARE(order,
+                 (QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d")}));
+    }
+
+    void pagesInTreeOrderIsTheOrderTheSidebarDraws()
+    {
+        PageRegistry reg;
+        const auto add = [&reg](const char* id, const char* parent, qsizetype slot = -1) {
+            return reg.registerPage({QString::fromLatin1(id),
+                                     QString::fromLatin1(parent),
+                                     QString::fromLatin1(id),
+                                     {},
+                                     QUrl(),
+                                     new StubPage(QString::fromLatin1(id), &reg)},
+                                    slot);
+        };
+        QVERIFY(add("p", ""));
+        QVERIFY(add("q", ""));
+        QVERIFY(add("p/x", "p"));
+        QVERIFY(add("p/w", "p", 0));
+        QVERIFY(add("o", "", 0));
+        QStringList order;
+        for (const PageRegistry::Entry* entry : reg.pagesInTreeOrder()) {
+            order.append(entry->id);
+        }
+        QCOMPARE(order,
+                 (QStringList{QStringLiteral("o"), QStringLiteral("p"), QStringLiteral("p/w"), QStringLiteral("p/x"),
+                              QStringLiteral("q")}));
     }
 };
 

@@ -7,11 +7,12 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 // Reusable "Window filtering" card — the exclude-transient toggle plus the two
-// minimum-size spin boxes shared by the Snapping (General), Animations, and
-// Decorations pages. Each host binds the values to its own settings group and
-// wires the change signals, so the values stay independent per feature while
-// the UI is defined once. The animations host also supplies an extra
-// notifications/OSD row through `insertAfterTransient`.
+// minimum-size spin boxes shared by the General, Animations, and Decorations
+// pages. Each host binds the values to its own settings group and wires the
+// change signals, so the values stay independent per feature while the UI is
+// defined once. The animations host also supplies an extra notifications/OSD
+// row through `insertAfterTransient`, and the General host hides the transient
+// row through `showTransientRow`.
 //
 // Host-driven: this component holds no settings state of its own. Values come in
 // as properties; edits go out as signals. Descriptions and accessible names are
@@ -25,6 +26,11 @@ SettingsCard {
     collapsible: true
 
     // ── Exclude-transient toggle ──
+    // False drops the row for a host whose feature has no working transient
+    // filter. The card then leads with whatever follows it. An
+    // `insertAfterTransient` row supplies its own leading separator for the
+    // transient row above it, so a host that hides the row supplies no insert.
+    property bool showTransientRow: true
     property bool excludeTransient: false
     property string transientDescription: ""
     property string transientAccessibleName: ""
@@ -54,16 +60,24 @@ SettingsCard {
     contentItem: ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        SettingsRow {
-            title: i18n("Exclude transient windows")
-            description: card.transientDescription
-            searchAnchor: "excludeTransient"
+        // Built only when shown, so a host that hides it registers no
+        // `excludeTransient` reveal anchor on its page either.
+        Loader {
+            Layout.fillWidth: true
+            active: card.showTransientRow
+            visible: active
 
-            SettingsSwitch {
-                checked: card.excludeTransient
-                accessibleName: card.transientAccessibleName
-                onToggled: function (newValue) {
-                    card.excludeTransientToggled(newValue);
+            sourceComponent: SettingsRow {
+                title: i18n("Exclude transient windows")
+                description: card.transientDescription
+                searchAnchor: "excludeTransient"
+
+                SettingsSwitch {
+                    checked: card.excludeTransient
+                    accessibleName: card.transientAccessibleName
+                    onToggled: function (newValue) {
+                        card.excludeTransientToggled(newValue);
+                    }
                 }
             }
         }
@@ -79,7 +93,11 @@ SettingsCard {
             sourceComponent: card.insertAfterTransient
         }
 
-        SettingsSeparator {}
+        // Divides the rows above from the size rows, so it goes when nothing
+        // is above.
+        SettingsSeparator {
+            enabled: card.showTransientRow || card.insertAfterTransient !== null
+        }
 
         SettingsRow {
             title: i18n("Minimum window width")

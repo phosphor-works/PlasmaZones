@@ -13,9 +13,9 @@ class ISettings;
 
 /// Q_PROPERTY surface for the "Editor" settings page.
 ///
-/// Exposed to QML as a child of SettingsController via
-/// `Q_PROPERTY(EditorPageController* editorPage ... CONSTANT)`, so bindings
-/// read `settingsController.editorPage.duplicateShortcut` etc. All state
+/// PageHost hands it to EditorPage.qml as the page's `controller` (its
+/// registry entry passes context), so bindings read
+/// `root.controller.duplicateShortcut` etc. All state
 /// lives on the shared Settings instance — this class is a thin Q_PROPERTY
 /// facade that delegates reads/writes and forwards NOTIFY signals.
 ///
@@ -38,6 +38,12 @@ class EditorPageController : public PhosphorControl::PageController
     Q_PROPERTY(QString splitVerticalShortcut READ splitVerticalShortcut WRITE setSplitVerticalShortcut NOTIFY
                    splitVerticalShortcutChanged)
     Q_PROPERTY(QString fillShortcut READ fillShortcut WRITE setFillShortcut NOTIFY fillShortcutChanged)
+    // The shipped bindings, from ConfigDefaults, for the capture fields'
+    // placeholders, so the page cannot show a default the reset does not apply.
+    Q_PROPERTY(QString defaultDuplicateShortcut READ defaultDuplicateShortcut CONSTANT)
+    Q_PROPERTY(QString defaultSplitHorizontalShortcut READ defaultSplitHorizontalShortcut CONSTANT)
+    Q_PROPERTY(QString defaultSplitVerticalShortcut READ defaultSplitVerticalShortcut CONSTANT)
+    Q_PROPERTY(QString defaultFillShortcut READ defaultFillShortcut CONSTANT)
 
     // Editor canvas snapping
     Q_PROPERTY(bool gridSnappingEnabled READ gridSnappingEnabled WRITE setGridSnappingEnabled NOTIFY
@@ -87,6 +93,10 @@ public:
     QString splitHorizontalShortcut() const;
     QString splitVerticalShortcut() const;
     QString fillShortcut() const;
+    QString defaultDuplicateShortcut() const;
+    QString defaultSplitHorizontalShortcut() const;
+    QString defaultSplitVerticalShortcut() const;
+    QString defaultFillShortcut() const;
     bool gridSnappingEnabled() const;
     bool edgeSnappingEnabled() const;
     qreal snapIntervalX() const;

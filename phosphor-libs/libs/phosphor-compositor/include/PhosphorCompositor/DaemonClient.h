@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorcompositor_export.h>
+#include "phosphorcompositor_export.h"
 #include <PhosphorCompositor/IGeometryHandler.h>
 #include <PhosphorCompositor/IDragHandler.h>
 #include <PhosphorCompositor/ILifecycleHandler.h>
@@ -88,7 +88,7 @@ public:
     void notifyActiveWindowScreenChanged(const QString& windowId, const QString& screenId);
 
     // Drag operations (plugin → daemon)
-    /// Canonical drag surface, mirroring org.plasmazones.WindowDrag. The
+    /// Canonical drag surface, mirroring org.phosphor_works.Placement.WindowDrag. The
     /// daemon decides and the plugin applies the verdict verbatim, so both
     /// ends of the drag are round trips: beginDrag delivers its DragPolicy
     /// through dragPolicyReceived and endDrag its DragOutcome through

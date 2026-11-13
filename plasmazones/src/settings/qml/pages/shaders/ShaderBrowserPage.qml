@@ -13,7 +13,7 @@ import org.kde.kirigami as Kirigami
  *
  * Read-only listing with drop-zone install card, filter bar, grouped
  * card grid, and a detail dialog. Drives the Animations → Shaders page
- * (for `data/animations/` packs), the Snapping → Shaders page (for
+ * (for `data/animations/` packs), the Overlays → Library → Shaders page (for
  * `data/overlays/` overlay packs), and the Decoration → Shaders page (for
  * `data/surface/` packs).
  *
@@ -28,8 +28,9 @@ import org.kde.kirigami as Kirigami
  *   signal shaderProfileChanged(const QString& path)  // optional
  *   signal toastRequested(const QString& text)        // optional
  *
- * Plus a few labels the host can override to suit its domain (e.g.
- * "Browse installed snapping overlay shaders" vs the animation copy).
+ * Plus a few labels the host can override to suit its domain (e.g. the
+ * overlay browser's info banner and its "%n layout" usage wording vs the
+ * animation copy).
  *
  * ## Layout
  *
@@ -50,7 +51,7 @@ SettingsFlickable {
 
     required property var bridge
     /// Distinct QtCore.Settings category so each host page (Animations /
-    /// Snapping / Decoration shaders) remembers its own group/sort choice
+    /// Overlays / Decoration shaders) remembers its own group/sort choice
     /// independently. Hosts should set this to a unique, stable string.
     property string settingsCategory: "ShaderBrowserPage"
     // ── Domain-tuned copy ────────────────────────────────────────────────
@@ -71,9 +72,19 @@ SettingsFlickable {
     /// Closure plumbed through to each ShaderBrowserCard's footer chip.
     /// Same plural-form / live-count rationale as `usageHeaderTextFn`,
     /// and lets the card chip stay consistent with the dialog header
-    /// (animations: "event"; snapping: "layout"; default: generic "use").
+    /// (animations: "event"; overlays: "layout"; default: generic "use").
     property var usageChipTextFn: function (count) {
         return i18ncp("@info shader usage count", "%n use", "%n uses", count);
+    }
+    /// The count the chip and the dialog header show for an effect, given its
+    /// id and its `shaderEffectUsages` rows. Default: every row. A host whose
+    /// usage list carries a row that is not one of the things its wording
+    /// counts supplies its own (the overlay browser lists a "Global default"
+    /// row, which is not a layout). At 0 with usages present, the chip shows
+    /// the usage rows' own labels and the dialog lists them with no count
+    /// line, so a shader that is only the Global default reads as that.
+    property var usageCountFn: function (effectId, usages) {
+        return usages.length;
     }
     // Loaded from a Q_INVOKABLE; Connections below manually refreshes it
     // on `shaderEffectsChanged`. Q_INVOKABLE results aren't reactive
@@ -689,6 +700,7 @@ SettingsFlickable {
                                 bridge: root.bridge
                                 usagesRev: root._usagesRev
                                 usageChipTextFn: root.usageChipTextFn
+                                usageCountFn: root.usageCountFn
                                 typeBadgeFn: function (e) {
                                     return root._hasTypeAxis ? root._typeBadgeLabel(e) : "";
                                 }
@@ -768,5 +780,6 @@ SettingsFlickable {
         bridge: root.bridge
         usagesRev: root._usagesRev
         usageHeaderTextFn: root.usageHeaderTextFn
+        usageCountFn: root.usageCountFn
     }
 }

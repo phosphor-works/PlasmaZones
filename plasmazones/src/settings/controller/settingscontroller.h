@@ -4,7 +4,7 @@
 // Central controller for the standalone settings application.
 // Manages page navigation, layout CRUD (via D-Bus), screen info, and owns
 // the shared Settings instance. Per-page Q_PROPERTY surfaces are split out
-// into page-scoped sub-controllers (EditorPageController, …) hung off this
+// into page-scoped sub-controllers (GeneralPageController, …) hung off this
 // class via child Q_PROPERTYs so QML reads `settingsController.<page>.<prop>`.
 //
 // What remains here after that split is the root object QML binds to. Its Q_PROPERTY
@@ -99,7 +99,6 @@ class RegistryShaderPreviewBackend;
 #include "settings/pages/profilepagecontroller.h"
 #include "settings/pages/snappingzonescontroller.h"
 #include "settings/pages/snappingbehaviorcontroller.h"
-#include "settings/pages/snappingeffectscontroller.h"
 #include "settings/pages/overlayspagecontroller.h"
 #include "settings/pages/snappingzoneselectorcontroller.h"
 #include "settings/pages/decorationpagecontroller.h"
@@ -178,19 +177,20 @@ class SettingsController : public QObject
     // each page tracked independently.
     Q_PROPERTY(QString scopeScreenName READ scopeScreenName WRITE setScopeScreenName NOTIFY scopeScreenNameChanged)
 
-    // Editor page — properties live on EditorPageController, exposed here as a
-    // child QObject so QML reads `settingsController.editorPage.duplicateShortcut`.
-    Q_PROPERTY(EditorPageController* editorPage READ editorPage CONSTANT)
-
-    // Snapping/Tiling/Scrolling behavior pages — trigger surfaces moved to per-page controllers.
+    // Per-page sub-controllers still read off this object. A page whose
+    // registry entry passes context receives its own controller from PageHost
+    // as `controller`. Such a page has no property here unless code outside
+    // the page also reads its controller: generalPage, overlaysPage,
+    // tilingAlgorithmPage and profilesPage stay for those readers (other
+    // pages, cards and Main.qml), while the Editor, Tiling → Window and
+    // Decorations → General pages have none.
+    //
+    // Snapping/Scrolling behavior pages — trigger surfaces moved to per-page controllers.
     Q_PROPERTY(SnappingBehaviorController* snappingBehaviorPage READ snappingBehaviorPage CONSTANT)
-    Q_PROPERTY(TilingBehaviorController* tilingBehaviorPage READ tilingBehaviorPage CONSTANT)
     Q_PROPERTY(ScrollingBehaviorController* scrollingBehaviorPage READ scrollingBehaviorPage CONSTANT)
     Q_PROPERTY(SnappingZoneSelectorController* snappingZoneSelectorPage READ snappingZoneSelectorPage CONSTANT)
     Q_PROPERTY(SnappingZonesController* snappingZonesPage READ snappingZonesPage CONSTANT)
-    Q_PROPERTY(SnappingEffectsController* snappingEffectsPage READ snappingEffectsPage CONSTANT)
     Q_PROPERTY(OverlaysPageController* overlaysPage READ overlaysPage CONSTANT)
-    Q_PROPERTY(WindowAppearanceController* windowAppearancePage READ windowAppearancePage CONSTANT)
     Q_PROPERTY(TilingAlgorithmController* tilingAlgorithmPage READ tilingAlgorithmPage CONSTANT)
     Q_PROPERTY(GeneralPageController* generalPage READ generalPage CONSTANT)
     Q_PROPERTY(AnimationsPageController* animationsPage READ animationsPage CONSTANT)
@@ -205,12 +205,14 @@ class SettingsController : public QObject
     Q_PROPERTY(ShaderPresetBridge* pointerPresets READ pointerPresets CONSTANT)
     Q_PROPERTY(ShaderPresetBridge* overlayPresets READ overlayPresets CONSTANT)
     // Rules page — the unified rule surface. The controller owns one
-    // RuleModel and talks to the daemon's org.plasmazones.Rules
+    // RuleModel and talks to the daemon's org.phosphor_works.Placement.Rules
     // adaptor; QML reads `settingsController.rulesPage.model`.
     Q_PROPERTY(RuleController* rulesPage READ rulesPage CONSTANT)
 
-    // Profiles page — settings-profile CRUD + inheritance. QML reads the store
-    // via `settingsController.profilesPage.bridge`.
+    // Profiles page controller — settings-profile CRUD + inheritance. The
+    // Profiles page itself receives it from PageHost as `controller`; the
+    // window chrome (Main.qml's unsaved-changes footer and the sidebar's
+    // ProfileSwitcherHeader) reads it here.
     Q_PROPERTY(ProfilePageController* profilesPage READ profilesPage CONSTANT)
 
     // PhosphorControl ApplicationController hosting the PageRegistry that
@@ -583,21 +585,14 @@ public:
     Q_INVOKABLE QString urlToLocalFile(const QUrl& url) const;
 
     // ── Page sub-controllers ─────────────────────────────────────────────
-    EditorPageController* editorPage() const
-    {
-        return m_editorPage;
-    }
     SnappingBehaviorController* snappingBehaviorPage() const;
-    TilingBehaviorController* tilingBehaviorPage() const;
     ScrollingBehaviorController* scrollingBehaviorPage() const;
     SnappingZoneSelectorController* snappingZoneSelectorPage() const
     {
         return m_snappingZoneSelectorPage;
     }
     SnappingZonesController* snappingZonesPage() const;
-    SnappingEffectsController* snappingEffectsPage() const;
     OverlaysPageController* overlaysPage() const;
-    WindowAppearanceController* windowAppearancePage() const;
     TilingAlgorithmController* tilingAlgorithmPage() const;
     GeneralPageController* generalPage() const
     {
@@ -648,13 +643,13 @@ public:
     Q_INVOKABLE QVariantList getScreenStates() const;
     /// The live scrolling strip of @p screenId as zone maps for LayoutThumbnail
     /// (relativeGeometry + zoneNumber per tile, plus the StripPreviewKey tab
-    /// fields on a tabbed column's tile), from org.plasmazones.Scrolling. Empty
+    /// fields on a tabbed column's tile), from org.phosphor_works.Placement.Scrolling. Empty
     /// when the screen has no strip right now (not scrolling, no windows,
     /// daemon down) — the Monitors page falls back to a static strip.
     Q_INVOKABLE QVariantList getScrollingStripPreview(const QString& screenId) const;
     /// How far @p screenId has worked through its scrolling template's seed
     /// blueprint, as {"total": int, "used": int}, fetched from
-    /// org.plasmazones.Scrolling. An EMPTY map when the screen is not
+    /// org.phosphor_works.Placement.Scrolling. An EMPTY map when the screen is not
     /// scrolling, has no template blueprint, or the daemon is down — the
     /// Monitors page renders the progress line only for a non-empty answer,
     /// so an absent daemon reads as "nothing to say" rather than "no starting
@@ -1191,7 +1186,6 @@ private:
     ScrollingBehaviorController* m_scrollingBehaviorPage = nullptr;
     SnappingZoneSelectorController* m_snappingZoneSelectorPage = nullptr;
     SnappingZonesController* m_snappingZonesPage = nullptr;
-    SnappingEffectsController* m_snappingEffectsPage = nullptr;
     WindowAppearanceController* m_windowAppearancePage = nullptr;
     GeneralPageController* m_generalPage = nullptr;
     /// Parented to `this` so Qt manages lifetime. Every consumer is also a child

@@ -228,7 +228,7 @@ Kirigami.Dialog {
                 stepSize: 0.05
                 value: easingPreviewInDialog.curveAmplitude
                 formatValue: function (v) {
-                    return isElastic ? "+" + Math.round((v - 1) * 100) + "%" : v.toFixed(1);
+                    return isElastic ? i18nc("a whole-number percentage", "%1%", "+" + Math.round((v - 1) * 100)) : v.toFixed(1);
                 }
                 onMoved: value => {
                     var ct = easingPreviewInDialog.curveType;

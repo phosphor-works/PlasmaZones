@@ -183,7 +183,7 @@ SettingsFlickable {
                         tickMarkStepSize: 5
                         value: root.settingValue("DefaultColumnWidthValue", appSettings.scrollingDefaultColumnWidthValue) * 100
                         formatValue: function (v) {
-                            return Math.round(v) + "%";
+                            return i18nc("a whole-number percentage", "%1%", Math.round(v));
                         }
                         onMoved: function (newValue) {
                             root.writeSetting("DefaultColumnWidthValue", Math.round(newValue) / 100, function (v) {

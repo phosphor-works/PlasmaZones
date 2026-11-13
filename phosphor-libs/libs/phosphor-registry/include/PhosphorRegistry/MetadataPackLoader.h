@@ -28,7 +28,7 @@ namespace PhosphorRegistry {
 
 // Populates a Registry<Factory> from content packs discovered on disk —
 // the metadata-pack counterpart to PluginLoader (which populates a
-// Registry from .so + manifest bundles). Both feed the SAME generic
+// Registry from the bar-widget Qt plugins a PluginCatalog finds). Both feed the SAME generic
 // Registry<T>; this is the seam that lets a domain registry (shaders,
 // animation effects, …) compose Registry<T> for storage + notify while
 // keeping a filesystem-scanned, hot-reloading content catalogue.

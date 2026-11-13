@@ -6,7 +6,7 @@
 #include <PhosphorLayoutApi/AspectRatioClass.h>
 #include <PhosphorLayoutApi/EdgeGaps.h>
 #include <PhosphorZones/Zone.h>
-#include <phosphorzones_export.h>
+#include "phosphorzones_export.h"
 #include <QObject>
 #include <QVariantMap>
 #include <QVector>

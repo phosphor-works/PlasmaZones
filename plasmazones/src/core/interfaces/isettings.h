@@ -850,7 +850,6 @@ Q_SIGNALS:
     // — see settings_interfaces.h for the rationale (lists folded into
     // unified Exclude Rules; consumers subscribe to the rule store
     // through PhosphorRules::RuleStore::rulesChanged instead).
-    void excludeTransientWindowsChanged();
     void minimumWindowWidthChanged();
     void minimumWindowHeightChanged();
     // Decoration window filtering — paired with the IWindowExclusionSettings

@@ -10,7 +10,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-set(PHOSPHORIPC_VERSION "0.2.0")
+set(PHOSPHORIPC_VERSION "0.3.0")
 
 # The Qt floor this library requires AND advertises in its generated
 # PhosphorIpcConfig.cmake. Taken from the top-level QT_MIN_VERSION when built in-tree so
@@ -28,8 +28,7 @@ endif()
 # protocol. The constant is exported as PHOSPHOR_IPC_PROTOCOL_VERSION
 # so the static_assert in IpcProtocol.h can cross-check this CMake
 # value against the header constant at compile time. Bumped whenever
-# the JSON shape on the wire changes incompatibly; mirrors
-# PluginAbiVersion's CMake-↔-header link in phosphor-registry.
+# the JSON shape on the wire changes incompatibly.
 set(PHOSPHOR_IPC_PROTOCOL_VERSION 1)
 
 if(NOT PROJECT_VERSION)
@@ -110,6 +109,10 @@ generate_export_header(PhosphorIpc
 if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
 endif()
 

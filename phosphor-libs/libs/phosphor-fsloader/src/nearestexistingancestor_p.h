@@ -14,10 +14,9 @@ namespace PhosphorFsLoader::detail {
 /// cleaned path, or an empty string when nothing on the chain exists within the
 /// climb bound.
 ///
-/// Shared by `WatchedDirectorySet` (proxy watch for a registered directory that
-/// does not exist yet) and `WatchedFileSet` (the directory watch that notices a
-/// file being created, deleted or replaced by rename). Both need the same climb
-/// and must not drift apart on it.
+/// Used by `WatchedDirectorySet` for the proxy watch of a registered directory
+/// that does not exist yet. `WatchedFileSet` walks the physical identity chain
+/// instead (`identitychain_p.h`).
 ///
 /// The climb is LEXICAL (`QFileInfo::absolutePath()`), never canonical, for two
 /// reasons. `canonicalPath()` is empty for a path that does not exist, which is

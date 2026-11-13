@@ -8,6 +8,7 @@
 #include "config/configkeys.h"
 #include "config/configmigration.h"
 #include "config/configmigration_util.h"
+#include "config/settingsschema.h"
 #include "config/settingsvaluelabels.h"
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
@@ -427,6 +428,48 @@ void stripMachineScopedKeys(QJsonObject& config)
             git.value() = group;
         }
     }
+}
+
+/// @p value as the settings store would hold it: converted to the KeyDef's
+/// expectedType the way Store::importFromJson converts an incoming JSON
+/// number, then passed through the KeyDef's validator, the coercion
+/// Store::write and Store::exportToJson both apply. An undeclared key passes
+/// through unconverted.
+QVariant coercedConfigValue(const QString& group, const QString& key, const QJsonValue& value)
+{
+    QVariant v = value.toVariant();
+    const PhosphorConfig::KeyDef* def = cachedSettingsSchema().findKey(group, key);
+    if (!def) {
+        return v;
+    }
+    if (def->expectedType != QMetaType::UnknownType && v.typeId() != static_cast<int>(def->expectedType)) {
+        QVariant converted = v;
+        if (converted.convert(QMetaType(def->expectedType))) {
+            v = converted;
+        }
+    }
+    return def->validator ? def->validator(v) : v;
+}
+
+/// Whether applying a profile's @p profileValue would leave the live
+/// @p liveValue where it is. A raw match settles it. Otherwise both sides go
+/// through the schema's coercion, so a value the profile captured before a
+/// clamp tightened (Windows.Opacity 0.05 under a 0.1 floor) matches the
+/// clamped value the live store reports, while any real divergence still
+/// differs after coercion.
+bool configValuesEquivalent(const QString& group, const QString& key, const QJsonValue& profileValue,
+                            const QJsonValue& liveValue)
+{
+    if (profileValue == liveValue) {
+        return true;
+    }
+    // A key the live blob does not carry is a divergence, never a coercion
+    // match: an invalid QVariant can validate to the same floor a stale
+    // profile value clamps to.
+    if (liveValue.isUndefined()) {
+        return false;
+    }
+    return coercedConfigValue(group, key, profileValue) == coercedConfigValue(group, key, liveValue);
 }
 
 } // namespace
@@ -919,17 +962,34 @@ bool ProfileStore::isActiveModified(const QHash<QUuid, Record>& all) const
     // so a wholesale group compare would read a live GPU pin as a permanent
     // modification; comparing only the keys the blob carries tolerates the
     // machine-scoped extras while still catching every real divergence.
+    //
+    // Each value is compared through the schema's coercion
+    // (configValuesEquivalent), not raw: a profile delta stores what was
+    // captured, while the live blob is Store::exportToJson's validated read.
+    // A raw compare made a profile captured before a clamp tightened read as
+    // modified forever, since activating it stages the stale value and the
+    // store clamps it straight back.
+    //
+    // A key the defaults blob does not declare is skipped: the config no
+    // longer holds it (a retired setting a current-version profile file still
+    // carries), so activating the profile cannot apply it, and the live blob,
+    // which carries declared keys only, could never match it.
     if (m_config.currentConfig) {
         const QJsonObject resolved = resolveConfig(uid, all);
         const QJsonObject current = m_config.currentConfig();
+        const QJsonObject defaults = m_config.defaultConfig ? m_config.defaultConfig() : QJsonObject();
         for (auto git = resolved.constBegin(); git != resolved.constEnd(); ++git) {
             if (!git.value().isObject()) {
                 continue;
             }
             const QJsonObject resolvedGroup = git.value().toObject();
             const QJsonObject currentGroup = current.value(git.key()).toObject();
+            const QJsonObject defaultGroup = defaults.value(git.key()).toObject();
             for (auto kit = resolvedGroup.constBegin(); kit != resolvedGroup.constEnd(); ++kit) {
-                if (currentGroup.value(kit.key()) != kit.value()) {
+                if (m_config.defaultConfig && !defaultGroup.contains(kit.key())) {
+                    continue;
+                }
+                if (!configValuesEquivalent(git.key(), kit.key(), kit.value(), currentGroup.value(kit.key()))) {
                     return true;
                 }
             }
@@ -1106,7 +1166,8 @@ bool ProfileStore::setParent(const QString& id, const QString& parentId)
     // Reject a cycle: the new parent must not be the profile itself or one of
     // its descendants.
     if (!parent.isNull() && isSelfOrAncestor(uid, parent, all)) {
-        Q_EMIT toastRequested(PhosphorI18n::tr("A profile cannot inherit from itself."));
+        Q_EMIT toastRequested(
+            PhosphorI18n::tr("A profile cannot inherit from itself or from a profile that inherits from it."));
         return false;
     }
 
@@ -1131,6 +1192,24 @@ bool ProfileStore::setParent(const QString& id, const QString& parentId)
     }
     notifyProfilesChanged();
     return true;
+}
+
+QStringList ProfileStore::selfAndDescendantIds(const QString& id) const
+{
+    const QHash<QUuid, Record> all = loadAll();
+    const QUuid uid(id);
+    QStringList out;
+    if (!all.contains(uid)) {
+        return out;
+    }
+    // The same test setParent's cycle guard applies to a candidate parent, so
+    // the picker and the refusal can never disagree about which ids are out.
+    for (auto it = all.constBegin(); it != all.constEnd(); ++it) {
+        if (isSelfOrAncestor(uid, it.key(), all)) {
+            out.append(it.key().toString());
+        }
+    }
+    return out;
 }
 
 bool ProfileStore::removeProfile(const QString& id)
@@ -1249,16 +1328,15 @@ bool ProfileStore::exportProfile(const QString& id, const QString& destLocalPath
         return false;
     }
     const QUuid uid(id);
-    const QString sourcePath = profileFilePath(uid);
-    if (sourcePath.isEmpty()) {
-        return false;
-    }
     // Export the RECORD, not the raw file bytes: a pre-current profile is
     // migrated forward in memory by loadAll, and exporting the stale bytes
     // would hand out a file that stops being importable the moment a future
     // build raises the version floor. The record's delta was captured with
     // the machine-scoped-key skip applied, so re-serialising keeps exports
     // free of machine-scoped keys exactly like the verbatim copy did.
+    // An unparseable id or an unresolvable profiles folder finds no record
+    // either. The toast matters: the Profiles page shows no failure banner of
+    // its own, so a silent return would read as nothing happening.
     const QHash<QUuid, Record> all = loadAll();
     if (!all.contains(uid)) {
         Q_EMIT toastRequested(PhosphorI18n::tr("Could not read that profile."));
@@ -1272,12 +1350,20 @@ bool ProfileStore::exportProfile(const QString& id, const QString& destLocalPath
         Q_EMIT toastRequested(PhosphorI18n::tr("Could not write to %1.").arg(destPath));
         return false;
     }
+    // A save dialog closes on accept, so without this a successful export
+    // leaves nothing on screen to say it happened.
+    Q_EMIT toastRequested(PhosphorI18n::tr("Exported the profile “%1”.").arg(all.value(uid).name));
     return true;
 }
 
 QString ProfileStore::importProfile(const QString& sourcePathOrUrl)
 {
+    // Every refusal below toasts its reason. The Profiles page relies on that
+    // and shows no failure banner of its own, so a silent return here would
+    // leave a failed import with no feedback at all. An empty argument is what
+    // urlToLocalFile hands over for a file dialog pick that is not a local file.
     if (sourcePathOrUrl.isEmpty()) {
+        Q_EMIT toastRequested(PhosphorI18n::tr("That file is not a readable profile."));
         return QString();
     }
     // The drop zone hands over raw file:// URLs; the file dialog hands over
@@ -1314,7 +1400,12 @@ QString ProfileStore::importProfile(const QString& sourcePathOrUrl)
     if (rec.name.isEmpty()) {
         rec.name = uniqueName(PhosphorI18n::tr("Imported profile"), all);
     }
-    if (rec.name.isEmpty() || !writeProfileRecord(rec)) {
+    if (rec.name.isEmpty()) {
+        Q_EMIT toastRequested(PhosphorI18n::tr("Could not find a free name for the imported profile."));
+        return QString();
+    }
+    // writeProfileRecord toasts its own failure.
+    if (!writeProfileRecord(rec)) {
         return QString();
     }
     appendToOrder(rec.id);

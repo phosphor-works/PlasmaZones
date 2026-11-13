@@ -15,10 +15,13 @@
  *   2. gapValue("", key) / writeGap("", key, v) read and write the GLOBAL config.
  *   3. gapValue(monitor, key) / writeGap(monitor, key, v) read and write the
  *      per-monitor override, falling back to the global value when absent.
+ *   4. The decoration minimum-size bounds the page binds to are the
+ *      ConfigDefaults range.
  */
 
 #include <QTest>
 
+#include "config/configdefaults.h"
 #include "settings/pages/windowappearancecontroller.h"
 #include "helpers/StubSettings.h"
 
@@ -113,6 +116,24 @@ private Q_SLOTS:
 
         // Another monitor with no override still falls back to the global value.
         QCOMPARE(controller.gapValue(QStringLiteral("DP-2"), QStringLiteral("InnerGap")).toInt(), 8);
+    }
+
+    // The decoration minimum-size spin boxes on WindowAppearancePage bind
+    // their from/to to these CONSTANT properties, so each must exist on the
+    // meta-object (a missing one reads as undefined in QML, not a build error)
+    // and carry the range the schema clamps the setting to.
+    void decorationMinimumWindowBoundsMatchConfigDefaults()
+    {
+        StubSettings settings;
+        WindowAppearanceController controller(settings);
+        const auto prop = [&controller](const char* name) {
+            const QVariant v = controller.property(name);
+            return v.isValid() ? v.toInt() : -1;
+        };
+        QCOMPARE(prop("decorationMinimumWindowWidthMin"), ConfigDefaults::decorationMinimumWindowWidthMin());
+        QCOMPARE(prop("decorationMinimumWindowWidthMax"), ConfigDefaults::decorationMinimumWindowWidthMax());
+        QCOMPARE(prop("decorationMinimumWindowHeightMin"), ConfigDefaults::decorationMinimumWindowHeightMin());
+        QCOMPARE(prop("decorationMinimumWindowHeightMax"), ConfigDefaults::decorationMinimumWindowHeightMax());
     }
 };
 

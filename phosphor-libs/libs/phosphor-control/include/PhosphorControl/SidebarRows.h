@@ -23,7 +23,7 @@ namespace PhosphorControl {
  * @brief Derives the sidebar's visible row list from the page registry.
  *
  * Three walks over the tier-filtered tree, one per rail mode:
- *   - FLAT: every visible navigable page in registration order, with no drill
+ *   - FLAT: every visible navigable page in sibling order, with no drill
  *     steps. Collapsible CATEGORY headers dissolve into their surroundings,
  *     but a no-QML drill parent with two or more navigable descendants stays
  *     as a collapsible header row (consulting `expandedCategories`) with its

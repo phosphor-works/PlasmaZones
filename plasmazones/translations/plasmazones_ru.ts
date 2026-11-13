@@ -53,11 +53,82 @@
     </message>
 </context>
 <context>
+    <name>ExtensionFrame</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="126"/>
+        <source>From %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="154"/>
+        <source>This section is turned off, because %1 closed unexpectedly the last time it loaded the module it comes from.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="156"/>
+        <source>This section could not be shown, because the module it comes from did not load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="158"/>
+        <source>This section could not be shown, because its QML did not load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="159"/>
+        <source>This section could not be shown.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ExtensionFrame.qml" line="166"/>
+        <source>Open Module Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ModulePage</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="60"/>
+        <source>%1 is turned off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="62"/>
+        <source>%1 could not be loaded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="63"/>
+        <source>%1 is not loaded yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="65"/>
+        <source>%1 closed unexpectedly the last time it loaded this module, so it stays off until you load it again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="69"/>
+        <source>Try Again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/ModulePage.qml" line="69"/>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PageHost</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageHost.qml" line="281"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageHost.qml" line="379"/>
         <source>Select a page from the sidebar</source>
         <translation>Выберите страницу на боковой панели</translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageHost.qml" line="391"/>
+        <source>This page could not be shown</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -67,6 +138,92 @@
         <location filename="../../phosphor-libs/libs/phosphor-control/qml/PageLoadingIndicator.qml" line="70"/>
         <source>Loading…</source>
         <translation>Загрузка…</translation>
+    </message>
+</context>
+<context>
+    <name>PhosphorControl::ApplicationController</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="136"/>
+        <source>A settings section did not finish saving in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="137"/>
+        <source>%1 did not finish saving in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="185"/>
+        <source>Saving failed for an unknown reason</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="199"/>
+        <source>A settings section was closed before it finished saving</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="287"/>
+        <source>A settings section did not finish discarding in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="288"/>
+        <source>%1 did not finish discarding in time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="321"/>
+        <source>Discarding failed for an unknown reason</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="330"/>
+        <source>A settings section was closed before it finished discarding</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="467"/>
+        <source>Saving was stopped before it finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/applicationcontroller_async.cpp" line="474"/>
+        <source>Discarding was stopped before it finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PhosphorControl::ModuleHost</name>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="68"/>
+        <source>Window Management</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="70"/>
+        <source>Appearance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="72"/>
+        <source>Desktop</source>
+        <translation type="unfinished">Рабочий стол</translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="73"/>
+        <source>Input</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="74"/>
+        <source>Apps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../phosphor-libs/libs/phosphor-control/src/modulehost.cpp" line="75"/>
+        <source>System</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -90,7 +247,7 @@
 <context>
     <name>Sidebar</name>
     <message>
-        <location filename="../../phosphor-libs/libs/phosphor-control/qml/Sidebar.qml" line="563"/>
+        <location filename="../../phosphor-libs/libs/phosphor-control/qml/Sidebar.qml" line="566"/>
         <source>Search...</source>
         <translation>Поиск…</translation>
     </message>
@@ -1161,7 +1318,7 @@
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="338"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="614"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="626"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="117"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="149"/>
         <source>Workspaces</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1721,7 +1878,7 @@
         <location filename="../src/editor/controller/layout.cpp" line="716"/>
         <location filename="../src/settings/controller/settingscontroller_layouts.cpp" line="329"/>
         <location filename="../src/settings/controller/settingscontroller_layouts.cpp" line="337"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="424"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="420"/>
         <source>New Layout</source>
         <translation>Новая раскладка</translation>
     </message>
@@ -1750,27 +1907,27 @@
         <translation>Переименовать зону</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="75"/>
+        <location filename="../src/daemon/main.cpp" line="89"/>
         <source>Window snapping, tiling and scrolling</source>
         <translation>Прилипание, мозаика и прокрутка окон</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="81"/>
+        <location filename="../src/daemon/main.cpp" line="95"/>
         <source>Replace existing daemon instance</source>
         <translation>Заменить существующий экземпляр службы</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="83"/>
+        <location filename="../src/daemon/main.cpp" line="97"/>
         <source>Enable debug logging for all PlasmaZones categories</source>
         <translation>Включить отладочное журналирование для всех категорий PlasmaZones</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="85"/>
+        <location filename="../src/daemon/main.cpp" line="99"/>
         <source>Write log output to &lt;file&gt; instead of stderr</source>
         <translation>Записывать вывод журнала в &lt;file&gt; вместо stderr</translation>
     </message>
     <message>
-        <location filename="../src/daemon/main.cpp" line="85"/>
+        <location filename="../src/daemon/main.cpp" line="99"/>
         <source>file</source>
         <translation>файл</translation>
     </message>
@@ -2173,23 +2330,23 @@
         <translation>В файле не найдено допустимых раскладок</translation>
     </message>
     <message>
-        <location filename="../src/settings/main.cpp" line="129"/>
+        <location filename="../src/settings/main.cpp" line="124"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="256"/>
         <source>PlasmaZones Settings</source>
         <translation>Параметры PlasmaZones</translation>
     </message>
     <message>
-        <location filename="../src/settings/main.cpp" line="134"/>
+        <location filename="../src/settings/main.cpp" line="129"/>
         <source>Open a specific settings page</source>
         <translation>Открыть определённую страницу параметров</translation>
     </message>
     <message>
-        <location filename="../src/settings/main.cpp" line="137"/>
+        <location filename="../src/settings/main.cpp" line="132"/>
         <source>Reveal a specific setting on the page (deep link)</source>
         <translation>Показать определённый параметр на странице (прямая ссылка)</translation>
     </message>
     <message>
-        <location filename="../src/settings/main.cpp" line="141"/>
+        <location filename="../src/settings/main.cpp" line="136"/>
         <source>Reveal a specific section on the page (deep link)</source>
         <translation>Показать определённый раздел на странице (прямая ссылка)</translation>
     </message>
@@ -2214,14 +2371,13 @@
         <translation>Панель задач &amp; переключатель</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="201"/>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="318"/>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="419"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="112"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="117"/>
         <location filename="../src/settings/rules/rulemodel_labels.cpp" line="60"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="42"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="162"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="166"/>
         <location filename=".qml-stubs/plasmazones/src/ui/CheatsheetContent.qml.cpp" line="390"/>
         <source>Tiling</source>
         <translation>Мозаичное размещение</translation>
@@ -2240,7 +2396,7 @@
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="653"/>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="102"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="212"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="272"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="268"/>
         <source>Other</source>
         <translation>Прочее</translation>
     </message>
@@ -2436,13 +2592,12 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="100"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="627"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="626"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/GapsSettingsCard.qml.cpp" line="56"/>
         <source>Gaps</source>
         <translation>Зазоры</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="245"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="182"/>
         <source>Overlay</source>
         <translation>Наложение</translation>
@@ -2454,18 +2609,14 @@
         <translation>Анимация</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="143"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="569"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="191"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="284"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="914"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1226"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="305"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="921"/>
         <source>Appearance</source>
         <translation>Внешний вид</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="262"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="313"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="371"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="72"/>
         <source>Window</source>
         <translation>Окно</translation>
@@ -2560,8 +2711,8 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="285"/>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="355"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="494"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="910"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="493"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="909"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="118"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDropIndicatorCard.qml.cpp" line="115"/>
         <source>Border color</source>
@@ -2621,7 +2772,7 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="345"/>
         <location filename="../src/settings/rules/rulemodel_labels.cpp" line="570"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="365"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="367"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="109"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="114"/>
         <source>Overlay style</source>
@@ -2637,7 +2788,6 @@
         <translation>Экран</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="443"/>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="293"/>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="376"/>
         <location filename="../src/settings/rules/rulemodel_fieldtables.cpp" line="75"/>
@@ -2667,13 +2817,13 @@
         <translation>Кривая</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="199"/>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="317"/>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="413"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="109"/>
         <location filename="../src/settings/rules/rulemodel_labels.cpp" line="56"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1207"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="29"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="131"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="144"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingSimplePage.qml.cpp" line="40"/>
         <location filename=".qml-stubs/plasmazones/src/ui/CheatsheetContent.qml.cpp" line="393"/>
         <source>Snapping</source>
@@ -2852,7 +3002,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="162"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="789"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="788"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="85"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="280"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="161"/>
@@ -2977,8 +3127,8 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="294"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="556"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="435"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="555"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="423"/>
         <source>Tint color</source>
         <translation>Цвет оттенка</translation>
     </message>
@@ -3139,7 +3289,7 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="281"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="671"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="942"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="941"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="105"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="100"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="106"/>
@@ -3188,7 +3338,7 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="325"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="706"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="781"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="780"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="79"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="250"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="256"/>
@@ -3640,9 +3790,9 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="545"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="622"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="560"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="473"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="479"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="559"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="461"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="467"/>
         <source>Hide title bars</source>
         <translation>Скрывать заголовки окон</translation>
     </message>
@@ -3807,7 +3957,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="283"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="289"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="285"/>
         <source>Unknown</source>
         <translation>Неизвестно</translation>
     </message>
@@ -3934,7 +4084,7 @@
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="43"/>
         <location filename="../src/config/settingsvaluelabels.cpp" line="59"/>
-        <location filename="../src/settings/pages/generalpagecontroller.cpp" line="44"/>
+        <location filename="../src/settings/pages/generalpagecontroller.cpp" line="46"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/workspaces/NamedWorkspaceRow.qml.cpp" line="280"/>
         <source>Automatic</source>
         <translation>Автоматически</translation>
@@ -4194,7 +4344,7 @@
     </message>
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="115"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="293"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="289"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="403"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorPreviewSizeCard.qml.cpp" line="256"/>
         <source>Auto</source>
@@ -4208,7 +4358,7 @@
     </message>
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="116"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="293"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="289"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="407"/>
         <source>Manual</source>
         <translation>Вручную</translation>
@@ -4342,14 +4492,14 @@
         <translation>При переполнении</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="743"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="742"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="66"/>
         <source>Proportion of the screen</source>
         <translation>Доля экрана</translation>
     </message>
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="203"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="746"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="745"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="69"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="197"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="171"/>
@@ -4364,7 +4514,7 @@
     </message>
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="205"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="748"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="747"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="71"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="227"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="198"/>
@@ -4378,14 +4528,14 @@
     </message>
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="210"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="759"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="758"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="295"/>
         <source>Fixed height</source>
         <translation>Фиксированная высота</translation>
     </message>
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="211"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="761"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="760"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="321"/>
         <source>Preset height</source>
         <translation>Заданная высота</translation>
@@ -4562,7 +4712,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/rulecontroller.cpp" line="729"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1083"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1143"/>
         <source>%1 (copy)</source>
         <translation>%1 (копия)</translation>
     </message>
@@ -4588,8 +4738,8 @@
     <message>
         <location filename="../src/config/settingsvaluelabels.cpp" line="498"/>
         <location filename="../src/settings/rules/rulemodel_matchlabels.cpp" line="222"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="117"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="148"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="135"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="166"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="148"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/ActionListView.qml.cpp" line="451"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/ActionParamEditors.qml.cpp" line="359"/>
@@ -4641,10 +4791,10 @@
     </message>
     <message>
         <location filename="../src/settings/rules/rulemodel_labels.cpp" line="451"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="477"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="551"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="395"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="400"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="476"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="550"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="387"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="392"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="146"/>
         <source>Opacity</source>
         <translation>Непрозрачность</translation>
@@ -4772,7 +4922,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="637"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="636"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="635"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/GapsSettingsCard.qml.cpp" line="108"/>
         <source>Per-side outer gaps</source>
         <translation>Внешние зазоры для каждой стороны</translation>
@@ -4928,9 +5078,9 @@
     </message>
     <message>
         <location filename="../src/settings/rules/rulemodel_labels.cpp" line="649"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="554"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="414"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="419"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="553"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="404"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="409"/>
         <source>Tint strength</source>
         <translation>Сила оттенка</translation>
     </message>
@@ -5556,8 +5706,6 @@
         <translation>Комнаты</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="172"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="406"/>
         <location filename="../src/settings/rules/rulemodel_fieldtables.cpp" line="36"/>
         <source>Animations</source>
         <translation>Анимации</translation>
@@ -5747,7 +5895,6 @@
         <translation>Размещённое мозаикой</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="526"/>
         <location filename="../src/settings/pages/decorationpagecontroller_browser.cpp" line="64"/>
         <source>Popups</source>
         <translation>Всплывающие окна</translation>
@@ -6017,15 +6164,15 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="80"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="89"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="335"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="430"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="670"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="432"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="669"/>
         <source>monitor</source>
         <translation>экран</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="80"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="668"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="683"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="667"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="682"/>
         <source>display</source>
         <translation>дисплей</translation>
     </message>
@@ -6051,13 +6198,13 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="83"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="372"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="374"/>
         <source>opengl</source>
         <translation>opengl</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="84"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="372"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="374"/>
         <source>vulkan</source>
         <translation>vulkan</translation>
     </message>
@@ -6075,7 +6222,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="293"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="320"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="339"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1090"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1089"/>
         <source>export</source>
         <translation>экспорт</translation>
     </message>
@@ -6088,7 +6235,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="293"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="320"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="339"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1092"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1091"/>
         <source>import</source>
         <translation>импорт</translation>
     </message>
@@ -6099,7 +6246,8 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="88"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="722"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="344"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="721"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="53"/>
         <source>split</source>
         <translation>разделение</translation>
@@ -6131,7 +6279,11 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="69"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="139"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1107"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="345"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1106"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1209"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1215"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1218"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="50"/>
         <source>grid</source>
         <translation>сетка</translation>
@@ -6143,10 +6295,10 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="284"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="318"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="338"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="749"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="762"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="768"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="772"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="748"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="761"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="767"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="771"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="72"/>
         <source>preset</source>
         <translation>предустановка</translation>
@@ -6156,10 +6308,10 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="199"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="229"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="232"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="750"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="763"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="769"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="773"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="749"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="762"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="768"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="772"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="73"/>
         <source>template</source>
         <translation>шаблон</translation>
@@ -6173,8 +6325,8 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="162"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="182"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="253"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="366"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="649"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="368"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="648"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="32"/>
         <source>overlay</source>
         <translation>наложение</translation>
@@ -6183,9 +6335,9 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="65"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="162"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="217"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="649"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1011"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1015"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="648"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1010"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1014"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="32"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="34"/>
         <source>trigger</source>
@@ -6193,14 +6345,15 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="162"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="634"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="638"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="877"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="885"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="890"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="994"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1102"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1130"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="633"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="637"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="876"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="884"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="889"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="993"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1101"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1129"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1212"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="145"/>
         <source>edge</source>
         <translation>край</translation>
@@ -6218,6 +6371,10 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="171"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="174"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="244"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="345"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1209"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1212"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1221"/>
         <source>snap</source>
         <translation>прилипание</translation>
     </message>
@@ -6225,64 +6382,64 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="165"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="205"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="328"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="826"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="830"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="834"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="902"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="911"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="825"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="829"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="833"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="901"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="910"/>
         <source>color</source>
         <translation>цвет</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="165"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="487"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="491"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="495"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="507"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="538"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="542"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="555"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="557"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="826"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="830"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="834"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="902"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="911"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="486"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="490"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="494"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="506"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="537"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="541"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="554"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="556"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="825"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="829"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="833"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="901"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="910"/>
         <source>colour</source>
         <translation>цвет</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="165"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="343"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="907"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="906"/>
         <source>opacity</source>
         <translation>непрозрачность</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="166"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="498"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="500"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="548"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="552"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="907"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1196"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="497"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="499"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="547"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="551"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="906"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1229"/>
         <source>transparency</source>
         <translation>прозрачность</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="166"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="488"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="491"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="495"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="508"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="539"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="543"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="558"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="827"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="831"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="835"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="903"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="912"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="487"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="490"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="494"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="507"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="538"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="542"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="557"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="826"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="830"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="834"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="902"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="911"/>
         <source>theme</source>
         <translation>тема</translation>
     </message>
@@ -6291,12 +6448,12 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="299"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="323"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="328"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="504"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="527"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="530"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="614"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="912"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="916"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="503"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="526"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="529"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="613"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="911"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="915"/>
         <source>border</source>
         <translation>рамка</translation>
     </message>
@@ -6308,9 +6465,9 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="168"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="211"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="675"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1097"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1125"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="674"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1096"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1124"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="38"/>
         <source>picker</source>
         <translation>выбор</translation>
@@ -6326,7 +6483,6 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="253"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="271"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="305"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="443"/>
         <source>popup</source>
         <translation>всплывающее окно</translation>
     </message>
@@ -6338,7 +6494,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="247"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="299"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="328"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="757"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="756"/>
         <source>window</source>
         <translation>окно</translation>
     </message>
@@ -6348,9 +6504,9 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="212"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="216"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="247"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="878"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="887"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="892"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="877"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="886"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="891"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="32"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="186"/>
         <source>drag</source>
@@ -6359,12 +6515,13 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="172"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="217"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="651"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="677"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="855"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1012"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1016"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1026"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="650"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="676"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="854"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1011"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1015"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1025"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1221"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="34"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="163"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="166"/>
@@ -6393,7 +6550,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="175"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="223"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="229"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1034"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1033"/>
         <source>order</source>
         <translation>порядок</translation>
     </message>
@@ -6411,9 +6568,15 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="177"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="225"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="231"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="361"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="960"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="963"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="344"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="363"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="959"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="962"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1197"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1199"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1201"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1203"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1206"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="119"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="122"/>
         <source>shortcut</source>
@@ -6482,26 +6645,26 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="147"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="191"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="222"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="438"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="440"/>
         <source>tiling</source>
         <translation>мозаичное размещение</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="191"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="757"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="756"/>
         <source>auto</source>
         <translation>авто</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="192"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="330"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="629"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="632"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="637"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="644"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="804"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="811"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="935"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="628"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="631"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="636"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="643"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="803"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="810"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="934"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="98"/>
         <source>gap</source>
         <translation>зазор</translation>
@@ -6509,10 +6672,12 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="192"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="331"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="629"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="632"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="637"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="644"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="628"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="631"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="636"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="643"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1215"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1218"/>
         <source>spacing</source>
         <translation>интервал</translation>
     </message>
@@ -6546,16 +6711,16 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="68"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="195"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="721"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="729"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="720"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="728"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="50"/>
         <source>master</source>
         <translation>главная область</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="195"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1023"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1026"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1022"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1025"/>
         <source>stack</source>
         <translation>стопка</translation>
     </message>
@@ -6567,8 +6732,8 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="274"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="279"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="282"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="376"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="518"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="378"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="517"/>
         <source>animation</source>
         <translation>анимация</translation>
     </message>
@@ -6598,15 +6763,15 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="237"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="891"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="890"/>
         <source>speed</source>
         <translation>скорость</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="240"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="928"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="932"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="997"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="927"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="931"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="996"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="147"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="182"/>
         <source>open</source>
@@ -6660,26 +6825,26 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="111"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="251"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="303"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="355"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="358"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="361"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="357"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="360"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="363"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="365"/>
         <source>osd</source>
         <translation>OSD</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="251"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="355"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="358"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="361"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="357"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="360"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="363"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="365"/>
         <source>notification</source>
         <translation>уведомление</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="251"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="303"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1078"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1077"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="265"/>
         <source>on-screen display</source>
         <translation>экранное сообщение</translation>
@@ -6693,7 +6858,7 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="103"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="255"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="358"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="360"/>
         <source>virtual desktop</source>
         <translation>виртуальный рабочий стол</translation>
     </message>
@@ -6785,7 +6950,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="305"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="308"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="329"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="561"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="560"/>
         <source>decoration</source>
         <translation>оформление</translation>
     </message>
@@ -6798,28 +6963,28 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="330"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="629"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="632"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="637"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="644"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1036"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="628"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="631"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="636"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="643"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1035"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="240"/>
         <source>gaps</source>
         <translation>зазоры</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="331"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="630"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="633"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="638"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="629"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="632"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="637"/>
         <source>padding</source>
         <translation>отступ</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="331"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="630"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="633"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="638"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="629"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="632"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="637"/>
         <source>margin</source>
         <translation>поле</translation>
     </message>
@@ -6835,13 +7000,13 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="334"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="701"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="859"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="950"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="953"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1026"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1042"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1047"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="700"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="858"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="949"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="952"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1025"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1041"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1046"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="111"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="114"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="222"/>
@@ -6867,95 +7032,89 @@
         <translation>зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="345"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="347"/>
         <source>about</source>
         <translation>о программе</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="345"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="347"/>
         <source>version</source>
         <translation>версия</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="345"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="347"/>
         <source>license</source>
         <translation>лицензия</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="346"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="348"/>
         <source>credits</source>
         <translation>авторы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="367"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="49"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="369"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="55"/>
         <source>Rendering</source>
         <translation>Отрисовка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="371"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="93"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="373"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="99"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="105"/>
         <source>Rendering backend</source>
         <translation>Движок отрисовки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="372"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="374"/>
         <source>graphics</source>
         <translation>графика</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="440"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="610"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1071"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="442"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="609"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1070"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="259"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="23"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="24"/>
         <source>Window filtering</source>
         <translation>Фильтрация окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="442"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="612"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1073"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="611"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1072"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="261"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="529"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="58"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="71"/>
         <source>Exclude transient windows</source>
         <translation>Исключать вспомогательные окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="443"/>
-        <source>dialog</source>
-        <translation>диалоговое окно</translation>
-    </message>
-    <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="305"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="443"/>
         <source>tooltip</source>
         <translation>подсказка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="450"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="597"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="449"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="618"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/ThemeFallbackColorControl.qml.cpp" line="177"/>
         <source>Reset</source>
         <translation>Сбросить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="451"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="450"/>
         <source>reset to defaults</source>
         <translation>сбросить к значениям по умолчанию</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="451"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="450"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1206"/>
         <source>defaults</source>
         <translation>значения по умолчанию</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="451"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="695"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="946"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="950"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="450"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="694"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="945"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="949"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1206"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="108"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="111"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="217"/>
@@ -6965,17 +7124,17 @@
         <translation>восстановить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="457"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="469"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="850"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="456"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="468"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="849"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDragInsertCard.qml.cpp" line="24"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="32"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="30"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="36"/>
         <source>Triggers</source>
         <translation>Триггеры</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="459"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="458"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="196"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="22"/>
         <source>Zone span</source>
@@ -6984,14 +7143,14 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="84"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="461"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="460"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="127"/>
         <source>Display</source>
         <translation>Отображение</translation>
     </message>
     <message>
         <location filename="../src/settings/pages/decorationpagecontroller_browser.cpp" line="66"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="464"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="463"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="38"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/DecorationPopupsPage.qml.cpp" line="26"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingSimplePage.qml.cpp" line="108"/>
@@ -7001,9 +7160,9 @@
         <translation>Помощник прилипания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="466"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="471"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="924"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="465"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="470"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="923"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="89"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="207"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="234"/>
@@ -7015,8 +7174,8 @@
         <translation>Обработка окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="467"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="472"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="466"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="471"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="227"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="252"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/NewLayoutDialog.qml.cpp" line="186"/>
@@ -7026,128 +7185,128 @@
         <translation>Фокус</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="476"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="820"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="475"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="819"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="51"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="425"/>
         <source>Colors</source>
         <translation>Цвета</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="478"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="477"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="201"/>
         <source>Border</source>
         <translation>Рамка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="480"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="479"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="280"/>
         <source>Zone labels</source>
         <oldsource>Zone Labels</oldsource>
         <translation>Подписи зон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="481"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="480"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="378"/>
         <source>Effects</source>
         <translation>Эффекты</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="373"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="143"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="375"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="149"/>
         <source>Shader Effects</source>
         <translation>Эффекты шейдеров</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="488"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="492"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="496"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="508"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="539"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="543"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="558"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="827"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="831"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="836"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="904"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="913"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="487"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="491"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="495"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="507"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="538"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="542"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="557"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="826"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="830"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="835"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="903"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="912"/>
         <source>scheme</source>
         <translation>схема</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="349"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="486"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="485"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="67"/>
         <source>Highlight color</source>
         <translation>Цвет подсветки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="487"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="827"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="486"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="826"/>
         <source>active</source>
         <translation>активный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="487"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1000"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1003"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="486"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="999"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1002"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="152"/>
         <source>hover</source>
         <translation>наведение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="490"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="489"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="98"/>
         <source>Inactive color</source>
         <translation>Цвет неактивной зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="491"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="542"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="568"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="490"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="541"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="567"/>
         <source>unfocused</source>
         <translation>без фокуса</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="495"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="538"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="542"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="494"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="537"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="541"/>
         <source>outline</source>
         <translation>контур</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1092"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1091"/>
         <source>load</source>
         <translation>загрузить</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/rulemodel_labels.cpp" line="1013"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="498"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="497"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="154"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="159"/>
         <source>Active opacity</source>
         <translation>Непрозрачность активной зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="498"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="500"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="497"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="499"/>
         <source>alpha</source>
         <translation>альфа</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/rulemodel_labels.cpp" line="1013"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="500"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="499"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="172"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="177"/>
         <source>Inactive opacity</source>
         <translation>Непрозрачность неактивной зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="502"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="525"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="915"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="232"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="239"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="501"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="524"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="914"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="235"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="242"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="209"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="216"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDropIndicatorCard.qml.cpp" line="134"/>
@@ -7156,144 +7315,145 @@
         <translation>Ширина рамки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="502"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="525"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="807"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="917"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="501"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="524"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="806"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="916"/>
         <source>thickness</source>
         <translation>толщина</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="446"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="449"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="502"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="513"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="525"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="618"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="622"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="726"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="939"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1081"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1084"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="445"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="448"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="501"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="512"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="524"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="617"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="621"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="725"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="938"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1080"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1083"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="102"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="215"/>
         <source>size</source>
         <translation>размер</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="504"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="527"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="921"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="503"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="526"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="920"/>
         <source>rounding</source>
         <translation>скругление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="817"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="920"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="816"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="919"/>
         <source>corner</source>
         <translation>угол</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="506"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="505"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="288"/>
         <source>Label color</source>
         <translation>Цвет надписи</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="507"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="513"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="506"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="512"/>
         <source>text</source>
         <translation>текст</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="507"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="793"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="506"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="792"/>
         <source>font</source>
         <translation>шрифт</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="509"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="792"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="508"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="791"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="304"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="181"/>
         <source>Font</source>
         <translation>Шрифт</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="510"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="793"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="509"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="792"/>
         <source>typeface</source>
         <translation>гарнитура</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="510"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="509"/>
         <source>family</source>
         <translation>семейство</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="510"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="509"/>
         <source>style</source>
         <translation>начертание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="512"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="511"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="348"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="353"/>
         <source>Label scale</source>
         <translation>Масштаб надписи</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="513"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="512"/>
         <source>multiplier</source>
         <translation>множитель</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="228"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="515"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="514"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="386"/>
         <source>Zone numbers</source>
         <translation>Номера зон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="516"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="749"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="762"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="515"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="748"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="761"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="72"/>
         <source>index</source>
         <translation>индекс</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="516"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="515"/>
         <source>digit</source>
         <translation>цифра</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="516"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="794"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="515"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="793"/>
         <source>label</source>
         <translation>надпись</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="518"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="517"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="402"/>
         <source>Flash on layout switch</source>
         <translation>Мигать при переключении раскладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="518"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="517"/>
         <source>blink</source>
         <translation>мигание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="375"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="154"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="159"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="377"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="160"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="165"/>
         <source>Frame rate</source>
         <translation>Частота кадров</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="50"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="36"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1194"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="43"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/dialogs/KeyboardShortcutOverlay.qml.cpp" line="142"/>
         <location filename=".qml-stubs/plasmazones/src/ui/CheatsheetContent.qml.cpp" line="522"/>
         <source>Keyboard Shortcuts</source>
@@ -7360,15 +7520,15 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="152"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="197"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="273"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="740"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="753"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="802"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="927"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="936"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="943"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="947"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="986"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="990"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="739"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="752"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="801"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="926"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="935"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="942"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="946"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="985"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="989"/>
         <location filename="../src/settings/search/searchcatalog_animations.cpp" line="72"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="64"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="92"/>
@@ -7385,13 +7545,13 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="210"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="215"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="273"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="782"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="852"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="855"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="879"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="936"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="976"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1004"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="781"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="851"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="854"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="878"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="935"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="975"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1003"/>
         <location filename="../src/settings/search/searchcatalog_animations.cpp" line="72"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="80"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="99"/>
@@ -7402,11 +7562,11 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="216"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="967"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1008"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1011"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1015"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1019"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="966"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1007"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1010"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1014"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1018"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="126"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="157"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="163"/>
@@ -7418,21 +7578,21 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="198"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="204"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="782"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="785"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="787"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="790"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="793"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="802"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="804"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="807"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="809"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="811"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="814"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="817"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="826"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="830"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="834"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="781"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="784"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="786"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="789"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="792"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="801"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="803"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="806"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="808"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="810"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="813"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="816"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="825"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="829"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="833"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="80"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="83"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="86"/>
@@ -7441,7 +7601,7 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="84"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="369"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="371"/>
         <source>graphics card</source>
         <translation>видеокарта</translation>
     </message>
@@ -7466,7 +7626,7 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="324"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="604"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="603"/>
         <source>glass</source>
         <translation>стекло</translation>
     </message>
@@ -7474,7 +7634,7 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="274"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="324"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="332"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="603"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="602"/>
         <source>blur</source>
         <translation>размытие</translation>
     </message>
@@ -7751,351 +7911,387 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="366"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="344"/>
+        <source>duplicate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="368"/>
         <source>preview</source>
         <translation>предпросмотр</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="366"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="368"/>
         <source>thumbnail</source>
         <translation>миниатюра</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="368"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="57"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="69"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="370"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="63"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="75"/>
         <source>Rendering device</source>
         <translation>Устройство отрисовки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="376"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="378"/>
         <source>fps</source>
         <translation>fps</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="376"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="378"/>
         <source>refresh</source>
         <translation>обновление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="386"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="181"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="388"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="189"/>
         <source>Audio Spectrum</source>
         <translation>Звуковой спектр</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="388"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="189"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="390"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="197"/>
         <source>Audio spectrum</source>
         <translation>Звуковой спектр</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="389"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="392"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="397"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="400"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="391"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="394"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="399"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="402"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="406"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="409"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="413"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="417"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="404"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="408"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="411"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="415"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="419"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="422"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="421"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="424"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="426"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="430"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="428"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="432"/>
         <source>cava</source>
         <translation>cava</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="389"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="391"/>
         <source>music</source>
         <translation>музыка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="389"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="391"/>
         <source>visualizer</source>
         <translation>визуализатор</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="390"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="392"/>
         <source>sound</source>
         <translation>звук</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="391"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="231"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="236"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="393"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="240"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="245"/>
         <source>Spectrum bars</source>
         <translation>Полосы спектра</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="392"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="394"/>
         <source>bands</source>
         <translation>полосы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="392"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="409"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="413"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="394"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="411"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="415"/>
         <source>frequency</source>
         <translation>частота</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="393"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="265"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="395"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="275"/>
         <source>Audio Analysis</source>
         <translation>Анализ звука</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="396"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="275"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="280"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="398"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="285"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="290"/>
         <source>Noise reduction</source>
         <translation>Шумоподавление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="397"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="400"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="399"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="402"/>
         <source>smoothing</source>
         <translation>сглаживание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="397"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="400"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="422"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="399"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="402"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="424"/>
         <source>smooth</source>
         <translation>плавный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="399"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="291"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="296"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="401"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="302"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="307"/>
         <source>Extra smoothing</source>
         <translation>Дополнительное сглаживание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="401"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="309"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="317"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="403"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="320"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="328"/>
         <source>Automatic gain</source>
         <translation>Автоматическое усиление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="402"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="404"/>
         <source>autosens</source>
         <translation>авточувствительность</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="402"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="404"/>
         <source>sensitivity</source>
         <translation>чувствительность</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="403"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="406"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="405"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="408"/>
         <source>gain</source>
         <translation>усиление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="405"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="325"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="330"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="407"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="336"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="341"/>
         <source>Sensitivity</source>
         <translation>Чувствительность</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="408"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="343"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="348"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="410"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="354"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="359"/>
         <source>Lowest frequency</source>
         <translation>Нижняя частота</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="409"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="413"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="411"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="415"/>
         <source>cutoff</source>
         <translation>срез</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="409"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="411"/>
         <source>bass</source>
         <translation>бас</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="412"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="359"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="364"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="414"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="371"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="376"/>
         <source>Highest frequency</source>
         <translation>Верхняя частота</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="414"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="416"/>
         <source>treble</source>
         <translation>высокие частоты</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="416"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="377"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="382"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="418"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="390"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="395"/>
         <source>Channels</source>
         <translation>Каналы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="417"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="419"/>
         <source>stereo</source>
         <translation>стерео</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="417"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="419"/>
         <source>mono</source>
         <translation>моно</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="418"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="392"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="398"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="420"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="405"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="411"/>
         <source>Reverse bar order</source>
         <translation>Обратный порядок полос</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="419"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="421"/>
         <source>flip</source>
         <translation>перевернуть</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="419"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="421"/>
         <source>mirror</source>
         <translation>зеркально</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="421"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="408"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="414"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="423"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="421"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="427"/>
         <source>Monstercat filter</source>
         <translation>Фильтр Monstercat</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="422"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="424"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="426"/>
         <source>filter</source>
         <translation>фильтр</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="423"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="422"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="428"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="425"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="435"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="441"/>
         <source>Wave filter</source>
         <translation>Волновой фильтр</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="424"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="426"/>
         <source>wave</source>
         <translation>волна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="425"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="438"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="443"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="427"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="451"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="456"/>
         <source>Audio backend</source>
         <translation>Звуковой движок</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="426"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="428"/>
         <source>pipewire</source>
         <translation>pipewire</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="426"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="428"/>
         <source>pulseaudio</source>
         <translation>pulseaudio</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="427"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="431"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="429"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="433"/>
         <source>capture</source>
         <translation>захват</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="429"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="453"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="465"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="431"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="466"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="478"/>
         <source>Audio source</source>
         <translation>Источник звука</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1195"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="291"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="296"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1197"/>
+        <source>clone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1197"/>
+        <source>copy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1199"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1201"/>
+        <source>divide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1203"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1225"/>
+        <source>expand</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1212"/>
+        <source>neighbor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1221"/>
+        <source>bypass</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1228"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="313"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="318"/>
         <source>Background opacity</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1196"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1229"/>
         <source>transparent</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1196"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1229"/>
         <source>canvas</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="369"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="430"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="371"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="432"/>
         <source>device</source>
         <translation>устройство</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="434"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="492"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="436"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="514"/>
         <source>Layout assignment</source>
         <translation>Назначение раскладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="436"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="500"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="506"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="438"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="522"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="528"/>
         <source>Don&apos;t assign a layout by default</source>
         <translation>Не назначать раскладку по умолчанию</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="183"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="437"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="439"/>
         <source>default</source>
         <translation>по умолчанию</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="183"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="437"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="439"/>
         <source>assign</source>
         <translation>назначить</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="141"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="174"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="437"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="439"/>
         <source>snapping</source>
         <translation>прилипание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="521"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="187"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="520"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="192"/>
         <source>Borders</source>
         <translation>Рамки</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="158"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="523"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="465"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="522"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="453"/>
         <source>Decorations</source>
         <translation>Оформление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="504"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="527"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="816"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="919"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="503"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="526"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="815"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="918"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="262"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="269"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="242"/>
@@ -8107,182 +8303,181 @@
         <translation>Радиус скругления углов</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="529"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="217"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="528"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="222"/>
         <source>Apply borders to</source>
         <translation>Применять рамки к</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="530"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="548"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="564"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="529"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="547"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="563"/>
         <source>scope</source>
         <translation>область действия</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="530"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="548"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="564"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="529"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="547"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="563"/>
         <source>which windows</source>
         <translation>какие окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="537"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="296"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="536"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="293"/>
         <source>Active border color</source>
         <translation>Цвет рамки активного окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="538"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="537"/>
         <source>focused</source>
         <translation>в фокусе</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="541"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="322"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="540"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="316"/>
         <source>Inactive border color</source>
         <translation>Цвет рамки неактивного окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="545"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="349"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="544"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="343"/>
         <source>Opacity and tint</source>
         <translation>Непрозрачность и оттенок</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="547"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="378"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="546"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="372"/>
         <source>Apply opacity and tint to</source>
         <translation>Применять непрозрачность и оттенок к</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="552"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="551"/>
         <source>translucent</source>
         <translation>полупрозрачный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="555"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="557"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="554"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="556"/>
         <source>wash</source>
         <translation>заливка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="555"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="554"/>
         <source>blend</source>
         <translation>смешивание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="488"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="539"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="543"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="557"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="487"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="538"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="542"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="556"/>
         <source>accent</source>
         <translation>акцент</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="561"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="564"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="560"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="563"/>
         <source>titlebar</source>
         <translation>заголовок окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="561"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="560"/>
         <source>header</source>
         <translation>шапка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="563"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="497"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="562"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="485"/>
         <source>Hide title bars on</source>
         <translation>Скрывать заголовки окон на</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="567"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="511"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="516"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="566"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="499"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="504"/>
         <source>Focus fade duration</source>
         <translation>Длительность плавного изменения фокуса</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1186"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="141"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1185"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="181"/>
         <source>Save current settings</source>
         <translation>Сохранить текущие параметры</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1188"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="245"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1187"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="285"/>
         <source>Import a profile</source>
         <translation>Импортировать профиль</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="90"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1189"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="266"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1188"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="308"/>
         <source>Profiles</source>
         <translation>Профили</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="552"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="568"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="551"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="567"/>
         <source>fade</source>
         <translation>плавное появление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="568"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="567"/>
         <source>dim</source>
         <translation>затемнение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="569"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="568"/>
         <location filename="../src/settings/search/searchcatalog_animations.cpp" line="78"/>
         <source>cross-fade</source>
         <translation>перекрёстное затухание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="576"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="676"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="575"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="662"/>
         <source>Performance</source>
         <translation>Производительность</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="578"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="686"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="692"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="577"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="672"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="678"/>
         <source>Animate only the active window</source>
         <translation>Анимировать только активное окно</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="332"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="584"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="590"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="604"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="578"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="583"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="589"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="603"/>
         <source>performance</source>
         <translation>производительность</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="584"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="590"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="596"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="578"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="583"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="589"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="595"/>
         <source>power</source>
         <translation>энергопотребление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="590"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="596"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="578"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="589"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="595"/>
         <source>battery</source>
         <translation>батарея</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="84"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="369"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="580"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="584"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="591"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="604"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="371"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="583"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="590"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="603"/>
         <source>gpu</source>
         <translation>gpu</translation>
     </message>
@@ -8311,90 +8506,90 @@
         <translation>размытие движения</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="580"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="591"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="590"/>
         <source>heat</source>
         <translation>нагрев</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="583"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="702"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="708"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="582"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="688"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="694"/>
         <source>Stop while a window is fullscreen</source>
         <translation>Останавливать, пока окно в полноэкранном режиме</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="585"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="584"/>
         <source>fullscreen</source>
         <translation>полноэкранный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="585"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="584"/>
         <source>game</source>
         <translation>игра</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="585"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="584"/>
         <source>video</source>
         <translation>видео</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="589"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="714"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="720"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="588"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="700"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="706"/>
         <source>Pause while you are away</source>
         <translation>Приостанавливать, когда вас нет</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="591"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="596"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="590"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="595"/>
         <source>idle</source>
         <translation>простой</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="595"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="726"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="732"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="594"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="712"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="718"/>
         <source>Idle after</source>
         <translation>Простой через</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="596"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="595"/>
         <source>timeout</source>
         <translation>тайм-аут</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="628"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="635"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="627"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="621"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/GapsSettingsCard.qml.cpp" line="42"/>
         <source>Inner gap</source>
         <translation>Внутренний зазор</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="630"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="629"/>
         <source>inner</source>
         <translation>внутренний</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="631"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="637"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="630"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="623"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/GapsSettingsCard.qml.cpp" line="44"/>
         <source>Outer gap</source>
         <translation>Внешний зазор</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="633"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="632"/>
         <source>outer</source>
         <translation>внешний</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="639"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="638"/>
         <source>side</source>
         <translation>сторона</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="643"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="934"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="642"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="933"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="97"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="239"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/GapsSettingsCard.qml.cpp" line="215"/>
@@ -8407,91 +8602,91 @@
         <translation>Умные зазоры</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="645"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="935"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="644"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="934"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="98"/>
         <source>smart</source>
         <translation>умный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="645"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="785"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="935"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="990"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="644"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="784"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="934"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="989"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="98"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="141"/>
         <source>single</source>
         <translation>одиночный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="649"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="648"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="40"/>
         <source>Activate on every drag</source>
         <translation>Активировать при каждом перетаскивании</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="651"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="650"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingDragTriggerRow.qml.cpp" line="41"/>
         <source>Hold to activate</source>
         <translation>Удерживать для активации</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="651"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="650"/>
         <source>deactivate</source>
         <translation>деактивировать</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="653"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="861"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1029"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="652"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="860"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1028"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDragInsertCard.qml.cpp" line="77"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="74"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="82"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="54"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="82"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="88"/>
         <source>Toggle mode</source>
         <translation>Режим переключения</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="653"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="660"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="861"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1029"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="652"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="659"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="860"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1028"/>
         <source>tap</source>
         <translation>касание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="653"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="652"/>
         <source>activation</source>
         <translation>активация</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="658"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="657"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="198"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="35"/>
         <source>Span modifier</source>
         <translation>Модификатор охвата</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="658"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="657"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="200"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="203"/>
         <source>zone span</source>
         <translation>охват зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="658"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="657"/>
         <source>paint</source>
         <translation>рисование</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="660"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="663"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="659"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="662"/>
         <source>span</source>
         <translation>охват</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="665"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="664"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="205"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="88"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="95"/>
@@ -8499,46 +8694,46 @@
         <translation>Порог у края</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="665"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1102"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1130"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="664"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1101"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1129"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="205"/>
         <source>distance</source>
         <translation>расстояние</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="665"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="664"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="198"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="205"/>
         <source>multi-zone</source>
         <translation>несколько зон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="667"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="666"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="135"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="141"/>
         <source>Show zones on all monitors</source>
         <translation>Показывать зоны на всех экранах</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="668"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="667"/>
         <source>screens</source>
         <translation>экраны</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="670"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="669"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="151"/>
         <source>Filter by aspect ratio</source>
         <translation>Фильтр по соотношению сторон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="670"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="689"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="669"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="688"/>
         <source>layouts</source>
         <translation>раскладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="674"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="673"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="40"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingSimplePage.qml.cpp" line="129"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingSimplePage.qml.cpp" line="135"/>
@@ -8548,21 +8743,21 @@
         <translation>Всегда показывать после прилипания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="675"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="677"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="680"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="674"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="676"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="679"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="40"/>
         <source>snap assist</source>
         <translation>помощник прилипания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="677"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="676"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowBehaviorPage.qml.cpp" line="63"/>
         <source>Hold to enable</source>
         <translation>Удерживать для включения</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="682"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="681"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="209"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="23"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="29"/>
@@ -8570,14 +8765,14 @@
         <translation>Заново прилеплять при смене разрешения</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="603"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="683"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="602"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="682"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="209"/>
         <source>resolution</source>
         <translation>разрешение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="685"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="684"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="211"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="39"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="45"/>
@@ -8585,9 +8780,9 @@
         <translation>Открывать новые окна в последней использованной зоне</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="686"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="709"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1051"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="685"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="708"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1050"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="211"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="229"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="254"/>
@@ -8595,12 +8790,12 @@
         <translation>новое окно</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="686"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="685"/>
         <source>last zone</source>
         <translation>последняя зона</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="688"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="687"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="213"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="55"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="61"/>
@@ -8608,171 +8803,171 @@
         <translation>Автоматически назначать новые окна для всех раскладок</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="689"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="688"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="213"/>
         <source>auto-assign</source>
         <translation>автоназначение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="765"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="764"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="354"/>
         <source>Width and height presets</source>
         <translation>Предустановки ширины и высоты</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="767"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="766"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="379"/>
         <source>Column widths</source>
         <translation>Ширины столбцов</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="768"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="772"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="767"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="771"/>
         <source>cycle</source>
         <translation>перебор</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="771"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="770"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="401"/>
         <source>Window heights</source>
         <translation>Высоты окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="787"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="786"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="83"/>
         <source>chips</source>
         <translation>метки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="787"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="786"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="83"/>
         <source>bar</source>
         <translation>полоса</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="790"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="789"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="86"/>
         <source>left</source>
         <translation>слева</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="790"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="789"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="86"/>
         <source>right</source>
         <translation>справа</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="790"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="789"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="86"/>
         <source>top</source>
         <translation>сверху</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="791"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="790"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="87"/>
         <source>bottom</source>
         <translation>снизу</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="784"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="783"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="126"/>
         <source>Hide it for a single window</source>
         <translation>Скрывать при одном окне</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="785"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="784"/>
         <source>hide</source>
         <translation>скрыть</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="801"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="800"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="251"/>
         <source>Make room inside the column</source>
         <translation>Освободить место в столбце</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="802"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="801"/>
         <source>inside</source>
         <translation>внутри</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="803"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="802"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="265"/>
         <source>Gap</source>
         <translation>Зазор</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="806"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="805"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="292"/>
         <source>Thickness</source>
         <translation>Толщина</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="809"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="808"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="313"/>
         <source>Length</source>
         <translation>Длина</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="809"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="808"/>
         <source>length</source>
         <translation>длина</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="811"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="810"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="335"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="342"/>
         <source>Gap between tabs</source>
         <translation>Зазор между вкладками</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="813"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="812"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="356"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="362"/>
         <source>Fully rounded tabs</source>
         <translation>Полностью скруглённые вкладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="814"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="813"/>
         <source>rounded</source>
         <translation>скруглённый</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="814"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="813"/>
         <source>pill</source>
         <translation>пилюля</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="817"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="920"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="816"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="919"/>
         <source>radius</source>
         <translation>радиус</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="831"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="830"/>
         <source>inactive</source>
         <translation>неактивный</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="205"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="835"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="834"/>
         <source>urgent</source>
         <translation>срочный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="835"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="834"/>
         <source>attention</source>
         <translation>внимание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="983"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="982"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="135"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="35"/>
         <source>Focus and view</source>
         <translation>Фокус и обзор</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="985"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="984"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="137"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="43"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="48"/>
@@ -8782,7 +8977,7 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="278"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="668"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="989"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="988"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="140"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="60"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="66"/>
@@ -8790,7 +8985,7 @@
         <translation>Центрировать одиночный столбец</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1007"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1006"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="156"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="149"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="157"/>
@@ -8800,9 +8995,9 @@
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="314"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1000"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1003"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1008"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="999"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1002"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1007"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="149"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="152"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="157"/>
@@ -8810,7 +9005,7 @@
         <translation>мышь</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1018"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1017"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="168"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="238"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="246"/>
@@ -8818,24 +9013,24 @@
         <translation>Обратить направление колеса</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1019"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1018"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="168"/>
         <source>invert</source>
         <translation>обратить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1019"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1018"/>
         <source>direction</source>
         <translation>направление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="737"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="736"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="120"/>
         <source>New columns</source>
         <translation>Новые столбцы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="739"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="738"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="63"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="144"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="123"/>
@@ -8845,14 +9040,14 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="152"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="198"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="740"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="744"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="746"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="749"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="768"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="807"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="916"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="960"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="739"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="743"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="745"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="748"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="767"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="806"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="915"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="959"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="64"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="67"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="69"/>
@@ -8862,52 +9057,52 @@
         <translation>ширина</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="741"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="746"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="759"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="879"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="740"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="745"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="758"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="878"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="69"/>
         <source>pixels</source>
         <translation>пиксели</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="744"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="743"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="67"/>
         <source>percent</source>
         <translation>процент</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="752"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="751"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="259"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="264"/>
         <source>Open new columns as</source>
         <translation>Открывать новые столбцы как</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="753"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="931"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="752"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="930"/>
         <source>tabbed</source>
         <translation>с вкладками</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="753"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="931"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="752"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="930"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="95"/>
         <source>tabs</source>
         <translation>вкладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="757"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="759"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="762"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="772"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="963"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="756"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="758"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="761"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="771"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="962"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="122"/>
         <source>height</source>
         <translation>высота</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="756"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="755"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="278"/>
         <source>Default height</source>
         <translation>Высота по умолчанию</translation>
@@ -8915,87 +9110,88 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="161"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="167"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="779"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="778"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="104"/>
         <source>Tab indicator</source>
         <translation>Индикатор вкладок</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="205"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="782"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="903"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="908"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="912"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="781"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="902"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="907"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="911"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="80"/>
         <source>indicator</source>
         <translation>индикатор</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="799"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="798"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="242"/>
         <source>Size and spacing</source>
         <translation>Размер и отступы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="825"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="824"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="439"/>
         <source>Active tab</source>
         <translation>Активная вкладка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="829"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="828"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="453"/>
         <source>Inactive tabs</source>
         <translation>Неактивные вкладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="833"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="832"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="468"/>
         <source>Urgent tab</source>
         <translation>Срочная вкладка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="854"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="853"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDragInsertCard.qml.cpp" line="54"/>
         <source>Hold to re-insert into strip</source>
         <translation>Удерживайте, чтобы вставить обратно в ленту</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="861"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="864"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="860"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="863"/>
         <source>strip preview</source>
         <translation>предпросмотр ленты</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="175"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="178"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="899"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="898"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDropIndicatorCard.qml.cpp" line="49"/>
         <source>Drop indicator</source>
         <translation>Индикатор сброса</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="656"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="663"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="680"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="864"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="902"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="907"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="911"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="916"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="920"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1032"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="655"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="662"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="679"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="863"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="901"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="906"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="910"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="915"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="919"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1031"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1225"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="36"/>
         <source>drop</source>
         <translation>сбросить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="939"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="938"/>
         <source>resize</source>
         <translation>изменить размер</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="945"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="944"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="107"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="116"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="122"/>
@@ -9003,12 +9199,12 @@
         <translation>Восстанавливать столбцы при входе</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="946"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="945"/>
         <source>session</source>
         <translation>сеанс</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="949"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="948"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="110"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="132"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="138"/>
@@ -9016,25 +9212,25 @@
         <translation>Восстанавливать плавающие окна в их прежнем положении</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="957"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="956"/>
         <source>all</source>
         <translation>все</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="957"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="956"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="116"/>
         <source>desktops</source>
         <translation>рабочие столы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="959"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="958"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="118"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="181"/>
         <source>Width adjustment step</source>
         <translation>Шаг изменения ширины</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="962"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="961"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="121"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="203"/>
         <source>Height adjustment step</source>
@@ -9043,7 +9239,7 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="287"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="678"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="993"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="992"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="144"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="76"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="82"/>
@@ -9051,25 +9247,25 @@
         <translation>Обрезать столбцы у края экрана</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="994"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="993"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="145"/>
         <source>crop</source>
         <translation>обрезать</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="994"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="993"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="145"/>
         <source>clip</source>
         <translation>усечь</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="994"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="993"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="145"/>
         <source>cut off</source>
         <translation>отсечь</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="997"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="996"/>
         <source>new</source>
         <translation>новый</translation>
     </message>
@@ -9125,15 +9321,15 @@
         <translation>переполнение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1146"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1145"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="103"/>
         <source>Scrolling Quick Shortcuts</source>
         <translation>Быстрые комбинации для прокрутки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1165"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1171"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1177"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1164"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1170"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1176"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetsPage.qml.cpp" line="233"/>
         <source>User sets</source>
         <translation>Наборы пользователя</translation>
@@ -9171,8 +9367,8 @@
     <message>
         <location filename="../src/settings/search/searchcatalog_animations.cpp" line="37"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsOsdsPage.qml.cpp" line="35"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="280"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="301"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="276"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="297"/>
         <source>Hidden</source>
         <translation>Скрыто</translation>
     </message>
@@ -9239,25 +9435,25 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="461"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="615"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="691"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="690"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="215"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="71"/>
         <source>Restore size on unsnap</source>
         <translation>Восстанавливать размер при откреплении</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="692"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="691"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="215"/>
         <source>unsnap</source>
         <translation>открепление</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="692"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="691"/>
         <source>original size</source>
         <translation>исходный размер</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="694"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="693"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="217"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="87"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="93"/>
@@ -9265,14 +9461,14 @@
         <translation>Восстанавливать окна в их предыдущую зону</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="695"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="946"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="694"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="945"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="108"/>
         <source>login</source>
         <translation>вход в систему</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="697"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="696"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="219"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="103"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="109"/>
@@ -9280,17 +9476,17 @@
         <translation>Восстанавливать откреплённые окна в их предыдущее положение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="698"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1039"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="697"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1038"/>
         <source>floated</source>
         <translation>плавающее</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="698"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="927"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="950"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1034"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1039"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="697"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="926"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="949"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1033"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1038"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="92"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="111"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="236"/>
@@ -9298,7 +9494,7 @@
         <translation>положение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="704"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="703"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="224"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="135"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml.cpp" line="141"/>
@@ -9306,20 +9502,20 @@
         <translation>Прилеплять к зоне, когда предыдущей зоны нет</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="705"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="704"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="224"/>
         <source>unfloat</source>
         <translation>сделать не плавающим</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="705"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="704"/>
         <source>fallback</source>
         <translation>запасной вариант</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="707"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="956"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1045"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="706"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="955"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1044"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="116"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="226"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="247"/>
@@ -9332,17 +9528,17 @@
         <translation>Окна на всех рабочих столах</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="707"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1045"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="706"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1044"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="226"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="247"/>
         <source>all desktops</source>
         <translation>все рабочие столы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="707"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="957"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1045"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="706"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="956"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1044"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="116"/>
         <source>sticky</source>
         <translation>на всех рабочих столах</translation>
@@ -9350,9 +9546,9 @@
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="290"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="682"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="709"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="996"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1051"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="708"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="995"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1050"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="147"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="229"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="254"/>
@@ -9365,16 +9561,16 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="215"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="241"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="580"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="709"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="711"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="986"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="997"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1000"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1003"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1012"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1051"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1053"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="579"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="708"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="710"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="985"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="996"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="999"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1002"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1011"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1050"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1052"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="138"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="147"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="149"/>
@@ -9387,9 +9583,9 @@
         <translation>фокус</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="711"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="999"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1053"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="710"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="998"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1052"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="149"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="231"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="256"/>
@@ -9402,74 +9598,73 @@
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="314"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="323"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="586"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="711"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1053"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="585"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="710"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1052"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="231"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="256"/>
         <source>pointer</source>
         <translation>указатель</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="320"/>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="53"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="112"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="714"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="161"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="713"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="222"/>
         <source>Algorithm</source>
         <translation>Алгоритм</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="716"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="715"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="55"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="238"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="276"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="301"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="287"/>
         <source>Max windows</source>
         <translation>Максимум окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="717"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="716"/>
         <source>windows</source>
         <translation>окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="717"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="716"/>
         <source>maximum</source>
         <translation>максимум</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="717"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="729"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1110"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="716"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="728"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1109"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="55"/>
         <source>count</source>
         <translation>количество</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="718"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1004"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="717"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1003"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="55"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="153"/>
         <source>limit</source>
         <translation>предел</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="720"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="719"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="52"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="281"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="288"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="234"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="241"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="346"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="353"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="240"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="247"/>
         <source>Master ratio</source>
         <translation>Соотношение главной области</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="215"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="721"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="729"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="943"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="986"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="990"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="720"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="728"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="942"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="985"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="989"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="53"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="105"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="138"/>
@@ -9478,15 +9673,15 @@
         <translation>центр</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="721"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="726"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="720"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="725"/>
         <source>ratio</source>
         <translation>соотношение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="722"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="740"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="744"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="721"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="739"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="743"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="53"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="64"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="67"/>
@@ -9494,17 +9689,17 @@
         <translation>пропорция</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="725"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="307"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="312"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="724"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="377"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="382"/>
         <source>Ratio step size</source>
         <translation>Шаг изменения соотношения</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="726"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="960"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="963"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="967"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="725"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="959"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="962"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="966"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="119"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="122"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="126"/>
@@ -9512,57 +9707,57 @@
         <translation>шаг</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="726"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="725"/>
         <source>increment</source>
         <translation>приращение</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="62"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="728"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="727"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/NewAlgorithmDialog.qml.cpp" line="415"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="334"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="341"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="405"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="412"/>
         <source>Master count</source>
         <translation>Число главных окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="730"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="729"/>
         <source>number</source>
         <translation>число</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="852"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1023"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="851"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1022"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDragInsertCard.qml.cpp" line="32"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="38"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="44"/>
         <source>Always re-insert on drag</source>
         <translation>Всегда вставлять заново при перетаскивании</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="216"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="852"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="927"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1023"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="851"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="926"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1022"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="92"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="236"/>
         <source>insert</source>
         <translation>вставка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1025"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="60"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1024"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="66"/>
         <source>Hold to re-insert into stack</source>
         <translation>Удерживать для вставки обратно в стопку</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1029"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1032"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1028"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1031"/>
         <source>stack preview</source>
         <translation>предпросмотр стопки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="926"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1034"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="925"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1033"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="91"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="236"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="35"/>
@@ -9573,8 +9768,8 @@
         <translation>Размещение новых окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="938"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1036"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="937"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1035"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="101"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="238"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="84"/>
@@ -9583,15 +9778,15 @@
         <translation>Учитывать минимальный размер</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="939"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1036"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="938"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1035"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="102"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="238"/>
         <source>minimum</source>
         <translation>минимум</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1038"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1037"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="242"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingWindowHandlingCard.qml.cpp" line="75"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingWindowHandlingCard.qml.cpp" line="81"/>
@@ -9600,39 +9795,39 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="71"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1047"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1046"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="249"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingWindowHandlingCard.qml.cpp" line="124"/>
         <source>Drag behavior</source>
         <translation>Поведение при перетаскивании</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1047"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1046"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="249"/>
         <source>reorder</source>
         <translation>переупорядочивание</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="68"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1049"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1048"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="251"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingWindowHandlingCard.qml.cpp" line="142"/>
         <source>Overflow behavior</source>
         <translation>Поведение при переполнении</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1049"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1048"/>
         <source>max windows</source>
         <translation>максимум окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1049"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1048"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="251"/>
         <source>unlimited</source>
         <translation>без ограничений</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1060"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1059"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="175"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/GlobalTimingDefaultsCard.qml.cpp" line="154"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/GlobalTimingDefaultsCard.qml.cpp" line="188"/>
@@ -9640,240 +9835,237 @@
         <translation>Глобальные параметры анимации по умолчанию</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1062"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1061"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="61"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="74"/>
         <source>Multiple windows</source>
         <translation>Несколько окон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1063"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1062"/>
         <source>sequence</source>
         <translation>последовательность</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1063"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1062"/>
         <source>simultaneous</source>
         <translation>одновременно</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1063"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1062"/>
         <source>one by one</source>
         <translation>по очереди</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1065"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1064"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="95"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="100"/>
         <source>Stagger delay</source>
         <translation>Задержка между окнами</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1066"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1065"/>
         <source>pause</source>
         <translation>пауза</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1066"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1065"/>
         <source>interval</source>
         <translation>интервал</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="656"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="886"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1066"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="655"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="885"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1065"/>
         <source>delay</source>
         <translation>задержка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1068"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1067"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="117"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="124"/>
         <source>Minimum distance</source>
         <translation>Минимальное расстояние</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="446"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="449"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="618"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="622"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1069"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1081"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1084"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="445"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="448"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="617"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="621"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1068"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1080"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1083"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="267"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="269"/>
         <source>threshold</source>
         <translation>порог</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1069"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1068"/>
         <source>skip</source>
         <translation>пропустить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1069"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1068"/>
         <source>geometry</source>
         <translation>геометрия</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="613"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1074"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="612"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1073"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="262"/>
         <source>dialogs</source>
         <translation>диалоги</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="613"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1074"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="612"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1073"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="262"/>
         <source>popups</source>
         <translation>всплывающие окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1074"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1073"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="262"/>
         <source>tooltips</source>
         <translation>подсказки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="613"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1075"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="612"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1074"/>
         <source>menus</source>
         <translation>меню</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1077"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1076"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="264"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationWindowFilterCard.qml.cpp" line="62"/>
         <source>Exclude notifications and OSDs</source>
         <translation>Исключить уведомления и OSD</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1078"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1077"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="265"/>
         <source>volume</source>
         <translation>громкость</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1078"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1077"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="265"/>
         <source>brightness</source>
         <translation>яркость</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="444"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="616"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1079"/>
+        <location filename="../src/settings/search/searchcatalog_simple.cpp" line="267"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="560"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="103"/>
+        <source>Minimum window width</source>
+        <translation>Минимальная ширина окна</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="445"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="617"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="1080"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="267"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="539"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="85"/>
-        <source>Minimum window width</source>
-        <translation>Минимальная ширина окна</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="446"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="618"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1081"/>
-        <location filename="../src/settings/search/searchcatalog_simple.cpp" line="267"/>
         <source>narrow</source>
         <translation>узкое</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="448"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="621"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1083"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="447"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="620"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1082"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="269"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="549"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="125"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="570"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="143"/>
         <source>Minimum window height</source>
         <translation>Минимальная высота окна</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="449"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="622"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="943"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1084"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="448"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="621"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="942"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1083"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="105"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="269"/>
         <source>short</source>
         <translation>низкое</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="267"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="324"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="389"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1088"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="559"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1087"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="580"/>
         <source>Configuration</source>
         <translation>Настройка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1089"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="567"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1088"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="588"/>
         <source>Backup</source>
         <translation>Резервная копия</translation>
     </message>
     <message>
         <location filename="../src/settings/search/searchcatalog.cpp" line="340"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1090"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1089"/>
         <source>save</source>
         <translation>сохранить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="600"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="589"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="599"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="575"/>
         <source>Blur</source>
         <translation>Размытие</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="602"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="608"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="613"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="601"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="594"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="599"/>
         <source>Blur quality</source>
         <translation>Качество размытия</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="603"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="602"/>
         <source>quality</source>
         <translation>качество</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="655"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="679"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="863"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1031"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="654"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="678"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="862"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1030"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="36"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDragInsertCard.qml.cpp" line="100"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOverlayBehaviorPage.qml.cpp" line="97"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingSimplePage.qml.cpp" line="94"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingWindowBehaviorPage.qml.cpp" line="85"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="74"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="104"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="110"/>
         <source>Release grace period</source>
         <translation>Допуск после отпускания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="656"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="663"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="680"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="864"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1032"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="655"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="662"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="679"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="863"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1031"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="36"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="203"/>
         <source>mouse button</source>
         <translation>кнопка мыши</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="662"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="661"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="202"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="77"/>
         <source>Zone span release grace period</source>
         <translation>Допуск после отпускания при объединении зон</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="700"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="952"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1041"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="699"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="951"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1040"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="113"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="221"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="244"/>
@@ -9887,9 +10079,9 @@
         <translation>Держать плавающие окна поверх</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="701"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="953"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1042"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="700"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="952"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1041"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="114"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="222"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="245"/>
@@ -9897,16 +10089,16 @@
         <translation>поверх</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="701"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="953"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1042"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="700"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="952"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1041"/>
         <source>stacking</source>
         <translation>порядок наложения</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="702"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="954"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1043"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="701"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="953"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1042"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="114"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="222"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="245"/>
@@ -9914,110 +10106,110 @@
         <translation>слой</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="741"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="757"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="740"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="756"/>
         <source>client</source>
         <translation>клиент</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="794"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="793"/>
         <source>title</source>
         <translation>заголовок</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="794"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="793"/>
         <source>bold</source>
         <translation>полужирный</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="795"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="794"/>
         <source>italic</source>
         <translation>курсив</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="795"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="794"/>
         <source>weight</source>
         <translation>насыщенность</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="795"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="794"/>
         <source>underline</source>
         <translation>подчёркивание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="796"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="795"/>
         <source>strikeout</source>
         <translation>зачёркивание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="859"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1027"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="858"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1026"/>
         <source>float instead</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="859"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1027"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="858"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1026"/>
         <source>floating</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="870"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="869"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingEdgeScrollCard.qml.cpp" line="38"/>
         <source>Edge auto-scroll</source>
         <translation>Автопрокрутка у края</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="872"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="871"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingEdgeScrollCard.qml.cpp" line="54"/>
         <source>Trigger width</source>
         <translation>Ширина области срабатывания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="877"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="885"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="890"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="876"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="884"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="889"/>
         <source>auto scroll</source>
         <translation>автопрокрутка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="878"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="886"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="891"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="877"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="885"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="890"/>
         <source>drag scroll</source>
         <translation>прокрутка перетаскиванием</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="878"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="886"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="891"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="877"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="885"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="890"/>
         <source>edge scroll</source>
         <translation>прокрутка у края</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="884"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="883"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingEdgeScrollCard.qml.cpp" line="83"/>
         <source>Start delay</source>
         <translation>Задержка запуска</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="887"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="886"/>
         <source>milliseconds</source>
         <translation>миллисекунды</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="889"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="888"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingEdgeScrollCard.qml.cpp" line="110"/>
         <source>Maximum speed</source>
         <translation>Максимальная скорость</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="892"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="891"/>
         <source>fast</source>
         <translation>быстро</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="930"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="929"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="94"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="52"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="58"/>
@@ -10025,36 +10217,36 @@
         <translation>Группировать окна одного приложения как вкладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="931"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="930"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="95"/>
         <source>group</source>
         <translation>группа</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="932"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="931"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="95"/>
         <source>application</source>
         <translation>приложение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="932"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="931"/>
         <source>same app</source>
         <translation>то же приложение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="940"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="939"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="102"/>
         <source>wider</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="940"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="939"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="103"/>
         <source>overlap</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="966"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="965"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="125"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="225"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="230"/>
@@ -10062,27 +10254,27 @@
         <translation>Шаг прокрутки вида</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="967"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1016"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="966"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1015"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="126"/>
         <source>view</source>
         <translation>вид</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="976"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="975"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="132"/>
         <source>axis</source>
         <translation>ось</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="977"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="976"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="133"/>
         <source>portrait</source>
         <translation>портретная</translation>
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="299"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1002"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1001"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="151"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="127"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="134"/>
@@ -10090,138 +10282,140 @@
         <translation>Ограничить, насколько далеко прокручивается лента</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1010"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1009"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="162"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="185"/>
         <source>Scroll key for column focus</source>
         <translation>Клавиша прокрутки для фокуса столбца</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1011"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1015"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1010"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1014"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="163"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="166"/>
         <source>scroll key</source>
         <translation>клавиша прокрутки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1014"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1013"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="165"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingFocusCard.qml.cpp" line="212"/>
         <source>Scroll key for the view</source>
         <translation>Клавиша прокрутки для вида</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1016"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1015"/>
         <source>pan</source>
         <translation>панорамирование</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1090"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1092"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1089"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1091"/>
         <source>data</source>
         <translation>данные</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1091"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="582"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1090"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="603"/>
         <source>Restore</source>
         <translation>Восстановить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1096"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1095"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="113"/>
         <source>Zone selector popup</source>
         <translation>Всплывающее окно выбора зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1097"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1125"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1096"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1124"/>
         <source>enable</source>
         <translation>включить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1097"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1125"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1096"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1124"/>
         <source>toggle</source>
         <translation>переключить</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1099"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1127"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1098"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1126"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorPositionCard.qml.cpp" line="40"/>
         <source>Position and trigger</source>
         <oldsource>Position &amp; Trigger</oldsource>
         <translation>Положение и триггер</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1101"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1129"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1100"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1128"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorPositionCard.qml.cpp" line="81"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorPositionCard.qml.cpp" line="95"/>
         <source>Trigger distance</source>
         <translation>Расстояние срабатывания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1102"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1130"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1101"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1129"/>
         <source>proximity</source>
         <translation>близость</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1104"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1103"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="157"/>
         <source>Layout arrangement</source>
         <oldsource>Layout Arrangement</oldsource>
         <translation>Порядок раскладок</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1106"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1105"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="169"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="176"/>
         <source>Arrangement</source>
         <translation>Расположение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="977"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1107"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="976"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1106"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1215"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="133"/>
         <source>horizontal</source>
         <translation>горизонтальное</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="976"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1107"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="975"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1106"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1218"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="132"/>
         <source>vertical</source>
         <translation>вертикальное</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1109"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1108"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="193"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="200"/>
         <source>Grid columns</source>
         <translation>Столбцы сетки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1110"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1109"/>
         <source>columns</source>
         <translation>столбцы</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1110"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1109"/>
         <source>per row</source>
         <translation>в строке</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1112"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1111"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="228"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorSection.qml.cpp" line="235"/>
         <source>Max visible rows</source>
         <translation>Максимум видимых строк</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1113"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1112"/>
         <source>rows</source>
         <translation>строки</translation>
     </message>
@@ -10233,34 +10427,34 @@
         <location filename="../src/settings/search/searchcatalog.cpp" line="210"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="214"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="228"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="877"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="885"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="890"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="936"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="967"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="987"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1004"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1008"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1113"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="876"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="884"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="889"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="935"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="966"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="986"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1003"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1007"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1112"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="126"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="153"/>
         <source>scroll</source>
         <translation>прокрутка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1005"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1004"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="154"/>
         <source>cap</source>
         <translation>ограничение</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1113"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1112"/>
         <source>visible</source>
         <translation>видимых</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1115"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1132"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1114"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1131"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorPreviewSizeCard.qml.cpp" line="45"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorPreviewSizeCard.qml.cpp" line="168"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ZoneSelectorPreviewSizeCard.qml.cpp" line="385"/>
@@ -10269,71 +10463,71 @@
         <translation>Размер предпросмотра</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1136"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1135"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOrderingPage.qml.cpp" line="13"/>
         <source>Snapping layout priority</source>
         <oldsource>Snapping Layout Priority</oldsource>
         <translation>Приоритет раскладок прилипания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1138"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1137"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingOrderingPage.qml.cpp" line="13"/>
         <source>Tiling algorithm priority</source>
         <oldsource>Tiling Algorithm Priority</oldsource>
         <translation>Приоритет алгоритмов мозаики</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1140"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1139"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingOrderingPage.qml.cpp" line="13"/>
         <source>Scrolling template priority</source>
         <translation>Приоритет шаблонов прокрутки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1142"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1141"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="103"/>
         <source>Snapping Quick Shortcuts</source>
         <translation>Быстрые комбинации клавиш прилипания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1144"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1143"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="103"/>
         <source>Tiling Quick Shortcuts</source>
         <translation>Быстрые комбинации клавиш мозаичного размещения</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1153"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1155"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1157"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="487"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1152"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1154"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1156"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="498"/>
         <source>User shaders</source>
         <translation>Пользовательские шейдеры</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1159"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1158"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsPresetsPage.qml.cpp" line="147"/>
         <source>Easing presets</source>
         <oldsource>Easing Presets</oldsource>
         <translation>Предустановки сглаживания</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1161"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1160"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsPresetsPage.qml.cpp" line="282"/>
         <source>Spring presets</source>
         <oldsource>Spring Presets</oldsource>
         <translation>Предустановки пружин</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1163"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1169"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1175"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1162"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1168"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1174"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetsPage.qml.cpp" line="130"/>
         <source>Save current state</source>
         <translation>Сохранить текущее состояние</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1167"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1173"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1179"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1166"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1172"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1178"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetsPage.qml.cpp" line="251"/>
         <source>Saved sets</source>
         <translation>Сохранённые наборы</translation>
@@ -10396,18 +10590,20 @@
         <translation>Вдвигание</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="901"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="900"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDropIndicatorCard.qml.cpp" line="67"/>
         <source>Fill color</source>
         <translation>Цвет заливки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="903"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="345"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="902"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1225"/>
         <source>fill</source>
         <translation>заливка</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="906"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="905"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDropIndicatorCard.qml.cpp" line="97"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDropIndicatorCard.qml.cpp" line="102"/>
         <source>Fill opacity</source>
@@ -10742,11 +10938,6 @@
         <translation>Не удалось применить изменения назначения: %1</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="83"/>
-        <source>Overview</source>
-        <translation>Обзор</translation>
-    </message>
-    <message>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="185"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="186"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="187"/>
@@ -10754,17 +10945,10 @@
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="199"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="204"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="210"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="95"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="227"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="289"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="339"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="409"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="508"/>
         <source>General</source>
         <translation>Общие</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="137"/>
         <location filename="../src/settings/rules/ruleauthoring.cpp" line="83"/>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="116"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="207"/>
@@ -10792,26 +10976,9 @@
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="295"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="302"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="304"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="432"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="519"/>
         <location filename="../src/settings/pages/decorationpagecontroller_browser.cpp" line="47"/>
         <source>Windows</source>
         <translation>Окна</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="181"/>
-        <source>Rules</source>
-        <translation>Правила</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="188"/>
-        <source>Editor</source>
-        <translation>Редактор</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="190"/>
-        <source>About</source>
-        <translation>О программе</translation>
     </message>
     <message>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="342"/>
@@ -10820,7 +10987,6 @@
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="348"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="350"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="352"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="103"/>
         <source>Virtual Screens</source>
         <translation>Виртуальные экраны</translation>
     </message>
@@ -10832,13 +10998,11 @@
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="241"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="245"/>
         <location filename="../src/daemon/controllers/shortcutmanager_catalog.cpp" line="588"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="237"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="581"/>
         <source>Layouts</source>
         <translation>Раскладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="120"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="152"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="117"/>
         <location filename="../src/settings/rules/ruleauthoring_actions.cpp" line="200"/>
         <location filename="../src/settings/search/searchcatalog.cpp" line="108"/>
@@ -10847,16 +11011,12 @@
         <translation>Поведение</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="254"/>
         <location filename="../src/settings/pages/decorationpagecontroller_browser.cpp" line="68"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/DecorationPopupsPage.qml.cpp" line="32"/>
         <source>Zone Selector</source>
         <translation>Выбор зоны</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="269"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="326"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="392"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="85"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="86"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="90"/>
@@ -10865,98 +11025,22 @@
         <translation>Приоритет</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="129"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="274"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="331"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="397"/>
-        <source>Quick Shortcuts</source>
-        <translation>Быстрые комбинации клавиш</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="492"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="546"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="590"/>
-        <source>Shaders</source>
-        <translation>Шейдеры</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="347"/>
-        <source>Templates</source>
-        <translation>Шаблоны</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="124"/>
-        <source>Named Workspaces</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="367"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="77"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="242"/>
         <source>Tabs</source>
         <translation>Вкладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="381"/>
-        <source>Strip Selector</source>
-        <translation>Выбор ленты</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="417"/>
-        <source>Transitions</source>
-        <translation>Переходы</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="426"/>
-        <source>Motion</source>
-        <translation>Движение</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="465"/>
-        <source>Window Motion</source>
-        <translation>Движение окна</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="472"/>
-        <source>Window Dragging</source>
-        <translation>Перетаскивание окна</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="489"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="542"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="587"/>
-        <source>Sets</source>
-        <translation>Наборы</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="513"/>
-        <source>Surfaces</source>
-        <translation>Поверхности</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="448"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="530"/>
         <location filename="../src/settings/pages/decorationpagecontroller_browser.cpp" line="74"/>
         <source>Shell</source>
         <translation>Оболочка</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="538"/>
         <location filename="../src/settings/pages/decorationpagecontroller_browser.cpp" line="96"/>
         <source>Pointer</source>
         <translation>Указатель</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="305"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="428"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="515"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="585"/>
-        <source>Library</source>
-        <translation>Библиотека</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="205"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="461"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="61"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="115"/>
         <location filename=".qml-stubs/plasmazones/src/ui/CheatsheetContent.qml.cpp" line="392"/>
@@ -10964,35 +11048,11 @@
         <translation>Прокрутка</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="435"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="522"/>
         <location filename="../src/settings/pages/decorationpagecontroller_browser.cpp" line="61"/>
         <source>OSDs</source>
         <translation>OSD</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="440"/>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="565"/>
-        <source>Overlays</source>
-        <translation>Наложения</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="475"/>
-        <source>Side Panels</source>
-        <translation>Боковые панели</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="477"/>
-        <source>Widgets</source>
-        <translation>Виджеты</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="482"/>
-        <source>Layout Editor</source>
-        <translation>Редактор раскладок</translation>
-    </message>
-    <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="485"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/VirtualScreensPage.qml.cpp" line="625"/>
         <source>Presets</source>
         <translation>Предустановки</translation>
@@ -11080,72 +11140,83 @@
         <translation>Набор переименован, но старый файл удалить не удалось. Удалите его вручную из папки наборов.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="315"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1330"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="316"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1421"/>
         <source>Could not create the profiles folder.</source>
         <translation>Не удалось создать папку профилей.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="324"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="325"/>
         <source>Could not write the profile to disk.</source>
         <translation>Не удалось записать профиль на диск.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="995"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1048"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1055"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1108"/>
         <source>Please enter a name for the profile.</source>
         <translation>Введите имя профиля.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1054"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1114"/>
         <source>Another profile is named “%1”, so this one is now “%2”.</source>
         <translation>Другой профиль уже называется «%1», поэтому этот теперь называется «%2».</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1109"/>
-        <source>A profile cannot inherit from itself.</source>
-        <translation>Профиль не может наследовать сам себя.</translation>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1170"/>
+        <source>A profile cannot inherit from itself or from a profile that inherits from it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1177"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1256"/>
         <source>Could not delete the profile.</source>
         <translation>Не удалось удалить профиль.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1225"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1304"/>
         <source>Could not apply this profile. Its settings do not match this version.</source>
         <translation>Не удалось применить этот профиль. Его параметры не соответствуют этой версии.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1248"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1327"/>
         <location filename="../src/settings/stores/shadersetstore.cpp" line="589"/>
         <source>Could not write to that location.</source>
         <translation>Не удалось записать в это расположение.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1264"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1342"/>
         <source>Could not read that profile.</source>
         <translation>Не удалось прочитать этот профиль.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1272"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1350"/>
         <location filename="../src/settings/stores/shadersetstore.cpp" line="615"/>
         <source>Could not write to %1.</source>
         <translation>Не удалось записать в %1.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1292"/>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1298"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1355"/>
+        <source>Exported the profile “%1”.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1366"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1378"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1384"/>
         <source>That file is not a readable profile.</source>
         <translation>Этот файл не является читаемым профилем.</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1315"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1401"/>
         <source>Imported profile</source>
         <translation>Импортированный профиль</translation>
     </message>
     <message>
-        <location filename="../src/settings/stores/profilestore.cpp" line="1335"/>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1404"/>
+        <source>Could not find a free name for the imported profile.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/stores/profilestore.cpp" line="1426"/>
         <source>Could not open the profiles folder.</source>
         <translation>Не удалось открыть папку профилей.</translation>
     </message>
@@ -11348,7 +11419,7 @@
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="55"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="579"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="586"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="382"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/DisplayMap.qml.cpp" line="277"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/DisplayMap.qml.cpp" line="294"/>
@@ -11358,28 +11429,28 @@
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="59"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="580"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="587"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="386"/>
         <source>Standard (16:9)</source>
         <translation>Стандартный (16:9)</translation>
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="63"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="581"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="588"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="390"/>
         <source>Ultrawide (21:9)</source>
         <translation>Ультраширокий (21:9)</translation>
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="67"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="582"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="589"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="394"/>
         <source>Super-Ultrawide (32:9)</source>
         <translation>Сверхширокий (32:9)</translation>
     </message>
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="71"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="583"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="590"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="398"/>
         <source>Portrait (9:16)</source>
         <translation>Книжный (9:16)</translation>
@@ -12305,9 +12376,10 @@
         <translation>Разделить по вертикали</translation>
     </message>
     <message>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1202"/>
         <location filename=".qml-stubs/plasmazones/src/editor/qml/HelpDialogContent.qml.cpp" line="166"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="91"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="95"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="102"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="107"/>
         <source>Fill space</source>
         <translation>Заполнить пространство</translation>
     </message>
@@ -13477,19 +13549,19 @@
         <translation>Шейдер наложения для «%1»</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="612"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="619"/>
         <source>by %1</source>
         <comment>@info shader author</comment>
         <translation>автор: %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="615"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="622"/>
         <source>v%1</source>
         <comment>@info shader version</comment>
         <translation>v%1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="1085"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="1099"/>
         <source>No error details available.</source>
         <comment>@info shader preview</comment>
         <translation>Подробности ошибки недоступны.</translation>
@@ -13983,55 +14055,59 @@
         <translation>Не удалось открыть эту ссылку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="43"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="47"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1196"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="51"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="56"/>
         <source>Duplicate zone</source>
         <translation>Дублировать зону</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="44"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="53"/>
         <source>Clone the currently selected zone</source>
         <translation>Клонировать выбранную зону</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="59"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="63"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1199"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="68"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="73"/>
         <source>Split horizontally</source>
         <translation>Разделить по горизонтали</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="60"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="70"/>
         <source>Divide selected zone into left and right halves</source>
         <translation>Разделить выбранную зону на левую и правую половины</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="75"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="79"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1201"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="85"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="90"/>
         <source>Split vertically</source>
         <translation>Разделить по вертикали</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="76"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="87"/>
         <source>Divide selected zone into top and bottom halves</source>
         <translation>Разделить выбранную зону на верхнюю и нижнюю половины</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="92"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="104"/>
         <source>Expand selected zone to fill surrounding empty area</source>
         <translation>Расширить выбранную зону, заполнив окружающее пустое пространство</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="107"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1205"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="119"/>
         <source>Reset shortcuts</source>
         <translation>Сбросить комбинации клавиш</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="108"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="121"/>
         <source>Restore all editor shortcuts to their default values</source>
         <translation>Восстановить все комбинации клавиш редактора к значениям по умолчанию</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="111"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="124"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/ModifierAndMouseCheckBoxes.qml.cpp" line="288"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/ModifierAndMouseCheckBoxes.qml.cpp" line="300"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysAppearancePage.qml.cpp" line="332"/>
@@ -14039,316 +14115,313 @@
         <translation>Сбросить к значениям по умолчанию</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="139"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1209"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="153"/>
         <source>Grid snapping</source>
         <translation>Прилипание к сетке</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="140"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="155"/>
         <source>Snap zones to a grid while dragging or resizing</source>
         <translation>Прилеплять зоны к сетке при перетаскивании или изменении размера</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="144"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="159"/>
         <source>Enable grid snapping</source>
         <translation>Включить прилипание к сетке</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="154"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1211"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="169"/>
         <source>Edge snapping</source>
         <translation>Прилипание к краям</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="155"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="171"/>
         <source>Snap zones to edges of neighboring zones</source>
         <translation>Прилеплять зоны к краям соседних зон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="159"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="175"/>
         <source>Enable edge snapping</source>
         <translation>Включить прилипание к краям</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="170"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="174"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1214"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="186"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="191"/>
         <source>Grid interval X</source>
         <translation>Интервал сетки по X</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="171"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="188"/>
         <source>Horizontal grid spacing as percentage of screen width</source>
         <translation>Горизонтальный интервал сетки в процентах от ширины экрана</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="195"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="199"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1217"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="212"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="217"/>
         <source>Grid interval Y</source>
         <translation>Интервал сетки по Y</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="196"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="214"/>
         <source>Vertical grid spacing as percentage of screen height</source>
         <translation>Вертикальный интервал сетки в процентах от высоты экрана</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="221"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="225"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1220"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="239"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="244"/>
         <source>Override modifier</source>
         <translation>Переопределить модификатор</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="222"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="241"/>
         <source>Hold this key to temporarily bypass snap behavior</source>
         <translation>Удерживайте эту клавишу, чтобы временно отключить прилипание</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="247"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1222"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="266"/>
         <source>Fill on Drop</source>
         <translation>Заполнение при отпускании</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="258"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1224"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="278"/>
         <source>Modifier key</source>
         <translation>Клавиша-модификатор</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="259"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="280"/>
         <source>Hold this key while dropping a zone to expand it into available space</source>
         <translation>Удерживайте эту клавишу при отпускании зоны, чтобы расширить её на доступное пространство</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="262"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="283"/>
         <source>Fill on drop modifier key</source>
         <translation>Клавиша-модификатор заполнения при отпускании</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="293"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="315"/>
         <source>Lower values let more of the desktop show through behind the editor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="94"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="100"/>
         <source>Graphics API used for overlay rendering</source>
         <translation>Графический API, используемый для отрисовки наложения</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="58"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="64"/>
         <source>GPU that draws the zone overlays and on-screen displays. Automatic lets the graphics driver decide. KWin composites window contents, so those are unaffected.</source>
         <translation>Графический процессор, отрисовывающий наложения зон и экранные сообщения. При автоматическом выборе решает графический драйвер. Содержимое окон компонует KWin, поэтому на него это не влияет.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="126"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="132"/>
         <source>Stop the daemon to change rendering settings.</source>
         <translation>Остановите службу, чтобы изменить параметры отрисовки.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="126"/>
-        <source>Rendering changes take effect after restarting the daemon.</source>
-        <translation>Изменения отрисовки вступят в силу после перезапуска службы.</translation>
-    </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="156"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="162"/>
         <source>Target refresh rate for shader animations</source>
         <translation>Целевая частота обновления для анимаций шейдеров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="163"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="170"/>
         <source>fps</source>
         <comment>frames per second, unit appended to a slider value</comment>
         <translation>fps</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="191"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="200"/>
         <source>Feed audio spectrum data to shaders that support it</source>
         <translation>Передавать данные звукового спектра шейдерам, которые их поддерживают</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="191"/>
-        <source>CAVA is not installed. Install cava to enable audio visualization.</source>
-        <translation>CAVA не установлена. Установите cava, чтобы включить визуализацию звука.</translation>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="132"/>
+        <source>Rendering changes take effect the next time the daemon starts.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="198"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="207"/>
         <source>Enable CAVA audio spectrum</source>
         <translation>Включить звуковой спектр CAVA</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="210"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="219"/>
         <source>CAVA is not installed. Install the &lt;b&gt;cava&lt;/b&gt; package to enable audio-reactive shader effects.</source>
         <translation>CAVA не установлена. Установите пакет &lt;b&gt;cava&lt;/b&gt;, чтобы включить звукореактивные эффекты шейдеров.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="233"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="242"/>
         <source>Number of frequency bands in the audio visualization</source>
         <translation>Количество полос частот в визуализации звука</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="277"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="287"/>
         <source>How smoothly the bars respond. Higher values are slower and calmer while lower values are fast and twitchy.</source>
         <translation>Насколько плавно реагируют полосы. Более высокие значения дают более медленную и спокойную реакцию, а более низкие — быструю и резкую.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="293"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="304"/>
         <source>Additional smoothing applied on top of noise reduction</source>
         <translation>Дополнительное сглаживание поверх шумоподавления</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="311"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="322"/>
         <source>Continuously adjusts sensitivity so the bars fill the available range</source>
         <translation>Непрерывно подстраивает чувствительность, чтобы полосы заполняли доступный диапазон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="327"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="338"/>
         <source>Starting gain that automatic gain adapts from</source>
         <translation>Начальное усиление, от которого отталкивается автоматическая регулировка</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="327"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="338"/>
         <source>Fixed gain applied to the audio signal</source>
         <translation>Фиксированное усиление, применяемое к звуковому сигналу</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="345"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="356"/>
         <source>Sounds below this frequency are ignored</source>
         <translation>Звуки ниже этой частоты игнорируются</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="352"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="368"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="364"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="381"/>
         <source>Hz</source>
         <comment>hertz, unit appended to a slider value</comment>
         <translation>Гц</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="361"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="373"/>
         <source>Sounds above this frequency are ignored</source>
         <translation>Звуки выше этой частоты игнорируются</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="379"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="392"/>
         <source>Stereo shows left and right bars side by side. Mono collapses to one set of bars.</source>
         <translation>Стерео показывает левые и правые полосы рядом. Моно сворачивает их в один набор полос.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="394"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="407"/>
         <source>Flip the frequency order of the bars</source>
         <translation>Перевернуть порядок частот полос</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="410"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="423"/>
         <source>Spreads each bar into its neighbors for a smoother outline</source>
         <translation>Распространяет каждую полосу на соседние для более плавного контура</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="424"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="437"/>
         <source>Rounds the spectrum into soft waves</source>
         <translation>Скругляет спектр в мягкие волны</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="440"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="453"/>
         <source>Leave on Automatic unless capture fails with the detected backend</source>
         <translation>Оставьте значение «Автоматически», если захват не завершается с ошибкой при обнаруженном движке</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="455"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="468"/>
         <source>Capture device or monitor source. Keep it set to auto to follow the default output.</source>
         <translation>Устройство записи или источник мониторинга. Оставьте автоматический выбор, чтобы следовать за выводом по умолчанию.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="502"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="524"/>
         <source>Snapping and tiling stay off until you assign a layout. A rule can re-enable the default per monitor.</source>
         <translation>Прилипание и мозаичное размещение остаются отключёнными, пока вы не назначите раскладку. Правило может заново включить значение по умолчанию для отдельного экрана.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="528"/>
-        <source>Skip dialogs, popups, and toolbars for snapping and tiling</source>
-        <translation>Пропускать диалоги, всплывающие окна и панели инструментов для прилипания и мозаичного размещения</translation>
-    </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="537"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="558"/>
         <source>Windows narrower than this are excluded</source>
         <translation>Окна уже этого значения исключаются</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="538"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="559"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="559"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="545"/>
         <source>Disabled (no width threshold)</source>
         <translation>Отключено (без порога по ширине)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="547"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="568"/>
         <source>Windows shorter than this are excluded</source>
         <translation>Окна ниже этого значения исключаются</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="548"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="569"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="569"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="555"/>
         <source>Disabled (no height threshold)</source>
         <translation>Отключено (без порога по высоте)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="569"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="590"/>
         <source>Export all settings to a file</source>
         <translation>Экспортировать все параметры в файл</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="572"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="629"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="593"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="650"/>
         <source>Export Settings</source>
         <translation>Экспорт параметров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="584"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="605"/>
         <source>Import settings from a previously exported file</source>
         <translation>Импортировать параметры из ранее экспортированного файла</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="587"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="644"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="608"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="665"/>
         <source>Import Settings</source>
         <translation>Импорт параметров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="598"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="619"/>
         <source>Restore every setting on every page to its default value</source>
         <translation>Восстановить все параметры на всех страницах к значениям по умолчанию</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="602"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="623"/>
         <source>Reset to Defaults</source>
         <translation>Сбросить к умолчаниям</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="630"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="651"/>
         <source>PlasmaZones Config (*.json)</source>
         <translation>Конфигурация PlasmaZones (*.json)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="630"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="645"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="587"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="614"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="630"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="656"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="436"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="449"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="651"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="666"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="583"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="610"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="626"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="652"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="491"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="502"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetCard.qml.cpp" line="347"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetsPage.qml.cpp" line="308"/>
         <source>All files (*)</source>
         <translation>Все файлы (*)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="637"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="658"/>
         <source>Settings exported</source>
         <translation>Параметры экспортированы</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="645"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="666"/>
         <source>PlasmaZones Config (*.json *.conf *.ini *.rc)</source>
         <translation>Конфигурация PlasmaZones (*.json *.conf *.ini *.rc)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="649"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/GeneralPage.qml.cpp" line="670"/>
         <source>Settings imported</source>
         <translation>Параметры импортированы</translation>
     </message>
@@ -14451,52 +14524,52 @@
         <translation>Действия страницы</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="621"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="628"/>
         <source>Save did not complete. %1</source>
         <translation>Сохранение не завершено. %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="635"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="642"/>
         <source>No details were reported.</source>
         <translation>Подробности не сообщены.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="636"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="643"/>
         <source>Discard did not complete. %1</source>
         <translation>Отмена не завершена. %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="623"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="630"/>
         <source>Save did not complete. Some pages still have unsaved changes.</source>
         <translation>Сохранение не завершено. На некоторых страницах остались несохранённые изменения.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="625"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="632"/>
         <source>Save did not complete. Still unsaved on: %1</source>
         <translation>Сохранение не завершено. Не сохранено на: %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="811"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="818"/>
         <source>Reset page to defaults</source>
         <translation>Сбросить страницу к значениям по умолчанию</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="830"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="837"/>
         <source>Discard changes on this page</source>
         <translation>Отменить изменения на этой странице</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="948"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="955"/>
         <source>Advanced</source>
         <translation>Дополнительно</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="948"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="955"/>
         <source>Simple</source>
         <translation>Простой</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="988"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="995"/>
         <source>Toggle advanced settings</source>
         <translation>Переключить дополнительные параметры</translation>
     </message>
@@ -14508,7 +14581,7 @@
     </message>
     <message numerus="yes">
         <location filename=".qml-stubs/plasmazones/src/settings/qml/OrderingPage.qml.cpp" line="395"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="288"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="284"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutComboBox.qml.cpp" line="602"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutGridDelegate.qml.cpp" line="457"/>
         <source>%n zone</source>
@@ -14562,28 +14635,28 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/FilterMenuButton.qml.cpp" line="153"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="417"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="413"/>
         <source>Filter (active)</source>
         <comment>@action:button</comment>
         <translation>Фильтр (активен)</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/FilterMenuButton.qml.cpp" line="153"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="417"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="413"/>
         <source>Filter</source>
         <comment>@action:button</comment>
         <translation>Фильтр</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/FilterMenuButton.qml.cpp" line="156"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="420"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="416"/>
         <source>Filters active. Click to change</source>
         <comment>@info:tooltip</comment>
         <translation>Фильтры активны. Нажмите, чтобы изменить</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/components/FilterMenuButton.qml.cpp" line="156"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="420"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="416"/>
         <source>Filter</source>
         <comment>@info:tooltip</comment>
         <translation>Фильтр</translation>
@@ -14874,8 +14947,8 @@
         <translation>Extra 5</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="117"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="148"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="135"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/WindowFilterCard.qml.cpp" line="166"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="148"/>
         <source>%1 px</source>
         <comment>pixel-unit suffix in spin box</comment>
@@ -14898,7 +14971,7 @@
         <location filename=".qml-stubs/plasmazones/src/settings/qml/dialogs/ConfirmDialogs.qml.cpp" line="111"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/dialogs/ConfirmDialogs.qml.cpp" line="170"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/CurveEditorDialog.qml.cpp" line="466"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="850"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="846"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleEditorSheet.qml.cpp" line="118"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RulesPage.qml.cpp" line="549"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/wizard/WizardFooter.qml.cpp" line="85"/>
@@ -15018,7 +15091,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="159"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="786"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="785"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="82"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/dialogs/FontPickerDialog.qml.cpp" line="314"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="264"/>
@@ -15369,6 +15442,8 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationProfileEditor.qml.cpp" line="626"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/AnimationsGeneralPage.qml.cpp" line="106"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="510"/>
         <source>ms</source>
         <comment>milliseconds, unit appended to a slider value</comment>
         <translation>мс</translation>
@@ -15956,7 +16031,7 @@
     </message>
     <message>
         <location filename="../src/settings/rules/ruleauthoring_actionparams.cpp" line="104"/>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="975"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="974"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="131"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/CurveEditorDialog.qml.cpp" line="173"/>
         <source>Direction</source>
@@ -16083,7 +16158,7 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/CurveEditorDialog.qml.cpp" line="457"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="227"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="267"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleEditorSheet.qml.cpp" line="123"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetsPage.qml.cpp" line="199"/>
         <source>Save</source>
@@ -16284,7 +16359,7 @@
         <translation>Оформление для экранного сообщения.</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="353"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="355"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/DecorationOsdsPage.qml.cpp" line="15"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="29"/>
         <source>On-Screen Display</source>
@@ -16437,7 +16512,7 @@
         <translation>Оформление для окон. «Все окна» используется по умолчанию. Каждое состояние размещения может его переопределить.</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="355"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="357"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="37"/>
         <source>Layout switch OSD</source>
         <translation>OSD переключения раскладки</translation>
@@ -16453,7 +16528,7 @@
         <translation>Показывать OSD при переключении раскладки</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="357"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="359"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="53"/>
         <source>Desktop switch OSD</source>
         <translation>OSD переключения рабочего стола</translation>
@@ -16469,7 +16544,7 @@
         <translation>Показывать OSD при переключении рабочего стола</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="360"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="362"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="69"/>
         <source>Keyboard navigation OSD</source>
         <translation>OSD навигации с клавиатуры</translation>
@@ -16485,7 +16560,7 @@
         <translation>Показывать OSD навигации с клавиатуры</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="362"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="364"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="85"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/OsdCard.qml.cpp" line="94"/>
         <source>OSD style</source>
@@ -16502,24 +16577,24 @@
         <translation>Как зоны выглядят при перетаскивании окна</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="203"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="209"/>
         <source>Windows that use custom decoration shaders show those instead of this border.</source>
         <translation>Окна, использующие собственные шейдеры оформления, показывают их вместо этой рамки.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="212"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="373"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="492"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="217"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="367"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="480"/>
         <source>Apply to</source>
         <translation>Применять к</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="214"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="219"/>
         <source>Which windows get a border</source>
         <translation>Какие окна получают рамку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="234"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="237"/>
         <source>Thickness of the colored border around windows</source>
         <translation>Толщина цветной рамки вокруг окон</translation>
     </message>
@@ -16529,165 +16604,171 @@
         <translation>Скруглённость углов рамки (0 для прямых углов)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="362"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="357"/>
         <source>Windows that use custom decoration shaders show those instead of this opacity and tint.</source>
         <translation>Окна, использующие собственные шейдеры оформления, показывают их вместо этой непрозрачности и оттенка.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="375"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="369"/>
         <source>Which windows are faded and tinted</source>
         <translation>Какие окна затемняются и получают оттенок</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="397"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="389"/>
         <source>How visible matched windows stay, where 100% is fully opaque</source>
         <translation>Насколько видимыми остаются подходящие окна, где 100% означает полную непрозрачность</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="416"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="406"/>
         <source>How strongly the tint color blends over the window, where 0% keeps it untinted</source>
         <translation>Насколько сильно цвет оттенка смешивается с окном, где 0% оставляет его без оттенка</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="298"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="295"/>
         <source>Active border color</source>
         <comment>@action:button</comment>
         <translation>Цвет рамки активного окна</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="58"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="63"/>
         <source>Low</source>
         <comment>@item:inlistbox decoration blur quality</comment>
         <translation>Низкое</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="62"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="67"/>
         <source>Balanced</source>
         <comment>@item:inlistbox decoration blur quality</comment>
         <translation>Сбалансированное</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="66"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="71"/>
         <source>High</source>
         <comment>@item:inlistbox decoration blur quality</comment>
         <translation>Высокое</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="300"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="297"/>
         <source>Border color for the focused window. Follows the color scheme unless you pick one.</source>
         <translation>Цвет рамки активного окна. Следует цветовой схеме, если вы не выберете свой.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="324"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="318"/>
         <source>Inactive border color</source>
         <comment>@action:button</comment>
         <translation>Цвет рамки неактивного окна</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="326"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="320"/>
         <source>Border color for unfocused windows. Follows the color scheme unless you pick one.</source>
         <translation>Цвет рамки неактивных окон. Следует цветовой схеме, если вы не выберете свой.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="437"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="425"/>
         <source>Tint color</source>
         <comment>@action:button</comment>
         <translation>Цвет оттенка</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="439"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="427"/>
         <source>Color the window is washed with when the tint strength is above zero. Follows the color scheme unless you pick one.</source>
         <translation>Цвет, которым заливается окно, когда сила оттенка больше нуля. Следует цветовой схеме, если вы не выберете свой.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="475"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="463"/>
         <source>Remove window title bars, restored when a window floats</source>
         <translation>Убирать заголовки окон, они восстанавливаются, когда окно становится плавающим</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="494"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="482"/>
         <source>Which windows lose their title bar</source>
         <translation>Какие окна теряют заголовок</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="513"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="501"/>
         <source>How long decorations take to fade between focused and unfocused. Zero switches instantly.</source>
         <translation>Сколько времени занимает плавный переход оформления между фокусом и его отсутствием. Ноль переключает мгновенно.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="545"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="535"/>
         <source>Skip borders for dialogs, popups, and menus</source>
         <translation>Пропускать рамки для диалогов, всплывающих окон и меню</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="546"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="536"/>
         <source>Exclude transient windows from decorations</source>
         <translation>Исключать вспомогательные окна из оформления</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="558"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="544"/>
         <source>Windows narrower than this get no border</source>
         <translation>Окна уже этого значения не получают рамку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="560"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="546"/>
         <source>Minimum window width for decorations</source>
         <translation>Минимальная ширина окна для оформления</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="568"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="554"/>
         <source>Windows shorter than this get no border</source>
         <translation>Окна ниже этого значения не получают рамку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="570"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="556"/>
         <source>Minimum window height for decorations</source>
         <translation>Минимальная высота окна для оформления</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="601"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="587"/>
         <source>This applies to windows that use decoration shader packs with blur.</source>
         <translation>Это относится к окнам, использующим пакеты шейдеров оформления с размытием.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="610"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="596"/>
         <source>How sharply decoration shaders compute their blur, relative to what each shader pack chooses for itself. Lower is cheaper on the graphics card and looks a little softer in motion. Higher is sharper and costs more.</source>
         <oldsource>How sharp decoration shaders compute their blur, relative to what each shader pack chooses for itself. Lower is cheaper on the graphics card and looks a little softer in motion. Higher is sharper and costs more.</oldsource>
         <translation>Насколько резко шейдеры оформления рассчитывают своё размытие относительно того, что выбирает для себя каждый пакет шейдеров. Меньшее значение дешевле для видеокарты и в движении выглядит чуть мягче. Большее резче и обходится дороже.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="636"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="622"/>
         <source>Space between windows</source>
         <translation>Расстояние между окнами</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="638"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="624"/>
         <source>Space from the screen edges to windows</source>
         <translation>Расстояние от краёв экрана до окон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="688"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="674"/>
         <source>Other windows keep their decoration but stop moving. Saves graphics card use roughly in proportion to how many windows you have open. Panels and applet popups keep animating, because a panel is never the active window.</source>
         <oldsource>Other windows keep their decoration but stop moving. Saves graphics card use roughly in proportion to how many windows you have open.</oldsource>
         <translation>Другие окна сохраняют оформление, но перестают двигаться. Это экономит нагрузку на видеокарту примерно пропорционально числу открытых окон. Панели и всплывающие окна апплетов продолжают анимироваться, потому что панель никогда не бывает активным окном.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="704"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="690"/>
         <source>Drop every decoration on a monitor while a window on it is fullscreen, the mouse pointer included. Other monitors keep theirs. A fullscreen game or video has no frame to decorate, and it is the last place you want to spend graphics work.</source>
         <translation>Убирать всё оформление на мониторе, пока на нём есть окно в полноэкранном режиме, включая указатель мыши. Другие мониторы сохраняют своё. У полноэкранной игры или видео нет рамки, которую можно оформить, и тратить на них ресурсы видеокарты незачем.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="716"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="702"/>
         <source>Stop animating decorations once you have been idle, and start again on the first key press or mouse movement.</source>
         <translation>Останавливать анимацию оформления после периода бездействия и возобновлять её при первом нажатии клавиши или движении мыши.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="728"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="714"/>
         <source>How long to wait with no input before decorations stop animating.</source>
         <translation>Сколько ждать без ввода, прежде чем анимация оформления остановится.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="768"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="726"/>
+        <source>s</source>
+        <comment>seconds, unit appended to a slider value</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="755"/>
         <source>Choose Tint Color</source>
         <translation>Выбор цвета оттенка</translation>
     </message>
@@ -16872,11 +16953,11 @@
         <translation>Экспорт</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="832"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="828"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutContextMenu.qml.cpp" line="458"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutContextMenu.qml.cpp" line="487"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileRow.qml.cpp" line="230"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="417"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="473"/>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
@@ -16942,9 +17023,9 @@
         <translation>Фильтр раскладок</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="267"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="276"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="297"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="263"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="272"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="293"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="373"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="434"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="460"/>
@@ -16952,7 +17033,7 @@
         <translation>Встроенные</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="297"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="293"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="377"/>
         <source>User Layouts</source>
         <translation>Пользовательские раскладки</translation>
@@ -16973,62 +17054,62 @@
         <translation>Фильтр алгоритмов</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="276"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="272"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="464"/>
         <source>User Scripts</source>
         <translation>Пользовательские скрипты</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="59"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="60"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="469"/>
         <source>Master Count</source>
         <translation>Число главных окон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="67"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="68"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="473"/>
         <source>Split Ratio</source>
         <translation>Соотношение разделения</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="75"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="76"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="477"/>
         <source>Overlapping Zones</source>
         <translation>Перекрывающиеся зоны</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="83"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="84"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="481"/>
         <source>Persistent (Memory)</source>
         <translation>Постоянное (память)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="91"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="92"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="485"/>
         <source>Custom Parameters</source>
         <translation>Пользовательские параметры</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="99"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="100"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="489"/>
         <location filename=".qml-stubs/plasmazones/src/shared/CapabilityBadgeRow.qml.cpp" line="74"/>
         <source>Reflows</source>
         <translation>Перекомпоновка</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="107"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="108"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="493"/>
         <source>Script State</source>
         <translation>Состояние скрипта</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="115"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="116"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="497"/>
         <source>Single Window</source>
         <translation>Одно окно</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="123"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="124"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="501"/>
         <source>Follows Focus</source>
         <translation>Следует за фокусом</translation>
@@ -17211,7 +17292,7 @@
         <translation>Отпустите, чтобы импортировать шаблон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="621"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="617"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutManageCard.qml.cpp" line="89"/>
         <source>Algorithm imported</source>
         <translation>Алгоритм импортирован</translation>
@@ -17240,7 +17321,7 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutManageCard.qml.cpp" line="163"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="143"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="165"/>
         <source>Open Folder</source>
         <translation>Открыть папку</translation>
     </message>
@@ -17265,29 +17346,29 @@
         <translation>Без имени</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="267"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="263"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutFilterBar.qml.cpp" line="438"/>
         <source>Your Templates</source>
         <translation>Ваши шаблоны</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="268"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="264"/>
         <source>All templates</source>
         <translation>Все шаблоны</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="280"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="301"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="276"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="297"/>
         <source>Visible</source>
         <translation>Видимая</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="281"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="277"/>
         <source>All algorithms</source>
         <translation>Все алгоритмы</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="302"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="298"/>
         <source>All layouts</source>
         <translation>Все раскладки</translation>
     </message>
@@ -17297,109 +17378,109 @@
         <translation>Шаблоны прокрутки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="399"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="395"/>
         <source>Search layouts…</source>
         <translation>Поиск раскладок…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="399"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="395"/>
         <source>Search algorithms…</source>
         <translation>Поиск алгоритмов…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="399"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="395"/>
         <source>Search templates…</source>
         <translation>Поиск шаблонов…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="424"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="420"/>
         <source>New Algorithm</source>
         <translation>Новый алгоритм</translation>
     </message>
     <message>
         <location filename="../src/editor/controller/scrollingtemplate.cpp" line="140"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="424"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="420"/>
         <source>New Template</source>
         <translation>Создать шаблон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="454"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="450"/>
         <source>No matching templates</source>
         <translation>Подходящих шаблонов нет</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="454"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="450"/>
         <source>No scrolling templates available</source>
         <translation>Шаблоны прокрутки недоступны</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="456"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="452"/>
         <source>No matching algorithms</source>
         <translation>Нет подходящих алгоритмов</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="456"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="452"/>
         <source>No matching layouts</source>
         <translation>Нет подходящих раскладок</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="458"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="454"/>
         <source>No autotile algorithms available</source>
         <translation>Нет доступных алгоритмов автомозаики</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="458"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="454"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingOrderingPage.qml.cpp" line="15"/>
         <source>No layouts available</source>
         <translation>Нет доступных раскладок</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="464"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="460"/>
         <source>Both Built-in and User layout sources are hidden</source>
         <translation>Скрыты оба источника раскладок: встроенные и пользовательские</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="467"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="463"/>
         <source>Both Auto and Manual layout types are hidden</source>
         <translation>Скрыты оба типа раскладок: автоматические и ручные</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="470"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="466"/>
         <source>Both Built-in and User algorithm sources are hidden</source>
         <translation>Скрыты оба источника алгоритмов: встроенные и пользовательские</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="473"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="469"/>
         <source>Both Built-in and Your Templates sources are hidden</source>
         <translation>Скрыты и встроенные, и ваши шаблоны</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="475"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="471"/>
         <source>Try adjusting your filters or search terms</source>
         <translation>Попробуйте изменить фильтры или условия поиска</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="481"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="477"/>
         <source>Start the PlasmaZones daemon to create a template, or import one</source>
         <translation>Запустите службу PlasmaZones, чтобы создать шаблон, или импортируйте готовый</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="485"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="481"/>
         <source>Start the PlasmaZones daemon or add a tiling algorithm</source>
         <translation>Запустите службу PlasmaZones или добавьте алгоритм мозаичного размещения</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="485"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="481"/>
         <source>Start the PlasmaZones daemon or create a new layout</source>
         <translation>Запустите службу PlasmaZones или создайте новую раскладку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="490"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="486"/>
         <source>Reset Filters</source>
         <translation>Сбросить фильтры</translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="511"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="507"/>
         <source>%n algorithm</source>
         <translation>
             <numerusform>%n алгоритм</numerusform>
@@ -17408,7 +17489,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="511"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="507"/>
         <source>%n layout</source>
         <translation>
             <numerusform>%n раскладка</numerusform>
@@ -17417,7 +17498,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="511"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="507"/>
         <source>%n template</source>
         <translation>
             <numerusform>%n шаблон</numerusform>
@@ -17426,72 +17507,72 @@
         </translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="586"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="582"/>
         <source>Import Layout</source>
         <translation>Импорт раскладки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="587"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="601"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="630"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="643"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="656"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="583"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="597"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="626"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="639"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="652"/>
         <source>JSON files (*.json)</source>
         <translation>Файлы JSON (*.json)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="600"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="596"/>
         <source>Export Layout</source>
         <translation>Экспорт раскладки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="613"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="609"/>
         <source>Import Tiling Algorithm</source>
         <translation>Импорт алгоритма мозаичного размещения</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="614"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="809"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="610"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="805"/>
         <source>Luau files (*.luau)</source>
         <translation>Файлы Luau (*.luau)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="629"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="625"/>
         <source>Import Scrolling Template</source>
         <translation>Импорт шаблона прокрутки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="642"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="638"/>
         <source>Export Scrolling Template</source>
         <translation>Экспорт шаблона прокрутки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="655"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="651"/>
         <source>Import KZones Layout File</source>
         <translation>Импорт файла раскладки KZones</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="808"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="804"/>
         <source>Export Algorithm</source>
         <translation>Экспорт алгоритма</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="825"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="821"/>
         <source>Delete Algorithm</source>
         <translation>Удалить алгоритм</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="825"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="821"/>
         <source>Delete Layout</source>
         <translation>Удалить раскладку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="825"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="821"/>
         <source>Delete Template</source>
         <translation>Удалить шаблон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="826"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml.cpp" line="822"/>
         <source>Are you sure you want to delete “%1”?</source>
         <oldsource>Are you sure you want to delete &quot;%1&quot;?</oldsource>
         <translation>Вы действительно хотите удалить «%1»?</translation>
@@ -17507,7 +17588,6 @@
         <translation>Начать с нуля в редакторе</translation>
     </message>
     <message>
-        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="359"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/NewLayoutDialog.qml.cpp" line="59"/>
         <source>Columns</source>
         <translation>Столбцы</translation>
@@ -17619,122 +17699,122 @@
         <translation>Создать раскладку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="162"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="163"/>
         <source>Quick Tiling %1</source>
         <translation>Быстрая мозаика %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="162"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="163"/>
         <source>Quick Snapping %1</source>
         <translation>Быстрое прилипание %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="162"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="163"/>
         <source>Quick Scrolling %1</source>
         <translation>Быстрая прокрутка %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="174"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="175"/>
         <source>No shortcut assigned</source>
         <translation>Комбинация клавиш не назначена</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="174"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="175"/>
         <source>Shortcut %1, used on monitors in this mode</source>
         <comment>%1 is a keyboard shortcut such as Meta+Alt+1</comment>
         <translation>Комбинация %1, используется на мониторах в этом режиме</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="209"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="210"/>
         <source>Tiling algorithm for quick shortcut %1</source>
         <translation>Алгоритм мозаики для быстрой комбинации %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="209"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="210"/>
         <source>Zone layout for quick shortcut %1</source>
         <translation>Раскладка зон для быстрой комбинации %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="209"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="210"/>
         <source>Scrolling template for quick shortcut %1</source>
         <translation>Шаблон прокрутки для быстрой комбинации %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="237"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="238"/>
         <source>Clear layout</source>
         <translation>Очистить раскладку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="237"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="238"/>
         <source>Clear template</source>
         <translation>Очистить шаблон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="238"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="239"/>
         <source>Clear layout for quick shortcut %1</source>
         <translation>Очистить раскладку для быстрой комбинации %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="238"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="239"/>
         <source>Clear template for quick shortcut %1</source>
         <translation>Очистить шаблон для быстрой комбинации %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="43"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="55"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="44"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="69"/>
         <source>Defaults</source>
         <translation>Значения по умолчанию</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="53"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="54"/>
         <source>Set Parent Profile</source>
         <translation>Задать родительский профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="53"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="54"/>
         <source>Rename Profile</source>
         <translation>Переименовать профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="105"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="172"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="106"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="212"/>
         <source>Profile name…</source>
         <translation>Название профиля…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="106"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="173"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="107"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="213"/>
         <source>Profile name</source>
         <translation>Название профиля</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="116"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="182"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="117"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="222"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetCard.qml.cpp" line="332"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderSetsPage.qml.cpp" line="189"/>
         <source>Description (optional)…</source>
         <translation>Описание (необязательно)…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="117"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="183"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="118"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="223"/>
         <source>Profile description</source>
         <translation>Описание профиля</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="124"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="192"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="125"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="232"/>
         <source>Inherit from</source>
         <translation>Наследовать от</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="135"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="213"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="136"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="253"/>
         <source>Parent profile</source>
         <translation>Родительский профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="157"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/NewProfileDialog.qml.cpp" line="158"/>
         <source>Only settings that differ from the parent are stored in this profile.</source>
         <translation>В этом профиле хранятся только параметры, отличающиеся от родительского.</translation>
     </message>
@@ -17847,7 +17927,7 @@
     <message>
         <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="136"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/LayoutComboBox.qml.cpp" line="54"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="201"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/layouts/QuickLayoutSlotsCard.qml.cpp" line="202"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileRow.qml.cpp" line="301"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/MonitorModePreviews.qml.cpp" line="56"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/MonitorModePreviews.qml.cpp" line="70"/>
@@ -17958,78 +18038,72 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileSwitcherHeader.qml.cpp" line="208"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="389"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="446"/>
         <source>Use this profile?</source>
         <translation>Использовать этот профиль?</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileSwitcherHeader.qml.cpp" line="209"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="390"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="447"/>
         <source>You have changes you have not saved yet. Switching to “%1” replaces them with that profile&apos;s settings.</source>
         <translation>У вас есть несохранённые изменения. Переключение на «%1» заменит их параметрами этого профиля.</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfileSwitcherHeader.qml.cpp" line="213"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="394"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="451"/>
         <source>Use profile</source>
         <translation>Использовать профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="135"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="175"/>
         <source>A profile captures your current settings and rules. Only what differs from its parent profile (or the defaults) is stored. Activating a profile stages its settings. Save to apply, or discard to revert. Per-monitor and other hardware-specific settings are not included, so a profile stays portable between machines.</source>
         <translation>Профиль сохраняет текущие параметры и правила. Хранится только то, что отличается от родительского профиля (или значений по умолчанию). Активация профиля подготавливает его параметры к применению. Сохраните, чтобы применить, или отмените, чтобы вернуть исходное состояние. Параметры, привязанные к конкретному экрану или оборудованию, не включаются, поэтому профиль остаётся переносимым между машинами.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="153"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="193"/>
         <source>Save everything as it is now as a new profile. Pick a parent to store only the differences from it.</source>
         <translation>Сохранить всё как есть сейчас в виде нового профиля. Выберите родителя, чтобы хранить только отличия от него.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="229"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="269"/>
         <source>Save the current settings as a profile</source>
         <translation>Сохранить текущие параметры как профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="247"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="287"/>
         <source>Add a profile exported from PlasmaZones.</source>
         <translation>Добавить профиль, экспортированный из PlasmaZones.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="248"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="288"/>
         <source>Drop a profile file here to import it</source>
         <comment>@info drop-zone idle label</comment>
         <translation>Перетащите сюда файл профиля, чтобы импортировать его</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="249"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="289"/>
         <source>Release to import the profile</source>
         <comment>@info drop-zone hover label</comment>
         <translation>Отпустите, чтобы импортировать профиль</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="257"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="297"/>
         <source>Import a profile from a file</source>
         <translation>Импортировать профиль из файла</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="258"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="298"/>
         <source>Open the profiles folder</source>
         <translation>Открыть папку профилей</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="259"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="299"/>
         <source>Imported profile “%1”.</source>
         <comment>@info profile import success</comment>
         <translation>Импортирован профиль «%1».</translation>
     </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="260"/>
-        <source>Could not import “%1”. The file must be a profile exported from PlasmaZones.</source>
-        <comment>@info profile import failure</comment>
-        <translation>Не удалось импортировать «%1». Файл должен быть профилем, экспортированным из PlasmaZones.</translation>
-    </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="268"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="310"/>
         <source>%n profile</source>
         <translation>
             <numerusform>%n профиль</numerusform>
@@ -18038,33 +18112,39 @@
         </translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="275"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="317"/>
         <source>No profiles saved yet.</source>
         <translation>Пока нет сохранённых профилей.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="412"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="415"/>
+        <source>profile</source>
+        <comment>@item file name for an exported profile whose name has no usable characters</comment>
+        <translation type="unfinished">профиль</translation>
+    </message>
+    <message>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="468"/>
         <source>Delete profile?</source>
         <translation>Удалить профиль?</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="413"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="469"/>
         <source>“%1” will be permanently deleted. Any profiles inheriting from it will be re-based on its parent, keeping their own settings.</source>
         <translation>«%1» будет удалён без возможности восстановления. Все профили, наследующие от него, будут перепривязаны к его родителю с сохранением собственных параметров.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="435"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="490"/>
         <source>Export Profile</source>
         <translation>Экспорт профиля</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="436"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="449"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="491"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="502"/>
         <source>PlasmaZones Profile (*.json)</source>
         <translation>Профиль PlasmaZones (*.json)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="448"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/profiles/ProfilesPage.qml.cpp" line="501"/>
         <source>Import Profile</source>
         <translation>Импорт профиля</translation>
     </message>
@@ -19054,7 +19134,7 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RulesPage.qml.cpp" line="672"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="627"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="638"/>
         <source>Try a different filter or search term.</source>
         <translation>Попробуйте другой фильтр или условие поиска.</translation>
     </message>
@@ -19597,19 +19677,19 @@
         <translation>Размер предпросмотра подстраивается автоматически в зависимости от разрешения экрана.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="47"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="57"/>
         <source>Import…</source>
         <translation>Импорт…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="66"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ImportDropCard.qml.cpp" line="88"/>
         <source>the file</source>
         <comment>@item fallback name for a file with no usable name</comment>
         <translation>файл</translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="62"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="76"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="65"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="77"/>
         <source>%n use</source>
         <comment>@info shader usage count</comment>
         <translation>
@@ -19619,21 +19699,21 @@
         </translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="88"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="96"/>
         <source>Shader effect details</source>
         <comment>@info:tooltip generic shader card</comment>
         <translation>Сведения об эффекте шейдера</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="156"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="576"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="164"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="583"/>
         <source>User</source>
         <comment>@info shader source badge</comment>
         <translation>Пользователь</translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="182"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="587"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserCard.qml.cpp" line="190"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="594"/>
         <source>%n parameter</source>
         <translation>
             <numerusform>%n параметр</numerusform>
@@ -19642,8 +19722,8 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="42"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="69"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="45"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="70"/>
         <source>Used in %n event</source>
         <comment>@info shader usage section header</comment>
         <translation>
@@ -19653,31 +19733,31 @@
         </translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="446"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="453"/>
         <source>Yes</source>
         <comment>@info bool true</comment>
         <translation>Да</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="446"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="453"/>
         <source>No</source>
         <comment>@info bool false</comment>
         <translation>Нет</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="684"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="698"/>
         <source>Parameters</source>
         <comment>@title:group shader parameters section</comment>
         <translation>Параметры</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="797"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="811"/>
         <source>[%1 .. %2]</source>
         <comment>@info parameter range</comment>
         <translation>[%1 .. %2]</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="800"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="814"/>
         <source>default %1</source>
         <comment>@info parameter default value</comment>
         <translation>по умолчанию %1</translation>
@@ -19763,194 +19843,194 @@
         <translation>Этот пакет берёт образец того, что находится позади окна. В предпросмотре вместо настоящих окон используются обои.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="1126"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="1140"/>
         <source>Select Image</source>
         <comment>@title:window</comment>
         <translation>Выбор изображения</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="1128"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserDetailDialog.qml.cpp" line="1142"/>
         <source>Images (*.png *.jpg *.jpeg *.bmp *.webp)</source>
         <comment>@item:inlistbox image file filter</comment>
         <translation>Изображения (*.png *.jpg *.jpeg *.bmp *.webp)</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="58"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="59"/>
         <source>User-installed shader packs live under your data directory. Drop a shader pack folder here to make it available to PlasmaZones.</source>
         <translation>Установленные пользователем пакеты шейдеров хранятся в вашем каталоге данных. Перетащите сюда папку с пакетом шейдеров, чтобы сделать его доступным для PlasmaZones.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="59"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="60"/>
         <source>Drop a shader pack folder here</source>
         <comment>@info drop-zone idle label</comment>
         <translation>Перетащите сюда папку с пакетом шейдеров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="60"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="61"/>
         <source>Release to install shader pack</source>
         <comment>@info drop-zone hover label</comment>
         <translation>Отпустите, чтобы установить пакет шейдеров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="61"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="62"/>
         <source>No shader effects installed.</source>
         <translation>Эффекты шейдеров не установлены.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="106"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="117"/>
         <source>Geometry</source>
         <comment>@item shader capability</comment>
         <translation>Геометрия</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="111"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="122"/>
         <source>Drag motion</source>
         <comment>@item shader capability (held interactive window drag)</comment>
         <translation>Движение при перетаскивании</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="116"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="127"/>
         <source>Appearance</source>
         <comment>@item shader capability</comment>
         <translation>Внешний вид</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="121"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="132"/>
         <source>Desktop</source>
         <comment>@item shader capability</comment>
         <translation>Рабочий стол</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="126"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="137"/>
         <source>Scrolling strip</source>
         <comment>@item shader capability (the scrolling strip&apos;s view motion)</comment>
         <translation>Лента прокрутки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="131"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="142"/>
         <source>Tab switch</source>
         <comment>@item shader capability (switching tabs in a scrolling column)</comment>
         <translation>Переключение вкладки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="169"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="180"/>
         <source>Category</source>
         <comment>@item:inlistbox group shaders by</comment>
         <translation>Категория</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="175"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="186"/>
         <source>Type</source>
         <comment>@item:inlistbox group shaders by</comment>
         <translation>Тип</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="180"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="191"/>
         <source>Source</source>
         <comment>@item:inlistbox group shaders by</comment>
         <translation>Источник</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="184"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="195"/>
         <source>None</source>
         <comment>@item:inlistbox group shaders by</comment>
         <translation>Нет</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="192"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="203"/>
         <source>Name</source>
         <comment>@item:inlistbox sort shaders by</comment>
         <translation>Имя</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="196"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="207"/>
         <source>Category</source>
         <comment>@item:inlistbox sort shaders by</comment>
         <translation>Категория</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="202"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="213"/>
         <source>Type</source>
         <comment>@item:inlistbox sort shaders by</comment>
         <translation>Тип</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="328"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="339"/>
         <source>Universal</source>
         <comment>@item shader capability (applies to every event)</comment>
         <translation>Универсальный</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="362"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="373"/>
         <source>Built-in</source>
         <comment>@title:group built-in shaders</comment>
         <translation>Встроенные</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="362"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="373"/>
         <source>User</source>
         <comment>@title:group user-installed shaders</comment>
         <translation>Пользователь</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="376"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="387"/>
         <source>Uncategorised</source>
         <comment>@title:group fallback for shaders without a category</comment>
         <translation>Без категории</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="499"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="510"/>
         <source>Open user shader directory</source>
         <translation>Открыть каталог пользовательских шейдеров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="500"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="511"/>
         <source>Installed shader pack “%1”.</source>
         <comment>@info shader install success</comment>
         <translation>Пакет шейдеров «%1» установлен.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="501"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="512"/>
         <source>Could not install “%1”. The folder must contain a metadata.json and not collide with an existing pack.</source>
         <comment>@info shader install failure</comment>
         <translation>Не удалось установить «%1». Папка должна содержать metadata.json и не совпадать с уже установленным пакетом.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="515"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="526"/>
         <source>Search shaders…</source>
         <comment>@info:placeholder shader search</comment>
         <translation>Поиск шейдеров…</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="516"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="527"/>
         <source>Search shaders</source>
         <translation>Поиск шейдеров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="528"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="539"/>
         <source>Filter Shaders</source>
         <comment>@title:menu</comment>
         <translation>Фильтр шейдеров</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="536"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="547"/>
         <source>Built-in</source>
         <comment>@option:check</comment>
         <translation>Встроенные</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="540"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="551"/>
         <source>User-installed</source>
         <comment>@option:check</comment>
         <translation>Установленные пользователем</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="626"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="637"/>
         <source>No shaders match the current filter</source>
         <translation>Ни один шейдер не соответствует текущему фильтру</translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="648"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/shaders/ShaderBrowserPage.qml.cpp" line="659"/>
         <source>%n shader</source>
         <translation>
             <numerusform>%n шейдер</numerusform>
@@ -20272,7 +20352,7 @@
         <translation>Подсвечивать зоны при смене раскладки</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="760"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/decoration/WindowAppearancePage.qml.cpp" line="747"/>
         <source>Choose Border Color</source>
         <translation>Выбор цвета рамки</translation>
     </message>
@@ -20328,13 +20408,13 @@
         <translation>Назначьте раскладки зон клавиатурным сочетаниям для быстрого переключения.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysLibraryPage.qml.cpp" line="24"/>
-        <source>Browse the zone overlay shaders you have installed. To assign one, either as the global default or for a single layout, go to the Layouts page.</source>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysLibraryPage.qml.cpp" line="37"/>
+        <source>Browse the zone overlay shaders you have installed. To assign one, either as the global default or for a single layout, go to Overlays → Layouts.</source>
         <comment>@info banner on the overlay shader browser</comment>
-        <translation>Просмотр установленных шейдеров наложения зон. Чтобы назначить шейдер глобально по умолчанию или для одной раскладки, перейдите на страницу «Раскладки».</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysLibraryPage.qml.cpp" line="30"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysLibraryPage.qml.cpp" line="43"/>
         <source>Used by %n layout</source>
         <comment>@info shader usage section header (snapping overlay)</comment>
         <translation>
@@ -20344,7 +20424,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysLibraryPage.qml.cpp" line="33"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/overlays/OverlaysLibraryPage.qml.cpp" line="46"/>
         <source>%n layout</source>
         <comment>@info shader usage chip (snapping overlay)</comment>
         <translation>
@@ -20477,7 +20557,7 @@
         <translation>Как долго объединение остаётся активным после отпускания клавиши объединения, чтобы окно, брошенное сразу после этого, всё же заняло отмеченные зоны. Помогает, когда это кнопка мыши, отпускаемая вместе со сбросом. Значение 0 отключает это.</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="660"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="659"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="200"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/snapping/SnappingZoneSpanCard.qml.cpp" line="62"/>
         <source>Zone span toggle mode</source>
@@ -20511,7 +20591,7 @@
         <translation>Отключить %1</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="1132"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/Main.qml.cpp" line="1139"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/ChainEditor.qml.cpp" line="305"/>
         <source>Enable %1</source>
         <translation>Включить %1</translation>
@@ -20789,7 +20869,7 @@
         <translation>Создать алгоритм</translation>
     </message>
     <message numerus="yes">
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="187"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="248"/>
         <source>Max %n window</source>
         <translation>
             <numerusform>Максимум %n окно</numerusform>
@@ -20798,116 +20878,116 @@
         </translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="240"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="303"/>
         <source>Maximum number of windows to tile on this screen</source>
         <translation>Максимальное число окон для размещения на этом экране</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="256"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="289"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="319"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="300"/>
         <source>Maximum windows</source>
         <translation>Максимум окон</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="281"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="288"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="234"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="241"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="346"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="353"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="240"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="247"/>
         <source>Center ratio</source>
         <translation>Соотношение центра</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="283"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="236"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="348"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="242"/>
         <source>Width proportion allocated to the center column</source>
         <translation>Доля ширины, выделенная центральному столбцу</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="283"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="236"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="348"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="242"/>
         <source>Width proportion allocated to the master area</source>
         <translation>Доля ширины, выделенная области главного окна</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="309"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="379"/>
         <source>Amount the ratio changes per keyboard shortcut press</source>
         <translation>Величина изменения соотношения при нажатии клавиатурного сочетания</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="334"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="341"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="405"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="412"/>
         <source>Center count</source>
         <translation>Число в центре</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="336"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="407"/>
         <source>Number of windows in the center column</source>
         <translation>Число окон в центральном столбце</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="336"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="407"/>
         <source>Number of windows in the master area</source>
         <translation>Число окон в области главного окна</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="40"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="46"/>
         <source>Dynamically insert dragged windows into the autotile stack at the cursor position without requiring a modifier key or mouse button. The trigger below then floats the window instead.</source>
         <oldsource>Dynamically insert dragged windows into the autotile stack at the cursor position without requiring a modifier key or mouse button</oldsource>
         <translation type="unfinished">Динамически вставлять перетаскиваемые окна в стопку автоматического размещения в позиции курсора без клавиши-модификатора или кнопки мыши</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="46"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="52"/>
         <source>Always re-insert into stack on drag</source>
         <translation>Всегда повторно вставлять в стопку при перетаскивании</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="62"/>
-        <source>Hold a modifier or mouse button while dragging a window to dynamically insert it into the autotile stack at the cursor position</source>
-        <translation>Удерживайте модификатор или кнопку мыши при перетаскивании окна, чтобы динамически вставить его в стопку автоматического размещения в позиции курсора</translation>
-    </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="62"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="68"/>
         <source>Hold a modifier or mouse button while dragging a window to float it instead of inserting it into the autotile stack.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="84"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="68"/>
+        <source>Hold a modifier or mouse button while dragging a window to dynamically insert it into the autotile stack at the cursor position.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="90"/>
         <source>Tap the re-insert trigger once to activate the stack preview. Tap it again to deactivate.</source>
         <oldsource>Tap the re-insert trigger once to activate the stack preview, tap again to deactivate it</oldsource>
         <translation>Нажмите триггер повторной вставки один раз, чтобы включить предпросмотр стопки. Нажмите ещё раз, чтобы выключить.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="84"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="90"/>
         <source>Tap the trigger once to float the dragged window instead. Tap it again to insert it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="90"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="96"/>
         <source>Toggle mode for re-insert into stack</source>
         <translation>Режим переключения для повторной вставки в стопку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="90"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="96"/>
         <source>Toggle mode for floating instead of inserting</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="106"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="112"/>
         <source>How long the stack preview stays active after the re-insert trigger is released, so a window dropped just after letting go of the trigger still lands in the stack. Helps when the trigger is a mouse button released with the drop. Set 0 to turn it off.</source>
         <translation>Как долго предпросмотр стопки остаётся активным после отпускания триггера повторной вставки, чтобы окно, брошенное сразу после этого, всё же попало в стопку. Помогает, когда триггер — кнопка мыши, отпускаемая вместе со сбросом. Значение 0 отключает это.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="106"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="112"/>
         <source>How long a window stays out of the stack after the trigger is released, so a window dropped just after letting go of the trigger still floats. Helps when the trigger is a mouse button released with the drop. Set 0 to turn it off.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="107"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="113"/>
         <source>Release grace period for re-insert into stack</source>
         <translation>Допуск после отпускания для повторной вставки в стопку</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="107"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="113"/>
         <source>Release grace period for floating instead of inserting</source>
         <translation type="unfinished"></translation>
     </message>
@@ -21030,12 +21110,12 @@
         <translation>Назначьте алгоритмы автоматического размещения клавиатурным сочетаниям для быстрого переключения.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="178"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="182"/>
         <source>At least one monitor has its own tiling settings, which take priority over the values below. Switch to advanced mode to see or remove them.</source>
         <translation>Хотя бы один монитор имеет собственные настройки размещения, которые имеют приоритет над значениями ниже. Переключитесь в расширенный режим, чтобы увидеть или удалить их.</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="278"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="289"/>
         <source>Maximum number of windows to tile</source>
         <translation>Максимальное число окон для размещения</translation>
     </message>
@@ -22515,7 +22595,7 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingDragInsertCard.qml.cpp" line="54"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="60"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingBehaviorPage.qml.cpp" line="66"/>
         <source>Hold to float instead</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22607,7 +22687,7 @@
         <translation>Скругление углов индикатора в пикселях.</translation>
     </message>
     <message>
-        <location filename="../src/settings/pages/generalpagecontroller.cpp" line="61"/>
+        <location filename="../src/settings/pages/generalpagecontroller.cpp" line="63"/>
         <source>Unavailable device (%1)</source>
         <translation>Недоступное устройство (%1)</translation>
     </message>
@@ -23246,10 +23326,22 @@
         <translation type="unfinished">«%1»</translation>
     </message>
     <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="184"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="209"/>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="306"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="201"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="227"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/EditorPage.qml.cpp" line="328"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/components/SettingsSlider.qml.cpp" line="90"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/animations/CurveEditorDialog.qml.cpp" line="231"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/ActionListView.qml.cpp" line="372"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingColumnsPage.qml.cpp" line="186"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingSimplePage.qml.cpp" line="162"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingTabsPage.qml.cpp" line="324"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="192"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="214"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml.cpp" line="236"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="363"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="389"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingAlgorithmPage.qml.cpp" line="492"/>
+        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/tiling/TilingSimplePage.qml.cpp" line="257"/>
         <source>%1%</source>
         <comment>a whole-number percentage</comment>
         <translation>%1%</translation>
@@ -23322,7 +23414,7 @@
         <translation>Перетаскивая окно на экране с прокруткой, поднесите его к заданному краю экрана, чтобы открыть всплывающее окно с текущей лентой. Бросьте между двумя столбцами, чтобы вставить новый столбец, на столбец с вкладками, чтобы добавить окно вкладкой, или на верхнюю либо нижнюю половину столбца, чтобы сложить его туда.</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="1124"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="1123"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/screens/ScrollingZoneSelectorSection.qml.cpp" line="99"/>
         <source>Strip selector popup</source>
         <translation>Всплывающее окно выбора ленты</translation>
@@ -23698,7 +23790,7 @@
         <translation>Вернуть порядок шаблонов к значению по умолчанию</translation>
     </message>
     <message>
-        <location filename="../src/settings/search/searchcatalog.cpp" line="974"/>
+        <location filename="../src/settings/search/searchcatalog.cpp" line="973"/>
         <location filename="../src/settings/search/searchcatalog_simple.cpp" line="130"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingStripDirectionCard.qml.cpp" line="25"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/scrolling/ScrollingStripDirectionCard.qml.cpp" line="53"/>
@@ -24799,6 +24891,314 @@
         <source>%1 (Copy)</source>
         <comment>@item zone name of a duplicated zone, %1 is the original name</comment>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="113"/>
+        <source>Overview</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Обзор</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="120"/>
+        <source>Profiles</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Профили</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="125"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="265"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="336"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="391"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="472"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="586"/>
+        <source>General</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="135"/>
+        <source>Virtual Screens</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Виртуальные экраны</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="156"/>
+        <source>Named Workspaces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="161"/>
+        <source>Quick Shortcuts</source>
+        <translation type="unfinished">Быстрые комбинации клавиш</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="169"/>
+        <source>Placement</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Размещение</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="175"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="657"/>
+        <source>Appearance</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="191"/>
+        <source>Decorations</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Оформление</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="206"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="468"/>
+        <source>Animations</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Анимации</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="213"/>
+        <source>Rules</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Правила</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="221"/>
+        <source>Editor</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Редактор</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="224"/>
+        <source>About</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">О программе</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="234"/>
+        <source>Snapping</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Прилипание</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="237"/>
+        <source>Tiling</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Мозаичное размещение</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="241"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="529"/>
+        <source>Scrolling</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Прокрутка</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="276"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="670"/>
+        <source>Layouts</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Раскладки</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="285"/>
+        <source>Overlay</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Наложение</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="295"/>
+        <source>Zone Selector</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Выбор зоны</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="304"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="359"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="428"/>
+        <source>Window</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Окно</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="310"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="373"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="448"/>
+        <source>Configuration</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Настройка</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="313"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="376"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="451"/>
+        <source>Priority</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Приоритет</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="318"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="381"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="456"/>
+        <source>Quick Shortcuts</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Быстрые комбинации клавиш</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="351"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="494"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="595"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="675"/>
+        <source>Library</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Библиотека</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="368"/>
+        <source>Algorithm</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Алгоритм</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="400"/>
+        <source>Templates</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Шаблоны</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="413"/>
+        <source>Columns</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Столбцы</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="423"/>
+        <source>Tabs</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Вкладки</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="439"/>
+        <source>Strip Selector</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Выбор ленты</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="481"/>
+        <source>Transitions</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Переходы</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="491"/>
+        <source>Motion</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Движение</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="498"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="599"/>
+        <source>Windows</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Окна</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="502"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="603"/>
+        <source>OSDs</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">OSD</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="507"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="650"/>
+        <source>Overlays</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Наложения</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="511"/>
+        <source>Desktop</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Рабочий стол</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="518"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="613"/>
+        <source>Shell</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Оболочка</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="534"/>
+        <source>Window Motion</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Движение окна</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="542"/>
+        <source>Window Dragging</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Перетаскивание окна</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="546"/>
+        <source>Side Panels</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Боковые панели</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="550"/>
+        <source>Widgets</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Виджеты</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="555"/>
+        <source>Layout Editor</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Редактор раскладок</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="560"/>
+        <source>Presets</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Предустановки</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="565"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="626"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="678"/>
+        <source>Sets</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Наборы</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="569"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="630"/>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="682"/>
+        <source>Shaders</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Шейдеры</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="592"/>
+        <source>Surfaces</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Поверхности</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="608"/>
+        <source>Popups</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Всплывающие окна</translation>
+    </message>
+    <message>
+        <location filename="../src/settings/controller/settingscontroller_pageregistration.cpp" line="621"/>
+        <source>Pointer</source>
+        <comment>@title settings sidebar page</comment>
+        <translation type="unfinished">Указатель</translation>
     </message>
     <message>
         <location filename="../src/daemon/daemon/workspaces.cpp" line="300"/>

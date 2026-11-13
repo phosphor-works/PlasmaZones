@@ -7,14 +7,16 @@
 // without enumerating every individual header.
 
 #include <PhosphorRegistry/IBarWidgetFactory.h>
+#include <PhosphorRegistry/IBarWidgetPlugin.h>
 #include <PhosphorRegistry/IControlCenterTileFactory.h>
 #include <PhosphorRegistry/IDesktopWidgetFactory.h>
 #include <PhosphorRegistry/IFactoryBase.h>
 #include <PhosphorRegistry/ILauncherProvider.h>
 #include <PhosphorRegistry/ILauncherProviderFactory.h>
 #include <PhosphorRegistry/IOSDFactory.h>
-#include <PhosphorRegistry/Manifest.h>
 #include <PhosphorRegistry/MetadataPackLoader.h>
+#include <PhosphorRegistry/PathKeyedOverrides.h>
+#include <PhosphorRegistry/PluginCatalog.h>
 #include <PhosphorRegistry/PluginLoader.h>
 #include <PhosphorRegistry/Registry.h>
 #include <PhosphorRegistry/RegistryNotifier.h>

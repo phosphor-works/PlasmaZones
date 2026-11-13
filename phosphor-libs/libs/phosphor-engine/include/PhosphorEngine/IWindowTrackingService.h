@@ -6,7 +6,7 @@
 #include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorEngine/WindowPlacementStore.h>
-#include <phosphorengine_export.h>
+#include "phosphorengine_export.h"
 
 #include <QHash>
 #include <QList>

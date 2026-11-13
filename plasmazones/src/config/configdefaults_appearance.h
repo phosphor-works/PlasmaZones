@@ -291,9 +291,10 @@ public:
     {
         return 1.0;
     }
+    // Not zero: at zero every matched window would be drawn invisible.
     static constexpr qreal windowOpacityMin()
     {
-        return 0.0;
+        return 0.1;
     }
     static constexpr qreal windowOpacityMax()
     {

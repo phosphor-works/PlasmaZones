@@ -91,7 +91,7 @@ if(NOT TARGET PhosphorWayland::PhosphorWayland)
     find_package(PhosphorWayland CONFIG REQUIRED)
 endif()
 
-# PhosphorProtocol::Types ships the QtCore-only org.plasmazones.* service /
+# PhosphorProtocol::Types ships the QtCore-only org.phosphor_works.Placement service /
 # object / interface constants. Resolver.h pulls them in for the default
 # endpoint — constants only, no QtDBus from this dependency.
 if(NOT TARGET PhosphorProtocol::Types)
@@ -110,7 +110,15 @@ endif()
 if(NOT DEFINED KDE_INSTALL_INCLUDEDIR)
     include(GNUInstallDirs)
     set(KDE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_LIBDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(NOT DEFINED KDE_INSTALL_BINDIR)
+    include(GNUInstallDirs)
     set(KDE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 endif()
 

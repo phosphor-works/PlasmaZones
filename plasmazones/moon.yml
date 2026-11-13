@@ -40,8 +40,14 @@ tasks:
   # animation, surface and pointer registries carry are compiled by those same
   # gates and by test_animation_pack_bakes and the GPU bake tests, and by no
   # test in phosphor-libs.
+  #
+  # The schemas are the same again: test_shader_schema_bounds reads the four
+  # shader-family metadata schemas from phosphor-libs/data/schemas at run time
+  # (P_SHADER_SCHEMA_DIR), and pins the bounds they hard-code against the
+  # shader contract constants, so a schema edit changes what it asserts.
   test:
     inputs:
+      - '/phosphor-libs/data/schemas/**/*'
       - '/phosphor-libs/libs/phosphor-tiles/src/pluau/pluau.luau'
       - '/phosphor-libs/libs/phosphor-surface-quick/qml/**/*.qml'
       - '/phosphor-libs/libs/phosphor-shaders/src/**/*'

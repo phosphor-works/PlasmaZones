@@ -134,8 +134,6 @@ set(plasmazones_settings_SRCS
     pages/windowappearancecontroller.cpp
     pages/snappingbehaviorcontroller.h
     pages/snappingbehaviorcontroller.cpp
-    pages/snappingeffectscontroller.h
-    pages/snappingeffectscontroller.cpp
     pages/overlayspagecontroller.h
     pages/overlayspagecontroller.cpp
     pages/overlayspagecontroller_sets.cpp
@@ -189,7 +187,7 @@ set(plasmazones_settings_SRCS
     services/settingsstagingdomain.cpp
     # Rules page — the unified rule surface. RuleController
     # owns one RuleModel (QAbstractListModel) and talks to the
-    # daemon's org.plasmazones.Rules adaptor.
+    # daemon's org.phosphor_works.Placement.Rules adaptor.
     rules/rulemodel.h
     rules/rulemodel.cpp
     # Label composition + summaries, split from rulemodel.cpp for file-size.
@@ -607,6 +605,7 @@ qt_add_qml_module(plasmazones-settings
         qml/pages/wizard/WizardPreviewFrame.qml
         qml/js/WizardUtils.js
         qml/js/MatchWireValue.js
+        qml/js/ExportFileName.js
     NO_PLUGIN
 )
 
@@ -672,4 +671,4 @@ target_link_libraries(plasmazones-settings
 )
 
 install(TARGETS plasmazones-settings DESTINATION ${KDE_INSTALL_BINDIR})
-install(FILES org.plasmazones.settings.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES org.phosphor_works.Facet.desktop DESTINATION ${KDE_INSTALL_APPDIR})

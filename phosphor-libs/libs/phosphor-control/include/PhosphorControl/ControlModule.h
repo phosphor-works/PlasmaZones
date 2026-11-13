@@ -1,0 +1,57 @@
+// SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-License-Identifier: LGPL-2.1-or-later
+#pragma once
+
+#include <QtPlugin>
+
+namespace PhosphorControl {
+
+class ModuleContext;
+
+/// The `ApiVersion` a control module's metadata declares, and the version the
+/// PhosphorControlModule_iid below ends in. Both change together.
+inline constexpr int ControlModuleApiVersion = 1;
+
+/// The root object of a control module.
+///
+/// A control module is a Qt plugin in the `control` seam: its root QObject
+/// implements this interface and declares
+/// `Q_PLUGIN_METADATA(IID PhosphorControlModule_iid FILE "module_metadata.json")`,
+/// the metadata phosphor_add_control_module_metadata() generates from the
+/// module's own metadata file and its translations. The metadata describes
+/// the module and its pages (ModuleMetadata), so the host can put them in
+/// the sidebar before the module loads. The module loads the first time one
+/// of its pages is opened, or a page it adds a section to (its metadata's
+/// `Extensions`), or, when its metadata says `"SearchProviders": true`, once a
+/// search query is not blank.
+class IControlModule
+{
+public:
+    virtual ~IControlModule() = default;
+
+    /// Register this module's page controllers, headless staging domains and
+    /// extension sections. Every page and every extension the metadata
+    /// declares must be registered, and nothing it does not declare. Runs on
+    /// the GUI thread when the module loads. Must not throw.
+    ///
+    /// Nothing registered here takes effect until registerInto returns and
+    /// the whole registration checks out. When it does not, the module fails
+    /// and none of it is kept, and a retry calls registerInto again on the
+    /// same root object. So create the controllers and domains inside this
+    /// call, parented to the root object, rather than once up front.
+    ///
+    /// There are two exceptions. ModuleContext::configBackend shares the
+    /// file's backend at once, and the backend stays shared when the
+    /// registration is not kept, so a retry gets the same one back. A search
+    /// provider (ModuleContext::registerSearchProvider) is made once per root
+    /// object, not in each call, since a host may still be asking the one an
+    /// earlier call registered.
+    virtual void registerInto(ModuleContext& context) = 0;
+};
+
+} // namespace PhosphorControl
+
+/// The interface id of a control module. Its last component is
+/// PhosphorControl::ControlModuleApiVersion.
+#define PhosphorControlModule_iid "org.phosphor_works.PhosphorControl.Module/1"
+Q_DECLARE_INTERFACE(PhosphorControl::IControlModule, PhosphorControlModule_iid)

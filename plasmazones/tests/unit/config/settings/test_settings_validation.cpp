@@ -342,12 +342,14 @@ private Q_SLOTS:
     // =========================================================================
     // Schema clampDouble validator (window opacity / tint strength scalars)
     //
-    // Both are [0.0, 1.0] scalars fed straight into the effect's alpha/tint
-    // modulation. The min leg is the load-bearing one: windowOpacity defaults to
-    // 1.0 (== max) and windowTintStrength defaults to 0.0 (== min), so a
-    // clamp-to-bound and a fall-back-to-default are indistinguishable on one side.
-    // Testing the OTHER side of each proves the value snaps to the violated bound
-    // rather than the default.
+    // Both are bounded scalars fed straight into the effect's alpha/tint
+    // modulation. windowTintStrength spans [0.0, 1.0]. windowOpacity spans
+    // [windowOpacityMin, 1.0] with a nonzero min, because at zero every matched
+    // window would be drawn invisible. windowOpacity defaults to its max and
+    // windowTintStrength to its min, so a clamp-to-bound and a
+    // fall-back-to-default are indistinguishable on one side. Testing the OTHER
+    // side of each proves the value snaps to the violated bound rather than the
+    // default.
     // =========================================================================
 
     void testReadValidatedWindowOpacity_belowMin_clampsToMin()
@@ -363,8 +365,37 @@ private Q_SLOTS:
         }
 
         Settings settings;
-        // 0.0 (min) is distinct from the 1.0 default, so a fall-back-to-default
+        // The min is distinct from the 1.0 default, so a fall-back-to-default
         // validator would fail this.
+        QCOMPARE(settings.windowOpacity(), ConfigDefaults::windowOpacityMin());
+    }
+
+    /**
+     * Opacity zero is refused. The slot above compares against
+     * windowOpacityMin() and would stay green if that min dropped back to 0.0,
+     * so this one pins the absolute property instead: neither a stored 0.0 nor
+     * a 0.0 written through the setter ever reads back as an invisible window.
+     */
+    void testWindowOpacity_zeroIsRefused()
+    {
+        IsolatedConfigGuard guard;
+
+        {
+            auto backend = PlasmaZones::createDefaultConfigBackend();
+            auto windows = backend->group(ConfigDefaults::windowsAppearanceGroup());
+            windows->writeDouble(ConfigDefaults::opacityKey(), 0.0);
+            windows.reset();
+            backend->sync();
+        }
+
+        Settings settings;
+        QVERIFY2(settings.windowOpacity() > 0.0, "a stored opacity of 0.0 read back as fully transparent");
+        QCOMPARE(settings.windowOpacity(), ConfigDefaults::windowOpacityMin());
+
+        settings.setWindowOpacity(0.5);
+        QCOMPARE(settings.windowOpacity(), 0.5);
+        settings.setWindowOpacity(0.0);
+        QVERIFY2(settings.windowOpacity() > 0.0, "the setter stored an opacity of 0.0");
         QCOMPARE(settings.windowOpacity(), ConfigDefaults::windowOpacityMin());
     }
 

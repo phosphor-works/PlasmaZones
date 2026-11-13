@@ -18,6 +18,8 @@
  *     cannot find with the shared absent-layout wording rather than leaving
  *     the label empty (an empty label made the browser fall back to the raw
  *     36-character UUID)
+ *   - shaderEffectLayoutUsageCount counts only the layout rows of
+ *     shaderEffectUsages, never the "Global default" row
  *   - assignableLayouts sorts the live rows and appends every override the
  *     registry cannot name, flagged `missing` — the only UI path to a dead
  *     override
@@ -219,6 +221,33 @@ private Q_SLOTS:
                  "the raw UUID reached the label, so the browser prints it verbatim");
 
         QVERIFY(c.shaderEffectUsages(QStringLiteral("unused-pack")).isEmpty());
+    }
+
+    /// shaderEffectLayoutUsageCount counts LAYOUTS: the override rows of
+    /// shaderEffectUsages without its "Global default" row. With the baseline
+    /// on X and two of three layouts overriding X, the dialog lists three rows
+    /// but the "%n layout" chip must say two. The third layout overrides Y, so
+    /// a count that dropped the per-layout shader test would also read three.
+    void testShaderEffectLayoutUsageCount_excludesBaselineRow()
+    {
+        const QString kLayoutC = QStringLiteral("{cccc0000-0000-0000-0000-000000000000}");
+        StubSettings settings;
+        OverlaysPageController c(nullptr, nullptr, &settings, nullptr);
+        c.setShaderOverride(QString(), QStringLiteral("pack-x"), {});
+        c.setShaderOverride(kLayoutA, QStringLiteral("pack-x"), {});
+        c.setShaderOverride(kLayoutB, QStringLiteral("pack-x"), {});
+        c.setShaderOverride(kLayoutC, QStringLiteral("pack-y"), {});
+
+        QCOMPARE(c.shaderEffectUsages(QStringLiteral("pack-x")).size(), 3);
+        QCOMPARE(c.shaderEffectLayoutUsageCount(QStringLiteral("pack-x")), 2);
+        QCOMPARE(c.shaderEffectUsages(QStringLiteral("pack-y")).size(), 1);
+        QCOMPARE(c.shaderEffectLayoutUsageCount(QStringLiteral("pack-y")), 1);
+        QCOMPARE(c.shaderEffectLayoutUsageCount(QStringLiteral("unused-pack")), 0);
+        QCOMPARE(c.shaderEffectLayoutUsageCount(QString()), 0);
+
+        // The null-settings seam answers zero rather than dereferencing.
+        OverlaysPageController bare(nullptr, nullptr, nullptr, nullptr);
+        QCOMPARE(bare.shaderEffectLayoutUsageCount(QStringLiteral("pack-x")), 0);
     }
 
     /// The signal's two arms. A write this controller made names the node it

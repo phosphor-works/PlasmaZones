@@ -10,10 +10,9 @@ or to a named curve under plasmazones/data/curves/.
 
 NOT wired to anything. It used to run as a CMake custom-command; that
 target was removed when the tree stopped shipping per-leaf profile JSONs
-(see the note below and plasmazones/CMakeLists.txt, which records the
-removal). plasmazones/data/profiles/ does not currently exist, so a run
-returns 0 having inspected nothing. Kept as a manual tool for the day
-that tree comes back; run it by hand, or re-add a CMake target, rather
+(see the note below). plasmazones/data/profiles/ does not currently exist,
+so a run returns 0 having inspected nothing. Kept as a manual tool for the
+day that tree comes back; run it by hand, or re-add a CMake target, rather
 than assuming the build checks this.
 
 Exits non-zero on any unresolved reference.

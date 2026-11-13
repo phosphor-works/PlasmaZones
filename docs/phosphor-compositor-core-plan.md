@@ -219,7 +219,7 @@ src/compositor/    — The compositor binary (main(), wiring)
 - Tier 3: New `ICompositorPlugin` interface loaded via QPluginLoader. Hooks: render pass insertion, protocol global registration, input filters, event subscriptions.
 - Security: Luau sandboxed (memory + CPU), QML in shell process (isolated), C++ trusted (same address space)
 
-**Integrates:** `phosphor-scripting` (LuauEngine, LuauWatchdog), `phosphor-registry` (PluginLoader, Registry, Manifest), `phosphor-shell` (ShellEngine), `phosphor-ipc` (plugin IPC channel)
+**Integrates:** `phosphor-scripting` (LuauEngine, LuauWatchdog), `phosphor-registry` (PluginCatalog, PluginLoader, Registry), `phosphor-shell` (ShellEngine), `phosphor-ipc` (plugin IPC channel)
 
 **Verify:** Luau script auto-centers new windows, QML clock applet loads in panel, C++ wobbly-windows effect renders, hot-reload works
 

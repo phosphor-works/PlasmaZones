@@ -646,7 +646,6 @@ private Q_SLOTS:
         QCOMPARE(settings.keepWindowsInZonesOnResolutionChange(),
                  ConfigDefaults::keepWindowsInZonesOnResolutionChange());
         QCOMPARE(settings.restoreOriginalSizeOnUnsnap(), ConfigDefaults::restoreOriginalSizeOnUnsnap());
-        QCOMPARE(settings.excludeTransientWindows(), ConfigDefaults::excludeTransientWindows());
 
         // PhosphorZones::Zone selector defaults
         QCOMPARE(settings.zoneSelectorEnabled(), ConfigDefaults::zoneSelectorEnabled());
