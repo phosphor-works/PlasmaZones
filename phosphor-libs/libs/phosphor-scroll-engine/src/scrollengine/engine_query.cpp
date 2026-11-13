@@ -46,8 +46,9 @@ ScrollLayoutParams ScrollEngine::layoutParamsForKey(const PhosphorEngine::Placem
     // pinned key must get the gaps the apply laid the strip out with, or an
     // exact compare against an applied rect (reportCommittedSize's whole-tile
     // check) refuses a genuine answer. Any other key is a BACKGROUND context
-    // and resolves entirely against itself: its own gap rules, its own
-    // override map, its own strip's column count.
+    // and resolves entirely against itself (see @p unseen for a context with
+    // no override map yet): its own gap rules, its own override map, its own
+    // strip's column count.
     const PhosphorEngine::PlacementStateKey currentKey = m_context.currentKeyForScreen(screenId);
     const bool currentContext = key == currentKey || (key.desktop == 0 && key.activity.isEmpty());
     const PhosphorEngine::PlacementStateKey contextKey = currentContext ? currentKey : key;

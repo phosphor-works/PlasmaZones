@@ -13,8 +13,6 @@
 #include <PhosphorTiles/TilingState.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorScreens/Manager.h>
-#include <PhosphorZones/AssignmentEntry.h>
-#include <PhosphorZones/LayoutRegistry.h>
 #include "evacueepark_p.h"
 #include "tileenginelogging.h"
 

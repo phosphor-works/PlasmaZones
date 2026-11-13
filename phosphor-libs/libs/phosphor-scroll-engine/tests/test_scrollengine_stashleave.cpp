@@ -549,6 +549,60 @@ private Q_SLOTS:
         QCOMPARE(focusedFirst.anchor, focusedFirst.derivedAnchor);
     }
 
+    // A late exact-id claim on a record that carries no view hands back the
+    // view the user has now. The user centered the last column, which leaves
+    // the view past the strip's trailing end on purpose, and the claim that
+    // opens a column before it keeps that overhang rather than pulling the
+    // column flush to the trailing edge (C115).
+    void lateClaimKeepsACenteredLastColumn()
+    {
+        QObject owner;
+        const QRect shorter = Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent));
+        ScrollEngine* engine = movedStripEngine(&owner, shorter, kD);
+        for (const QString& windowId : {kA, kB, kD}) {
+            engine->windowOpened(windowId, kS2, 0, 0);
+        }
+        const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS2));
+        QVERIFY(target);
+        QCOMPARE(target->strip().columnCount(), 3);
+        QCOMPARE(target->strip().activeWindowId(), kD);
+        engine->centerColumn(kS2);
+        const int centered = target->strip().viewAnchor();
+        // Centered on a 900 px view: the 450 px column starts 225 px in.
+        QCOMPARE(centered, 225);
+
+        engine->windowOpened(kC, kS2, 0, 0); // claims its slot before d
+        QCOMPARE(target->strip().columnCount(), 4);
+        QCOMPARE(engine->columnIndexForWindow(kS2, kC), 2);
+        QCOMPARE(target->strip().activeWindowId(), kD);
+        QCOMPARE(target->strip().viewAnchor(), centered);
+    }
+
+    // The lone-column rule centers the focused window's column while it is
+    // the only one, which leaves the view before the strip's leading edge.
+    // Once its neighbours land the rule no longer holds, and the rebuilt
+    // strip shows the first column at the leading edge instead of keeping
+    // the dead space before it (C116).
+    void loneColumnCenteringEndsWhenNeighboursLand()
+    {
+        QObject owner;
+        const QRect shorter = Ax::t(QRect(0, 0, 900, ScrollTestUtils::kCrossExtent));
+        ScrollEngine* engine = movedStripEngine(&owner, shorter, kA);
+        QVariantMap loneCentered;
+        loneCentered.insert(ScrollPerScreenKeys::alwaysCenterSingleColumn(), true);
+        engine->applyPerScreenConfig(kS2, loneCentered);
+        engine->windowOpened(kA, kS2, 0, 0);
+        const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS2));
+        QVERIFY(target);
+        QVERIFY2(target->strip().viewAnchor() > 0, "precondition: the lone column is centered");
+        for (const QString& windowId : {kB, kC, kD}) {
+            engine->windowOpened(windowId, kS2, 0, 0);
+        }
+        QCOMPARE(target->strip().columnCount(), 4);
+        QCOMPARE(target->strip().activeWindowId(), kA);
+        QCOMPARE(target->strip().viewAnchor(), 0);
+    }
+
     // A mode round trip across a rotation drops the stashed view, which was
     // captured on the other axis. When the focus lands first the rebuilt
     // strip still ends on the view the policy derives for it, as a record
@@ -749,6 +803,38 @@ private Q_SLOTS:
         QCOMPARE(held->desktop, 2);
     }
 
+    // A background desktop of a screen this engine does not scroll has no
+    // strip unless one was kept from when it scrolled, and none is built for
+    // it. A receive into such a desktop is refused before it gives up
+    // anything the window still has elsewhere: its stashed column on S2 is
+    // still there when S2 scrolls again (C117).
+    void refusedBackgroundReceiveKeepsTheWindowsRecords()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1, kS2});
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        engine->setCurrentDesktopForScreen(kS2, 1);
+        engine->windowOpened(kA, kS2, 0, 0);
+        engine->windowOpened(kB, kS2, 0, 0);
+        engine->windowFocused(kA, kS2);
+        engine->adjustColumnWidth(10.0, kS2);
+        QCOMPARE(Ax::mainLen(engine->lastManagedRect(kA)), kWidenedMain);
+        engine->setActiveScreens({});
+
+        PhosphorEngine::IPlacementEngine::HandoffContext ctx;
+        ctx.windowId = kA;
+        ctx.fromEngineId = QStringLiteral("snap");
+        ctx.toScreenId = kS1;
+        ctx.toDesktop = 3;
+        engine->handoffReceive(ctx);
+        QVERIFY(!engine->isWindowTracked(kA));
+
+        engine->setActiveScreens({kS2});
+        engine->windowOpened(kA, kS2, 0, 0);
+        engine->windowOpened(kB, kS2, 0, 0);
+        QCOMPARE(Ax::mainLen(engine->lastManagedRect(kA)), kWidenedMain);
+    }
+
     // A window on two desktops is adopted into the second while its moved
     // column is still waiting for a column-mate on the first. The adoption is
     // no arrival elsewhere for that record: the window still holds the
@@ -875,6 +961,32 @@ private:
         probe.focusWindow(kA, params);
         probe.focusWindow(windowId, params);
         return probe.viewAnchor();
+    }
+
+    /// A four-column strip on S1 focused on @p focused, recorded for S2's
+    /// desktop 1 on an S2 of @p targetRect and released, with S2 then showing
+    /// desktop 1. Nothing has arrived on S2 yet.
+    static ScrollEngine* movedStripEngine(QObject* owner, const QRect& targetRect, const QString& focused)
+    {
+        ScrollEngine* engine = makeProviderEngine(owner, {kS1, kS2}, [targetRect](const QString& screenId) {
+            return screenId == kS2 ? targetRect : Ax::defaultScreenRect();
+        });
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        engine->setCurrentDesktopForScreen(kS2, 2);
+        const QStringList riders{kA, kB, kC, kD};
+        for (const QString& windowId : riders) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(focused, kS1);
+        if (!engine->stashStripForOutputMove(kS1, kS2, 1, riders)) {
+            qWarning("movedStripEngine: nothing was recorded");
+        }
+        for (const QString& windowId : riders) {
+            engine->handoffRelease(windowId);
+            engine->releaseWindowOffScreen(windowId, kS2);
+        }
+        engine->setCurrentDesktopForScreen(kS2, 1);
+        return engine;
     }
 
     /// A four-column strip on S1 focused on @p focused, its view panned by

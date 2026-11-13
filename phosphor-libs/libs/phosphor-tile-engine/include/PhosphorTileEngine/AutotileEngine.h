@@ -614,8 +614,11 @@ public:
     void setContextGapProvider(std::function<QVariantMap(const QString& screenId)> provider);
 
     /// Whether a (screenId, desktop, activity) context tiles, as the daemon resolves it (feature switch, disabled
-    /// cascade, autotile:none): readoptParked seats or grants a parked context only when it does (F1137). Unset, the
-    /// raw assignment decides. A bool keeps the zones-layer mode type out of this header. Clear with {} at teardown.
+    /// cascade, autotile:none). Read through contextRunsAutotile for a context its screen does not show, where
+    /// isAutotileScreen cannot answer: readoptParked seats or grants a parked context only when it does (F1137), and
+    /// handoffReceive takes an arrival for a background context (a refused handoff's re-home) only when it does
+    /// (C101). Unset, the raw assignment decides, and with no layout manager either, every context tiles. A bool
+    /// keeps the zones-layer mode type out of this header. Clear with {} at teardown.
     using ContextTilesResolver = std::function<bool(const QString& screenId, int desktop, const QString& activity)>;
     void setContextModeResolver(ContextTilesResolver resolver)
     {

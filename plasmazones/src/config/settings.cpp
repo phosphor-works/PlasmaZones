@@ -79,12 +79,15 @@ NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString,
 /// The identity each id-less entry of @p side continues from the baseline,
 /// keyed by its name. @p baselineIdless holds the baseline's id-less entries
 /// in list order as (name, identity). An entry keeps the identity of the
-/// baseline entry with its name. When exactly one entry is left over on each
-/// side, those two pair up: that is how an entry that never had an id reads
-/// after the daemon renamed it in place (a rename made in KWin), which no name
-/// can match. More than one leftover stays unpaired, because nothing says
-/// which is which and list order is not evidence: pairing them wrongly would
-/// hand one workspace's edits to another.
+/// baseline entry with its name. When the entries left over on both sides are
+/// equally many, they pair up in list order: that is how entries that never
+/// had an id read after the daemon renamed them in place (renames made in
+/// KWin), which no name can match. List order is sound here, unlike in
+/// Settings::setWorkspacesNamedEntries' stamp pairing, because both lists come
+/// from disk: the daemon's rewrites (namedWorkspaceRenamedInKWin,
+/// namedWorkspaceMoved) edit an entry in place and never reorder, add or
+/// remove one, and a settings save stamps an id on every entry, so nothing it
+/// writes stays id-less.
 QHash<QString, QString> continuedIdlessIdentities(const QList<std::pair<QString, QString>>& baselineIdless,
                                                   const QVariantList& side)
 {
@@ -115,8 +118,10 @@ QHash<QString, QString> continuedIdlessIdentities(const QList<std::pair<QString,
             unmatchedBaseIdentities.append(identity);
         }
     }
-    if (unmatchedSide.size() == 1 && unmatchedBaseIdentities.size() == 1) {
-        identities.insert(unmatchedSide.constFirst(), unmatchedBaseIdentities.constFirst());
+    if (unmatchedSide.size() == unmatchedBaseIdentities.size()) {
+        for (qsizetype i = 0; i < unmatchedSide.size(); ++i) {
+            identities.insert(unmatchedSide.at(i), unmatchedBaseIdentities.at(i));
+        }
     }
     return identities;
 }
@@ -151,8 +156,11 @@ bool namedEntryEditedBeyondId(const QVariantMap& base, const QVariantMap& mine)
 ///    several writes, cannot mislead it. A stamped id with no recorded origin
 ///    falls back to the baseline id-less entry of its current name.
 ///  - Disk: an id-less disk entry continues the id-less baseline entry of its
-///    name, or the one leftover on each side pairs up
-///    (continuedIdlessIdentities), which catches a rename made in KWin.
+///    name, or the leftovers pair up in list order when equally many
+///    (continuedIdlessIdentities), which catches renames made in KWin. Both
+///    lists come from disk, whose id-less entries only the daemon rewrites,
+///    in place. The stamp pairing at write time pairs one leftover at most,
+///    because its two lists need not come from the same writer.
 ///
 /// Per identity:
 ///  - removed locally: stays removed.

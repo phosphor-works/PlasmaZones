@@ -263,15 +263,15 @@ void PlasmaZonesEffect::applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualD
     // picks on the window's committed output, which after sendToOutput names
     // the destination when the size is unchanged and still the source while a
     // size change waits for the client, so a hand-off after the legs focused
-    // either monitor depending on the window's size. Handing off first also keeps sendToOutput from making the
-    // destination the active output, which it does only for the active
-    // window. Two costs, both kept: with Next Focus Prefers Mouse the window
-    // is still under the pointer, so KWin skips it and takes the focus chain's
-    // pick rather than whatever the pointer uncovers; and a leg KWin then
-    // refuses (a Force screen or desktop rule) gives the focus back, so it
-    // passes through the successor and returns. The refusal cannot be decided
-    // first: KWin answers it in WindowRules::checkOutput and checkDesktops,
-    // which libkwin does not export to effects.
+    // either monitor depending on the window's size. Handing off first also
+    // keeps sendToOutput from making the destination the active output, which
+    // it does only for the active window. Two costs, both kept: with Next Focus
+    // Prefers Mouse the window is still under the pointer, so KWin skips it and
+    // takes the focus chain's pick rather than whatever the pointer uncovers;
+    // and a leg KWin then refuses (a Force screen or desktop rule) gives the
+    // focus back, so it passes through the successor and returns. The refusal
+    // cannot be decided first: KWin answers it in WindowRules::checkOutput and
+    // checkDesktops, which libkwin does not export to effects.
     //
     // A desktop-only move keeps KWin's own order (Workspace::sendWindowToDesktops
     // hands off after setDesktops): the committed output does not change, so

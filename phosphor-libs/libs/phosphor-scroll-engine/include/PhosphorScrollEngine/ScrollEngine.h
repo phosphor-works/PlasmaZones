@@ -1061,8 +1061,9 @@ public:
 
     /// Scrolling-mode resolver: whether a context runs Scrolling as the daemon resolves it (feature switch and
     /// disabled cascade included, F1137). claimCrossScreenReopen asks it of the RECORDED context (unset: it never
-    /// claims), and readoptParked of a context not in view, which gets nothing back once it stopped scrolling
-    /// (unset: every context still scrolls).
+    /// claims), readoptParked of a context not in view, which gets nothing back once it stopped scrolling
+    /// (unset: every context still scrolls), and handoffReceive of a background desktop it receives into, on the
+    /// same terms as readoptParked.
     void setScrollingModeResolver(ModeResolver resolver)
     {
         m_scrollingModeResolver = std::move(resolver);
@@ -1461,8 +1462,9 @@ private:
     /// wrong ones through the screen-only form — the anchor it then derives is
     /// measured with the desktop-in-view's gaps and can survive the desktop
     /// return, because updateViewForFocus leaves a fully visible column alone.
-    /// A background key resolves everything against itself: its gap rules,
-    /// its override map and its own strip's column count for smart gaps. The
+    /// A background key resolves everything against itself (see @p unseen):
+    /// its gap rules, its override map and its own strip's column count for
+    /// smart gaps. The
     /// screen's CURRENT key resolves exactly as layoutParamsForScreen does
     /// (gaps asked for desktop 0, "what the screen shows now"), so under a
     /// sticky pin the pinned key gets the gaps the apply used.

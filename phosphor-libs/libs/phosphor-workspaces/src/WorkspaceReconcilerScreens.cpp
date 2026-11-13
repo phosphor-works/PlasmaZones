@@ -234,11 +234,15 @@ void WorkspaceReconciler::onScreenRenamed(const QString& fromScreenId, const QSt
     // At most one switch is open per screen (openSetCurrentIndex): one the
     // new id already has keeps the screen, and the old id's is dropped rather
     // than renamed beside it. The kept switch owes nothing for the dropped
-    // one. A switch under the new id means the effect has already re-spelled
-    // the output (a report or a verb under the new id came from it), and its
-    // reports and verbs arrive in order on one connection, so no answer under
-    // the old spelling can follow. Creates are re-homed whatever, since KWin
-    // answers every one of them.
+    // one. A switch under the new id, open before this rename, means the
+    // effect has already re-spelled the output: until the rename, the new
+    // spelling can only have come from the effect (its report, or the screen
+    // it reported that a verb resolved to). The daemon's own spelling of an
+    // output changes in the same synchronous screen-add or screen-remove
+    // emission that delivers this rename. The effect's messages arrive in
+    // order on one connection, so no answer under the old spelling can
+    // follow. Creates are re-homed whatever, since KWin answers every one of
+    // them.
     const bool toHasSwitch = openSetCurrentIndex(toScreenId) >= 0;
     for (int i = m_ledger.size() - 1; i >= 0; --i) {
         PendingOp& op = m_ledger[i];

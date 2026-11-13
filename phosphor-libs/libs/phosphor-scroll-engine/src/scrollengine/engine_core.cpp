@@ -799,6 +799,10 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
     const QString focusBeforeInsert = state->strip().activeWindowId();
     const int anchorBeforeInsert = state->strip().viewAnchor();
     const bool detachedBeforeInsert = state->strip().viewDetached();
+    // And how far that view hung past either end of the strip, with whether
+    // the centering policy put it there, for the hand-back below (C115, C116).
+    const ScrollStrip::ViewOverhang overhangBeforeInsert = state->strip().viewOverhang(params);
+    const bool policyCenteredBeforeInsert = state->strip().isCenteringActiveColumn(params);
     const StashedColumn& sc = stash.at(colIdx);
     bool inserted = false;
     // A stashed sibling already present re-locates the live column — the
@@ -973,18 +977,25 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
     // its focus landed, on whatever part of the strip stood then. Handed back
     // raw over a longer strip it undid insertWindowAt's re-clamp, and a focus
     // that landed first ended at the leading edge with dead space after it
-    // (C94). That hand-back is clamped at the trailing edge, as the drag
-    // settle is: dead space past the strip's end goes, and a leading
-    // overhang the centering mutators store stays. A late arrival on such an
-    // entry is an ordinary positional insert under the user's view, and
-    // insertWindowAt clamps those too.
+    // (C94). So that hand-back is clamped into the strip at both ends, except
+    // for the overhang the view already had before the insert: a centered
+    // first or last column hangs past the strip's leading or trailing end on
+    // purpose (centerActiveColumn stores it unclamped), and a late arrival
+    // under the user's view keeps it as a viewCarried entry would (C115). An
+    // overhang the centering POLICY made is not kept: the lone-column rule
+    // centers a strip of one column, and once a neighbour lands the rule no
+    // longer holds, so a view it centered would leave dead space before the
+    // first column (C116); the Always policy re-centers on the next layout
+    // pass whatever is handed back here.
     const bool stashedViewApplies = stashStrip.viewCarried && stashStrip.axis == params.axis.axis();
     if (focusRestoredEarlier) {
         if (!focusBeforeInsert.isEmpty() && state->strip().containsWindow(focusBeforeInsert)) {
             state->strip().focusWindow(focusBeforeInsert, params);
             state->strip().restoreViewAnchor(anchorBeforeInsert, params);
             if (!stashedViewApplies) {
-                state->strip().clampViewIntoStrip(params);
+                const ScrollStrip::ViewOverhang kept =
+                    policyCenteredBeforeInsert ? ScrollStrip::ViewOverhang{} : overhangBeforeInsert;
+                state->strip().clampViewOverhang(params, kept.leading, kept.trailing);
             }
             state->strip().setViewDetached(detachedBeforeInsert);
         }

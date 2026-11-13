@@ -117,6 +117,13 @@ void ScrollEngine::handoffReceive(const HandoffContext& ctx)
     if (!contextScrolls) {
         return;
     }
+    // stateForKey builds no strip on a screen outside the scrolling set, so a
+    // background desktop there receives only into the strip it kept from when
+    // it last scrolled. Without one the receive is refused HERE, before the
+    // records below are given up for an arrival that cannot happen (C117).
+    if (!m_scrollingScreens.contains(ctx.toScreenId) && !m_states.stateForKey(key)) {
+        return;
+    }
     m_closedFullscreenHolds.remove(windowId); // any re-entry ends the closed-hold answer
     // Same preview hygiene as handoffRelease: an arriving window that a
     // live preview still names would be double-placed at commit.

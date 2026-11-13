@@ -306,8 +306,8 @@ struct FloatRestore
     /// slot it takes the window out of, which a drop that degrades to a float
     /// keeps). Each tileIndex is a slot in the column as it stood at that
     /// leave, so putting several of a column's departed tiles back at once
-    /// replays the leaves newest first
-    /// (ScrollEngine::columnTilesWithHiddenMembers). 0 for an entry no leave
+    /// replays the leaves newest first (see
+    /// ScrollEngine::columnTilesWithHiddenMembers). 0 for an entry no leave
     /// stamped (no shared column to go back into).
     quint64 leaveSequence = 0;
     /// Minimum frame size (Tile::minWidth) at float time — the tile that held

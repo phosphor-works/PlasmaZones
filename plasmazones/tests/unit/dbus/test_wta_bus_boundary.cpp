@@ -545,6 +545,24 @@ private Q_SLOTS:
         QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
         QCOMPARE(f.snap->zoneForWindow(windowId), f.zone(0));
     }
+
+    // The cursor arm of the same fallback: with the cursor last reported on
+    // one of the monitor's virtual screens and no frame to go by, that screen
+    // answers, and it is still a guess (C104).
+    void busScreenOfAPhysicalIdTakesTheCursorsVirtualScreenAsAGuess()
+    {
+        FloatBackFixture f;
+        QVERIFY(f.screenMgr->setVirtualScreenConfig(kRight, TestHelpers::makeSplitConfig(kRight)));
+        const QString vs1 = QStringLiteral("DP-2/vs:1");
+        f.wta->cursorScreenChanged(vs1);
+        QCOMPARE(f.wta->lastCursorScreenName(), vs1);
+        const QString windowId = f.registerWindow(QStringLiteral("split-cursor"));
+        QVERIFY(f.wta->frameGeometry(windowId).isNull());
+
+        bool guessed = false;
+        QCOMPARE(f.wta->resolveBusScreen(kRight, windowId, &guessed), vs1);
+        QVERIFY(guessed);
+    }
 };
 
 QTEST_MAIN(TestWtaBusBoundary)

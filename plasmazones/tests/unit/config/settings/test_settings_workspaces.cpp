@@ -816,6 +816,35 @@ private Q_SLOTS:
         QCOMPARE(entryIds(merged), (QStringList{x, y}));
     }
 
+    /// Two id-less entries renamed in KWin land in one preserving reload while
+    /// the user holds an unsaved chord edit to one of them. Disk's id-less
+    /// entries pair with the baseline's in list order, which the daemon's
+    /// in-place rewrites keep, so each renamed entry stays one workspace and
+    /// the chord stays on the right one.
+    void reloadPreservingLocalEdits_twoKWinRenamesPairInListOrder()
+    {
+        IsolatedConfigGuard guard;
+        const QString x = QUuid::createUuid().toString();
+        const QString y = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries(
+            {namedEntry(QVariant(), QStringLiteral("A")), namedEntry(QVariant(), QStringLiteral("B"))});
+        QVERIFY(settings.save());
+
+        QVariantMap withChord = namedEntry(x, QStringLiteral("A"));
+        withChord[ConfigDefaults::namedEntryFocusShortcutField()] = QStringLiteral("Meta+Ctrl+F1");
+        settings.setWorkspacesNamedEntries({withChord, namedEntry(y, QStringLiteral("B"))});
+        writeNamedFromAnotherProcess(
+            {namedEntry(QVariant(), QStringLiteral("A2")), namedEntry(QVariant(), QStringLiteral("B2"))});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("A2@-1"), QStringLiteral("B2@-1")}));
+        QCOMPARE(entryIds(merged), (QStringList{x, y}));
+        QCOMPARE(merged.constFirst().toMap().value(ConfigDefaults::namedEntryFocusShortcutField()).toString(),
+                 QStringLiteral("Meta+Ctrl+F1"));
+    }
+
     /// A clean backend reparses the file right before a write. When KWin
     /// renamed two id-less entries meanwhile and the page, still holding the
     /// older list, writes them reordered and stamped, no name pairs the

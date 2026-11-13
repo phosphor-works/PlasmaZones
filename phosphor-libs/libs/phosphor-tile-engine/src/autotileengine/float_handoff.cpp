@@ -431,7 +431,13 @@ void AutotileEngine::handoffReceive(const HandoffContext& ctx)
         } else {
             m_windowMinSizes.remove(windowId);
         }
-        retileAfterOperation(ctx.toScreenId, true);
+        // A background destination reflows when its desktop is shown, as the
+        // success arm below memoes it, and leaves the context in view alone.
+        if (destInView) {
+            retileAfterOperation(ctx.toScreenId, true);
+        } else {
+            m_dirtyBackgroundContexts.insert(destKey);
+        }
         return;
     }
     // Autotile-engine policy on receive: a window arriving as "floating in
