@@ -217,9 +217,11 @@ Window {
         property string disabledReason: ""
         // Overlay glyph for the message card. Two daemon writers set it on
         // every show (OverlayService::showMessageCard): showDisabledOsd
-        // writes "dialog-cancel" for a refusal and showInfoOsd writes
-        // "dialog-information" for good news. The QML default only covers
-        // the never-shown pre-first-write state. LayoutOsdContent.qml tints
+        // writes "dialog-cancel" for a requested change that had no effect
+        // or was undone, and showInfoOsd writes "dialog-information" for a
+        // hint that reports something done on the user's behalf, not a
+        // refusal. The QML default only covers the never-shown
+        // pre-first-write state. LayoutOsdContent.qml tints
         // the glyph grey only for "dialog-cancel", and the text-OSD
         // fallbacks in daemon/osd.cpp, daemon/cheatsheet.cpp and
         // daemon/workspaces.cpp spell the same icon names.

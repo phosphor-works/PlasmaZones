@@ -391,7 +391,7 @@ QVariantMap SettingsController::workspaceShortcutConflict(const QString& chord, 
             continue;
         }
         const QString label = workspaceChordLabel(property);
-        return conflict(property, label.isEmpty() ? PhosphorI18n::tr("another PlasmaZones shortcut") : label);
+        return conflict(property, label.isEmpty() ? PhosphorI18n::tr("another PlasmaZones action") : label);
     }
 
     // The named workspaces' own chords, from the in-memory list (so another

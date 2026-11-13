@@ -583,6 +583,7 @@ QVector<StashedTile> ScrollEngine::columnTilesWithHiddenMembers(const ScrollStat
     struct Hidden
     {
         int slot;
+        quint64 leftAt;
         StashedTile tile;
     };
     QVector<Hidden> hidden;
@@ -599,13 +600,18 @@ QVector<StashedTile> ScrollEngine::columnTilesWithHiddenMembers(const ScrollStat
         StashedTile entry;
         entry.windowId = windowId;
         entry.height = restore->height;
-        hidden.append({qMax(0, restore->tileIndex), entry});
+        hidden.append({qMax(0, restore->tileIndex), restore->leaveSequence, entry});
     }
-    // Ascending by slot, so each insert lands where the slot says with the
-    // members before it already in place. A slot past the end (siblings left
-    // since the window did) clamps onto the end.
+    // The leaves replayed in reverse (C43). Each slot indexes the column as it
+    // stood when that member left, so the member that left last goes back
+    // first, into the column it left, and each earlier one then finds the
+    // column it left too. An order by slot misplaces two members that left
+    // from the same slot (the floating set is sorted by id, which decides
+    // their order) and a member that left from a slot above one that left
+    // before it. A slot past the end (siblings left since the window did)
+    // clamps onto the end.
     std::stable_sort(hidden.begin(), hidden.end(), [](const Hidden& a, const Hidden& b) {
-        return a.slot < b.slot;
+        return a.leftAt > b.leftAt;
     });
     for (const Hidden& entry : std::as_const(hidden)) {
         tiles.insert(qMin(entry.slot, int(tiles.size())), entry.tile);

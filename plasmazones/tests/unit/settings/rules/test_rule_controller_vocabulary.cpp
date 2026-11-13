@@ -30,6 +30,8 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QLocale>
+#include <QScopeGuard>
 
 using namespace PlasmaZones;
 
@@ -48,6 +50,7 @@ private Q_SLOTS:
     void actionTypesCarryDomain();
     void defaultPayloadForSeedsParams();
     void modeScopedInertHintNamesActionsDecidedBeforeTheMode();
+    void modeScopedInertHintJoinsInTheTranslationLanguage();
 };
 
 void TestRuleControllerVocabulary::engineModePickerExposesAllVocabularyTokens()
@@ -587,6 +590,36 @@ void TestRuleControllerVocabulary::modeScopedInertHintNamesActionsDecidedBeforeT
     QCOMPARE(controller.modeScopedInertHint(ruleWith(screenMatch, {ActionType::RouteToScreen, ActionType::SnapToZone})),
              QString());
     QCOMPARE(controller.modeScopedInertHint(ruleWith(modeMatch, {ActionType::SetOsdEnabled})), QString());
+}
+
+void TestRuleControllerVocabulary::modeScopedInertHintJoinsInTheTranslationLanguage()
+{
+    // Two inert actions are named as one list. The list joins in the language
+    // the sentence is translated into, not in the system locale's: with no
+    // translation loaded the sentence is English, so a German system locale
+    // must not put "und" into it.
+    using namespace PhosphorRules;
+    const QLocale previous;
+    QLocale::setDefault(QLocale(QLocale::German, QLocale::Germany));
+    const auto restoreLocale = qScopeGuard([previous] {
+        QLocale::setDefault(previous);
+    });
+    RuleController controller;
+
+    QJsonArray actions;
+    actions.append(QJsonObject{{QStringLiteral("type"), QString(ActionType::RouteToScreen)}});
+    actions.append(QJsonObject{{QStringLiteral("type"), QString(ActionType::RouteToDesktop)}});
+    const QVariantMap rule = QJsonObject{
+        {QStringLiteral("match"),
+         MatchExpression::makeLeaf(Field::Mode, Operator::Equals, QStringLiteral("snapping")).toJson()},
+        {QStringLiteral("actions"),
+         actions}}.toVariantMap();
+
+    const QString hint = controller.modeScopedInertHint(rule);
+    const QString expected = QStringLiteral("“%1” and “%2”")
+                                 .arg(RuleAuthoring::actionTypeLabel(QString(ActionType::RouteToScreen)),
+                                      RuleAuthoring::actionTypeLabel(QString(ActionType::RouteToDesktop)));
+    QVERIFY2(hint.contains(expected), qPrintable(hint));
 }
 
 QTEST_MAIN(TestRuleControllerVocabulary)

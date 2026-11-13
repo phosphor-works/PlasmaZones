@@ -15,6 +15,7 @@
 #include "dbus/windowtrackingadaptor/lifecyclerelay.h"
 
 #include <PhosphorEngine/EngineTypes.h>
+#include <PhosphorPlacement/SnapStateResolver.h>
 #include <PhosphorProtocol/WindowTypes.h>
 
 #include <QScopeGuard>
@@ -598,6 +599,84 @@ private Q_SLOTS:
         QCOMPARE(args.at(6).toString(), QStringLiteral("DP-2"));
         const int x = args.at(1).toInt();
         QVERIFY2(x >= 1920 && x < 3840, "the window must land within DP-2's geometry");
+    }
+
+    // A pending sweep that re-drives a window whose open was already routed
+    // is not its first placement (C31). The open took the bare RouteToScreen
+    // to DP-2; the window is still reported on DP-1 (the move was refused or
+    // the user put it back), and the sweep must not send it to DP-2 again.
+    void testPendingSweepAfterARoutedOpenRoutesNothing()
+    {
+        PhosphorScreens::FakePhysicalScreenSource fake;
+        fake.addScreen(QStringLiteral("DP-1"), QRect(0, 0, 1920, 1080), QStringLiteral("DP-1"));
+        fake.addScreen(QStringLiteral("DP-2"), QRect(1920, 0, 1920, 1080), QStringLiteral("DP-2"));
+        PhosphorScreens::ScreenManager screenMgr(
+            PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
+        screenMgr.start();
+        // The snap open path refuses until the panel geometry is in.
+        QTRY_VERIFY(screenMgr.isPanelGeometryReady());
+
+        QObject parent;
+        auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
+                                              &parent);
+        const auto snap =
+            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
+        snap->setEngineSettings(m_settings);
+        wta->service()->setSnapState(snap->snapState());
+        wta->service()->setSnapEngine(snap.get());
+        wta->setEngines(snap.get(), nullptr, nullptr);
+        auto* snapAdaptor = new SnapAdaptor(snap.get(), wta, m_settings, &parent);
+
+        auto* registry = new PhosphorEngine::WindowRegistry(&parent);
+        wta->setWindowRegistry(registry);
+        wta->setWindowMetadata(QStringLiteral("sweep1"), QStringLiteral("sweepapp"), QString(), QString(), QString(), 0,
+                               0, QString(), 0, QVariantMap());
+
+        using namespace PhosphorRules;
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.enabled = true;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("sweepapp"));
+        RuleAction route;
+        route.type = QString(ActionType::RouteToScreen);
+        route.params.insert(QString(ActionParam::TargetScreenId), QStringLiteral("DP-2"));
+        rule.actions = {route};
+        RuleStore store(ConfigDefaults::rulesFilePath(), &parent);
+        QVERIFY(store.addRule(rule));
+        wta->setRuleStore(&store);
+        const auto teardown = qScopeGuard([wta, snapAdaptor] {
+            snapAdaptor->clearEngine();
+            wta->setRuleStore(nullptr);
+            wta->setWindowRegistry(nullptr);
+            wta->service()->setSnapEngine(nullptr);
+            wta->service()->setSnapState(nullptr);
+        });
+
+        const QString w = QStringLiteral("sweepapp|sweep1");
+        wta->setFrameGeometry(w, 100, 100, 800, 600);
+        QSignalSpy geomSpy(wta, &WindowTrackingAdaptor::applyGeometryRequested);
+        const auto drive = [&](PhosphorEngine::RestoreReason reason) {
+            int x = 0;
+            int y = 0;
+            int width = 0;
+            int height = 0;
+            bool shouldSnap = false;
+            snapAdaptor->resolveWindowRestore(w, QStringLiteral("DP-1"), false,
+                                              static_cast<int>(PhosphorEngine::WindowKind::Unknown),
+                                              static_cast<int>(reason), 0, 0, x, y, width, height, shouldSnap);
+        };
+        const auto routedToDp2 = [&geomSpy]() {
+            return std::count_if(geomSpy.cbegin(), geomSpy.cend(), [](const QList<QVariant>& call) {
+                return call.at(6).toString() == QStringLiteral("DP-2");
+            });
+        };
+
+        drive(PhosphorEngine::RestoreReason::Open);
+        QCOMPARE(routedToDp2(), 1);
+        QVERIFY(wta->hasRoutedOpen(w));
+
+        drive(PhosphorEngine::RestoreReason::PendingSweep);
+        QCOMPARE(routedToDp2(), 1);
     }
 
     // The open path may have asked the effect for a free SIZE moments ago,
@@ -1492,6 +1571,46 @@ private Q_SLOTS:
         m_wta->moveWindowToWorkspaceVerb(sticky, QStringLiteral("DP-2"), 3, desktopId, QString());
         QCOMPARE(workspaceSpy.count(), 2);
         QCOMPARE(desktopSpy.count(), 0);
+    }
+
+    // The workspace verb hands the move the screen it found the window held
+    // on (C33). A minimized window on desktops 1 and 2 of DP-1 is adopted
+    // into desktop 2 with no zone there, so the snap engine's reverse map
+    // answers no screen for it while its desktop-1 store holds it. Moved to
+    // DP-2, the move still knows it leaves DP-1 and arms the output-move
+    // marker, so the effect does not tear the new placement down as a fresh
+    // open when the window's output changes.
+    void testMoveWindowToWorkspaceVerb_backgroundHolderKeepsItsSourceScreen()
+    {
+        // Per-desktop snap stores, as the daemon wires them.
+        m_wta->service()->setSnapStateResolver(PhosphorPlacement::snapStateResolverFor(m_snapEngine));
+        for (int desktop : {1, 2}) {
+            m_layoutManager->assignLayout(m_screenId, desktop, QString(), m_testLayout);
+            m_layoutManager->assignLayout(QStringLiteral("DP-2"), desktop, QString(), m_testLayout);
+        }
+        m_snapEngine->setCurrentDesktopForScreen(m_screenId, 1);
+        m_snapEngine->setCurrentDesktopForScreen(QStringLiteral("DP-2"), 1);
+        const QString w = QStringLiteral("app|background");
+        m_snapEngine->commitSnap(w, m_zoneIds[0], m_screenId);
+        m_snapEngine->setCurrentDesktopForScreen(m_screenId, 2);
+        const auto onDesktopsOneAndTwo = [](const QString&) {
+            PhosphorEngine::DesktopSpan span;
+            span.known = true;
+            span.desktops = {1, 2};
+            return span;
+        };
+        QCOMPARE(m_snapEngine->reconcileDesktopMemberships(m_screenId, onDesktopsOneAndTwo).adopted.size(), 1);
+        QVERIFY2(m_snapEngine->screenForTrackedWindow(w).isEmpty(),
+                 "control: the adopted store in view holds no zone, so the reverse map names no screen");
+        QCOMPARE(m_snapEngine->heldKeyForWindow(w).value_or(PhosphorEngine::PlacementStateKey{}).screenId, m_screenId);
+        m_wta->service()->markSuspensionFloat(w);
+
+        QSignalSpy markerSpy(m_wta, &WindowTrackingAdaptor::windowOutputMoveExpected);
+        m_wta->moveWindowToWorkspaceVerb(w, QStringLiteral("DP-2"), 1, QString(), QStringLiteral("right"));
+
+        QCOMPARE(m_snapEngine->heldKeyForWindow(w).value_or(PhosphorEngine::PlacementStateKey{}).screenId,
+                 QStringLiteral("DP-2"));
+        QCOMPARE(markerSpy.count(), 1);
     }
 
     // ── Per-output desktops report ──

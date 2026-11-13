@@ -20,6 +20,10 @@
 #include <PhosphorZones/LayoutSettingsStore.h>
 
 #include <PhosphorConfig/Schema.h>
+#include <PhosphorRules/ActionTypes.h>
+#include <PhosphorRules/Rule.h>
+#include <PhosphorRules/RuleAction.h>
+#include <PhosphorRules/RuleSet.h>
 
 #include <QSet>
 
@@ -1177,6 +1181,66 @@ private Q_SLOTS:
         // No migration ran — every field (including the version stamp)
         // is preserved byte-for-byte.
         QCOMPARE(after, root);
+    }
+
+    // =========================================================================
+    // rules.json fix-ups on the cleanup path
+    // =========================================================================
+
+    /// The managed appearance baseline rules an older build seeded into
+    /// rules.json are stripped on start-up. A user rule survives, and so does
+    /// an UNMANAGED rule that carries one of the baseline ids, because only
+    /// the seeded rows are ours to remove. A second run is a clean no-op.
+    void testCleanup_stripsManagedAppearanceBaselineRules()
+    {
+        IsolatedConfigGuard guard;
+        // The frozen ids, spelled here independently of the code under test.
+        const QUuid border(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000002}"));
+        const QUuid titleBar(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000003}"));
+        const QUuid gap(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000004}"));
+
+        const auto ruleWith = [](const QUuid& id, const QString& name, bool managed) {
+            PhosphorRules::Rule rule;
+            rule.id = id;
+            rule.name = name;
+            rule.managed = managed;
+            rule.actions.append(PhosphorRules::RuleAction{QString(PhosphorRules::ActionType::Exclude), {}});
+            return rule;
+        };
+        const QUuid user = QUuid::createUuid();
+        PhosphorRules::RuleSet seeded;
+        QCOMPARE(seeded.setRules({ruleWith(border, QStringLiteral("Border"), true),
+                                  ruleWith(titleBar, QStringLiteral("Title bar"), true),
+                                  ruleWith(gap, QStringLiteral("Hand-made"), false),
+                                  ruleWith(user, QStringLiteral("Mine"), false)}),
+                 4);
+        QDir().mkpath(QFileInfo(ConfigDefaults::rulesFilePath()).absolutePath());
+        QVERIFY(seeded.saveToFile(ConfigDefaults::rulesFilePath()));
+
+        QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
+        QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(
+            ConfigDefaults::configFilePath(),
+            QJsonObject{{QStringLiteral("_version"), PlasmaZones::ConfigSchemaVersion}}));
+
+        QVERIFY(ConfigMigration::ensureJsonConfig());
+
+        const auto after = PhosphorRules::RuleSet::loadFromFile(ConfigDefaults::rulesFilePath());
+        QVERIFY(after.has_value());
+        QVERIFY(!after->ruleById(border).has_value());
+        QVERIFY(!after->ruleById(titleBar).has_value());
+        QVERIFY(after->ruleById(gap).has_value());
+        QVERIFY(after->ruleById(user).has_value());
+        QCOMPARE(after->rules().size(), 2);
+
+        // Nothing left to strip: the second pass reports success and leaves
+        // the file as the first one wrote it.
+        QFile rulesFile(ConfigDefaults::rulesFilePath());
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        const QByteArray firstPass = rulesFile.readAll();
+        rulesFile.close();
+        QVERIFY(ConfigMigration::stripManagedAppearanceBaselineRules(ConfigDefaults::configFilePath()));
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        QCOMPARE(rulesFile.readAll(), firstPass);
     }
 };
 

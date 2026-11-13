@@ -28,6 +28,7 @@
 #include <PhosphorAnimation/CurveLoader.h>
 #include <PhosphorAnimation/PhosphorCurve.h>
 #include <PhosphorRendering/ShaderEffect.h>
+#include <PhosphorShortcuts/GlobalShortcutBlock.h>
 #include <PhosphorAnimation/QtQuickClockManager.h>
 
 #include <QApplication>
@@ -231,6 +232,14 @@ int main(int argc, char* argv[])
         qCCritical(PlasmaZones::lcCore) << "Cannot register D-Bus service and cannot reach existing instance; exiting";
         return 1;
     }
+
+    // The chord recorders suspend every global shortcut while they capture,
+    // and kglobalacceld keeps that suspension when the process that asked for
+    // it dies. A previous run that crashed mid-capture would have left the
+    // session without its keyboard shortcuts, so lift any such block now,
+    // once this process is known to be the only instance and before any
+    // recorder can take one.
+    PhosphorShortcuts::releaseStrandedGlobalShortcutBlock();
 
     // Register ZoneShaderItem for QML (live zone-shader preview in the settings
     // shader browser — mirrors daemon/main.cpp).

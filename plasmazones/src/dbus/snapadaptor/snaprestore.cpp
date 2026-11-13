@@ -310,7 +310,15 @@ void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& s
     // made. The tiling dispatch applies the same first-placement gate, and the
     // routing itself runs once per open (a second channel's call for the same
     // open only re-reads the verdict).
-    const bool firstPlacement = isOpen || reason == PhosphorEngine::RestoreReason::PendingSweep;
+    //
+    // A pending sweep is a first placement only for a window whose open no
+    // pass has routed yet. The sweep re-drives every visible window the daemon
+    // does not track, so it also reaches one whose open went through here and
+    // left it floating or free. Treated as a first placement, that window was
+    // resolved on its workspace's owner monitor and taken by its RouteToScreen
+    // again, wherever the refused or undone move left it (C31).
+    const bool firstPlacement =
+        isOpen || (reason == PhosphorEngine::RestoreReason::PendingSweep && !m_adaptor->hasRoutedOpen(windowId));
     // The screen the open chain places the window on. A route to a declared
     // workspace sends the window to that workspace's owner monitor, so the
     // chain resolves there (snap_spawn); placing it on the spawn screen would

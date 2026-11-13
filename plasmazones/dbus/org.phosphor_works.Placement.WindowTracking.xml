@@ -363,15 +363,15 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </arg>
         </signal>
         <signal name="windowWorkspaceMoveRequested">
-            <annotation name="org.gtk.GDBus.DocString" value="Daemon requests KWin to move a window to a dynamic workspace: a desktop and, when the verb moves the window to another monitor, that monitor, as ONE step. Sent for every workspace verb's window (the move-window, move-column and move-to-slot verbs, the riders of a workspace moved to another monitor, a RouteToWorkspace rule and the daemon's reunion and removal re-routes), whether or not an engine tracks it. The effect judges whether the window lands out of view, and where focus goes when the active window leaves, on the DESTINATION output. A window already on the target output takes no output leg."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Daemon requests KWin to move a window to a desktop and another monitor as ONE step, or to either alone. Sent for every workspace verb's window (the move-window, move-column and move-to-slot verbs, the riders of a workspace moved to another monitor, a RouteToWorkspace rule and the daemon's reunion and removal re-routes), whether or not an engine tracks it, and for an engine's crossing that has to carry the window to another monitor itself: a monitor crossing into a snap layout with no zone to land in, and a cross-desktop crossing onto another monitor's tiled desktop. With an empty desktopId and a desktop below 1 the move has no desktop leg: the window goes to targetScreenId only and joins the desktop that output shows, as KWin's Move to Screen does. The effect judges whether the window lands out of view, and where focus goes when the active window leaves, on the DESTINATION output. A window already on the target output takes no output leg."/>
             <arg name="windowId" type="s">
                 <annotation name="org.gtk.GDBus.DocString" value="Window to move."/>
             </arg>
             <arg name="desktopId" type="s">
-                <annotation name="org.gtk.GDBus.DocString" value="Target desktop's stable id (VirtualDesktop::id()). It survives the renumbering the workspace feature does alongside its own moves, where a number resolved before the hop can name another desktop by the time it arrives. Empty to name the desktop by number instead. An id naming no desktop moves the window to no desktop, and the effect places it where it is."/>
+                <annotation name="org.gtk.GDBus.DocString" value="Target desktop's stable id (VirtualDesktop::id()). It survives the renumbering the workspace feature does alongside its own moves, where a number resolved before the hop can name another desktop by the time it arrives. Empty to name the desktop by number instead. An id naming no desktop (one removed since) runs neither leg: the window stays on its desktop and output, and the effect places it again where it is."/>
             </arg>
             <arg name="desktop" type="i">
-                <annotation name="org.gtk.GDBus.DocString" value="Target desktop, 1-based (x11DesktopNumber), read only when desktopId is empty."/>
+                <annotation name="org.gtk.GDBus.DocString" value="Target desktop, 1-based (x11DesktopNumber), read only when desktopId is empty. Below 1 with an empty desktopId, the move has no desktop leg (see the signal). A number naming no desktop runs neither leg, like an unknown desktopId."/>
             </arg>
             <arg name="targetScreenId" type="s">
                 <annotation name="org.gtk.GDBus.DocString" value="Destination output's screen id. Empty keeps the window on the output it is on. An unknown screen moves the desktop only."/>

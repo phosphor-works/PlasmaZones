@@ -40,16 +40,37 @@ namespace PhosphorScrollEngine {
 
 using PhosphorEngine::PlacementStateKey;
 
+namespace {
+
+/// The first tile of @p column that is a live tile of @p live, or empty. The
+/// shown tab a moved column falls back to when its own shown tab stays
+/// behind: a hidden member (minimized, or held by its own fullscreen) comes
+/// back floating, so naming it would leave the tab unrestored until it
+/// returns, and then rewind whatever tab the user picked meanwhile (C45).
+QString firstLiveTileOf(const StashedColumn& column, const Column& live)
+{
+    for (const StashedTile& tile : column.tiles) {
+        if (live.indexOfWindow(tile.windowId) >= 0) {
+            return tile.windowId;
+        }
+    }
+    return QString();
+}
+
+} // namespace
+
 void ScrollEngine::forgetStashedWindowWhere(const QString& windowId,
-                                            const std::function<bool(const PlacementStateKey&)>& left)
+                                            const std::function<bool(const PlacementStateKey&)>& left,
+                                            bool movedColumnsOnly)
 {
     if (windowId.isEmpty() || !left) {
         return;
     }
     // A readoptParked grant goes on the same leave. No parked-key exemption:
     // the grant is this window's alone, and the window was already returned
-    // when it was handed out.
-    if (m_evacueePark) {
+    // when it was handed out. Not on a moved-columns-only pass, which is
+    // about a move record, not about the window leaving the context.
+    if (m_evacueePark && !movedColumnsOnly) {
         m_evacueePark->dropGrantsWhere(windowId, left);
     }
     QSet<QString> touchedScreens;
@@ -65,7 +86,16 @@ void ScrollEngine::forgetStashedWindowWhere(const QString& windowId,
             continue;
         }
         bool erased = false;
+        bool stillNamed = false;
         for (auto colIt = it->columns.begin(); colIt != it->columns.end();) {
+            if (movedColumnsOnly && !colIt->arrivesAsMove) {
+                stillNamed |=
+                    std::any_of(colIt->tiles.cbegin(), colIt->tiles.cend(), [&windowId](const StashedTile& tile) {
+                        return tile.windowId == windowId;
+                    });
+                ++colIt;
+                continue;
+            }
             erased |= colIt->tiles.removeIf([&windowId](const StashedTile& tile) {
                 return tile.windowId == windowId;
             }) > 0;
@@ -81,7 +111,9 @@ void ScrollEngine::forgetStashedWindowWhere(const QString& windowId,
             ++it;
             continue;
         }
-        if (it->focusedWindowId == windowId) {
+        // The entry's focus goes with the last tile naming the window. A
+        // column of the entry's own strip that still holds it keeps it.
+        if (it->focusedWindowId == windowId && !stillNamed) {
             it->focusedWindowId.clear();
         }
         touchedScreens.insert(it.key().screenId);
@@ -91,7 +123,7 @@ void ScrollEngine::forgetStashedWindowWhere(const QString& windowId,
         // on the aliveness sweep's terms: once every tile left is consumed, or
         // when none is left.
         auto consumedIt = m_stripStashConsumed.find(it.key());
-        if (consumedIt != m_stripStashConsumed.end()) {
+        if (consumedIt != m_stripStashConsumed.end() && !stillNamed) {
             consumedIt->remove(windowId);
         }
         const int remaining = it->tileCount();
@@ -106,6 +138,24 @@ void ScrollEngine::forgetStashedWindowWhere(const QString& windowId,
     for (const QString& screenId : std::as_const(touchedScreens)) {
         Q_EMIT placementChanged(screenId);
     }
+}
+
+void ScrollEngine::forgetMovedColumnsElsewhere(const QString& windowId, const PlacementStateKey& arrivalKey)
+{
+    // C41: stashColumnForDesktopMove records the column under the destination
+    // before any window moves, and nothing takes the record back when a move
+    // is refused (the window stays, or is re-placed where it is) or when the
+    // window is moved on before it lands. Left standing it would hand a later
+    // move of the window to that context the column's old width and siblings.
+    // Only move records go: a mode-round-trip column under another desktop
+    // stays the window's while it spans that desktop (the membership
+    // reconcile owns that question).
+    forgetStashedWindowWhere(
+        windowId,
+        [&arrivalKey](const PlacementStateKey& key) {
+            return key != arrivalKey;
+        },
+        /*movedColumnsOnly=*/true);
 }
 
 bool ScrollEngine::stashColumnForDesktopMove(const QString& screenId, const QStringList& windowIds, int targetDesktop)
@@ -187,7 +237,7 @@ bool ScrollEngine::stashColumnForDesktopMove(const QString& screenId, const QStr
     };
     if (!live.tiles.isEmpty()) {
         const QString shown = live.tiles.at(qBound(0, live.activeTileIdx, int(live.tiles.size()) - 1)).windowId;
-        column.activeWindowId = listed(shown) ? shown : column.tiles.constFirst().windowId;
+        column.activeWindowId = listed(shown) ? shown : firstLiveTileOf(column, live);
     }
     if (listed(live.heightOwnerId)) {
         column.heightOwnerId = live.heightOwnerId;
@@ -316,7 +366,7 @@ bool ScrollEngine::stashStripForOutputMove(const QString& sourceStripScreenId, c
         if (!source.tiles.isEmpty()) {
             const QString shown =
                 source.tiles.at(qBound(0, source.activeTileIdx, int(source.tiles.size()) - 1)).windowId;
-            column.activeWindowId = kept(shown) ? shown : column.tiles.constFirst().windowId;
+            column.activeWindowId = kept(shown) ? shown : firstLiveTileOf(column, source);
         }
         if (kept(source.heightOwnerId)) {
             column.heightOwnerId = source.heightOwnerId;
@@ -331,15 +381,29 @@ bool ScrollEngine::stashStripForOutputMove(const QString& sourceStripScreenId, c
     // already there keeps its own. The view anchor is restored only on the
     // axis it was captured on (restoreFromStripStash), so a target monitor
     // with the other orientation drops it and keeps the focus.
+    //
+    // The anchor is main-axis pixels into a strip whose column extents follow
+    // the work area (a proportional width is a share of it), so it names the
+    // same view only on a target whose work area has the same main-axis
+    // length. Otherwise the focus goes alone and the centering policy derives
+    // a view around it, as for the axis flip (C44). Both lengths are read for
+    // the strip's own column count, so smart gaps cannot tell them apart.
     const StashedStrip captured = buildStashFromState(state);
+    const int columnCount = int(live.size());
+    const ScrollLayoutParams sourceParams = layoutParamsForKey(sourceKey, columnCount);
+    const ScrollLayoutParams targetParams = layoutParamsForScreen(targetStripScreenId, columnCount);
+    const bool sameMainLength = sourceParams.axis.axis() == targetParams.axis.axis()
+        && sourceParams.axis.mainSize(sourceParams.workArea) == targetParams.axis.mainSize(targetParams.workArea);
     bool fresh = false;
     StashedStrip& entry = mergeMovedColumnsIntoStash(destKey, columns, &fresh);
     if (fresh) {
         entry.axis = captured.axis;
         if (listed.contains(captured.focusedWindowId)) {
             entry.focusedWindowId = captured.focusedWindowId;
-            entry.viewAnchor = captured.viewAnchor;
-            entry.viewDetached = captured.viewDetached;
+            if (sameMainLength) {
+                entry.viewAnchor = captured.viewAnchor;
+                entry.viewDetached = captured.viewDetached;
+            }
         }
         entry.blueprintCursor = captured.blueprintCursor;
         entry.blueprintIdentity = captured.blueprintIdentity;

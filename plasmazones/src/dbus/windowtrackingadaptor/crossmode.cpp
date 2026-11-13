@@ -107,7 +107,8 @@ void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId
     // and is the identity for an id that is already composite.
     const QString windowId = shadowWindowId(rawWindowId);
     // Sticky (on-all-desktops) windows: the effect REFUSES a desktop move for
-    // them outright (applyDesktopMove returns for isOnAllDesktops), so running
+    // them outright (PlasmaZonesEffect::applyWorkspaceMove returns for
+    // isOnAllDesktops), so running
     // the handoff would re-key the daemon's engine state onto a desktop the
     // real window never moves to. The window is already present on every
     // workspace, which is what the verb was asking for. m_service is non-null
@@ -133,6 +134,10 @@ void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId
     PhosphorEngine::PlacementEngineBase* sourceEngine = nullptr;
     QString sourceScreen;
     std::optional<PhosphorEngine::PlacementStateKey> heldKey;
+    // The desktop of a background holder: no screen shows it, so a refused
+    // receive must re-home the window there rather than on the desktop in
+    // view. 0 for a window held in the context its screen shows.
+    int backgroundDesktop = 0;
     const std::array<PhosphorEngine::PlacementEngineBase*, 3> engines = {m_scrollEngine.data(), m_autotileEngine.data(),
                                                                          m_snapEngine.data()};
     for (PhosphorEngine::PlacementEngineBase* engine : engines) {
@@ -155,6 +160,9 @@ void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId
                 sourceEngine = engine;
                 sourceScreen = key->screenId;
                 heldKey = key;
+                if (key->desktop != WindowTrackingInternal::shownDesktop(*this, key->screenId)) {
+                    backgroundDesktop = key->desktop;
+                }
                 break;
             }
         }
@@ -218,6 +226,12 @@ void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId
     wire.desktopId = targetDesktopId;
     wire.moveOutput = moveOutput;
     wire.subjectOfVerb = subjectOfVerb;
+    // The holder resolved above, handed through: the impl's own lookup is the
+    // source engine's reverse map, which a background holder can leave empty,
+    // and an empty source screen arms no output-move marker and gives a
+    // refused receive nowhere to re-home the window (C33).
+    wire.sourceScreenId = sourceScreen;
+    wire.sourceDesktop = backgroundDesktop;
     crossModeMoveImpl(sourceEngine, windowId, landingScreen, targetDesktop, direction, /*allowSameEngine=*/true, wire);
 }
 
@@ -331,8 +345,10 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
     // the window once its desktop is shown.
 
     // Where the window currently lives: the re-home screen on a refusal, and
-    // the screen the output leg leaves.
-    const QString sourceScreen = sourceEngine->screenForTrackedWindow(windowId);
+    // the screen the output leg leaves. The workspace verb hands over the
+    // holder it resolved by membership (WorkspaceMoveWire::sourceScreenId).
+    const QString sourceScreen =
+        wire.sourceScreenId.isEmpty() ? sourceEngine->screenForTrackedWindow(windowId) : wire.sourceScreenId;
 
     // For a SNAP target, resolve the landing zone BEFORE relinquishing the
     // source. A snap window moved by a workspace verb keeps its zone's ordinal
@@ -431,10 +447,12 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
         // Guarded: handoffReceive can silently refuse, and the source has
         // already released inside the helper — on refusal the helper
         // re-homes into the source so the window is not stranded
-        // tracked-by-no-engine. recoverDesktop stays 0 (current): the
-        // compositor legs below are adoption-gated, so on a refusal the real
-        // window never left the source desktop.
-        placedOnTarget = WindowTrackingInternal::guardedHandoff(sourceEngine, targetEngine, ctx, sourceScreen);
+        // tracked-by-no-engine. The re-home desktop is the one the window
+        // never left: the compositor legs below are adoption-gated, so on a
+        // refusal the real window stays where it was, which is the desktop in
+        // view (0) unless the verb found it held on a background desktop.
+        placedOnTarget =
+            WindowTrackingInternal::guardedHandoff(sourceEngine, targetEngine, ctx, sourceScreen, wire.sourceDesktop);
         // A MONITOR crossing physically relocates the window to a different
         // output. Mark the imminent output change as daemon-owned so the
         // effect's reactive outputChanged handler does not re-issue

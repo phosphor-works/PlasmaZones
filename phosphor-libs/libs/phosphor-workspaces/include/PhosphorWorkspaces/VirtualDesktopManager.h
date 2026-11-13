@@ -48,10 +48,11 @@ public:
 
     int currentDesktop() const override;
     int currentDesktopForScreen(const QString& screenId) const override;
-    /// Superseded, kept for the installed API (IVirtualDesktopManager): nothing
-    /// in this tree calls it. It only tells whether two recorded screens differ
-    /// right now, which is not whether KWin runs per-output desktops (two
-    /// screens on the same desktop answer false in that mode too).
+    /// Superseded, kept for the installed API (IVirtualDesktopManager): no
+    /// production code calls it, only this library's tests. It only tells
+    /// whether two recorded screens differ right now, which is not whether
+    /// KWin runs per-output desktops (two screens on the same desktop answer
+    /// false in that mode too).
     bool perScreenModeActive() const override;
 
     /// Record a screen's current virtual desktop (1-based). This is fed by the

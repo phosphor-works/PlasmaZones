@@ -22,10 +22,12 @@
 #include <PhosphorProtocol/Registration.h>
 #include <PhosphorProtocol/WindowMarshalling.h>
 
+#include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include "helpers/AutotileTestHelpers.h"
 #include <PhosphorScreens/Manager.h>
+#include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include "dbus/tilingadaptor/tilingadaptor.h"
 #include "dbus/windowtrackingadaptor/windowtrackingadaptor.h"
 #include "helpers/IsolatedConfigGuard.h"
@@ -616,6 +618,71 @@ private Q_SLOTS:
         QCOMPARE(spy.count(), 1);
         QCOMPARE(spy.first().at(0).toStringList(), (QStringList{QStringLiteral("HDMI-1"), QStringLiteral("HDMI-2")}));
         QCOMPARE(spy.first().at(1).toBool(), true);
+    }
+
+    // A renumber re-announces a desktop switch only when the effect is owed
+    // one: it moved a desktop the last switch announce stamped (the effect's
+    // staleness gate dropped that announce), or it removed the desktop a
+    // screen was showing (C57). Any other renumber sends nothing: the effect
+    // would read the announce as a switch it never saw and void every
+    // output's in-flight applies (C32). An announce that is no switch settles
+    // what a dropped one owed.
+    void testRenumberReannouncesOnlyWhenItMovedAStampedDesktop()
+    {
+        PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
+        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        const auto dropRegistry = qScopeGuard([layoutManager] {
+            delete layoutManager;
+        });
+        PhosphorWorkspaces::VirtualDesktopManager vdm{nullptr};
+        vdm.updateScreenDesktop(QStringLiteral("HDMI-1"), 3);
+        QObject parent;
+        StubSettings settings(nullptr);
+        StubZoneDetector zoneDetector(nullptr);
+        auto* wta = new WindowTrackingAdaptor(layoutManager, &zoneDetector, nullptr, &settings, &vdm, nullptr, &parent);
+        AutotileEngine engine(nullptr, nullptr, nullptr, PlasmaZones::TestHelpers::testRegistry());
+        engine.setAutotileScreens({QStringLiteral("HDMI-1")});
+        QObject adaptorParent;
+        TilingAdaptor adaptor(nullptr, &adaptorParent);
+        adaptor.setLifecycleEngines({&engine});
+        adaptor.setWindowTrackingAdaptor(wta);
+        const auto unwire = qScopeGuard([&adaptor] {
+            adaptor.setWindowTrackingAdaptor(nullptr);
+        });
+        QSignalSpy spy(&adaptor, &TilingAdaptor::managedScreensChanged);
+
+        adaptor.notifyEngineScreensChanged(true);
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(2).toMap().value(QStringLiteral("HDMI-1")).toInt(), 3);
+
+        // The last of four desktops goes: desktop 3 keeps its number.
+        adaptor.reannounceAfterRenumber(PhosphorEngine::DesktopRemap::removal(4, 4));
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 1);
+
+        // The first goes: the stamped desktop 3 is desktop 2 now.
+        adaptor.reannounceAfterRenumber(PhosphorEngine::DesktopRemap::removal(1, 4));
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 2);
+        QVERIFY(spy.at(1).at(1).toBool());
+
+        // A set change settles it, so the same renumber owes nothing after it.
+        adaptor.notifyEngineScreensChanged(false);
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 3);
+        adaptor.reannounceAfterRenumber(PhosphorEngine::DesktopRemap::removal(1, 4));
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 3);
+
+        // HDMI-1 shows what is desktop 2 after that renumber, and desktop 2
+        // goes. KWin moves the output to the successor, which takes number 2,
+        // so the effect reports nothing new and its output is owed an
+        // announce, with no switch announce behind it this time (C57).
+        adaptor.reannounceAfterRenumber(PhosphorEngine::DesktopRemap::removal(2, 3));
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 4);
+        QVERIFY(spy.at(3).at(1).toBool());
     }
 
     void testUnclaimedOpens_retryWithoutClaimDrops()

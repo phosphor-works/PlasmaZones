@@ -240,6 +240,9 @@ bool ScrollEngine::insertOpenedWindow(ScrollState* state, const QString& windowI
     forgetStashedWindowWhere(windowId, [&screenId](const PhosphorEngine::PlacementStateKey& key) {
         return key.screenId != screenId;
     });
+    // And a column a move recorded for it on another desktop of this screen
+    // is one it did not reach: it is arriving here instead (C41).
+    forgetMovedColumnsElsewhere(windowId, currentKeyForScreen(screenId));
     if (restoreFromStripStash(state, currentKeyForScreen(screenId), windowId, params, minWidth, minHeight)) {
         inserted = true;
         restoredFromStash = true;

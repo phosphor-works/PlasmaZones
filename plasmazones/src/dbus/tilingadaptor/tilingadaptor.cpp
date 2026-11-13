@@ -1129,6 +1129,10 @@ void TilingAdaptor::clearEngine()
     ++m_announceGeneration;
     m_screensAnnouncePending = false;
     m_pendingIsDesktopSwitch = false;
+    // The effect a restart talks to settles its owed announce on the new
+    // session's first one, so a renumber owes nothing for this session's.
+    m_lastAnnounceScreenDesktops.clear();
+    m_lastAnnounceWasSwitch = false;
     // Held behind the announce just voided, and naming the dead session's
     // windows and rects — a restart's first announce must not flush them.
     m_tileBatchesHeldForAnnounce.clear();

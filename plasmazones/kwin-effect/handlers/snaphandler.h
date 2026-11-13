@@ -334,6 +334,12 @@ public:
     {
         return m_desktopArrivalParks.contains(windowId);
     }
+    /// Whether any window is parked, so a per-window caller can skip the id
+    /// lookup when none is.
+    bool hasDesktopArrivalParks() const
+    {
+        return !m_desktopArrivalParks.isEmpty();
+    }
 
     /// Whether a first-placement resolve (an open, a pending sweep, a desktop
     /// arrival) is out for @p windowId: a desktop move asked for inside it is

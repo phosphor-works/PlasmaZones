@@ -6,6 +6,7 @@
 #include <PhosphorEngine/DesktopRemap.h>
 
 #include <QCoreApplication>
+#include <QDBusMessage>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -49,6 +50,11 @@ public:
     void current(const QString& desktopId)
     {
         QVERIFY(QMetaObject::invokeMethod(this, "onKWinCurrentChanged", Q_ARG(QString, desktopId)));
+    }
+    /// KWin's desktopCreated as it arrives off the bus, before any parsing.
+    void createdMessage(const QDBusMessage& message)
+    {
+        QVERIFY(QMetaObject::invokeMethod(this, "onKWinDesktopCreated", Q_ARG(QDBusMessage, message)));
     }
 };
 
@@ -99,6 +105,7 @@ private Q_SLOTS:
     void rename_startsNoChange();
     void secondChange_isAnnouncedAgain();
     void currentChangedMidChange_waitsForTheCommit();
+    void malformedCreate_stillEchoesAReadableId();
 };
 
 // A screen with no per-output desktop on record resolves to the global value.
@@ -583,6 +590,38 @@ void TestVirtualDesktopManager::currentChangedMidChange_waitsForTheCommit()
     // had: a later switch to d (3) is a real change.
     vdm.current(QStringLiteral("d"));
     QCOMPARE(currents, QList<int>{3});
+}
+
+void TestVirtualDesktopManager::malformedCreate_stillEchoesAReadableId()
+{
+    ListDriver vdm;
+    QVERIFY(vdm.commit(ids("ab")));
+    QSignalSpy created(&vdm, &VirtualDesktopManager::kwinDesktopCreated);
+    const auto signal = []() {
+        return QDBusMessage::createSignal(QStringLiteral("/VirtualDesktopManager"),
+                                          QStringLiteral("org.kde.KWin.VirtualDesktopManager"),
+                                          QStringLiteral("desktopCreated"));
+    };
+
+    // The id is there but the desktop data is not: the create still happened.
+    // KWin answers the createDesktop call after this signal, and an answer
+    // with no echo ahead of it is read as KWin refusing the create at its
+    // ceiling.
+    QDBusMessage idOnly = signal();
+    idOnly << QStringLiteral("x");
+    vdm.createdMessage(idOnly);
+    QCOMPARE(created.count(), 1);
+    QCOMPARE(created.first().at(0).toString(), QStringLiteral("x"));
+
+    // Nothing readable: nothing is echoed.
+    vdm.createdMessage(signal());
+    QDBusMessage notAnId = signal();
+    notAnId << 7;
+    vdm.createdMessage(notAnId);
+    QDBusMessage emptyId = signal();
+    emptyId << QString();
+    vdm.createdMessage(emptyId);
+    QCOMPARE(created.count(), 1);
 }
 
 QTEST_GUILESS_MAIN(TestVirtualDesktopManager)

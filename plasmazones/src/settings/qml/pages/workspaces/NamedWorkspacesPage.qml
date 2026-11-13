@@ -136,7 +136,13 @@ SettingsFlickable {
 
     /// Write the staged list, with an id on every entry, then reconcile with
     /// what the store kept.
-    function _commitEntries() {
+    ///
+    /// `editedIndex` and `editedKey` name a row whose field was just written
+    /// in place, and the key that row was listed under before the write. An
+    /// id-less entry is keyed by its name, so after an in-place rename its key
+    /// computed now would already be the new name's, which is not the key its
+    /// expansion was recorded under.
+    function _commitEntries(editedIndex, editedKey) {
         var wire = settingsController.withWorkspaceEntryIds(root._projectedList(root._entries));
         // Ids the write just stamped change those entries' list keys. Carry
         // each row's expansion over to its new key, then rebuild below so the
@@ -146,7 +152,7 @@ SettingsFlickable {
             var newId = wire[i][root._f.id];
             if (root._entries[i][root._f.id] === newId)
                 continue;
-            var oldKey = root._keyOf(root._entries[i]);
+            var oldKey = (i === editedIndex && editedKey !== undefined) ? editedKey : root._keyOf(root._entries[i]);
             if (entryList.isRowExpanded(oldKey))
                 entryList.setRowExpanded(newId, true);
             root._entries[i][root._f.id] = newId;
@@ -457,10 +463,11 @@ SettingsFlickable {
                             if (index < 0 || index >= root._entries.length)
                                 return;
 
+                            var keyBefore = root._keyOf(root._entries[index]);
                             root._entries[index][field] = value;
                             if (field === root._f.name)
                                 root._namesTick++;
-                            root._commitEntries();
+                            root._commitEntries(index, keyBefore);
                         }
                         onRemoveRequested: function (index) {
                             if (index < 0 || index >= root._entries.length)

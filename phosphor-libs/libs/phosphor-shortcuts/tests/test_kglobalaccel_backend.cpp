@@ -15,7 +15,8 @@
 // those go through the suspend path; a RecordCleanup forgets each one when
 // the case ends, so an opted-in run leaves no residue in the user's System
 // Settings even if an assertion fails mid-case. Sequences use
-// Meta+Shift+F30..F35, which collide with nothing real.
+// Meta+Shift with F28 or a higher function key, which collide with nothing
+// real.
 //
 // What this pins that FakeBackend cannot: the behaviour of the REAL backend
 // against kglobalacceld. The read-back contract (currentTriggers engages

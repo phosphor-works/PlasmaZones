@@ -305,8 +305,16 @@ SettingsFlickable {
                                 // here is "None", so without this fallback a
                                 // dormant slot would read as unassigned. The
                                 // stored name is shown, never the raw id.
+                                // A slot that resolves by name to an entry
+                                // with no id yet is live, but that entry is
+                                // not among the options (they are valued by
+                                // id), so the combo would also clamp it to
+                                // "None". It shows the entry's name instead.
                                 displayText: {
-                                    if (slotDelegate.resolved || !slotDelegate.assigned)
+                                    var live = slotDelegate.resolved;
+                                    if (live && (live[root._f.id] || "") === "")
+                                        return "" + (live[root._f.name] || "");
+                                    if (live || !slotDelegate.assigned)
                                         return currentText;
                                     if (slotDelegate.storedName !== "")
                                         return i18nc("%1 is the name of a workspace that is no longer declared", "%1 (not declared)", slotDelegate.storedName);

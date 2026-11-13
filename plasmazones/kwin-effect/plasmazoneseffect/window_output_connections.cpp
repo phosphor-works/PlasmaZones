@@ -16,6 +16,7 @@
 #include "windowflagedges.h"
 #include "handlers/dragtracker.h"
 #include "handlers/screenchangehandler.h"
+#include "handlers/snaphandler.h"
 #include "tilinghandler/tilinghandler.h"
 
 #include <PhosphorIdentity/VirtualScreenId.h>
@@ -263,6 +264,31 @@ void PlasmaZonesEffect::wireOutputChangeHandlers(KWin::EffectWindow* w)
                 return;
             }
             m_screenChangeHandler->applyOutputCrossing(safeW, oldScreenId, newScreenId);
+        });
+        // A desktop-arrival park whose window was still on its way to another
+        // output when its desktop came into view there is held by
+        // SnapHandler::drainDesktopArrivalFor until the move commits (C56), and
+        // this is the commit. A separate connection, since the crossing lambda
+        // above returns early for a resize, a size-only change, a daemon apply
+        // and a screen change. Queued, so the crossing notice and the context
+        // edits it releases reach the daemon first. Not during a screen
+        // change, whose settle places what KWin moved (a later desktop switch
+        // drains the park then), and not without a daemon, which the drain
+        // would spend the park on for a resolve that cannot run.
+        connect(kw, &KWin::Window::outputChanged, this, [this, safeW]() {
+            if (!safeW || safeW->isDeleted() || !m_snapHandler->hasDesktopArrivalParks()) {
+                return;
+            }
+            QTimer::singleShot(0, this, [this, safeW]() {
+                if (!safeW || safeW->isDeleted() || m_screenChangeHandler->isScreenChangeInProgress()
+                    || !isDaemonReady("desktop-arrival snap restore on output commit")) {
+                    return;
+                }
+                const QString windowId = getWindowId(safeW);
+                if (m_snapHandler->holdsDesktopArrivalPark(windowId)) {
+                    m_snapHandler->drainDesktopArrivalFor(windowId, safeW);
+                }
+            });
         });
         // Virtual screen boundary detection: KWin's outputChanged only fires when
         // the physical monitor changes. Moving a window between virtual screens on the

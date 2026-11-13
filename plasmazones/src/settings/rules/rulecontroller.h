@@ -270,11 +270,13 @@ public:
     void captureSavedSnapshot();
 
     /// Fire-and-forget D-Bus call for the GLOBAL Restore Defaults path
-    /// (org.phosphor_works.Placement.Rules.resetManagedDefaults): asks the daemon to strip any
-    /// stale managed appearance baseline rules left in rules.json by an older
-    /// build, preserving user rules. The daemon persists + broadcasts
-    /// rulesChanged; SettingsController::defaults() pairs this with revert() to
-    /// reload the model.
+    /// (org.phosphor_works.Placement.Rules.resetManagedDefaults): asks the
+    /// daemon to reload its rule store from disk, so it picks up the
+    /// settings side's reset of rules.json (the dropped per-mode disable
+    /// rules) instead of writing its stale copy back on its next save. It
+    /// creates and removes no rule. The daemon broadcasts rulesChanged only
+    /// when the reloaded set differs; SettingsController::defaults() pairs
+    /// this with revert() to reload the model.
     void resetManagedDefaults();
 
     /// Stage a resolved USER rule subset (non-managed) into the live model,

@@ -108,6 +108,8 @@ private Q_SLOTS:
     void named_revertedEmptyWorkspaceIsReaped();
     void removal_lostEchoIsClosedByTheSettle();
     void expiry_ticksThatRetireNothingRaiseNothing();
+    void namedCreate_reDriveReadsKWinsNamesAsTheyAreNow();
+    void setCurrent_expiredUserSwitchesSpendNoCorrectionBudget();
 };
 
 void TestWorkspaceLedger::destroyOnEmpty_debouncedAndRechecked()
@@ -895,6 +897,69 @@ void TestWorkspaceLedger::expiry_ticksThatRetireNothingRaiseNothing()
     QTest::qWait(FastLedgerMs * 3 / 4);
     QCOMPARE(resyncSpy.count(), 0);
     QCOMPARE(foreignSpy.count(), 1);
+}
+
+void TestWorkspaceLedger::namedCreate_reDriveReadsKWinsNamesAsTheyAreNow()
+{
+    // An expired named create re-runs the declarations. It used to re-run
+    // them with KWin's names as the last apply had seen them, so a rename
+    // that had landed since read as a fresh rename on KWin's side, and
+    // adopting that "rename" put the workspace's old name back.
+    WorkspaceReconciler rec;
+    rec.setTimeouts(FastLedgerMs, FastDebounceMs);
+    rec.onScreenOrderChanged({QStringLiteral("A")});
+    QHash<QString, QString> current;
+    current.insert(QStringLiteral("A"), id(1));
+    QVERIFY(rec.adoptAll({id(1), id(2)}, current, {}, {QStringLiteral("work"), QStringLiteral("Desktop 2")}));
+    rec.applyNamedWorkspaces({named(QStringLiteral("n1"), QStringLiteral("work"))},
+                             {QStringLiteral("work"), QStringLiteral("Desktop 2")});
+    QCOMPARE(rec.map().entryFor(id(1)).name, QStringLiteral("work"));
+
+    QSignalSpy kwinRenameSpy(&rec, &WorkspaceReconciler::namedWorkspaceRenamedInKWin);
+    QSignalSpy resyncSpy(&rec, &WorkspaceReconciler::resyncRequested);
+    QSignalSpy createSpy(&rec, &WorkspaceReconciler::requestCreateDesktop);
+    // Renamed in settings, and a second workspace declared whose create KWin
+    // never answers. KWin's names at this apply still say "work".
+    rec.applyNamedWorkspaces(
+        {named(QStringLiteral("n1"), QStringLiteral("office")), named(QStringLiteral("n2"), QStringLiteral("mail"))},
+        {QStringLiteral("work"), QStringLiteral("Desktop 2")});
+    QCOMPARE(createSpy.count(), 1);
+    // KWin takes the new name: our own push echoing back.
+    rec.onKwinDesktopRenamed(id(1), QStringLiteral("office"));
+    QCOMPARE(kwinRenameSpy.count(), 0);
+
+    // The create expires and the declarations are re-run.
+    QTRY_COMPARE_WITH_TIMEOUT(resyncSpy.count(), 1, ExpiriesMs);
+    QCOMPARE(createSpy.count(), 2);
+    QCOMPARE(kwinRenameSpy.count(), 0);
+    QCOMPARE(rec.map().entryFor(id(1)).name, QStringLiteral("office"));
+}
+
+void TestWorkspaceLedger::setCurrent_expiredUserSwitchesSpendNoCorrectionBudget()
+{
+    WorkspaceReconciler rec;
+    rec.setTimeouts(FastLedgerMs, FastDebounceMs);
+    QVERIFY(adoptTwoScreens(rec)); // A owns {d1, d3} and shows d1
+    QSignalSpy resyncSpy(&rec, &WorkspaceReconciler::resyncRequested);
+    QSignalSpy foreignSpy(&rec, &WorkspaceReconciler::foreignSwitchDetected);
+
+    // User presses the compositor never answers, as many as the correction
+    // budget. Each is retried by the user's next press, not by owner-wins.
+    for (int press = 1; press <= WorkspaceReconciler::MaxSetCurrentRefusals; ++press) {
+        QVERIFY(rec.issueSetCurrentReplacing(QStringLiteral("A"), id(3)));
+        QTRY_COMPARE_WITH_TIMEOUT(resyncSpy.count(), press, ExpiriesMs);
+    }
+
+    // A pin moves the desktop A shows to B, with no report from A in between
+    // to hand a spent budget back. A is still corrected.
+    NamedWorkspace pinned = named(QStringLiteral("n1"), QStringLiteral("web"));
+    pinned.outputId = QStringLiteral("B");
+    rec.applyNamedWorkspaces(
+        {pinned},
+        {QStringLiteral("web"), QStringLiteral("Desktop 2"), QStringLiteral("Desktop 3"), QStringLiteral("Desktop 4")});
+    QCOMPARE(rec.map().ownerOf(id(1)), QStringLiteral("B"));
+    QCOMPARE(foreignSpy.count(), 1);
+    QCOMPARE(foreignSpy.first().at(0).toString(), QStringLiteral("A"));
 }
 
 QTEST_GUILESS_MAIN(TestWorkspaceLedger)

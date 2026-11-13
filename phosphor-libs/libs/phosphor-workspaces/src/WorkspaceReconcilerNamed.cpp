@@ -35,7 +35,6 @@ int WorkspaceReconciler::namedSliceIndex(const QString& screenId, int declaredPo
 void WorkspaceReconciler::applyNamedWorkspaces(const QList<NamedWorkspace>& declarations, const QStringList& kwinNames)
 {
     m_declarations = declarations;
-    m_declarationKwinNames = kwinNames;
     if (!m_adopted) {
         return; // the map is still a candidate; adoption's caller re-applies
     }

@@ -105,8 +105,8 @@ QStringList workspacesSchemaGroups()
             ConfigDefaults::workspacesSlotsGroup()};
 }
 
-/// Whether @p qualified is a key one of the workspaces pages edits: a
-/// Workspaces.* key, or a workspace chord leaf of Shortcuts.Global.
+/// Whether the (@p group, @p key) pair is one a workspaces page edits: a
+/// key in a Workspaces.* group, or a workspace chord leaf of Shortcuts.Global.
 bool isWorkspaceKey(const QString& group, const QString& key)
 {
     if (group.startsWith(ConfigDefaults::workspacesGroup() + QLatin1Char('.'))) {

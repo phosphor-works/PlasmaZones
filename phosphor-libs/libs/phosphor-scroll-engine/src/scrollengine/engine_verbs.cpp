@@ -38,9 +38,14 @@ namespace PhosphorScrollEngine {
 // The verbs that RESTRUCTURE the strip around its active column pass true
 // through P_SCROLL_COLUMN_VERB: with a float holding focus that column is the
 // one behind the float, and moving it while announcing success, then focusing
-// it, steals focus from the window the user is looking at. Sizing, centering
-// and display verbs pass false through P_SCROLL_VERB and act on the column
-// behind the float without taking focus, for the reason given above.
+// it, steals focus from the window the user is looking at. Everything else
+// passes false through P_SCROLL_VERB, for one of two reasons. Sizing,
+// centering and display verbs act on the column behind the float without
+// taking focus, for the reason given above. The column-focus verbs (first,
+// last, adjacent, wrap) and moveColumnToIndex do take focus, on purpose: a
+// focus verb pressed on a float is asked to move focus into the strip, and
+// moveColumnToIndex moves the column its caller named by index rather than
+// the one behind the float.
 #define P_SCROLL_VERB_BODY(screenIdExpr, opExpr, actionStr, focusAfterExpr, successReasonExpr, refuseUnderFloatExpr)   \
     P_SCROLL_RESOLVE(screenIdExpr);                                                                                    \
     if (!state || state->strip().isEmpty()) {                                                                          \

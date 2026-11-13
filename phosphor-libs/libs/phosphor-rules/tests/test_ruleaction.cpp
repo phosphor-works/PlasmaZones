@@ -919,9 +919,11 @@ private Q_SLOTS:
         // is exercised for every one of them (not just for the pre-existing
         // SetEngineMode in testJson_rejectsInvalidParams).
         //
-        // The helper records each failure instead of asserting: QVERIFY2 in a
-        // lambda returns from the lambda only, so the test would carry on and
-        // pass. Every failure is reported by the one assert at the end.
+        // The helper records each failure instead of asserting. A QVERIFY2 in
+        // the lambda does record the failure, but it returns from the lambda
+        // only, so the remaining calls run on and the log names only the
+        // first offender's assert. Collecting names every offender in the one
+        // assert at the end.
         QStringList failures;
         const auto rejectsStray = [&failures](QLatin1StringView type, const QJsonValue& goodValue) {
             QJsonObject ok;

@@ -20,7 +20,10 @@ Q_DECLARE_LOGGING_CATEGORY(lcWorkspaceRec)
 namespace PhosphorWorkspaces {
 
 namespace {
-/// Move a per-screen record from one key to another, overwriting.
+/// Move a per-screen record from one key to another. A record already under
+/// the new key wins and the old key's is dropped: it was written for the new
+/// spelling, so it is the fresher of the two (VirtualDesktopManager::
+/// renameScreen keeps an existing target row the same way).
 template<typename Hash>
 void rekey(Hash& hash, const QString& from, const QString& to)
 {
@@ -30,7 +33,9 @@ void rekey(Hash& hash, const QString& from, const QString& to)
     }
     auto value = it.value();
     hash.erase(it);
-    hash.insert(to, value);
+    if (!hash.contains(to)) {
+        hash.insert(to, value);
+    }
 }
 } // namespace
 
@@ -218,17 +223,31 @@ void WorkspaceReconciler::onScreenRenamed(const QString& fromScreenId, const QSt
     }
 
     // Every per-screen record follows the id, so the renamed output keeps its
-    // current desktop, its snap-back memo, its budgets and its open ops.
+    // current desktop, its snap-back memo, its budgets and its open ops. Where
+    // the new id already has a record of its own (the effect reported under
+    // the new spelling before this rename arrived), that one is kept.
     rekey(m_currentIdByScreen, fromScreenId, toScreenId);
     rekey(m_pendingReportByScreen, fromScreenId, toScreenId);
     rekey(m_lastOwnedByScreen, fromScreenId, toScreenId);
     rekey(m_createRefusals, fromScreenId, toScreenId);
     rekey(m_setCurrentRefusals, fromScreenId, toScreenId);
-    for (PendingOp& op : m_ledger) {
-        if (op.screenId == fromScreenId) {
-            op.screenId = toScreenId;
+    // At most one switch is open per screen (openSetCurrentIndex): one the
+    // new id already has keeps the screen, and the old id's is dropped rather
+    // than renamed beside it. Creates are re-homed whatever, since KWin
+    // answers every one of them.
+    const bool toHasSwitch = openSetCurrentIndex(toScreenId) >= 0;
+    for (int i = m_ledger.size() - 1; i >= 0; --i) {
+        PendingOp& op = m_ledger[i];
+        if (op.screenId != fromScreenId) {
+            continue;
         }
+        if (op.kind == PendingOp::Kind::SetCurrent && toHasSwitch) {
+            m_ledger.removeAt(i);
+            continue;
+        }
+        op.screenId = toScreenId;
     }
+    stopLedgerTimerIfIdle();
     for (WorkspaceEntry& entry : m_parked) {
         if (entry.homeScreenId == fromScreenId) {
             entry.homeScreenId = toScreenId;
@@ -272,7 +291,8 @@ void WorkspaceReconciler::onScreenOrderChanged(const QStringList& order)
 // ── Adoption ────────────────────────────────────────────────────────────────
 
 bool WorkspaceReconciler::adoptAll(const QStringList& ids, const QHash<QString, QString>& currentDesktopIdByScreen,
-                                   const QHash<QString, QString>& preferredScreenByDesktopId)
+                                   const QHash<QString, QString>& preferredScreenByDesktopId,
+                                   const QStringList& rawNames)
 {
     // KWin never has zero desktops, and a world with no screen has nowhere to
     // put one. Either is a read that has not completed: repairAgainst on an
@@ -289,6 +309,7 @@ bool WorkspaceReconciler::adoptAll(const QStringList& ids, const QHash<QString, 
         return false;
     }
     m_lastIds = ids;
+    m_lastRawNames = rawNames.size() == ids.size() ? rawNames : QStringList();
 
     // Keep consistent restored content; repair drops vanished ids, and what
     // still needs an owner is distributed below.
@@ -375,6 +396,12 @@ bool WorkspaceReconciler::adoptAll(const QStringList& ids, const QHash<QString, 
 
     m_adopted = true;
     maintainInvariants();
+    // KWin never relabels a desktop after creating it, so a create or remove
+    // made before adoption (in an earlier session, or with the feature off)
+    // can already have left a positional label naming another position. The
+    // settle path keeps them current from here on, but no settle comes for a
+    // list that does not change.
+    refreshPositionalLabels();
     // Owner-wins over the seeded currents: a screen that came up showing a
     // desktop a restored map gives to another screen needs the correction now,
     // not at its next report.

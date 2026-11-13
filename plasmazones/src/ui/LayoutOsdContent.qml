@@ -125,10 +125,11 @@ Item {
     property bool disabled: false
     property string disabledReason: ""
     // Icon for the message-style overlay card. Two writers restate it per
-    // show: OverlayService::showDisabledOsd writes "dialog-cancel" for a
-    // refusal (a requested change that had no effect, with the reason), and
-    // OverlayService::showInfoOsd writes "dialog-information" for a neutral
-    // notice. The glyph below is tinted grey only for the refusal. A layout
+    // show (OverlayService::showMessageCard): showDisabledOsd writes
+    // "dialog-cancel" for a requested change that had no effect or was
+    // undone, and showInfoOsd writes "dialog-information" for a hint that
+    // reports something done on the user's behalf, not a refusal. The glyph
+    // below is tinted grey only for "dialog-cancel". A layout
     // or mode announcement must NOT reuse this card — it renders its own
     // content type instead (the scrolling mode switch, which briefly reused
     // it, now shows its strip preview).

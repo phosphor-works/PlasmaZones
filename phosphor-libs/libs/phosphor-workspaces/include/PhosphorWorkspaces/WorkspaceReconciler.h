@@ -97,8 +97,10 @@ public:
     /// KWin's desktop ceiling (VirtualDesktopManager::maximum(), 25 in KWin
     /// 6.8). Shared by the daemon's gate and the settings app's cap badge. It
     /// is the STARTING value only: a lower ceiling is learned from the
-    /// compositor at runtime, in expireLedger, and forgotten again as soon as
-    /// a create succeeds or the live count exceeds it.
+    /// compositor at runtime, from a create KWin answered without creating
+    /// anything (onCreateDesktopAnswered) or from repeated unanswered creates
+    /// (expireLedger), and forgotten again as soon as a create succeeds or the
+    /// live count exceeds it.
     static constexpr int DefaultDesktopCap = 25;
     /// How many Create expiries in one episode (the id list unchanged
     /// throughout) it takes before the ceiling is believed. KWin refuses a
@@ -250,8 +252,13 @@ public:
     /// windows, in the map's screen id space); otherwise to the owner of the
     /// nearest preceding owned desktop in KWin order, a leading run to the
     /// first screen.
+    ///
+    /// `rawNames`, when given, must be KWin's raw names aligned with `ids`
+    /// (as for onDesktopListSettled). They seed the names the label refresh
+    /// and an expired named create's re-apply read, and positional labels
+    /// already stale at adoption are refreshed at once.
     bool adoptAll(const QStringList& ids, const QHash<QString, QString>& currentDesktopIdByScreen,
-                  const QHash<QString, QString>& preferredScreenByDesktopId = {});
+                  const QHash<QString, QString>& preferredScreenByDesktopId = {}, const QStringList& rawNames = {});
 
     /// Reconcile the declared named workspaces against the map (called after
     /// adoption and on every declaration change; implemented in
@@ -359,7 +366,8 @@ Q_SIGNALS:
     /// the census and re-routes those windows to the owner's current
     /// workspace once the desktop is gone.
     void removalRaceDetected(const QString& desktopId, const QString& ownerScreenId);
-    /// Our removeDesktop for `desktopId` expired unanswered: the desktop is
+    /// Our removeDesktop for `desktopId` expired unanswered, or KWin answered
+    /// it without removing anything (onRemoveDesktopAnswered): the desktop is
     /// staying, so any removalRaceDetected snapshot taken for it is stale.
     void removalAbandoned(const QString& desktopId);
     /// A verb moved a named workspace (reorder within its slice, or transfer
@@ -415,8 +423,9 @@ private:
         /// replace it.
         bool replaceable = false;
         /// SetCurrent: answers still owed to the earlier switches this one
-        /// replaced. The effect answers every request once, so the next this
-        /// many reports naming another desktop belong to those, not to this.
+        /// replaced. The effect answers every request once, in order, so the
+        /// next this many reports belong to those, not to this, whatever
+        /// desktop they name (this entry's target included).
         int supersededAnswers = 0;
         /// Create/Remove: KWin's method call has been answered (or failed).
         bool replied = false;
@@ -459,8 +468,6 @@ private:
     /// desktops it has echoed but not settled yet. With pendingCreateCount it
     /// is what the cap gate counts.
     int knownDesktopCount() const;
-    /// Drop every open ledger entry that targets this desktop id.
-    void retireLedgerFor(const QString& desktopId);
     /// The first un-echoed Create this echo answers, or -1 for an external
     /// creation (see onKwinDesktopCreatedAt).
     int matchCreateEcho(int position, const QString& name) const;
@@ -599,7 +606,8 @@ private:
     QHash<QString, int> m_createRefusals;
     /// Declaration key (id, or name without one) → expiries of its create.
     QHash<QString, int> m_namedCreateRefusals;
-    /// screenId → per-screen switches that expired unechoed.
+    /// screenId → owner-wins corrections that expired unechoed or were
+    /// answered with another desktop. User switches never count here.
     QHash<QString, int> m_setCurrentRefusals;
     /// The id list the current cap-probe episode is being counted against, and
     /// how many Create expiries it has seen. An episode ends the moment the
@@ -615,10 +623,11 @@ private:
     QList<WorkspaceEntry> m_parked;
     /// Desktops whose "not pinning yet" deferral was already logged.
     QSet<QString> m_pinDeferredLogged;
-    /// The declarations and KWin names of the last applyNamedWorkspaces, so an
-    /// expired named create can be re-driven without a new call.
+    /// The declarations of the last applyNamedWorkspaces, so an expired named
+    /// create can be re-driven without a new call. The re-drive reads KWin's
+    /// names from m_lastRawNames, which stays current through renames, never
+    /// from a copy taken at that apply.
     QList<NamedWorkspace> m_declarations;
-    QStringList m_declarationKwinNames;
 };
 
 } // namespace PhosphorWorkspaces

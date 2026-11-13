@@ -147,24 +147,15 @@ WorkspaceController::WorkspaceController(PhosphorWorkspaces::VirtualDesktopManag
     // The purpose is whatever the call that made the reconciler emit set
     // (m_switchPurpose): a focus verb marks its switch a user switch, and
     // everything the reconciler does on its own stays a correction.
+    //
+    // Every request is answered by the effect, exactly once, including one
+    // for the desktop the output already shows: that answer is a forced
+    // report of the same desktop, which VirtualDesktopManager swallows as
+    // unchanged and noteScreenDesktopReport hands the reconciler instead. No
+    // answer is made up here. A second answer for the same request would be
+    // read as the answer to the user's next press, and retire it as refused.
     connect(&m_reconciler, &Rec::requestSetCurrent, this, [this](const QString& screenId, const QString& desktopId) {
         Q_EMIT screenDesktopSwitchRequested(screenId, desktopId, m_switchPurpose);
-        // A switch to the desktop the output already shows: the effect's
-        // answer is a report of that same desktop, which VirtualDesktopManager
-        // swallows as unchanged, so the entry would sit until it expired and
-        // refuse the user's next press meanwhile. The answer is known, so it
-        // is recorded here, after the reconciler has finished issuing.
-        const int desktop = m_vdm->desktopIndexOf(desktopId);
-        if (desktop > 0 && m_vdm->hasScreenDesktopReport(screenId)
-            && m_vdm->currentDesktopForScreen(screenId) == desktop) {
-            QTimer::singleShot(0, this, [this, screenId, desktopId]() {
-                const int current = m_vdm->desktopIndexOf(desktopId);
-                if (current > 0 && m_reconciler.inFlightSetCurrentTarget(screenId) == desktopId
-                    && m_vdm->currentDesktopForScreen(screenId) == current) {
-                    m_reconciler.onScreenDesktopReport(screenId, current);
-                }
-            });
-        }
     });
     // Deferred verbs resume once the reconciler has no create or remove in
     // flight. Queued, because the reconciler announces this from inside the
@@ -332,6 +323,7 @@ void WorkspaceController::wireScreens()
         // and an owed snap-back answer would outlive the screen.
         m_lastSnapBackMs.remove(screenId);
         m_snapBackAnswerOwed.remove(screenId);
+        m_snapBackRetryPending.remove(screenId);
         refreshScreenOrder();
         // Unplugging the last screen that had not reported completes the
         // gate for the ones that remain.
@@ -355,17 +347,35 @@ void WorkspaceController::wireScreens()
             return;
         }
         qCInfo(lcWorkspaceCtl) << "screen id changed from" << from << "to" << to << "- re-keying its slice";
-        m_reconciler.onScreenRenamed(from, to);
+        // The snap-back state follows the id the way the reconciler's
+        // per-screen records do: a record already under the new id is the
+        // fresher one and is kept. Re-keyed BEFORE the reconciler's rename,
+        // which re-evaluates the screen under its new id at once: with the
+        // stamp still under the old id, that evaluation would find no
+        // cooldown and correct the screen again straight away.
         if (const auto stamp = m_lastSnapBackMs.constFind(from); stamp != m_lastSnapBackMs.constEnd()) {
             const qint64 value = stamp.value();
             m_lastSnapBackMs.remove(from);
-            m_lastSnapBackMs.insert(to, value);
+            if (!m_lastSnapBackMs.contains(to)) {
+                m_lastSnapBackMs.insert(to, value);
+            }
         }
         if (const auto owed = m_snapBackAnswerOwed.constFind(from); owed != m_snapBackAnswerOwed.constEnd()) {
             const QString value = owed.value();
             m_snapBackAnswerOwed.remove(from);
-            m_snapBackAnswerOwed.insert(to, value);
+            if (!m_snapBackAnswerOwed.contains(to)) {
+                m_snapBackAnswerOwed.insert(to, value);
+            }
         }
+        // A retry waiting under the old id would ask snapBack for a screen the
+        // map no longer knows and do nothing, leaving the output on the
+        // foreign desktop. It is re-armed under the new id for what is left
+        // of the cooldown; the old timer still fires and finds nothing to do.
+        if (m_snapBackRetryPending.remove(from) && !m_snapBackRetryPending.contains(to)) {
+            const qint64 elapsed = m_clock.elapsed() - m_lastSnapBackMs.value(to, m_clock.elapsed());
+            scheduleSnapBackRetry(to, qMax<qint64>(0, SnapBackCooldownMs - elapsed));
+        }
+        m_reconciler.onScreenRenamed(from, to);
         refreshScreenOrder();
     });
 }
@@ -523,7 +533,7 @@ void WorkspaceController::tryFirstAdoption()
         }
         currentById.insert(screenId, id);
     }
-    if (!m_reconciler.adoptAll(ids, currentById, preferredScreenByDesktopId())) {
+    if (!m_reconciler.adoptAll(ids, currentById, preferredScreenByDesktopId(), m_vdm->rawDesktopNames())) {
         return;
     }
     m_adopted = true;
@@ -566,7 +576,7 @@ void WorkspaceController::adoptOnTimeout()
         m_adoptionTimer.start();
         return;
     }
-    if (!m_reconciler.adoptAll(ids, currentById, preferredScreenByDesktopId())) {
+    if (!m_reconciler.adoptAll(ids, currentById, preferredScreenByDesktopId(), m_vdm->rawDesktopNames())) {
         qCWarning(lcWorkspaceCtl) << "adoption timeout: the desktop list or the screen order is empty; retrying";
         m_adoptionTimer.start();
         return;
@@ -662,11 +672,7 @@ void WorkspaceController::snapBackScreen(const QString& screenId)
         // re-asks snapBack, which does nothing if the screen has since come
         // back to a workspace of its own.
         if (!m_snapBackRetryPending.contains(screenId)) {
-            m_snapBackRetryPending.insert(screenId);
-            QTimer::singleShot(SnapBackCooldownMs - (now - stamp.value()), this, [this, screenId]() {
-                m_snapBackRetryPending.remove(screenId);
-                snapBackScreen(screenId);
-            });
+            scheduleSnapBackRetry(screenId, SnapBackCooldownMs - (now - stamp.value()));
         }
         return;
     }
@@ -682,6 +688,20 @@ void WorkspaceController::snapBackScreen(const QString& screenId)
     Q_EMIT snapBackOccurred(screenId);
 }
 
+void WorkspaceController::scheduleSnapBackRetry(const QString& screenId, qint64 delayMs)
+{
+    m_snapBackRetryPending.insert(screenId);
+    QTimer::singleShot(delayMs, this, [this, screenId]() {
+        // Only the retry that still holds the flag runs: one superseded by a
+        // screen-id rename finds its flag gone and leaves the screen to the
+        // retry armed under the new id.
+        if (!m_snapBackRetryPending.remove(screenId)) {
+            return;
+        }
+        snapBackScreen(screenId);
+    });
+}
+
 bool WorkspaceController::takeDesktopSwitchOsdSuppression(const QString& screenId, int desktop)
 {
     if (!m_adopted) {
@@ -695,7 +715,9 @@ bool WorkspaceController::takeDesktopSwitchOsdSuppression(const QString& screenI
     if (!owner.isEmpty() && owner != screenId) {
         // The screen landed on another screen's workspace: owner-wins takes
         // it straight back, so a card naming that workspace would announce a
-        // switch the user never keeps. An owed answer stays owed.
+        // switch the user never keeps. An owed answer stays owed: it is the
+        // snap-back this very report just provoked, and its answer is still
+        // to come.
         return true;
     }
     const auto owed = m_snapBackAnswerOwed.find(screenId);
@@ -709,7 +731,19 @@ bool WorkspaceController::takeDesktopSwitchOsdSuppression(const QString& screenI
 
 void WorkspaceController::noteScreenDesktopReport(const QString& screenId, int desktop)
 {
-    if (desktop <= 0 || m_reconciler.inFlightSetCurrentTarget(screenId).isEmpty()) {
+    if (desktop <= 0) {
+        return;
+    }
+    // A snap-back's answer naming another desktop means the correction did
+    // not happen (refused, deferred, or switched straight back), and it is
+    // usually the desktop the output already shows, which never reaches
+    // takeDesktopSwitchOsdSuppression. Left owed, the marker would silence
+    // the card of a later switch the user makes to that desktop by hand.
+    if (const auto owed = m_snapBackAnswerOwed.constFind(screenId);
+        owed != m_snapBackAnswerOwed.constEnd() && owed.value() != m_vdm->desktopIdAt(desktop)) {
+        m_snapBackAnswerOwed.erase(owed);
+    }
+    if (m_reconciler.inFlightSetCurrentTarget(screenId).isEmpty()) {
         return;
     }
     // A changed report is announced by VirtualDesktopManager and reaches the

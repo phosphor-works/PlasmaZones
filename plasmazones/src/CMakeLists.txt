@@ -345,10 +345,12 @@ target_include_directories(plasmazones_core SYSTEM PRIVATE
 # which finds PlasmaActivities itself and keeps the link PRIVATE, and nothing
 # in this target includes an activities header.
 
-# kwinrc read for PerOutputVirtualDesktops (common/kwinperoutputdesktops.cpp).
-# Dynamic workspaces compile out of the USE_KDE_FRAMEWORKS=OFF build, so the
-# link exists only where the feature does. PRIVATE: no plasmazones_core header
-# exposes a KConfig type.
+# kwinrc read and the consented write of PerOutputVirtualDesktops
+# (common/kwinperoutputdesktops.cpp), the only KConfig user under plasmazones/:
+# the daemon and the settings app reach it through this library and need no
+# link of their own. Dynamic workspaces compile out of the
+# USE_KDE_FRAMEWORKS=OFF build, so the link exists only where the feature
+# does. PRIVATE: no plasmazones_core header exposes a KConfig type.
 if(USE_KDE_FRAMEWORKS)
     target_link_libraries(plasmazones_core PRIVATE KF6::ConfigCore)
 endif()
@@ -632,14 +634,6 @@ set(plasmazones_daemon_SRCS
 qt_add_resources(plasmazones_daemon_SRCS daemon/resources.qrc)
 
 add_executable(plasmazonesd ${plasmazones_daemon_SRCS})
-
-if(USE_KDE_FRAMEWORKS)
-    # KConfig for the consented kwinrc write in daemon/daemon/workspaces.cpp.
-    # Named here rather than inherited: plasmazones_core links it PRIVATE.
-    # Dynamic workspaces compile out of the USE_KDE_FRAMEWORKS=OFF build, so
-    # that build has no kwinrc writer at all.
-    target_link_libraries(plasmazonesd PRIVATE KF6::ConfigCore)
-endif()
 
 target_link_libraries(plasmazonesd
     PRIVATE

@@ -579,8 +579,7 @@ private:
     /// and re-entered by the settings rearm (workspacesEnabled or
     /// workspacesManageKWinPerOutput changed on a running daemon). Its first
     /// call connects that rearm whatever the gate says. It builds the
-    /// controller only when the workspacesEnabled setting is on, the desktop
-    /// manager, window registry and screen manager exist, and KWin's
+    /// controller only when the workspacesEnabled setting is on and KWin's
     /// per-output virtual desktops are on, or are off with consent to manage
     /// them (workspacesManageKWinPerOutput), in which case it turns them on in
     /// kwinrc first. Otherwise, or with a controller already up, it builds

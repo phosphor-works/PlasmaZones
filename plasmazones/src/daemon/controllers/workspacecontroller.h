@@ -100,9 +100,10 @@ public:
     /// screen's workspace (the snap-back hint speaks for it) and for the
     /// report that answers a snap-back this controller issued. An owed
     /// snap-back answer is consumed by the first report that lands on one of
-    /// the screen's own workspaces, whether it matches or not, so a stale
-    /// marker can never swallow a later switch. Safe to call before or after
-    /// the controller has seen the same report.
+    /// the screen's own workspaces, whether it matches or not, and dropped by
+    /// noteScreenDesktopReport for any report naming another desktop, so a
+    /// stale marker can never swallow a later switch. Safe to call before or
+    /// after the controller has seen the same report.
     bool takeDesktopSwitchOsdSuppression(const QString& screenId, int desktop);
 
     /// Every per-output report the compositor sent, changed or not, offered
@@ -113,7 +114,9 @@ public:
     /// reconciler only in that case and only while a switch for the screen
     /// is in flight, so the answer retires the entry instead of leaving it
     /// to block the screen until it expires. A changed report reaches the
-    /// reconciler through VirtualDesktopManager as usual.
+    /// reconciler through VirtualDesktopManager as usual. Any report naming a
+    /// desktop other than an owed snap-back's target is that snap-back's
+    /// answer that it did not happen, and drops the owed marker.
     void noteScreenDesktopReport(const QString& screenId, int desktop);
 
     // ── Verbs (Phase 2). screenId is the PHYSICAL id of the acting screen, in
@@ -289,6 +292,11 @@ private:
     /// cooldown. A correction the cooldown refuses is retried once the
     /// cooldown has passed, so the screen is not left on a foreign desktop.
     void snapBackScreen(const QString& screenId);
+    /// Arm the cooldown retry of snapBackScreen for @p screenId after
+    /// @p delayMs, marking it in m_snapBackRetryPending. The retry runs only
+    /// while that mark is still there, so dropping the mark (a screen-id
+    /// rename re-arming under the new id, an unplug) cancels it.
+    void scheduleSnapBackRetry(const QString& screenId, qint64 delayMs);
 
     PhosphorWorkspaces::VirtualDesktopManager* m_vdm;
     PhosphorEngine::WindowRegistry* m_registry;

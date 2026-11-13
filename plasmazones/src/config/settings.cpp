@@ -36,15 +36,10 @@ using namespace settings_detail;
 // ── Constructor ──────────────────────────────────────────────────────────────
 
 namespace {
-/// A named-workspace entry's identity across a reload: its persistent id, or
-/// its name for an entry that has none yet (a hand-edited list never re-saved).
-QString namedEntryIdentity(const QVariantMap& entry)
+/// A named-workspace entry's name, as the store's validator wrote it.
+QString namedEntryName(const QVariantMap& entry)
 {
-    const QString id = entry.value(ConfigDefaults::namedEntryIdField()).toString();
-    if (!id.isEmpty()) {
-        return id;
-    }
-    return QLatin1String("name:") + entry.value(ConfigDefaults::namedEntryNameField()).toString().trimmed();
+    return entry.value(ConfigDefaults::namedEntryNameField()).toString();
 }
 
 /// Identity → entry, plus the identities in list order.
@@ -54,12 +49,19 @@ struct NamedEntryIndex
     QStringList order;
 };
 
-NamedEntryIndex indexNamedEntries(const QVariantList& list)
+/// Index @p list by identity: an entry's persistent id, or for an entry that
+/// has none yet (a hand-edited list never re-saved) the id @p stampedIds
+/// gives its name, else its name.
+NamedEntryIndex indexNamedEntries(const QVariantList& list, const QHash<QString, QString>& stampedIds)
 {
     NamedEntryIndex index;
     for (const QVariant& value : list) {
         const QVariantMap entry = value.toMap();
-        const QString identity = namedEntryIdentity(entry);
+        QString identity = entry.value(ConfigDefaults::namedEntryIdField()).toString();
+        if (identity.isEmpty()) {
+            const QString name = namedEntryName(entry);
+            identity = stampedIds.value(name, QLatin1String("name:") + name);
+        }
         if (!index.byIdentity.contains(identity)) {
             index.byIdentity.insert(identity, entry);
             index.order.append(identity);
@@ -68,16 +70,49 @@ NamedEntryIndex indexNamedEntries(const QVariantList& list)
     return index;
 }
 
+/// Whether @p mine differs from @p base in anything but the id. A local copy
+/// whose only change is an id the settings page stamped on an id-less entry
+/// is not an edit the user made.
+bool namedEntryEditedBeyondId(const QVariantMap& base, const QVariantMap& mine)
+{
+    QVariantMap a = base;
+    QVariantMap b = mine;
+    a.remove(ConfigDefaults::namedEntryIdField());
+    b.remove(ConfigDefaults::namedEntryIdField());
+    return a != b;
+}
+
 /// Three-way merge of the Workspaces.Named entry list for a preserving reload
 /// (F637). The daemon rewrites single declarations on its own (a pinned
 /// workspace moved or reordered by a verb, a rename made in KWin), so putting
 /// the settings app's whole unsaved list back over the reparsed file would
-/// revert those rewrites on its next Save. Per entry identity: an entry the
-/// user changed or added keeps the local version, an entry the user removed
-/// stays removed, and every entry the user did not touch takes what disk holds
-/// now, a removal on disk included. Row order follows the local list when the
-/// user reordered rows, else disk, with each local addition after the entry it
-/// follows locally.
+/// revert those rewrites on its next Save.
+///
+/// Identity is the entry id. The settings page stamps a fresh id on every
+/// id-less entry when it writes the list, while the file still holds that
+/// entry id-less, so an id-less entry in the baseline or on disk is matched
+/// to the local entry of the same name whose id the baseline does not know
+/// (C19). Without that, the stamp read as "removed and re-added", which lost
+/// a daemon rewrite of the entry or kept a copy of it beside its renamed self.
+///
+/// Per identity:
+///  - removed locally: stays removed.
+///  - on both sides: merged per field, so a local chord edit keeps a daemon
+///    move of the same entry; a field both sides changed keeps the local value.
+///  - gone from disk: removed elsewhere, so it stays gone, unless the user
+///    edited it (an id stamp alone is not an edit), which keeps the local one.
+///  - added on either side: kept.
+///
+/// Row order follows the local list when the user reordered rows, else disk,
+/// with each local addition after the entry it follows locally.
+///
+/// Last, a name the merge left on two entries is settled for the entry whose
+/// name disk gave (C21): a local addition that collides is dropped, and a
+/// local rename that collides goes back to the entry's name on disk. An entry
+/// disk no longer has goes back to its name before the edit, and one whose
+/// name is still taken after that is dropped. The store's
+/// validator would otherwise keep whichever comes first in the list, which
+/// can drop a declaration that exists on disk.
 QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVariantList& local,
                                         const QVariantList& disk)
 {
@@ -86,9 +121,28 @@ QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVar
     if (disk == baseline) {
         return local;
     }
-    const NamedEntryIndex base = indexNamedEntries(baseline);
-    const NamedEntryIndex mine = indexNamedEntries(local);
-    const NamedEntryIndex theirs = indexNamedEntries(disk);
+
+    // Ids the settings page stamped since the baseline, keyed by the entry's
+    // name: a local id the baseline does not carry.
+    QSet<QString> baseIds;
+    for (const QVariant& value : baseline) {
+        const QString id = value.toMap().value(ConfigDefaults::namedEntryIdField()).toString();
+        if (!id.isEmpty()) {
+            baseIds.insert(id);
+        }
+    }
+    QHash<QString, QString> stampedIds;
+    for (const QVariant& value : local) {
+        const QVariantMap entry = value.toMap();
+        const QString id = entry.value(ConfigDefaults::namedEntryIdField()).toString();
+        if (!id.isEmpty() && !baseIds.contains(id)) {
+            stampedIds.insert(namedEntryName(entry), id);
+        }
+    }
+
+    const NamedEntryIndex base = indexNamedEntries(baseline, stampedIds);
+    const NamedEntryIndex mine = indexNamedEntries(local, stampedIds);
+    const NamedEntryIndex theirs = indexNamedEntries(disk, stampedIds);
 
     QStringList baseCommon;
     for (const QString& identity : base.order) {
@@ -128,21 +182,76 @@ QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVar
         }
     }
 
-    QVariantList merged;
+    // The merged entries, each with where its name came from: the local list
+    // (an addition, or a rename the user made) or disk.
+    struct Merged
+    {
+        QVariantMap entry;
+        bool localAddition = false;
+        bool localName = false;
+        QString fallbackName; // a renamed entry's name on disk, else before the edit
+    };
+    QList<Merged> merged;
     for (const QString& identity : std::as_const(order)) {
-        const bool inBase = base.byIdentity.contains(identity);
-        const bool inMine = mine.byIdentity.contains(identity);
+        const auto baseIt = base.byIdentity.constFind(identity);
+        const auto mineIt = mine.byIdentity.constFind(identity);
+        const auto theirsIt = theirs.byIdentity.constFind(identity);
+        const bool inBase = baseIt != base.byIdentity.cend();
+        const bool inMine = mineIt != mine.byIdentity.cend();
+        const bool inTheirs = theirsIt != theirs.byIdentity.cend();
         if (inBase && !inMine) {
             continue; // removed locally
         }
-        if (inMine && (!inBase || mine.byIdentity.value(identity) != base.byIdentity.value(identity))) {
-            merged.append(mine.byIdentity.value(identity)); // changed or added locally
-        } else if (const auto it = theirs.byIdentity.constFind(identity); it != theirs.byIdentity.cend()) {
-            merged.append(*it); // untouched locally: disk wins
+        if (!inMine) {
+            merged.append({*theirsIt, false, false, {}}); // added on disk
+            continue;
         }
-        // Untouched locally and gone from disk: removed elsewhere, stays gone.
+        if (!inBase) {
+            merged.append({*mineIt, true, true, {}}); // added locally
+            continue;
+        }
+        if (!inTheirs) {
+            // Removed on disk. An edit the user made keeps the entry, with a
+            // name disk no longer vouches for.
+            if (namedEntryEditedBeyondId(*baseIt, *mineIt)) {
+                merged.append({*mineIt, false, true, namedEntryName(*baseIt)});
+            }
+            continue;
+        }
+        // On both sides: disk's fields, with every field the user changed
+        // taken from the local copy.
+        QVariantMap entry = *theirsIt;
+        for (auto field = mineIt->cbegin(); field != mineIt->cend(); ++field) {
+            if (field.value() != baseIt->value(field.key())) {
+                entry.insert(field.key(), field.value());
+            }
+        }
+        const bool renamed = namedEntryName(*mineIt) != namedEntryName(*baseIt);
+        merged.append({entry, false, renamed, namedEntryName(*theirsIt)});
     }
-    return merged;
+
+    // Settle name collisions for the name disk gave.
+    QSet<QString> taken;
+    for (const Merged& m : std::as_const(merged)) {
+        if (!m.localName) {
+            taken.insert(namedEntryName(m.entry));
+        }
+    }
+    QVariantList out;
+    out.reserve(merged.size());
+    for (Merged& m : merged) {
+        if (m.localName) {
+            if (taken.contains(namedEntryName(m.entry))) {
+                if (m.localAddition || taken.contains(m.fallbackName)) {
+                    continue;
+                }
+                m.entry.insert(ConfigDefaults::namedEntryNameField(), m.fallbackName);
+            }
+            taken.insert(namedEntryName(m.entry));
+        }
+        out.append(m.entry);
+    }
+    return out;
 }
 
 std::unique_ptr<PhosphorConfig::IBackend> migrateAndCreateOwnedBackend()
@@ -404,15 +513,9 @@ void Settings::reloadFromDisk(bool preserveLocalEdits, const AnnouncedState* bef
     const QList<LocalEdit> localEdits =
         (preserveLocalEdits && m_configBackend->isDirty()) ? collectLocalEdits() : QList<LocalEdit>{};
     // The named-workspace list merges per entry rather than coming back whole
-    // (mergeNamedEntriesForReload), which needs the baseline the local edit was
-    // made against, so it is read before captureBaseline moves it.
-    const QString namedGroup = ConfigDefaults::workspacesNamedGroup();
-    const QString namedKey = ConfigDefaults::entriesKey();
-    const bool namedEdited = std::any_of(localEdits.cbegin(), localEdits.cend(), [&](const LocalEdit& edit) {
-        return edit.group == namedGroup && edit.key == namedKey;
-    });
-    const QVariantList namedBaseline =
-        namedEdited ? m_baseline.value(namedGroup).value(namedKey).toList() : QVariantList{};
+    // (reapplyLocalEdits), which needs the baseline the local edit was made
+    // against, so it is read before captureBaseline moves it.
+    const QVariantList namedBaseline = namedEntriesBaseline();
 
     m_configBackend->reparseConfiguration();
 
@@ -426,13 +529,7 @@ void Settings::reloadFromDisk(bool preserveLocalEdits, const AnnouncedState* bef
         // document BEFORE the edits go back on top. A per-page Discard then
         // reverts to the external value, and the edits still read as unsaved.
         captureBaseline();
-        const QVariantList namedOnDisk =
-            namedEdited ? m_store->readVariant(namedGroup, namedKey).toList() : QVariantList{};
-        reapplyLocalEdits(localEdits);
-        if (namedEdited) {
-            const QVariantList namedLocal = m_store->readVariant(namedGroup, namedKey).toList();
-            m_store->write(namedGroup, namedKey, mergeNamedEntriesForReload(namedBaseline, namedLocal, namedOnDisk));
-        }
+        reapplyLocalEdits(localEdits, namedBaseline);
         // A kept edit to one half of the width pair can disagree with the
         // other half just adopted from disk.
         normalizeScrollingColumnWidthValue();
@@ -818,10 +915,24 @@ QList<Settings::LocalEdit> Settings::collectLocalEdits() const
     return edits;
 }
 
-void Settings::reapplyLocalEdits(const QList<LocalEdit>& edits)
+QVariantList Settings::namedEntriesBaseline() const
 {
+    return m_baseline.value(ConfigDefaults::workspacesNamedGroup()).value(ConfigDefaults::entriesKey()).toList();
+}
+
+void Settings::reapplyLocalEdits(const QList<LocalEdit>& edits, const QVariantList& namedBaseline)
+{
+    const QString namedGroup = ConfigDefaults::workspacesNamedGroup();
+    const QString namedKey = ConfigDefaults::entriesKey();
+    // Read before the edits go back, so it is what disk holds.
+    const QVariantList namedOnDisk = m_store->readVariant(namedGroup, namedKey).toList();
     for (const LocalEdit& edit : edits) {
-        m_store->write(edit.group, edit.key, edit.value);
+        if (edit.group == namedGroup && edit.key == namedKey) {
+            m_store->write(namedGroup, namedKey,
+                           mergeNamedEntriesForReload(namedBaseline, edit.value.toList(), namedOnDisk));
+        } else {
+            m_store->write(edit.group, edit.key, edit.value);
+        }
     }
 }
 
@@ -1356,8 +1467,11 @@ bool Settings::reset()
         }
     }
     // Kept so a refused commit (an I/O error, or a file broken since it was
-    // last read) can put them back instead of losing them with the deletions.
+    // last read) can put them back instead of losing them with the deletions,
+    // with the baseline the named-workspace edit was made against, which the
+    // put-back merges with disk like a preserving reload does.
     const QList<LocalEdit> editsBeforeReset = collectLocalEdits();
+    const QVariantList namedBaselineBeforeReset = namedEntriesBaseline();
 
     // Everything the closing reload announces, captured BEFORE the groups and
     // the disable rules go. A reload's own capture would be taken after the
@@ -1405,7 +1519,7 @@ bool Settings::reset()
         // touched, so there is nothing else to undo.
         m_configBackend->reparseConfiguration();
         reloadFromDisk(true);
-        reapplyLocalEdits(editsBeforeReset);
+        reapplyLocalEdits(editsBeforeReset, namedBaselineBeforeReset);
         // A kept edit to one half of the width pair can disagree with the
         // other half on disk, as in reloadFromDisk's preserving branch.
         normalizeScrollingColumnWidthValue();

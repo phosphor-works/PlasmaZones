@@ -1220,11 +1220,13 @@ target_link_libraries(test_navigation_controller PRIVATE PhosphorTileEngine::Pho
 p_add_test(test_snap_cross_surface snap/test_snap_cross_surface.cpp)
 p_add_test(test_span_targets snap/test_span_targets.cpp)
 # Constructs a real SnapEngine, so the dependency is contractual, not the
-# coincidental transitive pull through plasmazones_core. Every target that
-# constructs an engine names it the same way: the SnapEngineTestFixture
-# consumers link PhosphorSnapEngine and the autotile suites link
-# PhosphorTileEngine (test_screen_mode_router and test_drag_policy cite this
-# rationale).
+# coincidental transitive pull through plasmazones_core. Scope: the
+# SnapEngineTestFixture consumers link PhosphorSnapEngine and the autotile/
+# suites that construct an AutotileEngine link PhosphorTileEngine
+# (test_screen_mode_router and test_drag_policy cite this rationale). Targets
+# that build an engine by hand outside those two groups, such as the
+# window-tracking and WindowTrackingAdaptor suites and
+# test_snap_unfloat_fallback, still ride the transitive pull.
 target_link_libraries(test_span_targets PRIVATE PhosphorSnapEngine::PhosphorSnapEngine)
 p_add_test(test_snap_state_class_mutation snap/test_snap_state_class_mutation.cpp)
 

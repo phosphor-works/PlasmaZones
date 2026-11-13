@@ -922,13 +922,21 @@ void WindowTrackingAdaptor::releaseSnapOutsideLiveContext(const QString& rawWind
         return;
     }
     const QString windowId = shadowWindowId(rawWindowId);
+    // The bus screen, not the raw report: the effect can report a split
+    // monitor's physical id, and against that every membership on one of its
+    // virtual screens reads as off-screen and would be released with the rest
+    // (C42). resolveBusScreen picks the virtual screen the frame is in.
+    const QString liveScreen = resolveBusScreen(screenId, windowId);
+    if (liveScreen.isEmpty()) {
+        return;
+    }
     const PhosphorEngine::DesktopSpan span =
         m_desktopSpanQuery ? m_desktopSpanQuery(windowId) : PhosphorEngine::DesktopSpan{};
-    const PhosphorEngine::MembershipReconcileResult result = snap->releaseWindowOutsideSpan(windowId, screenId, span);
+    const PhosphorEngine::MembershipReconcileResult result = snap->releaseWindowOutsideSpan(windowId, liveScreen, span);
     if (result.released.isEmpty()) {
         return;
     }
-    qCInfo(lcDbusWindow) << "placed again on" << screenId << ":" << windowId << "gives up" << result.released.size()
+    qCInfo(lcDbusWindow) << "placed again on" << liveScreen << ":" << windowId << "gives up" << result.released.size()
                          << "snap membership(s) it held elsewhere";
     // The bookkeeping TilingAdaptor::applyMembershipResult drives for a
     // membership pass's snap release, for the same reasons: the persisted

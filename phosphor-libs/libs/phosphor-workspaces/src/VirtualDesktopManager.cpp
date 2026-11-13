@@ -568,7 +568,20 @@ void VirtualDesktopManager::onKWinDesktopCreated(const QDBusMessage& message)
     int position = 0;
     QString name;
     if (!parseDesktopData(message, desktopId, position, name)) {
-        // Still a change: re-read the list rather than lose it.
+        // Still a change: re-read the list rather than lose it. The echo goes
+        // out whenever the id itself is readable, position and name unknown.
+        // KWin emits the signal before it answers the createDesktop call, so
+        // an answer with no echo ahead of it reads as KWin refusing the
+        // create at its ceiling, and a payload this side could not parse is
+        // no such refusal. The live list is left alone without the position,
+        // so the read below, not countChanged, commits this change.
+        const QList<QVariant> args = message.arguments();
+        const QString echoedId =
+            (!args.isEmpty() && args.at(0).userType() == QMetaType::QString) ? args.at(0).toString() : QString();
+        if (!echoedId.isEmpty()) {
+            noteDesktopListChanging();
+            Q_EMIT kwinDesktopCreated(echoedId);
+        }
         refreshFromKWin();
         return;
     }

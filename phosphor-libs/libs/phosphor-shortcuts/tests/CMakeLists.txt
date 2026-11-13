@@ -49,6 +49,9 @@ function(phosphorshortcuts_add_test name)
 endfunction()
 
 phosphorshortcuts_add_test(test_registry)
+# GlobalShortcutBlock against a stand-in org.kde.kglobalaccel the test
+# registers on the private bus (it skips where a real one owns the name).
+phosphorshortcuts_add_test(test_globalshortcutblock)
 # Opt-in live-daemon test: QSKIPs unless PHOSPHORSHORTCUTS_KGLOBALACCEL_TESTS=1
 # (and again if no kglobalaccel answers). Uses only transient registrations so
 # an opted-in run leaves no kglobalshortcutsrc residue.

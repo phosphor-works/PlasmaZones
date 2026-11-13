@@ -1329,27 +1329,47 @@ void TestScrollEngineVerbs::columnVerbsRefuseWhileTheFloatLayerHoldsFocus()
     QCOMPARE(columns, 2);
 
     QSignalSpy feedback(engine, &PhosphorEngine::PlacementEngineBase::navigationFeedback);
-    const auto expectRefused = [&](const QString& action) {
-        QCOMPARE(feedback.count(), 1);
-        QCOMPARE(feedback.last().at(0).toBool(), false);
-        QCOMPARE(feedback.last().at(1).toString(), action);
-        QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("no_target"));
-        QCOMPARE(feedback.last().at(3).toString(), QStringLiteral("app|c"));
-        QCOMPARE(state->strip().windowsInOrder(), order);
-        QCOMPARE(state->strip().columnCount(), columns);
-        QVERIFY(state->floatingHasFocus());
+    // Returns what is wrong with the refusal, empty when it is right, and
+    // asserts nothing itself: a QCOMPARE in a lambda returns from the lambda
+    // only, so the test would carry on past it. Each call site asserts.
+    const auto refusalProblem = [&](const QString& action) -> QString {
+        QString problem;
+        if (feedback.count() != 1) {
+            problem = QStringLiteral("expected one feedback, got %1").arg(feedback.count());
+        } else if (feedback.last().at(0).toBool()) {
+            problem = QStringLiteral("reported success");
+        } else if (feedback.last().at(1).toString() != action) {
+            problem = QStringLiteral("action %1, expected %2").arg(feedback.last().at(1).toString(), action);
+        } else if (feedback.last().at(2).toString() != QLatin1String("no_target")) {
+            problem = QStringLiteral("reason %1, expected no_target").arg(feedback.last().at(2).toString());
+        } else if (feedback.last().at(3).toString() != QLatin1String("app|c")) {
+            problem = QStringLiteral("window %1, expected app|c").arg(feedback.last().at(3).toString());
+        } else if (state->strip().windowsInOrder() != order) {
+            problem = QStringLiteral("strip order changed");
+        } else if (state->strip().columnCount() != columns) {
+            problem = QStringLiteral("column count changed");
+        } else if (!state->floatingHasFocus()) {
+            problem = QStringLiteral("the float lost focus");
+        }
         feedback.clear();
+        return problem;
     };
+    QString problem;
     engine->moveColumnToFirst(QStringLiteral("S1"));
-    expectRefused(QStringLiteral("move"));
+    problem = refusalProblem(QStringLiteral("move"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("moveColumnToFirst: ") + problem));
     engine->moveColumnToLast(QStringLiteral("S1"));
-    expectRefused(QStringLiteral("move"));
+    problem = refusalProblem(QStringLiteral("move"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("moveColumnToLast: ") + problem));
     engine->consumeWindowIntoColumn(QStringLiteral("S1"));
-    expectRefused(QStringLiteral("consume"));
+    problem = refusalProblem(QStringLiteral("consume"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("consumeWindowIntoColumn: ") + problem));
     engine->consumeOrExpelWindow(-1, QStringLiteral("S1"));
-    expectRefused(QStringLiteral("consume"));
+    problem = refusalProblem(QStringLiteral("consume"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("consumeOrExpelWindow: ") + problem));
     engine->expelWindowFromColumn(QStringLiteral("S1"));
-    expectRefused(QStringLiteral("expel"));
+    problem = refusalProblem(QStringLiteral("expel"));
+    QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("expelWindowFromColumn: ") + problem));
 
     ScrollEngine::FocusedColumnRefusal reason = ScrollEngine::FocusedColumnRefusal::None;
     QVERIFY(engine->focusedColumnWindows(QStringLiteral("S1"), &reason).isEmpty());

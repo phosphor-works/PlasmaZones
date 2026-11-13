@@ -460,9 +460,11 @@ public:
     Q_INVOKABLE QString namedEntryShortcutKey(const QVariantMap& entry, const QString& field) const;
     /// Session-wide global-shortcut suspension for the chord recorders
     /// (PhosphorShortcuts/GlobalShortcutBlock.h). Block when a recorder starts
-    /// capturing and unblock on every way the capture ends. When
-    /// canBlockGlobalShortcuts() is false, a chord another program already
-    /// grabs cannot be recorded, and the recorder should say so.
+    /// capturing and unblock on every way the capture ends. Holds are
+    /// counted, so each true needs exactly one false, and the block lifts when
+    /// the last hold is given back. When canBlockGlobalShortcuts() is false, a
+    /// chord another program already grabs cannot be recorded, and the
+    /// recorder should say so.
     Q_INVOKABLE bool canBlockGlobalShortcuts() const;
     Q_INVOKABLE bool setGlobalShortcutsBlocked(bool blocked);
 

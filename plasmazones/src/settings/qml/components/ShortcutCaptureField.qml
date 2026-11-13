@@ -31,9 +31,11 @@ import org.kde.kirigami as Kirigami
  * While capturing, the field holds a session-wide block on global shortcuts
  * (SettingsController::setGlobalShortcutsBlocked), so a chord some other
  * global action already holds reaches the field instead of firing. The block
- * is released on every exit: a capture, Escape, focus loss, a hidden or
- * destroyed field. Where the platform offers no such block, the field says
- * that a chord already in use elsewhere cannot be recorded.
+ * is released on every exit: a capture, Escape, focus loss (disabling the
+ * field causes one), a hidden field (which keeps its focus, so hiding is
+ * handled on its own) and a destroyed field. Where the platform offers no
+ * such block, the field says that a chord already in use elsewhere cannot be
+ * recorded.
  */
 TextField {
     id: root
@@ -69,9 +71,10 @@ TextField {
     function _beginCapture() {
         if (root.capturing)
             return;
-        // Focus FIRST: a sibling field that is still capturing releases its
-        // block in its own focus-loss handler, and it must do that before this
-        // field takes the block, or the release would lift it for this one.
+        // Focus FIRST: a sibling field that is still capturing ends its
+        // capture in its own focus-loss handler, so only one field records at
+        // a time. The block is counted per hold, so the order of that release
+        // and this field's take does not matter for the block itself.
         root.forceActiveFocus(Qt.OtherFocusReason);
         root.message = "";
         root.capturing = true;
@@ -306,10 +309,14 @@ TextField {
             root.message = "";
         }
     }
-    // A field hidden mid-capture loses focus too, but a disabled one need not.
-    onEnabledChanged: {
-        if (!enabled)
+    // Disabling the field, or an ancestor, takes its focus away, so the
+    // handler above ends that capture. Hiding it does not: a hidden field keeps
+    // activeFocus, so the capture and its block end here instead.
+    onVisibleChanged: {
+        if (!visible) {
             root.capturing = false;
+            root.message = "";
+        }
     }
     Component.onDestruction: root._releaseBlock()
 

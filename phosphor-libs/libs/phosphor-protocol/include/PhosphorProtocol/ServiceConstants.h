@@ -825,9 +825,14 @@ inline constexpr QLatin1String Interface("org.phosphor_works.PlasmaZones.Editor"
 //       desktop (by id, or by its 1-based number when the id is empty) and
 //       the destination output (empty keeps the window where it is). The
 //       compositor judges the arrival's visibility and focus on the
-//       destination output. It replaces the pair of signals the branch first
-//       used (a desktop move by id, and a separate output move), which made
-//       the compositor judge the desktop move on the output the window was
+//       destination output. An empty id with a number below 1 is the
+//       output-only form, which joins the desktop the destination shows; an
+//       id or number naming no desktop runs neither leg and the window is
+//       placed again where it is. Besides the workspace verbs, an engine's
+//       crossing sends it when it has to carry the window to another output
+//       itself. It replaces the pair of signals the branch first used (a
+//       desktop move by id, and a separate output move), which made the
+//       compositor judge the desktop move on the output the window was
 //       leaving. Neither of those ever shipped.
 //
 //       WindowTracking gains reportPerOutputDesktopsMode (b): the

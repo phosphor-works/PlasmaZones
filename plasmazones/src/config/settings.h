@@ -2764,7 +2764,14 @@ private:
     /// Every schema key isKeyModified() reports, with its current value.
     QList<LocalEdit> collectLocalEdits() const;
     /// Write @p edits back through the store (raw writes, no announcement).
-    void reapplyLocalEdits(const QList<LocalEdit>& edits);
+    /// An edit to the Workspaces.Named list is merged per entry with what the
+    /// store holds now (mergeNamedEntriesForReload in settings.cpp), against
+    /// @p namedBaseline, the list that edit was made against, so a rewrite
+    /// another process made to an entry the user did not touch survives.
+    void reapplyLocalEdits(const QList<LocalEdit>& edits, const QVariantList& namedBaseline);
+    /// The Workspaces.Named list in m_baseline: what a local edit to it was
+    /// made against, for reapplyLocalEdits.
+    QVariantList namedEntriesBaseline() const;
 
     /// The animation Profile blob's state, for change detection across a
     /// load / discard / reset.

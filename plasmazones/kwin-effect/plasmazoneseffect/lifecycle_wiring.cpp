@@ -615,7 +615,13 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // Each switch KWin made (old != new) is also where the context-switch mark
     // goes: a tile batch the daemon resolved for the context an output just left
     // must not untile the incoming one (F793). Here and not on the report, whose
-    // dedup misses for reasons that are no switch at all (F886). KWin's
+    // dedup misses for reasons that are no switch at all (F886). The reverse
+    // also happens: when the desktop an output shows is removed, KWin moves the
+    // output to the successor, which takes the removed desktop's number, so
+    // the report dedups while the context did change. The mark still goes on,
+    // since a batch built for the removed desktop's context must not untile
+    // the successor's tiles, and the announce that settles it is the daemon's
+    // renumber re-announce (Daemon::onDesktopsRenumbered). KWin's
     // placeholder output, which stands in while no real output is connected,
     // has no screen the daemon knows and is neither reported nor marked (F870).
     connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this,
@@ -634,12 +640,15 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
                         m_tilingHandler->noteContextSwitched(screenId);
                     }
                 };
+                // A first desktop for an output (no old one) leaves no
+                // context whose batches could land on the new one (C57).
+                const bool switched = oldDesktop && oldDesktop != newDesktop;
                 if (output) {
-                    reportOne(output, newDesktop, oldDesktop != newDesktop);
+                    reportOne(output, newDesktop, switched);
                     return;
                 }
                 for (KWin::LogicalOutput* out : KWin::effects->screens()) {
-                    reportOne(out, KWin::effects->currentDesktop(out), oldDesktop != newDesktop);
+                    reportOne(out, KWin::effects->currentDesktop(out), switched);
                 }
             });
 

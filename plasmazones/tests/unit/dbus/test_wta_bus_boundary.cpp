@@ -491,6 +491,32 @@ private Q_SLOTS:
         QCOMPARE(rec->freeGeometryByScreen.value(vs1), frame);
         QVERIFY(!rec->freeGeometryByScreen.contains(dead));
     }
+
+    // A window placed again where it is, reported by a split monitor's
+    // physical id, keeps its snap membership on the virtual screen its frame
+    // is in. Matched against the raw physical id, that membership read as one
+    // on another screen and was released (C42).
+    void liveContextReleaseOnAPhysicalIdOfASplitMonitorKeepsTheFramesVirtualScreen()
+    {
+        FloatBackFixture f;
+        QVERIFY(f.screenMgr->setVirtualScreenConfig(kRight, TestHelpers::makeSplitConfig(kRight)));
+        const QString vs1 = QStringLiteral("DP-2/vs:1");
+        f.layouts->assignLayout(vs1, 1, QString(), f.layout);
+        f.snap->setCurrentDesktopForScreen(vs1, 1);
+        const QString windowId = f.registerWindow(QStringLiteral("split-live"));
+        f.snap->commitSnap(windowId, f.zone(0), vs1);
+        f.setFrame(windowId, QRect(3000, 100, 400, 300)); // the right half of DP-2
+        QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
+
+        f.wta->releaseSnapOutsideLiveContext(windowId, kRight);
+
+        QCOMPARE(f.snap->screenForTrackedWindow(windowId), vs1);
+        QCOMPARE(f.snap->zoneForWindow(windowId), f.zone(0));
+
+        // Control: a report from the other monitor does release it.
+        f.wta->releaseSnapOutsideLiveContext(windowId, kLeft);
+        QVERIFY(f.snap->zoneForWindow(windowId).isEmpty());
+    }
 };
 
 QTEST_MAIN(TestWtaBusBoundary)

@@ -285,7 +285,14 @@ void WorkspaceReconciler::expireLedger()
             refusedRemovals.append(op.desktopId);
             break;
         case PendingOp::Kind::SetCurrent:
-            refusedSetCurrentScreens.insert(op.screenId);
+            // Only a correction spends the screen's correction budget. A user
+            // switch that went unanswered is retried by the user's next press,
+            // the same as one the compositor refused (onScreenDesktopReport),
+            // and charging it here would stop owner-wins for a screen that
+            // never had a correction refused.
+            if (!op.replaceable) {
+                refusedSetCurrentScreens.insert(op.screenId);
+            }
             break;
         }
     }
@@ -411,8 +418,11 @@ void WorkspaceReconciler::expireLedger()
         bumpGeneration();
     }
     if (namedCreateExpired && m_adopted) {
-        const QStringList names =
-            m_declarationKwinNames.size() == m_lastIds.size() ? m_declarationKwinNames : QStringList();
+        // KWin's names as they are NOW, not as the last apply saw them: a
+        // rename that landed since (ours echoing back, or one made on KWin's
+        // side) would otherwise read as a fresh KWin-side rename of the
+        // workspace and be reported, undoing the user's own settings rename.
+        const QStringList names = m_lastRawNames.size() == m_lastIds.size() ? m_lastRawNames : QStringList();
         const QList<NamedWorkspace> declarations = m_declarations;
         applyNamedWorkspaces(declarations, names);
     }
@@ -503,18 +513,6 @@ int WorkspaceReconciler::knownDesktopCount() const
         }
     }
     return count;
-}
-
-void WorkspaceReconciler::retireLedgerFor(const QString& desktopId)
-{
-    // An un-echoed Create carries no desktopId, so it can never match a
-    // non-empty id, and this is only ever called with one.
-    for (int i = m_ledger.size() - 1; i >= 0; --i) {
-        if (m_ledger.at(i).desktopId == desktopId) {
-            m_ledger.removeAt(i);
-        }
-    }
-    stopLedgerTimerIfIdle();
 }
 
 int WorkspaceReconciler::matchCreateEcho(int position, const QString& name) const
@@ -933,9 +931,13 @@ bool WorkspaceReconciler::onScreenDesktopReport(const QString& screenId, int des
         return false;
     }
     const int open = openSetCurrentIndex(screenId);
-    if (open >= 0 && m_ledger.at(open).desktopId != desktopId && m_ledger.at(open).supersededAnswers > 0) {
+    if (open >= 0 && m_ledger.at(open).supersededAnswers > 0) {
         // The answer to a press this switch replaced (key repeat), not to
-        // this one: the entry keeps waiting for its own.
+        // this one: the entry keeps waiting for its own. Whatever desktop it
+        // names, the target included: a press that went the same way as this
+        // one (a slot chord pressed twice, next-prev-next) answers with this
+        // entry's target, and retiring on it would leave this entry's own
+        // answer to be read as the refusal of the user's next press.
         --m_ledger[open].supersededAnswers;
     } else if (open >= 0) {
         const PendingOp op = m_ledger.at(open);
@@ -1264,7 +1266,10 @@ void WorkspaceReconciler::onDesktopListSettled(const QStringList& ids, const QSt
     }
     if (ids == m_lastIds) {
         // A names-only change (a rename on either side) leaves the ids alone
-        // but can still leave a positional label stale.
+        // but can still leave a positional label stale. VirtualDesktopManager
+        // announces a list only when its ids change and reports each rename
+        // through onKwinDesktopRenamed instead, so in the daemon this arm runs
+        // only for a caller whose id list had drifted from ours.
         if (rawNames.size() == ids.size() && rawNames != m_lastRawNames) {
             m_lastRawNames = rawNames;
             refreshPositionalLabels();

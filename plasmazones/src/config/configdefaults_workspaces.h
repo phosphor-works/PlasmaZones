@@ -20,8 +20,10 @@ public:
 
     /// Master opt-in for dynamic per-monitor workspaces. Off, the daemon
     /// never constructs a WorkspaceController (Daemon::initializeWorkspaces
-    /// returns before it) and ShortcutManager registers none of the workspace
-    /// verbs.
+    /// returns before it). ShortcutManager still registers the workspace
+    /// verbs but keeps them parked, holding no grab and absent from the
+    /// cheatsheet, until the daemon calls setWorkspaceFamilyActive(true) once
+    /// the controller runs.
     static constexpr bool workspacesEnabled()
     {
         return false;
@@ -70,12 +72,13 @@ public:
     //
     // The focus pair deliberately takes over KWin's stock "Switch One Desktop
     // Down/Up" chords (user decision, 2026-08-26). That takeover is real: the
-    // daemon's stock-rebind pass (the KWinDesktopActions table in
-    // Daemon::initializeWorkspaces) backs up and clears exactly the "Switch
-    // One Desktop *" / "Walk Through Desktops" actions while the feature and
-    // the rebind toggle are both on, and restores them on disable.
+    // daemon's stock-rebind pass (the kwinDesktopActions() list in
+    // plasmazones/src/daemon/daemon/workspaces.cpp) backs up and clears
+    // exactly the "Switch One Desktop *" / "Walk Through Desktops" actions
+    // while the feature and the rebind toggle are both on, and restores them
+    // on disable.
     //
-    // Nothing else here may sit on a stock KWin chord, because that table
+    // Nothing else here may sit on a stock KWin chord, because that list
     // covers only the SWITCH family. In particular Meta+Ctrl+Shift+Arrow is
     // KWin's stock "Window One Desktop <direction>" quad, which the takeover
     // does NOT release — a default there would stay permanently uncaptured

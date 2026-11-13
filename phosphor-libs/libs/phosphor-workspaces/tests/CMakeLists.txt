@@ -56,6 +56,10 @@ pw_add_test(pw_test_workspace_map test_workspace_map.cpp)
 pw_add_test(pw_test_workspace_reconciler test_workspace_reconciler.cpp)
 pw_add_test(pw_test_workspace_ledger test_workspace_ledger.cpp)
 pw_add_test(pw_test_virtualdesktopmanager test_virtualdesktopmanager.cpp)
+# Qt6::DBus on top of the shared set: the suite hands the manager's KWin signal
+# slots whole D-Bus messages, malformed ones included, to cover the parsing the
+# protected ingest seams sit behind.
+target_link_libraries(pw_test_virtualdesktopmanager PRIVATE Qt6::DBus)
 
 # The ActivityManager suite drives the manager against a fake activity service,
 # so it has nothing to test in a build without the activities library.

@@ -251,6 +251,31 @@ void PlasmaZonesEffect::applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualD
     // are held until both ran, so the daemon hears the final set once instead
     // of KWin's intermediate one.
     const bool outputLeg = destination && kw && source != destination;
+
+    // KWin's own Window to Desktop hands focus on when it hides the active
+    // window, and setDesktops does not: the hidden window kept the keyboard
+    // and stayed the daemon's focused window, so the next shortcut moved it
+    // again (F762). Whether the move hides it is judged on the output it
+    // lands on, the destination when there is an output leg. The successor is
+    // picked BEFORE the legs, while the window still sits on the output it is
+    // leaving (C55): activateNextWindow picks on the window's committed output,
+    // which after sendToOutput names the destination when the size is
+    // unchanged and still the source while a size change waits for the
+    // client, so a hand-off after the legs focused either monitor depending on
+    // the window's size. Handing off first also keeps sendToOutput from making
+    // the destination the active output, which it does only for the active
+    // window. activateNextWindow returns when the window is not the active
+    // one.
+    KWin::LogicalOutput* const predictedLanding = outputLeg ? destination : source;
+    KWin::VirtualDesktop* const shownAtLanding =
+        predictedLanding ? KWin::effects->currentDesktop(predictedLanding) : KWin::effects->currentDesktop();
+    KWin::Workspace* const ws = KWin::workspace();
+    bool handedFocusOn = false;
+    if (wasActive && kw && ws && shownAtLanding && shownAtLanding != target) {
+        ws->activateNextWindow(kw);
+        handedFocusOn = KWin::effects->activeWindow() != w;
+    }
+
     if (outputLeg) {
         m_contextHold.holds[w].reasons |= WindowContextHold::WorkspaceMove;
     }
@@ -265,7 +290,9 @@ void PlasmaZonesEffect::applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualD
     // A refused leg undoes whatever the legs already did, so the window stays
     // where it was rather than on a desktop its output never shows, which the
     // owner-wins snap-back would then bounce (F811), and is placed again there.
-    const auto refuse = [this, w, source, desktopsBefore, pendingOutput, endHold](const char* leg) {
+    // A window that handed its focus on for a move that did not happen takes
+    // it back, since it never left the screen.
+    const auto refuse = [this, w, source, desktopsBefore, pendingOutput, endHold, handedFocusOn](const char* leg) {
         qCInfo(lcEffect) << "workspace move: KWin kept" << getWindowId(w) << "off the target" << leg
                          << "- undoing the move";
         if (source && pendingOutput() != source) {
@@ -275,6 +302,9 @@ void PlasmaZonesEffect::applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualD
             KWin::effects->windowToDesktops(w, desktopsBefore);
         }
         endHold();
+        if (handedFocusOn && !w->isDeleted()) {
+            KWin::effects->activateWindow(w);
+        }
         placeAfterRefusedDesktopMove(w);
     };
     if (outputLeg) {
@@ -333,13 +363,11 @@ void PlasmaZonesEffect::applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualD
         m_snapHandler->armDesktopArrivalRestore(getWindowId(w),
                                                 openContinuation ? DesktopArrivalParks::Cause::OpenContinuation
                                                                  : DesktopArrivalParks::Cause::ReapplyOnly);
-        // KWin's own Window to Desktop hands focus on when it hides the
-        // active window, and setDesktops does not: the hidden window kept
-        // the keyboard and stayed the daemon's focused window, so the next
-        // shortcut moved it again (F762). activateNextWindow picks the way
-        // KWin does and returns when the window is no longer the active one.
-        KWin::Workspace* const ws = KWin::workspace();
-        if (wasActive && kw && ws && shownHere && !w->isOnDesktop(shownHere)) {
+        // The hand-off ran ahead of the legs. A window still active here is
+        // one that landing did not predict hidden (a script switched the
+        // landing output's desktop inside the legs): it hands focus on now,
+        // so the hidden window never keeps the keyboard (F762).
+        if (kw && ws && shownHere && !w->isOnDesktop(shownHere) && KWin::effects->activeWindow() == w) {
             ws->activateNextWindow(kw);
         }
     }
@@ -420,10 +448,18 @@ void PlasmaZonesEffect::slotSetScreenDesktopRequested(const QString& screenId, c
     if (screenId.isEmpty()) {
         return;
     }
-    // An output this effect does not know gets no answer: there is no live
-    // desktop to report for it.
+    // An output this effect does not know, or KWin's placeholder, gets no
+    // answer: there is no live desktop to report for it. That is the only
+    // unanswered case, and it is settled here, BEFORE anything switches, so a
+    // request is never carried out and then left unanswered. The daemon's
+    // SetCurrent ledger counts on one answer per request for every other
+    // output (C58). KWin never answers currentDesktop with null for a real
+    // output: it falls back to its first desktop for an output it holds no
+    // entry for, and always keeps at least one desktop.
     KWin::LogicalOutput* const output = outputForScreenId(screenId);
-    if (!output || output->isPlaceholder()) {
+    KWin::VirtualDesktop* const before =
+        output && !output->isPlaceholder() ? KWin::effects->currentDesktop(output) : nullptr;
+    if (!before) {
         qCDebug(lcEffect) << "slotSetScreenDesktopRequested: unknown screen" << screenId;
         return;
     }
@@ -431,7 +467,6 @@ void PlasmaZonesEffect::slotSetScreenDesktopRequested(const QString& screenId, c
         PhosphorProtocol::clampScreenDesktopSwitchPurposeFromWire(purposeWire);
     const bool correction = purpose == PhosphorProtocol::ScreenDesktopSwitchPurpose::Correction;
     const QString reportedId = outputScreenId(output);
-    KWin::VirtualDesktop* const before = KWin::effects->currentDesktop(output);
     const int reportedBefore = m_lastScreenDesktop.value(reportedId, -1);
 
     // By id: a number resolved at the daemon's emit could name another desktop
@@ -475,11 +510,12 @@ void PlasmaZonesEffect::slotSetScreenDesktopRequested(const QString& screenId, c
     // (no such desktop, a refusal, the deferral, a request already satisfied,
     // or a script that switched the output straight back) reported nothing,
     // so it is forced past the dedup here. Never both, so the daemon hears one
-    // answer per request (F22).
-    KWin::VirtualDesktop* const live = KWin::effects->currentDesktop(output);
-    if (!live) {
-        return;
-    }
+    // answer per request (F22). The output's desktop cannot have become null
+    // inside the call (KWin only ever moves an output to another real
+    // desktop), and reading the one it showed before if it ever did keeps
+    // the answer owed rather than dropping it.
+    KWin::VirtualDesktop* const afterCall = KWin::effects->currentDesktop(output);
+    KWin::VirtualDesktop* const live = afterCall ? afterCall : before;
     const int liveNumber = static_cast<int>(live->x11DesktopNumber());
     if (target && live != target) {
         qCWarning(lcEffect) << "slotSetScreenDesktopRequested:" << screenId << "is on" << liveNumber

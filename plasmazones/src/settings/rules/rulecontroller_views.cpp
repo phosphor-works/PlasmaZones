@@ -53,6 +53,26 @@ using PhosphorRules::MatchExpression;
 using PhosphorRules::Rule;
 using PhosphorRules::RuleAction;
 
+/// @p items joined as a prose list in the language the sentence around it is
+/// translated into. QLocale::createSeparatedList would follow the system
+/// locale instead, which need not be the translation's language, and put an
+/// English "and" inside a translated sentence.
+QString translatedProseList(const QStringList& items)
+{
+    if (items.isEmpty()) {
+        return {};
+    }
+    QString joined = items.constFirst();
+    for (qsizetype i = 1; i + 1 < items.size(); ++i) {
+        joined = PhosphorI18n::tr("%1, %2", "a list built so far, then its next item").arg(joined, items.at(i));
+    }
+    if (items.size() > 1) {
+        joined =
+            PhosphorI18n::tr("%1 and %2", "a list built so far, then its last item").arg(joined, items.constLast());
+    }
+    return joined;
+}
+
 /// The device-pixel size of @p screen (a `SettingsController::screens` map)
 /// when the daemon's rules see one: the compositor's report, or the seeded
 /// size, the one last accepted for that monitor in this session or an
@@ -758,7 +778,7 @@ QString RuleController::modeScopedInertHint(const QVariantMap& ruleJson) const
         sentences.append(PhosphorI18n::tr("%1 never take effect in a rule that checks the placement mode, because "
                                           "they are decided before the mode is known. Move them to a rule without a "
                                           "mode condition.")
-                             .arg(QLocale().createSeparatedList(inert)));
+                             .arg(translatedProseList(inert)));
     }
     if (snapsAtOpen) {
         sentences.append(PhosphorI18n::tr("“%1” does not place a window when it opens in a rule that checks the "

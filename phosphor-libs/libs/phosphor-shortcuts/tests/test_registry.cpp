@@ -891,6 +891,8 @@ private Q_SLOTS:
             if (inFlush) {
                 ++deliveredDuringFlush;
             }
+            // The consumer shape the queueing protects: a slot that mutates
+            // the entry table in response.
             registry.unbind(QStringLiteral("pz.b"));
         });
         QSignalSpy spy(&registry, &Registry::triggersChanged);
@@ -901,8 +903,18 @@ private Q_SLOTS:
 
         QCOMPARE(deliveredDuringFlush, 0);
         QCOMPARE(spy.count(), 0);
-        // Delivered afterwards, for ids still owned at delivery time.
-        QTRY_VERIFY(spy.count() >= 1);
+
+        // Both ids reported while owned. Unbind pz.b before the event loop
+        // runs, so the ownership check that matters is the one at delivery
+        // time. Done here rather than from the slot, because the slot's
+        // unbind lands before or after pz.b's relay depending on the hash
+        // order flush() walked, and only one of those orders tests anything.
+        registry.unbind(QStringLiteral("pz.b"));
+
+        QTRY_COMPARE(spy.count(), 1);
+        QCoreApplication::processEvents();
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("pz.a"));
     }
 
     void parkWithRebindInSameBatch_writesNewChordThroughAfterSuspend()

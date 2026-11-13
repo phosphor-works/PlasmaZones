@@ -1393,8 +1393,10 @@ private:
     bool restoreFromStripStash(ScrollState* state, const PhosphorEngine::PlacementStateKey& key,
                                const QString& windowId, const ScrollLayoutParams& params, int minWidth, int minHeight);
     /// The tiles of @p state's column @p columnIndex in tile order, with the column's hidden members (see
-    /// focusedColumnWindows) inserted at the slot they return to. Heights and the windowed-fullscreen flag
-    /// come from the live tile, or from the FloatRestore entry for a hidden member. Empty for a bad index.
+    /// focusedColumnWindows) inserted at the slot they return to, their leaves replayed newest first. A live
+    /// tile carries its height, minimized and windowed-fullscreen state; a hidden member carries only the height
+    /// its FloatRestore entry kept (a float leaves windowed fullscreen behind, see FloatRestore::windowedFullscreen).
+    /// Empty for a bad index.
     QVector<StashedTile> columnTilesWithHiddenMembers(const ScrollState* state, int columnIndex) const;
     /// The shared tail of stashColumnForDesktopMove and stashStripForOutputMove: append @p columns to the stash entry
     /// for @p destKey (created when absent, @p fresh says which), after taking their windows out of the entry's
@@ -1410,8 +1412,16 @@ private:
     void sweepStripStash(const std::function<bool(const PhosphorEngine::PlacementStateKey&)>& stale);
     // engine_stashleave.cpp
     /// Erase @p windowId's tile from every stash entry whose key @p left answers true for (a context it left).
+    /// With @p movedColumnsOnly only the columns a move recorded (StashedColumn::arrivesAsMove) give the tile
+    /// up, and the window's readoptParked grants stay: a mode-round-trip column under another desktop is still
+    /// the window's if it spans that desktop.
     void forgetStashedWindowWhere(const QString& windowId,
-                                  const std::function<bool(const PhosphorEngine::PlacementStateKey&)>& left);
+                                  const std::function<bool(const PhosphorEngine::PlacementStateKey&)>& left,
+                                  bool movedColumnsOnly = false);
+    /// The arrival half of the move record: @p windowId was placed under @p arrivalKey, so a column a move
+    /// recorded for it under any other key is one it never reached (the move was refused, or the window was
+    /// moved on), and it gives that column up (forgetStashedWindowWhere with movedColumnsOnly).
+    void forgetMovedColumnsElsewhere(const QString& windowId, const PhosphorEngine::PlacementStateKey& arrivalKey);
     /// pruneStaleWindows' sweep of the stash on aliveness, and the restart-move arm.
     void sweepStripStashForAliveness(const QSet<QString>& aliveWindowIds);
     // engine_desktopremap.cpp
@@ -2028,6 +2038,8 @@ private:
     qint64 m_fuzzyClaimGraceMs;
     /// Ever-increasing stamp source for StashedStrip::sequence.
     quint64 m_stashSequence = 0;
+    /// Ever-increasing stamp source for FloatRestore::leaveSequence.
+    quint64 m_floatLeaveSequence = 0;
     /// Screens with a retile queued this event-loop pass (coalescing).
     QSet<QString> m_pendingRetiles;
     /// Whether the last tabStripsChanged emission for a screen was

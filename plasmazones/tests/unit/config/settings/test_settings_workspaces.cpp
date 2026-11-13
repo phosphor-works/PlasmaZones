@@ -33,6 +33,7 @@
 #include <memory>
 #include <vector>
 
+#include <PhosphorConfig/JsonBackend.h>
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorRules/ActionParams.h>
 
@@ -160,6 +161,16 @@ QStringList namesAndPositions(const QVariantList& entries)
         out.append(QStringLiteral("%1@%2")
                        .arg(entry.value(ConfigDefaults::namedEntryNameField()).toString())
                        .arg(entry.value(ConfigDefaults::namedEntryPositionField()).toInt()));
+    }
+    return out;
+}
+
+/// The id of every entry in list order.
+QStringList entryIds(const QVariantList& entries)
+{
+    QStringList out;
+    for (const QVariant& value : entries) {
+        out.append(value.toMap().value(ConfigDefaults::namedEntryIdField()).toString());
     }
     return out;
 }
@@ -692,6 +703,148 @@ private Q_SLOTS:
         settings.reloadPreservingLocalEdits();
         QCOMPARE(namesAndPositions(settings.workspacesNamedEntries()),
                  (QStringList{QStringLiteral("A@2"), QStringLiteral("C@-1"), QStringLiteral("B@-1")}));
+    }
+
+    /// The settings page stamps an id on every id-less entry when it writes
+    /// the list, while the file still holds those entries id-less. The stamp
+    /// alone must not read as "removed and re-added": the daemon's move of the
+    /// stamped entry survives, and the entry keeps the id the page gave it.
+    void reloadPreservingLocalEdits_idStampKeepsTheDaemonRewrite()
+    {
+        IsolatedConfigGuard guard;
+        const QString x = QUuid::createUuid().toString();
+        const QString y = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries(
+            {namedEntry(QVariant(), QStringLiteral("A")), namedEntry(QVariant(), QStringLiteral("B"))});
+        QVERIFY(settings.save());
+
+        settings.setWorkspacesNamedEntries({namedEntry(x, QStringLiteral("A")), namedEntry(y, QStringLiteral("B"))});
+        writeNamedFromAnotherProcess(
+            {namedEntry(QVariant(), QStringLiteral("A"), QString(), 2), namedEntry(QVariant(), QStringLiteral("B"))});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("A@2"), QStringLiteral("B@-1")}));
+        QCOMPARE(entryIds(merged), (QStringList{x, y}));
+    }
+
+    /// A stamped entry the daemon renamed in place (a rename made in KWin)
+    /// stays one workspace: the stamp is not an edit that keeps the old name
+    /// alive beside the new one.
+    void reloadPreservingLocalEdits_idStampDoesNotDuplicateARenamedEntry()
+    {
+        IsolatedConfigGuard guard;
+        const QString x = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries({namedEntry(QVariant(), QStringLiteral("A"))});
+        QVERIFY(settings.save());
+
+        settings.setWorkspacesNamedEntries({namedEntry(x, QStringLiteral("A"))});
+        writeNamedFromAnotherProcess({namedEntry(QVariant(), QStringLiteral("Alpha"))});
+
+        settings.reloadPreservingLocalEdits();
+        QCOMPARE(namesAndPositions(settings.workspacesNamedEntries()), (QStringList{QStringLiteral("Alpha@-1")}));
+    }
+
+    /// One entry changed on both sides, in different fields: the user's chord
+    /// and the daemon's move both survive.
+    void reloadPreservingLocalEdits_mergesOneEntryPerField()
+    {
+        IsolatedConfigGuard guard;
+        const QString a = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A"))});
+        QVERIFY(settings.save());
+
+        QVariantMap withChord = namedEntry(a, QStringLiteral("A"));
+        withChord[ConfigDefaults::namedEntryFocusShortcutField()] = QStringLiteral("Meta+Ctrl+F1");
+        settings.setWorkspacesNamedEntries({withChord});
+        writeNamedFromAnotherProcess({namedEntry(a, QStringLiteral("A"), QString(), 2)});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("A@2")}));
+        QCOMPARE(merged.constFirst().toMap().value(ConfigDefaults::namedEntryFocusShortcutField()).toString(),
+                 QStringLiteral("Meta+Ctrl+F1"));
+    }
+
+    /// A row the user added under a name another process gave an existing
+    /// entry meanwhile yields to that entry, wherever the added row sits.
+    void reloadPreservingLocalEdits_collidingLocalAdditionYieldsToDisk()
+    {
+        IsolatedConfigGuard guard;
+        const QString a = QUuid::createUuid().toString();
+        const QString b = QUuid::createUuid().toString();
+        const QString c = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A")), namedEntry(b, QStringLiteral("B"))});
+        QVERIFY(settings.save());
+
+        // Added between the two, so list order alone would keep it.
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A")), namedEntry(c, QStringLiteral("Work")),
+                                            namedEntry(b, QStringLiteral("B"))});
+        writeNamedFromAnotherProcess({namedEntry(a, QStringLiteral("A")), namedEntry(b, QStringLiteral("Work"))});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("A@-1"), QStringLiteral("Work@-1")}));
+        QCOMPARE(entryIds(merged), (QStringList{a, b}));
+    }
+
+    /// A local rename to a name another process gave a different entry goes
+    /// back to the entry's own name, and neither declaration is lost.
+    void reloadPreservingLocalEdits_collidingLocalRenameKeepsBothEntries()
+    {
+        IsolatedConfigGuard guard;
+        const QString a = QUuid::createUuid().toString();
+        const QString b = QUuid::createUuid().toString();
+        Settings settings;
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A")), namedEntry(b, QStringLiteral("B"))});
+        QVERIFY(settings.save());
+
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A")), namedEntry(b, QStringLiteral("Work"))});
+        writeNamedFromAnotherProcess({namedEntry(a, QStringLiteral("Work")), namedEntry(b, QStringLiteral("B"))});
+
+        settings.reloadPreservingLocalEdits();
+        const QVariantList merged = settings.workspacesNamedEntries();
+        QCOMPARE(namesAndPositions(merged), (QStringList{QStringLiteral("Work@-1"), QStringLiteral("B@-1")}));
+        QCOMPARE(entryIds(merged), (QStringList{a, b}));
+    }
+
+    /// A factory reset whose commit is refused puts the unsaved edits back
+    /// through the same per-entry merge, so the daemon's rewrite of an entry
+    /// the user did not touch is not reverted by the put-back.
+    void reset_refusedCommitMergesTheNamedEntries()
+    {
+        class FailingCommitBackend : public PhosphorConfig::JsonBackend
+        {
+        public:
+            using PhosphorConfig::JsonBackend::JsonBackend;
+            bool failCommits = false;
+            bool commit() override
+            {
+                return failCommits ? false : PhosphorConfig::JsonBackend::commit();
+            }
+        };
+
+        IsolatedConfigGuard guard;
+        FailingCommitBackend backend(ConfigDefaults::configFilePath());
+        Settings settings(&backend, nullptr, nullptr, nullptr);
+        const QString a = QUuid::createUuid().toString();
+        const QString b = QUuid::createUuid().toString();
+        settings.setWorkspacesNamedEntries({namedEntry(a, QStringLiteral("A")), namedEntry(b, QStringLiteral("B"))});
+        QVERIFY(settings.save());
+
+        settings.setWorkspacesNamedEntries(
+            {namedEntry(a, QStringLiteral("A")), namedEntry(b, QStringLiteral("B local"))});
+        writeNamedFromAnotherProcess(
+            {namedEntry(a, QStringLiteral("A"), QString(), 2), namedEntry(b, QStringLiteral("B"))});
+
+        backend.failCommits = true;
+        QVERIFY(!settings.reset());
+        QCOMPARE(namesAndPositions(settings.workspacesNamedEntries()),
+                 (QStringList{QStringLiteral("A@2"), QStringLiteral("B local@-1")}));
     }
 
     /// load() reverting an unsaved chord edit announces that chord only.

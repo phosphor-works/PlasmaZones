@@ -284,6 +284,13 @@ struct FloatRestore
     /// columns close while the window floats, and a stale index would
     /// splice the window into a stranger's stack.
     QString stackAnchor;
+    /// When the window left its shared column, from an engine-wide counter
+    /// (floatWindowInternal stamps it beside tileIndex). Each tileIndex is a
+    /// slot in the column as it stood at that leave, so putting several of a
+    /// column's departed tiles back at once replays the leaves newest first
+    /// (ScrollEngine::columnTilesWithHiddenMembers). 0 for an entry no leave
+    /// stamped (no shared column to go back into).
+    quint64 leaveSequence = 0;
     /// Minimum frame size (Tile::minWidth) at float time — the tile that held
     /// it dies with takeWindow, and dropping it would strip the
     /// relayout clamps until the compositor happens to re-report.

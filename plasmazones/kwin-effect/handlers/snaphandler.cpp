@@ -1362,9 +1362,23 @@ bool SnapHandler::drainDesktopArrivalFor(const QString& windowId, KWin::EffectWi
     if (!window || !m_desktopArrivalParks.contains(windowId)) {
         return false;
     }
-    // Measured against the window's OWN output, matching the park in
-    // PlasmaZonesEffect::applyWorkspaceMove, which judges the output the window
-    // lands on (committed by the time a switch drains this). The shared helper in
+    // The park in PlasmaZonesEffect::applyWorkspaceMove is judged on the output
+    // the window lands on, KWin's pending output. Until the client commits a
+    // move to another output (a size change waits for it), the committed
+    // output, the frame and the screen id the restore resolves against all
+    // still name the output the window is leaving, so a drain now would judge
+    // the wrong output's desktop and re-drive the restore on the wrong screen
+    // (C56). The park is kept, and the commit drains it
+    // (PlasmaZonesEffect::wireOutputChangeHandlers). A size-only difference is
+    // no move, as in PlasmaZonesEffect::pendingWindowScreenId.
+    if (const KWin::Window* const kw = window->window(); kw && kw->moveResizeOutput() != kw->output()) {
+        const QRectF pending = kw->moveResizeGeometry();
+        if (pending.isValid() && pending.topLeft().toPoint() != window->frameGeometry().topLeft().toPoint()) {
+            return false; // Still on its way to the output it lands on.
+        }
+    }
+    // Measured against the window's OWN output, the one it landed on once the
+    // move above committed. The shared helper in
     // plasmazoneseffect/desktopvisibility.h carries the full over- and
     // under-fire rationale.
     if (!isOnOwnOutputCurrentDesktop(window) || !window->isOnCurrentActivity()) {

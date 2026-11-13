@@ -947,7 +947,8 @@ public:
     /// span is stale, the state a refused workspace move leaves when the snap-target handoff has already re-keyed
     /// the window into the destination's store (F581, F811): released through
     /// SnapEngine::releaseWindowOutsideSpan, with the placement re-capture and the "unsnapped" relay a membership
-    /// pass drives.
+    /// pass drives. @p screenId is the effect's report and goes through resolveBusScreen first, so a split
+    /// monitor's physical id keeps the window's membership on the virtual screen its frame is in.
     void releaseSnapOutsideLiveContext(const QString& windowId, const QString& screenId);
 
     /// Re-capture EVERY open window's live placement into the unified store
@@ -1285,6 +1286,11 @@ public:
     /// workspace its open was routed to (see workspaceLandingScreen), else
     /// @p screenId. The snap open chain resolves and claims on it.
     QString openRouteLandingScreen(const QString& windowId, const QString& screenId) const;
+
+    /// Whether a routing pass already ran for @p windowId's open (its verdict is latched until the window
+    /// closes), matched or not. The snap open path reads it to tell a pending sweep that IS a window's first
+    /// placement from one re-driving a window whose open was already placed and routed.
+    bool hasRoutedOpen(const QString& windowId) const;
 
     /// The routing pass shared by the two open channels: send @p windowId to
     /// the workspace or desktop @p resolved names, ONCE per open. The first
@@ -1659,6 +1665,16 @@ private:
         /// collateral rider or a daemon re-route, which keeps its own
         /// fullscreen: this gates only the fullscreen hand-back.
         bool subjectOfVerb = true;
+        /// The screen the source engine holds the window on, as the verb
+        /// resolved it by membership (a background desktop's holder
+        /// included). Empty lets crossModeMoveImpl ask the source engine,
+        /// whose reverse map can answer nothing for a window held only on a
+        /// desktop no screen shows (C33).
+        QString sourceScreenId;
+        /// The desktop to re-home the window on when the target refuses it:
+        /// the background desktop the source holds it on, or 0 for the
+        /// desktop its screen shows.
+        int sourceDesktop = 0;
     };
 
     /// What one open's routing pass decided (see m_openRoutes).

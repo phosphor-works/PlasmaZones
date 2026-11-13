@@ -423,6 +423,11 @@ void WindowTrackingAdaptor::republishOpenRoute(const QString& windowId)
     }
 }
 
+bool WindowTrackingAdaptor::hasRoutedOpen(const QString& windowId) const
+{
+    return m_openRoutes.contains(shadowWindowId(windowId));
+}
+
 QString WindowTrackingAdaptor::openRouteLandingScreen(const QString& windowId, const QString& screenId) const
 {
     const OpenRouteVerdict latched = m_openRoutes.value(shadowWindowId(windowId));

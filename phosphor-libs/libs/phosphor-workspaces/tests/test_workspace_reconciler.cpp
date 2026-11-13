@@ -126,6 +126,9 @@ private Q_SLOTS:
     void answers_refusedRemoveIsAbandoned();
     void kwinRenameFeed_reportsUserNamesAndClosesOurPushes();
     void seed_isRecordedButNeverTakenForAnEcho();
+    void issueSetCurrentReplacing_anEarlierAnswerNamingTheTargetIsNotItsOwn();
+    void screenRenamed_recordsAlreadyUnderTheNewIdWin();
+    void adoption_refreshesStalePositionalLabels();
 };
 
 void TestWorkspaceReconciler::adoption_currentFirstThenKWinOrder()
@@ -1943,6 +1946,78 @@ void TestWorkspaceReconciler::seed_isRecordedButNeverTakenForAnEcho()
     rec.onScreenDesktopSeeded(QStringLiteral("B"), 1);
     QCOMPARE(foreignSpy.count(), 1);
     QCOMPARE(foreignSpy.first().at(0).toString(), QStringLiteral("B"));
+}
+
+void TestWorkspaceReconciler::issueSetCurrentReplacing_anEarlierAnswerNamingTheTargetIsNotItsOwn()
+{
+    WorkspaceReconciler rec;
+    QVERIFY(adoptTwoScreens(rec)); // positions: d1=1 d3=2 d2=3 d4=4; A shows d1, owns {d1, d3}
+
+    // next, prev, next before anything answers: each press chains off the
+    // one in flight and replaces it, so the entry owes two answers to the
+    // presses it replaced before its own.
+    const auto press = [&rec](int delta) {
+        const QString inFlight = rec.inFlightSetCurrentTarget(QStringLiteral("A"));
+        const QString base = inFlight.isEmpty() ? rec.currentDesktopIdOf(QStringLiteral("A")) : inFlight;
+        return rec.issueSetCurrentReplacing(QStringLiteral("A"),
+                                            rec.desktopIdAtOffsetFrom(QStringLiteral("A"), base, delta));
+    };
+    QVERIFY(press(1));
+    QVERIFY(press(-1));
+    QVERIFY(press(1));
+    QCOMPARE(rec.inFlightSetCurrentTarget(QStringLiteral("A")), id(3));
+
+    // The first press's answer names d3, the same desktop the last press is
+    // for. It is still the first press's answer.
+    rec.onScreenDesktopReport(QStringLiteral("A"), 2);
+    QCOMPARE(rec.inFlightSetCurrentTarget(QStringLiteral("A")), id(3));
+    rec.onScreenDesktopReport(QStringLiteral("A"), 1); // the second press: back to d1
+    QCOMPARE(rec.inFlightSetCurrentTarget(QStringLiteral("A")), id(3));
+    // Only the last press's own answer retires the entry.
+    QVERIFY(rec.onScreenDesktopReport(QStringLiteral("A"), 2));
+    QVERIFY(rec.inFlightSetCurrentTarget(QStringLiteral("A")).isEmpty());
+}
+
+void TestWorkspaceReconciler::screenRenamed_recordsAlreadyUnderTheNewIdWin()
+{
+    WorkspaceReconciler rec;
+    QVERIFY(adoptTwoScreens(rec)); // positions: d1=1 d3=2 d2=3 d4=4; A shows d1
+    const QString renamed = QStringLiteral("A/DP-1");
+
+    // An older switch under the old spelling, then the effect already
+    // reporting and being switched under the new one before the rename lands.
+    QVERIFY(rec.issueSetCurrent(QStringLiteral("A"), id(3)));
+    rec.onScreenDesktopReport(renamed, 2); // d3
+    QVERIFY(rec.issueSetCurrent(renamed, id(1)));
+
+    rec.onScreenRenamed(QStringLiteral("A"), renamed);
+    // The new id's own records are the fresher ones: its current desktop and
+    // its switch. The old id's switch is dropped, not kept beside it, so the
+    // screen has one switch open.
+    QCOMPARE(rec.map().ownerOf(id(1)), renamed);
+    QCOMPARE(rec.currentDesktopIdOf(renamed), id(3));
+    QCOMPARE(rec.inFlightSetCurrentTarget(renamed), id(1));
+    QVERIFY(rec.onScreenDesktopReport(renamed, 1));
+    QVERIFY(rec.inFlightSetCurrentTarget(renamed).isEmpty());
+}
+
+void TestWorkspaceReconciler::adoption_refreshesStalePositionalLabels()
+{
+    // KWin labels a desktop once, when it creates it. A desktop removed
+    // before the feature came up left the survivors behind it with the label
+    // of a position they no longer hold, and adoption is the only pass that
+    // sees them until the list next changes.
+    WorkspaceReconciler rec;
+    rec.onScreenOrderChanged({QStringLiteral("A")});
+    QSignalSpy renameSpy(&rec, &WorkspaceReconciler::requestSetDesktopName);
+    QHash<QString, QString> current;
+    current.insert(QStringLiteral("A"), id(1));
+    QVERIFY(rec.adoptAll({id(1), id(3), id(4)}, current, {}, {label(1), label(3), QStringLiteral("music")}));
+
+    // d3 is corrected; the name a user gave d4 is theirs and stays.
+    QCOMPARE(renameSpy.count(), 1);
+    QCOMPARE(renameSpy.first().at(0).toString(), id(3));
+    QCOMPARE(renameSpy.first().at(1).toString(), label(2));
 }
 
 QTEST_GUILESS_MAIN(TestWorkspaceReconciler)

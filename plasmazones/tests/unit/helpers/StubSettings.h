@@ -3173,7 +3173,8 @@ private:
     QHash<int, QStringList> m_disabledMonitors;
     QHash<int, QStringList> m_disabledDesktops;
     QHash<int, QStringList> m_disabledActivities;
-    // Empty, as in production: ConfigDefaults::autotileLockedScreens() is the empty list.
+    // Empty, as in production: ConfigDefaults::autotileLockedScreens() is the empty string,
+    // the comma-joined form of no screen locked.
     QStringList m_lockedScreens;
     QVariantList m_autotileDragInsertTriggers = ConfigDefaults::autotileDragInsertTriggers();
     QVariantList m_scrollingDragInsertTriggers = ConfigDefaults::scrollingDragInsertTriggers();

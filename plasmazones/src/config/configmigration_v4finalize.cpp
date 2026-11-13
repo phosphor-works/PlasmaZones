@@ -542,6 +542,11 @@ bool ConfigMigration::finalizeV4Conversion(const QString& jsonPath)
         // again. Idempotent like its two siblings.
         ok = renameRetiredAnimationEventPaths(jsonPath) && ok;
 
+        // Drop the managed appearance baseline rules older builds wrote.
+        // Same reasoning again: idempotent, keyed on fixed ids, and a fix to
+        // rows this code seeded into the sidecar.
+        ok = stripManagedAppearanceBaselineRules(jsonPath) && ok;
+
         return ok;
     }
 
@@ -1085,6 +1090,34 @@ bool ConfigMigration::repairSeededSteamRule(const QString& jsonPath)
         return true;
     });
     return ok && !failed;
+}
+
+bool ConfigMigration::stripManagedAppearanceBaselineRules(const QString& jsonPath)
+{
+    // Frozen ids of the three managed baseline rules (border, title bar, gap)
+    // older builds seeded into the rule store. Window appearance defaults
+    // live in config.json now, so nothing writes these ids any more and
+    // nothing else in the tree may name them. The `...001` suffix was a
+    // combined baseline that never shipped, so no store carries it.
+    static const QSet<QUuid> kBaselineIds{
+        QUuid(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000002}")),
+        QUuid(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000003}")),
+        QUuid(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000004}")),
+    };
+
+    return withRuleSet(jsonPath, "stripManagedAppearanceBaselineRules", [](PhosphorRules::RuleSet& ruleSet) {
+        // Iterate a COPY: removeRule edits the live list.
+        const QList<PhosphorRules::Rule> rules = ruleSet.rules();
+        bool changed = false;
+        for (const PhosphorRules::Rule& rule : rules) {
+            // Only the managed rule. A user rule that happens to carry one of
+            // these ids (a hand edit, or an import) is the user's.
+            if (rule.managed && kBaselineIds.contains(rule.id) && ruleSet.removeRule(rule.id)) {
+                changed = true;
+            }
+        }
+        return changed;
+    });
 }
 
 bool ConfigMigration::renameRetiredAnimationEventPaths(const QString& jsonPath)
