@@ -573,7 +573,7 @@ private Q_SLOTS:
     /// retired. The config no longer declares it, so activating the profile
     /// cannot apply it (the store skips undeclared keys on import), and it
     /// must not keep the active row modified.
-    void retiredKeyInAProfileFileIsDropped()
+    void retiredKeyInAProfileFileIsIgnored()
     {
         const QUuid id = QUuid::createUuid();
         QJsonObject delta;
@@ -1521,8 +1521,8 @@ private Q_SLOTS:
                  PhosphorI18n::tr("Exported the profile “%1”.").arg(QStringLiteral("Work")));
     }
 
-    /// An export whose id names no profile file (an unparseable id) is refused
-    /// with one toast, the same reason the missing-record arm gives.
+    /// An export whose id is unparseable finds no record and is refused with
+    /// one toast, because the Profiles page shows no failure banner of its own.
     void exportUnresolvableSourceToastsOnce()
     {
         QSignalSpy toasts(m_store, &ProfileStore::toastRequested);
