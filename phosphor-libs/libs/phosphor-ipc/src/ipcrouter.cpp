@@ -35,6 +35,7 @@
 #include <cstdlib> // mkdtemp
 #include <system_error>
 
+#include <sys/socket.h> // getsockopt, SO_PEERCRED
 #include <sys/stat.h> // chmod, lstat
 #include <unistd.h> // getuid, link, unlink, rmdir
 
@@ -77,6 +78,30 @@ QString socketFilePath(const QString& name)
 QString errnoMessage(int error)
 {
     return QString::fromStdString(std::generic_category().message(error));
+}
+
+// The process ID of the client at the other end of `socket`, from the
+// kernel's credentials of the process that connected; 0 when the platform
+// or the socket gives none. struct ucred is Linux's: the BSDs that have
+// SO_PEERCRED answer it with another struct.
+qint64 peerPid(const QLocalSocket& socket)
+{
+#if defined(__linux__) && defined(SO_PEERCRED)
+    const qintptr fd = socket.socketDescriptor();
+    if (fd < 0) {
+        return 0;
+    }
+    struct ucred credentials{};
+    socklen_t length = sizeof(credentials);
+    if (::getsockopt(static_cast<int>(fd), SOL_SOCKET, SO_PEERCRED, &credentials, &length) != 0
+        || length != sizeof(credentials)) {
+        return 0;
+    }
+    return credentials.pid;
+#else
+    Q_UNUSED(socket)
+    return 0;
+#endif
 }
 
 // Listens on `path` with a socket file of mode 0600, without the umask:
@@ -213,7 +238,7 @@ void IpcRouter::stop(StopMode mode, int flushTimeoutMs)
     std::sort(closed.begin(), closed.end());
     m_subscriptionsBySocket.clear();
     m_malformedCountBySocket.clear();
-    m_connectionIdBySocket.clear();
+    m_connectionBySocket.clear();
     m_socketByConnectionId.clear();
     m_pendingCalls.clear();
     m_pendingTokensByConnection.clear();
@@ -271,7 +296,7 @@ int IpcRouter::maxConnections() const
 
 int IpcRouter::connectionCount() const
 {
-    return static_cast<int>(m_connectionIdBySocket.size());
+    return static_cast<int>(m_connectionBySocket.size());
 }
 
 bool IpcRouter::registerTarget(const QString& name, QObject* object)
@@ -417,11 +442,12 @@ QJsonObject IpcRouter::schemaFor(const QString& targetName) const
 QVariant IpcRouter::invoke(const QString& targetName, const QString& fn, const QVariantList& args,
                            InvokeOutcome* outcome, QString* errorMessage)
 {
-    return invokeCall(targetName, fn, args, 0, 0, outcome, errorMessage);
+    return invokeCall(targetName, fn, args, Connection{}, 0, outcome, errorMessage);
 }
 
 QVariant IpcRouter::invokeCall(const QString& targetName, const QString& fn, const QVariantList& args,
-                               quint64 connectionId, qint64 requestId, InvokeOutcome* outcome, QString* errorMessage)
+                               const Connection& connection, qint64 requestId, InvokeOutcome* outcome,
+                               QString* errorMessage)
 {
     Q_ASSERT(thread() == QThread::currentThread());
     auto fail = [&](InvokeOutcome code, const QString& msg) -> QVariant {
@@ -527,7 +553,8 @@ QVariant IpcRouter::invokeCall(const QString& targetName, const QString& fn, con
     call.outer = IpcCallContext::current();
     call.loopLevel = QThread::currentThread()->loopLevel();
     call.router = this;
-    call.connectionId = connectionId;
+    call.connectionId = connection.id;
+    call.connectionPid = connection.pid;
     call.requestId = requestId;
     IpcCallContext::current() = &call;
     const bool ok =
@@ -576,10 +603,10 @@ void IpcRouter::handleNewConnection()
         if (!socket) {
             continue;
         }
-        // A connection leaves m_connectionIdBySocket as it closes (stop()
+        // A connection leaves m_connectionBySocket as it closes (stop()
         // clears it), so its size is the count of open ones. A refused
         // socket has no handlers yet and nothing to clean up but itself.
-        if (m_maxConnections > 0 && m_connectionIdBySocket.size() >= m_maxConnections) {
+        if (m_maxConnections > 0 && m_connectionBySocket.size() >= m_maxConnections) {
             socket->abort();
             socket->deleteLater();
             Q_EMIT connectionRefused();
@@ -592,7 +619,7 @@ void IpcRouter::handleNewConnection()
         // enforces the same cap at the userspace-buffer layer.
         socket->setReadBufferSize(detail::MaxLineBytes);
         const quint64 connectionId = nextConnectionId();
-        m_connectionIdBySocket.insert(socket, connectionId);
+        m_connectionBySocket.insert(socket, Connection{connectionId, peerPid(*socket)});
         m_socketByConnectionId.insert(connectionId, socket);
         // Explicit Qt::DirectConnection: both signals fire from the
         // router's own thread (same thread as the QLocalServer), and
@@ -727,7 +754,7 @@ void IpcRouter::handleClientDisconnected(QLocalSocket* socket)
     // The connection's id goes, so sendEvent and pending replies find it
     // closed, and so do its deferred calls, whose answers have nowhere to
     // go. stop() forgets its sockets and books their closes itself.
-    const quint64 connectionId = m_connectionIdBySocket.take(socket);
+    const quint64 connectionId = m_connectionBySocket.take(socket).id;
     if (connectionId != 0) {
         m_socketByConnectionId.remove(connectionId);
         const QSet<quint64> tokens = m_pendingTokensByConnection.take(connectionId);
@@ -846,11 +873,12 @@ void IpcRouter::dispatch(QLocalSocket* socket, const QByteArray& line)
     if (req.type == QLatin1String(RequestType::Call)) {
         // readFrames dispatches only for an open socket, and the router
         // knows the id of every one.
-        const quint64 connectionId = m_connectionIdBySocket.value(socket);
+        const Connection connection = m_connectionBySocket.value(socket);
+        const quint64 connectionId = connection.id;
         Q_ASSERT(connectionId != 0);
         InvokeOutcome outcome = InvokeOutcome::Ok;
         QString invokeError;
-        const QVariant result = invokeCall(req.target, req.fn, req.args, connectionId, req.id, &outcome, &invokeError);
+        const QVariant result = invokeCall(req.target, req.fn, req.args, connection, req.id, &outcome, &invokeError);
         // The method may have closed the connection (stop(), or sendEvent
         // past the output limit). Its answer has nowhere to go.
         if (socket->state() != QLocalSocket::ConnectedState) {

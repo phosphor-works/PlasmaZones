@@ -44,6 +44,9 @@ namespace PhosphorIpc {
 //     The id belongs to the router that runs the call: a target
 //     registered on several routers sends its events through the one
 //     that accepted the connection, or sendEvent() finds no connection.
+//   - The router also reads, at accept, the process ID of the client
+//     that connected (SO_PEERCRED). A target reads it with
+//     IpcCallContext::connectionPid().
 //   - A call answers when its method returns, unless the method defers
 //     its reply (IpcCallContext::deferReply, see IpcPendingReply.h).
 //     Replies carry the request id, so a deferred reply may arrive after
@@ -216,7 +219,8 @@ public:
     // out-params. Pass nullptr if the caller doesn't need them.
     // A target that inherits IpcCallContext runs the method as a wire
     // call, and can fail it with sendErrorReply (CallFailed). The call
-    // comes from no connection: IpcCallContext::connectionId() is 0.
+    // comes from no connection: IpcCallContext::connectionId() and
+    // connectionPid() are 0.
     QVariant invoke(const QString& target, const QString& fn, const QVariantList& args,
                     InvokeOutcome* outcome = nullptr, QString* errorMessage = nullptr);
 
@@ -301,10 +305,18 @@ private:
         qint64 requestId = 0;
     };
 
-    // invoke() for a call from `connectionId` (0: none) with request id
-    // `requestId`, as the wire dispatcher makes it.
-    QVariant invokeCall(const QString& target, const QString& fn, const QVariantList& args, quint64 connectionId,
-                        qint64 requestId, InvokeOutcome* outcome, QString* errorMessage);
+    // An open connection: its id, and the process ID of the client that
+    // connected (0 where the router could not read it).
+    struct Connection
+    {
+        quint64 id = 0;
+        qint64 pid = 0;
+    };
+
+    // invoke() for a call from `connection` (an id of 0: none) with
+    // request id `requestId`, as the wire dispatcher makes it.
+    QVariant invokeCall(const QString& target, const QString& fn, const QVariantList& args,
+                        const Connection& connection, qint64 requestId, InvokeOutcome* outcome, QString* errorMessage);
     // Registers the running call's pending reply. Called by
     // IpcCallContext::deferReply for a call from a connection. Past
     // MaxPendingCallsPerConnection it fails the call instead and returns a
@@ -382,9 +394,10 @@ private:
     // count exceeds detail::MaxConsecutiveMalformedFrames so a peer can't
     // pin the router on parse failures indefinitely.
     QHash<QLocalSocket*, int> m_malformedCountBySocket;
-    // The id of every open connection, both ways. An entry goes when the
-    // connection closes, so a lookup by id finds only open connections.
-    QHash<QLocalSocket*, quint64> m_connectionIdBySocket;
+    // The id of every open connection, both ways, and the process that
+    // connected. An entry goes when the connection closes, so a lookup by
+    // id finds only open connections.
+    QHash<QLocalSocket*, Connection> m_connectionBySocket;
     QHash<quint64, QPointer<QLocalSocket>> m_socketByConnectionId;
     // setMaxConnections; 0: no limit.
     int m_maxConnections = 0;

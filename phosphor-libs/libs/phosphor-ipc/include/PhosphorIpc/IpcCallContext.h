@@ -83,6 +83,17 @@ protected:
     // call that came from no connection (a direct IpcRouter::invoke).
     [[nodiscard]] quint64 connectionId() const;
 
+    // The process ID of the client that made the running wire call: the
+    // process that connected, which the router reads from the socket
+    // (SO_PEERCRED) once, when it accepts the connection. The kernel gives
+    // it, so a client cannot claim another process's ID. It stays the
+    // connecting process's ID when that process hands the socket to
+    // another or exits. 0 outside a wire call, for a call that came from
+    // no connection (a direct IpcRouter::invoke), and where the router
+    // could not read it (a platform other than Linux, or a failed
+    // getsockopt).
+    [[nodiscard]] qint64 connectionPid() const;
+
     // Defers the running wire call's reply. The router sends nothing when
     // the method returns, and drops its return value. The call is answered
     // through the returned object (finish or fail) or, if that object goes
@@ -114,10 +125,12 @@ private:
         bool failed = false;
         QString message;
         Call* outer = nullptr;
-        // The router that runs the call, and the connection and request it
-        // came from (0 and 0 for a direct IpcRouter::invoke).
+        // The router that runs the call, the connection and request it came
+        // from and the connection's process (all 0 for a direct
+        // IpcRouter::invoke).
         IpcRouter* router = nullptr;
         quint64 connectionId = 0;
+        qint64 connectionPid = 0;
         qint64 requestId = 0;
         // Set by deferReply(). pendingToken is the router's key for the
         // pending reply, 0 when the call came from no connection.
