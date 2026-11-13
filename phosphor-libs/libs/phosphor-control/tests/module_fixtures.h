@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
-// What the Facet tests that load fixture modules share: where tests/
+// What the module tests that load fixture modules share: where tests/
 // CMakeLists.txt puts the built fixtures, and the sweep of the staging
 // directories a run that died left behind.
 

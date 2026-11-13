@@ -8,10 +8,10 @@ import org.kde.kirigami as Kirigami
 import org.phosphor.control
 
 /**
- * The page a Facet module's page shows while the module is not loaded
- * (FacetHost::placeholderPageSource). A module normally loads before its
+ * The page a control module's page shows while the module is not loaded
+ * (ModuleHost::placeholderPageSource). A module normally loads before its
  * page is shown, so this is on screen when it did not: its library failed,
- * it broke its contract, it was turned off after crashing Facet, or nothing
+ * it broke its contract, it was turned off after crashing the app, or nothing
  * tried to load it yet. It names the module, says what happened, shows the
  * host's diagnostic reason, and offers to load it when that can work. A
  * load that succeeds replaces this page with the module's own.
@@ -62,7 +62,7 @@ Item {
                         return qsTr("%1 could not be loaded").arg(root._name);
                     return qsTr("%1 is not loaded yet").arg(root._name);
                 }
-                explanation: root._disabled ? qsTr("Facet closed unexpectedly the last time it loaded this module, so it stays off until you load it again.") : ""
+                explanation: root._disabled ? qsTr("%1 closed unexpectedly the last time it loaded this module, so it stays off until you load it again.").arg(Qt.application.displayName) : ""
                 helpfulAction: Kirigami.Action {
                     enabled: root.controller.canRetry
                     icon.name: "view-refresh"

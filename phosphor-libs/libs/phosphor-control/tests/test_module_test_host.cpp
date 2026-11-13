@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <PhosphorControl/FacetTestHost.h>
+#include <PhosphorControl/ModuleTestHost.h>
 
-#include "facet_fixtures.h"
+#include "module_fixtures.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -30,18 +30,18 @@ using PhosphorControlTest::fixturePath;
 
 namespace {
 
-// Where this run's FacetTestHosts stage, under the build tree: one directory
+// Where this run's ModuleTestHosts stage, under the build tree: one directory
 // per process, which initTestCase() sweeps when its process is gone.
 QString stagingDirectory()
 {
-    return QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR "/test_facet_test_host-")
+    return QStringLiteral(PHOSPHOR_CONTROL_STAGING_DIR "/test_module_test_host-")
         + QString::number(QCoreApplication::applicationPid());
 }
 
-// A FacetTestHost for fixture @p variant, staging under the build tree.
-FacetTestHost hostFor(const QString& variant)
+// A ModuleTestHost for fixture @p variant, staging under the build tree.
+ModuleTestHost hostFor(const QString& variant)
 {
-    FacetTestHost host(fixturePath(variant));
+    ModuleTestHost host(fixturePath(variant));
     host.setStagingDirectory(stagingDirectory());
     return host;
 }
@@ -75,14 +75,14 @@ void clearConfigFixtureState()
 
 } // namespace
 
-class TestFacetTestHost : public QObject
+class TestModuleTestHost : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
     void initTestCase()
     {
-        PhosphorControlTest::sweepDeadStaging(QRegularExpression(QStringLiteral("^test_facet_test_host-(\\d+)$")));
+        PhosphorControlTest::sweepDeadStaging(QRegularExpression(QStringLiteral("^test_module_test_host-(\\d+)$")));
         QVERIFY(QDir().mkpath(stagingDirectory()));
     }
 
@@ -103,7 +103,7 @@ private Q_SLOTS:
     void aWellBehavedModulePasses()
     {
         QFETCH(QString, variant);
-        FacetTestHost host = hostFor(variant);
+        ModuleTestHost host = hostFor(variant);
         const QStringList problems = host.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
     }
@@ -121,7 +121,7 @@ private Q_SLOTS:
         QTest::newRow("relative QML") << QStringLiteral("relativeqml") << QStringLiteral("not an absolute URL");
         QTest::newRow("missing QML file") << QStringLiteral("missingqml") << QStringLiteral("does not exist");
         QTest::newRow("invalid metadata") << QStringLiteral("badmetadata") << QStringLiteral("invalid metadata");
-        QTest::newRow("not a module") << QStringLiteral("notamodule") << QStringLiteral("IFacetModule");
+        QTest::newRow("not a module") << QStringLiteral("notamodule") << QStringLiteral("IControlModule");
         QTest::newRow("a library that cannot be loaded") << QStringLiteral("extenderbroken")
                                                          << fixturePath(QStringLiteral("extenderbroken"))
                 + QStringLiteral(": undefined symbol: phosphor_control_test_missing_function");
@@ -142,7 +142,7 @@ private Q_SLOTS:
                    "exist");
         QTest::newRow("page controller deleted while loading")
             << QStringLiteral("deletesduringload")
-            << QStringLiteral("page deletesduringload:general was not bound, so Facet keeps its placeholder");
+            << QStringLiteral("page deletesduringload:general was not bound, so the host keeps its placeholder");
         QTest::newRow("section domain deleted while loading")
             << QStringLiteral("deletesduringload")
             << QStringLiteral("extension deletesduringload:first's domain was deleted while the module loaded");
@@ -161,16 +161,16 @@ private Q_SLOTS:
     {
         QFETCH(QString, variant);
         QFETCH(QString, expected);
-        FacetTestHost host = hostFor(variant);
+        ModuleTestHost host = hostFor(variant);
         const QString problems = joined(host.run());
         QVERIFY2(problems.contains(expected), qPrintable(problems));
     }
 
     void reportsMetadataWarnings()
     {
-        // An unknown key loads, for a newer Facet's sake, and is still a
-        // problem here: the module is built against this Facet.
-        FacetTestHost host = hostFor(QStringLiteral("typokey"));
+        // An unknown key loads, for a newer PhosphorControl's sake, and is still a
+        // problem here: the module is built against this PhosphorControl.
+        ModuleTestHost host = hostFor(QStringLiteral("typokey"));
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), 1);
         QVERIFY2(problems.first().startsWith(QStringLiteral("metadata: "))
@@ -189,7 +189,7 @@ private Q_SLOTS:
         QVERIFY(scratch.isValid());
         const QString path = scratch.filePath(QStringLiteral("app/config.json"));
         qputenv("FAKE_CONFIG_PATH", QFile::encodeName(path));
-        FacetTestHost host = hostFor(QStringLiteral("sharera"));
+        ModuleTestHost host = hostFor(QStringLiteral("sharera"));
         const QStringList problems = host.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
         // Opened under the staging directory, as the same path below its
@@ -197,7 +197,7 @@ private Q_SLOTS:
         const QStringList opened = qApp->property("fakeConfigFactoryPaths").toStringList();
         QCOMPARE(opened.size(), 1);
         const QRegularExpression redirected(QLatin1Char('^') + QRegularExpression::escape(stagingDirectory())
-                                            + QStringLiteral("/facet-test-[^/]+/config")
+                                            + QStringLiteral("/module-test-[^/]+/config")
                                             + QRegularExpression::escape(QFileInfo(path).absoluteFilePath())
                                             + QLatin1Char('$'));
         QVERIFY2(redirected.match(opened.first()).hasMatch(), qPrintable(opened.first()));
@@ -240,7 +240,7 @@ private Q_SLOTS:
         if (!configPath.isEmpty()) {
             qputenv("FAKE_CONFIG_PATH", QFile::encodeName(configPath.replace(QLatin1String("@dir"), scratch.path())));
         }
-        FacetTestHost host = hostFor(variant);
+        ModuleTestHost host = hostFor(variant);
         const QString problems = joined(host.run());
         const QString reason = expected.replace(QLatin1String("@dir"), scratch.path());
         QVERIFY2(problems.contains(QStringLiteral("did not load")) && problems.contains(reason), qPrintable(problems));
@@ -250,7 +250,7 @@ private Q_SLOTS:
     {
         // None of its targets is installed here, and its sections' QML and
         // domains are checked all the same.
-        FacetTestHost host = hostFor(QStringLiteral("extender"));
+        ModuleTestHost host = hostFor(QStringLiteral("extender"));
         const QStringList problems = host.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
     }
@@ -259,7 +259,7 @@ private Q_SLOTS:
     {
         // The page, the headless domain and each section answer apply()
         // twice, and each is named so its author can find it.
-        FacetTestHost host = hostFor(QStringLiteral("extensiondouble"));
+        ModuleTestHost host = hostFor(QStringLiteral("extensiondouble"));
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), 4);
         const QString all = joined(problems);
@@ -273,11 +273,11 @@ private Q_SLOTS:
 
     void checksSearchProviders()
     {
-        FacetTestHost providers = hostFor(QStringLiteral("providers"));
+        ModuleTestHost providers = hostFor(QStringLiteral("providers"));
         QStringList problems = providers.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
 
-        FacetTestHost stray = hostFor(QStringLiteral("strayprovider"));
+        ModuleTestHost stray = hostFor(QStringLiteral("strayprovider"));
         problems = stray.run();
         QCOMPARE(problems.size(), 1);
         QVERIFY2(problems.first().contains(QStringLiteral("elsewhere:page")), qPrintable(problems.first()));
@@ -286,7 +286,7 @@ private Q_SLOTS:
         // list is wrong. Those on the page it extends cannot be checked
         // without that page's module, the action has no page to check, and
         // the entity needs no anchor.
-        FacetTestHost checks = hostFor(QStringLiteral("providerchecks"));
+        ModuleTestHost checks = hostFor(QStringLiteral("providerchecks"));
         problems = checks.run();
         QCOMPARE(problems.size(), 1);
         QVERIFY2(problems.first().contains(QStringLiteral("(providerchecks:general#nope) names an anchor its page")),
@@ -296,7 +296,7 @@ private Q_SLOTS:
         // is wrong too, and so is the section at the anchor of an extension
         // the module does not have. The section at one the page lists and
         // the one at the anchor of the module's own section there are not.
-        FacetTestHost withTarget = hostFor(QStringLiteral("providerchecks"));
+        ModuleTestHost withTarget = hostFor(QStringLiteral("providerchecks"));
         withTarget.addTargetModule(fixturePath(QStringLiteral("good")));
         problems = withTarget.run();
         QCOMPARE(problems.size(), 3);
@@ -308,7 +308,7 @@ private Q_SLOTS:
                  qPrintable(problems.at(2)));
         QVERIFY2(!joined(problems).contains(QStringLiteral("providerchecks:first")), qPrintable(joined(problems)));
 
-        FacetTestHost none = hostFor(QStringLiteral("providersnone"));
+        ModuleTestHost none = hostFor(QStringLiteral("providersnone"));
         problems = none.run();
         QCOMPARE(problems,
                  QStringList{QStringLiteral(
@@ -317,12 +317,12 @@ private Q_SLOTS:
 
     void checksExtensionsAgainstTheirTargets()
     {
-        FacetTestHost fits = hostFor(QStringLiteral("extender"));
+        ModuleTestHost fits = hostFor(QStringLiteral("extender"));
         fits.addTargetModule(fixturePath(QStringLiteral("good")));
         QStringList problems = fits.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
 
-        FacetTestHost misfits = hostFor(QStringLiteral("badextender"));
+        ModuleTestHost misfits = hostFor(QStringLiteral("badextender"));
         misfits.addTargetModule(fixturePath(QStringLiteral("good")));
         problems = misfits.run();
         QStringList refused;
@@ -339,7 +339,7 @@ private Q_SLOTS:
                               QStringLiteral("badextender:old-panel")}));
 
         // A target's own refused extensions are its author's business.
-        FacetTestHost target = hostFor(QStringLiteral("good"));
+        ModuleTestHost target = hostFor(QStringLiteral("good"));
         target.addTargetModule(fixturePath(QStringLiteral("badextender")));
         problems = target.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
@@ -393,7 +393,7 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         const QString path = dir.filePath(QStringLiteral("anchors.json"));
         QVERIFY(writeFile(path, json));
-        FacetTestHost host = hostFor(QStringLiteral("good"));
+        ModuleTestHost host = hostFor(QStringLiteral("good"));
         host.setPreviousAnchors(path);
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), expected.size());
@@ -404,7 +404,7 @@ private Q_SLOTS:
 
     void reportsPreviousAnchorsItCannotRead()
     {
-        FacetTestHost host = hostFor(QStringLiteral("good"));
+        ModuleTestHost host = hostFor(QStringLiteral("good"));
         host.setPreviousAnchors(QStringLiteral("/nonexistent/anchors.json"));
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), 1);
@@ -415,20 +415,20 @@ private Q_SLOTS:
 
     void checksAReleaseAgainstTheAnchorsTheToolWrote()
     {
-        // The anchors.json phosphor_add_facet_module_metadata generated for
+        // The anchors.json phosphor_add_control_module_metadata generated for
         // good and for its next release, goodnext, which renames an anchor
         // and raises the page's anchors version for it.
-        FacetTestHost same = hostFor(QStringLiteral("good"));
+        ModuleTestHost same = hostFor(QStringLiteral("good"));
         same.setPreviousAnchors(QStringLiteral(PHOSPHOR_CONTROL_GOOD_ANCHORS));
         QStringList problems = same.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
 
-        FacetTestHost next = hostFor(QStringLiteral("goodnext"));
+        ModuleTestHost next = hostFor(QStringLiteral("goodnext"));
         next.setPreviousAnchors(QStringLiteral(PHOSPHOR_CONTROL_GOOD_ANCHORS));
         problems = next.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
 
-        FacetTestHost back = hostFor(QStringLiteral("good"));
+        ModuleTestHost back = hostFor(QStringLiteral("good"));
         back.setPreviousAnchors(QStringLiteral(PHOSPHOR_CONTROL_GOODNEXT_ANCHORS));
         problems = back.run();
         QCOMPARE(problems, QStringList{QStringLiteral("page general's anchors version went down from 2 to 1")});
@@ -455,7 +455,7 @@ private Q_SLOTS:
         QFETCH(QString, variant);
         QFETCH(int, timeoutMs);
         QFETCH(QString, expected);
-        FacetTestHost host = hostFor(variant);
+        ModuleTestHost host = hostFor(variant);
         if (timeoutMs > 0) {
             host.setResultTimeoutMs(timeoutMs);
         }
@@ -469,14 +469,14 @@ private Q_SLOTS:
 
     void reportsAFailedApply()
     {
-        FacetTestHost host = hostFor(QStringLiteral("failingapply"));
+        ModuleTestHost host = hostFor(QStringLiteral("failingapply"));
         const QString problems = joined(host.run());
         QVERIFY2(problems.contains(QStringLiteral("reported a failed apply(): disk full")), qPrintable(problems));
     }
 
     void reportsADomainThatDeletesItself()
     {
-        FacetTestHost host = hostFor(QStringLiteral("selfdelete"));
+        ModuleTestHost host = hostFor(QStringLiteral("selfdelete"));
         const QStringList problems = host.run();
         // Every page and the headless domain.
         QCOMPARE(problems.size(), 4);
@@ -491,7 +491,7 @@ private Q_SLOTS:
 
     void reportsADomainDirtyAtLoad()
     {
-        FacetTestHost host = hostFor(QStringLiteral("dirtyatload"));
+        ModuleTestHost host = hostFor(QStringLiteral("dirtyatload"));
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), 4);
         for (const QString& problem : problems) {
@@ -508,7 +508,7 @@ private Q_SLOTS:
         // Every page and the headless domain report a failed discard() and
         // delete themselves in it. The headless domain has no objectName, so
         // it goes by its class and its place.
-        FacetTestHost host = hostFor(QStringLiteral("discardbroken"));
+        ModuleTestHost host = hostFor(QStringLiteral("discardbroken"));
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), 8);
         for (const QString& name :
@@ -526,7 +526,7 @@ private Q_SLOTS:
         // The first page's controller and the first section's domain are
         // deleted with deleteLater() while the module loads, and the
         // headless domain's apply() deletes the last section's domain.
-        FacetTestHost host = hostFor(QStringLiteral("deleteslater"));
+        ModuleTestHost host = hostFor(QStringLiteral("deleteslater"));
         const QStringList problems = host.run();
         QCOMPARE(
             problems,
@@ -539,9 +539,9 @@ private Q_SLOTS:
     void reportsAHeadlessDomainDeletedWhileLoading()
     {
         // The second headless domain is deleted while the host registers
-        // them, and the third with deleteLater() once registered. Facet
+        // them, and the third with deleteLater() once registered. The host
         // never applies either, so both are reported, by their place.
-        FacetTestHost host = hostFor(QStringLiteral("headlessgone"));
+        ModuleTestHost host = hostFor(QStringLiteral("headlessgone"));
         QCOMPARE(host.run(),
                  (QStringList{QStringLiteral("headless domain 2 was deleted while the module loaded, or the "
                                              "application refused it"),
@@ -551,7 +551,7 @@ private Q_SLOTS:
 
     void reportsARefusedModule()
     {
-        FacetTestHost host = hostFor(QStringLiteral("wrongapi"));
+        ModuleTestHost host = hostFor(QStringLiteral("wrongapi"));
         const QStringList problems = host.run();
         QCOMPARE(problems.size(), 1);
         QVERIFY2(problems.first().startsWith(fixturePath(QStringLiteral("wrongapi")) + QStringLiteral(": refused: "))
@@ -561,10 +561,10 @@ private Q_SLOTS:
 
     void reportsAMissingFile()
     {
-        FacetTestHost host(QStringLiteral("/nonexistent/module.so"));
+        ModuleTestHost host(QStringLiteral("/nonexistent/module.so"));
         QCOMPARE(host.run(), QStringList{QStringLiteral("no module file at /nonexistent/module.so")});
 
-        FacetTestHost target = hostFor(QStringLiteral("good"));
+        ModuleTestHost target = hostFor(QStringLiteral("good"));
         target.addTargetModule(QStringLiteral("/nonexistent/target.so"));
         QCOMPARE(target.run(), QStringList{QStringLiteral("no target module file at /nonexistent/target.so")});
     }
@@ -587,7 +587,7 @@ private Q_SLOTS:
             path = scratch.filePath(QStringLiteral("junk.so"));
             QVERIFY(writeFile(path, QByteArrayLiteral("not a library")));
         }
-        FacetTestHost host(path);
+        ModuleTestHost host(path);
         host.setStagingDirectory(stagingDirectory());
         QCOMPARE(host.run(), QStringList{path + QStringLiteral(": refused: not a Qt plugin")});
     }
@@ -601,7 +601,7 @@ private Q_SLOTS:
         const QString wrongApi = fixturePath(QStringLiteral("wrongapi"));
 
         // The module passes, and each refused target is named.
-        FacetTestHost extender = hostFor(QStringLiteral("extender"));
+        ModuleTestHost extender = hostFor(QStringLiteral("extender"));
         extender.addTargetModule(junk);
         extender.addTargetModule(wrongApi);
         QStringList problems = extender.run();
@@ -610,7 +610,7 @@ private Q_SLOTS:
         QVERIFY2(anyStartsWith(problems, wrongApi + QStringLiteral(": refused: ")), qPrintable(joined(problems)));
 
         // A refused target does not hide that the module was refused too.
-        FacetTestHost refused(junk);
+        ModuleTestHost refused(junk);
         refused.setStagingDirectory(stagingDirectory());
         refused.addTargetModule(wrongApi);
         problems = refused.run();
@@ -626,14 +626,14 @@ private Q_SLOTS:
 
         // goodnext is a build of good: it would stand in for the module
         // under test.
-        FacetTestHost self = hostFor(QStringLiteral("good"));
+        ModuleTestHost self = hostFor(QStringLiteral("good"));
         self.addTargetModule(goodNext);
         QCOMPARE(self.run(),
                  QStringList{goodNext
                              + QStringLiteral(": not used as a target: it has the id good of the module "
                                               "under test")});
 
-        FacetTestHost twins = hostFor(QStringLiteral("extender"));
+        ModuleTestHost twins = hostFor(QStringLiteral("extender"));
         twins.addTargetModule(good);
         twins.addTargetModule(goodNext);
         QCOMPARE(
@@ -648,7 +648,7 @@ private Q_SLOTS:
         QVERIFY(scratch.isValid());
         const QString renamed = scratch.filePath(QStringLiteral("good.so"));
         QVERIFY(QFile::copy(fixturePath(QStringLiteral("extender2")), renamed));
-        FacetTestHost host = hostFor(QStringLiteral("extender"));
+        ModuleTestHost host = hostFor(QStringLiteral("extender"));
         host.addTargetModule(fixturePath(QStringLiteral("good")));
         host.addTargetModule(renamed);
         const QStringList problems = host.run();
@@ -662,7 +662,7 @@ private Q_SLOTS:
             QDir::setCurrent(current);
         });
         QVERIFY(QDir::setCurrent(QStringLiteral(PHOSPHOR_CONTROL_FIXTURE_DIR)));
-        FacetTestHost host(QStringLiteral("good.so"));
+        ModuleTestHost host(QStringLiteral("good.so"));
         host.setStagingDirectory(QDir::current().relativeFilePath(stagingDirectory()));
         host.addTargetModule(QStringLiteral("extender.so"));
         const QStringList problems = host.run();
@@ -673,7 +673,7 @@ private Q_SLOTS:
     {
         // Under a file, where no directory can be made.
         const QString under = QCoreApplication::applicationFilePath() + QStringLiteral("/staging");
-        FacetTestHost host = hostFor(QStringLiteral("good"));
+        ModuleTestHost host = hostFor(QStringLiteral("good"));
         host.setStagingDirectory(under);
         QCOMPARE(host.run(), QStringList{QStringLiteral("cannot create a temporary directory under %1").arg(under)});
     }
@@ -681,7 +681,7 @@ private Q_SLOTS:
     void waitsForAResultThatComesLater_data()
     {
         QTest::addColumn<int>("timeoutMs");
-        QTest::newRow("the default timeout") << FacetTestHost::DefaultResultTimeoutMs;
+        QTest::newRow("the default timeout") << ModuleTestHost::DefaultResultTimeoutMs;
         // Restores the default rather than waiting for nothing.
         QTest::newRow("zero") << 0;
         QTest::newRow("negative") << -1;
@@ -692,12 +692,12 @@ private Q_SLOTS:
         // Each domain answers once, from a timer, long after apply()
         // returned: a pass, not "0 times".
         QFETCH(int, timeoutMs);
-        FacetTestHost host = hostFor(QStringLiteral("slowresult"));
+        ModuleTestHost host = hostFor(QStringLiteral("slowresult"));
         host.setResultTimeoutMs(timeoutMs);
         const QStringList problems = host.run();
         QVERIFY2(problems.isEmpty(), qPrintable(joined(problems)));
     }
 };
 
-QTEST_GUILESS_MAIN(TestFacetTestHost)
-#include "test_facet_test_host.moc"
+QTEST_GUILESS_MAIN(TestModuleTestHost)
+#include "test_module_test_host.moc"

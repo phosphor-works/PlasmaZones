@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "PhosphorControl/FacetContext.h"
+#include "PhosphorControl/ModuleContext.h"
 
-#include "PhosphorControl/FacetHost.h"
+#include "PhosphorControl/ModuleHost.h"
 #include "PhosphorControl/ISearchProvider.h"
 #include "PhosphorControl/PageController.h"
 #include "PhosphorControl/StagingDomain.h"
@@ -18,28 +18,28 @@
 
 namespace PhosphorControl {
 
-FacetContext::FacetContext(FacetHost* host, const FacetModuleMetadata& metadata)
+ModuleContext::ModuleContext(ModuleHost* host, const ModuleMetadata& metadata)
     : m_host(host)
     , m_metadata(metadata)
 {
 }
 
-QString FacetContext::moduleId() const
+QString ModuleContext::moduleId() const
 {
     return m_metadata.id;
 }
 
-const FacetModuleMetadata& FacetContext::metadata() const
+const ModuleMetadata& ModuleContext::metadata() const
 {
     return m_metadata;
 }
 
-QString FacetContext::pageId(const QString& localPageId) const
+QString ModuleContext::pageId(const QString& localPageId) const
 {
-    return FacetHost::pageId(m_metadata.id, localPageId);
+    return ModuleHost::pageId(m_metadata.id, localPageId);
 }
 
-QString FacetContext::registeredAs(const StagingDomain* domain) const
+QString ModuleContext::registeredAs(const StagingDomain* domain) const
 {
     for (const PageRegistration& page : m_pages) {
         if (page.controller.data() == domain) {
@@ -59,7 +59,7 @@ QString FacetContext::registeredAs(const StagingDomain* domain) const
     return QString();
 }
 
-bool FacetContext::registerPage(const QString& localPageId, PageController* controller, const QUrl& qmlSource)
+bool ModuleContext::registerPage(const QString& localPageId, PageController* controller, const QUrl& qmlSource)
 {
     if (!m_metadata.page(localPageId)) {
         m_errors.append(QStringLiteral("registered page %1, which the metadata does not declare").arg(localPageId));
@@ -105,7 +105,7 @@ bool FacetContext::registerPage(const QString& localPageId, PageController* cont
     return true;
 }
 
-bool FacetContext::registerDomain(StagingDomain* domain)
+bool ModuleContext::registerDomain(StagingDomain* domain)
 {
     if (!domain) {
         m_errors.append(QStringLiteral("registered a null domain"));
@@ -123,7 +123,7 @@ bool FacetContext::registerDomain(StagingDomain* domain)
     return true;
 }
 
-bool FacetContext::registerExtension(const QString& localExtensionId, StagingDomain* domain, const QUrl& qmlSource)
+bool ModuleContext::registerExtension(const QString& localExtensionId, StagingDomain* domain, const QUrl& qmlSource)
 {
     if (!m_metadata.extension(localExtensionId)) {
         m_errors.append(
@@ -152,7 +152,7 @@ bool FacetContext::registerExtension(const QString& localExtensionId, StagingDom
         return false;
     }
     if (qmlSource.isRelative()) {
-        // FacetExtensionFrame's Loader would resolve it against
+        // ExtensionFrame's Loader would resolve it against
         // org.phosphor.control's own QML directory, not the module's, and
         // load the wrong file or none.
         m_errors.append(QStringLiteral("extension %1's QML source %2 is not an absolute URL")
@@ -167,7 +167,7 @@ bool FacetContext::registerExtension(const QString& localExtensionId, StagingDom
     return true;
 }
 
-bool FacetContext::registerSearchProvider(ISearchProvider* provider)
+bool ModuleContext::registerSearchProvider(ISearchProvider* provider)
 {
     if (!provider) {
         m_errors.append(QStringLiteral("registered a null search provider"));
@@ -200,7 +200,7 @@ bool FacetContext::registerSearchProvider(ISearchProvider* provider)
     return true;
 }
 
-PhosphorConfig::IBackend* FacetContext::configBackend(const QString& path, const ConfigBackendFactory& create)
+PhosphorConfig::IBackend* ModuleContext::configBackend(const QString& path, const ConfigBackendFactory& create)
 {
     if (!QDir::isAbsolutePath(path)) {
         m_errors.append(QStringLiteral("opened config file %1, which is not an absolute path").arg(path));

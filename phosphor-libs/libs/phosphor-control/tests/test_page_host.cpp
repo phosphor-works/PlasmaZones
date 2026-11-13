@@ -12,14 +12,14 @@
 // context waits for a live controller. The page area says when a page is
 // still loading and when it cannot be shown. A deep link waits for a page that
 // can reveal it, and a hidden cached page keeps its size until it is shown
-// again. FacetModulePage, hosted as FacetHost hosts it:
+// again. ModulePage, hosted as ModuleHost hosts it:
 // it shows each state its placeholder controller reports, and follows a
 // change of that state.
 
 #include "simple_page.h"
 
 #include <PhosphorControl/ApplicationController.h>
-#include <PhosphorControl/FacetHost.h>
+#include <PhosphorControl/ModuleHost.h>
 #include <PhosphorControl/ModulePlaceholderPage.h>
 #include <PhosphorControl/PageController.h>
 
@@ -43,7 +43,7 @@ using PhosphorControlTest::SimplePage;
 
 namespace {
 
-// A placeholder controller as FacetHost has one per module page, in a state
+// A placeholder controller as ModuleHost has one per module page, in a state
 // the test sets.
 class PlaceholderController : public ModulePlaceholderPage
 {
@@ -746,14 +746,14 @@ private:
         return QUrl::fromLocalFile(m_dir.filePath(name + QStringLiteral(".qml")));
     }
 
-    // Registers a module page as FacetHost registers one whose module is not
+    // Registers a module page as ModuleHost registers one whose module is not
     // loaded, and makes it current. Returns its placeholder controller, which
     // @p controller owns.
     static PlaceholderController* hostModulePage(ApplicationController& controller)
     {
         const QString id = QStringLiteral("mod:page");
         auto* const placeholder = new PlaceholderController(id, &controller);
-        controller.registerPage(placeholder, QString(), QStringLiteral("Mod"), FacetHost::placeholderPageSource());
+        controller.registerPage(placeholder, QString(), QStringLiteral("Mod"), ModuleHost::placeholderPageSource());
         controller.registry()->setPassesContext(id, true);
         controller.setCurrentPageId(id);
         return placeholder;

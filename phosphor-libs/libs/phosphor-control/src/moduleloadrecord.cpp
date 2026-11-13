@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "facetloadrecord_p.h"
+#include "moduleloadrecord_p.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -58,22 +58,22 @@ QString processIdentity(qint64 pid)
 }
 } // namespace
 
-FacetLoadRecord::FacetLoadRecord()
+ModuleLoadRecord::ModuleLoadRecord()
 {
     // An empty state location would put the record at the filesystem root.
     // No location means no crash memory, said once by restore().
     const QString stateDir = QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation);
     if (!stateDir.isEmpty()) {
-        m_path = stateDir + QStringLiteral("/phosphor-works/facet-loading");
+        m_path = stateDir + QStringLiteral("/phosphor-works/control-loading");
     }
 }
 
-QString FacetLoadRecord::path() const
+QString ModuleLoadRecord::path() const
 {
     return m_path;
 }
 
-void FacetLoadRecord::setPath(const QString& path)
+void ModuleLoadRecord::setPath(const QString& path)
 {
     // Made absolute now, so the record stays where it is when the working
     // directory changes later. Empty stays empty: no crash memory.
@@ -81,17 +81,17 @@ void FacetLoadRecord::setPath(const QString& path)
     m_turnedOff = path.isEmpty();
 }
 
-void FacetLoadRecord::restore()
+void ModuleLoadRecord::restore()
 {
-    // A module left in the record's "loading" field was loading when a Facet
+    // A module left in the record's "loading" field was loading when a host
     // process ended without finishing it. Unless that process is still
     // running (a second instance mid-load), the module is disabled, and the
     // record keeps it disabled across starts until it is retried.
     if (m_turnedOff) {
-        qCInfo(lcFacetHost) << "FacetHost: the load record is turned off, so a module that crashes Facet is not "
-                               "remembered";
+        qCInfo(lcModuleHost) << "ModuleHost: the load record is turned off, so a module that crashes the app is not "
+                                "remembered";
     } else if (m_path.isEmpty()) {
-        qCInfo(lcFacetHost) << "FacetHost: no state directory, so a module that crashes Facet is not remembered";
+        qCInfo(lcModuleHost) << "ModuleHost: no state directory, so a module that crashes the app is not remembered";
     } else {
         // A process killed between naming a record write's temporary file and
         // renaming it over the record leaves that file behind. A minute is far
@@ -99,7 +99,7 @@ void FacetLoadRecord::restore()
         // keeps its file. QTemporaryFile's suffix is six ASCII letters or
         // digits. Names are compared as they are, never as a wildcard
         // pattern, which the record's own name could hold characters of, and
-        // case-sensitively, so a user's copy such as "facet-loading.v1.bak"
+        // case-sensitively, so a user's copy such as "control-loading.v1.bak"
         // is left alone.
         const QFileInfo recordInfo(m_path);
         QDir recordDir = recordInfo.absoluteDir();
@@ -126,8 +126,8 @@ void FacetLoadRecord::restore()
     if (!record.loading.isEmpty()) {
         if (record.pid != QCoreApplication::applicationPid() && !record.process.isEmpty()
             && processIdentity(record.pid) == record.process) {
-            qCInfo(lcFacetHost).noquote()
-                << "FacetHost: process" << record.pid << "is loading module" << record.loading;
+            qCInfo(lcModuleHost).noquote()
+                << "ModuleHost: process" << record.pid << "is loading module" << record.loading;
         } else {
             const QString crashed = record.loading;
             record.loading.clear();
@@ -137,16 +137,16 @@ void FacetLoadRecord::restore()
                 record.disabled.append(crashed);
             }
             if (write(record)) {
-                qCWarning(lcFacetHost).noquote()
-                    << "FacetHost: module" << crashed
-                    << "was loading when Facet last stopped unexpectedly; it stays disabled until it is retried";
+                qCWarning(lcModuleHost).noquote()
+                    << "ModuleHost: module" << crashed
+                    << "was loading when the app last stopped unexpectedly; it stays disabled until it is retried";
             } else {
                 // Unable to clear the loading field, the record would name the
                 // module again at every start. Ignore it rather than disable
                 // the module forever.
                 record.disabled.removeAll(crashed);
-                qCWarning(lcFacetHost).noquote()
-                    << "FacetHost: module" << crashed << "was loading when Facet last stopped, but" << m_path
+                qCWarning(lcModuleHost).noquote()
+                    << "ModuleHost: module" << crashed << "was loading when the app last stopped, but" << m_path
                     << "cannot be written, so it is not disabled";
             }
         }
@@ -154,25 +154,25 @@ void FacetLoadRecord::restore()
     m_disabled = QSet<QString>(record.disabled.cbegin(), record.disabled.cend());
 }
 
-bool FacetLoadRecord::isDisabled(const QString& moduleId) const
+bool ModuleLoadRecord::isDisabled(const QString& moduleId) const
 {
     return m_disabled.contains(moduleId);
 }
 
-bool FacetLoadRecord::enable(const QString& moduleId)
+bool ModuleLoadRecord::enable(const QString& moduleId)
 {
     m_disabled.remove(moduleId);
     return persistDisabled();
 }
 
-QStringList FacetLoadRecord::disabledList() const
+QStringList ModuleLoadRecord::disabledList() const
 {
     QStringList disabled(m_disabled.cbegin(), m_disabled.cend());
     std::sort(disabled.begin(), disabled.end());
     return disabled;
 }
 
-FacetLoadRecord::Record FacetLoadRecord::read() const
+ModuleLoadRecord::Record ModuleLoadRecord::read() const
 {
     Record record;
     if (m_path.isEmpty()) {
@@ -194,7 +194,7 @@ FacetLoadRecord::Record FacetLoadRecord::read() const
     return record;
 }
 
-bool FacetLoadRecord::write(const Record& record, Write mode) const
+bool ModuleLoadRecord::write(const Record& record, Write mode) const
 {
     if (m_path.isEmpty()) {
         return false;
@@ -221,7 +221,7 @@ bool FacetLoadRecord::write(const Record& record, Write mode) const
         // QSaveFile refuses to replace a record that is not writable, and so
         // does this path, so both modes fail on the same file.
         if (existing.exists() && !existing.isWritable()) {
-            qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_path;
+            qCWarning(lcModuleHost).noquote() << "ModuleHost: could not write the load record" << m_path;
             return false;
         }
         // QSaveFile::commit() syncs the file to disk (an fdatasync), which
@@ -230,7 +230,7 @@ bool FacetLoadRecord::write(const Record& record, Write mode) const
         // the kernel, which is all a crash of this process needs. A power
         // loss can then lose the write or leave an empty record, which
         // forgets the disabled list: each module on it is loaded once more
-        // and, if it still crashes Facet, disabled again.
+        // and, if it still crashes the app, disabled again.
         //
         // fileName() gives the file a name in the record's directory when
         // Qt opened it unnamed, and is empty when it cannot.
@@ -249,18 +249,18 @@ bool FacetLoadRecord::write(const Record& record, Write mode) const
             file.setAutoRemove(false);
             return true;
         }
-        qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_path;
+        qCWarning(lcModuleHost).noquote() << "ModuleHost: could not write the load record" << m_path;
         return false;
     }
     QSaveFile file(m_path);
     if (!file.open(QIODevice::WriteOnly) || file.write(bytes) < 0 || !file.commit()) {
-        qCWarning(lcFacetHost).noquote() << "FacetHost: could not write the load record" << m_path;
+        qCWarning(lcModuleHost).noquote() << "ModuleHost: could not write the load record" << m_path;
         return false;
     }
     return true;
 }
 
-bool FacetLoadRecord::recordLoading(const QString& moduleId)
+bool ModuleLoadRecord::recordLoading(const QString& moduleId)
 {
     if (m_path.isEmpty()) {
         return false;
@@ -275,7 +275,7 @@ bool FacetLoadRecord::recordLoading(const QString& moduleId)
     return write(record, Write::ProcessCrashSafe);
 }
 
-void FacetLoadRecord::clearLoading(const QString& moduleId, bool recorded)
+void ModuleLoadRecord::clearLoading(const QString& moduleId, bool recorded)
 {
     // Nothing named the module when its record could not be written, so there
     // is nothing to take back.
@@ -285,12 +285,12 @@ void FacetLoadRecord::clearLoading(const QString& moduleId, bool recorded)
     // A record left naming the module would make the next start disable a
     // module that loaded fine, so try once more before giving up.
     if (!persistDisabled(Write::ProcessCrashSafe) && !persistDisabled(Write::ProcessCrashSafe)) {
-        qCWarning(lcFacetHost).noquote() << "FacetHost: the load record" << m_path << "still names module" << moduleId
-                                         << "as loading; the next start will treat it as having crashed";
+        qCWarning(lcModuleHost).noquote() << "ModuleHost: the load record" << m_path << "still names module" << moduleId
+                                          << "as loading; the next start will treat it as having crashed";
     }
 }
 
-bool FacetLoadRecord::persistDisabled(Write mode)
+bool ModuleLoadRecord::persistDisabled(Write mode)
 {
     if (m_path.isEmpty()) {
         return false;

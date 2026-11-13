@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
-// The keys of a Facet module's metadata, and which of them are localizable.
+// The keys of a control module's metadata, and which of them are localizable.
 //
-// FacetModuleMetadata::parse() reads this table to tell a known key from an
-// unknown one, and the phosphor-facet-metadata tool reads it to find the
+// ModuleMetadata::parse() reads this table to tell a known key from an
+// unknown one, and the phosphor-control-metadata tool reads it to find the
 // strings it hands to lupdate and localizes from the module's catalogs. One
 // table, so a key the parser learns is a key the tool translates. Private:
 // the tool is built from this source tree and nothing else includes it.
@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <span>
 
-namespace PhosphorControl::FacetMetadataKeys {
+namespace PhosphorControl::ModuleMetadataKeys {
 
 /// The `<locale>` of a `Key[<locale>]` variant that parse() can pick:
 /// letters and digits in '_'-joined parts, the form of the locale variants
@@ -135,4 +135,4 @@ inline constexpr ObjectList ObjectLists[] = {
     {QLatin1String("Search"), QLatin1String("search entry"), SearchEntry},
 };
 
-} // namespace PhosphorControl::FacetMetadataKeys
+} // namespace PhosphorControl::ModuleMetadataKeys

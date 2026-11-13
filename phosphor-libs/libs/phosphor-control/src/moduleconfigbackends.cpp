@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "facetconfigbackends_p.h"
+#include "moduleconfigbackends_p.h"
 
 #include <PhosphorConfig/IBackend.h>
 
@@ -15,8 +15,8 @@
 namespace PhosphorControl {
 
 namespace {
-// The file the OS opens for @p path, which FacetContext::configBackend and
-// FacetHost::configBackend have checked is absolute: symbolic links followed,
+// The file the OS opens for @p path, which ModuleContext::configBackend and
+// ModuleHost::configBackend have checked is absolute: symbolic links followed,
 // and `.`, `..` and doubled separators removed. The file and the directories
 // above it may not exist yet, so the walk goes one name at a time and keeps
 // whatever is missing as written, where QFileInfo::canonicalFilePath gives
@@ -66,17 +66,17 @@ QString configFileKey(const QString& path)
 }
 } // namespace
 
-FacetConfigBackends::FacetConfigBackends(QObject* parent)
+ModuleConfigBackends::ModuleConfigBackends(QObject* parent)
     : QObject(parent)
 {
 }
 
-void FacetConfigBackends::setRedirect(const QString& directory)
+void ModuleConfigBackends::setRedirect(const QString& directory)
 {
     m_redirect = directory;
 }
 
-PhosphorConfig::IBackend* FacetConfigBackends::shared(const QString& path, const Factory& create)
+PhosphorConfig::IBackend* ModuleConfigBackends::shared(const QString& path, const Factory& create)
 {
     const QString key = configFileKey(path);
     const auto existing = m_backends.constFind(key);
@@ -92,7 +92,7 @@ PhosphorConfig::IBackend* FacetConfigBackends::shared(const QString& path, const
         file = QDir::cleanPath(m_redirect + QLatin1Char('/') + key);
         QDir().mkpath(QFileInfo(file).absolutePath());
     }
-    const QPointer<FacetConfigBackends> self(this);
+    const QPointer<ModuleConfigBackends> self(this);
     std::unique_ptr<PhosphorConfig::IBackend> created = create ? create(file) : nullptr;
     // create is module code, so look again before using what it can have
     // changed. It can have destroyed the ApplicationController, and this
@@ -115,7 +115,7 @@ PhosphorConfig::IBackend* FacetConfigBackends::shared(const QString& path, const
     return backend;
 }
 
-PhosphorConfig::IBackend* FacetConfigBackends::find(const QString& path) const
+PhosphorConfig::IBackend* ModuleConfigBackends::find(const QString& path) const
 {
     const auto existing = m_backends.constFind(configFileKey(path));
     return existing != m_backends.cend() ? existing->get() : nullptr;

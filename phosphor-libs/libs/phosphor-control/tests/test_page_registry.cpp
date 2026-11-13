@@ -338,7 +338,7 @@ private Q_SLOTS:
 
     void everyBindStampsPassesContext()
     {
-        // A bound page is part of the Facet module contract, so PageHost
+        // A bound page is part of the control module contract, so PageHost
         // creates it with its context set. Each of bindPage's three accepting
         // arms sets the flag: a new controller, the same controller with new
         // QML, and the same controller and QML again (which says nothing).

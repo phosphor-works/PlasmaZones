@@ -11,9 +11,9 @@
 namespace PhosphorControl {
 
 /**
- * The controller of a page that stands in for a Facet module's page while
- * the module is not loaded. FacetHost registers one per placeholder, and
- * FacetModulePage.qml, the page it shows (FacetHost::placeholderPageSource),
+ * The controller of a page that stands in for a control module's page while
+ * the module is not loaded. ModuleHost registers one per placeholder, and
+ * ModulePage.qml, the page it shows (ModuleHost::placeholderPageSource),
  * declares its `controller` as this type, so QML checks the members it reads.
  *
  * Never dirty: apply() and discard() succeed at once, so a placeholder never
@@ -28,14 +28,14 @@ class PHOSPHORCONTROL_EXPORT ModulePlaceholderPage : public PageController
     Q_PROPERTY(QString moduleName READ moduleName CONSTANT)
     /// The module failed: its library, its metadata or its registration.
     Q_PROPERTY(bool failed READ failed NOTIFY moduleStateChanged)
-    /// The module was turned off because Facet stopped while it loaded.
+    /// The module was turned off because the app stopped while it loaded.
     Q_PROPERTY(bool disabledAfterCrash READ disabledAfterCrash NOTIFY moduleStateChanged)
     /// The host's diagnostic account of a failure. Not translated.
     Q_PROPERTY(QString reason READ reason NOTIFY moduleStateChanged)
     /// Whether retry() can load the module now.
     Q_PROPERTY(bool canRetry READ canRetry NOTIFY moduleStateChanged)
     QML_NAMED_ELEMENT(ModulePlaceholderPage)
-    QML_UNCREATABLE("ModulePlaceholderPage is an abstract base; FacetHost creates the placeholders.")
+    QML_UNCREATABLE("ModulePlaceholderPage is an abstract base; ModuleHost creates the placeholders.")
 
 public:
     explicit ModulePlaceholderPage(const QString& id, QObject* parent = nullptr);

@@ -18,13 +18,13 @@ class ApplicationController;
 Q_MOC_INCLUDE("PhosphorControl/ApplicationController.h")
 
 /// The sections in one slot of one page, as ApplicationController::
-/// extensionsFor() lists them, for FacetSlot's Repeater.
+/// extensionsFor() lists them, for ExtensionSlot's Repeater.
 ///
 /// It reads the list again whenever settingsApp, pageId or slot change, and
 /// on extensionsChanged for its page. Rows are matched by extension id, so a
 /// section that stays keeps its delegate, and its loaded QML, while others
 /// come, go or change state.
-class PHOSPHORCONTROL_EXPORT FacetSlotModel : public QAbstractListModel
+class PHOSPHORCONTROL_EXPORT ExtensionSlotModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(PhosphorControl::ApplicationController* settingsApp READ settingsApp WRITE setSettingsApp NOTIFY
@@ -50,7 +50,7 @@ public:
     };
     Q_ENUM(Role)
 
-    explicit FacetSlotModel(QObject* parent = nullptr);
+    explicit ExtensionSlotModel(QObject* parent = nullptr);
 
     ApplicationController* settingsApp() const;
     void setSettingsApp(ApplicationController* settingsApp);

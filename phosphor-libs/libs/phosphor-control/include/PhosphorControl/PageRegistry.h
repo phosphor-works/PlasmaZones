@@ -148,7 +148,7 @@ public:
         /// PageHost sets them when it creates the page, before any binding
         /// runs, so the page may declare them `required`. A page without the
         /// flag gets them assigned after creation, if it declares them. Every
-        /// page bound with bindPage() has it: it is part of the Facet module
+        /// page bound with bindPage() has it: it is part of the control module
         /// contract.
         ///
         /// PageHost reads the flag only when it creates the page, and
@@ -156,7 +156,7 @@ public:
         /// already built does nothing to that page; it counts the next time
         /// PageHost creates the page: its first visit, or a bind that gives
         /// it other QML. Clearing it for a page whose QML declares the
-        /// properties `required` (every Facet page) makes that creation fail.
+        /// properties `required` (every module page) makes that creation fail.
         bool passesContext = false;
     };
 
@@ -188,7 +188,7 @@ public:
 
     /// Replace the controller and QML source of the registered page @p id,
     /// keeping its place in the tree, title, icon, tier and counterpart. This
-    /// is how a page registered with a placeholder controller (a Facet module
+    /// is how a page registered with a placeholder controller (a control module
     /// that has not loaded yet) gets its real one. Refuses an unknown id, a
     /// null controller, a controller whose id() is not @p id, or a controller
     /// already registered for another page. Emits pageBound when the
@@ -198,7 +198,7 @@ public:
     ///
     /// Every accepted bind, the silent one included, also sets the entry's
     /// passesContext: a bound page is created with `controller` and
-    /// `settingsApp` already set, as the Facet module contract has it. That
+    /// `settingsApp` already set, as the control module contract has it. That
     /// is announced by nothing of its own; PageHost reads the flag when a
     /// pageBound for a new QML source makes it create the page.
     bool bindPage(const QString& id, PageController* controller, const QUrl& qmlSource);
@@ -281,7 +281,7 @@ public:
     /** validateCounterparts for the entries @p ids alone, with the same
      *  checks and warnings. An unknown id, or an entry with no counterpart,
      *  passes. For a host that registers pages after the application checked
-     *  its own (FacetHost, as modules take their place), so the application's
+     *  its own (ModuleHost, as modules take their place), so the application's
      *  pages are not warned about again. */
     bool validateCounterparts(const QStringList& ids) const;
     /** Depth-first search (sibling order) below `parentId` for the

@@ -494,7 +494,7 @@ namespace {
 // Collects the navigable (qmlSource set) page ids in the order the sidebar
 // draws the tree and locates the current page's index inside it. Tree order,
 // not registration order: a host that registers pages out of tree order
-// (FacetHost places a module after the modules it depends on) would
+// (ModuleHost places a module after the modules it depends on) would
 // otherwise send next/previous somewhere other than the next row. Returns
 // `currentIdx = -1` when the current page id is empty / not in the
 // navigable set — the caller decides how to wrap.

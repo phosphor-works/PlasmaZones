@@ -4,7 +4,7 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="de">
 <context>
-    <name>FacetModule</name>
+    <name>PhosphorControlModule</name>
     <message>
         <source>Translated</source>
         <translation>Übersetzt</translation>

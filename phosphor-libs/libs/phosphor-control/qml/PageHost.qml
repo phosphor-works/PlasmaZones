@@ -23,7 +23,7 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * Each page gets `controller`, the registered PageController for its page
  * id, and `settingsApp`, the ApplicationController, for cross-page access.
  * A page whose entry passes context (PageRegistry::Entry::passesContext,
- * every Facet module page) is created with both already set, so it may
+ * every control module page) is created with both already set, so it may
  * declare them required, and it is not created while its controller is
  * gone. Any other page gets them assigned once it is created, if it
  * declares them.
@@ -33,7 +33,7 @@ import "LoaderHelpers.js" as PhosphorLoaderHelpers
  * current, or the current entry has no QML of its own (a category), it asks
  * for a page instead.
  *
- * Above and below the current page sit its `top` and `bottom` FacetSlots,
+ * Above and below the current page sit its `top` and `bottom` ExtensionSlots,
  * where other modules' sections appear. They are outside the page's own
  * scrolling content, take no space while the page has no such section, and
  * follow the current page, so unlike the pages they are built again on each
@@ -138,7 +138,7 @@ Item {
         anchors.margins: root.contentMargins
         spacing: Kirigami.Units.largeSpacing
 
-        FacetSlot {
+        ExtensionSlot {
             Layout.fillWidth: true
             settingsApp: root.controller
             pageId: root.controller.currentPageId
@@ -393,7 +393,7 @@ Item {
             }
         }
 
-        FacetSlot {
+        ExtensionSlot {
             Layout.fillWidth: true
             settingsApp: root.controller
             pageId: root.controller.currentPageId
@@ -402,7 +402,7 @@ Item {
     }
 
     // A page bound to a new controller and QML source (PageRegistry::bindPage,
-    // a Facet module page whose module loaded) changes what pageData()
+    // a control module page whose module loaded) changes what pageData()
     // returns, and an already-built cached Loader keeps the controller it was
     // given. A page registered later needs nothing here: it cannot be current
     // or cached before it is registered.

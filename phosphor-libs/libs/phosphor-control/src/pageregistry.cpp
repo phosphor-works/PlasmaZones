@@ -65,7 +65,7 @@ bool PageRegistry::bindPage(const QString& id, PageController* controller, const
     const bool sameController = current.controller.data() == controller;
     if (sameController && current.qmlSource == qmlSource) {
         // Nothing to announce. Still stamped, for a page whose flag was
-        // cleared since: a bound page is part of the Facet module contract,
+        // cleared since: a bound page is part of the control module contract,
         // which passes the page its context when it is created.
         if (!current.passesContext) {
             m_pages[*index].passesContext = true;

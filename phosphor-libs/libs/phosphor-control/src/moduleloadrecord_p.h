@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #pragma once
 
-// FacetHost's load record: the file that names the module being loaded and
-// the modules disabled after a crash (FacetHost::setSentinelPath). Private to
+// ModuleHost's load record: the file that names the module being loaded and
+// the modules disabled after a crash (ModuleHost::setSentinelPath). Private to
 // the library.
 
 #include <QLoggingCategory>
@@ -14,9 +14,9 @@
 
 namespace PhosphorControl {
 
-// Defined in facethost.cpp. The load record logs under the host's category,
+// Defined in modulehost.cpp. The load record logs under the host's category,
 // so its messages are filtered with the host's.
-Q_DECLARE_LOGGING_CATEGORY(lcFacetHost)
+Q_DECLARE_LOGGING_CATEGORY(lcModuleHost)
 
 /// Remembers a crash while a module loads. The module's id is written to the
 /// record before its library is loaded and taken out again once the load no
@@ -25,10 +25,10 @@ Q_DECLARE_LOGGING_CATEGORY(lcFacetHost)
 /// enabled again (enable()).
 ///
 /// It owns the record's path and the set of disabled modules, and nothing of
-/// the host. GUI thread only, like the host. One FacetHost per record: two
+/// the host. GUI thread only, like the host. One ModuleHost per record: two
 /// hosts on one record, in one process or two, each write their own disabled
 /// list over the other's.
-class FacetLoadRecord
+class ModuleLoadRecord
 {
 public:
     /// How far a write of the record goes before it counts as done. Both
@@ -46,9 +46,9 @@ public:
         ProcessCrashSafe,
     };
 
-    /// The record is at `$XDG_STATE_HOME/phosphor-works/facet-loading`, or
+    /// The record is at `$XDG_STATE_HOME/phosphor-works/control-loading`, or
     /// nowhere when no state directory is available.
-    FacetLoadRecord();
+    ModuleLoadRecord();
 
     /// Empty when crashes are not remembered.
     [[nodiscard]] QString path() const;
@@ -56,7 +56,7 @@ public:
     /// this call. Empty turns crash memory off.
     void setPath(const QString& path);
 
-    /// Read the record a previous Facet left, once, as Facet starts: remove
+    /// Read the record a previous run left, once, as the host starts: remove
     /// the temporary files an interrupted write left behind, disable the
     /// module the record names as loading unless the process loading it is
     /// still running, and take the disabled list from the record.

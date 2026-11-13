@@ -39,7 +39,7 @@ function(phosphorcontrol_add_test name)
     # the application type of the QTEST_MAIN tests a decision of this file
     # instead of a side effect of that library's dependencies. A
     # QGuiApplication needs a platform plugin, hence
-    # QT_QPA_PLATFORM=offscreen below. Of the Facet tests, test_facet_slot
+    # QT_QPA_PLATFORM=offscreen below. Of the module tests, test_extension_slot
     # and test_page_host, which build QML items, use QTEST_MAIN, as do most of
     # the others here. A test that uses QTEST_GUILESS_MAIN needs no plugin. No
     # test creates its own application object or touches widgets.
@@ -73,41 +73,41 @@ phosphorcontrol_add_test(test_search_ranker)
 phosphorcontrol_add_test(test_search_controller)
 phosphorcontrol_add_test(test_sidebar_rows)
 # Parses metadata only, so it needs no fixture module.
-phosphorcontrol_add_test(test_facet_module_metadata)
+phosphorcontrol_add_test(test_module_metadata)
 # Runs the build tool on files of its own, so it needs no fixture module
 # either.
-phosphorcontrol_add_test(test_facet_metadata_tool)
-target_compile_definitions(test_facet_metadata_tool PRIVATE
-    PHOSPHOR_FACET_METADATA_TOOL="$<TARGET_FILE:phosphor-facet-metadata>")
-add_dependencies(test_facet_metadata_tool phosphor-facet-metadata)
+phosphorcontrol_add_test(test_module_metadata_tool)
+target_compile_definitions(test_module_metadata_tool PRIVATE
+    PHOSPHOR_CONTROL_METADATA_TOOL="$<TARGET_FILE:phosphor-control-metadata>")
+add_dependencies(test_module_metadata_tool phosphor-control-metadata)
 
-# ─── Facet module fixtures ─────────────────────────────────────────────────────
+# ─── Control module fixtures ───────────────────────────────────────────────────
 #
-# A STATIC build cannot host Facet modules (see PHOSPHOR_CONTROL_BUILD_SHARED):
+# A STATIC build cannot host control modules (see PHOSPHOR_CONTROL_BUILD_SHARED):
 # each fixture would carry its own copy of the library, so the host and the
 # module would not even share StagingDomain's metaobject. The fixtures and the
-# tests that load them need the shared library. test_facet_slot and
+# tests that load them need the shared library. test_extension_slot and
 # test_page_host below are left out of a static build too: each links the
 # library together with the static QML module, which compiles the same
 # sources, and two static archives of one set of objects in one executable is
 # not a combination this build supports.
 if(NOT PHOSPHOR_CONTROL_BUILD_SHARED)
-    message(STATUS "phosphor-control: static build, so the Facet module tests are not built")
+    message(STATUS "phosphor-control: static build, so the control module tests are not built")
     return()
 endif()
 #
-# Every test Facet module but notamodule is fake_module/fakemodule.cpp built
+# Every test control module but notamodule is fake_module/fakemodule.cpp built
 # once per variant. A variant differs in its generated fake_module_config.h
 # (FAKE_MODE, see the source), its metadata.json, both in a per-variant
 # directory on the target's include path, and the catalogs it translates its
 # metadata from (TS_FILES). The metadata goes through
-# phosphor_add_facet_module_metadata, and the plugin embeds the
-# facet_metadata.json it generates. Each library lands at
+# phosphor_add_control_module_metadata, and the plugin embeds the
+# module_metadata.json it generates. Each library lands at
 # ${PHOSPHOR_CONTROL_FIXTURE_DIR}/<variant>.so.
 set(PHOSPHOR_CONTROL_FIXTURE_DIR ${CMAKE_CURRENT_BINARY_DIR}/fixtures)
 # The tests copy fixtures here before loading them, not under /tmp, which may
 # be mounted noexec.
-set(PHOSPHOR_CONTROL_STAGING_DIR ${CMAKE_CURRENT_BINARY_DIR}/facet-staging)
+set(PHOSPHOR_CONTROL_STAGING_DIR ${CMAKE_CURRENT_BINARY_DIR}/module-staging)
 file(MAKE_DIRECTORY ${PHOSPHOR_CONTROL_STAGING_DIR})
 set(phosphorcontrol_fixture_targets "")
 
@@ -115,14 +115,14 @@ set(phosphorcontrol_fixture_targets "")
 #                                [TS_FILES <ts>...] [INVALID])
 #
 # SOURCE replaces fake_module/fakemodule.cpp, for a fixture that is not a
-# FakeFacetModule at all.
+# FakeControlModule at all.
 #
-# The metadata goes through phosphor_add_facet_module_metadata like a real
+# The metadata goes through phosphor_add_control_module_metadata like a real
 # module's, with TS_FILES as its translations. INVALID lets it through when it
 # is invalid on purpose.
 #
 # Each variant compiles the source through a symbolic link in its own
-# directory. phosphor_add_facet_module_metadata makes the plugin source
+# directory. phosphor_add_control_module_metadata makes the plugin source
 # depend on the generated metadata, and a source file's dependencies are kept
 # per directory, so with one shared path every variant would be rebuilt
 # whenever any variant's metadata changed. The function refuses that.
@@ -132,7 +132,7 @@ set(phosphorcontrol_fixture_targets "")
 # else does, and so does a misspelt keyword. Either leaves arguments that no
 # keyword claims, which is an error here rather than a variant built from
 # half its metadata. A keyword misspelt after TS_FILES is taken as one of its
-# catalogs instead, which phosphor_add_facet_module_metadata refuses for not
+# catalogs instead, which phosphor_add_control_module_metadata refuses for not
 # being a .ts file.
 #
 # MODE 44 is the variant whose library cannot be loaded, because it calls a
@@ -166,8 +166,8 @@ function(phosphorcontrol_add_fake_module variant)
     if(ARG_INVALID)
         set(invalid ALLOW_INVALID)
     endif()
-    # Not in the generated <target>_facet directory: a link there would put
-    # the generated facet_metadata.json beside the source, which the function
+    # Not in the generated <target>_module directory: a link there would put
+    # the generated module_metadata.json beside the source, which the function
     # refuses as a stray copy from the second configure on. No copy as a
     # fallback either, since a copy would go stale when the source changes.
     get_filename_component(sourceName ${ARG_SOURCE} NAME)
@@ -192,7 +192,7 @@ function(phosphorcontrol_add_fake_module variant)
         AUTORCC ON
         UNITY_BUILD OFF
     )
-    phosphor_add_facet_module_metadata(${target} METADATA ${configDir}/metadata.json TS_FILES ${ARG_TS_FILES} ${invalid})
+    phosphor_add_control_module_metadata(${target} METADATA ${configDir}/metadata.json TS_FILES ${ARG_TS_FILES} ${invalid})
     set(phosphorcontrol_fixture_targets ${phosphorcontrol_fixture_targets} ${target} PARENT_SCOPE)
 endfunction()
 
@@ -320,7 +320,7 @@ phosphorcontrol_add_fake_module(wrongapi MODE 0 METADATA [=[{
 phosphorcontrol_add_fake_module(badmetadata MODE 0 INVALID METADATA [=[{
     "Id": "badmetadata", "ApiVersion": 1,
     "Pages": [ { "Id": "a:b", "Name": "Colon" } ] }]=])
-# A key no Facet knows, which loads with a warning. The tool prints that
+# A key no PhosphorControl knows, which loads with a warning. The tool prints that
 # warning when it generates this fixture's metadata, on purpose.
 phosphorcontrol_add_fake_module(typokey MODE 0 METADATA [=[{
     "Id": "typokey", "ApiVersion": 1, "Name": "Typo Key",
@@ -478,46 +478,46 @@ phosphorcontrol_add_fake_module(providerobject MODE 53 METADATA
 # Says it has providers and registers none.
 phosphorcontrol_add_fake_module(providersnone MODE 0 METADATA
     "{ \"Id\": \"providersnone\", \"ApiVersion\": 1, \"Name\": \"Providers None\", \"SearchProviders\": true,${_provider_pages} }")
-# A provider whose entries FacetTestHost checks one by one: on its own page,
+# A provider whose entries ModuleTestHost checks one by one: on its own page,
 # on the page its one extension targets, and an action with no page.
 phosphorcontrol_add_fake_module(providerchecks MODE 48 METADATA [=[{
     "Id": "providerchecks", "ApiVersion": 1, "Name": "Provider Checks", "SearchProviders": true,
     "Pages": [ { "Id": "general", "Name": "General", "Anchors": ["list"] } ],
     "Extensions": [ { "Id": "first", "Target": "good:general", "Slot": "top", "Name": "First" } ] }]=])
 
-phosphorcontrol_add_test(test_facet_host)
+phosphorcontrol_add_test(test_module_host)
 # Its page controller stub is simple_page.h, which declares Q_OBJECT in a
 # header: AUTOMOC runs moc on it only when it is one of the target's sources.
-target_sources(test_facet_host PRIVATE simple_page.h)
-phosphorcontrol_add_test(test_facet_test_host)
-target_link_libraries(test_facet_test_host PRIVATE PhosphorControl::PhosphorControlTest)
-# The anchors files phosphor_add_facet_module_metadata generates, so the test
+target_sources(test_module_host PRIVATE simple_page.h)
+phosphorcontrol_add_test(test_module_test_host)
+target_link_libraries(test_module_test_host PRIVATE PhosphorControl::PhosphorControlTest)
+# The anchors files phosphor_add_control_module_metadata generates, so the test
 # checks a release against what the tool really writes.
-target_compile_definitions(test_facet_test_host PRIVATE
-    PHOSPHOR_CONTROL_GOOD_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_good,FACET_ANCHORS_FILE>"
-    PHOSPHOR_CONTROL_GOODNEXT_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_goodnext,FACET_ANCHORS_FILE>")
+target_compile_definitions(test_module_test_host PRIVATE
+    PHOSPHOR_CONTROL_GOOD_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_good,MODULE_ANCHORS_FILE>"
+    PHOSPHOR_CONTROL_GOODNEXT_ANCHORS="$<TARGET_PROPERTY:phosphor_control_fixture_goodnext,MODULE_ANCHORS_FILE>")
 
-# FacetSlot and FacetExtensionFrame, through the static org.phosphor.control
+# ExtensionSlot and ExtensionFrame, through the static org.phosphor.control
 # module the in-tree apps link. They import org.kde.kirigami, and so does
 # PageHost, so those tests need Kirigami's QML module at run time and are left
 # out without it.
 find_package(KF6Kirigami QUIET)
 if(KF6Kirigami_FOUND)
-    phosphorcontrol_add_test(test_facet_slot)
-    target_link_libraries(test_facet_slot PRIVATE PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin
+    phosphorcontrol_add_test(test_extension_slot)
+    target_link_libraries(test_extension_slot PRIVATE PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin
                                                   Qt6::Quick)
     phosphorcontrol_add_test(test_page_host)
     target_link_libraries(test_page_host PRIVATE
         PhosphorControl::PhosphorControlQml PhosphorControlQmlplugin PhosphorAnimationQmlplugin Qt6::Quick)
     # Their shared page controller stub declares Q_OBJECT in a header, which
     # AUTOMOC runs moc on only when the header is one of the target's sources.
-    foreach(test test_facet_slot test_page_host)
+    foreach(test test_extension_slot test_page_host)
         target_sources(${test} PRIVATE simple_page.h)
     endforeach()
 else()
-    message(STATUS "phosphor-control: KF6 Kirigami not found, so test_facet_slot and test_page_host are not built")
+    message(STATUS "phosphor-control: KF6 Kirigami not found, so test_extension_slot and test_page_host are not built")
 endif()
-foreach(test test_facet_host test_facet_test_host)
+foreach(test test_module_host test_module_test_host)
     target_compile_definitions(${test} PRIVATE
         PHOSPHOR_CONTROL_FIXTURE_DIR="${PHOSPHOR_CONTROL_FIXTURE_DIR}"
         PHOSPHOR_CONTROL_STAGING_DIR="${PHOSPHOR_CONTROL_STAGING_DIR}")

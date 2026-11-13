@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <PhosphorControl/FacetModuleMetadata.h>
+#include <PhosphorControl/ModuleMetadata.h>
 
 #include <QDebug>
 #include <QJsonDocument>
@@ -32,7 +32,7 @@ bool json(const char* text, QJsonObject* out)
 
 } // namespace
 
-class TestFacetModuleMetadata : public QObject
+class TestModuleMetadata : public QObject
 {
     Q_OBJECT
 
@@ -43,7 +43,7 @@ private Q_SLOTS:
         QVERIFY(json(R"({
             "Id": "placement", "ApiVersion": 1, "Name": "Window Placement", "Description": "Snap, tile, scroll",
             "Icon": "org.phosphor_works.PlasmaZones", "Category": "window-management", "Order": 10,
-            "Keywords": ["snap", "tile"], "TranslationDomain": "facet-module-placement",
+            "Keywords": ["snap", "tile"], "TranslationDomain": "control-module-placement",
             "Categories": [ { "Id": "accessibility", "Name": "Accessibility", "Icon": "a11y", "Order": 70 } ],
             "Pages": [ { "Id": "snapping", "Name": "Snapping", "Icon": "snap", "Keywords": ["drag"],
                          "Visibility": "AdvancedOnly", "DividerAfter": true, "Counterpart": "other:page",
@@ -52,7 +52,7 @@ private Q_SLOTS:
                      &object));
         QStringList errors;
         QStringList warnings;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.id, QStringLiteral("placement"));
@@ -63,14 +63,14 @@ private Q_SLOTS:
         QCOMPARE(metadata.category, QStringLiteral("window-management"));
         QCOMPARE(metadata.order, 10);
         QCOMPARE(metadata.keywords, (QStringList{QStringLiteral("snap"), QStringLiteral("tile")}));
-        QCOMPARE(metadata.translationDomain, QStringLiteral("facet-module-placement"));
+        QCOMPARE(metadata.translationDomain, QStringLiteral("control-module-placement"));
         QCOMPARE(metadata.categories.size(), 1);
         QCOMPARE(metadata.categories.first().id, QStringLiteral("accessibility"));
         QCOMPARE(metadata.categories.first().name, QStringLiteral("Accessibility"));
         QCOMPARE(metadata.categories.first().icon, QStringLiteral("a11y"));
         QCOMPARE(metadata.categories.first().order, 70);
         QCOMPARE(metadata.pages.size(), 2);
-        const FacetPageMetadata* const snapping = metadata.page(QStringLiteral("snapping"));
+        const ModulePageMetadata* const snapping = metadata.page(QStringLiteral("snapping"));
         QVERIFY(snapping);
         QCOMPARE(snapping->icon, QStringLiteral("snap"));
         QCOMPARE(snapping->keywords, QStringList{QStringLiteral("drag")});
@@ -78,7 +78,7 @@ private Q_SLOTS:
         QVERIFY(snapping->dividerAfter);
         QCOMPARE(snapping->counterpart, QStringLiteral("other:page"));
         QCOMPARE(snapping->anchors, (QStringList{QStringLiteral("A.b_c-d"), QStringLiteral("9")}));
-        const FacetPageMetadata* const pinned = metadata.page(QStringLiteral("pinned"));
+        const ModulePageMetadata* const pinned = metadata.page(QStringLiteral("pinned"));
         QVERIFY(pinned);
         QCOMPARE(pinned->category, QStringLiteral("appearance"));
         QVERIFY(!metadata.page(QStringLiteral("nope")));
@@ -91,7 +91,7 @@ private Q_SLOTS:
                           "Pages": [ { "Id": "p", "Name": "P" } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.description, QStringLiteral("one\ttwo\nthree"));
     }
@@ -123,7 +123,7 @@ private Q_SLOTS:
                           "Pages": [ { "Id": "p", "Name": "P" } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale(locale), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale(locale), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.name, expected);
     }
@@ -145,7 +145,7 @@ private Q_SLOTS:
                      &object));
         const QLocale locale(QLocale::French, QLocale::Switzerland);
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, locale, &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, locale, &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.name, QStringLiteral("Français"));
         QCOMPARE(metadata.description, QStringLiteral("Dé"));
@@ -174,7 +174,7 @@ private Q_SLOTS:
                           "Keywords[fr]": [""], "Pages": [ { "Id": "p", "Name": "P" } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale(locale), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale(locale), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.keywords, QStringList{QStringLiteral("base")});
     }
@@ -201,7 +201,7 @@ private Q_SLOTS:
         };
         for (const QLocale& locale : {QLocale::c(), QLocale(QLocale::German, QLocale::Germany)}) {
             QStringList errors;
-            FacetModuleMetadata::parse(object, locale, &errors);
+            ModuleMetadata::parse(object, locale, &errors);
             QCOMPARE(errors, expected);
         }
     }
@@ -217,10 +217,10 @@ private Q_SLOTS:
                 { "Id": "a", "Name": "A" } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QStringList order;
-        for (const FacetPageMetadata& page : metadata.pages) {
+        for (const ModulePageMetadata& page : metadata.pages) {
             order.append(page.id);
         }
         // z was declared before a, so it stays first among the top-level
@@ -247,11 +247,11 @@ private Q_SLOTS:
         struct Result
         {
             QStringList errors;
-            FacetModuleMetadata metadata;
+            ModuleMetadata metadata;
         };
         const auto result = std::make_shared<Result>();
         std::unique_ptr<QThread> thread(QThread::create([result, object] {
-            result->metadata = FacetModuleMetadata::parse(object, QLocale::c(), &result->errors);
+            result->metadata = ModuleMetadata::parse(object, QLocale::c(), &result->errors);
         }));
         thread->setStackSize(256 * 1024);
         thread->start();
@@ -266,7 +266,7 @@ private Q_SLOTS:
         QVERIFY(thread->wait(QDeadlineTimer(60000)));
         stop.dismiss();
         const QStringList& errors = result->errors;
-        const FacetModuleMetadata& metadata = result->metadata;
+        const ModuleMetadata& metadata = result->metadata;
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.pages.size(), 5000);
         QCOMPARE(metadata.pages.last().id, QStringLiteral("p4999"));
@@ -279,7 +279,7 @@ private Q_SLOTS:
             "Pages": [ { "Id": "p", "Name": "P", "Parent": "placement:snapping/behavior" } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.pages.size(), 1);
         QCOMPARE(metadata.pages.first().parent, QStringLiteral("placement:snapping/behavior"));
@@ -321,11 +321,12 @@ private Q_SLOTS:
                             "in Name[pt_BR]"),
              QStringLiteral("page p: \"Keywords[de-AT]\" is never picked: a locale is written with letters, digits "
                             "and '_', as in Keywords[pt_BR]")});
-        // A kind a newer Facet added costs the entry, not the module.
+        // A kind a newer PhosphorControl added costs the entry, not the module.
         row("search entry of an unknown kind",
             R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P", "Anchors": ["a"] } ],
                  "Search": [ { "Page": "p", "Anchor": "a", "Kind": "Thing", "Title": "T" } ] })",
-            {QStringLiteral("search entry p#a has \"Kind\" Thing, which this Facet does not know, so it is left out")});
+            {QStringLiteral(
+                "search entry p#a has \"Kind\" Thing, which this PhosphorControl does not know, so it is left out")});
     }
 
     void warnsAboutKeysItCannotUse()
@@ -337,7 +338,7 @@ private Q_SLOTS:
         QVERIFY(json(text.constData(), &object));
         QStringList errors;
         QStringList warnings;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors, &warnings);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(warnings, expected);
         QCOMPARE(metadata.search.size(), entries);
@@ -355,18 +356,18 @@ private Q_SLOTS:
                      &object));
         QStringList errors;
         QStringList warnings;
-        const FacetModuleMetadata metadata =
-            FacetModuleMetadata::parse(object, QLocale(QStringLiteral("de_DE")), &errors, &warnings);
+        const ModuleMetadata metadata =
+            ModuleMetadata::parse(object, QLocale(QStringLiteral("de_DE")), &errors, &warnings);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
-        const FacetPageMetadata* const page = metadata.page(QStringLiteral("p"));
+        const ModulePageMetadata* const page = metadata.page(QStringLiteral("p"));
         QVERIFY(page);
         QCOMPARE(page->anchors, (QStringList{QStringLiteral("speed"), QStringLiteral("size")}));
         QCOMPARE(metadata.extensionPoints.size(), 1);
         QCOMPARE(metadata.extensionPoints.first().page, QStringLiteral("p"));
         QCOMPARE(metadata.extensionPoints.first().id, QStringLiteral("panel"));
         QCOMPARE(metadata.extensionPoints.first().version, 3);
-        const FacetExtensionMetadata* const extension = metadata.extension(QStringLiteral("e"));
+        const ModuleExtensionMetadata* const extension = metadata.extension(QStringLiteral("e"));
         QVERIFY(extension);
         QCOMPARE(extension->target, QStringLiteral("other:page"));
         QCOMPARE(extension->slot, QStringLiteral("after:x"));
@@ -380,7 +381,7 @@ private Q_SLOTS:
     void acceptsSlotsItDoesNotKnow()
     {
         // Whether a page offers a slot is the host's call, per extension. A
-        // slot form a newer Facet adds must not cost the module its pages.
+        // slot form a newer PhosphorControl adds must not cost the module its pages.
         QJsonObject object;
         QVERIFY(json(R"({
             "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ],
@@ -389,7 +390,7 @@ private Q_SLOTS:
                             { "Id": "c", "Target": "o:p", "Slot": "anchors", "Name": "C" } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.extensions.size(), 3);
     }
@@ -403,7 +404,7 @@ private Q_SLOTS:
                                  { "Page": "q", "Id": "panel", "Version": 3 } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.extensionPoints.size(), 2);
         QCOMPARE(metadata.slotVersion(QStringLiteral("p"), QStringLiteral("panel")), 2);
@@ -416,7 +417,7 @@ private Q_SLOTS:
         QJsonObject object;
         QVERIFY(json(R"({ "Id": "m", "Name": 5, "Pages": [ { "Id": "p", "Name": ["P"] } ] })", &object));
         QStringList errors;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        ModuleMetadata::parse(object, QLocale::c(), &errors);
         QCOMPARE(errors,
                  (QStringList{QStringLiteral("\"Name\" must be a string"),
                               QStringLiteral("page p: \"Name\" must be a string")}));
@@ -441,7 +442,7 @@ private Q_SLOTS:
         QJsonObject object;
         QVERIFY(json(text.constData(), &object));
         QStringList errors;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        ModuleMetadata::parse(object, QLocale::c(), &errors);
         QCOMPARE(errors, QStringList{expected});
     }
 
@@ -476,7 +477,7 @@ private Q_SLOTS:
                                  { "Page": "p", "Id": "panel", "Version": 2 } ] })",
                      &object));
         QStringList errors;
-        const FacetModuleMetadata metadata = FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        const ModuleMetadata metadata = ModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QCOMPARE(metadata.slotVersion(page, slot), version);
     }
@@ -495,32 +496,32 @@ private Q_SLOTS:
                      &object));
         QStringList errors;
         QStringList warnings;
-        const FacetModuleMetadata metadata =
-            FacetModuleMetadata::parse(object, QLocale(QStringLiteral("de_DE")), &errors, &warnings);
+        const ModuleMetadata metadata =
+            ModuleMetadata::parse(object, QLocale(QStringLiteral("de_DE")), &errors, &warnings);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
         QVERIFY(metadata.searchProviders);
         QCOMPARE(metadata.search.size(), 3);
-        const FacetSearchEntryMetadata& speed = metadata.search.at(0);
+        const ModuleSearchEntryMetadata& speed = metadata.search.at(0);
         QCOMPARE(speed.page, QStringLiteral("p"));
         QCOMPARE(speed.anchor, QStringLiteral("speed"));
         QCOMPARE(speed.title, QStringLiteral("Tempo"));
         QCOMPARE(speed.keywords, QStringList{QStringLiteral("schnell")});
         QVERIFY(speed.advancedOnly);
         QVERIFY(!speed.section);
-        const FacetSearchEntryMetadata& size = metadata.search.at(1);
+        const ModuleSearchEntryMetadata& size = metadata.search.at(1);
         QCOMPARE(size.anchor, QStringLiteral("size"));
         QVERIFY(size.section);
         QVERIFY(!size.advancedOnly);
         // The same title at another place is another entry, and an explicit
         // Setting is what no Kind means.
-        const FacetSearchEntryMetadata& other = metadata.search.at(2);
+        const ModuleSearchEntryMetadata& other = metadata.search.at(2);
         QCOMPARE(other.page, QStringLiteral("q"));
         QVERIFY(!other.section);
 
         QVERIFY(json(R"({ "Id": "m", "Name": "M", "Pages": [ { "Id": "p", "Name": "P" } ] })", &object));
         errors.clear();
-        QVERIFY(!FacetModuleMetadata::parse(object, QLocale::c(), &errors).searchProviders);
+        QVERIFY(!ModuleMetadata::parse(object, QLocale::c(), &errors).searchProviders);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(QLatin1Char('\n'))));
     }
 
@@ -989,7 +990,7 @@ private Q_SLOTS:
         QJsonObject object;
         QVERIFY(json(text.constData(), &object));
         QStringList errors;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        ModuleMetadata::parse(object, QLocale::c(), &errors);
         QVERIFY2(errors.join(QLatin1Char('\n')).contains(expected), qPrintable(errors.join(QLatin1Char('\n'))));
         QVERIFY2(errors.size() == count, qPrintable(errors.join(QLatin1Char('\n'))));
     }
@@ -1002,7 +1003,7 @@ private Q_SLOTS:
                           "Pages": [ { "Id": "x", "Name": "X", "Parent": "y" } ] })",
                      &object));
         QStringList errors;
-        FacetModuleMetadata::parse(object, QLocale::c(), &errors);
+        ModuleMetadata::parse(object, QLocale::c(), &errors);
         const QString all = errors.join(QLatin1Char('\n'));
         QCOMPARE(errors.size(), 4);
         QVERIFY2(all.contains(QStringLiteral("\"Id\" must")), qPrintable(all));
@@ -1012,5 +1013,5 @@ private Q_SLOTS:
     }
 };
 
-QTEST_GUILESS_MAIN(TestFacetModuleMetadata)
-#include "test_facet_module_metadata.moc"
+QTEST_GUILESS_MAIN(TestModuleMetadata)
+#include "test_module_metadata.moc"

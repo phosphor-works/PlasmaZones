@@ -7,15 +7,15 @@
 # and orchestration (PageController base, PageRegistry, StagingDomain,
 # ApplicationController) that any Qt6/Kirigami settings app can build on,
 # so each consumer only writes its own page controllers + QML pages. It
-# also hosts Facet modules: plugins that add their pages lazily
-# (FacetHost, loaded through phosphor-registry's PluginCatalog), with
-# PhosphorControlTest (FacetTestHost) for a module's own CI.
+# also hosts control modules: plugins that add their pages lazily
+# (ModuleHost, loaded through phosphor-registry's PluginCatalog), with
+# PhosphorControlTest (ModuleTestHost) for a module's own CI.
 #
 # Boundary:
 #   - phosphor-config owns the IBackend/IGroup configuration store. This
 #     library does NOT duplicate that contract. It links phosphor-config
-#     for one thing: FacetHost keeps the IBackend of each config file Facet
-#     modules share and hands it out (FacetContext::configBackend).
+#     for one thing: ModuleHost keeps the IBackend of each config file control
+#     modules share and hands it out (ModuleContext::configBackend).
 #     Consumers wire their own ISettings implementation against
 #     phosphor-config.
 #   - phosphor-shortcuts owns global-shortcut backends. Not included here.
@@ -95,13 +95,13 @@ if(NOT TARGET PhosphorAnimation::PhosphorAnimationQml)
     endif()
 endif()
 
-# The shared plugin catalog Facet modules load through. In-tree the target
+# The shared plugin catalog control modules load through. In-tree the target
 # already exists; a standalone build finds the installed package.
 if(NOT TARGET PhosphorRegistry::PhosphorRegistry)
     find_package(PhosphorRegistry CONFIG REQUIRED)
 endif()
 
-# The IBackend that FacetContext::configBackend hands Facet modules. In-tree
+# The IBackend that ModuleContext::configBackend hands control modules. In-tree
 # the target already exists; a standalone build finds the installed package.
 if(NOT TARGET PhosphorConfig::PhosphorConfig)
     find_package(PhosphorConfig CONFIG REQUIRED)
@@ -113,7 +113,7 @@ endif()
 # LGPL-2.1's dynamic-linking exemption. Override to OFF only for
 # embedded / single-binary builds where the LGPL relinking obligation
 # is handled out-of-band (e.g. shipping the .o files alongside the
-# binary). A STATIC build cannot host Facet modules: each module would
+# binary). A STATIC build cannot host control modules: each module would
 # link its own copy of the library.
 option(PHOSPHOR_CONTROL_BUILD_SHARED
     "Build phosphor-control as a shared library (LGPL relinking-friendly)"
@@ -158,11 +158,11 @@ set(phosphorcontrol_public_HDRS
     include/PhosphorControl/ISearchProvider.h
     include/PhosphorControl/SearchController.h
     include/PhosphorControl/SidebarRows.h
-    include/PhosphorControl/FacetModule.h
-    include/PhosphorControl/FacetModuleMetadata.h
-    include/PhosphorControl/FacetContext.h
-    include/PhosphorControl/FacetHost.h
-    include/PhosphorControl/FacetSlotModel.h
+    include/PhosphorControl/ControlModule.h
+    include/PhosphorControl/ModuleMetadata.h
+    include/PhosphorControl/ModuleContext.h
+    include/PhosphorControl/ModuleHost.h
+    include/PhosphorControl/ExtensionSlotModel.h
     include/PhosphorControl/ModulePlaceholderPage.h
 )
 
@@ -180,14 +180,14 @@ set(phosphorcontrol_SRCS
     src/searchranker.cpp
     src/searchcontroller.cpp
     src/sidebarrows.cpp
-    src/facetmodulemetadata.cpp
-    src/facetcontext.cpp
-    src/facethost.cpp
-    # FacetHost's load record and its shared config backends, private to the
-    # library (facetloadrecord_p.h, facetconfigbackends_p.h).
-    src/facetloadrecord.cpp
-    src/facetconfigbackends.cpp
-    src/facetslotmodel.cpp
+    src/modulemetadata.cpp
+    src/modulecontext.cpp
+    src/modulehost.cpp
+    # ModuleHost's load record and its shared config backends, private to the
+    # library (moduleloadrecord_p.h, moduleconfigbackends_p.h).
+    src/moduleloadrecord.cpp
+    src/moduleconfigbackends.cpp
+    src/extensionslotmodel.cpp
     src/moduleplaceholderpage.cpp
 )
 
@@ -248,10 +248,10 @@ target_link_libraries(PhosphorControl
         # need the Qml include path at compile time even if they don't
         # use the registration macros themselves.
         Qt6::Qml
-        # PUBLIC: FacetHost.h exposes PluginSeam, PluginSearchPath and
+        # PUBLIC: ModuleHost.h exposes PluginSeam, PluginSearchPath and
         # RefusedPlugin, the shared plugin catalog's types.
         PhosphorRegistry::PhosphorRegistry
-        # PUBLIC: FacetContext::configBackend hands modules a
+        # PUBLIC: ModuleContext::configBackend hands modules a
         # PhosphorConfig::IBackend.
         PhosphorConfig::PhosphorConfig
     PRIVATE
@@ -290,7 +290,7 @@ target_compile_definitions(PhosphorControl PRIVATE
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PhosphorControlTest — FacetTestHost, for a Facet module's own CI
+# PhosphorControlTest — ModuleTestHost, for a control module's own CI
 #
 # Test harness code (it stages a copy of the module and waits on event
 # loops), so it is its own library rather than part of the runtime one,
@@ -298,8 +298,8 @@ target_compile_definitions(PhosphorControl PRIVATE
 # ═══════════════════════════════════════════════════════════════════════════════
 
 add_library(PhosphorControlTest ${_phosphor_control_lib_type}
-    include/PhosphorControl/FacetTestHost.h
-    src/facettesthost.cpp
+    include/PhosphorControl/ModuleTestHost.h
+    src/moduletesthost.cpp
 )
 add_library(PhosphorControl::PhosphorControlTest ALIAS PhosphorControlTest)
 
@@ -376,9 +376,9 @@ set(phosphorcontrol_qml_FILES
     qml/PageLoadingIndicator.qml
     qml/DiscardChangesDialog.qml
     qml/AboutPageShell.qml
-    qml/FacetSlot.qml
-    qml/FacetExtensionFrame.qml
-    qml/FacetModulePage.qml
+    qml/ExtensionSlot.qml
+    qml/ExtensionFrame.qml
+    qml/ModulePage.qml
 )
 
 # JS helpers shared by the QML chrome, which imports them by relative
@@ -534,47 +534,47 @@ if(PHOSPHOR_CONTROL_QML_INSTALL)
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Facet module build support
+# Control module build support
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# phosphor-facet-metadata generates a module's translated metadata, anchor
+# phosphor-control-metadata generates a module's translated metadata, anchor
 # list and lupdate strings, and validates the metadata at build time.
-# phosphor_add_facet_module_metadata() drives it, and a module built out of
+# phosphor_add_control_module_metadata() drives it, and a module built out of
 # tree gets both from find_package(PhosphorControl). Defined ahead of the
 # examples and tests, so either can build a module.
 #
-# The tool compiles the library's metadata parser, facetmodulemetadata.cpp,
+# The tool compiles the library's metadata parser, modulemetadata.cpp,
 # rather than linking the library, so it runs on QtCore alone. A rebuilt
 # parser rebuilds the tool, which reruns every module's generation; linking
 # the shared library would not have, since a build that sets
 # LINK_DEPENDS_NO_SHARED (KDECMakeSettings does) does not relink an
 # executable when only a library it links changed. The tool also needs no
 # rpath to the library in the build tree or after install.
-add_executable(phosphor-facet-metadata
-    tools/phosphor-facet-metadata/main.cpp
-    src/facetmodulemetadata.cpp
+add_executable(phosphor-control-metadata
+    tools/phosphor-control-metadata/main.cpp
+    src/modulemetadata.cpp
 )
-add_executable(PhosphorControl::phosphor-facet-metadata ALIAS phosphor-facet-metadata)
-target_include_directories(phosphor-facet-metadata PRIVATE
+add_executable(PhosphorControl::phosphor-control-metadata ALIAS phosphor-control-metadata)
+target_include_directories(phosphor-control-metadata PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     # phosphorcontrol_export.h
     ${CMAKE_CURRENT_BINARY_DIR}
-    # FacetModuleMetadata.h includes PageRegistry.h, which includes
+    # ModuleMetadata.h includes PageRegistry.h, which includes
     # <QtQml/qqmlregistration.h>. The parser uses no QtQml symbol, so the
     # headers are enough and the tool does not link QtQml.
     $<TARGET_PROPERTY:Qt6::Qml,INTERFACE_INCLUDE_DIRECTORIES>
 )
-target_compile_features(phosphor-facet-metadata PRIVATE cxx_std_20)
-target_link_libraries(phosphor-facet-metadata PRIVATE Qt6::Core)
+target_compile_features(phosphor-control-metadata PRIVATE cxx_std_20)
+target_link_libraries(phosphor-control-metadata PRIVATE Qt6::Core)
 # Like the library, whose sources it shares: each file keeps its own
 # anonymous namespace.
-set_target_properties(phosphor-facet-metadata PROPERTIES UNITY_BUILD OFF)
-install(TARGETS phosphor-facet-metadata
+set_target_properties(phosphor-control-metadata PROPERTIES UNITY_BUILD OFF)
+install(TARGETS phosphor-control-metadata
     EXPORT PhosphorControlTargets
     RUNTIME DESTINATION ${KDE_INSTALL_LIBEXECDIR}/phosphor
 )
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PhosphorFacetModule.cmake)
-install(FILES cmake/PhosphorFacetModule.cmake DESTINATION ${KDE_INSTALL_LIBDIR}/cmake/PhosphorControl)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PhosphorControlModule.cmake)
+install(FILES cmake/PhosphorControlModule.cmake DESTINATION ${KDE_INSTALL_LIBDIR}/cmake/PhosphorControl)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Examples — opt-in via -DBUILD_PHOSPHOR_CONTROL_EXAMPLES=ON
