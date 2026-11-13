@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // ShortcutManager — the STATIC registration table, split out of
-// shortcutmanager.cpp by concern: that TU had grown past the 1150-line
-// ceiling and this table was roughly half of it. Only data lives here, one
-// row per settings-driven shortcut plus the accessors the manager walks it
-// through. Registration lifecycle, adhoc binding and the entry build stay in
-// shortcutmanager.cpp.
+// shortcutmanager.cpp by concern. Only data lives here, one row per
+// settings-driven shortcut plus the accessors the manager walks it through.
+// Registration lifecycle and the entry build live in shortcutmanager.cpp,
+// adhoc binding in shortcutmanager_adhoc.cpp, and the cheatsheet catalog in
+// shortcutmanager_catalog.cpp.
 
 #include "shortcutmanager_table.h"
 
@@ -26,70 +26,88 @@ namespace {
 using namespace ShortcutIds;
 
 // ─── Static shortcut table ──────────────────────────────────────────────────
-// One row per settings-driven shortcut. The five indexed slot families
-// (quick_layout_N, snap_to_zone_N, scroll_focus_tab_N, workspace_move_slot_N,
-// workspace_focus_slot_N) are absent: their getters are array-indexed rather
-// than per-id, so ShortcutManager::buildEntries registers them in its own
-// loops.
+// One row per settings-driven shortcut. The indexed slot families are absent:
+// their getters are array-indexed rather than per-id, so
+// ShortcutManager::buildEntries registers them in its own loops.
 //
-// Adding a shortcut: declare the Q_SIGNAL in shortcutmanager.h, add a
-// ConfigDefaults::xxxShortcut accessor, add the Settings::xxxShortcut getter,
-// then add one row here. The signal-emit lambda must be capture-less so it
-// can decay to a function pointer for storage in the table.
+// Adding a shortcut:
+//  1. the setting itself, through the pz-add-setting skill (the
+//     ConfigDefaults::xxxShortcut accessor, the schema KeyDef and the
+//     Settings::xxxShortcut getter among its touchpoints);
+//  2. the id constant in shortcutmanager_ids.h (an on-disk record key, so
+//     never renamed afterwards);
+//  3. the Q_SIGNAL in shortcutmanager.h, and the daemon connect that acts on
+//     it;
+//  4. one row here, with workspaceGated set when the action belongs to the
+//     dynamic-workspaces family;
+//  5. its catalog metadata in shortcutmanager_catalog.cpp (catalogMetaForId),
+//     or it lands in the cheatsheet's "Other" group with a warning.
+// The signal-emit lambda must be capture-less so it can decay to a function
+// pointer for storage in the table.
 const StaticEntry kStaticEntries[] = {
     // ─── Dynamic workspaces ────────────────────────────────────────────────
     {kIdWorkspaceFocusUp, &ConfigDefaults::workspaceFocusUpShortcut, &Settings::workspaceFocusUpShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Focus Workspace Above"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceFocusRequested(-1);
-     }},
+     },
+     true},
     {kIdWorkspaceFocusDown, &ConfigDefaults::workspaceFocusDownShortcut, &Settings::workspaceFocusDownShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Focus Workspace Below"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceFocusRequested(1);
-     }},
+     },
+     true},
     {kIdWorkspaceMoveWindowUp, &ConfigDefaults::workspaceMoveWindowUpShortcut, &Settings::workspaceMoveWindowUpShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Move Window to Workspace Above"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceMoveWindowRequested(-1);
-     }},
+     },
+     true},
     {kIdWorkspaceMoveWindowDown, &ConfigDefaults::workspaceMoveWindowDownShortcut,
      &Settings::workspaceMoveWindowDownShortcut, QT_TRANSLATE_NOOP("plasmazones", "Move Window to Workspace Below"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceMoveWindowRequested(1);
-     }},
+     },
+     true},
     {kIdWorkspaceMoveColumnUp, &ConfigDefaults::workspaceMoveColumnUpShortcut, &Settings::workspaceMoveColumnUpShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Move Column to Workspace Above"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceMoveColumnRequested(-1);
-     }},
+     },
+     true},
     {kIdWorkspaceMoveColumnDown, &ConfigDefaults::workspaceMoveColumnDownShortcut,
      &Settings::workspaceMoveColumnDownShortcut, QT_TRANSLATE_NOOP("plasmazones", "Move Column to Workspace Below"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceMoveColumnRequested(1);
-     }},
+     },
+     true},
     {kIdWorkspaceReorderUp, &ConfigDefaults::workspaceReorderUpShortcut, &Settings::workspaceReorderUpShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Move Workspace Up"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceReorderRequested(-1);
-     }},
+     },
+     true},
     {kIdWorkspaceReorderDown, &ConfigDefaults::workspaceReorderDownShortcut, &Settings::workspaceReorderDownShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Move Workspace Down"),
      [](ShortcutManager* sm) {
          Q_EMIT sm->workspaceReorderRequested(1);
-     }},
+     },
+     true},
     {kIdWorkspaceMoveToMonitorLeft, &ConfigDefaults::workspaceMoveToMonitorLeftShortcut,
      &Settings::workspaceMoveToMonitorLeftShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Move Workspace to Monitor on the Left"),
      [](ShortcutManager* sm) {
-         Q_EMIT sm->workspaceMoveToMonitorRequested(QStringLiteral("left"));
-     }},
+         Q_EMIT sm->workspaceMoveToMonitorRequested(NavigationDirection::Left);
+     },
+     true},
     {kIdWorkspaceMoveToMonitorRight, &ConfigDefaults::workspaceMoveToMonitorRightShortcut,
      &Settings::workspaceMoveToMonitorRightShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Move Workspace to Monitor on the Right"),
      [](ShortcutManager* sm) {
-         Q_EMIT sm->workspaceMoveToMonitorRequested(QStringLiteral("right"));
-     }},
+         Q_EMIT sm->workspaceMoveToMonitorRequested(NavigationDirection::Right);
+     },
+     true},
     // ─── Core ──────────────────────────────────────────────────────────────
     {kIdOpenEditor, &ConfigDefaults::openEditorShortcut, &Settings::openEditorShortcut,
      QT_TRANSLATE_NOOP("plasmazones", "Open Zone Editor"),

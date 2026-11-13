@@ -658,6 +658,13 @@ public:
 private:
     void connectLayoutManagerSignals();
     void connectVirtualDesktopSignals();
+    /// The desktop names this adaptor relays: KWin's own (already in KWin's
+    /// language for the desktops KWin named), with only an empty entry, and
+    /// any position past the end of KWin's list, filled with the translated
+    /// "Desktop N". VirtualDesktopManager::desktopNames() fills those with an
+    /// untranslated placeholder instead. Without KWin's interface, the
+    /// translated fallback for every desktop the manager counts.
+    QStringList displayDesktopNames() const;
     void connectActivitySignals();
 
     /**

@@ -3,46 +3,42 @@
 
 #include "common/kwinperoutputdesktops.h"
 
-#include <QLatin1Char>
-#include <QLatin1String>
-#include <QSettings>
-#include <QStandardPaths>
-#include <QString>
-#include <QStringList>
-#include <QVariant>
+#ifdef USE_KDE_FRAMEWORKS
+#include <KConfig>
+#include <KConfigGroup>
+#endif
 
 namespace PlasmaZones {
 
 bool kwinPerOutputVirtualDesktopsEnabled()
 {
-    const QString path =
-        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/kwinrc");
-    const QSettings kwinrc(path, QSettings::IniFormat);
+#ifdef USE_KDE_FRAMEWORKS
+    // NoGlobals: kdeglobals carries nothing for this group, and KWin's own
+    // read cascades the same XDG_CONFIG_DIRS files this one does.
+    const KConfig kwinrc(kwinConfigFileName(), KConfig::NoGlobals);
+    return KConfigGroup(&kwinrc, kwinWindowsGroup()).readEntry(kwinPerOutputVirtualDesktopsKey(), false);
+#else
+    return false;
+#endif
+}
 
-    const QString group = QStringLiteral("Windows/");
-    const QString base = QStringLiteral("PerOutputVirtualDesktops");
-
-    QVariant raw = kwinrc.value(group + base);
-    if (!raw.isValid()) {
-        // Scan for the same key carrying any KConfig marker suffix. QSettings
-        // keeps the bracketed marker as part of the key name, so the exact
-        // lookup above cannot find it.
-        const QStringList keys = kwinrc.allKeys();
-        for (const QString& key : keys) {
-            if (key.startsWith(group + base + QLatin1Char('['))) {
-                raw = kwinrc.value(key);
-                break;
-            }
-        }
-    }
-    if (!raw.isValid()) {
+bool enableKWinPerOutputVirtualDesktops()
+{
+#ifdef USE_KDE_FRAMEWORKS
+    // KConfig, never QSettings: QSettings::sync() rewrites the WHOLE file in
+    // its own ini dialect, mangling KConfig-only constructs elsewhere in
+    // kwinrc (nested [group][subgroup] headers, [$e]/[$i] markers, localized
+    // keys). KConfig writes just this key.
+    KConfig kwinrc(kwinConfigFileName(), KConfig::NoGlobals);
+    KConfigGroup windows(&kwinrc, kwinWindowsGroup());
+    if (windows.isEntryImmutable(kwinPerOutputVirtualDesktopsKey())) {
         return false;
     }
-
-    const QString text = raw.toString().trimmed();
-    return text.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0
-        || text.compare(QLatin1String("on"), Qt::CaseInsensitive) == 0
-        || text.compare(QLatin1String("yes"), Qt::CaseInsensitive) == 0 || text == QLatin1String("1");
+    windows.writeEntry(kwinPerOutputVirtualDesktopsKey(), true);
+    return kwinrc.sync();
+#else
+    return false;
+#endif
 }
 
 } // namespace PlasmaZones

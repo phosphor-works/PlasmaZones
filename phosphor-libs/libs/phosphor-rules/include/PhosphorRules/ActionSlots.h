@@ -82,9 +82,12 @@ inline constexpr QLatin1StringView Placement{"placement"};
 inline constexpr QLatin1StringView RouteScreen{"route-screen"};
 inline constexpr QLatin1StringView RouteDesktop{"route-desktop"};
 /// Open-path routing to a named dynamic workspace. Its own slot, NOT shared
-/// with RouteDesktop: a cascade may legitimately carry both (a specific rule
-/// naming a workspace over a broad rule naming a number), and the daemon
-/// applies the workspace route with priority when both resolve.
+/// with RouteDesktop or RouteScreen: a cascade may legitimately carry all
+/// three, each slot filled by its own first-matching rule. Which one the
+/// daemon applies is then decided by action rather than by rule priority, and
+/// the workspace route outranks the other two whenever its target is declared,
+/// even when it came from a lower-priority rule (ActionType::RouteToWorkspace
+/// spells out the arms).
 inline constexpr QLatin1StringView RouteWorkspace{"route-workspace"};
 inline constexpr QLatin1StringView Opacity{"opacity"};
 inline constexpr QLatin1StringView RestorePosition{"restore-position"};

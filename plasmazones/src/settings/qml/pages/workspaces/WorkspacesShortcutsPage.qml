@@ -1,13 +1,10 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Present on this page and not on its three siblings, deliberately. It binds
-// the Repeater delegate below to its own component scope, which is what lets
-// the nested combo read `slotDelegate.*` unambiguously. WorkspacesBehaviorPage
-// instantiates no delegate at all, and the two Named Workspaces files hand a
-// `rowDelegate` Component across a file boundary into ReorderableColumn, where
-// the row content resolves its data through `parent.rowModelData` — a lookup
-// the pragma's stricter scoping would break.
+// Bound component behaviour: the Repeater delegates below read their own
+// required properties and the page's members by id, never through an
+// unqualified outer-scope lookup, which is what lets the nested controls read
+// `slotDelegate.*` and `verbDelegate.*` unambiguously.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -16,66 +13,154 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 /**
- * @brief Dynamic workspaces — Quick Shortcuts leaf.
+ * @brief Dynamic workspaces, Quick Shortcuts leaf.
  *
- * The quick-layout model applied to workspaces: a fixed set of slots, each
- * with a factory chord, and the page assigns WHICH named workspace the slot
- * acts on. The chords themselves are not editable here, exactly like the
- * snapping/tiling quick shortcuts. Names come from the Named Workspaces leaf;
- * a slot with no workspace assigned does nothing.
+ * Two cards, both edited in place and saved like every other setting:
  *
- * Each slot carries TWO daemon-bound chords: the move chord sends the active
- * window to the assigned workspace, and the focus chord jumps to the slot's
- * position in the acting monitor's list. Both are shown, because a chord the
- * daemon binds but the page never mentions is a chord the user cannot
- * discover.
+ * The workspace shortcuts card records the chords of the directional
+ * workspace actions (focus, move window, move column, reorder, move to
+ * monitor). Several ship unbound on purpose, because the natural chords
+ * already belong to KWin or to another PlasmaZones family, and this is where
+ * the user gives them one.
+ *
+ * The quick shortcuts card is the quick-layout model applied to workspaces: a
+ * fixed set of slots, each with two chords recorded here. The move chord
+ * sends the active window to the named workspace the slot is assigned to,
+ * which the slot's picker sets. The switch chord reads no assignment: it goes
+ * to the slot's POSITION in the list of the monitor under the pointer
+ * (WorkspaceController::focusWorkspaceAt on the cursor screen), whatever is
+ * there. A slot target is
+ * stored as the entry's persistent id together with its name at assignment,
+ * so it follows a rename, and a slot whose workspace is no longer declared
+ * stays assigned (dormant) and shows the stored name, which the daemon also
+ * falls back to.
+ *
+ * Every chord is checked against the other PlasmaZones global chords before
+ * it is taken (SettingsController::workspaceShortcutConflict), so one chord
+ * never names two actions.
  */
 SettingsFlickable {
     id: root
 
-    // Declared names for the combos (the same shim RulesPage uses).
-    readonly property var workspaceNames: {
-        var names = [];
-        var entries = appSettings.workspacesNamedEntries;
+    /// The config's field names inside an entry map and a slot target map.
+    readonly property var _f: settingsController.namedEntryFields
+
+    /// The declared named workspaces that can be a slot target: those with a
+    /// persistent id. An entry without one exists only in a hand-edited config
+    /// the Named Workspaces page has not saved yet, and saving that page gives
+    /// it one.
+    readonly property var _targetable: {
+        var out = [];
+        var entries = settingsController.namedWorkspaces || [];
         for (var i = 0; i < entries.length; ++i) {
-            var name = ("" + (entries[i].name || "")).trim();
-            if (name.length > 0)
-                names.push(name);
+            if ((entries[i][root._f.id] || "") !== "")
+                out.push(entries[i]);
         }
-        return names;
+        return out;
     }
-    /// The slot combos' shared option list: "None" plus every declared name.
-    /// Built once on the page rather than once per slot — all nine combos show
-    /// the same set, and a per-delegate builder re-ran all nine on every
-    /// workspace add or rename.
+
+    /// The slot combos' shared option list: "None" plus every targetable
+    /// workspace, valued by entry id. Built once on the page rather than once
+    /// per slot, because every combo shows the same set.
     readonly property var slotOptions: {
         var items = [
             {
-                "label": i18n("None"),
+                "label": i18nc("@item no workspace assigned to the quick shortcut slot", "None"),
                 "value": ""
             }
         ];
-        for (var i = 0; i < root.workspaceNames.length; ++i)
+        for (var i = 0; i < root._targetable.length; ++i)
             items.push({
-                "label": root.workspaceNames[i],
-                "value": root.workspaceNames[i]
+                "label": root._targetable[i][root._f.name],
+                "value": root._targetable[i][root._f.id]
             });
         return items;
     }
-    // Bumped on target/shortcut changes so the invokable reads re-evaluate.
-    property int _slotTick: 0
 
-    Connections {
-        function onWorkspaceSlotTargetsChanged() {
-            root._slotTick++;
-        }
-
-        function onWorkspaceSlotShortcutsChanged() {
-            root._slotTick++;
-        }
-
-        target: appSettings
+    /// Ids compared the way the daemon compares them (QUuid equality), so a
+    /// hand-edited id in another case or without braces still matches.
+    function _sameId(a, b) {
+        var norm = function (s) {
+            return ("" + (s || "")).trim().replace(/^\{|\}$/g, "").toLowerCase();
+        };
+        return norm(a) !== "" && norm(a) === norm(b);
     }
+
+    /// The declared entry a slot target resolves to, the daemon's order: the
+    /// stored id first, then the stored name. Null when neither matches, which
+    /// leaves the slot dormant.
+    function _resolveTarget(target) {
+        var id = (target && target[root._f.id]) || "";
+        var name = ("" + ((target && target[root._f.name]) || "")).trim();
+        var entries = settingsController.namedWorkspaces || [];
+        for (var i = 0; i < entries.length; ++i) {
+            if (root._sameId(entries[i][root._f.id], id))
+                return entries[i];
+        }
+        if (name !== "") {
+            for (var j = 0; j < entries.length; ++j) {
+                if (entries[j][root._f.name] === name)
+                    return entries[j];
+            }
+        }
+        return null;
+    }
+
+    /// The directional workspace actions. `property` is the Settings
+    /// Q_PROPERTY holding the chord, which is also its key for the conflict
+    /// check.
+    readonly property var _verbs: [
+        {
+            "property": "workspaceFocusUpShortcut",
+            "title": i18n("Focus workspace above"),
+            "description": i18n("Switch the monitor under the pointer to the workspace above. Used while Replace KWin desktop shortcuts is on, or once you pick a shortcut of your own.")
+        },
+        {
+            "property": "workspaceFocusDownShortcut",
+            "title": i18n("Focus workspace below"),
+            "description": i18n("Switch the monitor under the pointer to the workspace below. Used while Replace KWin desktop shortcuts is on, or once you pick a shortcut of your own.")
+        },
+        {
+            "property": "workspaceMoveWindowUpShortcut",
+            "title": i18n("Move window to workspace above"),
+            "description": ""
+        },
+        {
+            "property": "workspaceMoveWindowDownShortcut",
+            "title": i18n("Move window to workspace below"),
+            "description": ""
+        },
+        {
+            "property": "workspaceMoveColumnUpShortcut",
+            "title": i18n("Move column to workspace above"),
+            "description": i18n("On a scrolling monitor, moves the whole focused column.")
+        },
+        {
+            "property": "workspaceMoveColumnDownShortcut",
+            "title": i18n("Move column to workspace below"),
+            "description": i18n("On a scrolling monitor, moves the whole focused column.")
+        },
+        {
+            "property": "workspaceReorderUpShortcut",
+            "title": i18n("Move workspace up"),
+            "description": i18n("Swap the current workspace of the monitor under the pointer with the one above it.")
+        },
+        {
+            "property": "workspaceReorderDownShortcut",
+            "title": i18n("Move workspace down"),
+            "description": i18n("Swap the current workspace of the monitor under the pointer with the one below it.")
+        },
+        {
+            "property": "workspaceMoveToMonitorLeftShortcut",
+            "title": i18n("Move workspace to monitor on the left"),
+            "description": ""
+        },
+        {
+            "property": "workspaceMoveToMonitorRightShortcut",
+            "title": i18n("Move workspace to monitor on the right"),
+            "description": ""
+        }
+    ]
 
     contentHeight: content.implicitHeight
     clip: true
@@ -85,6 +170,54 @@ SettingsFlickable {
 
         width: parent.width
         spacing: Kirigami.Units.largeSpacing
+
+        SettingsCard {
+            Layout.fillWidth: true
+            headerText: i18n("Workspace shortcuts")
+            searchAnchor: "workspaceVerbShortcuts"
+            collapsible: true
+
+            contentItem: ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                Repeater {
+                    model: root._verbs
+
+                    delegate: ColumnLayout {
+                        id: verbDelegate
+
+                        required property var modelData
+                        required property int index
+
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+
+                        SettingsSeparator {
+                            visible: verbDelegate.index > 0
+                        }
+
+                        SettingsRow {
+                            title: verbDelegate.modelData.title
+                            description: verbDelegate.modelData.description
+
+                            ShortcutCaptureField {
+                                width: Kirigami.Units.gridUnit * 12
+                                accessibleName: verbDelegate.modelData.title
+                                placeholderText: i18nc("@info:placeholder no shortcut assigned", "None")
+                                requireModifier: true
+                                clearable: true
+                                checkConflicts: true
+                                conflictKey: verbDelegate.modelData.property
+                                keySequence: appSettings[verbDelegate.modelData.property]
+                                onKeySequenceModified: seq => {
+                                    appSettings[verbDelegate.modelData.property] = seq;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         SettingsCard {
             Layout.fillWidth: true
@@ -102,13 +235,7 @@ SettingsFlickable {
                     Layout.rightMargin: Kirigami.Units.largeSpacing
                     wrapMode: Text.WordWrap
                     opacity: 0.6
-                    // Names BOTH verbs and where the keys live. The page only
-                    // assigns which workspace a slot acts on, so a user who
-                    // wants a different chord has nowhere to go from here
-                    // unless the text says so. Worded without naming the KDE
-                    // System Settings module, which the portable
-                    // (USE_KDE_FRAMEWORKS=OFF) build does not have.
-                    text: i18n("Each slot carries two keys. One jumps to the workspace assigned to that slot and the other sends the active window there. Both are registered under PlasmaZones and can be changed in your desktop's keyboard shortcut settings.")
+                    text: i18n("Each slot has two shortcuts. The move shortcut sends the active window to the named workspace assigned to the slot. The switch shortcut ignores that assignment and goes to the workspace at the slot's position in the list of the monitor under the pointer.")
                 }
 
                 Repeater {
@@ -121,29 +248,17 @@ SettingsFlickable {
                         id: slotDelegate
 
                         required property int index
-                        property int slotNumber: index + 1
-                        property string shortcutText: {
-                            void root._slotTick;
-                            return appSettings.workspaceMoveSlotShortcut(slotDelegate.index);
-                        }
-                        property string focusShortcutText: {
-                            void root._slotTick;
-                            return appSettings.workspaceFocusSlotShortcut(slotDelegate.index);
-                        }
-                        property string targetName: {
-                            void root._slotTick;
-                            return appSettings.workspaceSlotTarget(slotDelegate.index);
-                        }
-                        /// The move-chord caption. Named so the slot title can
-                        /// announce it (see its Accessible.description).
-                        readonly property string moveCaption: shortcutText !== "" ? i18nc("%1 is a keyboard shortcut such as Meta+Shift+1", "%1 moves the active window here", shortcutText) : i18n("No move shortcut assigned")
-                        /// The focus-chord caption, empty when unbound. The
-                        /// chord is positional rather than name-based, so it
-                        /// does not read the assignment beside it; hidden when
-                        /// unbound rather than showing a second "none" line.
-                        readonly property string focusCaption: focusShortcutText !== "" ? i18nc("%1 is a keyboard shortcut such as Meta+1", "%1 switches to the workspace in this position", focusShortcutText) : ""
-                        readonly property real _captionOpacity: 0.6
-                        readonly property real _emptyCaptionOpacity: 0.35
+                        readonly property int slotNumber: index + 1
+                        // The Settings Q_PROPERTYs of this slot. Read through
+                        // the bracket form so each binding tracks its own
+                        // property's NOTIFY.
+                        readonly property string moveProperty: "workspaceMoveSlot" + slotNumber + "Shortcut"
+                        readonly property string focusProperty: "workspaceFocusSlot" + slotNumber + "Shortcut"
+                        readonly property var target: appSettings["workspaceSlot" + slotNumber + "Target"] || ({})
+                        readonly property string targetId: target[root._f.id] || ""
+                        readonly property string storedName: ("" + (target[root._f.name] || "")).trim()
+                        readonly property var resolved: root._resolveTarget(target)
+                        readonly property bool assigned: targetId !== "" || storedName !== ""
 
                         Layout.fillWidth: true
                         spacing: 0
@@ -159,94 +274,118 @@ SettingsFlickable {
                             Layout.rightMargin: Kirigami.Units.largeSpacing
                             spacing: Kirigami.Units.largeSpacing
 
-                            ColumnLayout {
+                            Label {
+                                text: i18n("Quick Workspace %1", slotDelegate.slotNumber)
                                 Layout.fillWidth: true
-                                Layout.minimumWidth: Kirigami.Units.gridUnit * 10
-                                spacing: Kirigami.Units.smallSpacing / 2
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 8
+                                elide: Text.ElideRight
+                                font.bold: true
+                            }
 
-                                Label {
-                                    text: i18n("Quick Workspace %1", slotDelegate.slotNumber)
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    // The two captions below are hidden from
-                                    // assistive technology and folded in here
-                                    // instead. Announced on their own they are
-                                    // free-floating sentences between slots,
-                                    // with nothing tying them to the slot they
-                                    // describe.
-                                    Accessible.description: slotDelegate.focusCaption !== "" ? i18nc("two shortcut descriptions read one after the other", "%1 %2", slotDelegate.moveCaption, slotDelegate.focusCaption) : slotDelegate.moveCaption
+                            WideComboBox {
+                                id: slotCombo
+
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 14
+                                model: root.slotOptions
+                                textRole: "label"
+                                valueRole: "value"
+                                // storedValue, never a hand-rolled
+                                // currentIndex binding: QQC2 severs
+                                // currentIndex the moment the user picks an
+                                // item, after which the combo stops following
+                                // the slot. The Clear button beside it writes
+                                // the target from elsewhere, so the display
+                                // has to keep following it.
+                                storedValue: slotDelegate.resolved ? slotDelegate.resolved[root._f.id] : ""
+                                // An assigned workspace that is no longer
+                                // declared stays legible and is marked as
+                                // such: the slot is dormant, not broken, and
+                                // not live either. WideComboBox clamps an
+                                // unresolved storedValue to index 0, which
+                                // here is "None", so without this fallback a
+                                // dormant slot would read as unassigned. The
+                                // stored name is shown, never the raw id.
+                                displayText: {
+                                    if (slotDelegate.resolved || !slotDelegate.assigned)
+                                        return currentText;
+                                    if (slotDelegate.storedName !== "")
+                                        return i18nc("%1 is the name of a workspace that is no longer declared", "%1 (not declared)", slotDelegate.storedName);
+                                    return i18n("A workspace that is no longer declared");
                                 }
-
-                                Label {
-                                    text: slotDelegate.moveCaption
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    font: Kirigami.Theme.smallFont
-                                    opacity: slotDelegate.shortcutText !== "" ? slotDelegate._captionOpacity : slotDelegate._emptyCaptionOpacity
-                                    Accessible.ignored: true
-                                }
-
-                                // The slot's OTHER daemon-bound chord
-                                // (WorkspaceController::focusWorkspaceAt); see
-                                // `focusCaption` for why it is positional.
-                                Label {
-                                    visible: slotDelegate.focusCaption !== ""
-                                    text: slotDelegate.focusCaption
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    font: Kirigami.Theme.smallFont
-                                    opacity: slotDelegate._captionOpacity
-                                    Accessible.ignored: true
+                                Accessible.name: i18n("Workspace for quick shortcut %1", slotDelegate.slotNumber)
+                                onActivated: function (index) {
+                                    var option = root.slotOptions[index];
+                                    var value = option ? (option.value || "") : "";
+                                    if (value === "" ? slotDelegate.assigned : !root._sameId(value, slotDelegate.targetId))
+                                        appSettings.setWorkspaceSlotTarget(slotDelegate.index, value);
                                 }
                             }
 
-                            RowLayout {
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 16
-                                spacing: Kirigami.Units.smallSpacing
-
-                                WideComboBox {
-                                    id: slotCombo
-
-                                    Layout.fillWidth: true
-                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 10
-                                    model: root.slotOptions
-                                    textRole: "label"
-                                    valueRole: "value"
-                                    // storedValue, never a hand-rolled
-                                    // currentIndex binding: QQC2 severs
-                                    // currentIndex the moment the user picks an
-                                    // item, after which the combo stops
-                                    // following the slot. The Clear button
-                                    // beside it and the Named page's rename
-                                    // cascade both write the target from
-                                    // elsewhere, so the display has to keep
-                                    // following it.
-                                    storedValue: slotDelegate.targetName
-                                    // An assigned name whose declaration was
-                                    // removed stays legible: the slot is
-                                    // dormant, not broken. WideComboBox clamps
-                                    // an unresolved storedValue to index 0,
-                                    // which here is "None", so without this
-                                    // fallback a dormant slot would read as
-                                    // unassigned.
-                                    displayText: (slotDelegate.targetName !== "" && indexOfValue(slotDelegate.targetName) < 0) ? slotDelegate.targetName : currentText
-                                    Accessible.name: i18n("Workspace for quick shortcut %1", slotDelegate.slotNumber)
-                                    onActivated: function (index) {
-                                        var entry = root.slotOptions[index];
-                                        var value = entry ? (entry.value || "") : "";
-                                        if (value !== slotDelegate.targetName)
-                                            appSettings.setWorkspaceSlotTarget(slotDelegate.index, value);
-                                    }
+                            ToolButton {
+                                icon.name: "edit-clear"
+                                enabled: slotDelegate.assigned
+                                onClicked: {
+                                    appSettings.setWorkspaceSlotTarget(slotDelegate.index, "");
+                                    // The button disables itself on the write,
+                                    // which would drop keyboard focus out of
+                                    // the slot. Hand it to the picker beside it.
+                                    slotCombo.forceActiveFocus(Qt.TabFocusReason);
                                 }
+                                ToolTip.visible: hovered
+                                ToolTip.delay: Kirigami.Units.toolTipDelay
+                                ToolTip.text: i18n("Clear assignment")
+                                Accessible.name: i18n("Clear the workspace assigned to quick shortcut %1", slotDelegate.slotNumber)
+                            }
+                        }
 
-                                ToolButton {
-                                    icon.name: "edit-clear"
-                                    enabled: slotDelegate.targetName !== ""
-                                    onClicked: appSettings.setWorkspaceSlotTarget(slotDelegate.index, "")
-                                    ToolTip.visible: hovered
-                                    ToolTip.text: i18n("Clear workspace")
-                                    Accessible.name: i18n("Clear workspace for quick shortcut %1", slotDelegate.slotNumber)
+                        GridLayout {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Kirigami.Units.largeSpacing * 2
+                            Layout.rightMargin: Kirigami.Units.largeSpacing
+                            Layout.bottomMargin: Kirigami.Units.smallSpacing
+                            columns: 2
+                            columnSpacing: Kirigami.Units.largeSpacing
+                            rowSpacing: Kirigami.Units.smallSpacing
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: i18nc("@label shortcut that moves the active window to the slot's workspace", "Move window there")
+                                elide: Text.ElideRight
+                            }
+
+                            ShortcutCaptureField {
+                                Layout.fillWidth: false
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 12
+                                accessibleName: i18n("Shortcut that moves the active window to quick workspace %1", slotDelegate.slotNumber)
+                                placeholderText: i18nc("@info:placeholder no shortcut assigned", "None")
+                                requireModifier: true
+                                clearable: true
+                                checkConflicts: true
+                                conflictKey: slotDelegate.moveProperty
+                                keySequence: appSettings[slotDelegate.moveProperty]
+                                onKeySequenceModified: seq => {
+                                    appSettings[slotDelegate.moveProperty] = seq;
+                                }
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: i18nc("@label shortcut that switches to the workspace at the slot's position", "Switch to position %1", slotDelegate.slotNumber)
+                                elide: Text.ElideRight
+                            }
+
+                            ShortcutCaptureField {
+                                Layout.fillWidth: false
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 12
+                                accessibleName: i18n("Shortcut that switches to the workspace at position %1", slotDelegate.slotNumber)
+                                placeholderText: i18nc("@info:placeholder no shortcut assigned", "None")
+                                requireModifier: true
+                                clearable: true
+                                checkConflicts: true
+                                conflictKey: slotDelegate.focusProperty
+                                keySequence: appSettings[slotDelegate.focusProperty]
+                                onKeySequenceModified: seq => {
+                                    appSettings[slotDelegate.focusProperty] = seq;
                                 }
                             }
                         }

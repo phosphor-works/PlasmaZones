@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "config/configdefaults.h"
+
 #include <PhosphorRendering/ZoneShaderCommon.h>
 #include <PhosphorRendering/ZoneShaderNodeRhi.h>
 
@@ -30,7 +32,7 @@ inline void appendUniquePath(QStringList& paths, const QString& path)
 /// this list reversed.
 inline QStringList trustedShaderRoots()
 {
-    return QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QStringLiteral("plasmazones/overlays"),
+    return QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, ConfigDefaults::overlaysSubdir(),
                                      QStandardPaths::LocateDirectory);
 }
 

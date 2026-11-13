@@ -42,11 +42,12 @@ public:
     // ═══════════════════════════════════════════════════════════════════════════
     // Indexed quick-slot count
     //
-    // The one spelling of "nine" behind the slot families: the Shortcuts.Global
-    // WorkspaceMoveSlotN / WorkspaceFocusSlotN chords, the Workspaces.Slots
-    // TargetN entries, the key-builder range guards below, the schema's
-    // declaration loops and their defaults arrays, and Settings' index bounds.
-    // A raised count must move all of them together, so they all read it here.
+    // The one spelling of the slot count behind the slot families: the
+    // Shortcuts.Global WorkspaceMoveSlotN / WorkspaceFocusSlotN chords, the
+    // Workspaces.Slots TargetN / TargetIdN entries, the key-builder range
+    // guards below, the schema's declaration loops, and Settings' index
+    // bounds. A raised count must move all of them together, so they all read
+    // it here.
     // ═══════════════════════════════════════════════════════════════════════════
 
     static constexpr int WorkspaceSlotCount = 9;
@@ -60,6 +61,14 @@ public:
     /// program's state file.
     static constexpr int WorkspaceNameMaxLength = 64;
 
+    /// Most named-workspace declarations the Workspaces.Named list keeps.
+    /// Every declaration becomes a KWin desktop plus its focus and move
+    /// global shortcut actions, and KWin caps its desktop pool (VirtualDesktopManager::
+    /// maximum), so declarations past that cap could never all be realized
+    /// and would only register actions that resolve to nothing. The validator
+    /// (canonicalNamedEntries) drops entries past it.
+    static constexpr int WorkspaceNamedEntryMaxCount = 25;
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Workspaces.Behavior
     // ═══════════════════════════════════════════════════════════════════════════
@@ -70,21 +79,28 @@ public:
     // Owner-wins snap-back OSD hint toggle.
     P_CONFIG_KEY(snapBackOsdHintKey, "SnapBackOsdHint")
     // Take over KWin's stock desktop-switch chords while the feature is on.
-    P_CONFIG_KEY(rebindKWinShortcutsKey, "RebindKWinDesktopShortcuts")
+    P_CONFIG_KEY(rebindKWinDesktopShortcutsKey, "RebindKWinDesktopShortcuts")
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Workspaces.Named
     // ═══════════════════════════════════════════════════════════════════════════
 
     // Named-workspace declarations: JSON array of
-    // {name, output, position, focusShortcut, moveShortcut} maps.
+    // {id, name, output, position, focusShortcut, moveShortcut} maps.
     P_CONFIG_KEY(entriesKey, "Entries")
 
-    // The five field names inside one declaration map. Routed through
-    // accessors for the same reason every other config string is: the daemon
-    // reads them to bind the per-name chords and the settings app writes them,
-    // so a rename in one file must not leave the other reading a field that no
+    // The field names inside one declaration map. Routed through accessors
+    // for the same reason every other config string is: the daemon reads them
+    // to bind the per-entry chords and the settings app writes them, so a
+    // rename in one file must not leave the other reading a field that no
     // longer exists.
+    //
+    // `id` is the entry's persistent identity (a braced QUuid string, or
+    // empty for an entry no producer has stamped yet). A rename keeps it, so
+    // slot targets, rule targets and the reconciler follow the entry instead
+    // of its old name. The settings app mints it; the schema validator only
+    // keeps or drops it, never mints one.
+    P_CONFIG_KEY(namedEntryIdField, "id")
     P_CONFIG_KEY(namedEntryNameField, "name")
     P_CONFIG_KEY(namedEntryOutputField, "output")
     P_CONFIG_KEY(namedEntryPositionField, "position")
@@ -119,7 +135,11 @@ public:
     }
     // Quick-slot targets (Workspaces.Slots): the NAMED WORKSPACE each move
     // slot sends the active window to (quick-layout model: chord fixed per
-    // slot and KCM-rebindable, target assigned in the settings app).
+    // slot, target assigned in the settings app). A target is stored as a
+    // pair: TargetIdN carries the entry's persistent id, which is what the
+    // daemon resolves first, and TargetN carries the name the entry had when
+    // it was assigned, for display and as the fallback when no entry carries
+    // the id any more.
     P_CONFIG_KEY(workspaceSlotTargetKeyPattern, "Target%1")
     static QString workspaceSlotTargetKey(int n)
     {
@@ -127,6 +147,14 @@ public:
             qFatal("workspaceSlotTargetKey: n out of range: %d", n);
         }
         return workspaceSlotTargetKeyPattern().arg(n);
+    }
+    P_CONFIG_KEY(workspaceSlotTargetIdKeyPattern, "TargetId%1")
+    static QString workspaceSlotTargetIdKey(int n)
+    {
+        if (n < 1 || n > WorkspaceSlotCount) {
+            qFatal("workspaceSlotTargetIdKey: n out of range: %d", n);
+        }
+        return workspaceSlotTargetIdKeyPattern().arg(n);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

@@ -1,10 +1,10 @@
 <!-- SPDX-FileCopyrightText: 2026 fuddlesworth
      SPDX-License-Identifier: GPL-3.0-or-later -->
 
-# Implementation plan — Dynamic per-monitor workspaces (v3.5)
+# Implementation plan — Dynamic per-monitor workspaces
 
 > **This is a historical design record, not current documentation. Superseded by the
-> shipped implementation (PR #990, v3.5.0), banner dated 2026-08-29.** It is written in
+> implementation in PR #990, which is not in a release yet. Banner dated 2026-08-29.** It is written in
 > the imperative because it was a plan. Read it as "what we intended to build", never as
 > a description of the tree, and check the code before relying on any name, key or
 > default below. The drift list that follows is what was found when the plan was
@@ -17,29 +17,84 @@ prompt this plan was the deliverable of has since been deleted, along with the
 implementation prompt, both being agent-driving scaffolding rather than documentation.
 References to them below are historical.
 
-> **Implementation drift (post-ship note).** Some names, keys and defaults below differ
-> from what shipped.
+> **Implementation drift (post-implementation note).** Some names, keys and defaults below
+> differ from the code.
 >
+> - Every path below predates the tier layout. `src/`, `kwin-effect/` and `tests/` are now
+>   under `plasmazones/` (`plasmazones/src/`, `plasmazones/kwin-effect/`,
+>   `plasmazones/tests/`), and `libs/` is `phosphor-libs/libs/`. The bullets in this note
+>   use the current paths.
 > - The shortcut key defaults planned as a separate
 >   `src/config/configdefaults_workspace_shortcuts.h` landed inside
->   `src/config/configdefaults_workspaces.h`. No file of the planned name exists.
+>   `plasmazones/src/config/configdefaults_workspaces.h`. No file of the planned name exists.
 > - The single settings page planned as
 >   `src/settings/qml/pages/workspaces/WorkspacesPage.qml` with `NamedWorkspacesCard.qml`
 >   and `WorkspaceShortcutsCard.qml` shipped instead as three pages plus a row delegate in
->   the same directory: `WorkspacesBehaviorPage.qml`, `NamedWorkspacesPage.qml` (with
->   `NamedWorkspaceRow.qml`), and `WorkspacesShortcutsPage.qml`. None of the three planned
->   names exists.
+>   `plasmazones/src/settings/qml/pages/workspaces/`: `WorkspacesBehaviorPage.qml`,
+>   `NamedWorkspacesPage.qml` (with `NamedWorkspaceRow.qml`), and
+>   `WorkspacesShortcutsPage.qml`. None of the three planned names exists. The Behavior
+>   and Named Workspaces pages, and the Workspaces parent row, show in simple mode, and
+>   only the shortcuts page is advanced-only, so §7's "AdvancedOnly like
+>   `virtualscreens`" no longer holds.
 > - The config key table below writes leaf key names in lowerCamelCase. The shipped keys
->   are PascalCase, and two of them were renamed: `Enabled`, `ManageKWinPerOutput`,
->   `SnapBackOsdHint`, `RebindKWinDesktopShortcuts` and `Entries`. The accessors are in
->   `src/config/configkeys_workspaces.h`, which is authoritative.
-> - A third group shipped that the plan never names: `Workspaces.Slots`, holding one
->   `Target%1` key per quick slot (the named workspace that slot points at). The slots'
->   own chords are `Shortcuts.Global` keys, `WorkspaceFocusSlot%1` and
->   `WorkspaceMoveSlot%1`, so each slot carries two chords rather than one.
-> - The shortcut defaults below no longer match. Both the focus-slot and the move-slot
->   chords ship unbound, and the per-slot move defaults the plan assigned were removed in
->   favour of a single shared default.
+>   are PascalCase: `Enabled`, `ManageKWinPerOutput`, `SnapBackOsdHint`,
+>   `RebindKWinDesktopShortcuts` and `Entries`. `manageKWinPerOutputSetting` also lost its
+>   `Setting` suffix. `Enabled` reads through the generic `ConfigDefaults::enabledKey()`
+>   accessor that other groups share, and the rest are in
+>   `plasmazones/src/config/configkeys_workspaces.h`, which is authoritative.
+> - A `Workspaces.Named` entry is `{id, name, output, position, focusShortcut,
+>   moveShortcut}`, not the three fields §7 lists. `id` is a persistent braced QUuid
+>   string the settings app mints, kept across a rename, and the reconciler, slot targets
+>   and rule targets all match on it. A rename made in KWin is adopted into the same
+>   entry. `focusShortcut` and `moveShortcut` are the entry's own chords.
+> - A third group shipped that the plan never names: `Workspaces.Slots`, holding a
+>   `Target%1` and a `TargetId%1` key per quick slot, the name and the id of the named
+>   workspace the slot's move chord sends to. The id resolves first and the name is the
+>   fallback. The slots' own chords are `Shortcuts.Global` keys, `WorkspaceFocusSlot%1`
+>   and `WorkspaceMoveSlot%1`, so each slot carries two chords. The focus chord reads no
+>   target: slot N focuses the Nth workspace of the acting monitor's own list.
+> - The slot chords ship unbound, as the table's "unset" rows planned, focus and move
+>   alike. One accessor per family supplies that empty default rather than one per slot.
+> - "Open on workspace" (`RouteToWorkspace`) carries the named entry's id beside its name
+>   and resolves by id, falling back to the name. When it realizes it wins over
+>   `RouteToScreen` in the same rule set.
+> - No shared reap/renumber pass landed in `PerScreenStates.h` or beside it. A desktop
+>   created or removed mid-list moves every desktop-number-keyed store through one
+>   id-diffed map, `PhosphorEngine::DesktopRemap`, and each engine's `remapDesktops`.
+> - There is no map stream. The `workspaceMapChanged` signal and the `workspaceMap()`
+>   replay that §3.2 plans (and Phase 1, the §6 file list and §8 count on) were removed
+>   from the D-Bus wire in protocol v11, together with the effect's consumer stub, so the
+>   map reaches no other process. The daemon still persists it in the state file (§3.3).
+>   §8's "the effect already caches it" waits on the overview work, which needs a feed of
+>   its own.
+> - External creation (§4.3) adopts by the focused screen only as a first step. Once KWin
+>   settles, a desktop created outside PlasmaZones that exactly one other monitor is
+>   showing moves to that monitor's list, one a monitor shows is kept, and an empty one no
+>   monitor shows is removed again (destroy-on-empty applies to it like any dynamic
+>   desktop), the way niri drops a stray empty workspace. A desktop added from the Pager or
+>   System Settings therefore survives only once a window is on it or a monitor shows it.
+> - No step repairs KWin's global desktop order (§4.3 adoption step 3, and the risk
+>   register's "opportunistic repair"). KWin has no reorder verb, and a reorder verb moves
+>   the map alone, so the map's slice concatenation and KWin's order can disagree for
+>   good. A create is placed by its slot's neighbour in the slice instead, at the KWin
+>   position next to that neighbour, and the slice-sum position is only the fallback when
+>   no neighbour has a known KWin position.
+> - A workspace fostered by hotplug (§4.4) keeps its home stamp and is exempt from
+>   empty-workspace cleanup while it is away, so it migrates home intact even when empty.
+> - KWin 6.8's desktop maximum is 25, not the 20 §4.3 assumed.
+>   `WorkspaceReconciler::DefaultDesktopCap` starts at 25, and a lower ceiling is learned
+>   from KWin's refused creates at runtime.
+> - There is no Qt-only arm. The `USE_KDE_FRAMEWORKS=OFF` build compiles the feature out,
+>   so §7's QSettings-style kwinrc fallback does not exist, and kwinrc is only read and
+>   written through KConfig.
+> - The disable path does not reach the "defined end state" §7 and §11 describe. That
+>   collapse happens when KWin's `PerOutputVirtualDesktops` turns OFF, and PlasmaZones
+>   never reverts the key on disable, so disabling the feature leaves each output on the
+>   desktop it showed.
+> - `WorkspaceEntry` in §3.1 also gained `namedId`, the named entry's persistent id. Its
+>   `desktopId` is the id string exactly as KWin reports it, compared verbatim and never
+>   re-formatted, so the "braced QUuid string" comment there is not something the code
+>   relies on.
 
 ## 0. Seam re-verification results (drift vs the prompt)
 
@@ -57,7 +112,7 @@ query-generation counter and bounded retry, both worth copying);
 `kStaticEntries[]` in `src/daemon/controllers/shortcutmanager.cpp` (~line 49); the settings
 page registration seams (`settingscontroller_pageregistration.cpp`, `"overview"` collision
 at line 87, `virtualscreens` at 106); the inferred `perScreenModeActive()` and its test
-(`tests/unit/core/screens/test_virtual_desktop_per_screen.cpp:91`);
+(`libs/phosphor-workspaces/tests/test_virtualdesktopmanager.cpp`);
 `PlacementStateKey{screenId, int desktop, activity}` in
 `libs/phosphor-engine/include/PhosphorEngine/EngineTypes.h:21` with the shared
 `PerScreenStates` container (`PerScreenStates.h` — has `takeState`/`insertState` and
@@ -187,6 +242,10 @@ bringup and encapsulate it here only).
 
 ### 3.2 Wire format (daemon→effect stream and replay)
 
+> Drift: this stream no longer exists. It was removed from the D-Bus wire in protocol v11;
+> see the drift note at the top. The JSON shape below survives as the map's public form
+> and, with the state fields, as the state file (§3.3).
+
 One JSON object as a QString payload, `scrollTabStripsChanged`-style (fork 4, §5.5), on a
 new adaptor signal `WindowTrackingAdaptor::workspaceMapChanged(QString mapJson)` with
 replay query `workspaceMap()` (WindowTracking is where the desktop flows already live;
@@ -303,6 +362,11 @@ queued, not acted on — this breaks any loop against a re-asserting Pager/KWin.
    the ledger treats the clamped reports during the window as echoes, not external
    switches.
 
+(Drift: two exemptions shipped beside the named one. A desktop a monitor currently shows
+is never removed, and leaving it re-arms the check. A desktop fostered by hotplug, home
+stamp set, is never removed while it is away. An externally created desktop gets no
+exemption: once empty and shown by no monitor it is removed like any dynamic desktop.)
+
 **Trailing-empty maintenance:** after every map/population change, per screen: if the last
 slice entry is occupied → create-on-occupy; if the slice has ≥2 trailing empties (can
 happen after external ops) → destroy the surplus from the end (named exempt); a slice may
@@ -323,11 +387,16 @@ never become empty — a screen always retains ≥1 desktop.
    tolerates temporary non-contiguity (weakened fork-5 invariant: contiguity is restored
    opportunistically as desktops empty; the position arithmetic always inserts
    slice-correctly so drift never grows). This is a refinement, not a re-open: forced
-   window-preserving reorder does not exist in the API.
+   window-preserving reorder does not exist in the API. (Drift: neither the
+   remove+recreate nor the repair shipped. A create is inserted next to its slice
+   neighbour's KWin position, and the global order is otherwise left as KWin has it.)
 4. Trailing-empty pass; named-workspace creation pass (Phase 3); stream + persist.
 
 **External creation** (unmatched desktopCreated): adopt by the currently focused screen
-(fork 3), appended before that screen's trailing empty; re-key pass; stream.
+(fork 3), appended before that screen's trailing empty; re-key pass; stream. (Drift: the
+adoption is only provisional. At the settle a desktop exactly one other monitor shows
+moves to that monitor, a shown one stays, and an empty one no monitor shows is reaped by
+destroy-on-empty like any dynamic desktop.)
 
 **External count changes** (System Settings spinner bulk add/remove — arrives as N
 unmatched created/removed events plus a rows/count change): *collision policy:* additions
@@ -444,10 +513,10 @@ analogue (first ownership model in the repo); everything else extends existing f
 - MOD `src/daemon/daemon/start.cpp` (+ the daemon header) — construct/wire behind the gate; sibling fan-out lambda for reap/re-key.
 - MOD `libs/phosphor-engine/include/PhosphorEngine/PerScreenStates.h` (or new `DesktopRekey.h` if header size demands) — shared reap/renumber pass.
 - MOD engine sources that own extra per-desktop maps (audit: `libs/phosphor-scroll-engine/src/…`, snap engine, autotile engine, `ScreenContextTracker`).
-- MOD `src/dbus/windowtrackingadaptor/…` — `workspaceMapChanged(QString)` signal + `workspaceMap()` replay method + XML.
+- MOD `src/dbus/windowtrackingadaptor/…` — `workspaceMapChanged(QString)` signal + `workspaceMap()` replay method + XML. (Drift: removed again in protocol v11.)
 - MOD `kwin-effect/plasmazoneseffect/…wiring` — subscribe + cache map (consumer stub for the overview; also the per-output-mode probe below).
 - Settings gate keys (subset of §7): MOD `src/config/configdefaults.h`, NEW `src/config/configdefaults_workspaces.h`, MOD `configkeys.h`, `settingsschema*.cpp`, `src/core/interfaces/isettings.h`, `src/config/settings.h`, NEW `src/config/settings/workspaces.cpp`, MOD `src/config/settings/loadsave.cpp`.
-- Tests: NEW `libs/phosphor-workspaces/tests/test_workspace_map.cpp`, `test_workspace_reconciler.cpp` (LGPL — library tests follow the library); MOD `tests/unit/core/screens/test_virtual_desktop_per_screen.cpp`.
+- Tests: NEW `libs/phosphor-workspaces/tests/test_workspace_map.cpp`, `test_workspace_reconciler.cpp` (LGPL — library tests follow the library); MOD `libs/phosphor-workspaces/tests/test_virtualdesktopmanager.cpp` (the app-tier `test_virtual_desktop_per_screen.cpp` slots moved there).
 
 **Phase 2**
 - MOD `src/daemon/controllers/shortcutmanager.cpp` (static entries), NEW `src/config/configdefaults_workspace_shortcuts.h` (mirrors `configdefaults_scrolling_shortcuts.h`), MOD `src/config/settings/shortcuts.cpp`, `src/daemon/daemon/shortcuts_wiring.cpp`.
@@ -491,11 +560,17 @@ Layered gate, no single point of trust:
    `desktopChanged` carrying a non-null `LogicalOutput*`, which only per-output mode
    produces — but probes `kwinrc` reading as the primary) and reports it at bringup via a
    fireAndForget beside the desktop re-sync. Cached daemon-side; replaces
-   `perScreenModeActive()` as the feature gate (the inferred method stays for its existing
-   callers, untouched).
+   `perScreenModeActive()` as the feature gate. (Drift: `perScreenModeActive()` has no
+   callers left. It survives only as the installed `IVirtualDesktopManager` virtual that
+   `VirtualDesktopManager` overrides, and it does not test per-output mode. The gate
+   that superseded it is the kwinrc mode probe, the one shared reader
+   `kwinPerOutputVirtualDesktopsEnabled()` in `common/kwinperoutputdesktops`, which the
+   daemon's gate and the settings app both call. The effect's mode report then decides
+   whether a running feature goes dormant.)
 2. **Config read:** daemon/settings read `kwinrc` `[Windows] PerOutputVirtualDesktops` via
-   KConfig (KF6 build) with a QSettings-style fallback for the Qt-only build, as a
-   pre-enable check in the settings UI.
+   KConfig, as a pre-enable check in the settings UI. (Drift: KConfig only. The
+   QSettings-style fallback was never kept, and a build without KDE Frameworks has no
+   dynamic workspaces at all.)
 3. **Consent write:** enabling the feature with per-output mode off shows an inline
    confirmation on the Workspaces page ("PlasmaZones will turn on KWin's per-output
    virtual desktops setting." — plain prose); on accept, write the key + call KWin's
@@ -544,14 +619,15 @@ actions to no-op/our actions via the existing `PhosphorShortcuts::IBackend` KGlo
 path (never KGlobalAccel directly), restoring them on disable. Rationale for rebind over
 snap-back-exemption: stock shortcuts iterate the global pool and would trip owner-wins on
 nearly every press — exempting them would make foreign desktops routinely visible, which
-gutting the model; rebinding is the §1-preferred option. If a binding cannot be captured
+guts the model; rebinding is the §1-preferred option. If a binding cannot be captured
 (portal backend limits), fall back to snap-back-with-hint and document it.
 
 ## 8. Overview-readiness statement
 
 The later overview plan consumes exactly three things this plan ships: (1) the
 `workspaceMapChanged` stream + `workspaceMap()` replay with `generation` ordering — the
-effect already caches it from Phase 1; (2) the verb set, all invocable daemon-side (the
+effect already caches it from Phase 1 (drift: removed in protocol v11, so the overview
+needs a feed of its own); (2) the verb set, all invocable daemon-side (the
 overview will call them via the existing effect→daemon fireAndForget direction); (3)
 per-desktop identity by UUID with live int for `effects->desktops()` addressing. Nothing
 here assumes no future renderer: the wire format is additive-versioned, the effect-side
@@ -568,7 +644,7 @@ surfaces the overview can suppress later via a setting without protocol change.
   creation/count changes, cap degradation, echo-ledger matching + expiry, snap-back
   single-correction guarantee (loop injection test), hotplug migrate/return, restore
   reconcile (candidate vs reality matrices).
-- **Existing suites extended:** `test_virtual_desktop_per_screen.cpp` (gate replacement —
+- **Existing suites extended:** `test_virtualdesktopmanager.cpp` (gate replacement —
   the probe-driven gate, keeping the inference tests for their current callers);
   engine tests for `reapDesktopState`/`renumberDesktopState` across all three engines
   (mutation-style: verify a stale-int key is actually impossible after a renumber pass,
@@ -591,7 +667,7 @@ surfaces the overview can suppress later via a setting without protocol change.
 | External count changes / desktop cap | Follow-and-repair policy + suspension degradation (§4.3) |
 | Five-connection `desktopChanged` ordering in `lifecycle_wiring.cpp` | This plan adds NO new connection there (the effect map consumer subscribes to the daemon stream, not to desktopChanged); rationale comments untouched |
 | Daemon-restart vs effect bringup ordering for restore | Candidate-map reconcile gated on bringup re-sync (§4.6); replay query covers the reverse order |
-| KWin D-Bus has no desktop reorder verb (found in verification) | Fork-5 contiguity weakened to "insert-correct + opportunistic repair" (§4.3 adoption step 3) |
+| KWin D-Bus has no desktop reorder verb (found in verification) | Fork-5 contiguity weakened to "insert-correct + opportunistic repair" (§4.3 adoption step 3). Drift: no repair shipped. Inserts are anchored on the KWin position of the slot's slice neighbour, and the map and KWin's order may stay apart |
 | No `createDesktop`/`removeDesktop` wrappers exist yet (drift) | Added in Phase 1 with the ledger designed around their async echoes from day one |
 | fireAndForget verbs are unacknowledged; effect may be unloaded | Population-delta watchdog + timeout drop (§4.2) |
 | Sticky-pin divergence (scroll/tiling) interacting with re-key | Pins re-keyed in the same pass; the `ScreenContextTracker.h:180-200` contract read and preserved (pin cleared only with rationale path) |

@@ -3,13 +3,19 @@
 
 /**
  * @file test_wta_routing.cpp
- * @brief Unit tests for the WindowTrackingAdaptor open-routing rules
- *        (RouteToScreen / RouteToDesktop), guardedHandoff refusal recovery,
- *        cross-mode move gating, and the snap-to-empty-zone hoist. Split from
- *        test_wta_convenience.cpp (shared fixture: wta_convenience_fixture.h).
+ * @brief Unit tests for the WindowTrackingAdaptor open routing
+ *        (RouteToWorkspace, RouteToScreen and RouteToDesktop, routed once per
+ *        open), the workspace move verb, the per-output desktops report,
+ *        guardedHandoff refusal recovery, cross-mode move gating and the
+ *        snap-to-empty-zone hoist. Split from test_wta_convenience.cpp (shared
+ *        fixture: wta_convenience_fixture.h).
  */
 
 #include "wta_convenience_fixture.h"
+#include "dbus/windowtrackingadaptor/lifecyclerelay.h"
+
+#include <PhosphorEngine/EngineTypes.h>
+#include <PhosphorProtocol/WindowTypes.h>
 
 #include <QScopeGuard>
 
@@ -46,7 +52,7 @@ private Q_SLOTS:
         QCOMPARE(state->lastSnappedFocus(), windowId);
     }
 
-    // ── Open routing: RouteToScreen / RouteToDesktop rules ──
+    // ── Open routing: RouteToScreen / RouteToDesktop rules (RouteToWorkspace below) ──
     void testApplyOpenRoutingForTiling_routesToAutotileScreenAndDesktop()
     {
         // DP-2 is an AUTOTILE screen; DP-1 (the spawn screen) stays snapping (the
@@ -291,15 +297,16 @@ private Q_SLOTS:
 
     // The snap open path runs RouteToDesktop for a FIRST placement only. An
     // Open and a PendingSweep (a window that opened before the daemon was
-    // ready) route; the unminimize re-drive, the daemon-restart sweep and the
-    // desktop-arrival continuation act on a window that is already where it
-    // belongs, and re-routing it would yank it back on every re-announce.
+    // ready) route; the unminimize re-drive, the daemon-restart sweep, the
+    // desktop-arrival continuation and the desktop re-apply act on a window
+    // that is already where it belongs, and re-routing it would yank it back
+    // on every re-announce. Each reason drives its OWN window: routing runs
+    // once per open, so a second reason on the same window would read zero
+    // whether or not the first-placement gate held.
     void testResolveWindowRestore_routesToDesktopOnFirstPlacementOnly()
     {
         auto* registry = new PhosphorEngine::WindowRegistry(m_parent);
         m_wta->setWindowRegistry(registry);
-        m_wta->setWindowMetadata(QStringLiteral("inst5"), QStringLiteral("deskapp"), QString(), QString(), QString(), 0,
-                                 0, QString(), 0, QVariantMap());
 
         using namespace PhosphorRules;
         Rule rule;
@@ -320,23 +327,34 @@ private Q_SLOTS:
         });
 
         using PhosphorEngine::RestoreReason;
-        const auto drive = [this](RestoreReason reason) {
+        const auto drive = [this](RestoreReason reason, const QString& instance) {
+            m_wta->setWindowMetadata(instance, QStringLiteral("deskapp"), QString(), QString(), QString(), 0, 0,
+                                     QString(), 0, QVariantMap());
             QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
             int x = 0;
             int y = 0;
             int w = 0;
             int h = 0;
             bool shouldSnap = false;
-            m_snapAdaptor->resolveWindowRestore(QStringLiteral("deskapp|inst5"), QStringLiteral("DP-1"), false,
+            m_snapAdaptor->resolveWindowRestore(QStringLiteral("deskapp|") + instance, QStringLiteral("DP-1"), false,
                                                 static_cast<int>(PhosphorEngine::WindowKind::Unknown),
                                                 static_cast<int>(reason), 0, 0, x, y, w, h, shouldSnap);
             return desktopSpy.count();
         };
-        QCOMPARE(drive(RestoreReason::Open), 1);
-        QCOMPARE(drive(RestoreReason::PendingSweep), 1);
-        QCOMPARE(drive(RestoreReason::Unminimize), 0);
-        QCOMPARE(drive(RestoreReason::DaemonRestartSweep), 0);
-        QCOMPARE(drive(RestoreReason::DesktopArrival), 0);
+        QCOMPARE(drive(RestoreReason::Open, QStringLiteral("open")), 1);
+        QCOMPARE(drive(RestoreReason::PendingSweep, QStringLiteral("sweep")), 1);
+        QCOMPARE(drive(RestoreReason::Unminimize, QStringLiteral("unminimize")), 0);
+        QCOMPARE(drive(RestoreReason::DaemonRestartSweep, QStringLiteral("restart")), 0);
+        QCOMPARE(drive(RestoreReason::DesktopArrival, QStringLiteral("arrival")), 0);
+        QCOMPARE(drive(RestoreReason::DesktopReapply, QStringLiteral("reapply")), 0);
+
+        // The latch: the same window's pending sweep after its open is the
+        // same open, so it moves nothing. Closing the window drops the latch,
+        // and a reused window id routes again on its next open.
+        QCOMPARE(drive(RestoreReason::PendingSweep, QStringLiteral("open")), 0);
+        m_wta->windowClosed(QStringLiteral("deskapp|open"), static_cast<int>(PhosphorEngine::WindowKind::Unknown),
+                            QStringLiteral("DP-1"));
+        QCOMPARE(drive(RestoreReason::Open, QStringLiteral("open")), 1);
     }
 
     // The reopen contract on the snap channel: a record that tiles the app on
@@ -428,7 +446,8 @@ private Q_SLOTS:
         QVERIFY2(tiledAfter->sameContentAs(tiledBefore), "the tiled record is left as it was");
         QVERIFY2(snappedAfter->sameContentAs(snappedBefore), "the snapped record is left as it was");
     }
-    void testEmitRouteToDesktop_matchedButUnusableTargetStillReportsAMatch()
+
+    void testEmitOpenRouting_matchedButUnusableDesktopStillReportsAMatch()
     {
         // A matched RouteToDesktop owns this window's desktop whether or not its
         // target is usable, so both open channels must suppress the remembered
@@ -453,7 +472,7 @@ private Q_SLOTS:
         QCOMPARE(desktopSpy.count(), 0);
     }
 
-    void testEmitRouteToDesktop_noRouteSlotReportsNoMatch()
+    void testEmitOpenRouting_noRouteSlotReportsNoMatch()
     {
         // The complementary half: an empty verdict must report no match, or
         // every window would have its remembered desktop suppressed.
@@ -499,7 +518,8 @@ private Q_SLOTS:
                  RestoreReason::DesktopArrival);
         QCOMPARE(PhosphorEngine::clampRestoreReasonFromWire(static_cast<int>(RestoreReason::DaemonRestartSweep)),
                  RestoreReason::DaemonRestartSweep);
-        QCOMPARE(PhosphorEngine::clampRestoreReasonFromWire(5), RestoreReason::DesktopReapply);
+        QCOMPARE(PhosphorEngine::clampRestoreReasonFromWire(static_cast<int>(RestoreReason::DesktopReapply)),
+                 RestoreReason::DesktopReapply);
 
         QCOMPARE(PhosphorEngine::clampRestoreReasonFromWire(9999), RestoreReason::Open);
         QCOMPARE(PhosphorEngine::clampRestoreReasonFromWire(-1), RestoreReason::Open);
@@ -523,10 +543,13 @@ private Q_SLOTS:
         QObject parent;
         auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
                                               &parent);
-        auto* snap = new SnapEngine(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
+        // Owned here and declared after the parent, so it goes before the
+        // adaptor whose service it was built on, as in cleanupFixture.
+        const auto snap =
+            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
         wta->service()->setSnapState(snap->snapState());
-        wta->service()->setSnapEngine(snap);
-        wta->setEngines(snap, nullptr, nullptr);
+        wta->service()->setSnapEngine(snap.get());
+        wta->setEngines(snap.get(), nullptr, nullptr);
 
         auto* registry = new PhosphorEngine::WindowRegistry(&parent);
         wta->setWindowRegistry(registry);
@@ -547,12 +570,11 @@ private Q_SLOTS:
         wta->setRuleStore(&store);
         // Detach on every exit, including a mid-test QVERIFY abort: the stack
         // store is destroyed before the adaptor that borrows it.
-        const auto teardown = qScopeGuard([wta, snap] {
+        const auto teardown = qScopeGuard([wta] {
             wta->setRuleStore(nullptr);
             wta->setWindowRegistry(nullptr);
             wta->service()->setSnapEngine(nullptr);
             wta->service()->setSnapState(nullptr);
-            delete snap;
         });
 
         // Window opened on DP-1 at a known frame.
@@ -600,10 +622,13 @@ private Q_SLOTS:
         QObject parent;
         auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
                                               &parent);
-        auto* snap = new SnapEngine(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
+        // Owned here and declared after the parent, so it goes before the
+        // adaptor whose service it was built on, as in cleanupFixture.
+        const auto snap =
+            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
         wta->service()->setSnapState(snap->snapState());
-        wta->service()->setSnapEngine(snap);
-        wta->setEngines(snap, nullptr, nullptr);
+        wta->service()->setSnapEngine(snap.get());
+        wta->setEngines(snap.get(), nullptr, nullptr);
 
         auto* registry = new PhosphorEngine::WindowRegistry(&parent);
         wta->setWindowRegistry(registry);
@@ -631,12 +656,11 @@ private Q_SLOTS:
         RuleStore store(ConfigDefaults::rulesFilePath(), &parent);
         QVERIFY(store.addRule(rule));
         wta->setRuleStore(&store);
-        const auto teardown = qScopeGuard([wta, snap] {
+        const auto teardown = qScopeGuard([wta] {
             wta->setRuleStore(nullptr);
             wta->setWindowRegistry(nullptr);
             wta->service()->setSnapEngine(nullptr);
             wta->service()->setSnapState(nullptr);
-            delete snap;
         });
 
         // No setFrameGeometry: this is the driver that pushes no seed. The
@@ -662,7 +686,7 @@ private Q_SLOTS:
     // normal clears are the next frame report and windowClosed, neither of
     // which arrives for such a window. Driven through the observable the maps
     // feed, the open route's size translation. The last leg pins the first of
-    // those normal clears: a frame report supersedes a pending rect (F853).
+    // those normal clears: a frame report supersedes a pending rect.
     void testPruneStaleWindows_dropsThePendingOpenMaps()
     {
         PhosphorScreens::FakePhysicalScreenSource fake;
@@ -675,10 +699,13 @@ private Q_SLOTS:
         QObject parent;
         auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
                                               &parent);
-        auto* snap = new SnapEngine(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
+        // Owned here and declared after the parent, so it goes before the
+        // adaptor whose service it was built on, as in cleanupFixture.
+        const auto snap =
+            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
         wta->service()->setSnapState(snap->snapState());
-        wta->service()->setSnapEngine(snap);
-        wta->setEngines(snap, nullptr, nullptr);
+        wta->service()->setSnapEngine(snap.get());
+        wta->setEngines(snap.get(), nullptr, nullptr);
 
         auto* registry = new PhosphorEngine::WindowRegistry(&parent);
         wta->setWindowRegistry(registry);
@@ -703,12 +730,11 @@ private Q_SLOTS:
         RuleStore store(ConfigDefaults::rulesFilePath(), &parent);
         QVERIFY(store.addRule(rule));
         wta->setRuleStore(&store);
-        const auto teardown = qScopeGuard([wta, snap] {
+        const auto teardown = qScopeGuard([wta] {
             wta->setRuleStore(nullptr);
             wta->setWindowRegistry(nullptr);
             wta->service()->setSnapEngine(nullptr);
             wta->service()->setSnapState(nullptr);
-            delete snap;
         });
 
         const QString w = QStringLiteral("pruneapp|inst8");
@@ -763,10 +789,13 @@ private Q_SLOTS:
         QObject parent;
         auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
                                               &parent);
-        auto* snap = new SnapEngine(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
+        // Owned here and declared after the parent, so it goes before the
+        // adaptor whose service it was built on, as in cleanupFixture.
+        const auto snap =
+            std::make_unique<SnapEngine>(m_layoutManager, wta->service(), m_zoneDetector, nullptr, nullptr);
         wta->service()->setSnapState(snap->snapState());
-        wta->service()->setSnapEngine(snap);
-        wta->setEngines(snap, nullptr, nullptr);
+        wta->service()->setSnapEngine(snap.get());
+        wta->setEngines(snap.get(), nullptr, nullptr);
 
         auto* registry = new PhosphorEngine::WindowRegistry(&parent);
         wta->setWindowRegistry(registry);
@@ -790,12 +819,11 @@ private Q_SLOTS:
         wta->setRuleStore(&store);
         // Detach on every exit, including a mid-test QVERIFY abort: the stack
         // store is destroyed before the adaptor that borrows it.
-        const auto teardown = qScopeGuard([wta, snap] {
+        const auto teardown = qScopeGuard([wta] {
             wta->setRuleStore(nullptr);
             wta->setWindowRegistry(nullptr);
             wta->service()->setSnapEngine(nullptr);
             wta->service()->setSnapState(nullptr);
-            delete snap;
         });
 
         const QString w = QStringLiteral("snaproute|inst2");
@@ -1023,6 +1051,11 @@ private Q_SLOTS:
         // The engine claims NOTHING, so its handoffReceive refuses — while the
         // registry still routes DP-2 to it by mode (the mid-flip shape).
         m_wta->setEngines(m_snapEngine, nullptr, scroll);
+        // Restored on every exit: `scroll` dies with `owner` at the end of this
+        // test, before cleanupFixture runs.
+        const auto restoreEngines = qScopeGuard([this] {
+            m_wta->setEngines(m_snapEngine, nullptr, nullptr);
+        });
         PhosphorZones::AssignmentEntry scrolling;
         scrolling.mode = PhosphorZones::AssignmentEntry::Scrolling;
         m_layoutManager->setAssignmentEntryDirect(QStringLiteral("DP-2"), 0, QString(), scrolling);
@@ -1042,8 +1075,6 @@ private Q_SLOTS:
         // Nothing left the source monitor, so the screen-leave release never
         // ran: the re-homed window keeps its zone there.
         QCOMPARE(m_snapEngine->zoneForWindow(w), m_zoneIds[0]);
-
-        m_wta->setEngines(m_snapEngine, nullptr, nullptr);
     }
 
     /// Auto-assign open placement skips OCCUPIED zones: snapToEmptyZone must
@@ -1074,6 +1105,467 @@ private Q_SLOTS:
         bool lateSnap = true;
         m_snapAdaptor->snapToEmptyZone(QStringLiteral("app5|late"), m_screenId, false, x, y, width, height, lateSnap);
         QVERIFY2(!lateSnap, "a full layout must decline the empty-zone hoist");
+    }
+
+    // ── Open routing runs once per open ──
+
+    // The first routing pass for an open latches its verdict until the window
+    // closes. A second pass (the other open channel, a re-announce) moves
+    // nothing and still reports the match; windowClosed drops the latch so a
+    // reused window id routes again.
+    void testOpenRouting_routesOncePerOpenUntilClose()
+    {
+        auto* registry = new PhosphorEngine::WindowRegistry(m_parent);
+        m_wta->setWindowRegistry(registry);
+        m_wta->setWindowMetadata(QStringLiteral("once"), QStringLiteral("deskapp"), QString(), QString(), QString(), 0,
+                                 0, QString(), 0, QVariantMap());
+
+        using namespace PhosphorRules;
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.enabled = true;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("deskapp"));
+        rule.actions = {desktopRoute(4)};
+        RuleStore store(ConfigDefaults::rulesFilePath(), nullptr); // stack object: no QObject parent
+        QVERIFY(store.addRule(rule));
+        m_wta->setRuleStore(&store);
+        const auto teardown = qScopeGuard([this] {
+            m_wta->setRuleStore(nullptr);
+            m_wta->setWindowRegistry(nullptr);
+        });
+
+        const QString w = QStringLiteral("deskapp|once");
+        QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
+        QVERIFY(m_wta->applyOpenDesktopRouting(w, QStringLiteral("DP-1")));
+        QVERIFY2(m_wta->applyOpenDesktopRouting(w, QStringLiteral("DP-1")),
+                 "the second pass re-reports the latched match");
+        QCOMPARE(desktopSpy.count(), 1);
+
+        m_wta->windowClosed(w, static_cast<int>(PhosphorEngine::WindowKind::Unknown), QStringLiteral("DP-1"));
+        m_wta->setWindowMetadata(QStringLiteral("once"), QStringLiteral("deskapp"), QString(), QString(), QString(), 0,
+                                 0, QString(), 0, QVariantMap());
+        QVERIFY(m_wta->applyOpenDesktopRouting(w, QStringLiteral("DP-1")));
+        QCOMPARE(desktopSpy.count(), 2);
+        QCOMPARE(desktopSpy.at(1).at(1).toInt(), 4);
+    }
+
+    // The tiling channel routes on a first placement only: a genuine open
+    // always, a re-announce only for a window the placement store has no
+    // record of.
+    void testIsFirstTilingPlacement_openOrUnrecordedOnly()
+    {
+        PhosphorProtocol::WindowOpenedEntry opened;
+        opened.windowId = QStringLiteral("tileapp|open");
+        opened.focusEligible = true;
+        QVERIFY(m_wta->isFirstTilingPlacement(opened));
+
+        PhosphorProtocol::WindowOpenedEntry unrecorded;
+        unrecorded.windowId = QStringLiteral("tileapp|fresh");
+        unrecorded.focusEligible = false;
+        QVERIFY2(m_wta->isFirstTilingPlacement(unrecorded), "a window this daemon never placed routes on re-announce");
+
+        PhosphorEngine::WindowPlacement record;
+        record.windowId = QStringLiteral("tileapp|placed");
+        record.appId = QStringLiteral("tileapp");
+        record.screenId = m_screenId;
+        QVERIFY(m_wta->service()->placementStore().record(record));
+        PhosphorProtocol::WindowOpenedEntry reannounced;
+        reannounced.windowId = record.windowId;
+        reannounced.focusEligible = false;
+        QVERIFY2(!m_wta->isFirstTilingPlacement(reannounced), "a placed window's re-announce does not route again");
+
+        // A genuine open of that same window is still a first placement.
+        reannounced.focusEligible = true;
+        QVERIFY(m_wta->isFirstTilingPlacement(reannounced));
+    }
+
+    // ── Open routing: RouteToWorkspace ──
+
+    // Without a resolver (dynamic workspaces off) the workspace slot is inert:
+    // alone it reports no match, beside a RouteToDesktop the positional route
+    // applies.
+    void testEmitOpenRouting_workspaceRouteWithoutResolverIsInert()
+    {
+        QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
+
+        PhosphorRules::ResolvedActions alone;
+        QVERIFY(
+            alone.fillSlot(QString(PhosphorRules::ActionSlot::RouteWorkspace), workspaceRoute(QStringLiteral("Work"))));
+        QVERIFY(!m_wta->emitOpenRoutingIfMatched(alone, QStringLiteral("wsapp|alone")));
+        QCOMPARE(desktopSpy.count(), 0);
+
+        PhosphorRules::ResolvedActions withDesktop;
+        QVERIFY(withDesktop.fillSlot(QString(PhosphorRules::ActionSlot::RouteWorkspace),
+                                     workspaceRoute(QStringLiteral("Work"))));
+        QVERIFY(withDesktop.fillSlot(QString(PhosphorRules::ActionSlot::RouteDesktop), desktopRoute(3)));
+        QVERIFY(m_wta->emitOpenRoutingIfMatched(withDesktop, QStringLiteral("wsapp|withdesk")));
+        QCOMPARE(desktopSpy.count(), 1);
+        QCOMPARE(desktopSpy.at(0).at(1).toInt(), 3);
+    }
+
+    // A realized workspace decides the desktop over a RouteToDesktop in the
+    // same cascade: the resolver moves the window, so no positional move is
+    // emitted. The resolver is asked with the TRIMMED id and name, with the
+    // output leg on, and the owner it names is where the open lands.
+    void testEmitOpenRouting_realizedWorkspaceWinsOverDesktopRoute()
+    {
+        QList<ResolverCall> calls;
+        installResolver(calls, [](const QString&) {
+            return ResolverAnswer{2, QStringLiteral("DP-2")};
+        });
+        const auto teardown = qScopeGuard([this] {
+            m_wta->setWorkspaceRouteResolver({});
+        });
+
+        const QString entryId = QUuid::createUuid().toString();
+        PhosphorRules::ResolvedActions resolved;
+        QVERIFY(resolved.fillSlot(QString(PhosphorRules::ActionSlot::RouteWorkspace),
+                                  workspaceRoute(QStringLiteral("  Work  "), QStringLiteral("  ") + entryId)));
+        QVERIFY(resolved.fillSlot(QString(PhosphorRules::ActionSlot::RouteDesktop), desktopRoute(3)));
+
+        QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
+        const QString w = QStringLiteral("wsapp|realized");
+        QVERIFY(m_wta->emitOpenRoutingIfMatched(resolved, w));
+        QCOMPARE(desktopSpy.count(), 0);
+
+        QCOMPARE(calls.size(), 1);
+        const ResolverCall call = calls.constFirst();
+        QCOMPARE(call.entryId, entryId);
+        QCOMPARE(call.name, QStringLiteral("Work"));
+        QCOMPARE(call.windowId, w);
+        QVERIFY2(call.moveOutput, "a declared workspace decides the monitor too");
+        QCOMPARE(m_wta->openRouteLandingScreen(w, QStringLiteral("DP-1")), QStringLiteral("DP-2"));
+    }
+
+    // An undeclared workspace (the resolver answers 0) leaves the positional
+    // route in charge, and with none beside it nothing matched. A route
+    // whose id and name are both blank after trimming never reaches the
+    // resolver.
+    void testEmitOpenRouting_undeclaredWorkspaceFallsThrough()
+    {
+        QList<ResolverCall> calls;
+        installResolver(calls, [](const QString&) {
+            return ResolverAnswer{0, QString()};
+        });
+        const auto teardown = qScopeGuard([this] {
+            m_wta->setWorkspaceRouteResolver({});
+        });
+        QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
+
+        PhosphorRules::ResolvedActions withDesktop;
+        QVERIFY(withDesktop.fillSlot(QString(PhosphorRules::ActionSlot::RouteWorkspace),
+                                     workspaceRoute(QStringLiteral("Elsewhere"))));
+        QVERIFY(withDesktop.fillSlot(QString(PhosphorRules::ActionSlot::RouteDesktop), desktopRoute(3)));
+        QVERIFY(m_wta->emitOpenRoutingIfMatched(withDesktop, QStringLiteral("wsapp|undeclared")));
+        QCOMPARE(calls.size(), 1);
+        QCOMPARE(desktopSpy.count(), 1);
+        QCOMPARE(desktopSpy.at(0).at(1).toInt(), 3);
+        QCOMPARE(m_wta->openRouteLandingScreen(QStringLiteral("wsapp|undeclared"), QStringLiteral("DP-1")),
+                 QStringLiteral("DP-1"));
+
+        PhosphorRules::ResolvedActions alone;
+        QVERIFY(alone.fillSlot(QString(PhosphorRules::ActionSlot::RouteWorkspace),
+                               workspaceRoute(QStringLiteral("Elsewhere"))));
+        QVERIFY(!m_wta->emitOpenRoutingIfMatched(alone, QStringLiteral("wsapp|undeclared-alone")));
+        QCOMPARE(calls.size(), 2);
+
+        PhosphorRules::ResolvedActions blank;
+        QVERIFY(blank.fillSlot(QString(PhosphorRules::ActionSlot::RouteWorkspace),
+                               workspaceRoute(QStringLiteral("   "), QStringLiteral("  "))));
+        QVERIFY(blank.fillSlot(QString(PhosphorRules::ActionSlot::RouteDesktop), desktopRoute(5)));
+        QVERIFY(m_wta->emitOpenRoutingIfMatched(blank, QStringLiteral("wsapp|blank")));
+        QCOMPARE(calls.size(), 2);
+        QCOMPARE(desktopSpy.count(), 2);
+        QCOMPARE(desktopSpy.at(1).at(1).toInt(), 5);
+    }
+
+    // Declared but momentarily unresolvable (the resolver answers < 0): the
+    // route is parked, the open still belongs to the workspace, and neither
+    // the positional desktop nor any monitor applies meanwhile.
+    void testEmitOpenRouting_parkedWorkspaceClaimsWithoutMoving()
+    {
+        QList<ResolverCall> calls;
+        installResolver(calls, [](const QString&) {
+            return ResolverAnswer{-1, QString()};
+        });
+        const auto teardown = qScopeGuard([this] {
+            m_wta->setWorkspaceRouteResolver({});
+        });
+
+        PhosphorRules::ResolvedActions resolved;
+        QVERIFY(resolved.fillSlot(QString(PhosphorRules::ActionSlot::RouteWorkspace),
+                                  workspaceRoute(QStringLiteral("Work"))));
+        QVERIFY(resolved.fillSlot(QString(PhosphorRules::ActionSlot::RouteDesktop), desktopRoute(3)));
+
+        QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
+        const QString w = QStringLiteral("wsapp|parked");
+        QVERIFY2(m_wta->emitOpenRoutingIfMatched(resolved, w), "a parked workspace route still owns the open");
+        QCOMPARE(desktopSpy.count(), 0);
+        QCOMPARE(calls.size(), 1);
+        QCOMPARE(m_wta->openRouteLandingScreen(w, QStringLiteral("DP-1")), QStringLiteral("DP-1"));
+    }
+
+    // The snap placement directive follows the open's workspace verdict, not
+    // the rule's RouteToDesktop: parked names no desktop, a sticky window
+    // names none either (it is on every desktop and the resolver moved
+    // nothing), a realized route names its desktop and owner. The verdict is
+    // single-use: a later builder call that is no open (the Meta+F unfloat)
+    // reads the rule's own positional route instead.
+    void testPlacementDirective_followsTheWorkspaceVerdict()
+    {
+        auto* registry = new PhosphorEngine::WindowRegistry(m_parent);
+        m_wta->setWindowRegistry(registry);
+        for (const QString& instance :
+             {QStringLiteral("parked"), QStringLiteral("sticky"), QStringLiteral("realized")}) {
+            m_wta->setWindowMetadata(instance, QStringLiteral("wsapp"), QString(), QString(), QString(), 0, 0,
+                                     QString(), 0, QVariantMap());
+        }
+
+        using namespace PhosphorRules;
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.enabled = true;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("wsapp"));
+        rule.actions = {workspaceRoute(QStringLiteral("Work")), desktopRoute(3)};
+        RuleStore store(ConfigDefaults::rulesFilePath(), nullptr); // stack object: no QObject parent
+        QVERIFY(store.addRule(rule));
+        m_wta->setRuleStore(&store);
+
+        QList<ResolverCall> calls;
+        installResolver(calls, [](const QString& windowId) {
+            if (windowId.endsWith(QLatin1String("|parked"))) {
+                return ResolverAnswer{-1, QString()};
+            }
+            return ResolverAnswer{2, QStringLiteral("DP-1")};
+        });
+        const auto teardown = qScopeGuard([this] {
+            m_wta->setWorkspaceRouteResolver({});
+            m_wta->setRuleStore(nullptr);
+            m_wta->setWindowRegistry(nullptr);
+        });
+
+        QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
+
+        const QString parked = QStringLiteral("wsapp|parked");
+        QVERIFY(m_wta->applyOpenDesktopRouting(parked, QStringLiteral("DP-1")));
+        const PhosphorSnapEngine::PlacementDirective parkedDirective =
+            m_wta->placementZonesByRule(parked, QStringLiteral("DP-1"));
+        QCOMPARE(parkedDirective.targetDesktop, 0);
+        QVERIFY(parkedDirective.targetScreenId.isEmpty());
+
+        const QString sticky = QStringLiteral("wsapp|sticky");
+        m_wta->service()->setWindowSticky(sticky, true);
+        QVERIFY(m_wta->applyOpenDesktopRouting(sticky, QStringLiteral("DP-1")));
+        const PhosphorSnapEngine::PlacementDirective stickyDirective =
+            m_wta->placementZonesByRule(sticky, QStringLiteral("DP-1"));
+        QCOMPARE(stickyDirective.targetDesktop, 0);
+        QVERIFY(stickyDirective.targetScreenId.isEmpty());
+
+        const QString realized = QStringLiteral("wsapp|realized");
+        QVERIFY(m_wta->applyOpenDesktopRouting(realized, QStringLiteral("DP-1")));
+        const PhosphorSnapEngine::PlacementDirective realizedDirective =
+            m_wta->placementZonesByRule(realized, QStringLiteral("DP-1"));
+        QCOMPARE(realizedDirective.targetDesktop, 2);
+        QCOMPARE(realizedDirective.targetScreenId, QStringLiteral("DP-1"));
+        const PhosphorSnapEngine::PlacementDirective laterDirective =
+            m_wta->placementZonesByRule(realized, QStringLiteral("DP-1"));
+        QCOMPARE(laterDirective.targetDesktop, 3);
+
+        QCOMPARE(calls.size(), 3);
+        QCOMPARE(desktopSpy.count(), 0);
+    }
+
+    // route_precedence on both channels: a realized workspace decides the
+    // monitor, so a RouteToScreen in the same cascade stands down. On the snap
+    // channel that means no move at all; on the tiling channel the redirect
+    // names the workspace owner (empty when the owner is the spawn screen),
+    // and the directive is matched either way.
+    void testWorkspaceRoute_overridesRouteToScreenOnBothChannels()
+    {
+        PhosphorScreens::FakePhysicalScreenSource fake;
+        fake.addScreen(QStringLiteral("DP-1"), QRect(0, 0, 1920, 1080), QStringLiteral("DP-1"));
+        fake.addScreen(QStringLiteral("DP-2"), QRect(1920, 0, 1920, 1080), QStringLiteral("DP-2"));
+        PhosphorScreens::ScreenManager screenMgr(
+            PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
+        screenMgr.start();
+
+        PhosphorZones::AssignmentEntry autotile;
+        autotile.mode = PhosphorZones::AssignmentEntry::Autotile;
+        autotile.tilingAlgorithm = QStringLiteral("dwindle");
+        m_layoutManager->setAssignmentEntryDirect(QStringLiteral("DP-2"), 0, QString(), autotile);
+
+        QObject parent;
+        auto* wta = new WindowTrackingAdaptor(m_layoutManager, m_zoneDetector, &screenMgr, m_settings, nullptr, nullptr,
+                                              &parent);
+        auto* registry = new PhosphorEngine::WindowRegistry(&parent);
+        wta->setWindowRegistry(registry);
+        for (const QString& instance : {QStringLiteral("snap"), QStringLiteral("tile"), QStringLiteral("home")}) {
+            wta->setWindowMetadata(instance, QStringLiteral("wsroute"), QString(), QString(), QString(), 0, 0,
+                                   QString(), 0, QVariantMap());
+        }
+
+        using namespace PhosphorRules;
+        Rule rule;
+        rule.id = QUuid::createUuid();
+        rule.enabled = true;
+        rule.match = MatchExpression::makeLeaf(Field::AppId, Operator::AppIdMatches, QStringLiteral("wsroute"));
+        RuleAction screenRoute;
+        screenRoute.type = QString(ActionType::RouteToScreen);
+        screenRoute.params.insert(QString(ActionParam::TargetScreenId), QStringLiteral("DP-1"));
+        rule.actions = {workspaceRoute(QStringLiteral("Work")), screenRoute};
+        RuleStore store(ConfigDefaults::rulesFilePath(), nullptr); // stack object: no QObject parent
+        QVERIFY(store.addRule(rule));
+        wta->setRuleStore(&store);
+        wta->setWorkspaceRouteResolver(
+            [](const QString&, const QString&, const QString& windowId, bool, QString* ownerScreenOut) {
+                if (ownerScreenOut) {
+                    *ownerScreenOut =
+                        windowId.endsWith(QLatin1String("|home")) ? QStringLiteral("DP-1") : QStringLiteral("DP-2");
+                }
+                return 2;
+            });
+        const auto teardown = qScopeGuard([wta] {
+            wta->setWorkspaceRouteResolver({});
+            wta->setRuleStore(nullptr);
+            wta->setWindowRegistry(nullptr);
+        });
+
+        // Snap channel. The window spawned on DP-2, the workspace owner, while
+        // the RouteToScreen names DP-1: honouring the screen route would move
+        // the window off the monitor its workspace lives on.
+        const QString snapWindow = QStringLiteral("wsroute|snap");
+        wta->setFrameGeometry(snapWindow, 2020, 100, 800, 600);
+        QSignalSpy outputSpy(wta, &WindowTrackingAdaptor::windowOutputMoveExpected);
+        QSignalSpy geomSpy(wta, &WindowTrackingAdaptor::applyGeometryRequested);
+        QVERIFY(wta->applyOpenDesktopRouting(snapWindow, QStringLiteral("DP-2")));
+        QVERIFY2(wta->applyOpenScreenRouting(snapWindow, QStringLiteral("DP-2")),
+                 "the workspace owns the window's monitor");
+        QCOMPARE(geomSpy.count(), 0);
+        QCOMPARE(outputSpy.count(), 0);
+
+        // Tiling channel. Spawned on DP-1, which the RouteToScreen names, but
+        // the workspace owner is DP-2: the redirect goes there.
+        bool matched = false;
+        const QString tileWindow = QStringLiteral("wsroute|tile");
+        QCOMPARE(wta->applyOpenRoutingForTiling(tileWindow, QStringLiteral("DP-1"), &matched), QStringLiteral("DP-2"));
+        QVERIFY(matched);
+        QCOMPARE(outputSpy.count(), 1);
+        QCOMPARE(outputSpy.at(0).at(1).toString(), QStringLiteral("DP-2"));
+
+        // The owner is the spawn screen: no redirect, still matched.
+        bool homeMatched = false;
+        QVERIFY(wta->applyOpenRoutingForTiling(QStringLiteral("wsroute|home"), QStringLiteral("DP-1"), &homeMatched)
+                    .isEmpty());
+        QVERIFY(homeMatched);
+        QCOMPARE(outputSpy.count(), 1);
+    }
+
+    // ── Workspace move verb ──
+
+    // A window no engine places moves the way KWin's own desktop move would:
+    // ONE windowWorkspaceMoveRequested carrying both legs, never the plain
+    // desktop move. Without the output leg the window keeps its output. A
+    // sticky window is refused outright.
+    void testMoveWindowToWorkspaceVerb_untrackedWindowRidesOneWorkspaceMove()
+    {
+        QSignalSpy workspaceSpy(m_wta, &WindowTrackingAdaptor::windowWorkspaceMoveRequested);
+        QSignalSpy desktopSpy(m_wta, &WindowTrackingAdaptor::windowDesktopMoveRequested);
+        const QString desktopId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+
+        const QString loose = QStringLiteral("looseapp|one");
+        m_wta->moveWindowToWorkspaceVerb(loose, QStringLiteral("DP-2"), 3, desktopId, QString());
+        QCOMPARE(workspaceSpy.count(), 1);
+        QCOMPARE(desktopSpy.count(), 0);
+        const QList<QVariant> withOutput = workspaceSpy.at(0);
+        QCOMPARE(withOutput.at(0).toString(), loose);
+        QCOMPARE(withOutput.at(1).toString(), desktopId);
+        QCOMPARE(withOutput.at(2).toInt(), 3);
+        QCOMPARE(withOutput.at(3).toString(), QStringLiteral("DP-2"));
+
+        m_wta->moveWindowToWorkspaceVerb(QStringLiteral("looseapp|two"), QStringLiteral("DP-2"), 3, desktopId,
+                                         QString(), /*moveOutput=*/false);
+        QCOMPARE(workspaceSpy.count(), 2);
+        QVERIFY2(workspaceSpy.at(1).at(3).toString().isEmpty(), "no output leg: the window keeps its output");
+
+        const QString sticky = QStringLiteral("looseapp|sticky");
+        m_wta->service()->setWindowSticky(sticky, true);
+        m_wta->moveWindowToWorkspaceVerb(sticky, QStringLiteral("DP-2"), 3, desktopId, QString());
+        QCOMPARE(workspaceSpy.count(), 2);
+        QCOMPARE(desktopSpy.count(), 0);
+    }
+
+    // ── Per-output desktops report ──
+
+    // The effect's mode report is cached and relayed in-process once per
+    // change: a repeat of the cached value is dropped, so the workspace gate
+    // is not re-run for nothing.
+    void testReportPerOutputDesktopsMode_cachesAndRelaysChangesOnly()
+    {
+        QVERIFY(!m_wta->perOutputDesktopsMode().has_value());
+        QSignalSpy relaySpy(m_wta->lifecycleRelay(), &WindowLifecycleRelay::perOutputDesktopsModeReported);
+
+        m_wta->reportPerOutputDesktopsMode(true);
+        QVERIFY(m_wta->perOutputDesktopsMode() == std::optional<bool>(true));
+        QCOMPARE(relaySpy.count(), 1);
+        QCOMPARE(relaySpy.at(0).at(0).toBool(), true);
+
+        m_wta->reportPerOutputDesktopsMode(true);
+        QCOMPARE(relaySpy.count(), 1);
+
+        m_wta->reportPerOutputDesktopsMode(false);
+        QVERIFY(m_wta->perOutputDesktopsMode() == std::optional<bool>(false));
+        QCOMPARE(relaySpy.count(), 2);
+        QCOMPARE(relaySpy.at(1).at(0).toBool(), false);
+    }
+
+private:
+    struct ResolverCall
+    {
+        QString entryId;
+        QString name;
+        QString windowId;
+        bool moveOutput = false;
+    };
+    struct ResolverAnswer
+    {
+        int desktop = 0;
+        QString ownerScreen;
+    };
+
+    /// A fake workspace resolver on the fixture adaptor: records every call in
+    /// @p calls and answers what @p answer returns for the window. The caller
+    /// clears it again with a scope guard, since @p calls lives on its stack.
+    void installResolver(QList<ResolverCall>& calls, std::function<ResolverAnswer(const QString&)> answer)
+    {
+        m_wta->setWorkspaceRouteResolver(
+            [&calls, answer = std::move(answer)](const QString& entryId, const QString& name, const QString& windowId,
+                                                 bool moveOutput, QString* ownerScreenOut) {
+                calls.append(ResolverCall{entryId, name, windowId, moveOutput});
+                const ResolverAnswer a = answer(windowId);
+                if (ownerScreenOut) {
+                    *ownerScreenOut = a.ownerScreen;
+                }
+                return a.desktop;
+            });
+    }
+
+    static PhosphorRules::RuleAction workspaceRoute(const QString& name, const QString& entryId = QString())
+    {
+        PhosphorRules::RuleAction action;
+        action.type = QString(PhosphorRules::ActionType::RouteToWorkspace);
+        action.params.insert(QString(PhosphorRules::ActionParam::TargetWorkspaceName), name);
+        if (!entryId.isNull()) {
+            action.params.insert(QString(PhosphorRules::ActionParam::TargetWorkspaceId), entryId);
+        }
+        return action;
+    }
+
+    static PhosphorRules::RuleAction desktopRoute(int desktop)
+    {
+        PhosphorRules::RuleAction action;
+        action.type = QString(PhosphorRules::ActionType::RouteToDesktop);
+        action.params.insert(QString(PhosphorRules::ActionParam::TargetDesktop), desktop);
+        return action;
     }
 };
 

@@ -250,6 +250,13 @@ public:
     /// Install-once setter; read live on every `data()`. Unknown numbers round-trip.
     void setVirtualDesktopLabelLookup(LabelLookup fn);
 
+    /// Inject the named-workspace entry id → current name resolver used by the
+    /// RouteToWorkspace action summary, so a rule follows its workspace's
+    /// renames. The resolver answers EMPTY for an id no declared workspace
+    /// carries, and the summary then shows the name the action stored.
+    /// Install-once setter; read live on every `data()`.
+    void setWorkspaceLabelLookup(LabelLookup fn);
+
     /// Inject the layoutId / algorithm-token → display-name resolvers used by
     /// the action summary so `SetSnappingLayout` and `SetTilingAlgorithm`
     /// render "Binary Split" rather than the wire token / UUID. Split into a
@@ -332,6 +339,7 @@ private:
     LabelLookup m_activityLookup;
     LabelLookup m_zoneLookup;
     LabelLookup m_virtualDesktopLookup;
+    LabelLookup m_workspaceLookup;
     // Split so a SetSnappingLayout action whose layoutId happens to
     // tokenise (e.g. matches an algorithm token by coincidence) and a
     // SetTilingAlgorithm action with a UUID-shaped algorithm name

@@ -222,14 +222,25 @@ public:
     /// applies to. Called when KWin's desktop list starts changing (the
     /// desktop manager's desktopListChanging): any upsert or remove after this
     /// drops its instance from the snapshot, since its push already carries
-    /// the new numbering.
+    /// the new numbering. The snapshot lasts until remapDesktops or
+    /// endDesktopRenumber ends it; calling this while one is held replaces it.
     void beginDesktopRenumber();
     /// Move the desktop fields of every instance still in the snapshot through
-    /// @p remap (a removed desktop goes to its successor, where KWin sends its
-    /// windows), emit metadataChanged for each record that changed, and end the
-    /// snapshot. Without a beginDesktopRenumber first it changes nothing.
+    /// @p remap the way KWin moves the windows: a window on several desktops
+    /// keeps the surviving ones (renumbered) and drops the removed ones, and a
+    /// window left on no desktop goes to the removed desktop's successor
+    /// (DesktopRemap::successor). Emit metadataChanged for each record that
+    /// changed, and end the snapshot. Without a beginDesktopRenumber first it
+    /// changes nothing, and an identity @p remap changes nothing but still
+    /// ends the snapshot.
     /// Returns the count changed (F763).
     int remapDesktops(const DesktopRemap& remap);
+    /// End the snapshot without moving anything. For the end of a desktop-list
+    /// change that renumbered nothing (an append, a rename) or was given up
+    /// on, which brings no remapDesktops call (the desktop manager's
+    /// desktopListChangeSettled): a snapshot left held would hand a later,
+    /// unrelated renumber records that were pushed in the live numbering.
+    void endDesktopRenumber();
 
 Q_SIGNALS:
     void windowAppeared(const QString& instanceId);

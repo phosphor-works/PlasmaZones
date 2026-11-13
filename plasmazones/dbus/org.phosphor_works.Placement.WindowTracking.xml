@@ -269,25 +269,16 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 <annotation name="org.gtk.GDBus.DocString" value="Screen identifier where navigation occurred (for OSD placement)."/>
             </arg>
         </signal>
-        <signal name="workspaceMapChanged">
-            <annotation name="org.gtk.GDBus.DocString" value="Emitted when the dynamic-workspaces ownership map changes (per-monitor workspace slices over KWin's shared desktop pool). Change-gated: only fires on an actual payload difference. The KWin effect caches the payload for the future overview; a late-loading effect replays via workspaceMap(). An empty string means the feature is off (a runtime disable sends one) and tells a cache holder to drop what it has."/>
-            <arg name="mapJson" type="s">
-                <annotation name="org.gtk.GDBus.DocString" value="Versioned JSON object: {v, generation, screenOrder, slices: {screenId: [{id, index, name?, current?}]}}. Desktop identity is the KWin UUID string in id; index is the live 1-based global desktop number for effects->desktops() addressing."/>
-            </arg>
-        </signal>
-        <method name="workspaceMap">
-            <annotation name="org.gtk.GDBus.DocString" value="Replay half of workspaceMapChanged for an effect that loads after the map last changed. Empty string when dynamic workspaces are disabled or not yet adopted."/>
-            <arg name="mapJson" type="s" direction="out">
-                <annotation name="org.gtk.GDBus.DocString" value="The current map payload, same shape as workspaceMapChanged."/>
-            </arg>
-        </method>
         <signal name="setScreenDesktopRequested">
-            <annotation name="org.gtk.GDBus.DocString" value="Ask the KWin effect to switch one screen's current virtual desktop (per-output virtual desktops). KWin's D-Bus VirtualDesktopManager only exposes the global current, so the dynamic-workspaces focus verbs and owner-wins snap-back ride this command."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Ask the KWin effect to switch one output's current virtual desktop (per-output virtual desktops). KWin's D-Bus VirtualDesktopManager only exposes the global current, so the dynamic-workspaces focus verbs and the owner-wins snap-back ride this command. The effect answers every request for an output it knows exactly once with a screenDesktopChanged for that output carrying the desktop it shows afterwards: the switch's own report when it switched, otherwise a forced report, as when the id names no desktop, KWin refuses the switch (global virtual desktops), a correction waits out Show Desktop, or the output already showed the desktop. That report is what the daemon's SetCurrent ledger reads. An unknown output gets no answer."/>
             <arg name="screenId" type="s">
                 <annotation name="org.gtk.GDBus.DocString" value="Physical screen identifier to switch."/>
             </arg>
-            <arg name="desktop" type="i">
-                <annotation name="org.gtk.GDBus.DocString" value="Target virtual desktop, 1-based global index at emit time. The index is resolved by the daemon at emit and is NOT re-checked by the effect against the desktop identity it was meant for, so a renumber landing between the emit and the effect&apos;s handling switches the screen to whatever now holds that number. The effect resolves `desktop` by matching `VirtualDesktop::x11DesktopNumber()` across `effects-&gt;desktops()` (see the file-local `desktopByNumber` in kwin-effect/plasmazoneseffect/daemon_apply.cpp), NOT by position in that list. Send the 1-based x11 desktop number, which is the same value screenDesktopChanged reports back. An unknown number is dropped. The effect always answers with a screenDesktopChanged for the screen, carrying the desktop the output actually ended up on, including when the request was already satisfied — that report is the SetCurrent acknowledgement. The renumber race is accepted rather than guarded: the reconciler&apos;s ledger matches the answering report by desktop IDENTITY, not by index, so a switch that landed on the wrong desktop fails to retire its ledger entry, and once that entry expires the owner-wins foreign-switch correction switches the screen back."/>
+            <arg name="desktopId" type="s">
+                <annotation name="org.gtk.GDBus.DocString" value="Target desktop's stable id (VirtualDesktop::id()). An id rather than a number, so a renumber landing between the emit and the effect's handling cannot point the switch at another desktop."/>
+            </arg>
+            <arg name="purpose" type="i">
+                <annotation name="org.gtk.GDBus.DocString" value="ScreenDesktopSwitchPurpose. 0 is a user focus verb, shown like any switch the user makes. 1 is a correction the daemon makes on its own (the owner-wins return), carried out without the effect's desktop-switch transition. Unknown values are read as 0."/>
             </arg>
         </signal>
         <signal name="pendingRestoresAvailable">
@@ -323,7 +314,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <signal name="applyGeometryRequested">
             <annotation name="org.gtk.GDBus.DocString" value="Daemon requests compositor to apply geometry. The daemon has already committed the placement: zoneId names the zone it committed (empty for a free placement), and screenId is the screen the effect pre-seeds as tracked."/>
             <arg name="windowId" type="s">
-                <annotation name="org.gtk.GDBus.DocString" value="Window to apply to. A size-only apply resolves this id exactly; a full apply may fall back to a same-app window."/>
+                <annotation name="org.gtk.GDBus.DocString" value="Window to apply to, resolved by instance (the exact id, or the same window under a drifted app prefix). A window that closed inside the round trip is not replaced by a same-app window."/>
             </arg>
             <arg name="x" type="i">
                 <annotation name="org.gtk.GDBus.DocString" value="Frame x in compositor coordinates. Ignored when sizeOnly is true."/>
@@ -363,7 +354,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </arg>
         </signal>
         <signal name="windowDesktopMoveRequested">
-            <annotation name="org.gtk.GDBus.DocString" value="Daemon requests KWin to move a window to a virtual desktop: the desktop move shortcut, a RouteToDesktop rule, a cross-mode handoff and moveWindowToDesktop. The effect calls windowToDesktops, and a target desktop not in view parks the window for its placement when that desktop is shown."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Daemon requests KWin to move a window to a virtual desktop by number, on the output it is on: the desktop move shortcut, a RouteToDesktop rule, an engine's cross-desktop crossing and moveWindowToDesktop. The dynamic-workspaces verbs use windowWorkspaceMoveRequested instead. The effect calls windowToDesktops, and a target desktop not in view parks the window for its placement when that desktop is shown."/>
             <arg name="windowId" type="s">
                 <annotation name="org.gtk.GDBus.DocString" value="Window to move."/>
             </arg>
@@ -371,22 +362,19 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 <annotation name="org.gtk.GDBus.DocString" value="Target virtual desktop (1-based)."/>
             </arg>
         </signal>
-        <signal name="windowDesktopMoveByIdRequested">
-            <annotation name="org.gtk.GDBus.DocString" value="Daemon requests KWin to move a window to a virtual desktop named by its STABLE ID rather than its position. Used by the named-workspace route. The positional variant above resolves the number daemon-side and sends it, which loses a race the workspace feature creates for itself: the move fills the destination, that makes the reconciler cut a new trailing empty, and the renumber can land before the effect applies the number — so the window arrives on whichever desktop now sits at that position. A workspace name is meant to survive renumbering, so the id travels instead and the effect matches on VirtualDesktop::id(). An unknown id is dropped."/>
+        <signal name="windowWorkspaceMoveRequested">
+            <annotation name="org.gtk.GDBus.DocString" value="Daemon requests KWin to move a window to a dynamic workspace: a desktop and, when the verb moves the window to another monitor, that monitor, as ONE step. Sent for every workspace verb's window (the move-window, move-column and move-to-slot verbs, the riders of a workspace moved to another monitor, a RouteToWorkspace rule and the daemon's reunion and removal re-routes), whether or not an engine tracks it. The effect judges whether the window lands out of view, and where focus goes when the active window leaves, on the DESTINATION output. A window already on the target output takes no output leg."/>
             <arg name="windowId" type="s">
                 <annotation name="org.gtk.GDBus.DocString" value="Window to move."/>
             </arg>
             <arg name="desktopId" type="s">
-                <annotation name="org.gtk.GDBus.DocString" value="Target virtual desktop's stable id (VirtualDesktop::id())."/>
+                <annotation name="org.gtk.GDBus.DocString" value="Target desktop's stable id (VirtualDesktop::id()). It survives the renumbering the workspace feature does alongside its own moves, where a number resolved before the hop can name another desktop by the time it arrives. Empty to name the desktop by number instead. An id naming no desktop moves the window to no desktop, and the effect places it where it is."/>
             </arg>
-        </signal>
-        <signal name="windowOutputMoveRequested">
-            <annotation name="org.gtk.GDBus.DocString" value="Daemon requests KWin to move a window to another output. Used by the workspace verbs for engine-untracked (floating) windows, where no tiling handoff carries the output change; the effect calls windowToScreen. A window already on the target output is a no-op."/>
-            <arg name="windowId" type="s">
-                <annotation name="org.gtk.GDBus.DocString" value="Window to move."/>
+            <arg name="desktop" type="i">
+                <annotation name="org.gtk.GDBus.DocString" value="Target desktop, 1-based (x11DesktopNumber), read only when desktopId is empty."/>
             </arg>
             <arg name="targetScreenId" type="s">
-                <annotation name="org.gtk.GDBus.DocString" value="Target output's screen id."/>
+                <annotation name="org.gtk.GDBus.DocString" value="Destination output's screen id. Empty keeps the window on the output it is on. An unknown screen moves the desktop only."/>
             </arg>
         </signal>
         <signal name="windowOutputMoveExpected">
@@ -424,7 +412,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </arg>
         </method>
         <method name="screenDesktopChanged">
-            <annotation name="org.gtk.GDBus.DocString" value="Report a screen's current virtual desktop (Plasma 6.7 per-output virtual desktops). Called by the KWin effect on KWin::EffectsHandler::desktopChanged, on a window activation, and in its bring-up re-sync. KWin's own D-Bus interface only exposes the global current desktop, so per-screen data arrives this way. Only the registered compositor bridge may call it, and any other caller is answered with AccessDenied."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Report a screen's current virtual desktop (Plasma 6.7 per-output virtual desktops). Called by the KWin effect on KWin::EffectsHandler::desktopChanged, on a window activation, in its bring-up re-sync, and as the answer to a setScreenDesktopRequested. That answer is forced past the effect's own dedup when the request switched nothing, so it may repeat the value the daemon already holds. KWin's placeholder output is never reported. KWin's own D-Bus interface only exposes the global current desktop, so per-screen data arrives this way. Only the registered compositor bridge may call it, and any other caller is answered with AccessDenied."/>
             <arg name="screenId" type="s" direction="in">
                 <annotation name="org.gtk.GDBus.DocString" value="Physical screen identifier whose desktop changed (NOT virtual-screen-suffixed; per-output desktops belong to the physical output)."/>
             </arg>
@@ -433,7 +421,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </arg>
         </method>
         <method name="reportPerOutputDesktopsMode">
-            <annotation name="org.gtk.GDBus.DocString" value="Report the compositor's actual per-output-virtual-desktops mode. Called by the KWin effect at bringup; the authoritative arm of the dynamic-workspaces feature gate (a kwinrc read can disagree with the running compositor)."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Report the compositor's actual per-output-virtual-desktops mode. The KWin effect reports it at bring-up and again whenever KWin's mode changes at runtime. It is the authoritative arm of the dynamic-workspaces feature gate, since a kwinrc read can disagree with the running compositor. Only the registered compositor bridge may call it, and any other caller is answered with AccessDenied."/>
             <arg name="enabled" type="b" direction="in">
                 <annotation name="org.gtk.GDBus.DocString" value="True when KWin runs with PerOutputVirtualDesktops on."/>
             </arg>

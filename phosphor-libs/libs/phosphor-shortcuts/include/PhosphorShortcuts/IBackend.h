@@ -59,19 +59,26 @@ public:
      *                    defaultSeq on a fresh install. May be empty (no grab).
      * @param description Human-readable label surfaced in portal settings
      *                    UIs and kglobalaccel listings.
-     * @param persistent  When false, the binding is transient — the backend
-     *                    must avoid leaving an entry in any user-visible
-     *                    persistent registry (e.g. KGlobalAccel's
-     *                    kglobalshortcutsrc) that would survive an
-     *                    unexpected daemon exit. The backend is responsible
-     *                    for purging the entry on destruction so a crash
-     *                    cannot leak a global key grab into the user's
-     *                    System Settings (discussion #461 item 14).
-     *                    Persistent (true) is the historical default and
-     *                    the only correct value for user-customizable
-     *                    shortcuts.
+     * @param persistent  When false, the binding is transient: it carries no
+     *                    user customisation and exists only while some UI
+     *                    state is up. Two duties follow for a backend that
+     *                    keeps a record of its own (KGlobalAccel's
+     *                    kglobalshortcutsrc). The requested currentSeq must
+     *                    win over whatever that record holds, so a re-register
+     *                    with a new chord really moves the grab. And the
+     *                    record must not outlive the process that made it:
+     *                    the backend purges it on destruction. A crash skips
+     *                    that purge, and kglobalacceld has no handling for a
+     *                    client that vanishes while its grab is present, so
+     *                    the key stays grabbed for the rest of the session.
+     *                    forgetShortcut() is the consumer's tool for clearing
+     *                    such leftovers at its next start (discussion #461
+     *                    item 14). Persistent (true) is the historical
+     *                    default and the only correct value for
+     *                    user-customizable shortcuts.
      *
-     * Registration is queued until flush() is called.
+     * A backend may apply this at once (KGlobalAccel does) or hold it until
+     * flush() (Portal batches into one BindShortcuts). Call flush() either way.
      */
     virtual void registerShortcut(const QString& id, const QKeySequence& defaultSeq, const QKeySequence& currentSeq,
                                   const QString& description, bool persistent = true) = 0;
@@ -90,7 +97,8 @@ public:
      * deltas).
      *
      * Does NOT carry a description — description updates require a fresh
-     * registerShortcut call. Takes effect after the next flush().
+     * registerShortcut call. Like registerShortcut, a backend may apply it at
+     * once or at the next flush(); call flush() either way.
      */
     virtual void updateShortcut(const QString& id, const QKeySequence& defaultSeq, const QKeySequence& newTrigger) = 0;
 
@@ -111,8 +119,11 @@ public:
     /**
      * Release the key grab for an id WITHOUT destroying whatever the
      * platform persists about it. The id can be brought back later with a
-     * plain registerShortcut(), which must pick the user's stored binding
-     * back up.
+     * plain registerShortcut(), which picks the platform's stored binding
+     * back up. While the id is parked that stored binding no longer follows
+     * updateShortcut() (there is no live registration to update), so a
+     * consumer whose own sequence moves while parked keeps the record in step
+     * with storeShortcut().
      *
      * This exists because unregisterShortcut() is deliberately destructive
      * on KGlobalAccel: it calls removeAllShortcuts, the one path that wipes
@@ -129,6 +140,76 @@ public:
     virtual void suspendShortcut(const QString& id)
     {
         unregisterShortcut(id);
+    }
+
+    /**
+     * Write @p seq into the platform's persistent record for an id that this
+     * backend does not currently hold (never registered, or parked through
+     * suspendShortcut), so the next registerShortcut() picks it up. Never
+     * grabs a key. An empty @p seq deletes the record, exactly as
+     * forgetShortcut() does. A record the platform does not know is left
+     * alone: the next registerShortcut() creates it from its own arguments.
+     *
+     * An id the backend does hold is routed through updateShortcut() (or
+     * unregisterShortcut() for an empty @p seq) instead.
+     *
+     * The default does nothing, which is right for backends with no record
+     * that outlives a registration (Portal, the D-Bus fallback).
+     */
+    virtual void storeShortcut(const QString& id, const QKeySequence& seq)
+    {
+        Q_UNUSED(id);
+        Q_UNUSED(seq);
+    }
+
+    /**
+     * Delete the platform's persistent record for an id, releasing any grab
+     * that record still holds. Meant for ids this process does not hold, such
+     * as a transient grab a crashed earlier run left behind (see the
+     * persistent parameter of registerShortcut). An id the backend does hold
+     * goes through unregisterShortcut(). Never call it on a persistent id the
+     * user may have customised: it destroys the customisation.
+     *
+     * The default does nothing (no record to delete).
+     */
+    virtual void forgetShortcut(const QString& id)
+    {
+        Q_UNUSED(id);
+    }
+
+    /**
+     * Every id the platform holds a persistent record for under this
+     * process's component, registered by this run or not. nullopt when the
+     * backend keeps no such record or the query failed. Pair with
+     * forgetShortcut() to clear leftovers from an earlier run.
+     */
+    virtual std::optional<QStringList> storedShortcutIds() const
+    {
+        return std::nullopt;
+    }
+
+    /**
+     * Whether suspendShortcut() and unregisterShortcut() actually release the
+     * key grab. False on Portal, whose spec has no per-id release: a grab
+     * stays with the session until it closes. A consumer that parks an id
+     * right after registering it should not register it at all on such a
+     * backend, or the park leaves a dead grab for the whole session.
+     */
+    virtual bool suspendReleasesGrab() const
+    {
+        return true;
+    }
+
+    /**
+     * Whether an id with an empty current sequence must still be registered.
+     * False for the key-grabbing backends, where registering nothing is the
+     * stale-grab hazard of discussion #155, so Registry keeps such an id out
+     * of the backend. True for the D-Bus trigger fallback, which grabs no
+     * keys and can only fire ids it has been told about.
+     */
+    virtual bool registersUnboundIds() const
+    {
+        return false;
     }
 
     /**
@@ -179,13 +260,15 @@ public:
 
     /**
      * Rebind ANOTHER component's global shortcut (kglobalaccel's
-     * setForeignShortcutKeys, the API the Shortcuts KCM uses). The dynamic-
-     * workspaces feature neutralizes KWin's stock desktop-switch chords with
-     * this while enabled, restoring them on disable. The list carries the
-     * action's FULL binding — primary plus alternates — so a restore puts
-     * back exactly what foreignShortcuts() reported; an empty list clears
-     * the binding. Only the KGlobalAccel backend can do this; the default
-     * refuses (false) so callers fall back to snap-back-with-hint.
+     * setForeignShortcutKeys, the API the Shortcuts KCM uses). The list
+     * carries the action's FULL binding, every sequence it should answer to,
+     * so a restore puts back exactly what foreignShortcuts() reported; an
+     * empty list clears the binding. Only the KGlobalAccel backend can do
+     * this; the default refuses (false).
+     *
+     * True means only that the call reached the binding service without a
+     * D-Bus error. The service answers an action it does not know with
+     * silence rather than an error, so true does not prove the action exists.
      */
     virtual bool setForeignShortcuts(const QString& componentName, const QString& actionName,
                                      const QList<QKeySequence>& sequences)
@@ -197,8 +280,10 @@ public:
     }
 
     /**
-     * The current bindings of another component's action (backup before a
-     * foreign rebind) — primary first, alternates after.
+     * The current bindings of another component's action, every sequence it
+     * answers to, in the order the binding service reports them. kglobalacceld
+     * keeps an action's keys as a set, so there is no primary and the order
+     * carries no meaning.
      *
      * Tri-state, for the same reason currentTriggers() above is:
      *  - std::nullopt   → the query FAILED or this backend cannot answer (no
@@ -206,8 +291,10 @@ public:
      *    reply). The caller must NOT proceed to clear the action: it has no
      *    backup, so a later restore would write the "unbound" sentinel over a
      *    binding the user still has.
-     *  - engaged, empty → the action is genuinely unbound; there is nothing to
-     *    back up and nothing to steal.
+     *  - engaged, empty → the service reports no keys. That is a genuinely
+     *    unbound action, or an action the service does not know at all: it
+     *    answers both the same way. Either way there is nothing to back up
+     *    and nothing to steal.
      *  - engaged, non-empty → the action's full binding.
      * Folding the first two into one empty list made an unreachable
      * kglobalacceld look exactly like an already-unbound action.

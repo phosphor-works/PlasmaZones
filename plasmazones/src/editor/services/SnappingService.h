@@ -138,15 +138,15 @@ private:
     /**
      * @brief Collect all zone edge coordinates (plus canvas boundaries)
      * @param allZones All zones to collect edges from
-     * @param excludeZoneId PhosphorZones::Zone to exclude from edge collection
+     * @param excludeZoneId Zone to exclude from edge collection
      * @return EdgeLists with vertical (X) and horizontal (Y) edge coordinates
      */
     EdgeLists collectZoneEdges(const QVariantList& allZones, const QString& excludeZoneId) const;
 
     bool m_gridSnappingEnabled = true;
     bool m_edgeSnappingEnabled = true;
-    qreal m_snapIntervalX = 0.1;
-    qreal m_snapIntervalY = 0.1;
+    qreal m_snapIntervalX; // seeded from ConfigDefaults::editorSnapIntervalX() by the constructor
+    qreal m_snapIntervalY; // seeded from ConfigDefaults::editorSnapIntervalY() by the constructor
     qreal m_edgeThreshold = 0.02;
 };
 

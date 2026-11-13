@@ -680,7 +680,7 @@ void EditorController::onDaemonVirtualScreensChanged(const QString& physicalScre
 }
 
 // ---------------------------------------------------------------------------
-// Group 2 - PhosphorZones::Layout lifecycle
+// Group 2 - Layout lifecycle
 // ---------------------------------------------------------------------------
 
 /**
@@ -1259,7 +1259,7 @@ bool EditorController::saveLayout()
     }
 
     // Note: We intentionally do NOT assign the layout to a screen here.
-    // PhosphorZones::Layout assignment should be a separate, explicit user action.
+    // Layout assignment should be a separate, explicit user action.
     // This prevents saving a layout from inadvertently changing the active layout.
 
     Q_EMIT hasUnsavedChangesChanged();

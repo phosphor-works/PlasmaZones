@@ -5,7 +5,10 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-set(PHOSPHORWORKSPACES_VERSION "0.1.0")
+# 0.2.0: WorkspaceMap and WorkspaceReconciler joined the public API and
+# VirtualDesktopManager's interface changed. SOVERSION stays 0 below, like the
+# rest of the phosphor-* catalog, until a deliberate ABI break.
+set(PHOSPHORWORKSPACES_VERSION "0.2.0")
 
 # The Qt floor this library requires AND advertises in its generated
 # PhosphorWorkspacesConfig.cmake. Taken from the top-level QT_MIN_VERSION when built in-tree so
@@ -110,12 +113,19 @@ endif()
 # on _FOUND. A legacy Config that exposes only variables (no target)
 # would otherwise wire `HAVE_KACTIVITIES` without a link dependency,
 # producing undefined-symbol errors in the daemon's ActivityManager.
+# This is the only activities lookup in the tree: the app tier links nothing
+# from it directly, and it runs whatever USE_KDE_FRAMEWORKS says, since the
+# library knows no app-tier option.
 if(TARGET Plasma::Activities)
     target_compile_definitions(PhosphorWorkspaces PRIVATE HAVE_KACTIVITIES)
     target_link_libraries(PhosphorWorkspaces PRIVATE Plasma::Activities)
+    message(STATUS "PhosphorWorkspaces: PlasmaActivities found, activity support enabled")
 elseif(TARGET KF6::Activities)
     target_compile_definitions(PhosphorWorkspaces PRIVATE HAVE_KACTIVITIES)
     target_link_libraries(PhosphorWorkspaces PRIVATE KF6::Activities)
+    message(STATUS "PhosphorWorkspaces: KF6Activities found, activity support enabled")
+else()
+    message(STATUS "PhosphorWorkspaces: no activities library found, activity support disabled")
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -177,9 +187,9 @@ install(FILES
     DESTINATION ${KDE_INSTALL_LIBDIR}/cmake/PhosphorWorkspaces
 )
 
-# The workspace-map and reconciler suites need nothing beyond Qt, so the tree is
-# entered unconditionally. The ActivityManager suite inside it gates itself on
-# the activities library.
+# The workspace-map, reconciler, ledger and VirtualDesktopManager suites need
+# nothing beyond Qt, so the tree is entered unconditionally. The ActivityManager
+# suite inside it gates itself on the activities library.
 if(CMAKE_PROJECT_NAME STREQUAL "PhosphorWorkspaces" OR BUILD_TESTING)
     enable_testing()
     add_subdirectory(tests)

@@ -86,9 +86,9 @@ bool SettingsAdaptor::setSettings(const QVariantMap& settings)
 
     // Snapshot every registered getter first so the post-batch re-emit can fire
     // only for values that actually changed (emit-on-change rule), including
-    // cross-property side effects (e.g. setZoneSpanModifier rewrites the trigger
-    // list). setSettings is a rare external batch entry point, so reading all
-    // getters twice is acceptable.
+    // any change one setter makes to a value another getter reads (a clamped
+    // write, a shared store key). setSettings is a rare external batch entry
+    // point, so reading all getters twice is acceptable.
     QVariantMap beforeValues;
     for (auto it = m_getters.constBegin(); it != m_getters.constEnd(); ++it) {
         beforeValues.insert(it.key(), it.value()());

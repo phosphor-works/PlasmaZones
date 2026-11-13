@@ -1256,11 +1256,15 @@ private Q_SLOTS:
 
         RegistryFixture f = makeRegistryFixture();
 
+        // Any fixed id serves: the rule is recognised by its managed catch-all
+        // shape, never by this value.
+        const QUuid baselineGapRuleId(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000004}"));
+
         // The managed, catch-all baseline rule that carries the GLOBAL default
         // gaps (inner = 4). It is pinned to lowest precedence and is the level-4
         // default tier, NOT a context override — resolveContextGaps excludes it.
         PWR::Rule baseline;
-        baseline.id = ConfigDefaults::baselineGapRuleId();
+        baseline.id = baselineGapRuleId;
         baseline.name = QStringLiteral("Default gaps");
         baseline.enabled = true;
         baseline.managed = true;
@@ -1273,7 +1277,7 @@ private Q_SLOTS:
         // cascade still resolves a hand-authored gap rule keyed on a v5 id
         // namespaced under the baseline gap id — this pins that cascade behavior.
         PWR::Rule perScreen;
-        perScreen.id = QUuid::createUuidV5(ConfigDefaults::baselineGapRuleId(), QByteArrayLiteral("DP-1"));
+        perScreen.id = QUuid::createUuidV5(baselineGapRuleId, QByteArrayLiteral("DP-1"));
         perScreen.name = QStringLiteral("Gaps (DP-1)");
         perScreen.enabled = true;
         perScreen.managed = false;

@@ -5,7 +5,8 @@
 // WindowTrackingAdaptor — window lifecycle
 //
 // Placement capture, close, metadata upserts, frame-geometry tracking, the
-// interactive-resize report, the sticky bit and the context-release relay.
+// interactive-resize report and drag subject, the sticky bit, the compositor's
+// per-output virtual desktop mode report and the context-release relay.
 // Screen changes live in screenleave.cpp, the focus and activation reports in
 // activation.cpp and the stale-window prune in prune.cpp.
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -430,10 +431,10 @@ void WindowTrackingAdaptor::setWindowSticky(const QString& windowId, bool sticky
     if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
         return;
     }
-    if (windowId.isEmpty() || !m_service) {
+    if (windowId.isEmpty()) {
         return;
     }
-    // Delegate to service
+    // m_service is non-null post-construction (class invariant).
     m_service->setWindowSticky(windowId, sticky);
 }
 
@@ -542,16 +543,12 @@ void WindowTrackingAdaptor::windowClosed(const QString& windowId, int windowKind
             m_ruleEvaluator->evictCached(windowId);
         }
     }
-    // The open-path RouteToWorkspace answer is keyed the same way (the raw id
-    // its emitter was handed), and is normally consumed within the open round
-    // trip. Drop both spellings so a window that opened with a workspace route
-    // and closed before anything read it back cannot leak an entry.
-    m_workspaceRoutedDesktop.remove(shadowId);
-    m_workspaceRoutedScreen.remove(shadowId);
-    if (windowId != shadowId) {
-        m_workspaceRoutedDesktop.remove(windowId);
-        m_workspaceRoutedScreen.remove(windowId);
-    }
+    // The open's routing verdict is latched until the window closes (route
+    // once per open), and the per-pass record is normally taken within the
+    // open round trip. Both are keyed by the shadow id. Dropping the latch
+    // here is what lets a reused window id route again on its next open.
+    m_openRoutes.remove(shadowId);
+    m_openRoutePass.remove(shadowId);
 
     // Drop registry state last: consumers subscribed to windowDisappeared may
     // rely on other WTS state still being present during their cleanup.
@@ -848,22 +845,14 @@ void WindowTrackingAdaptor::setInteractiveDragWindow(const QString& windowId)
     m_interactiveDragWindow = windowId.isEmpty() ? QString() : shadowWindowId(windowId);
 }
 
-void WindowTrackingAdaptor::setWorkspaceMapPayload(const QString& mapJson)
-{
-    if (m_lastWorkspaceMap == mapJson) {
-        return;
-    }
-    m_lastWorkspaceMap = mapJson;
-    Q_EMIT workspaceMapChanged(mapJson);
-}
-
-QString WindowTrackingAdaptor::workspaceMap() const
-{
-    return m_lastWorkspaceMap;
-}
-
 void WindowTrackingAdaptor::reportPerOutputDesktopsMode(bool enabled)
 {
+    // Gated like its siblings screenDesktopChanged and seedScreenDesktop: this
+    // report arms or disarms the whole dynamic-workspaces feature, so a bus
+    // caller other than the registered compositor must not be able to flip it.
+    if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
+        return;
+    }
     if (m_perOutputDesktopsMode.has_value() && *m_perOutputDesktopsMode == enabled) {
         return;
     }
@@ -919,6 +908,40 @@ void WindowTrackingAdaptor::notifyWindowResized(const QString& windowId, int old
         return;
     }
     m_autotileEngine->onWindowResized(windowId, oldFrame, newFrame, screenId);
+}
+
+void WindowTrackingAdaptor::setDesktopSpanQuery(PhosphorEngine::DesktopSpanQuery query)
+{
+    m_desktopSpanQuery = std::move(query);
+}
+
+void WindowTrackingAdaptor::releaseSnapOutsideLiveContext(const QString& rawWindowId, const QString& screenId)
+{
+    PhosphorSnapEngine::SnapEngine* const snap = snapEngine();
+    if (!snap || rawWindowId.isEmpty() || screenId.isEmpty()) {
+        return;
+    }
+    const QString windowId = shadowWindowId(rawWindowId);
+    const PhosphorEngine::DesktopSpan span =
+        m_desktopSpanQuery ? m_desktopSpanQuery(windowId) : PhosphorEngine::DesktopSpan{};
+    const PhosphorEngine::MembershipReconcileResult result = snap->releaseWindowOutsideSpan(windowId, screenId, span);
+    if (result.released.isEmpty()) {
+        return;
+    }
+    qCInfo(lcDbusWindow) << "placed again on" << screenId << ":" << windowId << "gives up" << result.released.size()
+                         << "snap membership(s) it held elsewhere";
+    // The bookkeeping TilingAdaptor::applyMembershipResult drives for a
+    // membership pass's snap release, for the same reasons: the persisted
+    // record still names the released zone, and so does the effect's zone
+    // cache until it hears "unsnapped" for each context left.
+    captureWindowPlacement(windowId, QString(), /*fromStateChange=*/true);
+    QSet<QString> relayed;
+    for (const auto& [releasedId, key] : result.released) {
+        if (!relayed.contains(key.screenId)) {
+            relayed.insert(key.screenId);
+            relayWindowReleasedFromContext(releasedId, key.screenId);
+        }
+    }
 }
 
 void WindowTrackingAdaptor::relayWindowReleasedFromContext(const QString& windowId, const QString& screenId)

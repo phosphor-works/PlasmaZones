@@ -460,7 +460,15 @@ void SettingsController::onVirtualDesktopsChanged()
         // future mode (e.g. Scrolling) is automatically pruned when the
         // user removes a virtual desktop it referenced. The hand-maintained
         // {Snapping, Autotile} list here used to silently skip Scrolling.
-        if (desktopsRefreshed && m_virtualDesktopCount >= 1) {
+        //
+        // Skipped while dynamic workspaces are enabled (in a build that
+        // carries them; elsewhere the flag does nothing). The daemon then
+        // creates and removes desktops on its own as windows come and go, so
+        // the count dips below a disabled desktop's number in passing, and a
+        // prune would drop the user's entry (and badge the Overview page with
+        // an edit nobody made) on every such dip.
+        if (desktopsRefreshed && m_virtualDesktopCount >= 1
+            && !(workspacesAvailable() && m_settings.workspacesEnabled())) {
             for (const auto mode : PhosphorZones::allModes()) {
                 QStringList disabled = m_settings.disabledDesktops(mode);
                 if (pruneDisabledDesktopEntries(disabled, m_virtualDesktopCount)) {

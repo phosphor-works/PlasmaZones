@@ -9,34 +9,25 @@
 #include "settings/settings_detail.h"
 #include "settingsschema.h"
 
-#include "core/types/animationshadersupportedpaths.h"
-#include "core/types/constants.h"
 #include "core/platform/logging.h"
-#include "core/utils/utils.h"
 
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorConfig/JsonBackend.h>
 #include <PhosphorRules/ContextRuleBridge.h>
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/Rule.h>
-#include <PhosphorSurface/DecorationProfileTree.h>
 
-#include <QScopeGuard>
-#include <QScopedValueRollback>
+#include <QFile>
+#include <QJsonObject>
 #include <QMetaMethod>
 #include <QMetaProperty>
-#include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonValue>
+#include <QScopeGuard>
+#include <QScopedValueRollback>
 #include <QSet>
 #include <QUuid>
 
+#include <algorithm>
 #include <optional>
-#include <PhosphorTiles/AlgorithmRegistry.h>
-#include <PhosphorTileEngine/AutotileConfig.h>
-#include <PhosphorScreens/ScreenIdentity.h>
 
 namespace PlasmaZones {
 
@@ -45,6 +36,115 @@ using namespace settings_detail;
 // ── Constructor ──────────────────────────────────────────────────────────────
 
 namespace {
+/// A named-workspace entry's identity across a reload: its persistent id, or
+/// its name for an entry that has none yet (a hand-edited list never re-saved).
+QString namedEntryIdentity(const QVariantMap& entry)
+{
+    const QString id = entry.value(ConfigDefaults::namedEntryIdField()).toString();
+    if (!id.isEmpty()) {
+        return id;
+    }
+    return QLatin1String("name:") + entry.value(ConfigDefaults::namedEntryNameField()).toString().trimmed();
+}
+
+/// Identity → entry, plus the identities in list order.
+struct NamedEntryIndex
+{
+    QHash<QString, QVariantMap> byIdentity;
+    QStringList order;
+};
+
+NamedEntryIndex indexNamedEntries(const QVariantList& list)
+{
+    NamedEntryIndex index;
+    for (const QVariant& value : list) {
+        const QVariantMap entry = value.toMap();
+        const QString identity = namedEntryIdentity(entry);
+        if (!index.byIdentity.contains(identity)) {
+            index.byIdentity.insert(identity, entry);
+            index.order.append(identity);
+        }
+    }
+    return index;
+}
+
+/// Three-way merge of the Workspaces.Named entry list for a preserving reload
+/// (F637). The daemon rewrites single declarations on its own (a pinned
+/// workspace moved or reordered by a verb, a rename made in KWin), so putting
+/// the settings app's whole unsaved list back over the reparsed file would
+/// revert those rewrites on its next Save. Per entry identity: an entry the
+/// user changed or added keeps the local version, an entry the user removed
+/// stays removed, and every entry the user did not touch takes what disk holds
+/// now, a removal on disk included. Row order follows the local list when the
+/// user reordered rows, else disk, with each local addition after the entry it
+/// follows locally.
+QVariantList mergeNamedEntriesForReload(const QVariantList& baseline, const QVariantList& local,
+                                        const QVariantList& disk)
+{
+    // Nothing moved on disk since the edit was made: the local list is the
+    // answer exactly, its row order included.
+    if (disk == baseline) {
+        return local;
+    }
+    const NamedEntryIndex base = indexNamedEntries(baseline);
+    const NamedEntryIndex mine = indexNamedEntries(local);
+    const NamedEntryIndex theirs = indexNamedEntries(disk);
+
+    QStringList baseCommon;
+    for (const QString& identity : base.order) {
+        if (mine.byIdentity.contains(identity)) {
+            baseCommon.append(identity);
+        }
+    }
+    QStringList mineCommon;
+    for (const QString& identity : mine.order) {
+        if (base.byIdentity.contains(identity)) {
+            mineCommon.append(identity);
+        }
+    }
+    const bool reordered = baseCommon != mineCommon;
+
+    QStringList order;
+    if (reordered) {
+        order = mine.order;
+        for (const QString& identity : theirs.order) {
+            if (!order.contains(identity)) {
+                order.append(identity);
+            }
+        }
+    } else {
+        // Disk order, with each local addition placed right after the entry
+        // it follows in the local list (first when it leads the list).
+        order = theirs.order;
+        qsizetype insertAt = 0;
+        for (const QString& identity : mine.order) {
+            const qsizetype at = order.indexOf(identity);
+            if (at >= 0) {
+                insertAt = at + 1;
+                continue;
+            }
+            order.insert(insertAt, identity);
+            ++insertAt;
+        }
+    }
+
+    QVariantList merged;
+    for (const QString& identity : std::as_const(order)) {
+        const bool inBase = base.byIdentity.contains(identity);
+        const bool inMine = mine.byIdentity.contains(identity);
+        if (inBase && !inMine) {
+            continue; // removed locally
+        }
+        if (inMine && (!inBase || mine.byIdentity.value(identity) != base.byIdentity.value(identity))) {
+            merged.append(mine.byIdentity.value(identity)); // changed or added locally
+        } else if (const auto it = theirs.byIdentity.constFind(identity); it != theirs.byIdentity.cend()) {
+            merged.append(*it); // untouched locally: disk wins
+        }
+        // Untouched locally and gone from disk: removed elsewhere, stays gone.
+    }
+    return merged;
+}
+
 std::unique_ptr<PhosphorConfig::IBackend> migrateAndCreateOwnedBackend()
 {
     // Defensive: ensure INI→JSON + schema-version migration has run before
@@ -166,8 +266,9 @@ Settings::Settings(QObject* parent)
     , m_ruleStore(m_ownedRuleStore.get())
 {
     // m_curveRegistry is left null; `animationProfile()` /
-    // `setAnimationEasingCurve()` fall back to `fallbackCurveRegistry()`.
-    // That fallback is a process-static CurveRegistry — NOT the daemon's
+    // `setAnimationEasingCurve()` fall back to
+    // `ConfigDefaults::fallbackCurveRegistry()`. That fallback is a
+    // process-static CurveRegistry — NOT the daemon's
     // injected instance — so `shared_ptr<const Curve>` identity is not
     // preserved across the Settings ↔ daemon boundary when this ctor is
     // used. The standalone settings app and tests both communicate with
@@ -232,83 +333,66 @@ void Settings::reloadPreservingLocalEdits()
     qCDebug(lcConfig) << "Settings reloaded with unsaved edits kept";
 }
 
-void Settings::reloadFromDisk(bool preserveLocalEdits)
+Settings::AnnouncedState Settings::captureAnnouncedState(bool withDisableLists) const
+{
+    AnnouncedState state;
+    state.properties = snapshotNotifyProperties();
+    // The animation Profile blob is not a Q_PROPERTY, and unlike the per-mode
+    // lists below it is not merely a stale-reader problem: the daemon picks the
+    // registry layer for the global profile from its explicit-ness, so a reload
+    // that changes it without saying so leaves the layer wrong for the life of
+    // the process. See animationProfileState.
+    state.animationProfile = animationProfileState();
+    // The Editor.* settings have no Q_PROPERTY either (see
+    // editorSettingEntries). Without this, the settings app's Save of an
+    // editor-only change reloaded silently, and the open editor kept its stale
+    // copy.
+    state.editor = snapshotEditorSettings();
+    state.members = captureMemberState();
+    // Per-mode disable lists are NOT Q_PROPERTYs (their getters take a Mode
+    // argument, which Q_PROPERTY can't express), so they are captured per Mode,
+    // in canonical form (see the comparison in reloadFromDisk). Iterating
+    // PhosphorZones::allModes() keeps the capture in lockstep with the enum.
+    state.hasDisableLists = withDisableLists;
+    if (withDisableLists) {
+        for (const PhosphorZones::AssignmentEntry::Mode mode : PhosphorZones::allModes()) {
+            state.disabledMonitors.insert(mode, canonicalDisableEntries(DisableAxis::Monitor, disabledMonitors(mode)));
+            state.disabledDesktops.insert(mode, canonicalDisableEntries(DisableAxis::Desktop, disabledDesktops(mode)));
+            state.disabledActivities.insert(mode,
+                                            canonicalDisableEntries(DisableAxis::Activity, disabledActivities(mode)));
+        }
+    }
+    return state;
+}
+
+void Settings::reloadFromDisk(bool preserveLocalEdits, const AnnouncedState* before)
 {
     // The full load is wrapped in the settings app's own loading flag by its
     // caller; the preserving one also runs from inside composite setters,
     // where no caller can, so it tags itself.
     const QScopedValueRollback<bool> announcing(m_announcingReload, m_announcingReload || preserveLocalEdits);
-    // Snapshot every Q_PROPERTY declared on Settings (skipping inherited
-    // QObject properties like objectName) that has a NOTIFY signal, so we
-    // can re-emit the matching NOTIFY signal after load() refreshes
-    // backing state. Without these emits QML bindings bound to, say,
-    // `settings.borderWidth` would not update when the discard path
-    // reloads the on-disk values.
+    // Capture everything this reload announces (every NOTIFY-able Q_PROPERTY,
+    // the animation Profile state, the Editor.* settings, the per-screen
+    // members and, for a full reload, the per-mode disable lists), so the
+    // matching change signals can fire once the backing state is reloaded.
+    // Without them QML bindings bound to, say, `settings.borderWidth` would not
+    // update when the discard path reloads the on-disk values.
     //
-    // CRITICAL ORDERING: snapshot MUST be taken BEFORE
-    // reparseConfiguration() and before per-screen / virtual-screen
-    // loaders mutate members. Store-backed properties read on demand
-    // through m_store, so once reparseConfiguration() overwrites the
-    // backend's in-memory state, a post-reparse snapshot would see the
-    // already-reloaded value and the comparison loop below would never
-    // detect a change — silently breaking the discard-changes UX flow.
+    // CRITICAL ORDERING: the capture MUST be taken BEFORE
+    // reparseConfiguration() and before the per-screen / virtual-screen
+    // loaders mutate members. Store-backed properties read on demand through
+    // m_store, so once reparseConfiguration() overwrites the backend's
+    // in-memory state, a post-reparse capture would see the already-reloaded
+    // value and the comparisons below would never detect a change, silently
+    // breaking the discard-changes UX flow. reset() hands in a capture it took
+    // before deleting anything, for the same reason one step earlier.
     //
-    // INVARIANT: every Q_PROPERTY on Settings must hold a type whose
-    // QVariant comparison is meaningful (Qt builtins, POD enums,
-    // QVariantMap, QStringList). Custom Q_GADGETs without a registered
-    // operator== will silently miscompare here.
-    const QVector<QVariant> propSnapshot = snapshotNotifyProperties();
-
-    // The workspace verb chords and the three indexed slot families are not
-    // Q_PROPERTYs either (plain getters and Q_INVOKABLEs), so the snapshot
-    // above misses them. Capture them here, under the same before-the-reparse
-    // ordering constraint, so a reload whose only delta is a chord still fires
-    // the family signals — ShortcutManager's rebind rides settingsChanged.
-    const QVector<QString> workspaceSnapshot = snapshotWorkspaceKeyFamilies();
-    // The animation Profile blob is not a Q_PROPERTY either, and unlike the
-    // per-mode lists below it is not merely a stale-reader problem: the daemon
-    // picks the registry layer for the global profile from its explicit-ness,
-    // so a reload that changes it without saying so leaves the layer wrong for
-    // the life of the process. See animationProfileState.
-    const AnimationProfileState animProfileSnapshot = animationProfileState();
-
-    // The Editor.* settings have no Q_PROPERTY either (see
-    // editorSettingEntries), so the snapshot above misses them. Without this
-    // one, the settings app's Save of an editor-only change reloaded here
-    // silently, and the open editor kept its stale copy.
-    const QVector<QVariant> editorSnapshot = snapshotEditorSettings();
-
-    // Per-mode disable lists are NOT Q_PROPERTYs (their getters take a Mode
-    // argument, which Q_PROPERTY can't express). Snapshot them explicitly
-    // so the post-reparse re-emission below can fire the per-mode signals
-    // when an external write — daemon shortcut, D-Bus call, discard path —
-    // changes a list. Without this, QML consumers bound through the bridge
-    // never see cross-process disable-state changes until the page is
-    // re-rendered.
-    // Per-mode disable-list snapshots — captured per Mode so the post-reload
-    // re-emission below can fire one signal per mode that actually changed.
-    // Iterating PhosphorZones::allModes() keeps the snapshot in lockstep
-    // with the enum: adding a future mode automatically gets snapshotted +
-    // re-emitted without touching this block.
-    //
-    // Snapshot the CANONICAL form, and compare canonically below. The getters
-    // return entries in rule order, and setAllRules rewrites the whole rule
-    // list, so a reload can hand back the same disable set in a different order
-    // for reasons that have nothing to do with these lists. A raw compare would
-    // read that as a change and fire disabled*Changed + settingsChanged, which
-    // on the daemon side means a retile nobody asked for.
-    using Mode = PhosphorZones::AssignmentEntry::Mode;
-    QHash<Mode, QStringList> monitorsBefore;
-    QHash<Mode, QStringList> desktopsBefore;
-    QHash<Mode, QStringList> activitiesBefore;
-    // The preserving mode does not reload the rule store the lists live in
-    // (see below), so they cannot move there and are not snapshotted.
-    if (!preserveLocalEdits) {
-        for (const Mode mode : PhosphorZones::allModes()) {
-            monitorsBefore.insert(mode, canonicalDisableEntries(DisableAxis::Monitor, disabledMonitors(mode)));
-            desktopsBefore.insert(mode, canonicalDisableEntries(DisableAxis::Desktop, disabledDesktops(mode)));
-            activitiesBefore.insert(mode, canonicalDisableEntries(DisableAxis::Activity, disabledActivities(mode)));
-        }
+    // The preserving mode does not reload the rule store the disable lists
+    // live in (see below), so they cannot move there and are not captured.
+    std::optional<AnnouncedState> ownCapture;
+    if (!before) {
+        ownCapture = captureAnnouncedState(!preserveLocalEdits);
+        before = &*ownCapture;
     }
 
     // The unsaved edits to keep, read BEFORE the reparse drops them. Only the
@@ -319,6 +403,16 @@ void Settings::reloadFromDisk(bool preserveLocalEdits)
     // clean-backend refresh cheap.
     const QList<LocalEdit> localEdits =
         (preserveLocalEdits && m_configBackend->isDirty()) ? collectLocalEdits() : QList<LocalEdit>{};
+    // The named-workspace list merges per entry rather than coming back whole
+    // (mergeNamedEntriesForReload), which needs the baseline the local edit was
+    // made against, so it is read before captureBaseline moves it.
+    const QString namedGroup = ConfigDefaults::workspacesNamedGroup();
+    const QString namedKey = ConfigDefaults::entriesKey();
+    const bool namedEdited = std::any_of(localEdits.cbegin(), localEdits.cend(), [&](const LocalEdit& edit) {
+        return edit.group == namedGroup && edit.key == namedKey;
+    });
+    const QVariantList namedBaseline =
+        namedEdited ? m_baseline.value(namedGroup).value(namedKey).toList() : QVariantList{};
 
     m_configBackend->reparseConfiguration();
 
@@ -332,7 +426,13 @@ void Settings::reloadFromDisk(bool preserveLocalEdits)
         // document BEFORE the edits go back on top. A per-page Discard then
         // reverts to the external value, and the edits still read as unsaved.
         captureBaseline();
+        const QVariantList namedOnDisk =
+            namedEdited ? m_store->readVariant(namedGroup, namedKey).toList() : QVariantList{};
         reapplyLocalEdits(localEdits);
+        if (namedEdited) {
+            const QVariantList namedLocal = m_store->readVariant(namedGroup, namedKey).toList();
+            m_store->write(namedGroup, namedKey, mergeNamedEntriesForReload(namedBaseline, namedLocal, namedOnDisk));
+        }
         // A kept edit to one half of the width pair can disagree with the
         // other half just adopted from disk.
         normalizeScrollingColumnWidthValue();
@@ -365,16 +465,6 @@ void Settings::reloadFromDisk(bool preserveLocalEdits)
     // registers, e.g. Windows, Gaps, Decorations, Shaders, Animations, ...) needs no
     // explicit load call — their getters read through m_store on demand. Enumerating the
     // groups here just drifts as new ones are added, so it is left to the schema.
-    // Per-screen override maps are not Q_PROPERTYs, so the snapshot loop above
-    // doesn't cover them. Capture them around the reload so settingsChanged()
-    // can fire when a reload (e.g. the daemon's reloadSettings after a Save)
-    // brings in new per-screen gap / selector overrides. Without this the
-    // daemon reloads the maps but its settingsChanged-driven retile never runs,
-    // so per-monitor gaps never take effect on save (discussion #661).
-    const QHash<QString, QVariantMap> perScreenZoneSelectorBefore = m_perScreenZoneSelectorSettings;
-    const QHash<QString, QVariantMap> perScreenScrollingZoneSelectorBefore = m_perScreenScrollingZoneSelectorSettings;
-    const QHash<QString, QVariantMap> perScreenAutotileBefore = m_perScreenAutotileSettings;
-    const QHash<QString, QVariantMap> perScreenScrollingBefore = m_perScreenScrollingSettings;
 
     // Not when preserving local edits, for the same no-baseline reason as the
     // rule store above: these maps are members, and a reload would drop their
@@ -401,11 +491,19 @@ void Settings::reloadFromDisk(bool preserveLocalEdits)
         reloadMembersFromRepairedConfig();
     }
 
-    const bool perScreenZoneSelectorChanged = perScreenZoneSelectorBefore != m_perScreenZoneSelectorSettings;
+    // Per-screen override maps are not Q_PROPERTYs, so the NOTIFY loop below
+    // doesn't cover them. They are compared against the capture so
+    // settingsChanged() can fire when a reload (e.g. the daemon's
+    // reloadSettings after a Save) brings in new per-screen gap / selector
+    // overrides. Without this the daemon reloads the maps but its
+    // settingsChanged-driven retile never runs, so per-monitor gaps never take
+    // effect on save (discussion #661).
+    const MemberState& membersBefore = before->members;
+    const bool perScreenZoneSelectorChanged = membersBefore.zoneSelector != m_perScreenZoneSelectorSettings;
     const bool perScreenScrollingZoneSelectorChanged =
-        perScreenScrollingZoneSelectorBefore != m_perScreenScrollingZoneSelectorSettings;
-    const bool perScreenAutotileChanged = perScreenAutotileBefore != m_perScreenAutotileSettings;
-    const bool perScreenScrollingChanged = perScreenScrollingBefore != m_perScreenScrollingSettings;
+        membersBefore.scrollingZoneSelector != m_perScreenScrollingZoneSelectorSettings;
+    const bool perScreenAutotileChanged = membersBefore.autotile != m_perScreenAutotileSettings;
+    const bool perScreenScrollingChanged = membersBefore.scrolling != m_perScreenScrollingSettings;
     // Per-monitor gaps are config-backed and live in the per-screen autotile store.
     // A gap change must resnap already-snapped windows, the same way a global gap
     // change or a context gap rule does; the daemon binds that resnap to
@@ -413,32 +511,42 @@ void Settings::reloadFromDisk(bool preserveLocalEdits)
     // changed, so an algorithm/split-only per-screen edit doesn't trigger a spurious
     // gap resnap.
     const bool perScreenGapChanged =
-        Settings::perScreenGapDimensionsDiffer(perScreenAutotileBefore, m_perScreenAutotileSettings);
+        Settings::perScreenGapDimensionsDiffer(membersBefore.autotile, m_perScreenAutotileSettings);
     const bool perScreenChanged = perScreenZoneSelectorChanged || perScreenScrollingZoneSelectorChanged
         || perScreenAutotileChanged || perScreenScrollingChanged;
 
     // Emit NOTIFY signals for every Q_PROPERTY whose value changed. load()
     // sets members directly (not via setters), so without this loop QML
     // bindings would never see reloaded values after discard / reset.
-    const bool anyChanged = emitChangedNotifyProperties(propSnapshot);
-    const bool anyWorkspaceChanged = emitChangedWorkspaceKeyFamilies(workspaceSnapshot);
-    emitAnimationProfileChangeIfMoved(animProfileSnapshot);
+    const bool anyChanged = emitChangedNotifyProperties(before->properties);
+    emitAnimationProfileChangeIfMoved(before->animationProfile);
 
     // Per-mode disable lists: emit one signal per Mode whose list changed.
     // Mirrors the Q_PROPERTY loop above but keyed by (signal, mode) instead
     // of by property index. Iterates allModes so future enum extensions
-    // automatically participate without touching this block.
+    // automatically participate without touching this block. Compared in
+    // canonical form, as captured: the getters return entries in rule order,
+    // and setAllRules rewrites the whole rule list, so a reload can hand back
+    // the same disable set in a different order for reasons that have nothing
+    // to do with these lists. A raw compare would read that as a change and
+    // fire disabled*Changed + settingsChanged, which on the daemon side means
+    // a retile nobody asked for.
+    using Mode = PhosphorZones::AssignmentEntry::Mode;
     bool anyDisableChanged = false;
-    for (const Mode mode : preserveLocalEdits ? QList<Mode>{} : PhosphorZones::allModes()) {
-        if (canonicalDisableEntries(DisableAxis::Monitor, disabledMonitors(mode)) != monitorsBefore.value(mode)) {
+    const bool compareDisableLists = !preserveLocalEdits && before->hasDisableLists;
+    for (const Mode mode : compareDisableLists ? PhosphorZones::allModes() : QList<Mode>{}) {
+        if (canonicalDisableEntries(DisableAxis::Monitor, disabledMonitors(mode))
+            != before->disabledMonitors.value(mode)) {
             Q_EMIT disabledMonitorsChanged(mode);
             anyDisableChanged = true;
         }
-        if (canonicalDisableEntries(DisableAxis::Desktop, disabledDesktops(mode)) != desktopsBefore.value(mode)) {
+        if (canonicalDisableEntries(DisableAxis::Desktop, disabledDesktops(mode))
+            != before->disabledDesktops.value(mode)) {
             Q_EMIT disabledDesktopsChanged(mode);
             anyDisableChanged = true;
         }
-        if (canonicalDisableEntries(DisableAxis::Activity, disabledActivities(mode)) != activitiesBefore.value(mode)) {
+        if (canonicalDisableEntries(DisableAxis::Activity, disabledActivities(mode))
+            != before->disabledActivities.value(mode)) {
             Q_EMIT disabledActivitiesChanged(mode);
             anyDisableChanged = true;
         }
@@ -462,15 +570,14 @@ void Settings::reloadFromDisk(bool preserveLocalEdits)
 
     // The Editor.* settings announce themselves on their own aggregate, not
     // on settingsChanged: see ISettings::editorSettingsChanged.
-    emitChangedEditorSettings(editorSnapshot);
+    emitChangedEditorSettings(before->editor);
 
-    // Aggregate signal: fires when any Q_PROPERTY, any workspace chord or slot
-    // family, any per-mode disable list or any per-screen override map
-    // changed. Each of those has its own signal above, and the aggregate keeps
-    // a cross-process write (daemon shortcut, D-Bus call) consistent with the
-    // direct setter path, which always ends in settingsChanged
-    // (`writeDisableEntries` included).
-    if (anyChanged || anyWorkspaceChanged || anyDisableChanged || perScreenChanged)
+    // Aggregate signal: fires when any Q_PROPERTY, any per-mode disable list or
+    // any per-screen override map changed. Each of those has its own signal
+    // above, and the aggregate keeps a cross-process write (daemon shortcut,
+    // D-Bus call) consistent with the direct setter path, which always ends in
+    // settingsChanged (`writeDisableEntries` included).
+    if (anyChanged || anyDisableChanged || perScreenChanged)
         Q_EMIT settingsChanged();
 
     // The store now mirrors disk, so refresh the committed baseline that
@@ -485,10 +592,9 @@ void Settings::reloadFromDisk(bool preserveLocalEdits)
 // ── save() dispatcher ────────────────────────────────────────────────────────
 
 // Groups that reset() deletes exhaustively. NOT used by save() — save()
-// iterates the schema and lets purgeStaleKeys() handle cleanup. The legacy
-// "Updates" group is deliberately absent: nothing writes it anymore (the
-// dismissed-update-version moved to the settings app's QSettings), so it is
-// swept by reset() as a stale husk rather than managed here.
+// iterates the schema and lets purgeStaleKeys() handle cleanup. A group no
+// schema key lives in any more (the legacy "Updates" group, for one) is not
+// listed: purgeStaleKeys' second pass sweeps such husks on every save.
 QStringList Settings::managedGroupNames()
 {
     return {
@@ -579,10 +685,11 @@ void Settings::purgeStaleKeys()
     };
 
     // Compute the set of paths the Store claims. These must not be
-    // blanket-deleted because Store::write has already persisted authoritative
-    // values and no subsequent save*Config call will rewrite them. Their
-    // ancestor paths ("Snapping" for "Snapping.Zones.Colors") must also
-    // survive as intermediate JSON nodes.
+    // blanket-deleted: they hold the authoritative values Store::write
+    // persisted, and nothing after the purge recreates a deleted one (save()'s
+    // flush rewrites each declared key from the store's own read, which would
+    // then answer the default). Their ancestor paths ("Snapping" for
+    // "Snapping.Zones.Colors") must also survive as intermediate JSON nodes.
     //
     // `storeKeyPathPrefixes` covers schema keys that hold OBJECT values
     // (e.g. AnimationProfile / ShaderProfileTree under Animations).
@@ -626,8 +733,8 @@ void Settings::purgeStaleKeys()
     //
     // Store ancestor groups (e.g. "Snapping" when the schema declares
     // "Snapping.Zones.Colors"): declared set is empty, so every scalar
-    // leaf key gets deleted. save*Config will rewrite valid scalars a moment
-    // later; sub-objects (the actual Store-claimed descendants) are preserved
+    // leaf key gets deleted, since no schema key lives there to keep;
+    // sub-objects (the actual Store-claimed descendants) are preserved
     // because we only touch non-object children.
     auto purgeScalarsIn = [&](const QString& groupName, const QSet<QString>& declared) {
         auto g = m_configBackend->group(groupName);
@@ -663,8 +770,9 @@ void Settings::purgeStaleKeys()
 
     // Pass 2: anything else in the backend that isn't preserved, isn't
     // claimed by the Store, and isn't a per-screen / virtual-screen group
-    // gets blanket-deleted. save*Config runs next and rewrites unmigrated
-    // managed groups from their cached members.
+    // gets blanket-deleted. The per-screen and virtual-screen groups are
+    // skipped because save() rewrites them from their members right after
+    // (saveAllPerScreenOverrides, saveVirtualScreenConfigs).
     // One dedup set only: groupList() cannot repeat a name (JSON keys are
     // unique per object and resolver names exit at the per-screen continue),
     // so sub-paths need no tracking — the top-level set exists because many
@@ -834,6 +942,23 @@ bool Settings::exportTo(const QString& filePath)
         return false;
     }
 
+    // An unreadable config.json leaves the backend holding a stand-in: the
+    // last document it read, or nothing at all for a process that started on
+    // the broken file. Exporting that would write a version-stamped file that
+    // imports cleanly and silently swaps the user's settings for defaults or
+    // for an old state. Look again first, as save() does, so a file repaired
+    // since is exported normally.
+    const auto announceUnreadable = qScopeGuard([this]() {
+        announceConfigUnreadableIfMoved();
+    });
+    if (configUnreadable()) {
+        reloadPreservingLocalEdits();
+        if (configUnreadable()) {
+            qCWarning(lcConfig) << "exportTo: the configuration file cannot be read, so nothing was exported";
+            return false;
+        }
+    }
+
     // Store-backed groups persist through their setters on every write, so the
     // backend's in-memory root already carries whatever the user currently has,
     // saved or not. The non-Store groups (per-screen overrides, virtual screen
@@ -870,6 +995,39 @@ bool Settings::exportTo(const QString& filePath)
 
 // ── Settings-profiles support ────────────────────────────────────────────────
 
+bool Settings::isMachineScopedKey(const QString& group, const QString& key)
+{
+    if (group == ConfigDefaults::renderingGroup()) {
+        return key == ConfigDefaults::gpuKey();
+    }
+    if (group == ConfigDefaults::workspacesBehaviorGroup()) {
+        return key == ConfigDefaults::manageKWinPerOutputKey();
+    }
+    return false;
+}
+
+void Settings::stripMachineScopedKeys(QJsonObject& config)
+{
+    for (auto groupIt = config.begin(); groupIt != config.end(); ++groupIt) {
+        if (!groupIt.value().isObject()) {
+            continue;
+        }
+        QJsonObject group = groupIt.value().toObject();
+        bool changed = false;
+        for (auto keyIt = group.begin(); keyIt != group.end();) {
+            if (isMachineScopedKey(groupIt.key(), keyIt.key())) {
+                keyIt = group.erase(keyIt);
+                changed = true;
+            } else {
+                ++keyIt;
+            }
+        }
+        if (changed) {
+            groupIt.value() = group;
+        }
+    }
+}
+
 QJsonObject Settings::exportConfigToJson() const
 {
     return m_store->exportToJson();
@@ -899,17 +1057,17 @@ bool Settings::applyConfigOverlayStaged(const QJsonObject& fullConfigBlob)
     // palette on every call, so staged sentinel values track the current
     // theme immediately.
     const QVector<QVariant> propSnapshot = snapshotNotifyProperties();
-    // Same reason as in load(): a profile whose delta is a workspace chord or
-    // slot target moves keys no Q_PROPERTY covers, and without this the
-    // activated profile would stage them silently — the page keeps painting
-    // the old chords and the daemon keeps the old grabs.
-    const QVector<QString> workspaceSnapshot = snapshotWorkspaceKeyFamilies();
     const AnimationProfileState animProfileSnapshot = animationProfileState();
     const QVector<QVariant> editorSnapshot = snapshotEditorSettings();
 
-    // importFromJson is additive/overwriting over declared keys; a
-    // fully-resolved profile blob carries every declared key (defaults included)
-    // so keys the profile leaves at default are written back to default too.
+    // importFromJson is additive/overwriting over declared keys: it writes
+    // every key the blob carries and skips every key it does not. A
+    // fully-resolved profile blob carries every declared key (defaults
+    // included), so keys the profile leaves at default are written back to
+    // default too. The exception is the machine-scoped keys
+    // (isMachineScopedKey): the profile layer strips them from the resolved
+    // blob, so the skip leaves this machine's live value, a consent latch
+    // included, exactly as it was.
     // It REFUSES a blob stamped with a different schema version, writing
     // nothing — surface that instead of silently staging a no-op.
     if (!m_store->importFromJson(fullConfigBlob)) {
@@ -928,10 +1086,9 @@ bool Settings::applyConfigOverlayStaged(const QJsonObject& fullConfigBlob)
     normalizeScrollingColumnWidthValue();
 
     const bool anyChanged = emitChangedNotifyProperties(propSnapshot);
-    const bool anyWorkspaceChanged = emitChangedWorkspaceKeyFamilies(workspaceSnapshot);
     emitAnimationProfileChangeIfMoved(animProfileSnapshot);
     emitChangedEditorSettings(editorSnapshot);
-    if (anyChanged || anyWorkspaceChanged)
+    if (anyChanged)
         Q_EMIT settingsChanged();
     return true;
 }
@@ -944,6 +1101,11 @@ QVector<QVariant> Settings::snapshotNotifyProperties() const
     // emitChangedNotifyProperties() can compare position-for-position.
     // Inherited QObject properties (objectName) are skipped — only Settings'
     // own NOTIFY-able readable properties participate.
+    //
+    // INVARIANT: every Q_PROPERTY on Settings must hold a type whose QVariant
+    // comparison is meaningful (Qt builtins, POD enums, QVariantMap,
+    // QStringList). Custom Q_GADGETs without a registered operator== will
+    // silently miscompare here.
     const QMetaObject* mo = metaObject();
     const int propCount = mo->propertyCount();
     const int firstOwnProp = QObject::staticMetaObject.propertyCount();
@@ -1041,7 +1203,6 @@ void Settings::discardKeys(const ConfigKeyList& keys)
 {
     const AnimationProfileState animProfileBefore = animationProfileState();
     const QVector<QVariant> before = snapshotNotifyProperties();
-    const QVector<QString> workspaceBefore = snapshotWorkspaceKeyFamilies();
     const QVector<QVariant> editorBefore = snapshotEditorSettings();
     for (const ConfigKey& gk : keys) {
         // Only keys captured in the committed baseline (i.e. schema-declared) can
@@ -1062,12 +1223,10 @@ void Settings::discardKeys(const ConfigKeyList& keys)
     }
     normalizeScrollingColumnWidthValue();
     emitAnimationProfileChangeIfMoved(animProfileBefore);
-    // Both halves must run before the aggregate decision: || would
-    // short-circuit the second and swallow its signals.
+    // The Editor.* settings announce on their own aggregate
+    // (editorSettingsChanged), never on settingsChanged.
     emitChangedEditorSettings(editorBefore);
-    const bool propsChanged = emitChangedNotifyProperties(before);
-    const bool workspacesChanged = emitChangedWorkspaceKeyFamilies(workspaceBefore);
-    if (propsChanged || workspacesChanged)
+    if (emitChangedNotifyProperties(before))
         Q_EMIT settingsChanged();
 }
 
@@ -1075,7 +1234,6 @@ void Settings::resetKeys(const ConfigKeyList& keys)
 {
     const AnimationProfileState animProfileBefore = animationProfileState();
     const QVector<QVariant> before = snapshotNotifyProperties();
-    const QVector<QString> workspaceBefore = snapshotWorkspaceKeyFamilies();
     const QVector<QVariant> editorBefore = snapshotEditorSettings();
     for (const ConfigKey& gk : keys) {
         m_store->reset(gk.first, gk.second);
@@ -1083,9 +1241,7 @@ void Settings::resetKeys(const ConfigKeyList& keys)
     normalizeScrollingColumnWidthValue();
     emitAnimationProfileChangeIfMoved(animProfileBefore);
     emitChangedEditorSettings(editorBefore);
-    const bool propsChanged = emitChangedNotifyProperties(before);
-    const bool workspacesChanged = emitChangedWorkspaceKeyFamilies(workspaceBefore);
-    if (propsChanged || workspacesChanged)
+    if (emitChangedNotifyProperties(before))
         Q_EMIT settingsChanged();
 }
 
@@ -1098,7 +1254,7 @@ void Settings::connectRuleStoreGapReactivity()
     // seeds them. Only the context (per-mode / per-desktop / per-activity) gap
     // rules remain rule-backed and feed the geometry cascade — seed their
     // fingerprint so the first rulesChanged emit compares against a real snapshot.
-    m_cachedGapFingerprint = gapRulesFingerprint();
+    m_cachedGapRuleSlices = gapRuleSlices();
     connect(m_ruleStore, &PhosphorRules::RuleStore::rulesChanged, this, [this](bool /*persisted*/) {
         onRuleStoreChanged();
     });
@@ -1119,22 +1275,31 @@ void Settings::onRuleStoreChanged()
     // set actually changed. Emitting on every rulesChanged made a mode/assignment
     // toggle (also a rule write) fire settingsChanged, which drove the daemon to
     // re-resolve the default assignment and immediately revert the toggle. The
-    // fingerprint covers every gap action across all rules, so non-gap rule writes
-    // no longer trigger a gap re-sync.
-    const QString gapFingerprint = gapRulesFingerprint();
-    if (gapFingerprint != m_cachedGapFingerprint) {
-        m_cachedGapFingerprint = gapFingerprint;
+    // slices cover every rule carrying a gap action, so non-gap rule writes no
+    // longer trigger a gap re-sync.
+    QList<GapRuleSlice> slices = gapRuleSlices();
+    if (slices != m_cachedGapRuleSlices) {
+        m_cachedGapRuleSlices = std::move(slices);
         Q_EMIT perScreenAutotileSettingsChanged();
         Q_EMIT perScreenSnappingSettingsChanged();
         Q_EMIT settingsChanged();
     }
 }
 
-// Fingerprint of every gap action across the whole rule set (the context per-
-// mode / per-desktop / per-activity gap rules), used to gate the gap re-sync in
-// onRuleStoreChanged so only real gap edits fire it — never a mode/assignment/
-// border rule write.
-QString Settings::gapRulesFingerprint() const
+// Every rule carrying a gap action (the context per-mode / per-desktop /
+// per-activity gap rules), reduced to what decides its gap contribution, used
+// to gate the gap re-sync in onRuleStoreChanged so only a real gap edit fires
+// it, never a mode/assignment/border rule write. A gap value is not the only
+// such edit: switching a gap rule off, changing what it matches, or moving it
+// past another gap rule changes the resolved gaps too.
+//
+// Ordered the way RuleEvaluator walks rules (descending priority, ties by list
+// order), and the raw priority itself is left out. Adding or reordering an
+// unrelated rule renumbers the priorities of every rule after it, and a
+// compare on the numbers would read that churn as a gap edit. The relative
+// order of the gap rules is what the cascade sees, and the list position
+// carries exactly that.
+QList<Settings::GapRuleSlice> Settings::gapRuleSlices() const
 {
     // No null guard — same constructor invariant connectRuleStoreGapReactivity
     // documents.
@@ -1143,49 +1308,35 @@ QString Settings::gapRulesFingerprint() const
         QString(PhosphorRules::ActionType::SetUsePerSideOuterGap), QString(PhosphorRules::ActionType::SetOuterGapTop),
         QString(PhosphorRules::ActionType::SetOuterGapBottom),     QString(PhosphorRules::ActionType::SetOuterGapLeft),
         QString(PhosphorRules::ActionType::SetOuterGapRight)};
-    QString fingerprint;
-    const QString valueKey = QString(PhosphorRules::ActionParam::Value);
+    struct Ranked
+    {
+        int priority;
+        GapRuleSlice slice;
+    };
+    QList<Ranked> ranked;
     for (const PhosphorRules::Rule& rule : m_ruleStore->ruleSet().rules()) {
+        GapRuleSlice slice{rule.id, rule.enabled, rule.match, {}};
         for (const PhosphorRules::RuleAction& action : rule.actions) {
             if (gapTypes.contains(action.type)) {
-                fingerprint += rule.id.toString();
-                fingerprint += QLatin1Char('|');
-                fingerprint += action.type;
-                fingerprint += QLatin1Char('=');
-                fingerprint += action.params.value(valueKey).toVariant().toString();
-                fingerprint += QLatin1Char(';');
+                slice.gapActions.append(action);
             }
         }
+        if (!slice.gapActions.isEmpty()) {
+            ranked.append({rule.priority, std::move(slice)});
+        }
     }
-    return fingerprint;
+    std::stable_sort(ranked.begin(), ranked.end(), [](const Ranked& a, const Ranked& b) {
+        return a.priority > b.priority;
+    });
+    QList<GapRuleSlice> slices;
+    slices.reserve(ranked.size());
+    for (Ranked& entry : ranked) {
+        slices.append(std::move(entry.slice));
+    }
+    return slices;
 }
 
-P_STORE_GET(int, adjacentThreshold, snappingGapsGroup, adjacentThresholdKey, int)
-P_STORE_SET_INT(setAdjacentThreshold, snappingGapsGroup, adjacentThresholdKey, adjacentThresholdChanged)
-
-// ── Display (PhosphorConfig::Store-backed) ──────────────────────────────────
-// Display.* keys live in snappingBehaviorDisplayGroup; OSD + Effects keys
-// live in snappingEffectsGroup.
-// QStringList keys go over the wire as comma-joined strings; the getters
-// parse back via parseCommaList (settings_detail::parseCommaList in
-// settings/settings_detail.h).
-
-P_STORE_GET(bool, showZonesOnAllMonitors, snappingBehaviorDisplayGroup, showOnAllMonitorsKey, bool)
-P_STORE_SET_BOOL(setShowZonesOnAllMonitors, snappingBehaviorDisplayGroup, showOnAllMonitorsKey,
-                 showZonesOnAllMonitorsChanged)
-
-P_STORE_GET(bool, showZoneNumbers, snappingEffectsGroup, showNumbersKey, bool)
-P_STORE_SET_BOOL(setShowZoneNumbers, snappingEffectsGroup, showNumbersKey, showZoneNumbersChanged)
-P_STORE_GET(bool, flashZonesOnSwitch, snappingEffectsGroup, flashOnSwitchKey, bool)
-P_STORE_SET_BOOL(setFlashZonesOnSwitch, snappingEffectsGroup, flashOnSwitchKey, flashZonesOnSwitchChanged)
-P_STORE_GET(bool, showOsdOnLayoutSwitch, snappingEffectsGroup, osdOnLayoutSwitchKey, bool)
-P_STORE_SET_BOOL(setShowOsdOnLayoutSwitch, snappingEffectsGroup, osdOnLayoutSwitchKey, showOsdOnLayoutSwitchChanged)
-P_STORE_GET(bool, showOsdOnDesktopSwitch, snappingEffectsGroup, osdOnDesktopSwitchKey, bool)
-P_STORE_SET_BOOL(setShowOsdOnDesktopSwitch, snappingEffectsGroup, osdOnDesktopSwitchKey, showOsdOnDesktopSwitchChanged)
-P_STORE_GET(bool, showNavigationOsd, snappingEffectsGroup, navigationOsdKey, bool)
-P_STORE_SET_BOOL(setShowNavigationOsd, snappingEffectsGroup, navigationOsdKey, showNavigationOsdChanged)
-
-// ── reset / color helpers ────────────────────────────────────────────────────
+// ── reset ────────────────────────────────────────────────────────────────────
 
 bool Settings::reset()
 {
@@ -1208,31 +1359,20 @@ bool Settings::reset()
     // last read) can put them back instead of losing them with the deletions.
     const QList<LocalEdit> editsBeforeReset = collectLocalEdits();
 
-    // Delete all managed groups (reset nukes everything). The explicit
-    // "Updates" sweep scrubs the retired legacy group from configs written by
-    // older builds — nothing writes or reads it anymore (dismissed-update-
-    // version lives in the settings app's QSettings).
-    // Snapshot every NOTIFY-carrying Q_PROPERTY BEFORE the groups go, for the
-    // same reason the disable lists are snapshotted below: load()'s own
-    // snapshot is taken after this clear, by which point the store already
-    // answers with defaults, so its diff sees no change and fires nothing.
-    // Without this a factory reset restored every value silently and QML
-    // bindings kept painting the old ones until the app was restarted — the
-    // user-visible shape of that bug is "Reset to Defaults did nothing".
-    const QVector<QVariant> propsBeforeReset = snapshotNotifyProperties();
-    // The workspace chord / slot families need the same pre-clear snapshot for
-    // the same reason: load()'s own capture happens after the groups are gone,
-    // so it would diff defaults against defaults and announce nothing.
-    const QVector<QString> workspacesBeforeReset = snapshotWorkspaceKeyFamilies();
-    // The two non-Q_PROPERTY families load() announces, for the same reason:
-    // the Editor.* settings and the animation Profile blob (whose
-    // explicitness the daemon keys the global profile's registry layer on).
-    const QVector<QVariant> editorBeforeReset = snapshotEditorSettings();
-    const AnimationProfileState animProfileBeforeReset = animationProfileState();
+    // Everything the closing reload announces, captured BEFORE the groups and
+    // the disable rules go. A reload's own capture would be taken after the
+    // clear, by which point the store already answers with defaults, so its
+    // diff would see no change and fire nothing. Without this a factory reset
+    // restored every value silently and QML bindings kept painting the old
+    // ones until the app was restarted: the user-visible shape of that bug is
+    // "Reset to Defaults did nothing". Handing this one capture to that reload
+    // also keeps every signal, settingsChanged() included, to one emission.
+    const AnnouncedState beforeReset = captureAnnouncedState(true);
+
+    // Delete all managed groups (reset nukes everything).
     for (const QString& groupName : managedGroupNames()) {
         m_configBackend->deleteGroup(groupName);
     }
-    m_configBackend->deleteGroup(ConfigDefaults::updatesGroup());
     // The root-group container ("General") is deliberately NOT in
     // managedGroupNames (it is the reserved root groupList() never
     // enumerates), but an INI-migrated install can carry legacy ungrouped
@@ -1259,7 +1399,7 @@ bool Settings::reset()
         // Back out of the deletions: reparse (the deletions were in memory
         // only), adopt the store from disk without touching the per-screen
         // members or the rule store, and put the unsaved edits back. The
-        // reparse comes first so the reload's own snapshot already reads the
+        // reparse comes first so the reload's own capture already reads the
         // restored values and announces nothing for values that never
         // observably changed. The session file and the rule store were never
         // touched, so there is nothing else to undo.
@@ -1273,11 +1413,9 @@ bool Settings::reset()
         // restore is complete, which with the edits put back is the usual
         // case, and one NOTIFY round for anything that still moved (a file
         // changed on disk meanwhile).
-        emitAnimationProfileChangeIfMoved(animProfileBeforeReset);
-        emitChangedEditorSettings(editorBeforeReset);
-        const bool propsRestored = emitChangedNotifyProperties(propsBeforeReset);
-        const bool workspacesRestored = emitChangedWorkspaceKeyFamilies(workspacesBeforeReset);
-        if (propsRestored || workspacesRestored) {
+        emitAnimationProfileChangeIfMoved(beforeReset.animationProfile);
+        emitChangedEditorSettings(beforeReset.editor);
+        if (emitChangedNotifyProperties(beforeReset.properties)) {
             Q_EMIT settingsChanged();
         }
         return false;
@@ -1289,33 +1427,10 @@ bool Settings::reset()
     // Per-mode disable lists live in rules.json as DisableEngine
     // context rules — drop every such rule from the store (assignment /
     // animation / exclude rules are untouched: reset() only owns the
-    // settings surface). The store persists on setAllRules, so the final
-    // load() below re-reads the now-cleared file.
-    //
-    // load()'s own per-mode change-detection snapshots the six disable lists
-    // from the *live* store; clearing the store before load() runs would
-    // leave that snapshot empty, so the per-mode disabled*Changed signals
-    // would never fire even when reset() actually removed disable rules.
-    // Snapshot the six lists here — before the clear — and re-emit the
-    // per-mode signals ourselves after load(), comparing against this
-    // pre-clear state.
-    // See the matching block in load(): snapshot the six pre-clear disable
-    // lists keyed by Mode so the per-mode re-emit loop after load() can fire
-    // exactly one signal per Mode whose list actually changed. Iterating
-    // PhosphorZones::allModes() keeps this lockstep with the enum.
-    using Mode = PhosphorZones::AssignmentEntry::Mode;
-    QHash<Mode, QStringList> resetMonitorsBefore;
-    QHash<Mode, QStringList> resetDesktopsBefore;
-    QHash<Mode, QStringList> resetActivitiesBefore;
-    // Snapshot in canonical form — the same canonicalDisableEntries mechanism
-    // load() uses — so entries that canonicalize away (unresolvable connector
-    // names, formatting variants) don't produce spurious change signals when
-    // the raw pre-clear list differs only cosmetically from the post-load one.
-    for (const Mode mode : PhosphorZones::allModes()) {
-        resetMonitorsBefore.insert(mode, canonicalDisableEntries(DisableAxis::Monitor, disabledMonitors(mode)));
-        resetDesktopsBefore.insert(mode, canonicalDisableEntries(DisableAxis::Desktop, disabledDesktops(mode)));
-        resetActivitiesBefore.insert(mode, canonicalDisableEntries(DisableAxis::Activity, disabledActivities(mode)));
-    }
+    // settings surface). The store persists on setAllRules, so the reload
+    // below re-reads the now-cleared file. Their pre-clear state is in
+    // beforeReset, so the reload's per-mode loop fires exactly one signal per
+    // Mode whose list this actually changed.
     bool ruleStorePersisted = true;
     {
         namespace CRB = PhosphorRules::ContextRuleBridge;
@@ -1330,16 +1445,12 @@ bool Settings::reset()
                 ruleStorePersisted = false;
                 // Persistence failed — the in-memory store advanced but the
                 // on-disk file is stale. Roll back the in-memory state by
-                // reloading from disk so the per-mode re-emit loop below
-                // doesn't fire `disabled*Changed` for changes that didn't
-                // land. The owned-store path falls through to load()
-                // (which reloads its own copy); the borrowed-store path
-                // (daemon) skips reloading the rules in load() and would
-                // otherwise leave the in-memory store advanced — explicitly
-                // reload via the store's own load() to roll back. The
-                // settings load() below also re-snapshots disable rules
-                // from the post-rollback store, so a follow-up flag was
-                // unnecessary.
+                // reloading from disk so the per-mode re-emit doesn't fire
+                // `disabled*Changed` for changes that didn't land. The
+                // owned-store path would also reload in the reload below, but
+                // the borrowed-store path (daemon) skips the rule store there
+                // and would otherwise leave the in-memory store advanced, so
+                // reload explicitly through the store's own load().
                 qCWarning(lcConfig)
                     << "reset: failed to persist window-rule store — rolling back in-memory state; disable "
                        "rules will reappear on next launch";
@@ -1348,48 +1459,11 @@ bool Settings::reset()
         }
     }
 
-    load();
-
-    // No baseline fix-up here: load() reparses config.json from disk and closes
-    // with captureBaseline(), so the baseline already describes exactly what
-    // disk holds.
-
-    // Re-emit per-mode disable signals against the pre-clear snapshot taken
-    // above. load()'s internal snapshot saw the already-cleared store, so it
-    // could not detect that reset() removed disable rules — this loop covers
-    // the gap. All six lists are empty post-clear, so any non-empty pre-clear
-    // list fires exactly once. Track aggregate change so the same
-    // `settingsChanged()` invariant load() enforces (any disable change → fire
-    // aggregate) also holds for the reset path; otherwise a reset that only
-    // cleared disable rules would fire the per-mode signals but not the
-    // aggregate.
-    // The Q_PROPERTY twin of the per-mode loop below, against the snapshot
-    // taken before the clear. Folded into the same aggregate so a reset that
-    // only moved Q_PROPERTYs still fires settingsChanged exactly once.
-    emitAnimationProfileChangeIfMoved(animProfileBeforeReset);
-    emitChangedEditorSettings(editorBeforeReset);
-    bool anyDisableChanged = emitChangedNotifyProperties(propsBeforeReset);
-    if (emitChangedWorkspaceKeyFamilies(workspacesBeforeReset)) {
-        anyDisableChanged = true;
-    }
-    for (const Mode mode : PhosphorZones::allModes()) {
-        if (canonicalDisableEntries(DisableAxis::Monitor, disabledMonitors(mode)) != resetMonitorsBefore.value(mode)) {
-            Q_EMIT disabledMonitorsChanged(mode);
-            anyDisableChanged = true;
-        }
-        if (canonicalDisableEntries(DisableAxis::Desktop, disabledDesktops(mode)) != resetDesktopsBefore.value(mode)) {
-            Q_EMIT disabledDesktopsChanged(mode);
-            anyDisableChanged = true;
-        }
-        if (canonicalDisableEntries(DisableAxis::Activity, disabledActivities(mode))
-            != resetActivitiesBefore.value(mode)) {
-            Q_EMIT disabledActivitiesChanged(mode);
-            anyDisableChanged = true;
-        }
-    }
-    if (anyDisableChanged) {
-        Q_EMIT settingsChanged();
-    }
+    // The full reload: reparses config.json, reloads the per-screen members
+    // and the owned rule store, announces every change against beforeReset,
+    // and closes with captureBaseline(), so the baseline already describes
+    // exactly what disk holds.
+    reloadFromDisk(false, &beforeReset);
 
     qCInfo(lcConfig) << "Settings reset to defaults";
     // False when the rule-store arm failed to persist (the config arm already

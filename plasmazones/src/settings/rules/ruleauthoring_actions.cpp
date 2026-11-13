@@ -201,9 +201,8 @@ PickerCategory actionCategory(const QString& type, const QString& cat)
         }
         // Everything else in the category decides where a window opens, stays,
         // or returns to: snap/float, the screen, desktop and workspace
-        // routing, the four
-        // restore and unfloat policies, and the two exclusions that opt a
-        // window out of placement entirely.
+        // routing, the restore and unfloat policies, and the exclusions that
+        // opt a window out of placement entirely.
         return {windowSubcategory(PhosphorI18n::tr("Placement")), kOrderWindowPlacement};
     }
     // Reachable only for a descriptor category that does not exist yet — every
@@ -757,6 +756,14 @@ QVariantList actionTypes()
         if (!desc.has_value() || !desc->userAuthorable) {
             continue;
         }
+#ifndef USE_KDE_FRAMEWORKS
+        // A build without dynamic workspaces compiles the feature out, so a
+        // new workspace route could never fire. A rule that already carries
+        // one still loads and summarises; it just cannot be authored here.
+        if (type == ActionType::RouteToWorkspace) {
+            continue;
+        }
+#endif
         // One descriptor fetch per type feeds the category, the label and the
         // domain below. `descriptor()` returns by value and the copy allocates.
         const PickerCategory acat = actionCategory(type, desc->category);

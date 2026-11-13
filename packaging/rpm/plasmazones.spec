@@ -112,16 +112,21 @@ BuildRequires:  qt6-qtsvg-devel
 %endif
 
 # KDE Frameworks 6 (6.26+ for Plasma 6.7 API)
+# KF6Config is a direct dependency: plasmazones_core and the daemon link
+# KF6::ConfigCore to read kwinrc and make the consented PerOutputVirtualDesktops
+# write for dynamic workspaces.
 %if 0%{?suse_version}
 BuildRequires:  cmake(KF6KCMUtils)
 BuildRequires:  cmake(KF6GlobalAccel)
 BuildRequires:  cmake(KF6ColorScheme)
 BuildRequires:  cmake(KF6Kirigami)
+BuildRequires:  cmake(KF6Config)
 %else
 BuildRequires:  kf6-kcmutils-devel >= 6.26.0
 BuildRequires:  kf6-kglobalaccel-devel >= 6.26.0
 BuildRequires:  kf6-kcolorscheme-devel >= 6.26.0
 BuildRequires:  kf6-kirigami-devel >= 6.26.0
+BuildRequires:  kf6-kconfig-devel >= 6.26.0
 %endif
 
 # Plasma 6.7 / KWin 6.7 (effect API). 6.8 (KWin 6.7.90) builds too: the effect
@@ -137,10 +142,11 @@ BuildRequires:  kwin6-devel
 # find_package(KWin) in plasmazones/kwin-effect/CMakeLists.txt pulls in KWinConfig.cmake,
 # which find_dependency()s the targets below (see KWinConfig.cmake.in, Plasma
 # 6.7). openSUSE's kwin6-devel does not drag these into the build root itself,
-# so the KWin effect's CMake configure step fails without them. KF6Config /
-# KF6CoreAddons currently arrive transitively, but are listed explicitly so the
-# dependency is not silently load-bearing on another package.
-BuildRequires:  cmake(KF6Config)
+# so the KWin effect's CMake configure step fails without them. KF6Config is
+# one of them too, and is listed in the KDE Frameworks block above, where it is
+# also a direct dependency. KF6CoreAddons currently arrives transitively, but is
+# listed explicitly so the dependency is not silently load-bearing on another
+# package.
 BuildRequires:  cmake(KF6CoreAddons)
 BuildRequires:  cmake(KF6WindowSystem)
 BuildRequires:  pkgconfig(epoxy)

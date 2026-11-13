@@ -16,6 +16,9 @@
 #include "../../config/configdefaults.h"
 #include "../../config/configmigration.h"
 #include "../../config/configbackends.h"
+#include "../../config/settingsschema.h"
+
+#include <PhosphorConfig/Store.h>
 #include <QRegularExpression>
 
 namespace PlasmaZones {
@@ -134,20 +137,20 @@ void EditorController::loadEditorSettings()
     // state. The backend refuses to write it until it is repaired, and the
     // warning it logged names the file.
 
-    // Load label font settings from global Snapping.Zones.Labels config (read-only in editor)
+    // Load label font settings from global Snapping.Zones.Labels config (read-only in editor).
+    // Through a Store over the same backend, as EditorOwnedConfig::read does,
+    // so every key gets the schema's default when absent and the schema's
+    // validator when present: a hand-edited config.json would otherwise reach
+    // the editor's preview unbounded while the daemon renders it bounded.
     {
-        auto labels = backend->group(ConfigDefaults::snappingZonesLabelsGroup());
-        m_labelFontFamily = labels->readString(ConfigDefaults::fontFamilyKey());
-        m_labelFontSizeScale =
-            qBound(ConfigDefaults::labelFontSizeScaleMin(),
-                   labels->readDouble(ConfigDefaults::fontSizeScaleKey(), ConfigDefaults::labelFontSizeScale()),
-                   ConfigDefaults::labelFontSizeScaleMax());
-        m_labelFontWeight = labels->readInt(ConfigDefaults::fontWeightKey(), ConfigDefaults::labelFontWeight());
-        m_labelFontItalic = labels->readBool(ConfigDefaults::fontItalicKey(), ConfigDefaults::labelFontItalic());
-        m_labelFontUnderline =
-            labels->readBool(ConfigDefaults::fontUnderlineKey(), ConfigDefaults::labelFontUnderline());
-        m_labelFontStrikeout =
-            labels->readBool(ConfigDefaults::fontStrikeoutKey(), ConfigDefaults::labelFontStrikeout());
+        const PhosphorConfig::Store store(backend.get(), PlasmaZones::cachedSettingsSchema());
+        const QString labels = ConfigDefaults::snappingZonesLabelsGroup();
+        m_labelFontFamily = store.read<QString>(labels, ConfigDefaults::fontFamilyKey());
+        m_labelFontSizeScale = store.read<double>(labels, ConfigDefaults::fontSizeScaleKey());
+        m_labelFontWeight = store.read<int>(labels, ConfigDefaults::fontWeightKey());
+        m_labelFontItalic = store.read<bool>(labels, ConfigDefaults::fontItalicKey());
+        m_labelFontUnderline = store.read<bool>(labels, ConfigDefaults::fontUnderlineKey());
+        m_labelFontStrikeout = store.read<bool>(labels, ConfigDefaults::fontStrikeoutKey());
     }
 
     applyEditorOwnedSettings(*backend);

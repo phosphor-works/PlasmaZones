@@ -2,38 +2,70 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// WindowTrackingAdaptor — cross-mode directional handoff
+// WindowTrackingAdaptor — cross-mode handoffs and the workspace move verb
 //
 // handleCrossModeMove / handleCrossModeSwap: relinquish a window from the source
 // engine and place (or exchange) it on the target engine when a directional
 // navigation crosses into a different tiling mode.
 // handleCrossModeFocus: activate the target engine's entry-edge window — no
 // window travels and no engine state changes.
+// moveWindowToWorkspaceVerb: the dynamic-workspaces move, through the same
+// handoff with same-engine moves allowed, and its compositor legs.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include "windowtrackingadaptor.h"
 #include "internal.h"
 
-#include "dbus/zonedetectionadaptor.h"
-#include "core/interfaces/isettings.h"
 #include "core/platform/logging.h"
 #include <PhosphorEngine/IPlacementEngine.h>
-#include <PhosphorIdentity/WindowId.h>
-#include <PhosphorScreens/Manager.h>
+#include <PhosphorPlacement/WindowTrackingService.h>
+#include <PhosphorScreens/ScreenIdentity.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
-#include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include <PhosphorZones/AssignmentEntry.h>
+#include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
-#include <PhosphorRules/RuleAction.h>
-#include <PhosphorRules/RuleEvaluator.h>
-#include <PhosphorRules/WindowQuery.h>
-#include <PhosphorRules/RuleStore.h>
+#include <PhosphorZones/Zone.h>
 
-#include <QJsonArray>
+#include <QHash>
+
+#include <array>
+#include <optional>
+#include <utility>
 
 namespace PlasmaZones {
+
+namespace {
+
+/// The zone in @p target's layout on the destination context that carries
+/// the same ordinal as the zone @p windowId holds in its snap source, or
+/// empty when either layout lacks one (ws_to_monitor: a snap window keeps its
+/// place in the layout). Ordinals, not ids: two contexts' layouts share no
+/// zone ids, but zone N of each is the slot the user knows as N.
+QString zoneWithSameOrdinal(PhosphorZones::LayoutRegistry* layouts, PhosphorSnapEngine::SnapEngine* source,
+                            const QString& windowId, const QString& targetScreenId, int targetDesktop,
+                            const QString& activity)
+{
+    if (!layouts || !source) {
+        return {};
+    }
+    const QString zoneId = source->zoneForWindow(windowId);
+    const std::optional<PhosphorEngine::PlacementStateKey> held = source->heldKeyForWindow(windowId);
+    if (zoneId.isEmpty() || !held) {
+        return {};
+    }
+    const PhosphorZones::Layout* fromLayout = layouts->layoutForScreen(held->screenId, held->desktop, activity);
+    const PhosphorZones::Zone* fromZone = fromLayout ? fromLayout->zoneById(QUuid::fromString(zoneId)) : nullptr;
+    if (!fromZone) {
+        return {};
+    }
+    const PhosphorZones::Layout* toLayout = layouts->layoutForScreen(targetScreenId, targetDesktop, activity);
+    const PhosphorZones::Zone* toZone = toLayout ? toLayout->zoneByNumber(fromZone->zoneNumber()) : nullptr;
+    return toZone ? toZone->id().toString() : QString();
+}
+
+} // namespace
 
 PhosphorEngine::PlacementEngineBase*
 WindowTrackingAdaptor::engineForMode(PhosphorZones::AssignmentEntry::Mode mode) const
@@ -55,107 +87,215 @@ void WindowTrackingAdaptor::handleCrossModeMove(const QString& windowId, const Q
     // sender() is only valid inside this signal dispatch; the impl below
     // never touches it, so every other caller passes its engine explicitly.
     crossModeMoveImpl(qobject_cast<PhosphorEngine::PlacementEngineBase*>(sender()), windowId, targetScreenId,
-                      targetDesktop, direction);
+                      targetDesktop, direction, /*allowSameEngine=*/false, WorkspaceMoveWire{});
 }
 
 void WindowTrackingAdaptor::moveWindowToWorkspaceVerb(const QString& rawWindowId, const QString& targetScreenId,
                                                       int targetDesktop, const QString& targetDesktopId,
-                                                      const QString& direction, bool moveOutput)
+                                                      const QString& direction, bool moveOutput, bool subjectOfVerb)
 {
     if (rawWindowId.isEmpty() || targetDesktop < 1) {
         return;
     }
-    // Canonicalize at the entry. Two workspace-verb emitters hand this slot a
-    // BARE compositor instance id rather than a composite: the owner-wins
-    // reunion arm and the removal-race re-route (WorkspaceController's census
-    // walks the registry by instanceId). Every consumer downstream — the
-    // engines' tracking maps and, over the wire, the effect's findWindowById —
-    // is keyed on the composite id, so a bare id finds no engine here and
-    // resolves no window there, and the move is silently dropped.
-    // shadowWindowId() maps instanceId → the registry's canonical composite and
-    // is the identity for an id that is already composite.
+    // Canonicalize at the entry. The controller's census-driven emitters (the
+    // owner-wins reunion, the removal-race re-route, the parked-route drain)
+    // walk the registry by instanceId and hand this slot a BARE compositor
+    // instance id. Every consumer downstream (the engines' tracking maps and,
+    // over the wire, the effect's window lookup) is keyed on the composite id,
+    // so a bare id would find no engine here and no window there.
+    // shadowWindowId() maps instanceId to the registry's canonical composite
+    // and is the identity for an id that is already composite.
     const QString windowId = shadowWindowId(rawWindowId);
-    // Sticky (on-all-desktops) windows: the effect REFUSES the desktop move
-    // outright (slotWindowDesktopMoveRequested drops isOnAllDesktops windows),
-    // so running the handoff would re-key the daemon's engine state onto a
-    // desktop the real window never moves to. Refuse at the entry instead, so
-    // no state diverges. The window is already present on every workspace,
-    // which is what the verb was asking for.
-    if (m_service && m_service->isWindowSticky(windowId)) {
+    // Sticky (on-all-desktops) windows: the effect REFUSES a desktop move for
+    // them outright (applyDesktopMove returns for isOnAllDesktops), so running
+    // the handoff would re-key the daemon's engine state onto a desktop the
+    // real window never moves to. The window is already present on every
+    // workspace, which is what the verb was asking for. m_service is non-null
+    // post-construction (class invariant).
+    if (m_service->isWindowSticky(windowId)) {
         qCDebug(lcDbusWindow) << "workspace move: refusing sticky window" << windowId;
         return;
     }
+    // The window an interactive drag is moving: the drop decides where it
+    // goes, and moving it under the pointer mid-drag would fight the drag the
+    // way every other placement verb is kept from doing (F773).
+    if (isInteractiveDragWindow(windowId)) {
+        qCDebug(lcDbusWindow) << "workspace move: refusing the window being dragged" << windowId;
+        return;
+    }
+
+    // The engine that genuinely holds the window, by MEMBERSHIP. isWindowTracked
+    // is per-engine (the scroll engine answers from a raw reverse-map key a
+    // refused adoption can leave behind), so it could name an engine that does
+    // not hold the window at all. An engine holding it in the context its
+    // screen shows wins; a background holder (a window on a desktop no screen
+    // shows, as the reunion and re-route arms move) is the fallback.
     PhosphorEngine::PlacementEngineBase* sourceEngine = nullptr;
-    for (PhosphorEngine::PlacementEngineBase* engine :
-         {m_scrollEngine.data(), m_autotileEngine.data(), m_snapEngine.data()}) {
-        if (engine && engine->isWindowTracked(windowId)) {
+    QString sourceScreen;
+    std::optional<PhosphorEngine::PlacementStateKey> heldKey;
+    const std::array<PhosphorEngine::PlacementEngineBase*, 3> engines = {m_scrollEngine.data(), m_autotileEngine.data(),
+                                                                         m_snapEngine.data()};
+    for (PhosphorEngine::PlacementEngineBase* engine : engines) {
+        if (!engine) {
+            continue;
+        }
+        if (const QString held = engine->heldScreenForWindow(windowId); !held.isEmpty()) {
             sourceEngine = engine;
+            sourceScreen = held;
+            heldKey = engine->heldKeyForWindow(windowId);
             break;
         }
     }
     if (!sourceEngine) {
-        // Untracked (floating / excluded) windows still change desktops; no
-        // engine state exists to hand over. The OUTPUT leg matters too: a
-        // move-workspace-to-monitor rider keeps its desktop int, so the
-        // desktop move alone would be a no-op and the floating rider would
-        // never leave the source output. The effect no-ops the output move
-        // when the window is already there.
-        emitDesktopMove(windowId, targetDesktop, targetDesktopId);
-        if (moveOutput && !targetScreenId.isEmpty()) {
-            Q_EMIT windowOutputMoveRequested(windowId, targetScreenId);
+        for (PhosphorEngine::PlacementEngineBase* engine : engines) {
+            if (!engine) {
+                continue;
+            }
+            if (const auto key = engine->heldKeyForWindow(windowId)) {
+                sourceEngine = engine;
+                sourceScreen = key->screenId;
+                heldKey = key;
+                break;
+            }
         }
+    }
+
+    // Where the window lands. Without the output leg it keeps the monitor it
+    // is on, so the destination context is its own screen; a workspace route
+    // that names a desktop only must not re-key engine state onto an output
+    // the window never reaches. With it, the workspace's owner monitor, at
+    // the sub-screen workspaceLandingScreen picks on a split monitor (the map
+    // names physical monitors, the engines key virtual screens). An owner
+    // that has not settled yet (empty) leaves the window on its own screen:
+    // an unowned workspace has no other monitor to name.
+    QString landingScreen = sourceScreen;
+    if (moveOutput) {
+        if (!targetScreenId.isEmpty()) {
+            landingScreen = workspaceLandingScreen(windowId, sourceScreen, targetScreenId);
+        } else {
+            qCWarning(lcDbusWindow) << "workspace move: no owner screen for" << windowId << "- it stays on"
+                                    << sourceScreen;
+        }
+    }
+
+    // A window no engine PLACES moves the way KWin's own desktop move would
+    // move it: untracked, a user float, or free on a snapping screen. A
+    // handoff would place it, snapping a free window into the entry zone or
+    // tiling a float on arrival, and the verb asked to move the window, not to
+    // re-place it. The engines follow the compositor's report of the move (the
+    // desktop reconcile carries a held window's membership to the desktop it
+    // lands on). A minimized window's float is the engine's suspension of its
+    // placement, not the user's float, so it still hands off and keeps its
+    // place.
+    const bool placedBySource = sourceEngine
+        && (sourceEngine == m_snapEngine.data() ? !snapEngine()->zoneForWindow(windowId).isEmpty()
+                                                : sourceEngine->isWindowTiled(windowId));
+    if (!sourceEngine || (!placedBySource && !m_service->isSuspensionFloat(windowId))) {
+        // The output leg matters here too: a move-workspace-to-monitor rider
+        // keeps its desktop, so the desktop leg alone would leave the floating
+        // rider on the source output. The effect skips a leg that is already
+        // satisfied.
+        emitMoveLegs(windowId, targetDesktop, targetDesktopId, moveOutput ? landingScreen : QString(),
+                     /*workspaceVerb=*/true);
         return;
     }
-    // An empty target screen is reachable on the wire: the reconciler's
-    // ownerOf() answers empty for a workspace whose ownership has not settled,
-    // and the verbs emit that value through. crossModeMoveImpl requires a
-    // target screen (it resolves the destination MODE from it) and would
-    // otherwise return silently, leaving the window on its old workspace with
-    // no trace. Degrade to the window's OWN screen — an unowned workspace has
-    // no other monitor to name, and same-output cross-desktop IS the ordinary
-    // shape of this verb — rather than the untracked branch's bare desktop
-    // move, which would part a tracked window from its engine state.
-    // Desktop-only route (RouteToWorkspace): the window stays on the monitor
-    // it is on, so the handoff's destination context is that monitor, not the
-    // workspace's owner screen. Resolving it here rather than passing the
-    // owner through keeps crossModeMoveImpl's "re-home on the target screen"
-    // contract intact instead of quietly re-keying engine state onto an output
-    // the window never reaches.
-    QString resolvedScreenId = moveOutput ? targetScreenId : QString();
-    if (resolvedScreenId.isEmpty()) {
-        resolvedScreenId = sourceEngine->screenForTrackedWindow(windowId);
-        if (moveOutput) {
-            qCWarning(lcDbusWindow) << "workspace move: no owner screen for" << windowId << "- falling back to its own"
-                                    << resolvedScreenId;
-        }
-        if (resolvedScreenId.isEmpty()) {
-            return;
-        }
+    if (landingScreen.isEmpty()) {
+        return;
     }
-    crossModeMoveImpl(sourceEngine, windowId, resolvedScreenId, targetDesktop, direction, /*allowSameEngine=*/true,
-                      targetDesktopId);
+    // Already where the verb sends it: the engine holds the window on the
+    // landing screen's state for the target desktop. Handing it over would
+    // release it from the engine, and on a tiling destination nothing
+    // re-adopts it, since the window never changes desktop and so never meets
+    // the arrival catch-scan.
+    if (heldKey && heldKey->desktop == targetDesktop
+        && PhosphorScreens::ScreenIdentity::screensMatch(heldKey->screenId, landingScreen)) {
+        qCDebug(lcDbusWindow) << "workspace move:" << windowId << "is already on desktop" << targetDesktop << "of"
+                              << landingScreen;
+        return;
+    }
+    WorkspaceMoveWire wire;
+    wire.workspaceVerb = true;
+    wire.desktopId = targetDesktopId;
+    wire.moveOutput = moveOutput;
+    wire.subjectOfVerb = subjectOfVerb;
+    crossModeMoveImpl(sourceEngine, windowId, landingScreen, targetDesktop, direction, /*allowSameEngine=*/true, wire);
 }
 
-void WindowTrackingAdaptor::emitDesktopMove(const QString& windowId, int targetDesktop, const QString& targetDesktopId)
+void WindowTrackingAdaptor::stashScrollStripsForWorkspaceMove(const QStringList& rawWindowIds,
+                                                              const QString& targetScreenId, int targetDesktop)
 {
-    // Prefer the id. The number is a POSITION, resolved daemon-side and then
-    // sent, and the workspace feature renumbers concurrently with its own
-    // moves: the move fills the destination, a filled workspace makes the
-    // reconciler cut a new trailing empty, and that shift can land before the
-    // effect applies the number. Observed live — a route to the workspace at
-    // position 2 arrived on the desktop that had just taken position 2.
-    // Callers with no id (the directional verbs) genuinely mean the position.
-    if (!targetDesktopId.isEmpty()) {
-        Q_EMIT windowDesktopMoveByIdRequested(windowId, targetDesktopId);
+    auto* const scroll = qobject_cast<PhosphorScrollEngine::ScrollEngine*>(m_scrollEngine.data());
+    if (!scroll || targetScreenId.isEmpty() || targetDesktop < 1 || rawWindowIds.isEmpty() || !m_layoutManager) {
         return;
     }
-    Q_EMIT windowDesktopMoveRequested(windowId, targetDesktop);
+    const QString activity = m_layoutManager->currentActivity();
+    // (source strip, landing strip) pairs in first-seen order, each with its
+    // riders. The source strip is the one the scroll engine holds the window
+    // on, which is the source the verb resolves first for a scrolled window.
+    QList<std::pair<QString, QString>> pairs;
+    QHash<QString, QStringList> ridersByPair;
+    const auto pairKey = [](const QString& from, const QString& to) {
+        return from + QLatin1Char('\n') + to;
+    };
+    for (const QString& raw : rawWindowIds) {
+        const QString windowId = shadowWindowId(raw);
+        if (windowId.isEmpty() || m_service->isWindowSticky(windowId) || isInteractiveDragWindow(windowId)) {
+            continue;
+        }
+        QString sourceStrip = scroll->heldScreenForWindow(windowId);
+        if (sourceStrip.isEmpty()) {
+            if (const auto key = scroll->heldKeyForWindow(windowId)) {
+                sourceStrip = key->screenId;
+            }
+        }
+        if (sourceStrip.isEmpty()) {
+            continue;
+        }
+        const QString landing = workspaceLandingScreen(windowId, sourceStrip, targetScreenId);
+        if (landing.isEmpty() || PhosphorScreens::ScreenIdentity::screensMatch(landing, sourceStrip)
+            || runningModeFor(landing, targetDesktop, activity) != PhosphorZones::AssignmentEntry::Scrolling) {
+            continue;
+        }
+        const QString key = pairKey(sourceStrip, landing);
+        auto it = ridersByPair.find(key);
+        if (it == ridersByPair.end()) {
+            pairs.append({sourceStrip, landing});
+            it = ridersByPair.insert(key, {});
+        }
+        it->append(windowId);
+    }
+    for (const auto& [sourceStrip, landing] : std::as_const(pairs)) {
+        scroll->stashStripForOutputMove(sourceStrip, landing, targetDesktop,
+                                        ridersByPair.value(pairKey(sourceStrip, landing)));
+    }
+}
+
+void WindowTrackingAdaptor::emitMoveLegs(const QString& windowId, int desktop, const QString& desktopId,
+                                         const QString& outputScreenId, bool workspaceVerb)
+{
+    const bool desktopLeg = desktop > 0 || !desktopId.isEmpty();
+    if (!desktopLeg && outputScreenId.isEmpty()) {
+        return;
+    }
+    if (workspaceVerb || !outputScreenId.isEmpty()) {
+        // One step carrying both legs, so the effect judges the arrival on
+        // the destination output rather than the one the window is leaving.
+        // The id is preferred over the number: the workspace feature
+        // renumbers concurrently with its own moves (the move fills the
+        // destination, a filled workspace makes the reconciler cut a new
+        // trailing empty), and that shift can land before the effect applies
+        // a number. Observed live: a route to the workspace at position 2
+        // arrived on the desktop that had just taken position 2.
+        Q_EMIT windowWorkspaceMoveRequested(windowId, desktopId, desktopLeg ? desktop : 0, outputScreenId);
+        return;
+    }
+    Q_EMIT windowDesktopMoveRequested(windowId, desktop);
 }
 
 void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBase* sourceEngine,
                                               const QString& windowId, const QString& targetScreenId, int targetDesktop,
                                               const QString& direction, bool allowSameEngine,
-                                              const QString& targetDesktopId)
+                                              const WorkspaceMoveWire& wire)
 {
     if (!sourceEngine || windowId.isEmpty() || targetScreenId.isEmpty() || !m_layoutManager) {
         return;
@@ -164,50 +304,66 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
     // Target mode at the DESTINATION context: a cross-desktop crossing targets a
     // (possibly different) mode on the same screen's target desktop; a monitor
     // crossing targets the neighbour screen on the current desktop (targetDesktop
-    // == 0).
+    // == 0). The mode that context RUNS, not the configured one: a tiling mode
+    // switched off, or a context disabled, runs snapping there, and handing the
+    // window to the configured engine would leave it with an engine that does
+    // not run on that context.
     const int effectiveDesktop = targetDesktop > 0 ? targetDesktop : currentDesktopForScreen(targetScreenId);
     const QString activity = m_layoutManager->currentActivity();
-    const PhosphorZones::AssignmentEntry::Mode targetMode =
-        m_layoutManager->modeForScreen(targetScreenId, effectiveDesktop, activity);
+    const PhosphorZones::AssignmentEntry::Mode targetMode = runningModeFor(targetScreenId, effectiveDesktop, activity);
     PhosphorEngine::PlacementEngineBase* targetEngine = engineForMode(targetMode);
     if (!targetEngine || (targetEngine == sourceEngine && !allowSameEngine)) {
-        // Target engine unavailable, or not actually cross-mode. The
-        // workspace move verb passes allowSameEngine: a same-engine handoff
-        // (release + receive with toDesktop) IS the same-mode cross-desktop
-        // re-key, and the reactive autotile branch below is same-engine-safe.
+        // Target engine unavailable, or not actually cross-mode. The workspace
+        // verb passes allowSameEngine: onto a tiling (autotile or scrolling)
+        // target the move takes the reactive branch below (release, then the
+        // desktop-return catch-scan adopts it), and onto a snap target the
+        // handoff re-keys it in place, since guardedHandoff skips the release
+        // when source and destination are one engine.
         return;
     }
-    // Deliberately NO isActiveOnScreen pre-gate here (or in the swap twin),
-    // unlike handleCrossModeFocus: a focus toward a disabled-context screen
-    // would walk state the engine never adopted, but the MOVE and SWAP paths
-    // hand the window over through refusal-recovering receives
-    // (guardedHandoff below, receiveVerified in the swap) that re-home it
-    // into the source on a refusal — a logged bounce, not a stranding — and
-    // the gate would turn that recoverable bounce into a silent no-op.
+    // No isActiveOnScreen pre-gate on the move as a whole (or in the swap
+    // twin), unlike handleCrossModeFocus. The immediate placements below hand
+    // the window over through refusal-recovering receives (guardedHandoff
+    // here, receiveVerified in the swap) that re-home it into the source on a
+    // refusal, a logged bounce rather than a stranding, and the gate would
+    // turn that recoverable bounce into a silent no-op. The reactive desktop
+    // arrival has no receive to refuse: the destination's catch-scan adopts
+    // the window once its desktop is shown.
 
-    // Where the window currently lives — for the source reflow.
+    // Where the window currently lives: the re-home screen on a refusal, and
+    // the screen the output leg leaves.
     const QString sourceScreen = sourceEngine->screenForTrackedWindow(windowId);
 
     // For a SNAP target, resolve the landing zone BEFORE relinquishing the
-    // source: the edge zone facing the way the window came, on the layout of
-    // the desktop it lands on (the source is never snap here, F726). A tiling
-    // target needs no zone (a strip's landing is insertIndex, below).
+    // source. A snap window moved by a workspace verb keeps its zone's ordinal
+    // in the destination's layout (ws_to_monitor), so the riders of a moved
+    // workspace keep their places instead of piling into one entry zone.
+    // Otherwise, or when the destination layout has no such zone, the edge
+    // zone facing the way the window came, on the layout of the desktop it
+    // lands on. A tiling target needs no zone (a strip's landing is
+    // insertIndex, below).
     QStringList landingZoneIds;
-    if (auto* snapTarget = qobject_cast<PhosphorSnapEngine::SnapEngine*>(targetEngine)) {
-        const QString zoneId = snapTarget->entryZoneForCrossing(direction, targetScreenId, targetDesktop);
+    auto* const snapTarget = qobject_cast<PhosphorSnapEngine::SnapEngine*>(targetEngine);
+    if (snapTarget) {
+        QString zoneId;
+        if (wire.workspaceVerb && sourceEngine == m_snapEngine.data()) {
+            zoneId = zoneWithSameOrdinal(m_layoutManager, snapEngine(), windowId, targetScreenId, effectiveDesktop,
+                                         activity);
+        }
+        if (zoneId.isEmpty()) {
+            zoneId = snapTarget->entryZoneForCrossing(direction, targetScreenId, targetDesktop);
+        }
         if (!zoneId.isEmpty()) {
             landingZoneIds = QStringList{zoneId};
         }
     }
 
-    // The source is relinquished inside guardedHandoff below (or explicitly
-    // on the reactive-arrival branch). An autotile source must reflow — the
-    // remaining tiles expand into the vacated slot; handoffRelease does not
-    // retile. A snap source just vacates a zone (no reflow). A scroll
-    // source's handoffRelease schedules its own coalesced retile, so the
-    // strip closes up without an explicit call. The min size is queried
-    // BEFORE any release (the release drops the source's tracking, and the
-    // receiver seeds from ctx.minSize).
+    // The min size is queried BEFORE any release (the release drops the
+    // source's tracking, and the receiver seeds from ctx.minSize). The source
+    // reflows on its own: every engine's handoffRelease closes up what the
+    // window leaves (autotile schedules a coalesced retile of the context in
+    // view and marks a background one dirty, the scroll engine schedules its
+    // own, a snap source just vacates a zone).
     const QSize windowMinSize = sourceEngine->windowMinimumSize(windowId);
 
     // Place on the target. A cross-DESKTOP move onto a TILING desktop is a
@@ -224,14 +380,24 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
     // A window moved to a tiling engine leaves its own fullscreen first: the
     // tile batch that places it would bail on a fullscreen surface, and the
     // reactive desktop arrival places nothing at all (F526, F551). A snap
-    // target ends it in its own placement.
-    if (!qobject_cast<PhosphorSnapEngine::SnapEngine*>(targetEngine)) {
+    // target ends it in its own placement. Only for the window the verb is
+    // about: a collateral rider of a workspace moved to another monitor, or a
+    // daemon re-route, keeps its fullscreen (F894). On the immediate branch
+    // only when the target engine runs the destination screen: a receive it
+    // refuses re-homes the window into the source, which never asked it to
+    // leave fullscreen. Sent BEFORE the receive, because an autotile receive
+    // retiles synchronously and its tile batch must find the window windowed.
+    // The reactive branch has no receive to refuse, so it always sends it.
+    if (!snapTarget && wire.subjectOfVerb
+        && (reactiveDesktopArrival || targetEngine->isActiveOnScreen(targetScreenId))) {
         Q_EMIT fullscreenHandBackRequested(windowId);
     }
     bool placedOnTarget = false;
-    // Set only on the reactive branch (see its arm below): the compositor-side
-    // output hop that branch has no other carrier for.
+    // Whether the compositor must move the window to the target screen's
+    // output itself, because no placement geometry carries it there.
     bool needsOutputMove = false;
+    const bool crossesOutput =
+        !sourceScreen.isEmpty() && !PhosphorScreens::ScreenIdentity::screensMatch(targetScreenId, sourceScreen);
     if (!reactiveDesktopArrival) {
         PhosphorEngine::IPlacementEngine::HandoffContext ctx;
         ctx.windowId = windowId;
@@ -240,7 +406,10 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
         ctx.fromEngineId = sourceEngine->engineId();
         ctx.sourceZoneIds = landingZoneIds;
         ctx.minSize = windowMinSize;
-        ctx.wasFloating = false; // an explicit move always places, never floats
+        // Only a window its engine places reaches here (the workspace verb
+        // moves a float or free window without a handoff), so the arrival is
+        // placed too.
+        ctx.wasFloating = false;
         // Edge-aware entry for a SCROLLING target: moving right crosses into
         // the strip's LEFT edge, so the arrival becomes the FIRST column
         // (index 0); moving left enters from the right and appends
@@ -263,8 +432,8 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
         // already released inside the helper — on refusal the helper
         // re-homes into the source so the window is not stranded
         // tracked-by-no-engine. recoverDesktop stays 0 (current): the
-        // desktop-move request below is adoption-gated, so on a refusal
-        // the real window never left the source desktop.
+        // compositor legs below are adoption-gated, so on a refusal the real
+        // window never left the source desktop.
         placedOnTarget = WindowTrackingInternal::guardedHandoff(sourceEngine, targetEngine, ctx, sourceScreen);
         // A MONITOR crossing physically relocates the window to a different
         // output. Mark the imminent output change as daemon-owned so the
@@ -284,9 +453,14 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
         // difference makes raw inequality unreliable, and a spurious
         // one arms a one-shot for a move that never happens — which then
         // swallows the window's next genuine outputChanged.
-        if (placedOnTarget && !sourceScreen.isEmpty()
-            && !PhosphorScreens::ScreenIdentity::screensMatch(targetScreenId, sourceScreen)) {
+        if (placedOnTarget && crossesOutput) {
             announceOutputMove(windowId, targetScreenId, sourceScreen, targetEngine);
+            // A snap arrival with no landing zone (an empty destination
+            // layout) lands free and places no geometry, so nothing would
+            // carry the window to the output the marker above expects it on.
+            if (snapTarget && landingZoneIds.isEmpty()) {
+                needsOutputMove = true;
+            }
         }
     } else {
         // Reactive desktop arrival: no receive here (the target engine's
@@ -305,40 +479,29 @@ void WindowTrackingAdaptor::crossModeMoveImpl(PhosphorEngine::PlacementEngineBas
         // arm above relocates the window through the target engine's placement
         // geometry, but here nothing is placed — the effect's desktop-return
         // catch-scan adopts the window, and that scan keys each window to the
-        // output it is PHYSICALLY on (getWindowScreenId(w) == screenId, in
-        // screenschanged.cpp). Left on the source output the window is adopted
-        // into the wrong screen's tiling state, or into none at all when that
-        // output is not autotiled. Ask the compositor to move it; the effect
-        // no-ops a window already on the target output.
+        // output it is PHYSICALLY on. Left on the source output the window is
+        // adopted into the wrong screen's tiling state, or into none at all
+        // when that output is not tiled.
         //
         // Deliberately NO windowOutputMoveExpected marker: that one-shot exists
         // to stop the effect re-issuing windowClosed/windowOpened for a move the
         // daemon already carried in its own state. Here the source engine has
         // released and no engine holds the window, so the close/open re-issue is
         // exactly the adoption path this branch relies on.
-        //
-        // Emitted AFTER the desktop move at the tail, mirroring the untracked
-        // branch's desktop-then-output order: the window leaves the visible
-        // desktop first, so the output hop is not drawn on the desktop the user
-        // is looking at.
-        needsOutputMove =
-            !sourceScreen.isEmpty() && !PhosphorScreens::ScreenIdentity::screensMatch(targetScreenId, sourceScreen);
-    }
-    if (!sourceScreen.isEmpty() && sourceEngine == m_autotileEngine.data()) {
-        sourceEngine->retile(sourceScreen);
+        needsOutputMove = crossesOutput;
     }
 
-    // Physical relocation for a cross-desktop crossing: ask the compositor to
-    // move the real window to the target desktop. A monitor crossing needs
-    // none — the target engine's placement geometry already relocated the
-    // window. Adoption-gated: after a refused handoff the state was
+    // The compositor legs. A cross-desktop move needs the desktop leg; the
+    // output leg rides with it wherever no placement geometry relocates the
+    // window, and a workspace verb that moves the output always names the
+    // destination output, so the effect judges the arrival's visibility and
+    // focus there. Adoption-gated: after a refused handoff the state was
     // re-homed onto the SOURCE context, and physically relocating the real
     // window anyway would part it from its state.
-    if (placedOnTarget && targetDesktop > 0) {
-        emitDesktopMove(windowId, targetDesktop, targetDesktopId);
-        if (needsOutputMove) {
-            Q_EMIT windowOutputMoveRequested(windowId, targetScreenId);
-        }
+    if (placedOnTarget) {
+        const QString outputScreen = (needsOutputMove || wire.moveOutput) ? targetScreenId : QString();
+        emitMoveLegs(windowId, targetDesktop > 0 ? targetDesktop : 0, targetDesktop > 0 ? wire.desktopId : QString(),
+                     outputScreen, wire.workspaceVerb);
     }
 }
 
@@ -455,7 +618,8 @@ void WindowTrackingAdaptor::handleCrossModeSwap(const QString& windowId, const Q
     // only survives here because this is a nested slot invocation — passing
     // the engine explicitly keeps the degrade valid from any context.
     if (partner.isEmpty()) {
-        crossModeMoveImpl(sourceEngine, windowId, targetScreenId, targetDesktop, direction);
+        crossModeMoveImpl(sourceEngine, windowId, targetScreenId, targetDesktop, direction,
+                          /*allowSameEngine=*/false, WorkspaceMoveWire{});
         return;
     }
 
@@ -501,12 +665,13 @@ void WindowTrackingAdaptor::handleCrossModeSwap(const QString& windowId, const Q
     //    engine — the exact hazard guardedHandoff exists for. ──
     //    The re-home carries the window's OWN original slot (@p fallbackZones /
     //    @p fallbackIndex), not a cleared one. A snap fallback engine needs a
-    //    zone: with sourceZoneIds empty its handoffReceive takes the
-    //    !wasFloating tail, which only broadcasts not-floating and returns, so
-    //    the window ends up tracked by no engine and the swap cannot recover
-    //    from a refusal into snap at all. Each window's own slot is already in
-    //    scope — F's original zone on the source screen is what the PARTNER was
-    //    going to land in, and vice versa.
+    //    zone to put the window BACK: with sourceZoneIds empty its
+    //    handoffReceive takes the !wasFloating tail, which records the window's
+    //    residence as a free, unsnapped window and places nothing, so a
+    //    snapped window refused by the destination would come back unsnapped.
+    //    Each window's own slot is already in scope: F's original zone on the
+    //    source screen is what the PARTNER was going to land in, and vice
+    //    versa.
     const auto receiveVerified = [](PhosphorEngine::IPlacementEngine* dest,
                                     PhosphorEngine::IPlacementEngine* fallbackEngine, const QString& fallbackScreen,
                                     const QStringList& fallbackZones, int fallbackIndex,
@@ -544,11 +709,16 @@ void WindowTrackingAdaptor::handleCrossModeSwap(const QString& windowId, const Q
     bool focusedAdopted = false;
     bool partnerAdopted = false;
     // Each window bound for a tiling engine leaves its own fullscreen first,
-    // as on a move (F526); a snap side ends it in its own placement.
-    if (!qobject_cast<PhosphorSnapEngine::SnapEngine*>(targetEngine)) {
+    // as on a move (F526); a snap side ends it in its own placement. Gated, as
+    // on the move's immediate branch, on the receiving engine running the
+    // screen the window is bound for: a receive it refuses re-homes the window
+    // where it was, which never asked it to leave fullscreen. Sent before the
+    // receives, because an autotile receive retiles synchronously.
+    if (!qobject_cast<PhosphorSnapEngine::SnapEngine*>(targetEngine)
+        && targetEngine->isActiveOnScreen(targetScreenId)) {
         Q_EMIT fullscreenHandBackRequested(windowId);
     }
-    if (!qobject_cast<PhosphorSnapEngine::SnapEngine*>(sourceEngine)) {
+    if (!qobject_cast<PhosphorSnapEngine::SnapEngine*>(sourceEngine) && sourceEngine->isActiveOnScreen(sourceScreen)) {
         Q_EMIT fullscreenHandBackRequested(partner);
     }
     // (Both placements: an autotile receiver's handoffReceive also announces
@@ -594,22 +764,12 @@ void WindowTrackingAdaptor::handleCrossModeSwap(const QString& windowId, const Q
             receiveVerified(sourceEngine, targetEngine, targetScreenId, focusedLandingZones, focusedLandingIndex, ctx);
     }
 
-    // Source reflow, same rule as handleCrossModeMove: an autotile source
-    // does not retile on handoffRelease, so the slot F vacated stays a hole
-    // unless something else retiles that screen. The partner's arrival
-    // normally does it, but not on the paths that leave the source without a
-    // partner — a receive refused at the destination's screen-set check
-    // returns before its own reflow, and the re-home then puts the partner
-    // back on the target. A snap source vacates a zone (nothing to reflow)
-    // and a scroll source's handoffRelease schedules its own retile.
-    if (!sourceScreen.isEmpty() && sourceEngine == m_autotileEngine.data()) {
-        sourceEngine->retile(sourceScreen);
-    }
-    // Mirrored hole on the TARGET side: targetEngine->handoffRelease(partner)
-    // does not retile either, and if the focused window's receive was refused
-    // (re-homed into the source) while the partner's receive into the source
-    // succeeded, nothing ever arrives on the target to close the partner's
-    // vacated slot. Same autotile-only rule as above.
+    // No explicit reflow on either side: each handoffRelease above already
+    // scheduled one for the screen the window left (autotile retiles the
+    // context in view on a coalesced timer, the scroll engine schedules its
+    // own, a snap engine just vacates a zone), so a refused receive that left
+    // a slot empty still closes up.
+    //
     // focusedAdopted is RE-CHECKED here rather than trusted from the first
     // receive. DEFENSIVE: no in-tree engine evicts a co-occupant on receive
     // (snap assigns the arrival into the zone beside any occupant, autotile
@@ -619,12 +779,6 @@ void WindowTrackingAdaptor::handleCrossModeSwap(const QString& windowId, const Q
     // a future receiver that DOES displace, and the recovery below depends
     // on knowing, not assuming.
     const bool focusedStillOnTarget = targetEngine->isWindowTracked(windowId);
-    // No !targetScreenId.isEmpty() term: handleCrossModeSwap already
-    // returned on an empty target id, so the engine identity plus the
-    // re-read flag are the whole condition.
-    if (targetEngine == m_autotileEngine.data() && !focusedStillOnTarget) {
-        targetEngine->retile(targetScreenId);
-    }
     // Adopted, then EVICTED by the partner's re-home landing in the same slot
     // (unreachable with today's non-evicting receivers — see the re-check
     // note above — kept as the recovery half of the same defence).
@@ -671,16 +825,16 @@ void WindowTrackingAdaptor::handleCrossModeSwap(const QString& windowId, const Q
             if (!PhosphorScreens::ScreenIdentity::screensMatch(sourceScreen, targetScreenId)) {
                 announceOutputMove(windowId, sourceScreen, targetScreenId, sourceEngine);
             }
-            if (!sourceScreen.isEmpty() && sourceEngine == m_autotileEngine.data()) {
-                sourceEngine->retile(sourceScreen);
-            }
         }
     }
 
     // ── Arm the daemon-owned-move markers for the windows that were
-    //    genuinely adopted. Placement geometry lands on the coalesced
-    //    retile (queued), so post-receive arming is still ahead of the
-    //    compositor's outputChanged; a refused receive arms nothing. ──
+    //    genuinely adopted. Post-receive arming is still ahead of the
+    //    compositor's outputChanged even where the receive placed the window
+    //    synchronously (an autotile receive retiles at once): the effect
+    //    applies placement geometry through deferred commits, so this signal,
+    //    sent on the same connection, lands before the output change is
+    //    processed. A refused receive arms nothing. ──
     //    Both markers carry their source explicitly, same reason as the move
     //    path: the receives above already re-pointed the effect's
     //    notified-screen records at each window's destination.

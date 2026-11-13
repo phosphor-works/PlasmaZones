@@ -272,9 +272,12 @@ ColumnLayout {
     readonly property string _zoneNamesKey: "zoneNames"
     // Param-editor Components — one per param `kind`, keyed off `parent.modelData`
     // (the hosting Loader's descriptor). They live in ActionParamEditors.qml
-    // (instantiated below as `paramEditors`); the Loaders resolve each template via
-    // `paramEditors._…ParamEditor`. Purely a home for the templates — they still
-    // read `row.*` for state through the `row: row` handle.
+    // (instantiated below as `paramEditors`), and the three routing-target
+    // pickers in ActionParamPickers.qml, which `paramEditors` instantiates as
+    // `pickers`. The Loaders resolve each template via
+    // `paramEditors._…Editor` or `paramEditors.pickers._…Editor`. Purely a home
+    // for the templates — they still read `row.*` for state through the
+    // `row: row` handle.
     property ActionParamEditors paramEditors: ActionParamEditors {
         row: row
     }
@@ -502,9 +505,10 @@ ColumnLayout {
 
         // One editor per parameter — the shape comes from the param `kind`,
         // never an action-type ladder. The param-editor Components live on the
-        // `paramEditors` handle (ActionParamEditors.qml, instantiated above) so
-        // the Loader inside the Repeater delegate can resolve them via
-        // `paramEditors._…ParamEditor`. Plain `id`-based sibling references don't
+        // `paramEditors` handle (ActionParamEditors.qml, instantiated above,
+        // with the routing pickers on its `pickers` member) so the Loader
+        // inside the Repeater delegate can resolve them via
+        // `paramEditors._…Editor` or `paramEditors.pickers._…Editor`. Plain `id`-based sibling references don't
         // propagate into a Repeater delegate's QML scope, which is why
         // MatchLeafEditor (a root-level Loader) works but this pattern
         // previously rendered blank.

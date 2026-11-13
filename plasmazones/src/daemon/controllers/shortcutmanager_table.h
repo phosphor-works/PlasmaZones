@@ -14,10 +14,9 @@ class ShortcutManager;
 
 /// The static (settings-driven, non-indexed) shortcut registration table.
 /// Defined in shortcutmanager_table.cpp; walked by ShortcutManager's
-/// buildEntries() and staticShortcutIds(). The indexed slot families
-/// (quick_layout_N, snap_to_zone_N, workspace_move_slot_N,
-/// workspace_focus_slot_N) are NOT here — their getters are array-indexed, so
-/// the manager registers them in its own loops.
+/// buildEntries() and staticShortcutIds(). The indexed slot families are NOT
+/// here: their getters are array-indexed, so ShortcutManager::buildEntries
+/// registers them in its own loops (see there for the list).
 namespace ShortcutTable {
 
 struct StaticEntry
@@ -29,6 +28,11 @@ struct StaticEntry
     /// Capture-less so it decays to a function pointer; reaches the manager
     /// only through this argument.
     void (*fire)(ShortcutManager*);
+    /// Part of the dynamic-workspaces family: holds a grab only while the
+    /// feature runs (ShortcutManager::setWorkspaceFamilyActive). The default
+    /// member initializer keeps the many ungated rows' aggregate initializers
+    /// free of -Wmissing-field-initializers.
+    bool workspaceGated = false;
 };
 
 /// Pointer to the first row; `staticEntryCount()` rows follow contiguously.

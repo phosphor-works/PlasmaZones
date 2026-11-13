@@ -124,7 +124,10 @@ public:
         return m_lastActiveWindowId;
     }
 
-    /// The in-process close and prune notices for sibling adaptors.
+    /// The adaptor's in-process notices, kept off the session bus: a window's
+    /// close and a prune sweep for the sibling adaptors with per-window state,
+    /// and the compositor's per-output-desktops mode and raw per-screen desktop
+    /// reports for the dynamic-workspaces feature.
     WindowLifecycleRelay* lifecycleRelay() const
     {
         return m_lifecycleRelay;
@@ -501,10 +504,12 @@ public Q_SLOTS:
 
     /**
      * Report the compositor's ACTUAL per-output-virtual-desktops mode
-     * (dynamic workspaces' authoritative gate arm). Called by the KWin effect
-     * at bringup; cached and re-emitted in-process as
+     * (dynamic workspaces' authoritative gate arm). The KWin effect reports it
+     * at bring-up and again whenever KWin's mode changes at runtime; a repeat
+     * of the cached value is dropped. Cached (see perOutputDesktopsMode) and
+     * re-emitted in-process as
      * WindowLifecycleRelay::perOutputDesktopsModeReported for the workspace
-     * gate to consult.
+     * gate to consult. Only the registered compositor bridge may call it.
      * @param enabled Whether KWin is running with per-output desktops on
      */
     void reportPerOutputDesktopsMode(bool enabled);
@@ -549,7 +554,8 @@ public Q_SLOTS:
     /// themselves via their pruneStaleWindows overrides — TilingState / strip
     /// membership, pending orders, min-size and last-rect caches. On top of
     /// that: the registry's metadata + canonical entries, the tab-colour memo,
-    /// the rule evaluator's memo, and the adaptor's own shadow maps. Called by
+    /// the rule evaluator's memo, the open-routing verdicts, and the adaptor's
+    /// own shadow maps. Called by
     /// the effect after daemon ready. The first call per daemon also releases
     /// the engine slots of every live window that left its recorded screen
     /// while no daemon was watching.
@@ -811,9 +817,11 @@ public:
      * Writes the fields marked dirty since the last save: the active layout id,
      * the last used zone id, the user-snapped classes, the unified placement
      * records (every open window re-captured first, see
-     * refreshOpenWindowPlacements) and the scrolling strips. Float state is
-     * session-only and never written. Called from the debounced save timer;
-     * can also be called to force a save.
+     * refreshOpenWindowPlacements), the scrolling strips, the desktop ids the
+     * session last saw (for the daemon's start-up desktop sweep) and each
+     * screen's last reported pixel size. Float state is session-only and
+     * never written. Called from the debounced save timer; can also be called
+     * to force a save.
      */
     void saveState();
 
@@ -931,6 +939,16 @@ public:
     bool readoptOnArrival(const QString& windowId, const QString& screenId);
     /// Drop the window's parked contexts on desktops and activities @p span no longer covers.
     void dropParkedOutsideSpan(const QString& windowId, const PhosphorEngine::DesktopSpan& span);
+    /// The registry-backed desktop span query the membership pass reads (TilingAdaptor wires it). Unset, every span
+    /// is unknown.
+    void setDesktopSpanQuery(PhosphorEngine::DesktopSpanQuery query);
+    /// The window was placed again where it actually is, on @p screenId (a tiling re-announce, or a snapping
+    /// screen's desktop-arrival restore). Any snap membership it still holds outside that screen and its desktop
+    /// span is stale, the state a refused workspace move leaves when the snap-target handoff has already re-keyed
+    /// the window into the destination's store (F581, F811): released through
+    /// SnapEngine::releaseWindowOutsideSpan, with the placement re-capture and the "unsnapped" relay a membership
+    /// pass drives.
+    void releaseSnapOutsideLiveContext(const QString& windowId, const QString& screenId);
 
     /// Re-capture EVERY open window's live placement into the unified store
     /// at save time — engine-agnostic, not floating-only: floated windows
@@ -1157,50 +1175,66 @@ public:
     /// shared evaluator memo is always seeded with every screen-derived field.
     void stampScreenContext(PhosphorRules::WindowQuery& query, const QString& screenId) const;
 
-    /// Resolve the placement directive for a window from its matched window rules, for the open path, the Meta+F
-    /// unfloat's rule tier and the Snap.snapToAppRule slot: the 1-based `SnapToZone` ordinals and/or zone names to
-    /// snap into (both lists empty when no SnapToZone rule matches; multiple targets across the two lists request a
-    /// zone span) plus the
-    /// `RouteToScreen` target monitor (empty when unrouted) plus the
-    /// `RouteToDesktop` target desktop (unset when unrouted, and only ever a
-    /// 1-based desktop). The desktop slot steers where the zones RESOLVE, so a
-    /// combined SnapToZone + RouteToDesktop rule lands in the right zone of the
-    /// destination desktop; the desktop MOVE itself is emitted separately by
-    /// applyOpenDesktopRouting. Consulted by the
-    /// placement resolver the daemon injects into the SnapEngine (in-process, not
-    /// via D-Bus). Builds a WindowQuery from the window registry metadata, pins it
-    /// to @p screenId (the screen the window is on) so a
-    /// `ScreenId`-constrained rule resolves, and reads the `Placement` /
-    /// `RouteScreen` slots — mirrors shouldFloatByRule.
+    /// Resolve the placement directive for a window from its matched window
+    /// rules, for the open path, the Meta+F unfloat's rule tier and the
+    /// Snap.snapToAppRule slot: the 1-based `SnapToZone` ordinals and/or zone
+    /// names to snap into (both lists empty when no SnapToZone rule matches;
+    /// multiple targets across the two lists request a zone span), the target
+    /// monitor and the target desktop (unset when unrouted, and only ever a
+    /// 1-based desktop). The desktop steers where the zones RESOLVE, so a
+    /// combined SnapToZone + route rule lands in the right zone of the
+    /// destination desktop; the moves themselves are the routing pass's
+    /// (emitOpenRoutingIfMatched).
+    ///
+    /// On an open the monitor and desktop come from that open's routing pass,
+    /// which this TAKES (m_openRoutePass): a declared RouteToWorkspace decides
+    /// both, over any RouteToScreen or RouteToDesktop in the cascade. With no
+    /// pass published (the unfloat, the snapToAppRule slot, a restore that is
+    /// no first placement) they come from the rule's own RouteToScreen and
+    /// RouteToDesktop actions, so a workspace route never steers a placement
+    /// outside the open it routed. Consulted by the placement resolver the
+    /// daemon injects into the SnapEngine (in-process, not via D-Bus). Builds a
+    /// WindowQuery from the window registry metadata and pins it to
+    /// @p screenId (the screen the window is on) so a `ScreenId`-constrained
+    /// rule resolves, mirroring shouldFloatByRule.
     PhosphorSnapEngine::PlacementDirective placementZonesByRule(const QString& windowId, const QString& screenId);
 
     /// Drop @p windowId's cached rule verdict: the next resolve reads it fresh.
     void evictRuleVerdicts(const QString& windowId);
 
-    /// Engine-neutral RouteToDesktop: if a matched rule pins @p windowId to a
-    /// desktop, emit windowDesktopMoveRequested so the compositor moves it there
-    /// on open. Called from the snap open path for first placements only, with
-    /// @p screenId pinned so a ScreenId-scoped rule resolves. Returns whether a
-    /// rule MATCHED, true even when its target failed the 1-based guard.
+    /// The snap channel's open routing: resolve @p windowId's rules on
+    /// @p screenId and run the routing pass (emitOpenRoutingIfMatched). Called
+    /// from the snap open path for first placements only. Returns whether a
+    /// route MATCHED.
     bool applyOpenDesktopRouting(const QString& windowId, const QString& screenId);
 
-    /// Tiling-family open-path routing. Emits RouteToDesktop (as
-    /// applyOpenDesktopRouting) AND resolves a RouteToScreen pin: when the
-    /// matched rule routes the window to a DIFFERENT monitor that an engine
-    /// (autotile or scrolling) owns, emits windowOutputMoveExpected and
-    /// returns that screen id so the caller hands the window to that
-    /// screen's claiming engine. Returns an empty string when there is no
-    /// engine-owned redirect (no rule, snap/disabled target, or same
-    /// screen) — the caller then uses the spawn screen. Snap-mode targets
-    /// are handled by the snap placement directive, not here.
-    /// Returns the redirect target screen (empty = insert on the spawn
-    /// screen). @p directiveMatched, when non-null, is set true whenever a
-    /// routing/placement directive MATCHED — including already-on-target and
-    /// target-not-connected, where the return stays empty — so the caller's
-    /// reopen-claim veto applies the same precedence the snap facade does. The two answers are deliberately separate;
-    /// overloading the empty return let the two channels drift apart.
+    /// The tiling channel's open routing. Runs the routing pass
+    /// (emitOpenRoutingIfMatched) and resolves the monitor the window belongs
+    /// on: a declared workspace's owner, or else a RouteToScreen target. When
+    /// that is a DIFFERENT monitor running a tiling-family mode on the
+    /// destination desktop, emits windowOutputMoveExpected and returns it so
+    /// the caller hands the window to that screen's claiming engine. Returns
+    /// an empty string when there is no engine-owned redirect (no rule, a
+    /// snap/disabled target, the same screen, a parked workspace route): the
+    /// caller then uses the spawn screen. Call it only for a first placement
+    /// (isFirstTilingPlacement).
+    ///
+    /// @p directiveMatched, when non-null, is set true whenever a routing or
+    /// placement directive owns the window's monitor, including
+    /// already-on-target, target-not-connected and a parked workspace route,
+    /// where the return stays empty, so the caller's reopen-claim veto applies
+    /// the same precedence the snap facade does. The two answers are
+    /// deliberately separate; overloading the empty return let the two
+    /// channels drift apart. A desktop-only route sets neither.
     QString applyOpenRoutingForTiling(const QString& windowId, const QString& screenId,
                                       bool* directiveMatched = nullptr);
+
+    /// Whether the tiling channel's announce of @p entry is the window's
+    /// FIRST placement, the only kind its open routing runs for: a genuine
+    /// open (focusEligible), or a re-announce of a window the placement store
+    /// holds no record of (one that opened while the daemon was down or not
+    /// yet ready). Read it before the open's placement claim.
+    bool isFirstTilingPlacement(const PhosphorProtocol::WindowOpenedEntry& entry) const;
 
     /// Canonical key for daemon-local per-window shadow maps, and the canonical
     /// form sibling adaptors must agree on for per-window state. Window ids
@@ -1215,45 +1249,61 @@ public:
     /// window: move it to the rule's monitor at the same relative spot, free.
     /// On a snapping target its open float goes with it; on a tiling target the
     /// target's engine gets it as an open (a genuine one only for @p reason
-    /// Open), unless the rule also sent it to a desktop not in view there.
-    /// No-ops when the target is unset, the spawn screen, or not connected, or
-    /// when the window has pushed no geometry yet. Returns true when a
-    /// RouteToScreen (or placement) directive MATCHED, moved or not.
+    /// Open), unless the routing pass also sent it to a desktop not in view
+    /// there. Stands down when the open's routing pass routed it to a declared
+    /// workspace, which decides the monitor itself. No-ops when the target is
+    /// unset, the spawn screen, or not connected, or when the window has pushed
+    /// no geometry yet. Returns true when a route or placement directive
+    /// MATCHED, moved or not.
     bool applyOpenScreenRouting(const QString& windowId, const QString& screenId,
                                 PhosphorEngine::RestoreReason reason = PhosphorEngine::RestoreReason::Open);
     /// How a routed open reaches a tiling target's engine (TilingAdaptor wires it).
     void setRoutedOpenDispatcher(std::function<void(const PhosphorProtocol::WindowOpenedEntry&)> dispatcher);
 
-    /// Drops any workspace-route record @p windowId's open did not consume.
+    /// Drops the routing verdict published for @p windowId's current pass
+    /// that no placement builder took (see m_openRoutePass).
     ///
-    /// The record is written by applyOpenDesktopRouting and taken by whichever
-    /// placement builder runs, but not every open reaches one: a window that
-    /// opens on a scrolling or tiling screen defers by mode, and a window
-    /// carrying a cross-screen snapped record can report a snap without the
-    /// zone builder ever running. Both leave the record behind, where
-    /// SnapEngine::unfloatToZone reaches the same reader — so a Meta+F unfloat
-    /// long afterwards would resolve against the desktop and monitor that open
-    /// was routed to. Call this at every exit of the open path; it is a no-op
-    /// when the record was already taken.
+    /// Not every open reaches a builder: a window that opens on a scrolling or
+    /// tiling screen defers by mode, and a window carrying a cross-screen
+    /// snapped record can report a snap without the zone builder ever running.
+    /// Left standing, the record would reach SnapEngine::unfloatToZone through
+    /// the same reader, and a Meta+F unfloat long afterwards would resolve
+    /// against the desktop and monitor that open was routed to. Called at
+    /// every exit of the snap open path. The open's latched verdict is kept.
     void clearOpenWorkspaceRoute(const QString& windowId);
 
-    /// Shared by the two open-routing entry points: send @p windowId to the
-    /// workspace or desktop @p resolved names. A RouteToWorkspace action is
-    /// tried first through the late-bound workspace resolver (named workspaces
-    /// outrank a positional number, and an undeclared name falls through); a
-    /// RouteToDesktop action then emits windowDesktopMoveRequested.
+    /// Re-publish the latched routing verdict of @p windowId's open for the
+    /// pass about to run, without moving anything. For an open's
+    /// continuation that resolves its placement again (the desktop-arrival
+    /// re-drive), so its builder reads the destination the open was routed
+    /// to rather than the rule's positional RouteToDesktop. A no-op when this
+    /// daemon routed no open for the window.
+    void republishOpenRoute(const QString& windowId);
+
+    /// The screen @p windowId's open places it on, given the screen it
+    /// spawned on: the landing screen on the owner monitor of the declared
+    /// workspace its open was routed to (see workspaceLandingScreen), else
+    /// @p screenId. The snap open chain resolves and claims on it.
+    QString openRouteLandingScreen(const QString& windowId, const QString& screenId) const;
+
+    /// The routing pass shared by the two open channels: send @p windowId to
+    /// the workspace or desktop @p resolved names, ONCE per open. The first
+    /// call for an open runs routeOpenByRules and latches its verdict until
+    /// the window closes; every later call (the other channel, a re-announce)
+    /// moves nothing and re-publishes the latched verdict.
     ///
-    /// A realized workspace route also asks for the OUTPUT leg, unless the same
-    /// cascade carries a RouteToScreen — that action owns the window's monitor
-    /// and two output moves would fight. Without the leg the window lands on
-    /// the target desktop but stays on its spawn monitor, and under per-output
-    /// virtual desktops that desktop belongs to the owner monitor's slice, so
-    /// the spawn monitor never shows it.
+    /// A RouteToWorkspace is tried first through the late-bound workspace
+    /// resolver: a declared workspace decides the desktop and the monitor
+    /// over a RouteToDesktop or RouteToScreen in the same cascade
+    /// (route_precedence), and its move carries the output leg. An undeclared
+    /// one, or none while workspaces are off (no resolver), falls through to
+    /// RouteToDesktop, which emits windowDesktopMoveRequested.
     ///
-    /// Returns whether a route action MATCHED (see applyOpenDesktopRouting).
-    /// The answer does not depend on the move being carried out: a declared
-    /// workspace that is momentarily unresolvable, and a RouteToDesktop whose
-    /// target fails the guard, both matched.
+    /// Returns whether a route action that applies to this open MATCHED: a
+    /// declared workspace (realized, parked, or refused for a sticky window)
+    /// or a RouteToDesktop, even one whose target fails the guard. An inert or
+    /// undeclared RouteToWorkspace with no RouteToDesktop beside it answers
+    /// false.
     bool emitOpenRoutingIfMatched(const PhosphorRules::ResolvedActions& resolved, const QString& windowId);
 
     /**
@@ -1288,38 +1338,32 @@ public:
     /// Emit reapplyWindowGeometriesRequested (the daemon's timer after geometry settles); not a D-Bus method.
     void requestReapplyWindowGeometries();
 
-    /**
-     * @brief Install the named-workspace open-routing resolver (the daemon's
-     * workspace wiring). Called with (workspaceName, windowId); returns true
-     * when the route was taken (the name resolved to a live named workspace
-     * and the move was issued), false to fall through to positional
-     * RouteToDesktop. Null while dynamic workspaces are off, which makes the
-     * RouteToWorkspace slot an inert no-op.
-     */
-    /// The resolver answers the REALIZED desktop number a RouteToWorkspace
-    /// landed the window on (> 0), 0 when the name is not realized (the
-    /// positional RouteToDesktop applies instead), or < 0 when the name is
-    /// declared but momentarily unresolvable (no route, and no positional
-    /// stand-in either — see WorkspaceController::WorkspaceRouteVerdict).
+    /// Install the named-workspace open-routing resolver (the daemon's
+    /// workspace wiring). Null while dynamic workspaces are off, which makes
+    /// the RouteToWorkspace slot an inert no-op.
     ///
-    /// Called with (workspaceName, windowId, moveOutput, ownerScreenOut). The
-    /// third argument asks for the OUTPUT leg as well as the desktop one —
-    /// true unless the same rule cascade carries a RouteToScreen that owns the
-    /// window's monitor. The fourth receives the workspace's owner screen so
-    /// the placement builders resolve against the destination monitor.
-    void setWorkspaceRouteResolver(std::function<int(const QString&, const QString&, bool, QString*)> resolver)
+    /// Called with (entryId, name, windowId, moveOutput, ownerScreenOut).
+    /// @p entryId is the rule's trimmed ActionParam::TargetWorkspaceId, empty
+    /// when the rule carries none; @p name is its trimmed
+    /// ActionParam::TargetWorkspaceName. The resolver routes to the declared
+    /// entry carrying that id (under its CURRENT name, so a renamed workspace
+    /// keeps its rules), and falls back to the entry named @p name only when
+    /// no entry carries the id. @p moveOutput asks for the OUTPUT leg as well
+    /// as the desktop one: true unless the same rule cascade carries a
+    /// RouteToScreen. The last argument receives the workspace's owner screen
+    /// so the placement builders resolve against the destination monitor.
+    ///
+    /// It answers the REALIZED desktop number the route landed the window on
+    /// (> 0), 0 when no declared workspace matches (the positional
+    /// RouteToDesktop applies instead), or < 0 when one is declared but
+    /// momentarily unresolvable: the route is parked and re-issued once it
+    /// resolves, and no positional stand-in applies (see
+    /// WorkspaceController::WorkspaceRouteVerdict).
+    void setWorkspaceRouteResolver(
+        std::function<int(const QString&, const QString&, const QString&, bool, QString*)> resolver)
     {
         m_workspaceRouteResolver = std::move(resolver);
     }
-
-    /**
-     * @brief Cache + broadcast the dynamic-workspaces ownership map.
-     *
-     * Called by the daemon's workspace relay with the controller's
-     * change-gated payload; caches it for the workspaceMap() replay query and
-     * emits workspaceMapChanged. Not a D-Bus method.
-     */
-    void setWorkspaceMapPayload(const QString& mapJson);
 
     /**
      * @brief The compositor's last reported per-output-virtual-desktops mode,
@@ -1334,30 +1378,20 @@ public:
         return m_perOutputDesktopsMode;
     }
 
-public Q_SLOTS:
-    /**
-     * @brief The current dynamic-workspaces map payload (replay half of
-     * workspaceMapChanged, same contract as scrollTabStrips on the tiling
-     * interface). Empty string when the feature is off or not yet adopted.
-     * D-Bus method — the effect pulls it at bringup.
-     */
-    QString workspaceMap() const;
-
 Q_SIGNALS:
-    /**
-     * @brief The dynamic-workspaces ownership map changed (see the XML for
-     * the payload shape). Change-gated by the WorkspaceController.
-     */
-    void workspaceMapChanged(const QString& mapJson);
-
     /**
      * @brief Ask the KWin effect to switch ONE screen's current virtual
      * desktop (effects->setCurrentDesktop(desktop, output)). KWin's own D-Bus
      * VirtualDesktopManager only carries the global current, so per-screen
-     * switching — the workspace focus verbs and owner-wins snap-back — rides
+     * switching (the workspace focus verbs and owner-wins snap-back) rides
      * this command. Emitted by the daemon's WorkspaceController relay.
+     *
+     * @p desktopId names the target by VirtualDesktop::id(), which a
+     * concurrent renumber cannot re-point. @p purpose is a
+     * PhosphorProtocol::ScreenDesktopSwitchPurpose: a user focus verb, or a
+     * correction the effect carries out without its switch transition.
      */
-    void setScreenDesktopRequested(const QString& screenId, int desktop);
+    void setScreenDesktopRequested(const QString& screenId, const QString& desktopId, int purpose);
 
     void windowZoneChanged(const QString& windowId, const QString& zoneId);
 
@@ -1462,29 +1496,28 @@ Q_SIGNALS:
      */
     void activateWindowRequested(const QString& windowId);
 
-    /// KWin should move @p windowId to desktop @p desktop (1-based); a target
-    /// not in view parks it for its placement on arrival.
+    /// KWin should move @p windowId to desktop @p desktop (1-based) on the
+    /// output it is on; a target not in view parks it for its placement on
+    /// arrival. Every non-workspace desktop move: the desktop shortcut, a
+    /// RouteToDesktop rule, an engine's cross-desktop crossing, the shell's
+    /// moveWindowToDesktop. The dynamic-workspaces verbs use
+    /// windowWorkspaceMoveRequested.
     void windowDesktopMoveRequested(const QString& windowId, int desktop);
-    /// Same move, but naming the desktop by its STABLE ID instead of its
-    /// position. Used by the named-workspace route, which is the one caller
-    /// holding an id worth preserving.
+    /// A dynamic-workspaces move of @p windowId as ONE compositor step: the
+    /// desktop leg (named by @p desktopId, VirtualDesktop::id(), when it is
+    /// non-empty, else by the 1-based number @p desktop) and the output leg
+    /// (@p targetScreenId; empty keeps the window's output). The effect
+    /// judges the arrival's visibility and the focus hand-off on the
+    /// destination output.
     ///
-    /// The positional signal above resolves the number daemon-side and sends
-    /// it, which loses a race this feature creates for itself: the move fills
-    /// the destination workspace, a filled workspace makes the reconciler cut
-    /// a new trailing empty, and that renumber can land before the effect
-    /// applies the number — so the window arrives on whichever desktop now
-    /// occupies that position. Observed live: a route to a workspace at
-    /// position 2 landed the window on the desktop that had just taken
-    /// position 2, one place off the intended one. A workspace NAME is the
-    /// identity that is supposed to survive renumbering (see the
-    /// RouteToWorkspace descriptor), so the id travels the wire and the
-    /// effect matches on VirtualDesktop::id().
-    void windowDesktopMoveByIdRequested(const QString& windowId, const QString& desktopId);
-    /// Move a window to another OUTPUT with no engine handoff (untracked /
-    /// floating windows on the workspace verbs); the effect calls
-    /// windowToScreen. No-op when the window already sits on the target.
-    void windowOutputMoveRequested(const QString& windowId, const QString& targetScreenId);
+    /// The id is preferred because the workspace feature renumbers alongside
+    /// its own moves: the move fills the destination workspace, a filled
+    /// workspace makes the reconciler cut a new trailing empty, and that
+    /// renumber can land before the effect applies a number. Observed live: a
+    /// route to a workspace at position 2 landed the window on the desktop
+    /// that had just taken position 2.
+    void windowWorkspaceMoveRequested(const QString& windowId, const QString& desktopId, int desktop,
+                                      const QString& targetScreenId);
 
     /// A tracked window's app id or title changed (or the window was just
     /// registered). The Phosphor shell relabels its map cell from this
@@ -1609,55 +1642,153 @@ private Q_SLOTS:
                              const QString& direction);
 
 private:
+    /// How a move reaches the compositor from crossModeMoveImpl.
+    /// Default-constructed for an engine's own crossing, which keeps the plain
+    /// windowDesktopMoveRequested; the workspace verb fills it in.
+    struct WorkspaceMoveWire
+    {
+        /// The move is a dynamic-workspaces verb: its compositor legs ride
+        /// windowWorkspaceMoveRequested, carrying the destination output so
+        /// the effect judges the arrival there.
+        bool workspaceVerb = false;
+        /// The destination desktop's stable id; empty names it by number.
+        QString desktopId;
+        /// The verb moves the window to the target screen's monitor.
+        bool moveOutput = false;
+        /// The window is the one the user's verb is about. False for a
+        /// collateral rider or a daemon re-route, which keeps its own
+        /// fullscreen: this gates only the fullscreen hand-back.
+        bool subjectOfVerb = true;
+    };
+
+    /// What one open's routing pass decided (see m_openRoutes).
+    struct OpenRouteVerdict
+    {
+        /// A route action that applies to this open matched (the answer
+        /// emitOpenRoutingIfMatched returns).
+        bool matched = false;
+        /// A declared workspace decided the route, realized, parked or
+        /// refused for a sticky window: it owns both the desktop and the
+        /// monitor, so neither a RouteToDesktop nor a RouteToScreen in the
+        /// cascade steers this open.
+        bool workspaceDeclared = false;
+        /// The desktop the pass sent the window to (> 0): the realized
+        /// workspace's, or the RouteToDesktop number it emitted. 0 when none.
+        int desktop = 0;
+        /// The realized workspace's owner monitor (physical id); empty when
+        /// no workspace route moved the window or its ownership was unsettled.
+        QString screen;
+    };
+
+    /// The body of emitOpenRoutingIfMatched's first pass for an open: emit
+    /// the moves @p resolved names for @p windowId and answer what was
+    /// decided.
+    OpenRouteVerdict routeOpenByRules(const PhosphorRules::ResolvedActions& resolved, const QString& windowId);
+
+    /// The mode a (screen, desktop, activity) context RUNS (the injected
+    /// context-mode resolver, the feature switches and the disabled gate
+    /// included), falling back to the configured mode when none is injected.
+    PhosphorZones::AssignmentEntry::Mode runningModeFor(const QString& screenId, int desktop,
+                                                        const QString& activity) const;
+
+    /// The screen a workspace move or route lands @p windowId on, given the
+    /// workspace's owner monitor (a PHYSICAL id from the workspace map): the
+    /// window's own @p currentScreenId when it is a sub-screen of that
+    /// monitor, else the owner's sub-screen under the window's frame centre
+    /// carried onto it, else its first sub-screen, else the owner id itself
+    /// (split_target). Engines key a split monitor by its virtual screens.
+    QString workspaceLandingScreen(const QString& windowId, const QString& currentScreenId,
+                                   const QString& ownerScreenId) const;
+
     /**
      * @brief Body of handleCrossModeMove with the source engine explicit.
      *
      * The slot recovers its source from sender(), which is only valid inside
-     * a signal dispatch — the swap handler's no-partner degrade calls this
+     * a signal dispatch: the swap handler's no-partner degrade calls this
      * directly with the engine it already holds, so the degrade keeps working
      * from any invocation context (tests, invokeMethod), not just a nested
      * slot call where sender() happens to survive.
+     *
+     * @p allowSameEngine lets the workspace verb move a window within one
+     * engine: a same-engine cross-desktop move onto a tiling (autotile or
+     * scrolling) target takes the reactive branch (release, then the
+     * desktop-return catch-scan adopts it), and onto a snap target the
+     * handoff re-keys it without a release (guardedHandoff skips the release
+     * when source and destination are one engine). @p wire carries how the
+     * compositor legs are sent.
      */
-    /// Emit the desktop half of a move, preferring the stable id when the
-    /// caller has one. Single place so every move path makes the same choice.
-    void emitDesktopMove(const QString& windowId, int targetDesktop, const QString& targetDesktopId);
-
-    /// @p targetDesktopId, when non-empty, names the destination desktop by
-    /// its stable id and is emitted instead of @p targetDesktop, which is a
-    /// position and can be renumbered out from under the request in flight.
     void crossModeMoveImpl(PhosphorEngine::PlacementEngineBase* sourceEngine, const QString& windowId,
                            const QString& targetScreenId, int targetDesktop, const QString& direction,
-                           bool allowSameEngine = false, const QString& targetDesktopId = QString());
+                           bool allowSameEngine, const WorkspaceMoveWire& wire);
+
+    /// Send the compositor legs of a move: @p desktop (> 0) or @p desktopId
+    /// for the desktop leg, @p outputScreenId (non-empty) for the output leg.
+    /// A workspace verb, or any move with an output leg, rides
+    /// windowWorkspaceMoveRequested; a plain desktop move rides
+    /// windowDesktopMoveRequested.
+    void emitMoveLegs(const QString& windowId, int desktop, const QString& desktopId, const QString& outputScreenId,
+                      bool workspaceVerb);
 
 public:
     /**
      * @brief Dynamic-workspaces move verb: relocate a window to a target
-     * (screen, desktop) through the SAME handoff machinery the cross-mode
-     * directional moves use — source engine resolved by tracking, same-engine
-     * handoffs allowed (release + receive with toDesktop; autotile targets
-     * take the reactive catch-scan branch). An untracked (floating) window
-     * degrades to a bare compositor desktop move. Not a D-Bus method.
+     * (screen, desktop). Not a D-Bus method.
      *
-     * @p rawWindowId may be a bare compositor instance id — the owner-wins
-     * reunion and removal-race re-route emitters work from the registry census,
-     * which is keyed that way. It is canonicalized to the composite id every
-     * consumer (engine tracking, the effect's window lookup) is keyed on before
-     * anything else happens.
+     * A window an engine places (tiled, or snapped into a zone) goes through
+     * the SAME handoff machinery the cross-mode directional moves use
+     * (crossModeMoveImpl, same-engine moves allowed), and onto a snap
+     * destination keeps its zone's ordinal in the destination layout when its
+     * source is snapping too. A window no engine places (untracked, a user
+     * float, a free window on a snapping screen) gets no handoff: it moves
+     * the way KWin's own desktop move would move it, so it stays floating or
+     * free where it lands, and the engines follow the compositor's report.
+     * Either way the compositor legs ride ONE windowWorkspaceMoveRequested.
      *
-     * A sticky (on-all-desktops) window is refused: the effect declines the
-     * desktop move for it, so carrying the handoff would diverge daemon state
-     * from the compositor. An empty @p targetScreenId (an as-yet-unowned
-     * workspace) degrades to the window's own screen for a tracked window.
+     * Refused, with nothing moved: a sticky (on-all-desktops) window, which
+     * the effect would not move and which is already on every workspace; the
+     * window an interactive drag is moving (the drop decides where it goes);
+     * and a window its engine already holds on the destination screen and
+     * desktop, which a release would strand with nothing to re-adopt it.
      *
-     * @p moveOutput false performs the desktop half only and leaves the window
-     * on the monitor it is already on. The RouteToWorkspace open-path arm uses
-     * it: a workspace route names a desktop, not a monitor, and issuing an
-     * output move there fought the placement pipeline's own screen resolution
-     * (and any RouteToScreen in the same cascade). @p targetScreenId is still
-     * honoured for the engine handoff, which needs a destination context.
+     * @p rawWindowId may be a bare compositor instance id (the controller's
+     * census is keyed that way); it is canonicalized to the composite id
+     * every consumer is keyed on before anything else happens.
+     *
+     * @p targetScreenId is the workspace's owner monitor (a physical id, or
+     * empty while ownership is unsettled). With @p moveOutput the window
+     * moves there, onto the sub-screen workspaceLandingScreen picks for a
+     * split monitor; an empty id falls back to the window's own screen. With
+     * @p moveOutput false the window keeps its monitor and @p targetScreenId
+     * is not read: the destination context of the handoff is the window's
+     * own screen. @p targetDesktopId, when non-empty, names the destination
+     * desktop on the wire instead of the number @p targetDesktop.
+     * @p subjectOfVerb false marks a collateral rider or a daemon re-route,
+     * whose own fullscreen the move leaves alone.
      */
     void moveWindowToWorkspaceVerb(const QString& rawWindowId, const QString& targetScreenId, int targetDesktop,
-                                   const QString& targetDesktopId, const QString& direction, bool moveOutput = true);
+                                   const QString& targetDesktopId, const QString& direction, bool moveOutput = true,
+                                   bool subjectOfVerb = true);
+    /**
+     * @brief The scroll half of move-workspace-to-monitor (ws_to_monitor).
+     *
+     * The verb keeps the workspace's desktop and moves its windows to the
+     * owner monitor one by one, each through moveWindowToWorkspaceVerb, so a
+     * scrolling strip would arrive as one column per window. This records
+     * each source strip for the strip it lands on
+     * (ScrollEngine::stashStripForOutputMove), so the arrivals rebuild it.
+     * The riders are grouped by the strip the scroll engine holds them on
+     * and the strip workspaceLandingScreen sends them to, exactly as the
+     * verb will, and a group is recorded only when @p targetDesktop runs
+     * scrolling on its landing strip. Sticky windows and the window being
+     * dragged are left out, as the verb refuses them.
+     *
+     * Call it with the riders BEFORE the first moveWindowToWorkspaceVerb for
+     * them: the verb releases each window synchronously, and the record
+     * reads the live strip. @p rawWindowIds may be bare instance ids, like
+     * the verb's.
+     */
+    void stashScrollStripsForWorkspaceMove(const QStringList& rawWindowIds, const QString& targetScreenId,
+                                           int targetDesktop);
 
 private:
     /**
@@ -1889,6 +2020,8 @@ private:
     /// setScrollStripStateProvider's provider, and the blob the last loadState() read for the engine once it exists.
     std::function<QJsonObject()> m_scrollStripStateProvider;
     std::function<void(const PhosphorProtocol::WindowOpenedEntry&)> m_routedOpenDispatcher;
+    /// See setDesktopSpanQuery.
+    PhosphorEngine::DesktopSpanQuery m_desktopSpanQuery;
     std::function<void(const QString&, const QString&)> m_windowLeftScreenHook;
     std::function<bool(const QString&)> m_isBridgeCaller; ///< setBridgeCallerCheck
     std::function<PhosphorZones::AssignmentEntry::Mode(const QString&, int, const QString&)>
@@ -2006,32 +2139,30 @@ private:
     bool m_pendingRestoresEmitted = false; // True if we already emitted pendingRestoresAvailable
     bool m_shutdownSaveGuard = false; // True after saveStateOnShutdown() to prevent destruction-phase saves
 
-    /// Last dynamic-workspaces map payload, the workspaceMap() replay cache
-    /// (empty until the WorkspaceController publishes after adoption).
-    QString m_lastWorkspaceMap;
     /// Effect-probed per-output-desktops mode (unset until the first report).
     std::optional<bool> m_perOutputDesktopsMode;
     /// Named-workspace open-routing hook (see setWorkspaceRouteResolver).
-    std::function<int(const QString&, const QString&, bool, QString*)> m_workspaceRouteResolver;
-    /// The desktop, and the destination monitor, a RouteToWorkspace realized
-    /// for a window. Written by emitOpenRoutingIfMatched and read back by the
-    /// two placement-context builders (calculateSnapToPlacementRule's
-    /// directive and applyOpenRoutingForTiling's destination desktop), which
-    /// would otherwise resolve zones and modes in the desktop the window is
+    std::function<int(const QString&, const QString&, const QString&, bool, QString*)> m_workspaceRouteResolver;
+    /// What one open's routing pass decided for a window, LATCHED from the
+    /// first routing pass of its open until it closes (route_once): every
+    /// later routing call for the same open re-publishes it instead of moving
+    /// the window again. Keyed by shadowWindowId. Dropped by windowClosed and
+    /// pruneStaleWindows.
+    QHash<QString, OpenRouteVerdict> m_openRoutes;
+    /// The verdict published for the CURRENT routing pass, read back by that
+    /// pass's placement-context builders (placementZonesByRule's directive,
+    /// applyOpenRoutingForTiling's redirect), which would otherwise resolve
+    /// zones and modes in the desktop and on the monitor the window is
     /// leaving.
     ///
-    /// SINGLE USE. Both entries are TAKEN by the reader, not merely read: the
-    /// snap-side consumer (placementZonesByRule) is not open-path-only —
-    /// SnapEngine::unfloatToZone drives the same resolver on a Meta+F unfloat,
-    /// arbitrarily long after the open, and a value left standing there would
-    /// force the directive onto a desktop the window may have left hours ago.
-    /// A routing pass writes them, the one reader on that pass takes them, and
-    /// what a later non-open reader sees is nothing. Also dropped when the
-    /// window closes.
-    QHash<QString, int> m_workspaceRoutedDesktop;
-    /// The routed workspace's owner screen (see m_workspaceRoutedDesktop for
-    /// the lifetime; empty when ownership had not settled).
-    QHash<QString, QString> m_workspaceRoutedScreen;
+    /// SINGLE USE. The reader TAKES it: placementZonesByRule is not
+    /// open-path-only (SnapEngine::unfloatToZone drives it on a Meta+F
+    /// unfloat, arbitrarily long after the open), and a value left standing
+    /// would force that directive onto a desktop the window may have left
+    /// hours ago. A routing pass (or republishOpenRoute) writes it, the one
+    /// reader on that pass takes it, and clearOpenWorkspaceRoute drops what
+    /// no reader took at the pass's exit. Keyed by shadowWindowId.
+    QHash<QString, OpenRouteVerdict> m_openRoutePass;
     bool m_startupLeaveSweepDone = false; // True once pruneStaleWindows ran its once-per-daemon leave release
 
     // Evacuee park helpers (evacuees.cpp).

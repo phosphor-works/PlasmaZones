@@ -1362,8 +1362,9 @@ bool SnapHandler::drainDesktopArrivalFor(const QString& windowId, KWin::EffectWi
     if (!window || !m_desktopArrivalParks.contains(windowId)) {
         return false;
     }
-    // Measured against the window's OWN output, matching the arm in
-    // slotWindowDesktopMoveRequested. The shared helper in
+    // Measured against the window's OWN output, matching the park in
+    // PlasmaZonesEffect::applyWorkspaceMove, which judges the output the window
+    // lands on (committed by the time a switch drains this). The shared helper in
     // plasmazoneseffect/desktopvisibility.h carries the full over- and
     // under-fire rationale.
     if (!isOnOwnOutputCurrentDesktop(window) || !window->isOnCurrentActivity()) {

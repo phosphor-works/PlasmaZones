@@ -290,6 +290,25 @@ inline PlacementPurpose clampPlacementPurposeFromWire(int wire)
                                                                    : PlacementPurpose::UserVerb;
 }
 
+/// Why the daemon asks the compositor to switch one output's virtual desktop,
+/// carried by WindowTracking.setScreenDesktopRequested. A UserSwitch is a
+/// workspace focus verb the user pressed, so the compositor shows it like any
+/// switch the user makes. A Correction is a switch the daemon makes on its own
+/// (the owner-wins return of a screen to its own workspaces), which the
+/// compositor carries out without the desktop-switch transition.
+enum class ScreenDesktopSwitchPurpose : int {
+    UserSwitch = 0,
+    Correction = 1,
+};
+
+/// Clamp an integer wire value to a ScreenDesktopSwitchPurpose. An unknown
+/// value is a UserSwitch, so a malformed request is never silently hidden.
+inline ScreenDesktopSwitchPurpose clampScreenDesktopSwitchPurposeFromWire(int wire)
+{
+    return wire == static_cast<int>(ScreenDesktopSwitchPurpose::Correction) ? ScreenDesktopSwitchPurpose::Correction
+                                                                            : ScreenDesktopSwitchPurpose::UserSwitch;
+}
+
 } // namespace PhosphorProtocol
 
 Q_DECLARE_METATYPE(PhosphorProtocol::OutputSettleRow)

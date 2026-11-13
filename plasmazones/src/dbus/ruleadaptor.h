@@ -94,20 +94,12 @@ public Q_SLOTS:
     bool setRulePriority(const QString& ruleId, int priority);
 
     /// Global Restore Defaults hook for the rule store. Window appearance / gap
-    /// defaults live in the config store now, so this only strips any stale
-    /// managed appearance baseline rules an older build may have left in
-    /// rules.json, preserving every user-authored rule. Reloads the store first
-    /// (to pick up an out-of-process write such as Settings::reset()'s
-    /// disable-rule drop), then persists once if anything was removed. May emit
-    /// rulesChanged up to twice — once from the reload if the on-disk set changed,
-    /// once from the strip.
-    ///
-    /// Returns void by design, so a failed write of the stripped set is warned
-    /// about in the daemon log and nowhere else. The caller is the global
-    /// Restore Defaults, which is fire-and-forget and has nothing to do with a
-    /// failure anyway; the store's in-memory set is still stripped, and the
-    /// following rulesChanged carries @c persisted = false for a consumer that
-    /// wants to know the disk copy diverged.
+    /// defaults live in the config store, and the store holds no managed rules,
+    /// so this creates and removes nothing: it reloads the store from disk to
+    /// pick up an out-of-process write such as Settings::reset()'s
+    /// disable-rule drop, which the daemon's borrowed store would otherwise
+    /// write back on its next save. rulesChanged fires only when the on-disk
+    /// set differs from the one in memory.
     void resetManagedDefaults();
 
     /// Re-read rules.json from disk.

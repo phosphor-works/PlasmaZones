@@ -61,13 +61,14 @@ public:
         return false;
     }
     // Hold-mode release grace, one per trigger list that has a toggle mode:
-    // snapping activation, the snapping zone span modifier, and the two
-    // engines' drag re-insert. A mouse-button trigger is released by the same hand
-    // that drops the window, so the button often lifts a few milliseconds
-    // before the drop. The trigger keeps reading as held for this long
-    // after its last physically-held tick, so that drop still snaps. Only
-    // hold mode uses it (toggle mode has no release to extend), and 0
-    // turns it off. The range is shared by all four.
+    // snapping activation, the snapping zone span triggers, and the two
+    // engines' drag re-insert (snap assist, below, has one too). A
+    // mouse-button trigger is released by the same hand that drops the
+    // window, so the button often lifts a few milliseconds before the drop.
+    // The trigger keeps reading as held for this long after its last
+    // physically-held tick, so that drop still snaps. Only hold mode uses it
+    // (toggle mode has no release to extend), and 0 turns it off. Every grace
+    // shares the triggerGraceMsMin/Max range.
     static int dragActivationGraceMs()
     {
         return 150;
@@ -88,13 +89,9 @@ public:
     {
         return true;
     }
-    static int zoneSpanModifier()
-    {
-        return static_cast<int>(DragModifier::Ctrl);
-    }
     static QVariantList zoneSpanTriggers()
     {
-        return makeSingleTriggerList(zoneSpanModifier());
+        return makeSingleTriggerList(static_cast<int>(DragModifier::Ctrl));
     }
     static bool zoneSpanToggleMode()
     {
@@ -105,7 +102,7 @@ public:
         return dragActivationGraceMs();
     }
     /// Snap assist's grace differs from its siblings in WHERE it is read: the
-    /// other three are read on a drag tick, this one at the drop itself, which
+    /// others are read on a drag tick, this one at the drop itself, which
     /// is the moment the lifting hand is most likely to have already let go.
     /// Its trigger list has no toggle mode, so the grace always applies.
     static int snapAssistGraceMs()
@@ -126,11 +123,12 @@ public:
     {
         return dragActivationGraceMs();
     }
-    // Scrolling twins of the autotile drag-insert pair (stored under
-    // Scrolling.Behavior with the same generic Triggers/ToggleActivation
-    // keys). Declared here beside the trigger family rather than in
-    // configdefaults_scrolling.h because makeSingleTriggerList lives on the
-    // derived class and the base header cannot call it.
+    // The scrolling trigger lists below (the wheel chords and the drag
+    // re-insert twins of the autotile pair above) are declared here beside
+    // the trigger family rather than in configdefaults_scrolling.h because
+    // makeSingleTriggerList lives on the derived class and the base header
+    // cannot call it.
+
     /// The scrolling wheel chords ("scroll keys"). Meta turns the wheel into
     /// column focus, Meta+Shift into a view pan — one modifier step apart for
     /// one step of difference in meaning. Both were hardcoded in the KWin
@@ -149,6 +147,9 @@ public:
         return makeSingleTriggerList(static_cast<int>(DragModifier::MetaShift));
     }
 
+    // Scrolling twins of the autotile drag-insert pair (stored under
+    // Scrolling.Behavior with the same generic Triggers/ToggleActivation
+    // keys).
     static QVariantList scrollingDragInsertTriggers()
     {
         return makeSingleTriggerList(static_cast<int>(DragModifier::Alt));
@@ -192,9 +193,9 @@ public:
     }
     // Spelled as the enumerators, not literals, so each bound READS as the
     // entry it means (a new enumerator still needs the Max retargeted by
-    // hand). The remaining consumers are the D-Bus registry guards and the
-    // runtime default asserts; the schema rows validate against explicit
-    // enumerator lists and no longer read these.
+    // hand). The schema rows validate against explicit enumerator lists and
+    // do not read these. Grep for the accessor names to find the consumers
+    // that still do.
     static constexpr int osdStyleMin()
     {
         return static_cast<int>(OsdStyle::None);
@@ -237,7 +238,7 @@ public:
     }
     static int snappingStickyWindowHandling()
     {
-        return 0;
+        return static_cast<int>(StickyWindowHandling::TreatAsNormal);
     }
     static bool restoreWindowsToZonesOnLogin()
     {
@@ -300,7 +301,7 @@ public:
         return makeSingleTriggerList(static_cast<int>(DragModifier::Disabled), static_cast<int>(Qt::MiddleButton));
     }
     // ═══════════════════════════════════════════════════════════════════════════
-    // PhosphorZones::Zone Selector Settings
+    // Zone Selector Settings
     // ═══════════════════════════════════════════════════════════════════════════
 
     static bool zoneSelectorEnabled()
@@ -321,15 +322,15 @@ public:
     }
     static int position()
     {
-        return 1;
+        return static_cast<int>(ZoneSelectorPosition::Top);
     }
     static int layoutMode()
     {
-        return 0;
+        return static_cast<int>(ZoneSelectorLayoutMode::Grid);
     }
     static int sizeMode()
     {
-        return 0;
+        return static_cast<int>(ZoneSelectorSizeMode::Auto);
     }
     static int maxRows()
     {
@@ -426,45 +427,6 @@ public:
     // collides with the data-dir animation profiles subdir.
     PLASMAZONES_EXPORT static QString profilesDir();
 
-    // Window appearance (border / title bar / gap) defaults live in the config
-    // store now (the Windows.* / Gaps.* groups), NOT in managed baseline rules.
-    // These three ids no longer identify seeded rules — they exist only so the
-    // daemon (and the D-Bus Restore Defaults path) can STRIP any stale managed
-    // baseline appearance rules an older build wrote to rules.json. See
-    // managedAppearanceBaselineIds() and the strips in daemon.cpp / ruleadaptor.cpp.
-    //
-    // UUID suffix `...001` is RETIRED — it was the never-shipped single combined
-    // "Default appearance" baseline rule, since split into the three ids below
-    // (`...002`/`...003`/`...004`). Do not reuse it.
-
-    /// Stable id of the (now-stripped) managed baseline BORDER rule.
-    static QUuid baselineBorderRuleId()
-    {
-        return QUuid(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000002}"));
-    }
-
-    /// Stable id of the (now-stripped) managed baseline TITLE BAR rule.
-    static QUuid baselineTitleBarRuleId()
-    {
-        return QUuid(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000003}"));
-    }
-
-    /// Stable id of the (now-stripped) managed baseline GAP rule. Per-monitor gap
-    /// overrides are config-backed now, so this id is no longer used to namespace
-    /// them; it survives only as a strip target.
-    static QUuid baselineGapRuleId()
-    {
-        return QUuid(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000004}"));
-    }
-
-    /// The three fixed ids above as a set — the single source of truth for the
-    /// stale-managed-appearance-baseline strip, shared by the daemon's startup
-    /// cleanup and the D-Bus Restore Defaults path so the two can't drift.
-    static QSet<QUuid> managedAppearanceBaselineIds()
-    {
-        return {baselineBorderRuleId(), baselineTitleBarRuleId(), baselineGapRuleId()};
-    }
-
     /// Default user-defined sort orders for the layout picker, the tiling
     /// algorithm menu and the scrolling template picker: empty (no custom
     /// order; consumers fall back to their natural sort). Comma-joined
@@ -533,7 +495,7 @@ public:
     PLASMAZONES_EXPORT static QJsonObject defaultLayoutVisibilitySettings();
 
     // Returns the absolute path to the legacy plasmazonesrc file (INI format).
-    // Used only by the one-time migration module.
+    // Used only by the migration module (ConfigMigration::ensureJsonConfig).
     PLASMAZONES_EXPORT static QString legacyConfigFilePath();
 
     /**
@@ -541,15 +503,13 @@ public:
      * parsing config.json once for both boot-time values.
      *
      * Backend: reads Rendering/Backend (the renderingGroup()/backendKey()
-     * accessors), falling back to the legacy plasmazonesrc INI (v1 key) when
-     * the JSON config is absent, unparseable, or doesn't carry the key. Read
-     * after the migration, as the daemon reads it, that means a start whose
-     * migration failed, since a successful one renames the INI away. Returns
-     * a normalized token ("auto", "vulkan", "opengl").
+     * accessors). When the JSON config is absent, unparseable, or doesn't
+     * carry the key (the stored form of the default), returns the default;
+     * the legacy INI is never consulted, since it is migration input only.
+     * Returns a normalized token ("auto", "vulkan", "opengl").
      *
-     * GPU pin: reads Rendering/Gpu with no INI fallback (the key postdates
-     * the v1 INI format, so an INI can never carry it). Returns "auto" or a
-     * normalized "vendor:device" hex pair.
+     * GPU pin: reads Rendering/Gpu (the key postdates the v1 INI format).
+     * Returns "auto" or a normalized "vendor:device" hex pair.
      *
      * Safe to call before QCoreApplication exists (raw file access, no
      * config backend construction). Only the daemon's main calls it. A v1
@@ -718,6 +678,13 @@ public:
     /// feel matches `Profile::toJson` shape.
     static QVariantMap animationProfile(const PhosphorAnimation::CurveRegistry& registry);
 
+    /// The process-wide builtins-only CurveRegistry, for every path that has
+    /// no injected registry: the schema's default Profile, and Settings
+    /// instances constructed without one (tests, settings-app tools). One
+    /// instance so the same curve string resolves to the same
+    /// shared_ptr<const Curve> on all of them.
+    PLASMAZONES_EXPORT static PhosphorAnimation::CurveRegistry& fallbackCurveRegistry();
+
     static QVariantMap shaderProfileTree()
     {
         return {};
@@ -761,19 +728,17 @@ public:
     }
     static int autotileStickyWindowHandling()
     {
-        return 0;
+        return static_cast<int>(StickyWindowHandling::TreatAsNormal);
     }
     static int autotileDragBehavior()
     {
-        return 0; // AutotileDragBehavior::Float — native drag-to-float
+        // Native drag-to-float.
+        return static_cast<int>(AutotileDragBehavior::Float);
     }
     static int autotileOverflowBehavior()
     {
-        return 0; // AutotileOverflowBehavior::Float — cap-enforcing (current)
-    }
-    static QStringList lockedScreens()
-    {
-        return {};
+        // Cap-enforcing: windows past the cap float.
+        return static_cast<int>(AutotileOverflowBehavior::Float);
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // Editor Settings
@@ -970,8 +935,11 @@ public:
     // quick tile, Meta+Shift screen move, Meta+Ctrl desktop switch,
     // Meta+Ctrl+Shift window-to-desktop, Meta+Alt KWin switch-window) and
     // our own directional families (moveWindow Meta+Alt+Shift, swapWindow
-    // Meta+Ctrl+Alt, focusZone Alt+Shift). Non-Meta chords have precedent
-    // in focusZone below.
+    // Meta+Ctrl+Alt, swapVirtualScreen Meta+Ctrl+Alt+Shift in
+    // configdefaults_screens.h, focusZone Alt+Shift). The workspace focus
+    // verbs in configdefaults_workspaces.h take over the stock Meta+Ctrl
+    // Up/Down desktop switch rather than claiming a tier of their own.
+    // Non-Meta chords have precedent in focusZone below.
     static QString spanWindowLeftShortcut()
     {
         return QStringLiteral("Ctrl+Alt+Left");
@@ -1064,8 +1032,11 @@ public:
     // (Meta+Alt+N is a quick-layout slot, Meta+Ctrl+N a snap-to-zone slot),
     // and there is no third row to take without displacing a shipped
     // binding. The precedent is the scrolling wrap and one-way float verbs,
-    // which ship unbound for the same reason — the keys exist so a user who
-    // wants tab ordinals can bind them, not because we found free chords.
+    // which ship unbound for the same reason. The settings app has no
+    // recorder for these keys, so a user who wants tab ordinals binds them in
+    // the Shortcuts.Global group of config.json or through the settings D-Bus
+    // interface (setSetting on the scrollFocusTabNShortcut names), and the
+    // daemon registers whatever chord is stored there.
     static QString scrollFocusTab1Shortcut()
     {
         return {};
@@ -1194,15 +1165,18 @@ public:
     //
     // Sub-paths under `QStandardPaths::GenericDataLocation` (typically
     // `~/.local/share`) for assets the settings app and daemon write at
-    // runtime. Centralised here so a directory rename is a one-line edit.
+    // runtime, with the leading '/' a writableLocation() concatenation needs.
+    // Where a family also has a RELATIVE accessor in configkeys.h (the form
+    // locate / locateAll take), the slashed one is derived from it, so a
+    // directory rename is a one-line edit.
 
     static QString userProfilesSubdir()
     {
-        return QStringLiteral("/plasmazones/profiles");
+        return QLatin1Char('/') + profilesSubdir();
     }
     static QString userAnimationsSubdir()
     {
-        return QStringLiteral("/plasmazones/animations");
+        return QLatin1Char('/') + animationsSubdir();
     }
     static QString userMotionSetsSubdir()
     {
@@ -1214,7 +1188,7 @@ public:
     /// one source of truth for the on-disk location.
     static QString userOverlayShadersSubdir()
     {
-        return QStringLiteral("/plasmazones/overlays");
+        return QLatin1Char('/') + overlaysSubdir();
     }
 
     /// Decoration sets — named snapshots of the decoration profile tree
@@ -1246,7 +1220,7 @@ public:
     /// source of truth for the on-disk location.
     static QString userPointerSubdir()
     {
-        return QStringLiteral("/plasmazones/pointer");
+        return QLatin1Char('/') + pointerSubdir();
     }
 
 private:
@@ -1259,7 +1233,7 @@ private:
 // Mirrors the
 // pattern in AnimationLimits.h where library defaults assert against
 // their own min/max. Mirrored at runtime by QVERIFY in
-// tests/unit/config/test_configdefaults.cpp; the compile-time form
+// test_configdefaults.cpp; the compile-time form
 // catches a bad default during build, the runtime form survives header
 // changes that drop constexpr from any accessor.
 static_assert(ConfigDefaults::animationDuration() >= ConfigDefaults::animationDurationMin()
@@ -1281,11 +1255,10 @@ static_assert(ConfigDefaults::animationStaggerInterval() >= ConfigDefaults::anim
 static_assert(ConfigDefaults::animationSequenceMode() >= ConfigDefaults::animationSequenceModeMin()
                   && ConfigDefaults::animationSequenceMode() <= ConfigDefaults::animationSequenceModeMax(),
               "ConfigDefaults::animationSequenceMode() outside declared [min, max] range");
-// The autotile five. Every OTHER constexpr accessor that declares a [min, max] was checked
-// here and these were not, for no reason anyone could name — the guard is free, and a
-// default outside its own declared slider range is a bug the compiler can simply refuse.
-// (Non-constexpr accessors cannot be checked this way, and only some of them have a
-// runtime check in test_configdefaults.cpp, so a ranged default belongs here as
+// Every constexpr accessor that declares a [min, max] is checked here: the guard is free,
+// and a default outside its own declared slider range is a bug the compiler can simply
+// refuse. (Non-constexpr accessors cannot be checked this way, and only some of them have
+// a runtime check in test_configdefaults.cpp, so a ranged default belongs here as
 // constexpr.)
 static_assert(ConfigDefaults::editorSnapIntervalX() >= ConfigDefaults::editorSnapIntervalMin()
                   && ConfigDefaults::editorSnapIntervalX() <= ConfigDefaults::editorSnapIntervalMax()

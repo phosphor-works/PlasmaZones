@@ -5,9 +5,12 @@
 
 #include <QString>
 
-// Shortcut id vocabulary shared by the registration table
-// (shortcutmanager.cpp) and the cheatsheet catalog
-// (shortcutmanager_catalog.cpp).
+// Shortcut id vocabulary. One definition for every reader: the registration
+// table (shortcutmanager_table.cpp), the entry build and the slot loops
+// (shortcutmanager.cpp), the adhoc collision guard
+// (shortcutmanager_adhoc.cpp), the cheatsheet catalog
+// (shortcutmanager_catalog.cpp), and the daemon's named-workspace chord
+// binding, which builds its adhoc ids with the builders below.
 
 namespace PlasmaZones {
 namespace ShortcutIds {
@@ -62,22 +65,26 @@ inline QString workspaceFocusSlotId(int slotZeroBased)
 {
     return QLatin1String(kWorkspaceFocusSlotPrefix) + QString::number(slotZeroBased + 1);
 }
-// Named-workspace adhoc chords. Unlike the slot families these are keyed by
-// the workspace NAME, so the id is the prefix plus the trimmed declared name
-// and the set is rebuilt on every declaration change. The prefixes live here
-// with the rest of the vocabulary for the same reason: they are on-disk record
-// keys under the "plasmazonesd" component and must never be renamed, and the
-// adhoc collision guard in shortcutmanager.cpp can only keep the families
-// apart if it reads the same definition the builder does.
+// Named-workspace adhoc chords, one focus and one move id per declared entry.
+// Keyed by the entry's persistent id, so renaming a workspace keeps its
+// chords' ids (and with them their place in kglobalacceld's dispatch order).
+// An entry without an id (a hand-edited config whose list was never re-saved)
+// is identified by its trimmed name instead, the same fallback every other
+// consumer of the declarations uses. The prefixes live here with the rest of
+// the vocabulary because they are on-disk record keys under the
+// "plasmazonesd" component and must never be renamed, and because the
+// cheatsheet catalog recognises the family by them.
 inline constexpr auto kWorkspaceNamedFocusPrefix = "workspace_named_focus:";
 inline constexpr auto kWorkspaceNamedMovePrefix = "workspace_named_move:";
-inline QString workspaceNamedFocusId(const QString& trimmedName)
+/// @p entryKey is the entry's id, or its trimmed name when it has none.
+inline QString workspaceNamedFocusId(const QString& entryKey)
 {
-    return QLatin1String(kWorkspaceNamedFocusPrefix) + trimmedName;
+    return QLatin1String(kWorkspaceNamedFocusPrefix) + entryKey;
 }
-inline QString workspaceNamedMoveId(const QString& trimmedName)
+/// @p entryKey is the entry's id, or its trimmed name when it has none.
+inline QString workspaceNamedMoveId(const QString& entryKey)
 {
-    return QLatin1String(kWorkspaceNamedMovePrefix) + trimmedName;
+    return QLatin1String(kWorkspaceNamedMovePrefix) + entryKey;
 }
 inline constexpr auto kIdSwapWindowLeft = "swap_window_left";
 inline constexpr auto kIdSwapWindowRight = "swap_window_right";
@@ -152,22 +159,22 @@ inline constexpr auto kIdScrollMinimizeColumnWidth = "scroll_minimize_column_wid
 inline constexpr auto kIdScrollEqualizeWindowHeights = "scroll_equalize_window_heights";
 inline constexpr auto kIdScrollMinimizeWindowHeight = "scroll_minimize_window_height";
 
-// The indexed slot families are prefix-keyed rather than enumerated above.
-// Exported so the id builders below and the cheatsheet catalog's
-// prefix classification read from ONE definition: a hardcoded copy in the
-// catalog compiled clean through a rename and silently dropped every row of
-// the family into the "Other" bucket.
+// Prefixes of the indexed slot families whose builders follow. The workspace
+// slot prefixes sit with their builders further up. Exported so the id
+// builders and the cheatsheet catalog's prefix classification read from ONE
+// definition: a hardcoded copy in the catalog compiled clean through a rename
+// and silently dropped every row of the family into the "Other" bucket.
 inline constexpr auto kQuickLayoutPrefix = "quick_layout_";
 inline constexpr auto kSnapToZonePrefix = "snap_to_zone_";
 inline constexpr auto kScrollFocusTabPrefix = "scroll_focus_tab_";
 
-/// How many slots each indexed family has. All three families are 1-9 (the
-/// digit row), and the number appears in the default-getter array bounds, the
+/// How many slots each indexed family has. Every family is 1-9 (the digit
+/// row), and the number appears in the default-getter array checks, the
 /// registration loops and the cheatsheet's expected-token lists. Exported for
-/// the same reason as the prefixes above: those sites live in two translation
-/// units, and a bare literal in each lets them drift apart silently — the
-/// cheatsheet's malformed-spec guard cannot catch it, because both sides of
-/// the comparison are built from the same local literal.
+/// the same reason as the prefixes above: those sites live in separate
+/// translation units, and a bare literal in each lets them drift apart
+/// silently — the cheatsheet's malformed-spec guard cannot catch it, because
+/// both sides of the comparison are built from the same local literal.
 inline constexpr int kIndexedSlotCount = 9;
 
 inline QString quickLayoutId(int slotZeroBased)

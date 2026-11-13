@@ -183,7 +183,7 @@ void EditorController::sendBackward(const QString& zoneId)
 /**
  * @brief Creates a duplicate of an existing zone
  * @param zoneId The unique identifier of the zone to duplicate
- * @return PhosphorZones::Zone ID of the new zone, or empty string on failure
+ * @return Zone ID of the new zone, or empty string on failure
  */
 QString EditorController::duplicateZone(const QString& zoneId)
 {
@@ -342,7 +342,7 @@ QVariantList EditorController::getZonesSharingEdge(const QString& zoneId, qreal 
  * @brief Splits a zone horizontally or vertically into two zones
  * @param zoneId The unique identifier of the zone to split
  * @param horizontal If true, split horizontally (top/bottom), otherwise vertically (left/right)
- * @return PhosphorZones::Zone ID of the newly created zone, or empty string on failure
+ * @return Zone ID of the newly created zone, or empty string on failure
  */
 QString EditorController::splitZone(const QString& zoneId, bool horizontal)
 {
@@ -381,8 +381,8 @@ QString EditorController::splitZone(const QString& zoneId, bool horizontal)
 
 /**
  * @brief Resizes zones at a divider position
- * @param zoneId1 PhosphorZones::Zone ID on one side of the divider
- * @param zoneId2 PhosphorZones::Zone ID on the other side of the divider
+ * @param zoneId1 Zone ID on one side of the divider
+ * @param zoneId2 Zone ID on the other side of the divider
  * @param newDividerX New X position of divider (relative 0.0-1.0) for vertical dividers
  * @param newDividerY New Y position of divider (relative 0.0-1.0) for horizontal dividers
  * @param isVertical true for vertical divider, false for horizontal

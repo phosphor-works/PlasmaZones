@@ -91,6 +91,7 @@ private Q_SLOTS:
     void focusEdgeWithNoNeighbourReportsNoTarget();
     void focusOntoAForeignModeNeighbourDefersToTheDaemon();
     void windowedFullscreenRefusesWhileTheFloatLayerHoldsFocus();
+    void columnVerbsRefuseWhileTheFloatLayerHoldsFocus();
 
 private:
     /// Bare engine: NO geometry providers and NO auto-echo. Only for tests
@@ -1307,6 +1308,63 @@ void TestScrollEngineVerbs::windowedFullscreenRefusesWhileTheFloatLayerHoldsFocu
     QCOMPARE(feedback.last().at(0).toBool(), true);
     QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("on"));
     QVERIFY(state->strip().isWindowedFullscreen(active));
+}
+
+// The verbs that restructure the strip around its active column refuse while
+// a float holds focus, as the directional move does: the active column is then
+// the one BEHIND the float, and acting on it moved a column the user was not
+// looking at, announced success, and focused it away from the float. The
+// column read the move-column-to-workspace verb uses refuses on the same test.
+void TestScrollEngineVerbs::columnVerbsRefuseWhileTheFloatLayerHoldsFocus()
+{
+    QObject owner;
+    ScrollEngine* engine = providerThreeWindows(&owner);
+    ScrollState* state = stateFor(engine, QStringLiteral("S1"));
+    QVERIFY(state);
+    QCOMPARE(state->strip().activeWindowId(), QStringLiteral("app|c"));
+    engine->setWindowFloat(QStringLiteral("app|c"), true, QStringLiteral("S1"));
+    QVERIFY(state->floatingHasFocus());
+    const QStringList order = state->strip().windowsInOrder();
+    const int columns = state->strip().columnCount();
+    QCOMPARE(columns, 2);
+
+    QSignalSpy feedback(engine, &PhosphorEngine::PlacementEngineBase::navigationFeedback);
+    const auto expectRefused = [&](const QString& action) {
+        QCOMPARE(feedback.count(), 1);
+        QCOMPARE(feedback.last().at(0).toBool(), false);
+        QCOMPARE(feedback.last().at(1).toString(), action);
+        QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("no_target"));
+        QCOMPARE(feedback.last().at(3).toString(), QStringLiteral("app|c"));
+        QCOMPARE(state->strip().windowsInOrder(), order);
+        QCOMPARE(state->strip().columnCount(), columns);
+        QVERIFY(state->floatingHasFocus());
+        feedback.clear();
+    };
+    engine->moveColumnToFirst(QStringLiteral("S1"));
+    expectRefused(QStringLiteral("move"));
+    engine->moveColumnToLast(QStringLiteral("S1"));
+    expectRefused(QStringLiteral("move"));
+    engine->consumeWindowIntoColumn(QStringLiteral("S1"));
+    expectRefused(QStringLiteral("consume"));
+    engine->consumeOrExpelWindow(-1, QStringLiteral("S1"));
+    expectRefused(QStringLiteral("consume"));
+    engine->expelWindowFromColumn(QStringLiteral("S1"));
+    expectRefused(QStringLiteral("expel"));
+
+    ScrollEngine::FocusedColumnRefusal reason = ScrollEngine::FocusedColumnRefusal::None;
+    QVERIFY(engine->focusedColumnWindows(QStringLiteral("S1"), &reason).isEmpty());
+    QCOMPARE(reason, ScrollEngine::FocusedColumnRefusal::FloatFocused);
+
+    // Focus back on the strip makes the same press act, so the float focus is
+    // the whole cause of the refusals above.
+    engine->setWindowFloat(QStringLiteral("app|c"), false, QStringLiteral("S1"));
+    QVERIFY(!state->floatingHasFocus());
+    QVERIFY(!engine->focusedColumnWindows(QStringLiteral("S1"), &reason).isEmpty());
+    QCOMPARE(reason, ScrollEngine::FocusedColumnRefusal::None);
+    feedback.clear();
+    engine->moveColumnToFirst(QStringLiteral("S1"));
+    QCOMPARE(feedback.count(), 1);
+    QCOMPARE(feedback.last().at(0).toBool(), true);
 }
 
 QTEST_GUILESS_MAIN(TestScrollEngineVerbs)

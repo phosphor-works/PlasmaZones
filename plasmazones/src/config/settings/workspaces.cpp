@@ -4,18 +4,24 @@
 #include "config/settings.h"
 #include "config/settings/settings_detail.h"
 #include "config/configdefaults.h"
+#include "core/platform/logging.h"
+
+#include <QUuid>
 
 #include <array>
+#include <iterator>
 
 namespace PlasmaZones {
 
 // ── Workspaces (PhosphorConfig::Store-backed) ───────────────────────────────
 // Dynamic per-monitor workspaces: the gate scalars, the named-workspace
-// declarations, the ten verb chords, and the three indexed slot families
-// (focus chord, move chord, target). Defaults live in
-// configdefaults_workspaces.h; the schema groups in
-// settingsschema_workspaces.cpp and (for the Shortcuts.Global chord leaves)
-// settingsschema.cpp's appendShortcutsSchema.
+// declarations, the verb chords, and the indexed slot families (focus chord,
+// move chord, and the target as an entry id plus the name it had). Defaults
+// live in configdefaults_workspaces.h, key accessors in
+// configkeys_workspaces.h. The schema rows live in
+// settingsschema_workspaces.cpp: appendWorkspacesSchema for the Workspaces.*
+// groups, and appendWorkspacesShortcutKeys for the Shortcuts.Global chord
+// leaves (which appendShortcutsSchema calls).
 
 P_STORE_GET(bool, workspacesEnabled, workspacesBehaviorGroup, enabledKey, bool)
 P_STORE_SET_BOOL(setWorkspacesEnabled, workspacesBehaviorGroup, enabledKey, workspacesEnabledChanged)
@@ -28,8 +34,8 @@ P_STORE_GET(bool, workspacesSnapBackOsdHint, workspacesBehaviorGroup, snapBackOs
 P_STORE_SET_BOOL(setWorkspacesSnapBackOsdHint, workspacesBehaviorGroup, snapBackOsdHintKey,
                  workspacesSnapBackOsdHintChanged)
 
-P_STORE_GET(bool, workspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebindKWinShortcutsKey, bool)
-P_STORE_SET_BOOL(setWorkspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebindKWinShortcutsKey,
+P_STORE_GET(bool, workspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebindKWinDesktopShortcutsKey, bool)
+P_STORE_SET_BOOL(setWorkspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebindKWinDesktopShortcutsKey,
                  workspacesRebindKWinShortcutsChanged)
 
 // Named-workspace declarations: whole-replace QVariantList composite, same
@@ -94,72 +100,93 @@ P_STORE_SET_STRING(setWorkspaceMoveToMonitorRightShortcut, shortcutsGlobalGroup,
                    workspaceMoveToMonitorRightShortcutChanged)
 
 // ── Indexed workspace slots ─────────────────────────────────────────────────
-// Nine focus chords + nine move chords + nine targets, addressed 0-based. The
-// three pairs of accessors are one shape, so they share the read/write
-// primitives below — the writeTriggerList precedent: the bounds contract and
-// the changed-check live in one place instead of three copies.
-//
-// One shared NOTIFY per chord family: the shortcuts page re-reads all fields
-// on it, and the ShortcutManager's rebind rides settingsChanged regardless.
+// A focus chord, a move chord and a target (TargetIdN plus TargetN) per slot,
+// addressed 0-based. The families are one shape, so they share the read/write
+// primitives below, the writeTriggerList precedent: the bounds contract and
+// the changed-check live in one place. Each slot announces on its own NOTIFY (the per-slot
+// Q_PROPERTYs in settings.h), which is also what reload, profile staging and
+// per-page reset/discard fire through the metaobject walk.
 
 namespace {
-/// One of the three ConfigDefaults key builders (1-based slot → key string).
+/// One of the ConfigDefaults key builders (1-based slot → key string).
 using SlotKeyFn = QString (*)(int);
+using SlotSignalFn = void (Settings::*)();
+
+bool slotIndexInRange(int index)
+{
+    return index >= 0 && index < ConfigDefaults::WorkspaceSlotCount;
+}
 
 QString readSlotValue(PhosphorConfig::Store* store, const QString& group, SlotKeyFn keyFn, int index)
 {
     // Out-of-range reads answer empty rather than qFatal-ing through the key
-    // builder: the index arrives from QML, where a stale model row can outlive
-    // the page that produced it.
-    if (index < 0 || index >= ConfigDefaults::WorkspaceSlotCount) {
+    // builder: the index can arrive from QML, where a stale model row can
+    // outlive the page that produced it.
+    if (!slotIndexInRange(index)) {
         return {};
     }
     return store->read<QString>(group, keyFn(index + 1));
 }
 
-/// Returns true when the store actually moved — the caller emits on that.
+/// Write one slot key and report whether the stored value moved; the caller
+/// emits on that. Compared after the write rather than before, because the
+/// target keys carry schema validators (canonical id, canonical name), so what
+/// lands in the store can differ from what was passed in.
 bool writeSlotValue(PhosphorConfig::Store* store, const QString& group, SlotKeyFn keyFn, int index,
                     const QString& value)
 {
-    if (index < 0 || index >= ConfigDefaults::WorkspaceSlotCount) {
+    if (!slotIndexInRange(index)) {
         return false;
     }
     const QString key = keyFn(index + 1);
-    if (store->read<QString>(group, key) == value) {
-        return false;
-    }
+    const QString before = store->read<QString>(group, key);
     store->write(group, key, value);
-    return true;
+    return store->read<QString>(group, key) != before;
 }
+
+// The per-slot NOTIFYs, indexed 0-based. Sized from their initializers and
+// pinned to the slot count, so raising the count without adding the matching
+// signals fails the build instead of indexing past the end.
+constexpr auto FocusSlotSignals = std::to_array<SlotSignalFn>({
+    &Settings::workspaceFocusSlot1ShortcutChanged,
+    &Settings::workspaceFocusSlot2ShortcutChanged,
+    &Settings::workspaceFocusSlot3ShortcutChanged,
+    &Settings::workspaceFocusSlot4ShortcutChanged,
+    &Settings::workspaceFocusSlot5ShortcutChanged,
+    &Settings::workspaceFocusSlot6ShortcutChanged,
+    &Settings::workspaceFocusSlot7ShortcutChanged,
+    &Settings::workspaceFocusSlot8ShortcutChanged,
+    &Settings::workspaceFocusSlot9ShortcutChanged,
+});
+constexpr auto MoveSlotSignals = std::to_array<SlotSignalFn>({
+    &Settings::workspaceMoveSlot1ShortcutChanged,
+    &Settings::workspaceMoveSlot2ShortcutChanged,
+    &Settings::workspaceMoveSlot3ShortcutChanged,
+    &Settings::workspaceMoveSlot4ShortcutChanged,
+    &Settings::workspaceMoveSlot5ShortcutChanged,
+    &Settings::workspaceMoveSlot6ShortcutChanged,
+    &Settings::workspaceMoveSlot7ShortcutChanged,
+    &Settings::workspaceMoveSlot8ShortcutChanged,
+    &Settings::workspaceMoveSlot9ShortcutChanged,
+});
+constexpr auto TargetSignals = std::to_array<SlotSignalFn>({
+    &Settings::workspaceSlot1TargetChanged,
+    &Settings::workspaceSlot2TargetChanged,
+    &Settings::workspaceSlot3TargetChanged,
+    &Settings::workspaceSlot4TargetChanged,
+    &Settings::workspaceSlot5TargetChanged,
+    &Settings::workspaceSlot6TargetChanged,
+    &Settings::workspaceSlot7TargetChanged,
+    &Settings::workspaceSlot8TargetChanged,
+    &Settings::workspaceSlot9TargetChanged,
+});
+static_assert(std::size(FocusSlotSignals) == ConfigDefaults::WorkspaceSlotCount,
+              "add a NOTIFY (and a Q_PROPERTY) for each new workspace focus slot");
+static_assert(std::size(MoveSlotSignals) == ConfigDefaults::WorkspaceSlotCount,
+              "add a NOTIFY (and a Q_PROPERTY) for each new workspace move slot");
+static_assert(std::size(TargetSignals) == ConfigDefaults::WorkspaceSlotCount,
+              "add a NOTIFY (and a Q_PROPERTY) for each new workspace slot target");
 } // namespace
-
-QString Settings::workspaceSlotTarget(int index) const
-{
-    return readSlotValue(m_store.get(), ConfigDefaults::workspacesSlotsGroup(), &ConfigDefaults::workspaceSlotTargetKey,
-                         index);
-}
-
-void Settings::setWorkspaceSlotTarget(int index, const QString& workspaceName)
-{
-    // Trimmed to match how a declaration's `name` is canonicalized
-    // (canonicalNamedEntries in settingsschema_workspaces.cpp trims before it
-    // stores), so a target typed with a stray space still resolves.
-    //
-    // No existence check against the declaration list: a target naming a
-    // workspace that does not exist (yet) is inert, not broken. The daemon
-    // resolves the name at press time — WorkspaceController::
-    // moveWindowToNamedWorkspace looks the name up via desktopIdForName and
-    // returns without acting when it comes back empty — so a slot pointing at
-    // a since-renamed workspace simply does nothing until the name exists
-    // again. Validating here would instead delete the user's assignment
-    // whenever the two are edited out of order.
-    if (!writeSlotValue(m_store.get(), ConfigDefaults::workspacesSlotsGroup(), &ConfigDefaults::workspaceSlotTargetKey,
-                        index, workspaceName.trimmed())) {
-        return;
-    }
-    Q_EMIT workspaceSlotTargetsChanged();
-    Q_EMIT settingsChanged();
-}
 
 QString Settings::workspaceFocusSlotShortcut(int index) const
 {
@@ -173,7 +200,7 @@ void Settings::setWorkspaceFocusSlotShortcut(int index, const QString& shortcut)
                         index, shortcut)) {
         return;
     }
-    Q_EMIT workspaceSlotShortcutsChanged();
+    Q_EMIT(this->*FocusSlotSignals[index])();
     Q_EMIT settingsChanged();
 }
 
@@ -189,119 +216,114 @@ void Settings::setWorkspaceMoveSlotShortcut(int index, const QString& shortcut)
                         index, shortcut)) {
         return;
     }
-    Q_EMIT workspaceSlotShortcutsChanged();
+    Q_EMIT(this->*MoveSlotSignals[index])();
     Q_EMIT settingsChanged();
 }
 
-// ── Change detection for the non-Q_PROPERTY workspace keys ──────────────────
-// The ten verb chords and the three indexed slot families are reached through
-// plain getters and Q_INVOKABLEs, not Q_PROPERTYs, so
-// snapshotNotifyProperties() cannot see them: a load(), a staged profile
-// overlay, or a per-page Reset/Discard that moved only these keys fired no
-// signal at all, leaving the shortcuts page painting stale chords and — worse
-// — leaving ShortcutManager bound to the previous chords, because its rebind
-// rides settingsChanged.
-//
-// These two functions are the store-delta twin of the Q_PROPERTY pair, with
-// the same contract: snapshot BEFORE the mutation, emit after, and report
-// whether anything fired so the caller folds it into its one settingsChanged.
-//
-// The verb half emits per-verb NOTIFYs (each has its own signal, and the
-// settings page binds them individually); the slot half collapses onto the two
-// shared family signals, which is what their setters emit too.
-
-namespace {
-/// The ten verb chords, paired getter → NOTIFY, in one table so the snapshot
-/// and the emit walk the same order. Adding a verb means one row here, not two
-/// hand-kept lists.
-struct WorkspaceVerbChord
+QString Settings::workspaceSlotTargetId(int index) const
 {
-    QString (Settings::*get)() const;
-    void (Settings::*changed)();
-};
-
-const std::array<WorkspaceVerbChord, 10>& workspaceVerbChords()
-{
-    static const std::array<WorkspaceVerbChord, 10> table{{
-        {&Settings::workspaceFocusUpShortcut, &Settings::workspaceFocusUpShortcutChanged},
-        {&Settings::workspaceFocusDownShortcut, &Settings::workspaceFocusDownShortcutChanged},
-        {&Settings::workspaceMoveWindowUpShortcut, &Settings::workspaceMoveWindowUpShortcutChanged},
-        {&Settings::workspaceMoveWindowDownShortcut, &Settings::workspaceMoveWindowDownShortcutChanged},
-        {&Settings::workspaceMoveColumnUpShortcut, &Settings::workspaceMoveColumnUpShortcutChanged},
-        {&Settings::workspaceMoveColumnDownShortcut, &Settings::workspaceMoveColumnDownShortcutChanged},
-        {&Settings::workspaceReorderUpShortcut, &Settings::workspaceReorderUpShortcutChanged},
-        {&Settings::workspaceReorderDownShortcut, &Settings::workspaceReorderDownShortcutChanged},
-        {&Settings::workspaceMoveToMonitorLeftShortcut, &Settings::workspaceMoveToMonitorLeftShortcutChanged},
-        {&Settings::workspaceMoveToMonitorRightShortcut, &Settings::workspaceMoveToMonitorRightShortcutChanged},
-    }};
-    return table;
-}
-} // namespace
-
-QVector<QString> Settings::snapshotWorkspaceKeyFamilies() const
-{
-    const auto& verbs = workspaceVerbChords();
-    QVector<QString> snapshot;
-    snapshot.reserve(static_cast<int>(verbs.size()) + 3 * ConfigDefaults::WorkspaceSlotCount);
-    for (const WorkspaceVerbChord& verb : verbs) {
-        snapshot.append((this->*(verb.get))());
-    }
-    // Fixed order — verbs, focus chords, move chords, targets — so
-    // emitChangedWorkspaceKeyFamilies can index straight back into it.
-    for (int i = 0; i < ConfigDefaults::WorkspaceSlotCount; ++i) {
-        snapshot.append(workspaceFocusSlotShortcut(i));
-    }
-    for (int i = 0; i < ConfigDefaults::WorkspaceSlotCount; ++i) {
-        snapshot.append(workspaceMoveSlotShortcut(i));
-    }
-    for (int i = 0; i < ConfigDefaults::WorkspaceSlotCount; ++i) {
-        snapshot.append(workspaceSlotTarget(i));
-    }
-    return snapshot;
+    return readSlotValue(m_store.get(), ConfigDefaults::workspacesSlotsGroup(),
+                         &ConfigDefaults::workspaceSlotTargetIdKey, index);
 }
 
-bool Settings::emitChangedWorkspaceKeyFamilies(const QVector<QString>& before)
+QString Settings::workspaceSlotTargetName(int index) const
 {
-    const auto& verbs = workspaceVerbChords();
-    const int verbCount = static_cast<int>(verbs.size());
-    const int slots = ConfigDefaults::WorkspaceSlotCount;
-    // A short snapshot means the caller paired the two calls across a change
-    // to the families themselves; emitting off a mismatched index would fire
-    // the wrong verb's NOTIFY, so bail rather than guess.
-    if (before.size() != verbCount + 3 * slots) {
-        return false;
-    }
-    bool anyChanged = false;
-    for (int i = 0; i < verbCount; ++i) {
-        if ((this->*(verbs[i].get))() != before.at(i)) {
-            anyChanged = true;
-            (this->*(verbs[i].changed))();
-        }
-    }
-    bool chordsChanged = false;
-    for (int i = 0; i < slots; ++i) {
-        if (workspaceFocusSlotShortcut(i) != before.at(verbCount + i)
-            || workspaceMoveSlotShortcut(i) != before.at(verbCount + slots + i)) {
-            chordsChanged = true;
-            break;
-        }
-    }
-    if (chordsChanged) {
-        anyChanged = true;
-        Q_EMIT workspaceSlotShortcutsChanged();
-    }
-    bool targetsChanged = false;
-    for (int i = 0; i < slots; ++i) {
-        if (workspaceSlotTarget(i) != before.at(verbCount + 2 * slots + i)) {
-            targetsChanged = true;
-            break;
-        }
-    }
-    if (targetsChanged) {
-        anyChanged = true;
-        Q_EMIT workspaceSlotTargetsChanged();
-    }
-    return anyChanged;
+    return readSlotValue(m_store.get(), ConfigDefaults::workspacesSlotsGroup(), &ConfigDefaults::workspaceSlotTargetKey,
+                         index);
 }
+
+QVariantMap Settings::workspaceSlotTarget(int index) const
+{
+    return {
+        {ConfigDefaults::namedEntryIdField(), workspaceSlotTargetId(index)},
+        {ConfigDefaults::namedEntryNameField(), workspaceSlotTargetName(index)},
+    };
+}
+
+void Settings::setWorkspaceSlotTarget(int index, const QString& entryId)
+{
+    if (!slotIndexInRange(index)) {
+        return;
+    }
+    // The name is taken from the declaration the id names, never from the
+    // caller, so the stored pair cannot disagree with itself. Re-assigning the
+    // same id also refreshes a name the declaration has since been renamed
+    // from, which is the name the daemon's fallback would otherwise try.
+    //
+    // Resolved against the declarations as the store holds them now, unsaved
+    // ones included: a workspace added on the Named page and assigned here
+    // before Save is a legitimate order of edits.
+    QString id;
+    QString name;
+    if (!entryId.trimmed().isEmpty()) {
+        const QUuid wanted = QUuid::fromString(entryId.trimmed());
+        if (!wanted.isNull()) {
+            const QVariantList entries = workspacesNamedEntries();
+            for (const QVariant& entry : entries) {
+                const QVariantMap declaration = entry.toMap();
+                if (QUuid::fromString(declaration.value(ConfigDefaults::namedEntryIdField()).toString()) == wanted) {
+                    id = wanted.toString();
+                    name = declaration.value(ConfigDefaults::namedEntryNameField()).toString();
+                    break;
+                }
+            }
+        }
+        if (id.isEmpty()) {
+            qCWarning(lcConfig) << "setWorkspaceSlotTarget: no named workspace carries the id" << entryId
+                                << "so quick slot" << index + 1 << "was left unchanged";
+            return;
+        }
+    }
+    // Both halves are written before either is compared, and the emit decision
+    // takes both: a slot whose id stayed put but whose stored name moved is a
+    // change the daemon's name fallback can observe.
+    const bool idMoved = writeSlotValue(m_store.get(), ConfigDefaults::workspacesSlotsGroup(),
+                                        &ConfigDefaults::workspaceSlotTargetIdKey, index, id);
+    const bool nameMoved = writeSlotValue(m_store.get(), ConfigDefaults::workspacesSlotsGroup(),
+                                          &ConfigDefaults::workspaceSlotTargetKey, index, name);
+    if (!idMoved && !nameMoved) {
+        return;
+    }
+    Q_EMIT(this->*TargetSignals[index])();
+    Q_EMIT settingsChanged();
+}
+
+// The per-slot property accessors: thin forwards to the indexed forms above.
+#define P_WORKSPACE_SLOT(N)                                                                                            \
+    QString Settings::workspaceFocusSlot##N##Shortcut() const                                                          \
+    {                                                                                                                  \
+        return workspaceFocusSlotShortcut(N - 1);                                                                      \
+    }                                                                                                                  \
+    void Settings::setWorkspaceFocusSlot##N##Shortcut(const QString& shortcut)                                         \
+    {                                                                                                                  \
+        setWorkspaceFocusSlotShortcut(N - 1, shortcut);                                                                \
+    }                                                                                                                  \
+    QString Settings::workspaceMoveSlot##N##Shortcut() const                                                           \
+    {                                                                                                                  \
+        return workspaceMoveSlotShortcut(N - 1);                                                                       \
+    }                                                                                                                  \
+    void Settings::setWorkspaceMoveSlot##N##Shortcut(const QString& shortcut)                                          \
+    {                                                                                                                  \
+        setWorkspaceMoveSlotShortcut(N - 1, shortcut);                                                                 \
+    }                                                                                                                  \
+    QVariantMap Settings::workspaceSlot##N##Target() const                                                             \
+    {                                                                                                                  \
+        return workspaceSlotTarget(N - 1);                                                                             \
+    }                                                                                                                  \
+    void Settings::setWorkspaceSlot##N##Target(const QVariantMap& target)                                              \
+    {                                                                                                                  \
+        setWorkspaceSlotTarget(N - 1, target.value(ConfigDefaults::namedEntryIdField()).toString());                   \
+    }
+
+P_WORKSPACE_SLOT(1)
+P_WORKSPACE_SLOT(2)
+P_WORKSPACE_SLOT(3)
+P_WORKSPACE_SLOT(4)
+P_WORKSPACE_SLOT(5)
+P_WORKSPACE_SLOT(6)
+P_WORKSPACE_SLOT(7)
+P_WORKSPACE_SLOT(8)
+P_WORKSPACE_SLOT(9)
+#undef P_WORKSPACE_SLOT
 
 } // namespace PlasmaZones

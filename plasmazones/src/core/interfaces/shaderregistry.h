@@ -6,8 +6,8 @@
 //
 // Per-process ownership: composition roots (daemon) own one via unique_ptr
 // and inject it into every consumer. The previous `instance() / s_instance`
-// singleton was removed in the singleton-sweep #2 refactor — same playbook
-// as AlgorithmRegistry, see project_plugin_based_compositor.md.
+// singleton was removed so a plugin host can run several registries without
+// sharing process-global state, the same shape as AlgorithmRegistry.
 
 #pragma once
 
@@ -41,9 +41,8 @@ public:
         const QString userDir = userShaderDir();
         QDir(userDir).mkpath(QStringLiteral("."));
 
-        const QStringList systemDirs =
-            QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QStringLiteral("plasmazones/overlays"),
-                                      QStandardPaths::LocateDirectory);
+        const QStringList systemDirs = QStandardPaths::locateAll(
+            QStandardPaths::GenericDataLocation, ConfigDefaults::overlaysSubdir(), QStandardPaths::LocateDirectory);
 
         // Build the full registration list once: system dirs first
         // (lower priority), user dir last (last-writer-wins lets the

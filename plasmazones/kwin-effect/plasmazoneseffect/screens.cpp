@@ -52,7 +52,8 @@ namespace {
 // just changed is correct too, not collateral: its old key IS stale.
 //
 // TWO READERS, and the second is why this is a prune rather than a clear. reportScreenDesktop's
-// dedup pays one non-deduplicated report for a dropped key, which is nothing. But
+// dedup pays one non-deduplicated report for a dropped key, which marks nothing (the
+// context-switch mark rides KWin's desktopChanged edge, not the report). But
 // lastReportedScreenDesktops() also feeds PreTileDecisions::announceMatchesReportedDesktops,
 // whose contract is that a MISSING key is not a mismatch — so a dropped key widens that vacuous
 // accept for as long as it is absent. What closes it is not a daemon re-announce, which is the
@@ -201,21 +202,18 @@ void PlasmaZonesEffect::reportScreenDesktop(const QString& screenId, int desktop
     // registered yet; the bringup re-sync (daemon_bringup.cpp) re-pushes every
     // screen's authoritative desktop after (re)registration, so a missed live
     // report here is recovered there.
-    const bool changed = m_lastScreenDesktop.value(screenId, -1) != desktop;
-    if (!changed && !force) {
+    if (!force && m_lastScreenDesktop.value(screenId, -1) == desktop) {
         return;
     }
     m_lastScreenDesktop.insert(screenId, desktop);
     if (m_daemonGate.serviceRegistered) {
+        // No context-switch mark here (F886): a dedup miss is not a switch. A
+        // key dropped by the hotplug prune, a forced answer, or the
+        // activation-time report ahead of a switch all land here, and marking
+        // them left an output owed an announce that no switch would bring. The
+        // per-output desktopChanged handler marks each switch KWin made.
         PhosphorProtocol::ClientHelpers::fireAndForget(this, PhosphorProtocol::Service::Interface::WindowTracking,
                                                        QStringLiteral("screenDesktopChanged"), {screenId, desktop});
-        // The daemon switches this output's context and announces it; a batch
-        // for the context it left must not untile the incoming one (F793). A
-        // forced report of an unchanged desktop switches nothing, so it does
-        // not mark one.
-        if (changed) {
-            m_tilingHandler->noteContextSwitched(screenId);
-        }
     }
 }
 

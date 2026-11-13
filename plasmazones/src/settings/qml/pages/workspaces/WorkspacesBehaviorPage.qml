@@ -6,71 +6,35 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 /**
- * @brief Dynamic workspaces — Behavior leaf.
+ * @brief Dynamic workspaces, Behavior leaf.
  *
- * Card order: the KWin consent warning first (only while the feature is on
- * without per-output desktops and without the recorded consent — the one
- * state where the daemon sits dormant), then the cap warning, then the
- * Behavior card. The feature's master enable is the
- * sidebar toggle on the Workspaces parent row (the placement-mode pattern),
- * so this page deliberately carries no duplicate enable switch; like the mode
- * pages, its rows stay editable while the feature is off.
+ * Card order: the KWin consent warning first, then the cap warning, then the
+ * Behavior card. The feature's master enable is the sidebar toggle on the
+ * Workspaces parent row (the placement-mode pattern), so this page
+ * deliberately carries no duplicate enable switch; like the mode pages, its
+ * rows stay editable while the feature is off.
  *
- * The consent warning grants only the latch (workspacesManageKWinPerOutput);
- * the daemon owns the actual kwinrc write and the reconfigure, and re-enters
- * its gate when that setting reaches it. Like every other setting on this
- * page, it reaches the daemon on Save, not on the click. No restart is
- * involved either way.
+ * The consent warning shows while the feature is on but cannot run because
+ * KWin's per-output virtual desktops setting is off and no consent to turn it
+ * on is pending, which is when SettingsController::workspacesActive is false
+ * with the feature enabled. That property follows the user's kwinrc while the
+ * app runs, so the warning also returns when the KWin setting is turned off
+ * later from System Settings.
+ *
+ * Consent is one-shot. "Turn On KWin Setting" sets the latch
+ * (workspacesManageKWinPerOutput); like every other setting on this page it
+ * reaches the daemon on Save, not on the click. The daemon then writes
+ * kwinrc, reconfigures KWin and clears the latch again, so the latch is true
+ * only while a write is still owed. A later switch-off in KWin is the user's
+ * choice: the daemon goes dormant, never rewrites the setting on its own, and
+ * this warning asks again. No restart is involved either way.
  *
  * The warning hides the moment the latch is set, which is BEFORE Save has
  * committed it. That is deliberate: a warning that stayed up would read as if
- * the consent had not registered. The daemon acts on Save.
+ * the consent had not registered.
  */
 SettingsFlickable {
     id: root
-
-    // Seeded once, then re-read by hand. kwinPerOutputDesktopsEnabled() is a
-    // plain invokable (kwinrc has no change notification), so this is a
-    // snapshot and NOT a binding, however much the initializer looks like one:
-    // nothing it reads would ever make it re-evaluate. The Connections below
-    // re-read it whenever a state that can change it from OUR side flips. An
-    // external kwinrc edit is picked up the next time this page is built.
-    // The seed lives in the declaration rather than in Component.onCompleted
-    // because a `false` start paints one frame of the wrong consent banner for
-    // anyone who already has the KWin setting on.
-    property bool _kwinPerOutput: settingsController.kwinPerOutputDesktopsEnabled()
-
-    Connections {
-        function onWorkspacesEnabledChanged() {
-            root._kwinPerOutput = settingsController.kwinPerOutputDesktopsEnabled();
-        }
-
-        // Not dead, though it is a no-op at the moment the user clicks "Turn
-        // On KWin Setting": the file is unchanged at that instant. It earns
-        // its place on the way BACK, when a Discard, a page Reset or a profile
-        // switch puts the latch at false again. Without a re-read the page
-        // would then show the consent warning from a stale snapshot even
-        // though the daemon had long since written the kwinrc key.
-        function onWorkspacesManageKWinPerOutputChanged() {
-            root._kwinPerOutput = settingsController.kwinPerOutputDesktopsEnabled();
-        }
-
-        target: appSettings
-    }
-
-    // Save is when the setting actually reaches the daemon, and the daemon is
-    // what writes kwinrc, so this is the only moment the snapshot can go stale
-    // on its own. The daemon's write is asynchronous, so a re-read here can
-    // still land a beat early; it is not the exact moment, it is the only one
-    // this app is told about, and every later save (and every fresh visit to
-    // the page) corrects it.
-    Connections {
-        function onSavingFinished() {
-            root._kwinPerOutput = settingsController.kwinPerOutputDesktopsEnabled();
-        }
-
-        target: settingsController
-    }
 
     contentHeight: content.implicitHeight
     clip: true
@@ -81,14 +45,14 @@ SettingsFlickable {
         width: parent.width
         spacing: Kirigami.Units.largeSpacing
 
-        // No page-level info banner — the mode pages carry their explanation
+        // No page-level info banner: the mode pages carry their explanation
         // in row descriptions, and this page does the same. The two
         // InlineMessages below are true WARNINGS, hidden in the normal state.
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             text: i18n("Dynamic workspaces need KWin to switch virtual desktops independently on each monitor. PlasmaZones can turn on KWin's per-output virtual desktops setting when you save. It never turns the setting back off.")
-            visible: appSettings.workspacesEnabled && !root._kwinPerOutput && !appSettings.workspacesManageKWinPerOutput
+            visible: appSettings.workspacesEnabled && !settingsController.workspacesActive
 
             actions: [
                 Kirigami.Action {
@@ -103,7 +67,7 @@ SettingsFlickable {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             text: i18n("Workspace limit reached. New workspaces cannot be added until one is removed.")
-            visible: appSettings.workspacesEnabled && settingsController.workspacesAtCap
+            visible: settingsController.workspacesActive && settingsController.workspacesAtCap
         }
 
         SettingsCard {
@@ -130,10 +94,13 @@ SettingsFlickable {
 
                 SettingsSeparator {}
 
+                // The six actions are the daemon's kwinDesktopActions()
+                // (daemon/workspaces.cpp); the text names them because the
+                // user has to find them in System Settings to check or undo.
                 SettingsRow {
                     title: i18n("Replace KWin desktop shortcuts")
                     searchAnchor: "workspacesRebindKWinShortcuts"
-                    description: i18n("While dynamic workspaces are on, take over the KWin desktop switching shortcuts so they move through this monitor's workspaces. They are restored when the feature is turned off.")
+                    description: i18n("While dynamic workspaces are on, clear the shortcuts of six KWin actions that step through every monitor's desktops at once: Switch One Desktop Up, Switch One Desktop Down, Switch One Desktop to the Left, Switch One Desktop to the Right, Walk Through Desktops and Walk Through Desktops (Reverse). The workspace focus shortcuts use the Up and Down chords instead. KWin gets its shortcuts back when the feature is turned off.")
 
                     SettingsSwitch {
                         accessibleName: i18n("Replace KWin desktop shortcuts")

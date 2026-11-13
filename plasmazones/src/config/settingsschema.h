@@ -6,21 +6,22 @@
 // PlasmaZones settings schema: declarative description of every key that
 // Settings persists, for use with PhosphorConfig::Store.
 //
-// Built incrementally — each call to appendXxx() adds one group's worth of
-// keys to the schema. Migration from the hand-written load*/save* functions
-// in settings.cpp proceeds one group at a time; an unmigrated group simply
-// isn't in the schema yet, and Settings continues to reach the backend
-// directly for those groups.
+// Assembled from one appendXxx() call per config domain; each adds that
+// domain's groups. A key Settings persists that no appendXxx() declares is
+// deleted by Settings::purgeStaleKeys on the next save.
 
 #include "plasmazones_export.h"
 
 #include <PhosphorConfig/Schema.h>
 
+#include <QString>
+#include <QVariant>
+
 namespace PlasmaZones {
 
-/// Returns the full PZ settings schema, populated with every group migrated
-/// to PhosphorConfig::Store so far. Called once during Settings construction
-/// and handed to Store; add new groups here as they're migrated.
+/// Returns the full PZ settings schema. Called once during Settings
+/// construction and handed to Store; a new domain adds its appendXxx() call
+/// to buildSettingsSchema.
 PLASMAZONES_EXPORT PhosphorConfig::Schema buildSettingsSchema();
 
 /// Shared immortal schema for READ-ONLY consumers (choice lookups, value
@@ -28,10 +29,51 @@ PLASMAZONES_EXPORT PhosphorConfig::Schema buildSettingsSchema();
 /// hands its Schema to a Store, which owns a copy per instance.
 PLASMAZONES_EXPORT const PhosphorConfig::Schema& cachedSettingsSchema();
 
+// ─── Workspace names and ids ────────────────────────────────────────────────
+
+/// Why checkWorkspaceName refused a name, or Accepted.
+enum class WorkspaceNameVerdict {
+    Accepted,
+    Empty,
+    TooLong,
+    ForbiddenCharacter,
+};
+
+/// The result of checkWorkspaceName: the verdict, and the canonical name when
+/// the verdict is Accepted (empty otherwise).
+struct WorkspaceNameCheck
+{
+    WorkspaceNameVerdict verdict = WorkspaceNameVerdict::Empty;
+    QString name;
+};
+
+/// The one workspace-name rule. Every writer of a named-workspace name (the
+/// Workspaces.Named validator, the settings page's Add and rename forms, the
+/// daemon adopting a name the user typed into KWin) checks against it, so
+/// none of them can accept a name another would drop.
+///
+/// Takes the RAW text and trims it with QString::trimmed(); the trimmed text
+/// is the canonical name. Refused when nothing is left (Empty), when it is
+/// longer than ConfigDefaults::WorkspaceNameMaxLength UTF-16 units (TooLong),
+/// or when any code point is a control character (Cc), an unpaired
+/// surrogate, a Unicode noncharacter, LINE or PARAGRAPH SEPARATOR, or a
+/// bidirectional formatting control (ForbiddenCharacter). Every other code
+/// point is accepted, including emoji and other non-BMP characters, joiners,
+/// variation selectors and code points unassigned in Qt's Unicode tables.
+///
+/// The name is not just display text: the daemon hands it to KGlobalAccel as
+/// an action's description, which lands in kglobalshortcutsrc. Uniqueness is
+/// a list property, so it is the caller's to check against the canonical
+/// names of the other entries.
+PLASMAZONES_EXPORT WorkspaceNameCheck checkWorkspaceName(const QString& raw);
+
+/// Canonicalize a named-workspace entry id (or a slot target's id): a string
+/// that parses as a UUID becomes QUuid::toString() (braced, lowercase), and
+/// anything else becomes empty, meaning "no id". Pure, so it never mints.
+PLASMAZONES_EXPORT QString canonicalWorkspaceEntryId(const QVariant& raw);
+
 // ─── Group helpers ──────────────────────────────────────────────────────────
-// Each helper appends one group's KeyDefs to the schema. Kept as free
-// functions so the migration can add them one at a time without touching
-// a monolithic switch statement.
+// Each helper appends one domain's groups to the schema.
 
 /// Canonicalize a trigger list (cap size, coerce entries to
 /// {modifier:int, mouseButton:int} maps). Defined in settingsschema.cpp;

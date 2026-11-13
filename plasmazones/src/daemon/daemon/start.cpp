@@ -6,6 +6,7 @@
 #include "daemon/overlayservice.h"
 #include "daemon/controllers/unifiedlayoutcontroller.h"
 #include "daemon/controllers/shortcutmanager.h"
+#include "daemon/controllers/workspacecontroller.h"
 #include "config/settingsconfigstore.h"
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/LayoutComputeService.h>
@@ -118,6 +119,31 @@ void Daemon::connectScreenSignals()
     // construct a manager without Settings don't crash.
     connect(m_screenManager.get(), &PhosphorScreens::ScreenManager::screenIdentifierChanged, this,
             [this](const QString& oldId, const QString& newId) {
+                // The desktop manager's per-output desktop row follows the
+                // flip, with the dynamic-workspaces feature on or off (F221).
+                // Keyed by the id the KWin effect reports, so both ids pass
+                // through the same canonicalization the workspace controller
+                // applies to ScreenManager ids. A seed, not a switch: the
+                // output shows what it showed, so the engines learn the new
+                // name through screenDesktopSeeded (applyScreenDesktopSeed)
+                // with no switch pass and no OSD. This handler is connected in
+                // start() ahead of initializeWorkspaces, so it runs before the
+                // controller's own screenIdentifierChanged handler, which
+                // reads the re-keyed row.
+                if (m_virtualDesktopManager) {
+                    const auto canonical = [](const QString& connectorOrId) {
+                        const QString id = PhosphorScreens::ScreenIdentity::idForName(connectorOrId);
+                        return id.isEmpty() ? connectorOrId : id;
+                    };
+                    const QString from = canonical(oldId);
+                    const QString to = canonical(newId);
+                    if (!from.isEmpty() && !to.isEmpty() && from != to) {
+                        // The seed renameScreen emits records the new id as
+                        // reported (applyScreenDesktopSeed); the old one goes.
+                        m_desktopReportedScreens.remove(from);
+                        m_virtualDesktopManager->renameScreen(from, to);
+                    }
+                }
                 // The persisted pixel sizes are keyed the same way and follow
                 // the same flip (the manager has re-keyed its seeds already).
                 if (m_windowTrackingAdaptor) {
@@ -236,6 +262,9 @@ void Daemon::connectScreenSignals()
                     // that reads this manager, so this removal covers them.
                     m_virtualDesktopManager->removeScreenDesktop(removedScreenId);
                 }
+                // Keyed like the desktop manager's rows: the output's next
+                // report is a first one again (takeFirstDesktopReport).
+                m_desktopReportedScreens.remove(removedScreenId);
 
                 // Cancel any drag-insert preview on the output, park its
                 // windows, then reap every engine's states on it (see
@@ -670,8 +699,19 @@ void Daemon::connectDesktopActivity()
                 if (m_overlayService->isVisible()) {
                     m_overlayService->updateGeometries();
                 }
-                // OSD on the ONE screen that switched (#648).
-                showDesktopSwitchOsdForScreen(screenId, currentActivity());
+                // OSD on the ONE screen that switched (#648), unless the report
+                // is not a switch the user made: the output's first report, the
+                // effect's bring-up re-sync (takeFirstDesktopReport, F869), or
+                // one the workspace controller speaks for, a landing on another
+                // screen's workspace that its snap-back hint covers or the
+                // answer to a snap-back it issued (F377). Both are asked on
+                // EVERY report: each records or consumes per-screen state.
+                const bool firstReport = takeFirstDesktopReport(screenId);
+                const bool workspaceQuiet =
+                    m_workspaceController && m_workspaceController->takeDesktopSwitchOsdSuppression(screenId, desktop);
+                if (!firstReport && !workspaceQuiet) {
+                    showDesktopSwitchOsdForScreen(screenId, currentActivity());
+                }
                 // A context switch lays out its own (different) windows, so
                 // refresh the active-assignment snapshot without applying —
                 // otherwise the next rule edit would diff the new-context
@@ -691,10 +731,12 @@ void Daemon::connectDesktopActivity()
             &Daemon::applyScreenDesktopSeed);
 
     // KWin's desktop list renumbered (a desktop removed, inserted or moved): one
-    // old-to-new map for every number-keyed store. Ahead of desktopCountChanged
-    // for a removal or a move; a growing count goes out first (F1022). The only
-    // one of the desktop manager's two renumber signals connected
-    // (desktopRemovedAt is its single-removal subset). desktop_renumber.cpp.
+    // old-to-new map for every number-keyed store. A change commits its list,
+    // this map and the count together, this map ahead of desktopCountChanged;
+    // only the desktop manager's fallback, when KWin's desktop signals did not
+    // add up to a list, sends the count first. The only one of the desktop
+    // manager's two renumber signals connected (desktopRemovedAt is its
+    // single-removal subset). desktop_renumber.cpp.
     connect(m_virtualDesktopManager.get(), &PhosphorWorkspaces::VirtualDesktopManager::desktopsRenumbered, this,
             &Daemon::onDesktopsRenumbered);
     // The records pushed before the change are the ones the renumber moves; a
@@ -703,6 +745,17 @@ void Daemon::connectDesktopActivity()
             [this]() {
                 if (m_windowRegistry) {
                     m_windowRegistry->beginDesktopRenumber();
+                }
+            });
+    // Every change ends here, after its desktopsRenumbered if it renumbered
+    // anything. One that renumbered nothing (an append, a rename) or was given
+    // up on brings no remap to end the snapshot, and a snapshot left held
+    // would hand the next unrelated renumber (the start-up one) records pushed
+    // in the live numbering (F374).
+    connect(m_virtualDesktopManager.get(), &PhosphorWorkspaces::VirtualDesktopManager::desktopListChangeSettled, this,
+            [this]() {
+                if (m_windowRegistry) {
+                    m_windowRegistry->endDesktopRenumber();
                 }
             });
 

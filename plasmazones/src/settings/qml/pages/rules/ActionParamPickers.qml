@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import org.kde.kirigami as Kirigami
 
 /**
  * @brief The routing-target pickers for ActionRow, split out of
@@ -11,14 +12,14 @@ import QtQuick.Controls
  * The three actions that route a window somewhere (RouteToScreen,
  * RouteToDesktop, RouteToWorkspace) each need a combo showing friendly labels
  * over a wire value the daemon resolves, and all three keep a stored value
- * legible once it no longer matches anything live. They moved here together
- * when ActionParamEditors reached the file-size ceiling; the split is a home
- * for the Components, not a behavioural boundary.
+ * legible once it no longer matches anything live. They live in their own
+ * file beside ActionParamEditors; the split is a home for the Components,
+ * not a behavioural boundary.
  *
- * Each Component body is UNCHANGED from when it lived next door: it still
- * reads `row.*` (the ActionRow instance, injected below) and
+ * Each Component reads `row.*` (the ActionRow instance, injected below) and
  * `parent.modelData` (the hosting Loader's param descriptor, reached at
- * runtime). ActionRow resolves these through `paramEditors.pickers._…Editor`.
+ * runtime), the same contract as the editors in ActionParamEditors. ActionRow
+ * resolves these through `paramEditors.pickers._…Editor`.
  */
 QtObject {
     id: pickers
@@ -53,7 +54,9 @@ QtObject {
             textRole: "label"
             valueRole: "name"
             currentIndex: {
-                var target = row.action[_param.key] || "";
+                // Trimmed like the daemon reads it, so a hand-edited id with
+                // stray whitespace still finds its monitor.
+                var target = ("" + (row.action[_param.key] || "")).trim();
                 for (var i = 0; i < screenCombo._screens.length; ++i) {
                     if (screenCombo._screens[i].name === target)
                         return i;
@@ -72,7 +75,9 @@ QtObject {
     // Virtual-desktop picker for RouteToDesktop. Lists 1..virtualDesktopCount,
     // labelled with the desktop name when KWin reports one. The wire value is the
     // 1-based desktop number. A stored desktop beyond the current count still
-    // surfaces its number so the rule's target stays legible.
+    // surfaces its number so the rule's target stays legible. While dynamic
+    // workspaces run, desktop numbers shift as workspaces come and go, so the
+    // picker says so and points at the workspace action instead.
     property Component _virtualDesktopEditor: Component {
         WideComboBox {
             id: desktopCombo
@@ -106,6 +111,12 @@ QtObject {
             }
             displayText: currentIndex >= 0 ? currentText : (row.action[_param.key] ? ("" + row.action[_param.key]) : i18n("Choose a desktop…"))
             Accessible.name: _param.label
+            readonly property bool _numbersShift: !!row.appSettings && row.appSettings.workspacesActive === true
+            readonly property string _shiftHint: i18n("Dynamic workspaces are on, so desktop numbers change as workspaces are added and removed. To send a window to a particular workspace, use the Open on workspace action.")
+            Accessible.description: desktopCombo._numbersShift ? desktopCombo._shiftHint : ""
+            ToolTip.visible: hovered && desktopCombo._numbersShift
+            ToolTip.delay: Kirigami.Units.toolTipDelay
+            ToolTip.text: desktopCombo._shiftHint
             onActivated: function (index) {
                 if (currentValue !== row.action[_param.key])
                     row.actionEdited(row._withParam(_param.key, currentValue));
@@ -113,68 +124,124 @@ QtObject {
         }
     }
 
-    // Named-workspace picker for RouteToWorkspace. Lists the DECLARED names
-    // (Workspaces → Named Workspaces); the wire value is the name itself. A
-    // stored name no longer declared still surfaces as the display text so
-    // the rule's target stays legible — the rule is dormant, not broken.
+    // Named-workspace picker for RouteToWorkspace. Lists the DECLARED
+    // workspaces (Workspaces → Named Workspaces). A pick writes BOTH the
+    // entry's persistent id (targetWorkspaceId) and its name
+    // (targetWorkspaceName, the descriptor's key): the daemon resolves the id
+    // first, so the rule follows a rename, and falls back to the name, which
+    // is also what the rule shows while no declaration carries the id. An
+    // entry without an id yet (a hand-edited config) is written by name
+    // alone. A stored target no longer declared stays legible and is marked
+    // as such: the rule is dormant, not broken, and not live either.
     property Component _workspaceNameEditor: Component {
         WideComboBox {
             id: workspaceCombo
 
             readonly property var _param: parent.modelData
-            readonly property var _names: (row.appSettings && row.appSettings.workspaceNames) || []
+            // PhosphorRules::ActionParam::TargetWorkspaceId. The id has no
+            // param descriptor of its own (nobody types it), so its key is
+            // named here, beside the one picker that writes it.
+            readonly property string _idKey: "targetWorkspaceId"
+            readonly property var _fields: (row.appSettings && row.appSettings.namedEntryFields) || ({
+                    "id": "id",
+                    "name": "name"
+                })
+            readonly property var _entries: (row.appSettings && row.appSettings.namedWorkspaces) || []
+            readonly property string _storedId: ("" + (row.action[workspaceCombo._idKey] || "")).trim()
+            readonly property string _storedName: ("" + (row.action[_param.key] || "")).trim()
+
+            // Ids compare the way the daemon compares them (QUuid equality),
+            // so a hand-edited id in another case or without braces matches.
+            function _normId(id) {
+                return ("" + (id || "")).trim().replace(/^\{|\}$/g, "").toLowerCase();
+            }
 
             model: {
                 var items = [];
-                for (var i = 0; i < workspaceCombo._names.length; ++i)
+                for (var i = 0; i < workspaceCombo._entries.length; ++i) {
+                    var entry = workspaceCombo._entries[i];
                     items.push({
-                        "label": workspaceCombo._names[i],
-                        "value": workspaceCombo._names[i]
+                        "label": entry[workspaceCombo._fields.name],
+                        "id": entry[workspaceCombo._fields.id] || "",
+                        "name": entry[workspaceCombo._fields.name]
                     });
+                }
                 return items;
             }
             textRole: "label"
-            valueRole: "value"
-            // Nothing to choose until a workspace is declared, and the action
-            // validator refuses a blank name (hasNonBlankStringWithin, in
-            // ruleaction_builtins_engine.cpp), so there is no empty value to
-            // offer as a fallback either. The combo stays ENABLED with an
-            // empty model all the same: disabling it puts an already-stored
-            // name out of reach, and a disabled QQC2 Control receives no hover
-            // events, so the tooltip that says where to declare one would
-            // never appear. The display text carries the same guidance for
-            // anyone who does not hover.
-            // Whether workspaces are on at all comes first. With the feature
-            // off the daemon never installs the route resolver, so the rule is
-            // inert whatever it names, and pointing the user at the Named
-            // Workspaces page would send them somewhere that cannot help.
-            readonly property bool _workspacesOff: row.appSettings && row.appSettings.workspacesEnabled === false
-
-            ToolTip.visible: hovered && (workspaceCombo._workspacesOff || workspaceCombo._names.length === 0)
-            ToolTip.text: workspaceCombo._workspacesOff ? i18n("Dynamic workspaces are turned off, so this action does nothing. Turn them on under Settings → Workspaces.") : i18n("Add a named workspace under Settings → Workspaces → Named Workspaces first.")
+            valueRole: "name"
+            // The daemon's resolution order: the stored id, then the stored
+            // name. -1 leaves the target dormant.
             currentIndex: {
-                var target = row.action[_param.key];
-                for (var i = 0; i < workspaceCombo.model.length; ++i) {
-                    if (workspaceCombo.model[i].value === target)
-                        return i;
+                var wantId = workspaceCombo._normId(workspaceCombo._storedId);
+                if (wantId !== "") {
+                    for (var i = 0; i < workspaceCombo.model.length; ++i) {
+                        if (workspaceCombo._normId(workspaceCombo.model[i].id) === wantId)
+                            return i;
+                    }
+                }
+                for (var j = 0; j < workspaceCombo.model.length; ++j) {
+                    if (workspaceCombo.model[j].name === workspaceCombo._storedName)
+                        return j;
                 }
                 return -1;
             }
+
+            // Why the action cannot take effect right now, most fundamental
+            // first, or empty when it can. With the feature compiled out, off,
+            // or waiting for KWin's per-output setting the daemon installs no
+            // route resolver, so the rule is inert whatever it names, and
+            // pointing the user at the Named Workspaces page would send them
+            // somewhere that cannot help.
+            readonly property string _inertReason: {
+                if (!row.appSettings)
+                    return "";
+                if (row.appSettings.workspacesAvailable === false)
+                    return i18n("This build of PlasmaZones has no dynamic workspaces, so this action does nothing.");
+                if (row.appSettings.workspacesEnabled === false)
+                    return i18n("Dynamic workspaces are turned off, so this action does nothing. Turn them on under Settings → Workspaces.");
+                if (row.appSettings.workspacesActive === false)
+                    return i18n("Dynamic workspaces are waiting for KWin's per-output virtual desktops setting, so this action does nothing yet. See Settings → Workspaces → Behavior.");
+                if (workspaceCombo._entries.length === 0)
+                    return i18n("Add a named workspace under Settings → Workspaces → Named Workspaces first.");
+                if (workspaceCombo.currentIndex < 0 && workspaceCombo._storedName !== "")
+                    return i18n("No named workspace matches this target any more, so the rule does nothing until one is declared again.");
+                return "";
+            }
+
+            // The combo stays ENABLED with an empty model all the same:
+            // disabling it puts an already-stored target out of reach, and a
+            // disabled QQC2 Control receives no hover events, so the tooltip
+            // that says what is wrong would never appear. The display text
+            // carries the same guidance for anyone who does not hover.
+            ToolTip.visible: hovered && workspaceCombo._inertReason !== ""
+            ToolTip.delay: Kirigami.Units.toolTipDelay
+            ToolTip.text: workspaceCombo._inertReason
+            Accessible.description: workspaceCombo._inertReason
             displayText: {
                 if (currentIndex >= 0)
                     return currentText;
-                if (row.action[_param.key])
-                    return "" + row.action[_param.key];
-                if (workspaceCombo._workspacesOff)
+                if (workspaceCombo._storedName !== "")
+                    return i18nc("%1 is the name of a workspace that is no longer declared", "%1 (not declared)", workspaceCombo._storedName);
+                if (row.appSettings && (row.appSettings.workspacesAvailable === false || row.appSettings.workspacesEnabled === false))
                     return i18n("Workspaces are turned off");
-                if (workspaceCombo._names.length === 0)
+                if (workspaceCombo._entries.length === 0)
                     return i18n("Add a named workspace first");
                 return i18n("Choose a workspace…");
             }
             Accessible.name: _param.label
             onActivated: function (index) {
-                if (currentValue !== row.action[_param.key])
-                    row.actionEdited(row._withParam(_param.key, currentValue));
+                var picked = workspaceCombo.model[index];
+                if (!picked)
+                    return;
+                if (picked.name === workspaceCombo._storedName && workspaceCombo._normId(picked.id) === workspaceCombo._normId(workspaceCombo._storedId))
+                    return;
+                var next = row._withParam(_param.key, picked.name);
+                if (picked.id !== "")
+                    next[workspaceCombo._idKey] = picked.id;
+                else
+                    delete next[workspaceCombo._idKey];
+                row.actionEdited(next);
             }
         }
     }

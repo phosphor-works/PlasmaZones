@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 fuddlesworth
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-find_package(Qt6 REQUIRED COMPONENTS Test)
+find_package(Qt6 REQUIRED COMPONENTS DBus Test)
 
 # Shared test isolation: a private D-Bus session (so a test that touches D-Bus
 # cannot activate the INSTALLED daemon, which then holds the test's stdout pipe
@@ -35,6 +35,7 @@ function(phosphorshortcuts_add_test name)
         PRIVATE
             PhosphorShortcuts::PhosphorShortcuts
             Qt6::Core
+            Qt6::DBus
             Qt6::Gui
             Qt6::Test
     )

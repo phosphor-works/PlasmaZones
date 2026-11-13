@@ -171,6 +171,12 @@ public:
     /// one goes). Wired to EffectsHandler::desktopRemoved.
     void desktopRemoved(KWin::VirtualDesktop* desktop);
 
+    /// End @p screen's live desktop-switch leg, if it has one, and leave a peek
+    /// leg alone. Called when the daemon corrects that output's desktop: the
+    /// user's own switch the correction undoes would otherwise go on blending
+    /// toward a desktop the output no longer shows (F242).
+    void cancelSwitch(KWin::LogicalOutput* screen);
+
     /// Drop a removed output's live transition (if any). Called from the effect's
     /// screenRemoved handler: a disconnected LogicalOutput* left in m_active would
     /// dangle — paintOutput()/scheduleRepaints() deref the key, and the fullscreen
@@ -383,11 +389,10 @@ private:
     /// Free an output's transition and, when the last one goes, release the
     /// active-fullscreen-effect claim.
     ///
-    /// This and the other teardown members (releaseFullScreenClaimIfIdle,
-    /// ensureGlContextCurrent, scheduleRepaints, outputRemoved, desktopRemoved,
-    /// invalidateShaderCache, reset — the last five are declared in the public
-    /// section above) are implemented in desktoptransitionteardown.cpp, the
-    /// class's teardown part.
+    /// This and the other teardown members (the private releaseFullScreenClaimIfIdle
+    /// and ensureGlContextCurrent, and the public scheduleRepaints, cancelSwitch,
+    /// outputRemoved, desktopRemoved, invalidateShaderCache and reset) are
+    /// implemented in desktoptransitionteardown.cpp, the class's teardown part.
     void endOutput(KWin::LogicalOutput* screen);
 
     /// Release the active-fullscreen-effect claim once no transition is left.

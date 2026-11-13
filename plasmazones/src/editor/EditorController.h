@@ -74,7 +74,7 @@ class EditorController : public QObject
     // The scrolling-template sub-model does the same.
     friend class EditorTemplateModel;
 
-    // PhosphorZones::Layout properties
+    // Layout properties
     Q_PROPERTY(QString layoutId READ layoutId NOTIFY layoutIdChanged)
     Q_PROPERTY(QString layoutName READ layoutName WRITE setLayoutName NOTIFY layoutNameChanged)
     Q_PROPERTY(QVariantList zones READ zones NOTIFY zonesChanged)
@@ -137,7 +137,7 @@ class EditorController : public QObject
     // the strip whichever way that strip happens to run.
     Q_PROPERTY(bool templatePreviewVertical READ templatePreviewVertical NOTIFY templatePreviewVerticalChanged)
 
-    // PhosphorZones::Zone gap settings (per-layout override + global mirrors).
+    // Zone gap settings (per-layout override + global mirrors).
     // Extracted into a sub-model exposed by pointer; QML reads
     // controller.gaps.outerGapTop and friends.
     Q_PROPERTY(PlasmaZones::EditorGapsModel* gaps READ gaps CONSTANT)
@@ -495,7 +495,7 @@ public:
     void setAllowedActivitiesDirect(const QStringList& activities);
 
 public Q_SLOTS:
-    // PhosphorZones::Layout operations; loadLayout's bool = payload
+    // Layout operations; loadLayout's bool = payload
     // resolved (false leaves the session, mode included, intact).
     void createNewLayout();
     bool loadLayout(const QString& layoutId);
@@ -533,7 +533,7 @@ public Q_SLOTS:
     // what was just saved.
     void reloadLocalLayouts();
 
-    // PhosphorZones::Zone CRUD operations (using zone IDs)
+    // Zone CRUD operations (using zone IDs)
     QString addZone(qreal x, qreal y, qreal width, qreal height);
     void updateZoneGeometry(const QString& zoneId, qreal x, qreal y, qreal width, qreal height,
                             bool skipSnapping = false);
@@ -544,7 +544,7 @@ public Q_SLOTS:
     void deleteZone(const QString& zoneId);
     QString duplicateZone(const QString& zoneId);
 
-    // PhosphorZones::Zone splitting - split a zone horizontally or vertically
+    // Zone splitting - split a zone horizontally or vertically
     Q_INVOKABLE QString splitZone(const QString& zoneId, bool horizontal);
 
     // Helper: get zone index by ID
@@ -553,7 +553,7 @@ public Q_SLOTS:
 
     /**
      * @brief Get complete zone data by ID
-     * @param zoneId PhosphorZones::Zone ID to retrieve
+     * @param zoneId Zone ID to retrieve
      * @return Complete zone data as QVariantMap, or empty map if not found
      *
      * A linear scan in C++, which spares QML its own loop over the zones
@@ -678,7 +678,7 @@ public Q_SLOTS:
     // Per-zone geometry mode operations
     /**
      * @brief Toggle a zone between Relative and Fixed geometry mode
-     * @param zoneId PhosphorZones::Zone to toggle
+     * @param zoneId Zone to toggle
      *
      * Converts between modes using the target screen resolution.
      * Creates an undo command for the toggle.
@@ -687,14 +687,14 @@ public Q_SLOTS:
 
     /**
      * @brief Update fixed geometry for a zone (for spinbox edits)
-     * @param zoneId PhosphorZones::Zone to update
+     * @param zoneId Zone to update
      * @param x, y, w, h Fixed pixel coordinates
      */
     Q_INVOKABLE void updateZoneFixedGeometry(const QString& zoneId, qreal x, qreal y, qreal w, qreal h);
 
     /**
      * @brief Apply geometry mode and coordinates directly (for undo/redo)
-     * @param zoneId PhosphorZones::Zone to update
+     * @param zoneId Zone to update
      * @param mode Geometry mode (0=Relative, 1=Fixed)
      * @param relativeGeo Relative geometry
      * @param fixedGeo Fixed geometry
@@ -910,7 +910,7 @@ private:
 
     /**
      * @brief Internal implementation for all z-order operations
-     * @param zoneId PhosphorZones::Zone to modify
+     * @param zoneId Zone to modify
      * @param op Z-order operation to perform
      * @param actionName Undo action display name (already translated)
      */
@@ -968,7 +968,7 @@ private:
      */
     void onClipboardChanged();
 
-    // PhosphorZones::Layout data
+    // Layout data
     QString m_layoutId;
     QString m_layoutName;
     int m_zonesVersion = 0; // Increments on any zone change (lightweight binding dependency)
@@ -1201,7 +1201,7 @@ private:
     QString m_defaultInactiveColor;
     QString m_defaultBorderColor;
 
-    // PhosphorZones::Zone settings (per-layout override, -1 = use global)
+    // Zone settings (per-layout override, -1 = use global)
     // Per-layout zone-padding / edge-gap overrides live in m_gaps (see the
     // gaps property); overlay display mode stays here.
     int m_overlayDisplayMode = -1; // -1 = use global setting

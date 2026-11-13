@@ -5,6 +5,7 @@
 #include "config/settings/settings_detail.h"
 #include "config/configdefaults.h"
 #include "config/configkeys.h"
+#include "config/configkeys_disablelabels.h"
 #include "core/platform/logging.h"
 
 #include <PhosphorRules/ContextRuleBridge.h>
@@ -259,22 +260,13 @@ void Settings::writeDisableEntries(PhosphorZones::AssignmentEntry::Mode mode, in
             break;
         }
         }
-        // Compose the rule name with the same axis suffix the v3→v4
-        // migration uses (see `configmigration.cpp::disableRuleForDesktop`
-        // / `disableRuleForActivity`). Without the suffix, a runtime-
-        // authored desktop or activity disable rule shows up in the rule
-        // editor as the bare monitor-prefix label (`"Snapping off · DP-1"`),
-        // visually indistinguishable from a monitor-axis rule for the same
-        // screen — even though the underlying `(screen, desktop, activity)`
-        // tuple is what `disableRuleIdFor` keys the v5 UUID off. Two
-        // different rules with the same display name confuses the editor's
-        // dedup-on-name heuristic and obscures the actual scope.
-        QString name = disableRulePrefixFor(mode) + screenId;
-        if (axis == DisableAxis::Desktop) {
-            name += disableRuleDesktopSuffix(desktop);
-        } else if (axis == DisableAxis::Activity) {
-            name += disableRuleActivitySuffix();
-        }
+        // The same name the v3→v4 migration gives the rule: the mode prefix
+        // plus the context label of the (screen, desktop, activity) tuple the
+        // rule pins (disableRuleName). The tuple half is what tells a desktop
+        // or activity disable rule apart from the monitor-axis rule for the
+        // same screen in the rule editor, whose dedup-on-name heuristic would
+        // otherwise see two rules with one display name.
+        const QString name = disableRuleName(mode, screenId, desktop, activity);
         kept.append(CRB::makeDisableRule(name, screenId, desktop, activity, modeToken, CRB::kContextBandBase));
     }
 

@@ -10,6 +10,7 @@
 
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
+#include <PhosphorScrollEngine/ScrollState.h>
 
 #include "scrollstriptestutils.h"
 
@@ -237,6 +238,193 @@ private Q_SLOTS:
         engine->pruneStaleWindows({kA, kB, kC});
 
         QCOMPARE(savedIds(engine, 1), (QStringList{kA, kC}));
+    }
+
+    // The move-column-to-workspace verb. a and b share a widened column on
+    // desktop 1; the verb records the column for desktop 2 and releases each
+    // window, and each re-arrives on its own once S1 shows desktop 2. They
+    // land as ONE column at the width it had, opened right of the column in
+    // focus there (the default insert position), not one column per window.
+    void columnMoveRejoinsAsOneColumn()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1});
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        for (const QString& windowId : {kA, kB, kC}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kA, kS1);
+        engine->consumeWindowIntoColumn(kS1); // b joins a's column
+        engine->adjustColumnWidth(10.0, kS1);
+        QCOMPARE(Ax::mainLen(engine->lastManagedRect(kA)), kWidenedMain);
+        const auto* source = static_cast<ScrollState*>(engine->stateForScreen(kS1));
+        QVERIFY(source && source->strip().activeColumn());
+        const ColumnWidth widened = source->strip().activeColumn()->width;
+        ScrollEngine::FocusedColumnRefusal reason = ScrollEngine::FocusedColumnRefusal::NotScrolling;
+        const QStringList column = engine->focusedColumnWindows(kS1, &reason);
+        QCOMPARE(reason, ScrollEngine::FocusedColumnRefusal::None);
+        QCOMPARE(column, (QStringList{kA, kB}));
+
+        QVERIFY(engine->stashColumnForDesktopMove(kS1, column, 2));
+        for (const QString& windowId : column) {
+            engine->handoffRelease(windowId);
+        }
+        engine->setCurrentDesktopForScreen(kS1, 2);
+        const QString resident = QStringLiteral("other|x");
+        engine->windowOpened(resident, kS1, 0, 0);
+        engine->windowOpened(kA, kS1, 0, 0);
+        engine->windowOpened(kB, kS1, 0, 0);
+
+        const int aColumn = engine->columnIndexForWindow(kS1, kA);
+        QCOMPARE(aColumn, 1);
+        QCOMPARE(engine->columnIndexForWindow(kS1, kB), aColumn);
+        QCOMPARE(engine->columnIndexForWindow(kS1, resident), 0);
+        // The width INTENT, not the applied rect: two columns overflow the
+        // suite's work area, and the apply clamps a straddler at the edge.
+        const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS1));
+        QVERIFY(target && target != source);
+        QVERIFY(target->strip().columns().at(aColumn).width == widened);
+    }
+
+    // The move-workspace-to-monitor verb. Desktop 1's strip on S1 holds a
+    // widened [a, b] column and [c], with c in focus; the workspace moves to
+    // S2, which keeps the desktop. Each window is released and re-arrives on
+    // S2 on its own, in no particular order, and the strip comes back whole:
+    // the same columns in the same order and the shared column at its width.
+    // d stays behind (it does not ride) and is not recorded.
+    void outputMoveRebuildsTheStripOnTheTarget()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1, kS2});
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        engine->setCurrentDesktopForScreen(kS2, 2);
+        const QString kD = QStringLiteral("app|d");
+        for (const QString& windowId : {kA, kB, kC, kD}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kA, kS1);
+        engine->consumeWindowIntoColumn(kS1); // b joins a's column
+        engine->adjustColumnWidth(10.0, kS1);
+        const auto* source = static_cast<ScrollState*>(engine->stateForScreen(kS1));
+        QVERIFY(source && source->strip().activeColumn());
+        const ColumnWidth widened = source->strip().activeColumn()->width;
+        engine->windowFocused(kC, kS1);
+
+        // Refusals record nothing.
+        QVERIFY(!engine->stashStripForOutputMove(kS1, kS1, 1, {kA}));
+        QVERIFY(!engine->stashStripForOutputMove(kS1, kS2, 0, {kA}));
+        QVERIFY(!engine->stashStripForOutputMove(kS1, kS2, 1, {QStringLiteral("app|none")}));
+
+        const QStringList riders{kA, kB, kC};
+        QVERIFY(engine->stashStripForOutputMove(kS1, kS2, 1, riders));
+        for (const QString& windowId : riders) {
+            engine->handoffRelease(windowId);
+            // What the daemon sends once the window is on the other monitor:
+            // the record lives under S2, so it survives.
+            engine->releaseWindowOffScreen(windowId, kS2);
+        }
+        engine->setCurrentDesktopForScreen(kS2, 1);
+        engine->windowOpened(kC, kS2, 0, 0);
+        engine->windowOpened(kB, kS2, 0, 0);
+        engine->windowOpened(kA, kS2, 0, 0);
+
+        const int shared = engine->columnIndexForWindow(kS2, kA);
+        QCOMPARE(shared, 0);
+        QCOMPARE(engine->columnIndexForWindow(kS2, kB), shared);
+        QCOMPARE(engine->columnIndexForWindow(kS2, kC), 1);
+        const auto* target = static_cast<ScrollState*>(engine->stateForScreen(kS2));
+        QVERIFY(target && target != source);
+        QCOMPARE(target->strip().columns().size(), 2);
+        QVERIFY(target->strip().columns().at(shared).width == widened);
+        QCOMPARE(engine->columnIndexForWindow(kS1, kD), 0);
+    }
+
+    // The column read answers for the EXACT strip key. A monitor split into
+    // sub-screens has no single column for its physical id, so the physical
+    // id is refused even when one of the sub-screens holds focus, and even
+    // when only one of them scrolls.
+    void focusedColumnAnswersForTheExactScreenOnly()
+    {
+        const QString left = QStringLiteral("DP-1/vs:0");
+        const QString right = QStringLiteral("DP-1/vs:1");
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {left, right});
+        engine->windowOpened(kA, left, 0, 0);
+        engine->windowOpened(kB, right, 0, 0);
+        engine->windowFocused(kA, left);
+
+        ScrollEngine::FocusedColumnRefusal reason = ScrollEngine::FocusedColumnRefusal::None;
+        QVERIFY(engine->focusedColumnWindows(QStringLiteral("DP-1"), &reason).isEmpty());
+        QCOMPARE(reason, ScrollEngine::FocusedColumnRefusal::NotScrolling);
+        QCOMPARE(engine->focusedColumnWindows(left), QStringList{kA});
+        QCOMPARE(engine->focusedColumnWindows(right), QStringList{kB});
+        QVERIFY(!engine->stashColumnForDesktopMove(QStringLiteral("DP-1"), {kA}, 2));
+
+        engine->setActiveScreens({left});
+        QVERIFY(engine->focusedColumnWindows(QStringLiteral("DP-1"), &reason).isEmpty());
+        QCOMPARE(reason, ScrollEngine::FocusedColumnRefusal::NotScrolling);
+    }
+
+    // A column's minimized member is out of the strip, floating, and still
+    // part of the column: it travels with it, at its slot. A member the user
+    // floated left the column and does not.
+    void focusedColumnCarriesItsMinimizedMemberOnly()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1});
+        auto* registry = new PhosphorEngine::WindowRegistry(&owner);
+        engine->setWindowRegistry(registry);
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        const QString kD = QStringLiteral("app|d");
+        for (const QString& windowId : {kA, kB, kC, kD}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kA, kS1);
+        engine->consumeWindowIntoColumn(kS1); // b joins a's column
+        engine->consumeWindowIntoColumn(kS1); // and c after it
+        engine->windowFocused(kA, kS1);
+        PhosphorEngine::WindowMetadata minimized;
+        minimized.appId = QStringLiteral("app");
+        minimized.isMinimized = true;
+        registry->upsert(QStringLiteral("b"), minimized);
+        PhosphorEngine::WindowMetadata shown;
+        shown.appId = QStringLiteral("app");
+        shown.isMinimized = false;
+        registry->upsert(QStringLiteral("c"), shown);
+        engine->setWindowFloat(kB, true, kS1);
+        engine->setWindowFloat(kC, true, kS1);
+        auto* state = static_cast<ScrollState*>(engine->stateForScreen(kS1));
+        QVERIFY(state);
+        QVERIFY(!state->floatingHasFocus());
+        QVERIFY(state->isFloating(kB));
+        QVERIFY(state->isFloating(kC));
+
+        QCOMPARE(engine->focusedColumnWindows(kS1), (QStringList{kA, kB}));
+    }
+
+    // A strip that leaves scrolling a second time before every window came
+    // back folds the pending tiles into the fresh capture. A pending tile
+    // whose column-mate did come back stays in that column-mate's column, so
+    // its late arrival rejoins it rather than opening a column of its own.
+    void secondLeaveKeepsAPendingTileWithItsColumnMate()
+    {
+        QObject owner;
+        ScrollEngine* engine = makeProviderEngine(&owner, {kS1});
+        engine->setCurrentDesktopForScreen(kS1, 1);
+        for (const QString& windowId : {kA, kB, kC}) {
+            engine->windowOpened(windowId, kS1, 0, 0);
+        }
+        engine->windowFocused(kA, kS1);
+        engine->consumeWindowIntoColumn(kS1); // b joins a's column
+        engine->setActiveScreens({});
+        engine->setActiveScreens({kS1});
+        engine->windowOpened(kA, kS1, 0, 0); // only a comes back
+        engine->setActiveScreens({});
+
+        reopenS1(engine);
+
+        QCOMPARE(engine->columnIndexForWindow(kS1, kB), engine->columnIndexForWindow(kS1, kA));
+        QVERIFY(engine->columnIndexForWindow(kS1, kC) != engine->columnIndexForWindow(kS1, kA));
     }
 
 private:

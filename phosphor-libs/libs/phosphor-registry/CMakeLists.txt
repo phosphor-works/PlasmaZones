@@ -40,7 +40,12 @@ include(GenerateExportHeader)
 # Dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-find_package(Qt6 ${PHOSPHORREGISTRY_QT_MIN} REQUIRED COMPONENTS Core Qml)
+# Core only. The QML-facing factory seams (IBarWidgetFactory and its siblings)
+# forward-declare QQmlEngine and QQuickItem, and no source here includes a Qml
+# header, so the plugin hosts that build items link Qml/Quick themselves. A
+# Qt6::Qml edge here reached every engine library through PhosphorLayoutApi
+# and tripped the root engine QML firewall.
+find_package(Qt6 ${PHOSPHORREGISTRY_QT_MIN} REQUIRED COMPONENTS Core)
 # WatchedDirectorySet + IScanStrategy live in phosphor-fsloader.
 # PluginCatalog's live reload consumes both directly. REQUIRED is
 # load-bearing: target_link_libraries below names the imported target
@@ -144,7 +149,6 @@ target_compile_features(PhosphorRegistry PUBLIC cxx_std_20)
 target_link_libraries(PhosphorRegistry
     PUBLIC
         Qt6::Core
-        Qt6::Qml
         # PUBLIC, not PRIVATE: the header-only MetadataPackLoader<T>
         # template (consumed by the unified domain registries) includes
         # MetadataPackScanStrategy.h + WatchedDirectorySet.h in its public

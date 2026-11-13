@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <phosphorworkspaces_export.h>
+#include "phosphorworkspaces_export.h"
 
 #include <functional>
 
@@ -17,22 +17,34 @@ namespace PhosphorWorkspaces {
 /// One owned desktop in a screen's workspace slice.
 struct PHOSPHORWORKSPACES_EXPORT WorkspaceEntry
 {
-    QString desktopId; ///< KWin UUID string (braced, as KWin reports it)
+    /// KWin's desktop id, an opaque string. KWin mints unbraced UUIDs, but a
+    /// desktop restored from kwinrc keeps whatever id the file carried, so no
+    /// shape is assumed beyond "non-empty".
+    QString desktopId;
     QString name; ///< empty = dynamic; non-empty = named (destroy-exempt)
+    /// The persistent id of the named-workspace declaration this desktop
+    /// realizes (NamedWorkspace::id). Survives a rename of the declaration,
+    /// which is what lets a rename happen in place. Empty for a dynamic
+    /// desktop, and for a named one realized from a declaration that has no
+    /// id yet.
+    QString namedId;
     QString homeScreenId; ///< set only while displaced by hotplug
 
     bool operator==(const WorkspaceEntry& other) const
     {
-        return desktopId == other.desktopId && name == other.name && homeScreenId == other.homeScreenId;
+        return desktopId == other.desktopId && name == other.name && namedId == other.namedId
+            && homeScreenId == other.homeScreenId;
     }
 };
 
 /// The per-monitor workspace ownership model: screenId → ordered slice of KWin
-/// desktop UUIDs, with the inverse owner index. Pure data — no D-Bus, no
-/// signals; the reconciler mutates it and the controller streams/persists it.
-/// Every KWin desktop id appears in exactly one slice; concatenating the slices
-/// in screen order yields the intended KWin global order (contiguity is
-/// insert-correct with opportunistic repair; see the plan §4.3).
+/// desktop ids, with the inverse owner index. Pure data — no D-Bus, no
+/// signals; the reconciler mutates it and the controller persists it.
+/// Every KWin desktop id appears in exactly one slice. Concatenating the slices
+/// in screen order is the order the reconciler AIMS for in KWin's global list,
+/// but nothing repairs KWin's list towards it: a reorder verb moves the map
+/// alone, so the two can disagree, and the reconciler derives KWin insert
+/// positions from KWin's own neighbours rather than from this concatenation.
 class PHOSPHORWORKSPACES_EXPORT WorkspaceMap
 {
 public:
@@ -88,22 +100,33 @@ public:
     bool remove(const QString& desktopId);
     /// Move a desktop within its owner's slice to newSliceIndex (clamped).
     bool reorderWithinSlice(const QString& desktopId, int newSliceIndex);
+    /// Put a screen's slice in exactly the order `orderedIds` lists. Refused
+    /// (false, nothing changed) unless `orderedIds` is a permutation of the
+    /// slice. Returns true only when the order actually changed.
+    bool reorderSlice(const QString& screenId, const QStringList& orderedIds);
     /// Re-own a desktop to another screen at sliceIndex (clamped); keeps the
     /// entry's metadata. Returns false if unowned.
     bool transfer(const QString& desktopId, const QString& toScreenId, int sliceIndex);
     void setName(const QString& desktopId, const QString& name);
+    void setNamedId(const QString& desktopId, const QString& namedId);
     void setHomeScreen(const QString& desktopId, const QString& homeScreenId);
+    /// Re-key a screen in place: its slice, its slot in the screen order and
+    /// its owner rows move to `toScreenId`, and every home stamp naming
+    /// `fromScreenId` is rewritten. Refused (false) when `fromScreenId` is not
+    /// part of the world or `toScreenId` already holds a slice.
+    bool renameScreen(const QString& fromScreenId, const QString& toScreenId);
     /// Drop a screen's slice entirely, returning its entries in order (used by
     /// hotplug migration, which re-inserts them elsewhere).
     QList<WorkspaceEntry> takeSlice(const QString& screenId);
     void clear();
 
     // ── Fork-5 position arithmetic ──────────────────────────────────────────
-    /// Global 0-based insert position for createDesktop(): the sum of slice
-    /// sizes of screens preceding `screenId` in screen order, plus sliceIndex
-    /// (clamped to the slice size). KWin's D-Bus position base is 0 per its
-    /// `desktops` property (position starts at 0); this is the single place
-    /// that encodes it.
+    /// Global 0-based insert position computed from the MAP alone: the sum of
+    /// slice sizes of screens preceding `screenId` in screen order, plus
+    /// sliceIndex (clamped to the slice size). KWin's D-Bus position base is 0
+    /// per its `desktops` property. Only right while KWin's list matches the
+    /// slice concatenation, so the reconciler uses it as the fallback when no
+    /// slice neighbour of the insert slot has a known KWin position.
     uint globalPositionForInsert(const QString& screenId, int sliceIndex) const;
 
     // ── Consistency ─────────────────────────────────────────────────────────
@@ -118,16 +141,23 @@ public:
     /// caller). Returns the unowned ids in KWin order.
     QStringList repairAgainst(const QStringList& kwinIds);
 
-    // ── Serialization (wire + state file share this) ────────────────────────
-    /// Wire/state JSON per plan §3.2/§3.3. `currentByScreen` (screenId → 1-based
-    /// global int) and `indexOf` (uuid → 1-based global int) are supplied by the
-    /// caller so the model stays free of VirtualDesktopManager. `includeState`
-    /// adds homeScreen fields (state file); the stream omits them.
+    // ── Serialization (public form + state file share this) ─────────────────
+    /// Map JSON per plan §3.2/§3.3. `currentByScreen` (screenId → 1-based
+    /// global int) and `indexOf` (desktop id → 1-based global int) are supplied
+    /// by the caller so the model stays free of VirtualDesktopManager.
+    /// `includeState` adds homeScreen fields: the daemon's state file passes
+    /// true. False gives the public form, which carries no hotplug bookkeeping;
+    /// no D-Bus stream publishes it any more. A named entry's namedId rides
+    /// both.
     QString toJson(quint64 generation, const QHash<QString, int>& currentByScreen,
                    const std::function<int(const QString&)>& indexOf, bool includeState) const;
-    /// Parse a state-file/wire payload into this map. Returns false (and leaves
-    /// the map cleared) on version mismatch or malformed JSON.
+    /// Parse a state-file or public-form payload into this map. Parsed into a scratch
+    /// map first: on version mismatch or malformed JSON it returns false and
+    /// leaves this map exactly as it was.
     bool fromJson(const QString& json);
+    /// The longest desktop id fromJson accepts. The state file is a boundary
+    /// and an id is opaque, so length is the only shape it can check.
+    static constexpr int MaxDesktopIdLength = 256;
 
     bool operator==(const WorkspaceMap& other) const
     {

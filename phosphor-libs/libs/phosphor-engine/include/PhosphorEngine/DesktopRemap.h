@@ -50,9 +50,12 @@ public:
     /// removed. A position outside the old list comes back unchanged.
     int map(int oldPosition) const;
     /// Like map(), except that a removed desktop answers the desktop KWin moves
-    /// its windows and outputs to: the next surviving desktop after it, which
-    /// takes its number, or the last one before it when it was the last. 0
-    /// only when nothing survived (newCount() is 0).
+    /// the outputs showing it and the windows on it alone to: the next
+    /// surviving desktop after it, which takes its number, or the last one
+    /// before it when it was the last. 0 only when nothing survived
+    /// (newCount() is 0). A window on several desktops is not moved by KWin,
+    /// it just leaves the removed one, so a desktop list is mapped entry by
+    /// entry through map() and only falls back here when no entry survives.
     int successor(int oldPosition) const;
     /// The old position when this change is exactly one desktop removed with
     /// every other keeping its order, else 0.

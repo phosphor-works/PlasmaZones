@@ -1076,6 +1076,52 @@ private Q_SLOTS:
         QVERIFY(!m_engine->isWindowTracked(kWindow));
     }
 
+    // The live-context leave (releaseWindowOutsideSpan): what the compositor
+    // says the window is on now is a screen plus a desktop span, and every
+    // membership outside it goes silently, while the ones it covers keep
+    // their zone. An unknown span says nothing about desktops, so it keeps
+    // every membership on the screen and releases only those off it.
+    void releaseWindowOutsideSpanKeepsOnlyWhereTheWindowIs()
+    {
+        snapOn(1, kWindow, m_zoneIds[0]);
+        m_engine->setCurrentDesktopForScreen(kScreen, 2);
+        m_engine->reconcileDesktopMemberships(kScreen, spanOf(sticky()));
+        snapOn(2, kWindow, m_zoneIds[1]);
+        QVERIFY(recordCapture(kWindow));
+        QVERIFY(persistedZonesByDesktop(kWindow).contains(2));
+
+        QSignalSpy zoneSpy(m_service, &PhosphorPlacement::WindowTrackingService::windowZoneChanged);
+
+        // Unknown span, everything on the screen: nothing goes.
+        QVERIFY(m_engine->releaseWindowOutsideSpan(kWindow, kScreen, PhosphorEngine::DesktopSpan{}).isEmpty());
+        QCOMPARE(zonesOn(1, kWindow), QStringList{m_zoneIds[0]});
+        QCOMPARE(zonesOn(2, kWindow), QStringList{m_zoneIds[1]});
+
+        // The window is on desktop 1 only now: desktop 2's membership goes.
+        const auto released = m_engine->releaseWindowOutsideSpan(kWindow, kScreen, on({1}));
+        QCOMPARE(released.released.size(), 1);
+        QCOMPARE(released.released.first().second.screenId, kScreen);
+        QCOMPARE(released.released.first().second.desktop, 2);
+        QVERIFY(released.adopted.isEmpty());
+        QCOMPARE(zoneSpy.count(), 0);
+        QVERIFY(zonesOn(2, kWindow).isEmpty());
+        QCOMPARE(zonesOn(1, kWindow), QStringList{m_zoneIds[0]});
+        QVERIFY2(!persistedZonesByDesktop(kWindow).contains(2), "the release must reach the record");
+        QVERIFY(persistedZonesByDesktop(kWindow).contains(1));
+
+        // A membership on another screen goes even with an unknown span.
+        m_engine->setCurrentDesktopForScreen(kScreen2, 1);
+        SnapState* onOther = m_engine->stateForWindowOnScreen(kWindow, kScreen2, 1);
+        QVERIFY(onOther);
+        onOther->setFloatingOnScreen(kWindow, kScreen2, 1);
+        QVERIFY(m_engine->holdsWindowInState(kWindow, onOther));
+        const auto offScreen = m_engine->releaseWindowOutsideSpan(kWindow, kScreen, PhosphorEngine::DesktopSpan{});
+        QCOMPARE(offScreen.released.size(), 1);
+        QCOMPARE(offScreen.released.first().second.screenId, kScreen2);
+        QVERIFY(!m_engine->holdsWindowInState(kWindow, onOther));
+        QCOMPARE(zoneSpy.count(), 0);
+    }
+
     // A handoff to a tiling engine releases the CONTEXT it took the window
     // in, not the window: a membership on another desktop still in snapping
     // mode keeps its zone, so switching there finds the window snapped and

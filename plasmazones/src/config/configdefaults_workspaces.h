@@ -18,8 +18,10 @@ public:
     // Workspaces.Behavior
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /// Master opt-in for dynamic per-monitor workspaces. Off = current
-    /// behavior, byte-identical (the WorkspaceController is not constructed).
+    /// Master opt-in for dynamic per-monitor workspaces. Off, the daemon
+    /// never constructs a WorkspaceController (Daemon::initializeWorkspaces
+    /// returns before it) and ShortcutManager registers none of the workspace
+    /// verbs.
     static constexpr bool workspacesEnabled()
     {
         return false;
@@ -33,24 +35,29 @@ public:
         return false;
     }
 
-    /// OSD hint when owner-wins snap-back returns a screen to its own slice.
+    /// OSD hints from the workspace controller: when owner-wins snap-back
+    /// returns a monitor to its own workspace after a switch to one another
+    /// monitor owns, and when a window that landed on a workspace being
+    /// removed is moved to its monitor's current one.
     static constexpr bool workspacesSnapBackOsdHint()
     {
         return true;
     }
 
-    /// Neutralize KWin's stock "Switch One Desktop" chords while the feature
-    /// is on (restored on disable). On by default: the stock chords iterate
-    /// the GLOBAL desktop pool and would trip owner-wins snap-back on nearly
-    /// every press, and the focus verbs' defaults deliberately reuse
-    /// Meta+Ctrl+Up/Down (user decision, 2026-08-26).
+    /// Neutralize KWin's stock "Switch One Desktop" and "Walk Through
+    /// Desktops" chords while the feature is on (restored on disable). On by
+    /// default: the stock chords iterate the GLOBAL desktop pool and would
+    /// trip owner-wins snap-back on nearly every press, and the focus verbs'
+    /// defaults deliberately reuse Meta+Ctrl+Up/Down (user decision,
+    /// 2026-08-26).
     static constexpr bool workspacesRebindKWinShortcuts()
     {
         return true;
     }
 
     /// Named-workspace declarations: none by default. Entry shape (all
-    /// QVariantMap fields): name (unique, non-empty), output (screenId, empty
+    /// QVariantMap fields): id (persistent braced QUuid, empty until a
+    /// producer stamps one), name (unique, non-empty), output (screenId, empty
     /// = unpinned), position (preferred slice index, -1 = before the trailing
     /// empty), focusShortcut / moveShortcut (chords, empty = unbound).
     static QVariantList workspacesNamedEntries()
@@ -63,27 +70,26 @@ public:
     //
     // The focus pair deliberately takes over KWin's stock "Switch One Desktop
     // Down/Up" chords (user decision, 2026-08-26). That takeover is real: the
-    // daemon's stock-rebind pass (src/daemon/daemon/workspaces.cpp) backs up
-    // and clears exactly the "Switch One Desktop *" / "Walk Through Desktops"
-    // actions while the feature and the rebind toggle are both on, and
-    // restores them on disable.
+    // daemon's stock-rebind pass (the KWinDesktopActions table in
+    // Daemon::initializeWorkspaces) backs up and clears exactly the "Switch
+    // One Desktop *" / "Walk Through Desktops" actions while the feature and
+    // the rebind toggle are both on, and restores them on disable.
     //
     // Nothing else here may sit on a stock KWin chord, because that table
     // covers only the SWITCH family. In particular Meta+Ctrl+Shift+Arrow is
     // KWin's stock "Window One Desktop <direction>" quad, which the takeover
     // does NOT release — a default there would stay permanently uncaptured
     // (KGlobalAccel keeps the chord with KWin) and read to the user as a verb
-    // that silently does nothing. Every remaining Meta+Arrow tier is already
-    // claimed by another PlasmaZones family (moveWindow Meta+Alt+Shift,
-    // swapWindow and swapVirtualScreen Meta+Ctrl+Alt and
-    // Meta+Ctrl+Alt+Shift, span Ctrl+Alt, focusZone Alt+Shift — see the
-    // table in configdefaults.h, and the collision guard in
-    // tests/unit/config/settings/test_scrolling_settings.cpp).
+    // that silently does nothing. Every other Meta+Arrow modifier tier is
+    // taken: stock Plasma holds Meta, Meta+Shift and Meta+Alt, and
+    // PlasmaZones holds Meta+Alt+Shift (moveWindow), Meta+Ctrl+Alt
+    // (swapWindow) and Meta+Ctrl+Alt+Shift (swapVirtualScreen). See the span
+    // chord comment in configdefaults.h for the full arrow-chord census.
     //
-    // So the move-window pair and the move-to-monitor pair ship UNBOUND, the
-    // same way the nine focus slots do. An unbound verb is honest: the user
-    // assigns a chord that works, instead of a factory default that stock
-    // KWin or a sibling family would swallow.
+    // So the move-window pair and the move-to-monitor pair ship UNBOUND, like
+    // the slot families. An unbound verb is honest: the user assigns a chord
+    // that works, instead of a factory default that stock KWin or a sibling
+    // family would swallow.
     // ═══════════════════════════════════════════════════════════════════════════
 
     static QString workspaceFocusUpShortcut()
@@ -123,9 +129,8 @@ public:
     }
     // The reorder pair above keeps Meta+Ctrl+Shift+PgUp/PgDown: the stock
     // window-to-desktop quad is arrow-only, so the page keys on that tier are
-    // free. The two move-to-monitor verbs below ship UNBOUND: their natural
-    // chord, Meta+Ctrl+Shift+Arrow, is stock KWin's "Window One Desktop"
-    // family, which the takeover does not release. The user binds them.
+    // free. The move-to-monitor pair below is unbound for the reason in the
+    // banner above.
     static QString workspaceMoveToMonitorLeftShortcut()
     {
         return QString();
@@ -135,23 +140,26 @@ public:
         return QString();
     }
 
-    /// Move-slot chords: unset by default for every slot, matching the
-    /// focus-slot family below. A slot's target workspace is unassigned until
-    /// the user picks one in the settings app, so a factory chord here would
-    /// claim a global binding that resolves to nothing on a fresh install.
-    /// The user assigns both halves, the target in the settings app and the
-    /// chord in KDE's Shortcuts settings. One accessor rather than nine
-    /// identical ones, since the value does not vary by slot.
+    /// Move-slot chords: unset by default for every slot. A slot's target
+    /// workspace is unassigned until the user picks one in the settings app,
+    /// so a factory chord here would claim a global binding that resolves to
+    /// nothing on a fresh install. The user assigns both halves, the target
+    /// and the chord, on the settings app's workspace shortcuts page. One
+    /// accessor for the whole family, since the value does not vary by slot.
     static QString workspaceMoveSlotShortcut()
     {
         return QString();
     }
 
-    /// Focus-slot chords: unset by default for every slot, for the same
-    /// reason as the move slots above. The family is daemon-registered and
-    /// bound by the user in KDE's Shortcuts settings. One accessor
-    /// rather than nine identical ones — the value does not vary by slot, and
-    /// the schema loop reads it per slot.
+    /// Focus-slot chords: unset by default for every slot. Unlike the move
+    /// slots these read no target (a focus slot is positional: the Nth
+    /// workspace of the acting monitor's own list), so the reason is the
+    /// chord space instead: the natural positional chords already belong to
+    /// stock Plasma (KWin's Switch to Desktop N and the task manager's
+    /// numbered entry activation), and the digit tiers PlasmaZones uses are
+    /// taken by the quick-layout and snap-to-zone slots. The user binds them
+    /// on the settings app's workspace shortcuts page. One accessor for the
+    /// whole family, since the value does not vary by slot.
     static QString workspaceFocusSlotShortcut()
     {
         return QString();
@@ -159,7 +167,13 @@ public:
 
     /// Quick-slot targets: unassigned by default. An empty target means the
     /// slot's chord resolves to no workspace and the verb does nothing.
+    /// workspaceSlotTarget is the stored name half (Workspaces.Slots TargetN),
+    /// workspaceSlotTargetId the entry-id half (TargetIdN).
     static QString workspaceSlotTarget()
+    {
+        return QString();
+    }
+    static QString workspaceSlotTargetId()
     {
         return QString();
     }

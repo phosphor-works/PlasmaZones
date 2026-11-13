@@ -54,8 +54,30 @@ const QStringList& scannedFiles()
 {
     static const QStringList files = {
         QStringLiteral("/src/daemon/daemon/init_engines.cpp"),
+        QStringLiteral("/src/daemon/daemon/init_adaptors.cpp"),
     };
     return files;
+}
+
+// The sender is a pointer expression (`m_x.get()`) or the address of a member
+// (`&m_timer`), so an optional leading `&` belongs to the capture: the two
+// spellings of one sender must not compare equal to each other's pair.
+
+/// `disconnect(m_x.get(), &Ns::Cls::sig, this, nullptr);`
+const QRegularExpression& sweepPattern()
+{
+    static const QRegularExpression re(
+        QStringLiteral(R"(\bdisconnect\(\s*(&?[A-Za-z_][\w.()>-]*?)\s*,\s*&([\w:]+)\s*,\s*this\s*,\s*nullptr\s*\))"));
+    return re;
+}
+
+/// `connect(m_x.get(), &Ns::Cls::sig, this,`. The receiver-`this` form is the
+/// only one a `this`-targeted sweep can remove.
+const QRegularExpression& connectPattern()
+{
+    static const QRegularExpression re(
+        QStringLiteral(R"(\bconnect\(\s*(&?[A-Za-z_][\w.()>-]*?)\s*,\s*&([\w:]+)\s*,\s*this\s*,)"));
+    return re;
 }
 
 struct Occurrence
@@ -71,15 +93,36 @@ class TestConnectSweepOrdering : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    // Both sender spellings are recognised by both patterns. Without this a
+    // pattern that lost the `&` form would just stop seeing the member-address
+    // sweeps, and the scan below would pass on the rest.
+    void patternsRecogniseBothSenderSpellings()
+    {
+        const auto pairOf = [](const QRegularExpression& re, const QString& text) {
+            const QRegularExpressionMatch m = re.match(text);
+            return m.hasMatch() ? m.captured(1) + QLatin1String("::") + m.captured(2) : QString();
+        };
+        QCOMPARE(pairOf(sweepPattern(), QStringLiteral("    disconnect(&m_timer, &QTimer::timeout, this, nullptr);")),
+                 QStringLiteral("&m_timer::QTimer::timeout"));
+        QCOMPARE(pairOf(connectPattern(),
+                        QStringLiteral(
+                            "    connect(&m_timer, &QTimer::timeout, this, &Daemon::warnCompositorBridgeMissing);")),
+                 QStringLiteral("&m_timer::QTimer::timeout"));
+        QCOMPARE(pairOf(sweepPattern(),
+                        QStringLiteral("    disconnect(m_store.get(), &Ns::Store::changed, this, nullptr);")),
+                 QStringLiteral("m_store.get()::Ns::Store::changed"));
+        QCOMPARE(pairOf(connectPattern(),
+                        QStringLiteral("    connect(m_store.get(), &Ns::Store::changed, this, [this]() {")),
+                 QStringLiteral("m_store.get()::Ns::Store::changed"));
+        // disconnect( is not a connect.
+        QVERIFY(pairOf(connectPattern(), QStringLiteral("    disconnect(&m_timer, &QTimer::timeout, this, nullptr);"))
+                    .isEmpty());
+    }
+
     void blanketSweepPrecedesEveryConnectOnTheSamePair()
     {
-        // `disconnect(m_x.get(), &Ns::Cls::sig, this, nullptr);`
-        static const QRegularExpression sweepRe(
-            QStringLiteral(R"(\bdisconnect\(\s*([A-Za-z_][\w.()>-]*?)\s*,\s*&([\w:]+)\s*,\s*this\s*,\s*nullptr\s*\))"));
-        // `connect(m_x.get(), &Ns::Cls::sig, this,` — the receiver-`this` form
-        // is the only one a `this`-targeted sweep can remove.
-        static const QRegularExpression connectRe(
-            QStringLiteral(R"(\bconnect\(\s*([A-Za-z_][\w.()>-]*?)\s*,\s*&([\w:]+)\s*,\s*this\s*,)"));
+        const QRegularExpression& sweepRe = sweepPattern();
+        const QRegularExpression& connectRe = connectPattern();
 
         int filesScanned = 0;
         int sweepsSeen = 0;
@@ -109,6 +152,12 @@ private Q_SLOTS:
                 }
             }
             sweepsSeen += sweeps.size();
+            // Every listed file is listed for its sweeps. One that yields none
+            // means the scrape no longer recognises its spelling there.
+            QVERIFY2(
+                !sweeps.isEmpty(),
+                qPrintable(
+                    QStringLiteral("%1: no blanket disconnect(sender, &Signal, this, nullptr) found").arg(relative)));
 
             for (const Occurrence& sweep : sweeps) {
                 // Exactly one blanket sweep per pair. Two is the defect: the

@@ -20,9 +20,16 @@
 #include <QSet>
 #include <QTest>
 
+#include "settings/rules/ruleauthoring.h"
 #include "settings/rules/rulecontroller.h"
 
 #include <PhosphorRules/ActionParams.h>
+#include <PhosphorRules/ActionTypes.h>
+#include <PhosphorRules/MatchExpression.h>
+#include <PhosphorRules/MatchTypes.h>
+
+#include <QJsonArray>
+#include <QJsonObject>
 
 using namespace PlasmaZones;
 
@@ -40,6 +47,7 @@ private Q_SLOTS:
     void zoneNameListParsesAndFormatsRoundTrip();
     void actionTypesCarryDomain();
     void defaultPayloadForSeedsParams();
+    void modeScopedInertHintNamesActionsDecidedBeforeTheMode();
 };
 
 void TestRuleControllerVocabulary::engineModePickerExposesAllVocabularyTokens()
@@ -539,6 +547,46 @@ void TestRuleControllerVocabulary::zoneNameListParsesAndFormatsRoundTrip()
     QCOMPARE(controller.parseZoneNameList(controller.formatZoneNameList(awkward)), awkward);
     // Blank entries are dropped on format as well.
     QCOMPARE(controller.formatZoneNameList({QStringLiteral("  "), QStringLiteral("Editor")}), QStringLiteral("Editor"));
+}
+
+void TestRuleControllerVocabulary::modeScopedInertHintNamesActionsDecidedBeforeTheMode()
+{
+    // RouteToScreen is decided before the placement mode is known, so in a rule
+    // that checks the mode it never applies, and SnapToZone does not place a
+    // window when it opens. The editor shows a non-blocking hint naming both.
+    // A rule without a Mode leaf, or a Mode rule whose actions all apply once
+    // the mode is known, gets no hint.
+    using namespace PhosphorRules;
+    RuleController controller;
+
+    const auto ruleWith = [](const MatchExpression& match, const QList<QLatin1StringView>& types) {
+        QJsonArray actions;
+        for (const QLatin1StringView type : types) {
+            actions.append(QJsonObject{{QStringLiteral("type"), QString(type)}});
+        }
+        return QJsonObject{{QStringLiteral("match"), match.toJson()}, {QStringLiteral("actions"), actions}}
+            .toVariantMap();
+    };
+    const MatchExpression modeMatch =
+        MatchExpression::makeLeaf(Field::Mode, Operator::Equals, QStringLiteral("snapping"));
+    const MatchExpression screenMatch =
+        MatchExpression::makeLeaf(Field::ScreenId, Operator::Equals, QStringLiteral("DP-1"));
+
+    const QString hint =
+        controller.modeScopedInertHint(ruleWith(modeMatch, {ActionType::RouteToScreen, ActionType::SnapToZone}));
+    QVERIFY(!hint.isEmpty());
+    QVERIFY2(hint.contains(RuleAuthoring::actionTypeLabel(QString(ActionType::RouteToScreen))), qPrintable(hint));
+    QVERIFY2(hint.contains(RuleAuthoring::actionTypeLabel(QString(ActionType::SnapToZone))), qPrintable(hint));
+
+    // The Mode leaf nested inside an All group still counts.
+    QVERIFY(!controller
+                 .modeScopedInertHint(
+                     ruleWith(MatchExpression::makeAll({screenMatch, modeMatch}), {ActionType::RouteToScreen}))
+                 .isEmpty());
+
+    QCOMPARE(controller.modeScopedInertHint(ruleWith(screenMatch, {ActionType::RouteToScreen, ActionType::SnapToZone})),
+             QString());
+    QCOMPARE(controller.modeScopedInertHint(ruleWith(modeMatch, {ActionType::SetOsdEnabled})), QString());
 }
 
 QTEST_MAIN(TestRuleControllerVocabulary)

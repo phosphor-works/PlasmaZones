@@ -119,8 +119,8 @@ User-facing strings MUST read like plain, human-written prose with no LLM tics. 
 ### Adding a Setting
 Use the `pz-add-setting` skill, which carries the full worked example. Summary:
 
-1. `plasmazones/src/config/configdefaults_<area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `configdefaults.h` is split by area (`_appearance`, `_gaps`, `_limits`, `_screens`, `_scrolling`, `_scrolling_behavior`, `_scrolling_shortcuts`, `_shaders`).
-2. `plasmazones/src/config/configkeys.h` — group and `xxxKey()` accessors, if new (`configkeys_scrolling.h` for a scrolling group). NOT `configdefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
+1. `plasmazones/src/config/configdefaults_<area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `configdefaults.h` is split by area (`_appearance`, `_gaps`, `_limits`, `_screens`, `_scrolling`, `_scrolling_behavior`, `_scrolling_shortcuts`, `_shaders`, `_workspaces`).
+2. `plasmazones/src/config/configkeys.h` — group and `xxxKey()` accessors, if new (`configkeys_scrolling.h` for a scrolling group, `configkeys_workspaces.h` for a workspaces group). NOT `configdefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
 3. `plasmazones/src/config/settingsschema*.cpp` — register the `{key, default, QMetaType, description, coercion}` KeyDef in its group. **The store takes its default, type and clamping from the schema, not from the getter.** Skip this and the setting silently reads back as the type-default. The description field is user-facing prose and is held to the plain-prose rules below.
 4. `plasmazones/src/core/interfaces/isettings.h` — signal in ISettings.
 5. `plasmazones/src/config/settings.h` — Q_PROPERTY + getter + setter declarations (`override`). **No member variable.**
@@ -297,8 +297,8 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 
 - CMake with `CMAKE_AUTOMOC/AUTORCC/AUTOUIC ON`
 - `qt_add_qml_module()` — ALL QML files must be listed (missing = runtime "not a type" error)
-- `cmake -DUSE_KDE_FRAMEWORKS=ON` (default) or `OFF` for a portable build without the KWin effect and the KCM. `OFF` is not Qt-only: the settings app requires KF6 `Kirigami` in both modes
-- KF6 deps: `Kirigami` always (`plasmazones/src/settings/CMakeLists.txt`); when ON also `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme); optional: `Activities`
+- `cmake -DUSE_KDE_FRAMEWORKS=ON` (default) or `OFF` for a portable build without the KWin effect, the KCM and dynamic workspaces (compiled out under the `USE_KDE_FRAMEWORKS` define). `OFF` is not Qt-only: the settings app requires KF6 `Kirigami` in both modes
+- KF6 deps: `Kirigami` always (`plasmazones/src/settings/CMakeLists.txt`); when ON also `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme), `Config` (KConfig reads kwinrc and makes the consented `PerOutputVirtualDesktops` write for dynamic workspaces); optional in either mode: `Activities`, which only `phosphor-libs/libs/phosphor-workspaces` looks up and links
 - Pluggable backends: `PhosphorConfig::IBackend`, `PhosphorShortcuts::IBackend`, `IWallpaperProvider`
 - Standalone settings app (`plasmazones-settings`) + minimal KCM launcher
 

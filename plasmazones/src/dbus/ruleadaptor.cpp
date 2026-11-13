@@ -3,7 +3,6 @@
 
 #include "ruleadaptor.h"
 
-#include "core/types/baselinecleanup.h"
 #include "core/platform/logging.h"
 
 #include <PhosphorRules/Rule.h>
@@ -257,18 +256,10 @@ void RuleAdaptor::resetManagedDefaults()
     // reloadSettings() that follows (only an owned store reloads there), so its
     // in-memory set is stale. Without this reload, the setAllRules below would
     // write those dropped disable rules back. load() is idempotent (emits only
-    // on a real change).
+    // on a real change). Window appearance (border / title bar / gap) defaults
+    // live in the config store, which the settings side resets, so there is no
+    // managed rule left to restore here.
     m_store->load();
-
-    // Window appearance (border / title bar / gap) defaults now live in the config
-    // store, not in managed baseline rules. "Restore Defaults" resets those config
-    // values on the settings side; here we only have to strip any stale managed
-    // appearance baselines an older build left in rules.json, preserving every user
-    // rule. Shared with the daemon's startup cleanup so the two can't drift.
-    if (!stripStaleManagedAppearanceBaselines(*m_store)) {
-        qCWarning(lcDbusRules) << "RuleAdaptor::resetManagedDefaults: failed to persist rules.json after stripping "
-                                  "stale baseline appearance rules";
-    }
 }
 
 } // namespace PlasmaZones

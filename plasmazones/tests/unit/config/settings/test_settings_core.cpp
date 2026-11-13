@@ -22,6 +22,7 @@
 #include <QTest>
 #include <QColor>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QPalette>
 #include <QSignalSpy>
@@ -35,6 +36,13 @@
 #include <PhosphorConfig/JsonBackend.h>
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorConfig/Store.h>
+#include <PhosphorRules/ActionParams.h>
+#include <PhosphorRules/MatchExpression.h>
+#include <PhosphorRules/Rule.h>
+#include <PhosphorRules/RuleAction.h>
+#include <PhosphorRules/RuleStore.h>
+
+#include <memory>
 
 #include "config/settings.h"
 #include "config/configmigration.h"
@@ -60,15 +68,17 @@ private Q_SLOTS:
     // =========================================================================
 
     /**
-     * reset() must delete the "Updates" config group so that the dismissed
-     * update version is cleared. Regression: if Updates group survives reset,
-     * the user can never see update notifications again.
+     * The legacy "Updates" group is a husk: nothing writes or reads it since
+     * the dismissed update version moved to the settings app's own QSettings,
+     * and no ConfigDefaults accessor names it any more. save() sweeps it like
+     * any other group no schema key lives in (purgeStaleKeys' unmanaged-group
+     * pass), so a config written by an older version loses it on the first
+     * save.
      */
-    void testReset_deletesUpdatesGroup()
+    void testSave_sweepsLegacyUpdatesGroup()
     {
         IsolatedConfigGuard guard;
 
-        // Write a value into the Updates group
         {
             auto backend = PlasmaZones::createDefaultConfigBackend();
             auto updates = backend->group(QStringLiteral("Updates"));
@@ -76,14 +86,17 @@ private Q_SLOTS:
             updates.reset();
             backend->sync();
         }
+        {
+            auto backend = PlasmaZones::createDefaultConfigBackend();
+            QVERIFY(backend->groupList().contains(QStringLiteral("Updates")));
+        }
 
-        // Create Settings and reset
         Settings settings;
-        settings.reset();
+        QVERIFY(settings.save());
 
-        // Verify the Updates group is gone
         auto backend = PlasmaZones::createDefaultConfigBackend();
-        QVERIFY2(!backend->groupList().contains(QStringLiteral("Updates")), "reset() must delete the Updates group");
+        QVERIFY2(!backend->groupList().contains(QStringLiteral("Updates")),
+                 "save() must sweep the legacy Updates group");
     }
 
     /**
@@ -1245,31 +1258,6 @@ private Q_SLOTS:
         QCOMPARE(first.value(QStringLiteral("mouseButton")).toInt(), 0);
     }
 
-    /**
-     * When ZoneSpanModifier is set but ZoneSpanTriggers JSON is absent,
-     * the fallback trigger should use the actual ZoneSpanModifier value,
-     * not the static default.
-     */
-    void testLoadActivation_zoneSpanTriggersUsesActualModifier()
-    {
-        IsolatedConfigGuard guard;
-
-        {
-            auto backend = PlasmaZones::createDefaultConfigBackend();
-            auto zoneSpan = backend->group(ConfigDefaults::snappingBehaviorZoneSpanGroup());
-            zoneSpan->writeInt(ConfigDefaults::modifierKey(), 3); // Alt
-            // Deliberately do NOT write Triggers
-            zoneSpan.reset();
-            backend->sync();
-        }
-
-        Settings settings;
-
-        QVariantList triggers = settings.zoneSpanTriggers();
-        QVERIFY2(!triggers.isEmpty(), "Missing ZoneSpanTriggers must create trigger from ZoneSpanModifier value");
-        QVariantMap first = triggers.first().toMap();
-        QCOMPARE(first.value(QStringLiteral("modifier")).toInt(), 3);
-    }
     // =========================================================================
     // Stale key purging
     // =========================================================================
@@ -1851,6 +1839,116 @@ private Q_SLOTS:
         settings.save();
         Settings reloaded;
         QCOMPARE(reloaded.innerGap(), 24);
+    }
+
+    // =========================================================================
+    // Announcement counts on the whole-config paths
+    // =========================================================================
+
+    /**
+     * A factory reset that moves both a Q_PROPERTY value and a per-screen
+     * override announces settingsChanged() once. The per-screen arm used to
+     * fire its own settingsChanged() on top of the property walk's, so every
+     * subscriber re-read its whole state twice.
+     */
+    void testReset_announcesSettingsChangedOnce()
+    {
+        IsolatedConfigGuard guard;
+        Settings settings;
+        const QString screen = QStringLiteral("test-screen-reset");
+        const QString positionKey = QString::fromLatin1(ZoneSelectorConfigKey::Position);
+        settings.setPerScreenZoneSelectorSetting(screen, positionKey,
+                                                 static_cast<int>(ZoneSelectorPosition::BottomLeft));
+        settings.setBorderWidth(ConfigDefaults::borderWidth() + 3);
+        QVERIFY(settings.save());
+
+        QSignalSpy changedSpy(&settings, &Settings::settingsChanged);
+        QVERIFY(settings.reset());
+        QCOMPARE(settings.borderWidth(), ConfigDefaults::borderWidth());
+        QVERIFY(!settings.getPerScreenZoneSelectorSettings(screen).contains(positionKey));
+        QCOMPARE(changedSpy.count(), 1);
+    }
+
+    /**
+     * exportTo refuses while config.json cannot be read. The backend then
+     * holds a stand-in (nothing at all for a process started on the broken
+     * file), and exporting it would write a valid-looking, importable file of
+     * defaults in place of the user's settings.
+     */
+    void testExportTo_refusesWhileConfigUnreadable()
+    {
+        IsolatedConfigGuard guard;
+        const auto restoreHandling = qScopeGuard([]() {
+            ConfigMigration::setCorruptConfigHandling(ConfigMigration::CorruptConfigHandling::Quarantine);
+        });
+        ConfigMigration::setCorruptConfigHandling(ConfigMigration::CorruptConfigHandling::LeaveInPlace);
+        {
+            Settings writer;
+            writer.setBorderWidth(ConfigDefaults::borderWidth() + 2);
+            QVERIFY(writer.save());
+        }
+        QFile f(ConfigDefaults::configFilePath());
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        f.write("{ broken");
+        f.close();
+
+        Settings app;
+        QVERIFY(app.configUnreadable());
+        const QString exportPath =
+            QFileInfo(ConfigDefaults::configFilePath()).absolutePath() + QStringLiteral("/exported-while-broken.json");
+        QVERIFY(!app.exportTo(exportPath));
+        QVERIFY(!QFile::exists(exportPath));
+        QVERIFY(app.configUnreadable());
+    }
+
+    /**
+     * The rule-store gap re-sync fires on every change the gap cascade can
+     * see, and on nothing else. Switching a gap rule off changes the resolved
+     * gaps although no gap value moved, so it must re-sync. Adding an
+     * unrelated rule that renumbers the gap rule's priority, but leaves the
+     * gap rules in the same relative order, changes nothing the cascade sees
+     * and must stay silent.
+     */
+    void testGapResync_followsEnableAndIgnoresPriorityRenumbering()
+    {
+        using namespace PhosphorRules;
+        IsolatedConfigGuard guard;
+        auto store = std::make_unique<RuleStore>(ConfigDefaults::rulesFilePath());
+        Settings settings(store.get(), nullptr);
+
+        Rule gapRule;
+        gapRule.id = QUuid::createUuid();
+        gapRule.name = QStringLiteral("Gaps (DP-1)");
+        gapRule.enabled = true;
+        gapRule.priority = 100;
+        gapRule.match = MatchExpression::makeLeaf(Field::ScreenId, Operator::Equals, QStringLiteral("DP-1"));
+        RuleAction inner;
+        inner.type = QString(ActionType::SetInnerGap);
+        inner.params.insert(QString(ActionParam::Value), 6);
+        gapRule.actions = {inner};
+        QVERIFY(store->setAllRules({gapRule}));
+
+        QSignalSpy snappingSpy(&settings, &Settings::perScreenSnappingSettingsChanged);
+        QSignalSpy autotileSpy(&settings, &Settings::perScreenAutotileSettingsChanged);
+
+        Rule borderRule;
+        borderRule.id = QUuid::createUuid();
+        borderRule.name = QStringLiteral("Border");
+        borderRule.enabled = true;
+        borderRule.priority = 300;
+        RuleAction width;
+        width.type = QString(ActionType::SetBorderWidth);
+        width.params.insert(QString(ActionParam::Value), 4);
+        borderRule.actions = {width};
+        Rule renumbered = gapRule;
+        renumbered.priority = 250;
+        QVERIFY(store->setAllRules({borderRule, renumbered}));
+        QCOMPARE(snappingSpy.count(), 0);
+        QCOMPARE(autotileSpy.count(), 0);
+
+        QVERIFY(store->setRuleEnabled(gapRule.id, false));
+        QCOMPARE(snappingSpy.count(), 1);
+        QCOMPARE(autotileSpy.count(), 1);
     }
 };
 

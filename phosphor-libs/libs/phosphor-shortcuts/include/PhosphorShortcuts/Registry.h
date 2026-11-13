@@ -8,6 +8,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 #include <functional>
@@ -56,13 +57,23 @@ public:
      *                 never invoked; consumers relying purely on the signal
      *                 can omit the argument.
      * @param persistent If false, the binding is considered transient (e.g. a
-     *                   grab bound around a specific UI state) and is excluded
-     *                   from bindings(true) enumeration. Does not affect
-     *                   backend behaviour. Defaults to true.
+     *                   grab bound around a specific UI state). It is excluded
+     *                   from bindings(true) enumeration and forwarded to
+     *                   IBackend::registerShortcut, where it decides whether
+     *                   the requested sequence overrides the platform's stored
+     *                   record and whether that record is purged on teardown.
+     *                   A flip of the flag on a later bind() re-registers.
+     *                   Defaults to true.
      *
-     * Note: descriptions are captured at first-flush time and NOT forwarded on
-     * subsequent bind() calls — IBackend::updateShortcut doesn't carry a
-     * description argument. Description changes at runtime are local-only.
+     * A fresh entry starts active (see setActive()); a later bind() keeps the
+     * entry's active flag.
+     *
+     * Note: a description reaches the backend only with a registerShortcut
+     * call, never with an update (IBackend::updateShortcut carries no
+     * description). A description changed by a later bind() therefore stays
+     * local until something makes flush() register again: a changed default,
+     * a flipped persistent flag, or the entry coming back after setActive()
+     * parked it or rebind() cleared it.
      */
     void bind(const QString& id, const QKeySequence& defaultSeq, const QString& description = {},
               std::function<void()> callback = {}, bool persistent = true);
@@ -78,8 +89,7 @@ public:
 
     /**
      * Rebind / read another component's global shortcut (IBackend foreign
-     * pass-throughs; only the KGlobalAccel backend supports them). The
-     * dynamic-workspaces stock-shortcut takeover is the caller.
+     * pass-throughs; only the KGlobalAccel backend supports them).
      *
      * foreignShortcuts is tri-state — see IBackend::foreignShortcuts. A
      * disengaged optional means "could not read", and a caller about to steal
@@ -100,6 +110,21 @@ public:
     void unbind(const QString& id);
 
     /**
+     * Like unbind() for an id this registry holds. For an id it does not
+     * hold, asks the backend to delete whatever persistent record the
+     * platform still keeps for it (IBackend::forgetShortcut), which is how a
+     * consumer clears a transient grab an earlier, crashed run left behind.
+     * Applied immediately. Only for transient ids: on a persistent id this
+     * destroys the user's customisation.
+     */
+    void purge(const QString& id);
+
+    /// Every id the platform keeps a record for under this process's
+    /// component (IBackend::storedShortcutIds). nullopt when the backend
+    /// keeps none or the query failed.
+    std::optional<QStringList> storedShortcutIds() const;
+
+    /**
      * Park or revive a binding without forgetting it and without destroying
      * what the platform persists about it. Takes effect after flush().
      * Unknown ids are logged and ignored. Entries are active when bound.
@@ -116,6 +141,18 @@ public:
      * An inactive entry reports no effectiveTriggers(): nothing the user can
      * press reaches it. shortcut() still reports the stored sequence, which
      * is what the consumer would grab again on revival.
+     *
+     * A rebind() aimed at a parked entry is not lost. flush() writes it into
+     * the platform's record (IBackend::storeShortcut) so the revival grabs
+     * the new chord, including across a restart while still parked. The same
+     * holds for a rebind() that lands in the same batch as the park, and a
+     * rebind() to an empty sequence deletes the record. The write-through
+     * only follows this registry's own rebinds after the entry's first
+     * flush: the sequences applied before the first flush are the consumer's
+     * stored config, and writing those would overwrite a chord the user set
+     * in the platform's own settings while the entry was parked.
+     *
+     * A fresh entry is active. bind() on an existing entry keeps its flag.
      */
     void setActive(const QString& id, bool active);
 
@@ -154,12 +191,10 @@ public:
      * string-compare results across backends or parse them back into
      * QKeySequence.
      *
-     * KNOWN CONSUMER PAST THAT CONTRACT: the daemon's cheatsheet family
-     * compression (shortcutmanager_catalog.cpp) does parse these back to
-     * normalize and token-compare. It degrades gracefully by design — a
-     * string that does not parse stays verbatim, fails the compare, and the
-     * family simply shows uncompressed rows — but a change to this method's
-     * output format must keep that consumer in mind.
+     * A consumer that nonetheless parses these back (to normalize or
+     * token-compare them) must degrade gracefully when a string does not
+     * parse, and a change to this method's output format must keep such
+     * consumers in mind.
      */
     QStringList effectiveTriggers(const QString& id) const;
 
@@ -193,6 +228,11 @@ Q_SIGNALS:
      * Forwarded from IBackend::triggersChanged for ids this registry owns —
      * the effective binding changed outside the bind/rebind flow (external
      * rebind, compositor assignment). Re-query effectiveTriggers() on it.
+     *
+     * Always delivered from the event loop, never from inside a call into
+     * this registry: a backend may report while flush() walks the entries,
+     * and a slot that binds or unbinds in response would otherwise mutate
+     * the table under the walk.
      */
     void triggersChanged(QString id);
 
@@ -223,6 +263,15 @@ private:
         // IBackend::suspendShortcut instead of unregistering it, so the
         // platform's record of the user's own chord survives the gate.
         bool active = true;
+        // Has flush() visited this entry at least once? Sequences applied
+        // before that are the consumer's stored config, not a user change,
+        // so they never arm storePending (see setActive()).
+        bool settled = false;
+        // currentSeq moved while the backend held no registration for the
+        // id. The platform's record still carries the old chord, so flush()
+        // writes the new one through IBackend::storeShortcut before the id is
+        // registered again (or while it stays parked).
+        bool storePending = false;
     };
 
     QPointer<IBackend> m_backend;

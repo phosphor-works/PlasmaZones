@@ -100,9 +100,9 @@ public:
     /// the label roles — re-installing the lookups would just churn the
     /// closures without changing behaviour.
     ///
-    /// All lookups (screen, activity, zone, virtualDesktop, snappingLayout,
-    /// tilingAlgorithm, shaderEffect, animationEvent, overlayShader,
-    /// decorationPack, curve) must be wired for the model to render rich
+    /// All lookups (screen, activity, zone, virtualDesktop, workspace,
+    /// snappingLayout, tilingAlgorithm, shaderEffect, animationEvent,
+    /// overlayShader, decorationPack, curve) must be wired for the model to render rich
     /// `matchSummary` / `actionSummary` cells — a missing lookup falls back
     /// to printing the raw id/UUID. SettingsController installs every one but
     /// the curve resolver from its constructor (installRuleLabelLookups);
@@ -114,6 +114,9 @@ public:
     void setZoneLookup(RuleModel::LabelLookup fn);
     /// desktop number → name resolver for `VirtualDesktop` match-leaf labels.
     void setVirtualDesktopLookup(RuleModel::LabelLookup fn);
+    /// Named-workspace entry id → current name resolver for RouteToWorkspace
+    /// actions. Answers empty for an id no declared workspace carries.
+    void setWorkspaceLookup(RuleModel::LabelLookup fn);
     /// layoutId UUID → display label resolver for SetSnappingLayout actions.
     void setSnappingLayoutLookup(RuleModel::LabelLookup fn);
     /// Algorithm token ("bsp", …) → display label resolver for SetTilingAlgorithm actions.
@@ -229,7 +232,9 @@ public:
     /// if the re-fetch succeeded; if the daemon is unreachable the staged
     /// edits are left in place (there is nothing authoritative to reload
     /// to), and `daemonReachable` is cleared so the page surfaces the
-    /// failure. Called by `SettingsController::load()` (Discard).
+    /// failure. Called by `SettingsController::adoptOnDiskState()` (load,
+    /// global Discard, settings import), `SettingsController::defaults()`,
+    /// and `discard()`.
     ///
     /// @note While the revert fetch is in flight, any in-QML edits to rules
     /// are discarded when the daemon snapshot lands — the reply handler
@@ -434,8 +439,9 @@ public:
     /// fields are carried whenever the schema declares them: `options` (a list
     /// of `{ value: QString (wire token), label }` maps, for `enum`),
     /// `min`/`max`/`scale`/`defaultDisplay` (display-unit bounds and seed; the
-    /// value stored is `display * scale`; `zoneOrdinals` and `zoneNames` use
-    /// `max` as their advisory ordinal cap and per-name character cap),
+    /// value stored is `display * scale`; `zoneOrdinals` uses `max` as its
+    /// advisory ordinal cap, and `zoneNames`, `workspaceName` and the
+    /// free-text `string` params use it as a character cap),
     /// `onLabel`/`offLabel` (for `bool`, when the polarity wording exists), and
     /// `acceptsAccent` (for `color`).
     /// QML drives the per-type editor entirely from this descriptor; the
@@ -493,6 +499,18 @@ public:
     /// context-only.
     Q_INVOKABLE bool matchIsContextOnly(const QVariantMap& matchJson) const;
 
+    /// A translated hint for a rule whose match checks the placement mode
+    /// while it carries actions the daemon decides before the mode is known,
+    /// or "" when there is nothing to say. The daemon's open routing and its
+    /// restore predicates admit no rule that references Field::Mode
+    /// (rules_admission.h, admitScreenStamped), so in such a rule
+    /// RouteToWorkspace, RouteToScreen, RouteToDesktop, RestorePosition and
+    /// SetRestoreToZoneOnLogin never take effect, and SnapToZone does not
+    /// place the window when it opens. Not a validation issue: the rule is
+    /// well formed and saving it is the user's call, so the editor shows this
+    /// beside the issues without gating Save on it.
+    Q_INVOKABLE QString modeScopedInertHint(const QVariantMap& ruleJson) const;
+
 Q_SIGNALS:
     // dirtyChanged() inherited from StagingDomain.
     void daemonReachableChanged();
@@ -508,9 +526,12 @@ Q_SIGNALS:
     /// call (Discard). `success` is true iff the re-fetch landed and the
     /// staged edits were dropped; false on a D-Bus / daemon error, in which
     /// case the staged edits are intentionally preserved (the page stays
-    /// dirty). `SettingsController::load()` listens once so it can re-add the
-    /// "rules" entry to its dirty-pages set when revert failed during
-    /// the `setNeedsSave(false)` blanket-clear it does for every other page.
+    /// dirty). SettingsController holds a PERMANENT listener (its
+    /// constructor) that re-derives the rule-backed pages' dirty state by
+    /// value on every emission, so a failed revert re-badges the Rules page
+    /// after the caller's `setNeedsSave(false)` blanket-clear and a
+    /// successful one leaves it clean. `discard()` also listens once, to emit
+    /// its discardResult.
     void revertFinished(bool success);
 
 private:

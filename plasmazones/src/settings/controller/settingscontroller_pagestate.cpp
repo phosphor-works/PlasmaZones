@@ -788,19 +788,25 @@ bool SettingsController::syncDirtyMembership(const QString& page, bool dirty)
 
 void SettingsController::beginExternalEdit(const QString& page)
 {
-    // The three placement-mode ids resolve to the page that OWNS the mode's
-    // enable key, not to the section's first visible leaf. The only callers
-    // that pass a bare mode id are the sidebar's enable toggle and its
-    // section-disable confirm (Main.qml / ConfirmDialogs.qml), and the edit
-    // inside their envelope is precisely the <Mode>/enabled flip — value-based
-    // dirtiness for that key lives on its manifest owner. resolveToLeaf would
+    // The ids of the sections with a sidebar enable toggle (the three
+    // placement modes, and workspaces) resolve to the page that OWNS the
+    // feature's enable key, not to the section's first visible leaf. The only
+    // callers that pass a bare section id are the sidebar's enable toggle and
+    // its section-disable confirm (Main.qml / ConfirmDialogs.qml), and the
+    // edit inside their envelope is precisely that enable flip — value-based
+    // dirtiness for the key lives on its manifest owner. resolveToLeaf would
     // land on the section's first visible leaf instead, which since the
-    // library pages lead each section is a never-dirty page (isLibraryPage)
-    // that would swallow the attribution.
+    // library pages lead each mode section is a never-dirty page
+    // (isLibraryPage) that would swallow the attribution. Workspaces' first
+    // leaf happens to be its owner today; listing it keeps the attribution
+    // from depending on registration order.
     static const QHash<QString, QString> kModeEnableOwners{
         {QStringLiteral("snapping"), QStringLiteral("snapping-overlay-behavior")},
         {QStringLiteral("tiling"), QStringLiteral("tiling-behavior")},
         {QStringLiteral("scrolling"), QStringLiteral("scrolling-columns")},
+#ifdef USE_KDE_FRAMEWORKS
+        {QStringLiteral("workspaces"), QStringLiteral("workspaces-behavior")},
+#endif
     };
     const QString ownerMapped = kModeEnableOwners.value(page, page);
     // Resolve any OTHER parent category to its canonical leaf — same rules as

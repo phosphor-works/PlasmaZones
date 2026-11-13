@@ -17,6 +17,11 @@
  *    setInactive and unregister calls the release sends would ungrab the keys
  *    of a --replace or bus-activated successor that registered first, and a
  *    successor can register as soon as the name is free.
+ *  - Daemon::stop() tears dynamic workspaces down before both. The teardown
+ *    unregisters the named-workspace chords and gives KWin back its desktop
+ *    chords, which needs the shortcut Registry still alive, and a restore sent
+ *    after the bus name is free could hand the chords back to KWin underneath
+ *    a successor that already took them.
  *  - main() reads the rendering backend only after
  *    ConfigMigration::ensureJsonConfig(), and before the Daemon builds the
  *    first QQuickWindow. A v1 config.json holds the backend under a key the
@@ -98,6 +103,27 @@ private Q_SLOTS:
         QVERIFY2(releaseAt < nameAt, "Daemon::stop() must release the shortcut grabs before it releases the bus name");
         QVERIFY2(stop.indexOf(release, releaseAt + 1) < 0,
                  "Daemon::stop() releases the shortcuts twice; a second release after the bus name reopens the race");
+    }
+
+    void stopTearsWorkspacesDownBeforeTheShortcutsAndTheBusName()
+    {
+        const QString source = readSource(QStringLiteral("/src/daemon/daemon/lifecycle.cpp"));
+        QVERIFY2(!source.isEmpty(), "could not read daemon/daemon/lifecycle.cpp");
+        const QString stop = functionBody(source, QStringLiteral("void Daemon::stop()"));
+        QVERIFY2(!stop.isEmpty(), "Daemon::stop() not found in lifecycle.cpp");
+
+        const QString teardown = QStringLiteral("teardownWorkspaces()");
+        const qsizetype teardownAt = stop.indexOf(teardown);
+        const qsizetype releaseAt = stop.indexOf(QStringLiteral("m_shortcutManager->unregisterShortcuts()"));
+        const qsizetype nameAt = stop.indexOf(QStringLiteral("unregisterService("));
+        QVERIFY2(teardownAt >= 0, "Daemon::stop() no longer calls teardownWorkspaces()");
+        QVERIFY2(releaseAt >= 0, "Daemon::stop() no longer calls m_shortcutManager->unregisterShortcuts()");
+        QVERIFY2(nameAt >= 0, "Daemon::stop() no longer calls unregisterService(");
+        QVERIFY2(teardownAt < releaseAt,
+                 "Daemon::stop() must tear workspaces down while the shortcut Registry is still alive");
+        QVERIFY2(teardownAt < nameAt, "Daemon::stop() must tear workspaces down before it releases the bus name");
+        QVERIFY2(stop.indexOf(teardown, teardownAt + 1) < 0,
+                 "Daemon::stop() tears workspaces down twice; a second teardown after the release finds no Registry");
     }
 
     void mainReadsTheBackendAfterTheMigration()

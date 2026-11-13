@@ -760,7 +760,7 @@ public:
     /// the caller: a resolve at unplug time can collapse a suffixed id when identical monitors go away together,
     /// and here it would also re-populate the cache entry the caller just purged.
     void noteScrollTabOutputRemoved(KWin::LogicalOutput* output, const QString& removedScreenId);
-    void noteContextSwitched(const QString& physicalScreenId); ///< a reported desktop switch; empty: all (activity)
+    void noteContextSwitched(const QString& physicalScreenId); ///< a desktop switch KWin made; empty: all (activity)
     /// Delete the painter's retired textures under a made-current context;
     /// called after every clearOutput() so a strip that went away does not
     /// hold its texture until the next paint pass (which may never come once

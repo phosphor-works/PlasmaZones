@@ -115,10 +115,11 @@ public:
     /// LOAD-BEARING).
     void setActiveScreens(const QSet<QString>& screens) override;
     /// NOTE: activeScreen() is deliberately NOT overridden. m_activeScreen
-    /// is this engine's private "which output does a hint-less shortcut act
-    /// on" memory, consumed only by resolveOperationScreen; nothing outside
-    /// asks for it, and exposing an unguarded reader invited a caller to
-    /// treat a screen this engine may have stopped managing as current.
+    /// is this engine's private, focus-tracked memory of the last scrolling
+    /// screen it acted on, and it can be stale while focus sits on a screen
+    /// this engine does not scroll. Exposing an unguarded reader invited a
+    /// caller to treat that memory, or a screen this engine may have stopped
+    /// managing, as the current one.
     void setActiveScreenHint(const QString& screenId) override;
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -217,13 +218,6 @@ public:
     void focusColumnLast(const QString& screenId);
     void moveColumnToFirst(const QString& screenId);
     void moveColumnToLast(const QString& screenId);
-    /// The focused column's window ids on this screen's current strip, in
-    /// tile order (empty when the screen has no state or no active column).
-    /// Read-only; the dynamic-workspaces move-column-to-workspace verb
-    /// enumerates the group it relocates through this, and addresses it with
-    /// a PHYSICAL output id, so @p screenId is resolved through
-    /// scrollingScreenForPhysical rather than looked up verbatim.
-    QStringList focusedColumnWindows(const QString& screenId) const;
     void consumeWindowIntoColumn(const QString& screenId);
     void expelWindowFromColumn(const QString& screenId);
     /// delta -1 = towards the strip's start, +1 = towards its end (niri consume-or-expel-window-left/right).
@@ -475,6 +469,95 @@ public:
 
     PhosphorEngine::IPlacementState* stateForScreen(const QString& screenId) override;
     const PhosphorEngine::IPlacementState* stateForScreen(const QString& screenId) const override;
+    /// Why focusedColumnWindows answered empty, so the caller can tell the
+    /// user which of the distinct situations it hit.
+    enum class FocusedColumnRefusal : quint8 {
+        None, ///< Not refused: the answer names the column.
+        NotScrolling, ///< @p screenId is not a screen this engine scrolls (exact id, see below).
+        NoColumn, ///< The screen scrolls but its current strip has no active column.
+        FloatFocused, ///< A floating window holds focus, so no column is the one in front of the user.
+    };
+    /// The focused column of @p screenId's current strip, in tile order, for
+    /// a verb that relocates the column as a whole (the dynamic-workspaces
+    /// move-column-to-workspace verb).
+    ///
+    /// @p screenId must be the EXACT screen this engine keys the strip by,
+    /// the virtual "<phys>/vs:N" id on a subdivided monitor. There is no
+    /// physical-to-virtual resolution and no active-screen fallback: a
+    /// monitor split into several scrolling sub-screens has no single answer
+    /// for its physical id, and any guess would relocate a column the user
+    /// never addressed.
+    ///
+    /// Refuses under float focus, the same refusal the column verbs give
+    /// (refuseUnderFloatFocus): the strip's active column is then the one
+    /// behind the float, not the one the user is looking at.
+    ///
+    /// The answer includes the column's HIDDEN members: a window of a shared
+    /// column that is out of the strip because it is minimized or held for
+    /// its own fullscreen, placed at the slot it will return to. Those are
+    /// part of the column and travel with it. A window the user floated is
+    /// not, and is left out. Minimized is read from the window registry's
+    /// tri-state answer, and an unknown state is treated as not minimized.
+    ///
+    /// @p reason, when given, says why the answer is empty (None otherwise).
+    QStringList focusedColumnWindows(const QString& screenId, FocusedColumnRefusal* reason = nullptr) const;
+    /// The column-preserving half of the move-column-to-workspace verb.
+    ///
+    /// The verb moves each window to @p targetDesktop one by one, and each
+    /// arrives there on its own, so without this record they would land as
+    /// one column per window. This records the column holding @p windowIds
+    /// on @p screenId's current strip as a strip-stash column under the
+    /// context the windows will be adopted into, (@p screenId,
+    /// @p targetDesktop, current activity), so the arrivals rejoin one column
+    /// with its width, display, tab, height owner and per-tile heights. The
+    /// column opens where a fresh arrival would (the screen's insert
+    /// position, never into the active column), not at an index of a strip
+    /// it never stood in.
+    ///
+    /// Call it after focusedColumnWindows answered @p windowIds and BEFORE
+    /// the first window is released, and only when @p targetDesktop runs
+    /// scrolling on @p screenId: the record waits for arrivals this engine
+    /// adopts. @p screenId is the exact strip key, as for
+    /// focusedColumnWindows. @p windowIds keeps the caller's order and
+    /// membership (the column as the user addressed it); windows no longer
+    /// tracked on the strip are skipped.
+    ///
+    /// The record carries no focus, view anchor or blueprint cursor: those
+    /// belong to the strip the column leaves. An entry already stashed for
+    /// the destination keeps its own, and the column is appended to it.
+    ///
+    /// Returns false, recording nothing, when the screen does not scroll,
+    /// none of @p windowIds is on its current strip, or the destination
+    /// context is the current one (a sticky-pinned screen keys every desktop
+    /// by its pin, so the windows would arrive back in the strip they left).
+    bool stashColumnForDesktopMove(const QString& screenId, const QStringList& windowIds, int targetDesktop);
+    /// The column-preserving half of the move-workspace-to-monitor verb.
+    ///
+    /// That verb keeps the workspace's desktop and moves its windows to
+    /// another monitor, each arriving there on its own, so without this
+    /// record the strip would be rebuilt as one column per window. This
+    /// records every column of the strip on @p sourceStripScreenId for
+    /// @p desktop, in strip order and with each column's hidden members
+    /// (as stashColumnForDesktopMove carries them), cut down to
+    /// @p windowIds, under (@p targetStripScreenId, @p desktop, current
+    /// activity). The arrivals on the target strip rejoin their columns in
+    /// the stashed order, with width, display, tab, height owner and per-tile
+    /// heights. A fresh record also carries the strip's focus, view anchor
+    /// (restored only on the axis it was captured on) and blueprint
+    /// spent-ness, since the whole strip moves; an entry already stashed for
+    /// the destination keeps its own and gains the columns after its own.
+    ///
+    /// Both ids are exact strip keys (a "<phys>/vs:N" id on a split
+    /// monitor). A sticky pin on either screen keys that side by the pin.
+    /// Call it after the sticky filter and BEFORE the first window is
+    /// released, with only the ids that will actually move, and only when
+    /// @p desktop runs scrolling on @p targetStripScreenId.
+    ///
+    /// Returns false, recording nothing, for an empty or identical pair of
+    /// ids, a desktop below 1, no strip state for the source, or no listed
+    /// window on it.
+    bool stashStripForOutputMove(const QString& sourceStripScreenId, const QString& targetStripScreenId, int desktop,
+                                 const QStringList& windowIds);
     /// The tab-indicator geometry @p screenId resolves to: the configured
     /// values with any per-screen rule override layered on per property.
     ///
@@ -1163,16 +1246,11 @@ private:
     ScrollState* stateForKey(const PhosphorEngine::PlacementStateKey& key, bool createIfMissing);
     ScrollState* stateForWindow(const QString& canonicalId, PhosphorEngine::PlacementStateKey* outKey = nullptr) const;
     /// The screen the engine should operate on for a screen-hinted verb:
-    /// @p screenId when it is a scrolling screen, else the active screen.
+    /// @p screenId when it is a scrolling screen, else the remembered active
+    /// screen when that is still scrolling, else the lexicographically
+    /// smallest scrolling screen (so repeated hint-less presses land
+    /// deterministically). Empty only when no screen scrolls at all.
     QString resolveOperationScreen(const QString& screenId) const;
-    /// The live scrolling screen belonging to the same PHYSICAL output as
-    /// @p screenId, or empty when none does. Unlike resolveOperationScreen
-    /// there is NO active-screen fallback: this answers for the output named
-    /// or not at all. When that output carries SEVERAL scrolling virtual
-    /// sub-screens, the active screen wins if it is one of them; otherwise the
-    /// call is REFUSED (empty), because any tie-break would be a guess and the
-    /// verbs built on this act on whatever it names.
-    QString scrollingScreenForPhysical(const QString& screenId) const;
     /// Latch-guarded tab-strip clear: emits the "[]" payload once for a
     /// screen that had a strip showing, no-op otherwise.
     void clearTabStripsForScreen(const QString& screenId);
@@ -1314,6 +1392,19 @@ private:
     /// the state regardless. @p params is the caller's already-resolved layout params (the only caller holds them).
     bool restoreFromStripStash(ScrollState* state, const PhosphorEngine::PlacementStateKey& key,
                                const QString& windowId, const ScrollLayoutParams& params, int minWidth, int minHeight);
+    /// The tiles of @p state's column @p columnIndex in tile order, with the column's hidden members (see
+    /// focusedColumnWindows) inserted at the slot they return to. Heights and the windowed-fullscreen flag
+    /// come from the live tile, or from the FloatRestore entry for a hidden member. Empty for a bad index.
+    QVector<StashedTile> columnTilesWithHiddenMembers(const ScrollState* state, int columnIndex) const;
+    /// The shared tail of stashColumnForDesktopMove and stashStripForOutputMove: append @p columns to the stash entry
+    /// for @p destKey (created when absent, @p fresh says which), after taking their windows out of the entry's
+    /// existing columns, focus and consumed set, and stamp the entry newest. Returns the entry.
+    StashedStrip& mergeMovedColumnsIntoStash(const PhosphorEngine::PlacementStateKey& destKey,
+                                             const QVector<StashedColumn>& columns, bool* fresh);
+    /// The float-focus refusal the column verbs share: when a floating window holds focus, the strip's active
+    /// column is the one behind it, so a verb that acts on that column refuses with no_target (naming the float
+    /// as the source) instead of restructuring a column the user is not looking at. True when it refused.
+    bool refuseUnderFloatFocus(const ScrollState* state, const QString& action, const QString& screenId);
     /// Drop stash entries whose key @p stale answers true for — called by
     /// the same prunes that reap context states.
     void sweepStripStash(const std::function<bool(const PhosphorEngine::PlacementStateKey&)>& stale);

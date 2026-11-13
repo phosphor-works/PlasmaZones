@@ -1083,8 +1083,10 @@ private Q_SLOTS:
         QCOMPARE(reg.metadata(QStringLiteral("u2"))->virtualDesktop, 3);
     }
 
-    // A window on the removed desktop goes where KWin sends it: the desktop
-    // that takes the number, or the one before when the last was removed.
+    // Where KWin sends a window whose desktop goes. A window on the removed
+    // desktop alone moves to the desktop that takes the number, or to the one
+    // before when the last was removed. A window on several desktops just
+    // leaves the removed one and keeps the rest.
     void remapDesktops_removedDesktopGoesToItsSuccessor()
     {
         WindowRegistry reg;
@@ -1096,8 +1098,10 @@ private Q_SLOTS:
         reg.remapDesktops(DesktopRemap::removal(4, 4));
 
         QCOMPARE(reg.metadata(QStringLiteral("u1"))->virtualDesktop, 3);
-        QCOMPARE(reg.metadata(QStringLiteral("u2"))->virtualDesktops, (QList<int>{2, 3}));
-        // {3, 4} folds onto 3 alone: a single desktop carries no list.
+        // {2, 4} leaves 4 and keeps 2 alone. It is not sent on to 4's
+        // successor, so 3 joins no span: a single desktop carries no list.
+        QCOMPARE(reg.metadata(QStringLiteral("u2"))->virtualDesktop, 2);
+        QVERIFY(reg.metadata(QStringLiteral("u2"))->virtualDesktops.isEmpty());
         QCOMPARE(reg.metadata(QStringLiteral("u3"))->virtualDesktop, 3);
         QVERIFY(reg.metadata(QStringLiteral("u3"))->virtualDesktops.isEmpty());
     }

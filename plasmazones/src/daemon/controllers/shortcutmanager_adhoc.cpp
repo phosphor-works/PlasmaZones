@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The ADHOC half of ShortcutManager: transient bindings a caller registers at
-// runtime and owns for as long as its surface is up (the layout picker's six
-// keys are the standing example), as opposed to the persistent
-// settings-driven table in shortcutmanager.cpp.
+// runtime and owns for as long as its surface is up (the layout picker's
+// navigation keys are the standing example), as opposed to the persistent
+// settings-driven table (shortcutmanager_table.cpp, registered by
+// shortcutmanager.cpp).
 //
 // Split from that file when it crossed the size ceiling. The seam is a real
 // concern rather than a line count: everything here exists because these
@@ -41,12 +42,16 @@ namespace {
 /// on rejection, so a caller whose register was refused still calls the
 /// matching unregister — the guard must therefore hold on BOTH sides and
 /// in drainPendingAdhocOps' direct-unbind arm.
+///
+/// The named-workspace prefixes are deliberately NOT here: those chords are
+/// adhoc by design (the daemon binds them through this very API), so
+/// refusing them refused every named-workspace chord.
 bool collidesWithSettingsDrivenId(const QString& id)
 {
     // Hoisted once: staticShortcutIds() rebuilds the whole static-id list
     // per call, and this guard runs per binding of every adhoc batch (six
-    // per layout-picker show). The table has internal linkage and never
-    // changes at runtime, so a function-local static set is sound.
+    // per layout-picker show). ShortcutTable::staticEntries() is fixed data
+    // that never changes at runtime, so a function-local static set is sound.
     static const QSet<QString> kStaticIdSet = [] {
         const QStringList ids = ShortcutManager::staticShortcutIds();
         return QSet<QString>(ids.cbegin(), ids.cend());
@@ -54,11 +59,24 @@ bool collidesWithSettingsDrivenId(const QString& id)
     return kStaticIdSet.contains(id) || id.startsWith(QLatin1String(kQuickLayoutPrefix))
         || id.startsWith(QLatin1String(kSnapToZonePrefix)) || id.startsWith(QLatin1String(kScrollFocusTabPrefix))
         || id.startsWith(QLatin1String(kWorkspaceMoveSlotPrefix))
-        || id.startsWith(QLatin1String(kWorkspaceFocusSlotPrefix))
-        || id.startsWith(QLatin1String(kWorkspaceNamedFocusPrefix))
-        || id.startsWith(QLatin1String(kWorkspaceNamedMovePrefix));
+        || id.startsWith(QLatin1String(kWorkspaceFocusSlotPrefix));
 }
 } // namespace
+
+bool ShortcutManager::isCataloguedAdhocId(const QString& id)
+{
+    return id.startsWith(QLatin1String(kWorkspaceNamedFocusPrefix))
+        || id.startsWith(QLatin1String(kWorkspaceNamedMovePrefix));
+}
+
+void ShortcutManager::publishAdhocCatalogChange()
+{
+    if (!m_adhocCatalogDirty) {
+        return;
+    }
+    m_adhocCatalogDirty = false;
+    Q_EMIT cheatsheetModelChanged();
+}
 
 void ShortcutManager::registerAdhocShortcut(const QString& id, const QKeySequence& sequence, const QString& description,
                                             std::function<void()> callback)
@@ -99,10 +117,16 @@ void ShortcutManager::registerAdhocShortcut(const QString& id, const QKeySequenc
     // contract (to protect user rebinds on the settings-driven table), so
     // force the requested sequence here for the adhoc case where the caller
     // wants the new sequence to win. For a fresh id the rebind is a same-
-    // sequence short-circuit inside Registry.
+    // sequence short-circuit inside Registry. The backend registers adhoc
+    // ids with NoAutoloading, so the new sequence also wins over the old one
+    // in KGlobalAccel's record.
     m_registry->rebind(id, sequence);
+    if (isCataloguedAdhocId(id)) {
+        m_adhocCatalogDirty = true;
+    }
     if (!m_suppressAdhocFlush) {
         m_registry->flush();
+        publishAdhocCatalogChange();
     }
 }
 
@@ -124,6 +148,7 @@ void ShortcutManager::registerAdhocShortcuts(
     m_suppressAdhocFlush = false;
     if (m_registry && !m_registrationInProgress) {
         m_registry->flush();
+        publishAdhocCatalogChange();
     }
 }
 
@@ -139,6 +164,7 @@ void ShortcutManager::unregisterAdhocShortcuts(const QStringList& ids)
     m_suppressAdhocFlush = false;
     if (m_registry && !m_registrationInProgress) {
         m_registry->flush();
+        publishAdhocCatalogChange();
     }
 }
 
@@ -178,9 +204,13 @@ void ShortcutManager::unregisterAdhocShortcut(const QString& id)
         }
         return;
     }
+    if (isCataloguedAdhocId(id) && m_registry->isActive(id)) {
+        m_adhocCatalogDirty = true;
+    }
     m_registry->unbind(id);
     if (!m_suppressAdhocFlush) {
         m_registry->flush();
+        publishAdhocCatalogChange();
     }
 }
 
@@ -226,6 +256,9 @@ bool ShortcutManager::drainPendingAdhocOps()
         }
     }
     m_registry->flush();
+    // The settle publishes the catalog right after this, so a named chord
+    // drained here needs no emit of its own.
+    m_adhocCatalogDirty = false;
     return true;
 }
 

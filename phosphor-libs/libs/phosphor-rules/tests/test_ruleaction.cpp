@@ -414,12 +414,27 @@ private Q_SLOTS:
         // domain. The cast-back asserts the enum stayed two-valued; adding a
         // third domain without updating this test would still pass the
         // compiler.
-        for (const QString& type : ActionRegistry::instance().registeredTypes()) {
+        //
+        // registeredTypes() walks a QHash, so each loop below sorts first and
+        // collects every offender before asserting: a failure names the same
+        // types on every run, not whichever one the hash order reached first.
+        QStringList types = ActionRegistry::instance().registeredTypes();
+        types.sort();
+        QStringList badDomain;
+        for (const QString& type : std::as_const(types)) {
             const auto descriptor = ActionRegistry::instance().descriptor(type);
-            QVERIFY(descriptor.has_value());
+            if (!descriptor.has_value()) {
+                badDomain.append(type + QLatin1String(" (no descriptor)"));
+                continue;
+            }
             const int d = static_cast<int>(descriptor->domain);
-            QVERIFY(d == static_cast<int>(ActionDomain::Context) || d == static_cast<int>(ActionDomain::Window));
+            if (d != static_cast<int>(ActionDomain::Context) && d != static_cast<int>(ActionDomain::Window)) {
+                badDomain.append(type);
+            }
         }
+        QVERIFY2(badDomain.isEmpty(),
+                 qPrintable(QStringLiteral("action types outside the two domains: ")
+                            + badDomain.join(QStringLiteral(", "))));
 
         // Completeness: every registered type must be domain-PINNED by the
         // SAME lists the assertion tests above iterate (file-scope
@@ -441,10 +456,15 @@ private Q_SLOTS:
         for (const QLatin1StringView t : pinnedElsewhere) {
             pinned.insert(QString::fromLatin1(t));
         }
-        for (const QString& type : ActionRegistry::instance().registeredTypes()) {
-            QVERIFY2(pinned.contains(type),
-                     qPrintable(QStringLiteral("action type not domain-pinned by any list: ") + type));
+        QStringList unpinned;
+        for (const QString& type : std::as_const(types)) {
+            if (!pinned.contains(type)) {
+                unpinned.append(type);
+            }
         }
+        QVERIFY2(unpinned.isEmpty(),
+                 qPrintable(QStringLiteral("action types not domain-pinned by any list: ")
+                            + unpinned.join(QStringLiteral(", "))));
     }
 
     void testDisableEngine_rejectsUnknownModeToken()
@@ -898,14 +918,24 @@ private Q_SLOTS:
         // carrying an unexpected extra key is rejected, so the strict-key path
         // is exercised for every one of them (not just for the pre-existing
         // SetEngineMode in testJson_rejectsInvalidParams).
-        const auto rejectsStray = [](QLatin1StringView type, const QJsonValue& goodValue) {
+        //
+        // The helper records each failure instead of asserting: QVERIFY2 in a
+        // lambda returns from the lambda only, so the test would carry on and
+        // pass. Every failure is reported by the one assert at the end.
+        QStringList failures;
+        const auto rejectsStray = [&failures](QLatin1StringView type, const QJsonValue& goodValue) {
             QJsonObject ok;
             ok.insert(QStringLiteral("type"), QString::fromLatin1(type));
             ok.insert(QStringLiteral("value"), goodValue);
-            QVERIFY2(RuleAction::fromJson(ok).has_value(), type.data());
+            if (!RuleAction::fromJson(ok).has_value()) {
+                failures.append(QString::fromLatin1(type) + QLatin1String(" (good payload refused)"));
+                return;
+            }
             QJsonObject stray = ok;
             stray.insert(QStringLiteral("width"), 4); // not in allowedKeys
-            QVERIFY2(!RuleAction::fromJson(stray).has_value(), type.data());
+            if (RuleAction::fromJson(stray).has_value()) {
+                failures.append(QString::fromLatin1(type) + QLatin1String(" (stray key accepted)"));
+            }
         };
         rejectsStray(ActionType::SetBorderWidth, QJsonValue(4));
         rejectsStray(ActionType::SetHideTitleBar, QJsonValue(true));
@@ -985,6 +1015,7 @@ private Q_SLOTS:
         rejectsStray(ActionType::SetDropIndicatorBorderWidth, QJsonValue(2));
         // …and the window-domain half, which is a separate registration path.
         rejectsStray(ActionType::DropIndicatorColor, QJsonValue(QStringLiteral("#ff884422")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QStringLiteral(", "))));
     }
 
     void testOverrideOverlay_fromJson()

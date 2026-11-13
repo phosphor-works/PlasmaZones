@@ -15,17 +15,19 @@
 #include <PhosphorShortcuts/Registry.h>
 
 #include <QHash>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 
 #include <algorithm>
+#include <iterator>
 
 namespace PlasmaZones {
 
 namespace {
 
-// Shortcut ids + indexed-slot id helpers live in shortcutmanager_ids.h
-// (shared with the cheatsheet catalog TU).
+// Shortcut ids + indexed-slot id helpers live in shortcutmanager_ids.h (see
+// its header comment for every TU that reads them).
 using namespace ShortcutIds;
 using ShortcutTable::StaticEntry;
 
@@ -37,43 +39,31 @@ static_assert(kIndexedSlotCount == ConfigDefaults::WorkspaceSlotCount,
               "workspace slot families are registered with kIndexedSlotCount; keep it equal to the config bound");
 
 // Indexed slot defaults — array of static accessors so the slot loop can
-// resolve defaults by index without one constexpr-if branch per slot.
+// resolve defaults by index without one constexpr-if branch per slot. Sized
+// by their initializers, not by kIndexedSlotCount: a declared bound would
+// value-initialize any slot left out to a null getter, which the slot loop
+// would then call. The static_asserts below catch a missing or extra slot.
 using DefaultGetter = QString (*)();
-constexpr DefaultGetter kQuickLayoutDefaults[kIndexedSlotCount] = {
+constexpr DefaultGetter kQuickLayoutDefaults[] = {
     &ConfigDefaults::quickLayout1Shortcut, &ConfigDefaults::quickLayout2Shortcut, &ConfigDefaults::quickLayout3Shortcut,
     &ConfigDefaults::quickLayout4Shortcut, &ConfigDefaults::quickLayout5Shortcut, &ConfigDefaults::quickLayout6Shortcut,
     &ConfigDefaults::quickLayout7Shortcut, &ConfigDefaults::quickLayout8Shortcut, &ConfigDefaults::quickLayout9Shortcut,
 };
-constexpr DefaultGetter kSnapToZoneDefaults[kIndexedSlotCount] = {
+constexpr DefaultGetter kSnapToZoneDefaults[] = {
     &ConfigDefaults::snapToZone1Shortcut, &ConfigDefaults::snapToZone2Shortcut, &ConfigDefaults::snapToZone3Shortcut,
     &ConfigDefaults::snapToZone4Shortcut, &ConfigDefaults::snapToZone5Shortcut, &ConfigDefaults::snapToZone6Shortcut,
     &ConfigDefaults::snapToZone7Shortcut, &ConfigDefaults::snapToZone8Shortcut, &ConfigDefaults::snapToZone9Shortcut,
 };
-
-/// The feature-gated dynamic-workspaces family, ENUMERATED rather than
-/// matched on an id prefix. A `startsWith("workspace_")` scan is
-/// position-dependent in the wrong direction: it swept in any unrelated id
-/// that happened to be spelled that way, and just as silently dropped a
-/// workspace action that was not. The two slot families stay prefix-matched
-/// because their prefix IS their definition.
-bool isWorkspaceShortcutId(const QString& id)
-{
-    static const QSet<QString> kWorkspaceIds = {
-        QString::fromLatin1(kIdWorkspaceFocusUp),           QString::fromLatin1(kIdWorkspaceFocusDown),
-        QString::fromLatin1(kIdWorkspaceMoveWindowUp),      QString::fromLatin1(kIdWorkspaceMoveWindowDown),
-        QString::fromLatin1(kIdWorkspaceMoveColumnUp),      QString::fromLatin1(kIdWorkspaceMoveColumnDown),
-        QString::fromLatin1(kIdWorkspaceReorderUp),         QString::fromLatin1(kIdWorkspaceReorderDown),
-        QString::fromLatin1(kIdWorkspaceMoveToMonitorLeft), QString::fromLatin1(kIdWorkspaceMoveToMonitorRight)};
-    return kWorkspaceIds.contains(id) || id.startsWith(QLatin1String(kWorkspaceMoveSlotPrefix))
-        || id.startsWith(QLatin1String(kWorkspaceFocusSlotPrefix));
-}
-constexpr DefaultGetter kScrollFocusTabDefaults[kIndexedSlotCount] = {
+constexpr DefaultGetter kScrollFocusTabDefaults[] = {
     &ConfigDefaults::scrollFocusTab1Shortcut, &ConfigDefaults::scrollFocusTab2Shortcut,
     &ConfigDefaults::scrollFocusTab3Shortcut, &ConfigDefaults::scrollFocusTab4Shortcut,
     &ConfigDefaults::scrollFocusTab5Shortcut, &ConfigDefaults::scrollFocusTab6Shortcut,
     &ConfigDefaults::scrollFocusTab7Shortcut, &ConfigDefaults::scrollFocusTab8Shortcut,
     &ConfigDefaults::scrollFocusTab9Shortcut,
 };
+static_assert(std::size(kQuickLayoutDefaults) == kIndexedSlotCount, "one quick-layout default per slot");
+static_assert(std::size(kSnapToZoneDefaults) == kIndexedSlotCount, "one snap-to-zone default per slot");
+static_assert(std::size(kScrollFocusTabDefaults) == kIndexedSlotCount, "one focus-tab default per slot");
 
 // QKeySequence(QString) silently returns an empty sequence on malformed
 // input. Wrap with a warning log so a typo in the config surfaces from the
@@ -194,35 +184,55 @@ void ShortcutManager::registerShortcuts()
     if (!m_registry) {
         m_registry = std::make_unique<PhosphorShortcuts::Registry>(m_backend.get(), nullptr);
         // External rebinds (System Settings, compositor-side) invalidate the
-        // cheatsheet catalog's trigger strings. Registry filters to owned ids.
-        connect(m_registry.get(), &PhosphorShortcuts::Registry::triggersChanged, this, [this](const QString&) {
-            Q_EMIT cheatsheetModelChanged();
+        // cheatsheet catalog's trigger strings. Registry filters to owned ids;
+        // this narrows further to the ids the catalog lists, so a rebind of
+        // a transient grab (the picker's arrows, an Escape) does not
+        // republish an open sheet.
+        connect(m_registry.get(), &PhosphorShortcuts::Registry::triggersChanged, this, [this](const QString& id) {
+            const bool catalogued =
+                isCataloguedAdhocId(id) || std::any_of(m_entries.cbegin(), m_entries.cend(), [&id](const Entry& e) {
+                    return e.id == id;
+                });
+            if (catalogued) {
+                Q_EMIT cheatsheetModelChanged();
+            }
         });
     }
 
     m_registrationInProgress = true;
 
     buildEntries();
+    purgeStaleRecords();
 
+    // Whether a park right after registration actually gives the grab back.
+    // Portal cannot release a grab per id, so on it a parked entry is never
+    // registered in the first place.
+    const bool parkReleasesGrab = m_backend->suspendReleasesGrab();
     for (const auto& e : std::as_const(m_entries)) {
         m_registry->bind(e.id, e.defaultSeq, e.description, e.fire);
         // Apply current sequence from settings after initial bind so the
         // first flush reflects the user's saved preference, not only the
         // compiled-in default.
-        m_registry->rebind(e.id, e.currentSeq());
-    }
-
-    if (!m_settings->workspacesEnabled()) {
-        // Register the workspace family first and park it on the settle,
-        // rather than never registering it at all. Registration is what puts
-        // the ids into kglobalshortcutsrc, and that record is what makes them
-        // appear as rebindable rows in the System Settings Shortcuts module —
-        // so a user running with the feature off can still assign the chords
-        // they want before switching it on. The family holds a grab for the
-        // one event-loop turn between this flush and the settle; the
-        // alternative is no KCM rows at all, since there is no way to publish
-        // an id to kglobalaccel without registering it.
-        m_settingsDirty = true;
+        const QKeySequence seq = e.currentSeq();
+        m_registry->rebind(e.id, seq);
+        if (entryActive(e, seq)) {
+            continue;
+        }
+        if (parkReleasesGrab) {
+            // Register the entry first and park it on the settle, rather than
+            // never registering it at all. Registration is what puts a bound
+            // id into kglobalshortcutsrc, and that record is what makes it a
+            // rebindable row in the System Settings Shortcuts module, so a
+            // user running with the feature off can still adjust the chords
+            // there. An id with no chord stays unregistered either way (an
+            // empty grab is the discussion #155 hazard); the settings app's
+            // shortcut recorders are where those are assigned. The entry
+            // holds its grab until the settle, which on KGlobalAccel is the
+            // same event-loop turn, since its flush answers ready() at once.
+            m_settingsDirty = true;
+        } else {
+            m_registry->setActive(e.id, false);
+        }
     }
 
     // Tag this batch so a settle that arrives late (either path) can tell
@@ -302,9 +312,19 @@ void ShortcutManager::settleRegistration(quint64 generation)
     }
 }
 
-bool ShortcutManager::updateShortcuts()
+void ShortcutManager::updateShortcuts()
 {
-    return applyShortcutUpdates(/*deferFlush=*/false);
+    applyShortcutUpdates(/*deferFlush=*/false);
+}
+
+void ShortcutManager::setWorkspaceFamilyActive(bool active)
+{
+    if (m_workspaceFamilyActive == active) {
+        return;
+    }
+    m_workspaceFamilyActive = active;
+    // Deferred like any settings save while the first batch is in flight.
+    applyShortcutUpdates(/*deferFlush=*/false);
 }
 
 bool ShortcutManager::applyShortcutUpdates(bool deferFlush)
@@ -368,10 +388,10 @@ void ShortcutManager::unregisterShortcuts()
     // System Settings customisations live. This runs on the daemon stop()
     // path (SIGTERM included), so the sweep deleted every customised binding
     // on each service restart (discussion #851). Destroying the backend below
-    // releases the grabs without touching persistent records: KGlobalAccel
-    // drops its in-memory action table when the QActions die and the backend
-    // destructor purges only transient ids, while PortalBackend releases
-    // everything by closing the session.
+    // releases the grabs without touching persistent records: each QAction's
+    // destruction makes the KGlobalAccel client send setInactive (the grab
+    // goes, the record stays), the backend destructor purges only transient
+    // ids, and PortalBackend releases everything by closing the session.
     //
     // Deliberately NO cheatsheetModelChanged emit, unlike every other
     // catalog-changing path. The two callers are the daemon stop() path —
@@ -404,9 +424,30 @@ std::optional<QList<QKeySequence>> ShortcutManager::foreignShortcuts(const QStri
     return m_registry ? m_registry->foreignShortcuts(componentName, actionName) : std::nullopt;
 }
 
+bool ShortcutManager::entryActive(const Entry& e, const QKeySequence& seq) const
+{
+    if (!e.workspaceGated) {
+        return true;
+    }
+    // The workspace family holds a grab only while a workspace controller
+    // runs: an inert system-wide grab shadows those chords for every other
+    // application.
+    if (!m_workspaceFamilyActive) {
+        return false;
+    }
+    // With the stock takeover off, KWin still owns its "Switch One Desktop
+    // Up/Down" chords, and kglobalacceld dispatches a key to the shortcut
+    // registered first, which is KWin's. The focus pair would hold a grab
+    // that never fires while the sheet advertised it, so it parks until the
+    // user moves it to a chord of its own or turns the takeover on.
+    if (e.sharesKWinStockChord && seq == e.defaultSeq && m_settings && !m_settings->workspacesRebindKWinShortcuts()) {
+        return false;
+    }
+    return true;
+}
+
 bool ShortcutManager::rebindAll()
 {
-    const bool workspacesOn = m_settings && m_settings->workspacesEnabled();
     bool anyChanged = false;
     for (const auto& e : std::as_const(m_entries)) {
         const QKeySequence seq = e.currentSeq();
@@ -414,22 +455,43 @@ bool ShortcutManager::rebindAll()
             anyChanged = true;
         }
         m_registry->rebind(e.id, seq);
-        // The workspace family holds a grab only while the feature is on: an
-        // inert system-wide grab shadows those chords for every other
-        // application. Parked through Registry::setActive rather than by
-        // rebinding to an empty sequence, because the empty-sequence path
-        // unregisters on the backend and KGlobalAccel's unregister wipes the
-        // user's saved chords for the whole family. The active flag counts
-        // towards anyChanged: a save that only flipped the feature switch
-        // moves no sequence, and without this the flush that applies the park
-        // would never run.
-        const bool active = workspacesOn || !isWorkspaceShortcutId(e.id);
+        // Parked through Registry::setActive rather than by rebinding to an
+        // empty sequence, because the empty-sequence path unregisters on the
+        // backend and KGlobalAccel's unregister wipes the user's saved chords
+        // for the whole family. A chord changed in the same pass as the park
+        // is still written through to the platform's record by the next
+        // flush (Registry::setActive). The active flag counts towards
+        // anyChanged: a pass that only flipped a gate moves no sequence, and
+        // without this the flush that applies the park would never run.
+        const bool active = entryActive(e, seq);
         if (m_registry->isActive(e.id) != active) {
             anyChanged = true;
         }
         m_registry->setActive(e.id, active);
     }
     return anyChanged;
+}
+
+void ShortcutManager::purgeStaleRecords()
+{
+    const std::optional<QStringList> stored = m_registry->storedShortcutIds();
+    if (!stored) {
+        // Not a backend with records of its own, or the query failed. A
+        // failed query leaves leftovers in place until the next start, which
+        // is no worse than not looking.
+        return;
+    }
+    QSet<QString> keep;
+    keep.reserve(m_entries.size());
+    for (const auto& e : std::as_const(m_entries)) {
+        keep.insert(e.id);
+    }
+    for (const QString& id : *stored) {
+        if (!keep.contains(id)) {
+            qCInfo(lcShortcuts) << "Removing stale shortcut record" << id;
+            m_registry->purge(id);
+        }
+    }
 }
 
 QStringList ShortcutManager::staticShortcutIds()
@@ -471,6 +533,9 @@ void ShortcutManager::buildEntries()
         e.fire = [sm, fire] {
             fire(sm);
         };
+        e.workspaceGated = src.workspaceGated;
+        e.sharesKWinStockChord =
+            e.id == QLatin1String(kIdWorkspaceFocusUp) || e.id == QLatin1String(kIdWorkspaceFocusDown);
         m_entries.push_back(std::move(e));
     }
 
@@ -492,17 +557,16 @@ void ShortcutManager::buildEntries()
         m_entries.push_back(std::move(e));
     }
 
-    // Workspace quick-shortcut slots. The slot's target workspace is
-    // assigned in the settings app.
-    //
-    // Deliberately no defaultSeq: this family ships unbound, like the focus
-    // slots below. A slot targets no workspace until the user assigns one, so
-    // a factory chord would claim a global binding that does nothing on a
-    // fresh install. The ids are registered either way, so the chords stay
-    // assignable in KDE's Shortcuts settings.
+    // Workspace quick-shortcut slots. The slot's target workspace and its
+    // chord are both assigned on the settings app's workspace shortcuts page.
+    // The family ships unbound (ConfigDefaults::workspaceMoveSlotShortcut says
+    // why), and an unbound id is never registered with a key-grabbing backend,
+    // so the settings page is where these chords are first set.
     for (int i = 0; i < kIndexedSlotCount; ++i) {
         Entry e;
         e.id = workspaceMoveSlotId(i);
+        e.defaultSeq = parseSequence(ConfigDefaults::workspaceMoveSlotShortcut(), e.id);
+        e.workspaceGated = true;
         // "Slot", not a bare number: this is what KGlobalAccel shows in the
         // Shortcuts KCM, and the chord does NOT move the window to the Nth
         // workspace. It moves it to whichever named workspace the settings
@@ -519,17 +583,15 @@ void ShortcutManager::buildEntries()
         m_entries.push_back(std::move(e));
     }
 
-    // Workspace focus slots (plan §7): switch the acting monitor to workspace
-    // N of its own list. Bound via KDE's Shortcuts settings only.
-    //
-    // Deliberately no defaultSeq: this family ships unbound, for the same
-    // reason as the move slots above. A slot resolves to whatever workspace
-    // sits at that position in the acting monitor's list, which on a fresh
-    // install is usually nothing, so squatting a global chord for it would
-    // take a binding away from the rest of the desktop for no benefit.
+    // Workspace focus slots: switch the acting monitor to workspace N of its
+    // own list. Unbound by default (ConfigDefaults::workspaceFocusSlotShortcut
+    // says why), so like the move slots above they are first bound on the
+    // settings app's workspace shortcuts page.
     for (int i = 0; i < kIndexedSlotCount; ++i) {
         Entry e;
         e.id = workspaceFocusSlotId(i);
+        e.defaultSeq = parseSequence(ConfigDefaults::workspaceFocusSlotShortcut(), e.id);
+        e.workspaceGated = true;
         e.description = PhosphorI18n::tr("Focus Workspace %1", "single workspace slot number").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
@@ -560,14 +622,14 @@ void ShortcutManager::buildEntries()
         m_entries.push_back(std::move(e));
     }
 
-    // Scrolling tab ordinals. Third instance of the same shape; every slot's
-    // default is empty, which parseSequence maps to an unbound entry rather
-    // than a warning (it short-circuits on an empty string).
+    // Scrolling tab ordinals, the same shape as the slot families above.
+    // Every slot's default is empty, which parseSequence maps to an unbound
+    // entry rather than a warning (it short-circuits on an empty string).
     for (int i = 0; i < kIndexedSlotCount; ++i) {
         Entry e;
         e.id = scrollFocusTabId(i);
         e.defaultSeq = parseSequence(kScrollFocusTabDefaults[i](), e.id);
-        e.description = PhosphorI18n::tr("Focus Tab %1").arg(i + 1);
+        e.description = PhosphorI18n::tr("Focus Tab %1", "single tab ordinal").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
             return parseSequence(s->scrollFocusTabShortcut(i), idCopy);

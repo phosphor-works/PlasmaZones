@@ -222,13 +222,14 @@ bool isUnresolvedEnumToken(const QString& token, const QString& label)
 /// alongside the manual layouts; @p tilingAlgorithmLookup resolves
 /// SetTilingAlgorithm's wire tokens ("bsp", …) — split so a stray
 /// cross-resolve can't surface an algorithm name in a layout action's label or
-/// vice versa.
+/// vice versa. @p workspaceLookup resolves RouteToWorkspace's entry id to the
+/// entry's current name, answering empty for an id no entry carries.
 QString actionLabel(const RuleAction& action, const RuleModel::LabelLookup& snappingLayoutLookup,
                     const RuleModel::LabelLookup& tilingAlgorithmLookup,
                     const RuleModel::LabelLookup& shaderEffectLookup, const RuleModel::LabelLookup& overlayShaderLookup,
                     const RuleModel::LabelLookup& curveLookup, const RuleModel::LabelLookup& screenLookup,
                     const RuleModel::LabelLookup& decorationPackLookup,
-                    const RuleModel::LabelLookup& animationEventLookup)
+                    const RuleModel::LabelLookup& animationEventLookup, const RuleModel::LabelLookup& workspaceLookup)
 {
     auto resolveWith = [](const QString& wire, const RuleModel::LabelLookup& lookup) {
         if (wire.isEmpty() || !lookup) {
@@ -400,7 +401,7 @@ QString actionLabel(const RuleAction& action, const RuleModel::LabelLookup& snap
         // fall back to the raw id when no live monitor matches so a rule pinned
         // to an absent display stays legible.
         //
-        // Trimmed and bounded the same way the RouteToWorkspace name below is.
+        // Trimmed and bounded the same way the RouteToWorkspace target below is.
         // The loader measures the TRIMMED id against MaxScreenIdLength and then
         // stores the value verbatim, so a padded id reaches this summary intact
         // and has to be trimmed here to resolve against the live monitor
@@ -413,22 +414,33 @@ QString actionLabel(const RuleAction& action, const RuleModel::LabelLookup& snap
         return PhosphorI18n::tr("Open on monitor: %1").arg(resolveWith(screenId, screenLookup));
     }
     if (action.type == ActionType::RouteToWorkspace) {
-        // The stored NAME renders quoted whether or not it is currently
-        // declared — an undeclared name is a dormant rule, not an error.
+        // The action targets a named entry by its persistent id and stores the
+        // name it had when picked. The daemon resolves the id first and falls
+        // back to the stored name, so the summary does the same: the CURRENT
+        // name of the entry carrying the id (a rename shows here at once),
+        // else the stored name. An undeclared target is a dormant rule, not
+        // an error, so it still renders quoted.
         //
         // The QUOTES are deliberate and must NOT be aligned to the colon form
         // its RouteToScreen and RouteToDesktop siblings use. A workspace name
         // is free-form text and may be nothing but digits, so "Open on
         // workspace: 3" would be indistinguishable from the desktop summary's
         // ordinal. The quotes are what keep a digit-only name reading as a
-        // name. The ActionListView.qml workspaceName pill quotes for the same
-        // reason, so the two surfaces already agree.
-        // Trimmed and bounded the same way the SnapToZone name loop above
-        // applies the validator's range: a hand-edited payload past the wire
-        // bound falls back to the bare label instead of flooding the summary.
-        const QString name = action.params.value(PhosphorRules::ActionParam::TargetWorkspaceName).toString().trimmed();
-        if (name.isEmpty() || name.size() > PhosphorRules::MaxWorkspaceNameLength) {
-            return PhosphorI18n::tr("Open on workspace");
+        // name.
+        //
+        // Both params are trimmed and bounded the way the validator measures
+        // them: a hand-edited payload past a wire bound falls back to the bare
+        // label instead of flooding the summary.
+        const QString id = action.params.value(PhosphorRules::ActionParam::TargetWorkspaceId).toString().trimmed();
+        QString name;
+        if (!id.isEmpty() && id.size() <= PhosphorRules::MaxWorkspaceIdLength && workspaceLookup) {
+            name = workspaceLookup(id);
+        }
+        if (name.isEmpty()) {
+            name = action.params.value(PhosphorRules::ActionParam::TargetWorkspaceName).toString().trimmed();
+            if (name.isEmpty() || name.size() > PhosphorRules::MaxWorkspaceNameLength) {
+                return PhosphorI18n::tr("Open on workspace");
+            }
         }
         return PhosphorI18n::tr("Open on workspace “%1”").arg(name);
     }
@@ -442,24 +454,14 @@ QString actionLabel(const RuleAction& action, const RuleModel::LabelLookup& snap
             : PhosphorI18n::tr("Open on desktop");
     }
     if (action.type == ActionType::SetOpacity) {
-        // Mirror EVERY resolver reject path (shader_resolve.cpp's
-        // resolveWindowOpacity) so the label never claims a behaviour
-        // the runtime won't honour: null/undefined → label-only,
-        // bool payload → "Opacity (invalid)", out-of-range value → same.
-        const QJsonValue raw = action.params.value(PhosphorRules::ActionParam::Value);
-        if (raw.isNull() || raw.isUndefined()) {
-            return PhosphorI18n::tr("Opacity");
-        }
-        const QVariant rv = raw.toVariant();
-        if (rv.typeId() == QMetaType::Bool) {
-            return PhosphorI18n::tr("Opacity (invalid)");
-        }
-        bool ok = false;
-        const double v = rv.toDouble(&ok);
-        if (!ok || v < 0.0 || v > 1.0) {
-            return PhosphorI18n::tr("Opacity (invalid)");
-        }
-        return PhosphorI18n::tr("Opacity: %1%").arg(qRound(v * 100.0));
+        // Mirror EVERY reject path (the action validator and the runtime
+        // resolver) so the label never claims a behaviour the runtime won't
+        // honour: null/undefined → label-only, a non-number (a bool, or a
+        // string the validator refuses even when it spells a number) or an
+        // out-of-range value → "Opacity (invalid)".
+        return fractionSummary(action.params.value(PhosphorRules::ActionParam::Value), 0.0, 1.0,
+                               PhosphorI18n::tr("Opacity"), PhosphorI18n::tr("Opacity (invalid)"),
+                               PhosphorI18n::tr("Opacity: %1%"));
     }
     // The three per-event animation overrides key their slot on the event, so
     // one rule legitimately carries several of each; the event label leads so
@@ -639,22 +641,14 @@ QString actionLabel(const RuleAction& action, const RuleModel::LabelLookup& snap
         }
         if (action.type == ActionType::SetTintStrength) {
             // Wire value is the [0,1] strength; shown as a percent to match
-            // the editor (same treatment as SetSplitRatio). Mirror the
-            // runtime resolver's reject paths (unitDoubleSlot: non-number or
-            // out-of-range → ignored) like SetOpacity above, so the label
-            // never claims a strength the effect won't apply: null/undefined
-            // (present but unset) → bare label, bool or out-of-range →
-            // "(invalid)".
-            if (raw.isNull() || raw.isUndefined()) {
-                return PhosphorI18n::tr("Tint strength");
-            }
-            const QVariant rv = raw.toVariant();
-            bool ok = false;
-            const double v = rv.typeId() == QMetaType::Bool ? 0.0 : rv.toDouble(&ok);
-            if (!ok || v < 0.0 || v > 1.0) {
-                return PhosphorI18n::tr("Tint strength (invalid)");
-            }
-            return PhosphorI18n::tr("Tint strength: %1%").arg(qRound(v * 100.0));
+            // the editor (same treatment as SetSplitRatio). Mirror the reject
+            // paths (the validator's hasNumberInRange, the resolver's
+            // unitDoubleSlot) like SetOpacity above, so the label never
+            // claims a strength the effect won't apply: null/undefined
+            // (present but unset) → bare label, a non-number (string
+            // included) or out-of-range → "(invalid)".
+            return fractionSummary(raw, 0.0, 1.0, PhosphorI18n::tr("Tint strength"),
+                                   PhosphorI18n::tr("Tint strength (invalid)"), PhosphorI18n::tr("Tint strength: %1%"));
         }
         if (action.type == ActionType::SetTintColor) {
             // Same accent-or-hex vocabulary as the two border colours above,
@@ -1073,7 +1067,7 @@ QString RuleModel::actionSummary(const QList<RuleAction>& actions) const
     for (const RuleAction& a : actions) {
         parts.append(actionLabel(a, m_snappingLayoutLookup, m_tilingAlgorithmLookup, m_shaderEffectLookup,
                                  m_overlayShaderLookup, m_curveLookup, m_screenLookup, m_decorationPackLookup,
-                                 m_animationEventLookup));
+                                 m_animationEventLookup, m_workspaceLookup));
     }
     return parts.join(QStringLiteral(" · "));
 }

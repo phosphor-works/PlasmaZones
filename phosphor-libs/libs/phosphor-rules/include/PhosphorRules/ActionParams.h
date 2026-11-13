@@ -26,12 +26,9 @@ namespace PhosphorRules {
 
 // ── Action param keys — canonical wire strings ──
 //
-// Param-key vocabulary shared across every wire-shape reader (the registry
-// validators in ruleaction_builtins_engine.cpp /
-// ruleaction_builtins_appearance.cpp / ruleaction_builtins_indicators.cpp, the
-// config-layer v3→v4 migration that ports legacy AnimationAppRule entries, the
-// rule-editor UI, and the KWin-effect-side resolvers in
-// `plasmazones/kwin-effect/plasmazoneseffect/shader_resolve.cpp`).
+// Param-key vocabulary shared across every wire-shape reader: the registry
+// validators in this library, and every consumer in the daemon, the settings
+// app, the config migrations and the compositor that reads an action payload.
 // A future rename (e.g. `effectId` → `effect_id`) updates one entry here and
 // flows everywhere instead of being hard-coded once per reader.
 namespace ActionParam {
@@ -119,9 +116,14 @@ inline constexpr QLatin1StringView ZoneNames{"zoneNames"};
 inline constexpr QLatin1StringView TargetScreenId{"targetScreenId"};
 // RouteToDesktop target-desktop key — wire is a 1-based virtual desktop number.
 inline constexpr QLatin1StringView TargetDesktop{"targetDesktop"};
-// RouteToWorkspace target key — wire is the declared named-workspace name
-// (the identity, stable across renumbering; the daemon resolves it against
-// the live declarations at open time).
+// RouteToWorkspace target keys. `TargetWorkspaceId` is the declaration's
+// persistent entry id, the identity: it survives a rename of the workspace as
+// well as renumbering and monitor moves. `TargetWorkspaceName` is the name the
+// declaration had when the rule was authored, kept for display and as the
+// fallback the daemon resolves when no live declaration carries the id (a rule
+// written before ids existed carries the name alone). The daemon resolves by
+// id first, then by name.
+inline constexpr QLatin1StringView TargetWorkspaceId{"targetWorkspaceId"};
 inline constexpr QLatin1StringView TargetWorkspaceName{"targetWorkspaceName"};
 // OverrideDecorationChain pack-list key — wire is a JSON array of surface-pack
 // id strings, ordered as they fold. Empty array = "no decoration" sentinel.
@@ -166,22 +168,43 @@ inline constexpr int MaxZoneNameLength = 128;
 
 /// Upper bound on a `RouteToWorkspace` target name (`ActionParam::TargetWorkspaceName`),
 /// in characters, measured on the TRIMMED name. Same posture as MaxZoneNameLength
-/// above: a grossly-malformed-payload guard, not a real limit — the workspace
-/// declarations UI keeps names far shorter, but a hand-edited rules file may
-/// carry anything, so the bound only stops an unbounded string riding through
-/// the loader. Consumers: the descriptor validator
-/// (ruleaction_builtins_engine.cpp), which trims before measuring so it and the
-/// daemon's trimmed-name resolution measure the same string; it is also
-/// published as the `workspaceName` ParamSchema `max` so the editor can read
-/// the bound from the schema instead of re-typing the constant.
+/// above: a grossly-malformed-payload guard, not a real limit. A hand-edited
+/// rules file may carry anything, so the bound only stops an unbounded string
+/// riding through the loader.
+///
+/// It must stay at or above the app's cap on a DECLARED workspace name
+/// (ConfigDefaults::WorkspaceNameMaxLength), or a rule naming a workspace the
+/// user could declare would fail to load and be dropped. This library cannot
+/// see that constant, so the app pins the ordering with a static_assert where
+/// both are visible.
+///
+/// The descriptor validator trims before measuring, so it and the daemon's
+/// trimmed-name resolution measure the same string. It is published as the
+/// `workspaceName` ParamSchema `max`, which the rule editor reads, and any
+/// other reader that has to judge a payload the way the loader does (the
+/// settings rule summary, for one) measures against this constant.
 inline constexpr int MaxWorkspaceNameLength = 128;
+
+/// Upper bound on a `RouteToWorkspace` target id (`ActionParam::TargetWorkspaceId`),
+/// in characters, measured on the TRIMMED value, the same
+/// grossly-malformed-payload posture as the name bound above. The id is
+/// machine-written when the declaration is created, so a real one runs well
+/// under it.
+inline constexpr int MaxWorkspaceIdLength = 128;
 
 /// Upper bound on a `RouteToScreen` target id (`ActionParam::TargetScreenId`),
 /// in characters, measured on the TRIMMED value. Same
-/// grossly-malformed-payload posture as the two name bounds above: a real
+/// grossly-malformed-payload posture as the name bounds above: a real
 /// canonical id (`Manuf:Model:Serial`, optionally `/CONNECTOR`-suffixed, or a
-/// virtual screen id) runs well under it. Consumers: the descriptor validator
-/// (ruleaction_builtins_engine.cpp) and the `screenId` ParamSchema `max`.
+/// virtual screen id) runs well under it.
+///
+/// The ONE screen-id length bound. Besides the descriptor validator, the app's
+/// other screen-id boundaries (the named-workspace output pin, the per-screen
+/// settings D-Bus setters) and any reader that has to judge a payload the way
+/// the loader does (the settings rule summary, for one) measure against it, so
+/// an id one boundary accepts is an id a rule can name. Not published as a
+/// ParamSchema `max`: the editor picks the id from the live monitor list
+/// rather than typing it.
 inline constexpr int MaxScreenIdLength = 128;
 
 /// Upper bound on a tab label font FAMILY (`SetTabIndicatorFontFamily`), in

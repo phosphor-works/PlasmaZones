@@ -401,7 +401,8 @@ def rule_i18n_cpp(files: list[str]) -> list[Violation]:
 # anywhere outside the accessor definitions means a config key was inlined
 # instead of going through ConfigDefaults::.
 CONFIG_DOTPATH = re.compile(
-    r'QStringLiteral\(\s*"((?:Snapping|Tiling|Scrolling|General|Appearance|Editor|Shell|Rules|Profiles)\.[A-Za-z0-9.]+)"\s*\)'
+    r'QStringLiteral\(\s*"((?:Snapping|Tiling|Scrolling|Workspaces|General|Appearance|Editor|Shell|Rules|Profiles'
+    r'|Shortcuts|Animations|Decorations|Shaders)\.[A-Za-z0-9.]+)"\s*\)'
 )
 CONFIG_KEY_DEFS = (
     "plasmazones/src/config/configkeys.h",

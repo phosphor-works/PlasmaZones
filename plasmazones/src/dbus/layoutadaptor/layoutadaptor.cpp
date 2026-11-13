@@ -3,6 +3,7 @@
 
 #include "layoutadaptor.h"
 #include "dbus/dbushelpers.h"
+#include "phosphor_i18n.h"
 #include "core/interfaces/interfaces.h"
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutFactory.h>
@@ -233,11 +234,14 @@ void LayoutAdaptor::connectVirtualDesktopSignals()
     if (m_virtualDesktopManager) {
         connect(m_virtualDesktopManager, &PhosphorWorkspaces::VirtualDesktopManager::desktopCountChanged, this,
                 &LayoutAdaptor::virtualDesktopCountChanged);
-        // A growing count goes out before the list that names the new desktop
-        // (F1022), so a reader of the count alone keeps the old names (F1101).
-        m_relayedDesktopNames = m_virtualDesktopManager->desktopNames();
+        // The count and the names normally commit together at KWin's count
+        // change, but in the manager's fallback (KWin's desktop signals not
+        // adding up to a list) a growing count can still go out before the
+        // list that names the new desktop, so a reader of the count alone
+        // keeps the old names and the names are relayed on their own (F1101).
+        m_relayedDesktopNames = displayDesktopNames();
         connect(m_virtualDesktopManager, &PhosphorWorkspaces::VirtualDesktopManager::desktopsChanged, this, [this]() {
-            const QStringList names = m_virtualDesktopManager->desktopNames();
+            const QStringList names = displayDesktopNames();
             if (names != m_relayedDesktopNames) {
                 m_relayedDesktopNames = names;
                 Q_EMIT virtualDesktopNamesChanged(names);
@@ -851,7 +855,27 @@ int LayoutAdaptor::getVirtualDesktopCount()
 
 QStringList LayoutAdaptor::getVirtualDesktopNames()
 {
-    return m_virtualDesktopManager ? m_virtualDesktopManager->desktopNames() : QStringList{QStringLiteral("Desktop 1")};
+    return displayDesktopNames();
+}
+
+QStringList LayoutAdaptor::displayDesktopNames() const
+{
+    const auto fallback = [](int position) {
+        return PhosphorI18n::tr("Desktop %1").arg(position);
+    };
+    if (!m_virtualDesktopManager) {
+        return QStringList{fallback(1)};
+    }
+    QStringList names = m_virtualDesktopManager->rawDesktopNames();
+    const int count = qMax(m_virtualDesktopManager->desktopCount(), static_cast<int>(names.size()));
+    for (int i = 0; i < count; ++i) {
+        if (i >= names.size()) {
+            names.append(fallback(i + 1));
+        } else if (names.at(i).isEmpty()) {
+            names[i] = fallback(i + 1);
+        }
+    }
+    return names;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

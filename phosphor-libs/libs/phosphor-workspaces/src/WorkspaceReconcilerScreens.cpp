@@ -2,55 +2,111 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 // The screen-lifecycle half of WorkspaceReconciler: hotplug (add, remove,
-// reorder, and the home-stamp migration that carries an output's workspaces
-// back when it returns) and first-run/restart adoption. Split out of
+// rename, reorder, and the home-stamp migration that carries an output's
+// workspaces back when it returns) and first-run/restart adoption. Split out of
 // WorkspaceReconciler.cpp on file size, the same way WorkspaceReconcilerNamed
-// .cpp is; the state and every helper used here are declared in the one
-// header, and the logging category is defined there.
+// .cpp is. The state and every helper used here are declared in the one
+// header, and the logging category is defined in WorkspaceReconciler.cpp.
 
 #include <PhosphorWorkspaces/WorkspaceReconciler.h>
 
 #include <QLoggingCategory>
 #include <QSet>
 
+#include <utility>
+
 Q_DECLARE_LOGGING_CATEGORY(lcWorkspaceRec)
 
 namespace PhosphorWorkspaces {
 
+namespace {
+/// Move a per-screen record from one key to another, overwriting.
+template<typename Hash>
+void rekey(Hash& hash, const QString& from, const QString& to)
+{
+    const auto it = hash.find(from);
+    if (it == hash.end()) {
+        return;
+    }
+    auto value = it.value();
+    hash.erase(it);
+    hash.insert(to, value);
+}
+} // namespace
+
 // ── Screens ─────────────────────────────────────────────────────────────────
+
+QSet<QString> WorkspaceReconciler::migrateHome(const QString& screenId)
+{
+    // Every entry whose homeScreenId names this output moves back, in its
+    // current relative order, ahead of whatever the output already holds.
+    QSet<QString> touchedScreens;
+    QStringList returning;
+    const QStringList owned = m_map.allDesktopIds();
+    for (const QString& id : owned) {
+        if (m_map.entryFor(id).homeScreenId != screenId) {
+            continue;
+        }
+        if (m_map.ownerOf(id) == screenId) {
+            // Already home; a stamp naming its own owner is no displacement.
+            m_map.setHomeScreen(id, QString());
+            continue;
+        }
+        returning.append(id);
+    }
+    int index = 0;
+    for (const QString& id : std::as_const(returning)) {
+        touchedScreens.insert(m_map.ownerOf(id));
+        m_map.transfer(id, screenId, index++);
+        m_map.setHomeScreen(id, QString());
+    }
+    return touchedScreens;
+}
 
 void WorkspaceReconciler::onScreenAdded(const QString& screenId)
 {
     // hasScreen, not knowsScreen: the two real signal orders a hotplug arrives
     // in disagree about which of these runs first. When the controller's
-    // recomputed screen order lands BEFORE the screenAdded (the order the
-    // daemon actually produces on some hotplugs), the new output is already in
-    // the screen order by the time we get here, so knowsScreen answered true
-    // and the screen was returned from — never migrated home, never given a
-    // desktop, silently left holding nothing. Holding a SLICE is the real
-    // "already dealt with" test, and setScreenOrder de-duplicates, so appending
-    // an id it already carries is a no-op.
+    // recomputed screen order lands BEFORE the screenAdded, the new output is
+    // already in the screen order by the time we get here, so knowsScreen
+    // answered true and the screen was returned from — never migrated home,
+    // never given a desktop. Holding a SLICE is the real "already dealt with"
+    // test, and setScreenOrder de-duplicates.
     if (screenId.isEmpty() || m_map.hasScreen(screenId)) {
         return;
     }
     m_map.setScreenOrder(m_map.screenOrder() << screenId);
 
-    // Migrate displaced workspaces home (hotplug memory): every entry whose
-    // homeScreenId names the returning output moves back, in its current
-    // relative order, ahead of whatever trailing empty maintenance adds.
-    QStringList returning;
-    const QStringList owned = m_map.allDesktopIds();
-    for (const QString& id : owned) {
-        if (m_map.entryFor(id).homeScreenId == screenId) {
-            returning.append(id);
+    const QSet<QString> touchedScreens = migrateHome(screenId);
+
+    // The last screen's slice, parked when it went away with nowhere to go.
+    // Its entries come back with their names and their own home stamps (one
+    // homed here is simply home again).
+    if (!m_parked.isEmpty()) {
+        const QSet<QString> live(m_lastIds.cbegin(), m_lastIds.cend());
+        const QList<WorkspaceEntry> parked = std::exchange(m_parked, {});
+        for (WorkspaceEntry entry : parked) {
+            if ((!live.isEmpty() && !live.contains(entry.desktopId)) || !m_map.ownerOf(entry.desktopId).isEmpty()) {
+                continue;
+            }
+            if (entry.homeScreenId == screenId) {
+                entry.homeScreenId.clear();
+            }
+            m_map.insert(screenId, m_map.sliceSize(screenId), entry);
         }
     }
-    QSet<QString> touchedScreens;
-    int index = 0;
-    for (const QString& id : returning) {
-        touchedScreens.insert(m_map.ownerOf(id));
-        m_map.transfer(id, screenId, index++);
-        m_map.setHomeScreen(id, QString());
+    // Whatever KWin still has that nothing owns (a create that landed while no
+    // screen existed) belongs to the screen that just arrived. Without this,
+    // a session that lost its last output asked KWin for a brand new desktop
+    // on replug while every existing one sat unowned.
+    if (m_adopted) {
+        for (const QString& id : std::as_const(m_lastIds)) {
+            if (m_map.ownerOf(id).isEmpty()) {
+                WorkspaceEntry entry;
+                entry.desktopId = id;
+                m_map.insert(screenId, kwinOrderedSlot(screenId, id), entry);
+            }
+        }
     }
 
     maintainScreen(screenId);
@@ -61,6 +117,9 @@ void WorkspaceReconciler::onScreenAdded(const QString& screenId)
         // correction, exactly as the verb-side transfer path does.
         evaluateForeign(touched);
     }
+    // The arriving screen can already be showing a desktop someone else owns
+    // (its current was seeded before it joined the map).
+    evaluateForeign(screenId);
     bumpGeneration();
 }
 
@@ -70,47 +129,54 @@ void WorkspaceReconciler::onScreenRemoved(const QString& screenId)
         return;
     }
     const QList<WorkspaceEntry> orphaned = m_map.takeSlice(screenId);
-    m_currentByScreen.remove(screenId);
+    m_currentIdByScreen.remove(screenId);
+    m_pendingReportByScreen.remove(screenId);
     // The snap-back memo names a desktop this screen no longer owns; keeping
     // it would aim a later correction (after a replug re-adds the screen) at
     // whatever that desktop became in the meantime.
     m_lastOwnedByScreen.remove(screenId);
-    // Per-screen create budget goes with the screen: keeping it would grow the
-    // hash across a session of hotplugs, and a re-added output deserves a
+    // Per-screen budgets go with the screen: a re-added output deserves a
     // fresh set of attempts rather than the spent budget of its predecessor.
     m_createRefusals.remove(screenId);
-    // Screen-scoped ledger entries die with the screen: an open SetCurrent for
-    // a gone output can never be echoed, and until it expired it would block
-    // the corrections of a re-added screen with the same id and then fire a
-    // spurious resync.
+    m_setCurrentRefusals.remove(screenId);
+    // A per-screen switch for a gone output can never be echoed, and until it
+    // expired it would block the corrections of a re-added screen with the
+    // same id. Creates stay: KWin will still answer them, and dropping one
+    // turned its echo into an unmatched creation that could pair with
+    // another screen's create. Its landing finds the screen gone and goes to
+    // the adoption target (realizeCreate).
     for (int i = m_ledger.size() - 1; i >= 0; --i) {
-        if (m_ledger.at(i).screenId == screenId) {
+        if (m_ledger.at(i).kind == PendingOp::Kind::SetCurrent && m_ledger.at(i).screenId == screenId) {
             m_ledger.removeAt(i);
         }
     }
-    if (m_ledger.isEmpty()) {
-        m_ledgerTimer.stop();
-    }
+    stopLedgerTimerIfIdle();
     if (m_focusedScreen == screenId) {
         m_focusedScreen.clear();
     }
 
-    QString fallback;
+    // Each entry is stamped with its home output for migrate-back on replug.
+    // A second displacement keeps the ORIGINAL home (the entry already
+    // carries one), so daisy-chained unplugs still return the workspace to
+    // where the user put it.
     const QStringList order = m_map.screenOrder();
-    if (!order.isEmpty()) {
-        fallback = order.first();
-    }
+    const QString fallback = order.isEmpty() ? QString() : order.first();
     if (fallback.isEmpty()) {
-        // Last screen went away; keep nothing (KWin keeps the desktops; the
-        // next screenAdded re-adopts via list repair).
+        // Last screen went away. KWin keeps the desktops, so the slice is
+        // parked rather than dropped, and the next screenAdded takes it back
+        // with names and stamps intact.
+        for (WorkspaceEntry entry : orphaned) {
+            if (entry.homeScreenId.isEmpty()) {
+                entry.homeScreenId = screenId;
+            }
+            m_parked.append(entry);
+        }
         bumpGeneration();
         return;
     }
-    // Append before the fallback's trailing empty, preserving order, each
-    // entry stamped with its home output for migrate-back on replug. A
-    // second displacement keeps the ORIGINAL home (the entry already carries
-    // one), so daisy-chained unplugs still return the workspace to where the
-    // user put it.
+    // Before the fallback's trailing empty, preserving order. These entries
+    // are exempt from the destroy sweep while displaced (isReapable), so the
+    // output gets its workspaces back exactly as it left them.
     int index = insertIndexBeforeTrailingEmpty(fallback);
     for (auto entry : orphaned) {
         if (entry.homeScreenId.isEmpty()) {
@@ -119,6 +185,71 @@ void WorkspaceReconciler::onScreenRemoved(const QString& screenId)
         m_map.insert(fallback, index++, entry);
     }
     maintainScreen(fallback);
+    evaluateForeign(fallback);
+    bumpGeneration();
+}
+
+void WorkspaceReconciler::onScreenRenamed(const QString& fromScreenId, const QString& toScreenId)
+{
+    if (fromScreenId.isEmpty() || toScreenId.isEmpty() || fromScreenId == toScreenId) {
+        return;
+    }
+    const bool known = m_map.knowsScreen(fromScreenId);
+    if (known && m_map.hasScreen(toScreenId)) {
+        // Both spellings hold a slice: the same output was already tracked
+        // under the new id. Fold the old slice in before the trailing empty,
+        // unstamped, since nothing was displaced.
+        const QList<WorkspaceEntry> entries = m_map.takeSlice(fromScreenId);
+        int index = insertIndexBeforeTrailingEmpty(toScreenId);
+        for (WorkspaceEntry entry : entries) {
+            if (entry.homeScreenId == fromScreenId || entry.homeScreenId == toScreenId) {
+                entry.homeScreenId.clear();
+            }
+            m_map.insert(toScreenId, index++, entry);
+        }
+        const QStringList owned = m_map.allDesktopIds();
+        for (const QString& id : owned) {
+            if (m_map.entryFor(id).homeScreenId == fromScreenId) {
+                m_map.setHomeScreen(id, toScreenId);
+            }
+        }
+    } else if (known) {
+        m_map.renameScreen(fromScreenId, toScreenId);
+    }
+
+    // Every per-screen record follows the id, so the renamed output keeps its
+    // current desktop, its snap-back memo, its budgets and its open ops.
+    rekey(m_currentIdByScreen, fromScreenId, toScreenId);
+    rekey(m_pendingReportByScreen, fromScreenId, toScreenId);
+    rekey(m_lastOwnedByScreen, fromScreenId, toScreenId);
+    rekey(m_createRefusals, fromScreenId, toScreenId);
+    rekey(m_setCurrentRefusals, fromScreenId, toScreenId);
+    for (PendingOp& op : m_ledger) {
+        if (op.screenId == fromScreenId) {
+            op.screenId = toScreenId;
+        }
+    }
+    for (WorkspaceEntry& entry : m_parked) {
+        if (entry.homeScreenId == fromScreenId) {
+            entry.homeScreenId = toScreenId;
+        }
+    }
+    if (m_focusedScreen == fromScreenId) {
+        m_focusedScreen = toScreenId;
+    }
+    if (!known) {
+        return;
+    }
+
+    // Entries stamped home to the old id name an output that is connected
+    // right now under its new id, so they go home at once.
+    const QSet<QString> touchedScreens = migrateHome(toScreenId);
+    maintainScreen(toScreenId);
+    for (const QString& touched : touchedScreens) {
+        maintainScreen(touched);
+        evaluateForeign(touched);
+    }
+    evaluateForeign(toScreenId);
     bumpGeneration();
 }
 
@@ -140,70 +271,116 @@ void WorkspaceReconciler::onScreenOrderChanged(const QStringList& order)
 
 // ── Adoption ────────────────────────────────────────────────────────────────
 
-void WorkspaceReconciler::adoptAll(const QStringList& ids, const QHash<QString, QString>& currentDesktopIdByScreen)
+bool WorkspaceReconciler::adoptAll(const QStringList& ids, const QHash<QString, QString>& currentDesktopIdByScreen,
+                                   const QHash<QString, QString>& preferredScreenByDesktopId)
 {
+    // KWin never has zero desktops, and a world with no screen has nowhere to
+    // put one. Either is a read that has not completed: repairAgainst on an
+    // empty list would wipe the restored candidate, and adopting onto no
+    // screen leaves everything unowned. Refused, and still unadopted, so the
+    // caller can retry once the read is real.
+    if (ids.isEmpty()) {
+        qCWarning(lcWorkspaceRec) << "refusing to adopt an empty desktop list";
+        return false;
+    }
+    const QStringList order = m_map.screenOrder();
+    if (order.isEmpty()) {
+        qCWarning(lcWorkspaceRec) << "refusing to adopt" << ids.size() << "desktops with no screen to adopt onto";
+        return false;
+    }
     m_lastIds = ids;
 
-    // Keep consistent restored content; repair drops vanished ids and returns
-    // what still needs an owner.
-    QStringList unowned = m_map.repairAgainst(ids);
+    // Keep consistent restored content; repair drops vanished ids, and what
+    // still needs an owner is distributed below.
+    m_map.repairAgainst(ids);
+    // A restored entry displaced last session whose output is connected now
+    // goes home here: nothing else would ever move it, since the output never
+    // produces a screenAdded for a session it was present from the start of.
+    for (const QString& screenId : order) {
+        migrateHome(screenId);
+    }
+
+    // Seed the per-screen current from what the caller observed. Without it
+    // every verb resolves empty until the effect's first per-output report
+    // happens along. A report that came in before adoption is the fallback
+    // for a screen the caller has nothing for.
+    for (const QString& screenId : order) {
+        QString shownId = currentDesktopIdByScreen.value(screenId);
+        if (shownId.isEmpty() || !ids.contains(shownId)) {
+            const int pending = m_pendingReportByScreen.value(screenId, 0);
+            shownId = (pending >= 1 && pending <= ids.size()) ? ids.at(pending - 1) : QString();
+        }
+        m_pendingReportByScreen.remove(screenId);
+        if (!shownId.isEmpty()) {
+            m_currentIdByScreen.insert(screenId, shownId);
+        }
+    }
 
     // Pass 1: each desktop currently shown by a screen goes to that screen;
-    // ties resolve to the first screen in order (the map insert repairs
-    // double-ownership by removal, so process in screen order and skip ids
-    // already owned).
-    const QStringList order = m_map.screenOrder();
+    // ties resolve to the first screen in order. Every insert lands at the
+    // slot that keeps the slice in KWin order.
     for (const QString& screenId : order) {
-        const QString shownId = currentDesktopIdByScreen.value(screenId);
+        const QString shownId = m_currentIdByScreen.value(screenId);
         if (shownId.isEmpty()) {
             continue;
         }
-        // Seed the per-screen current from what the caller observed. Without
-        // it every verb resolves empty until the effect's first per-output
-        // report happens along, which can be a long time after adoption on a
-        // session that starts on its restored desktops.
-        const int globalIndex = ids.indexOf(shownId);
-        if (globalIndex >= 0) {
-            m_currentByScreen.insert(screenId, globalIndex + 1);
-            if (m_map.ownerOf(shownId) == screenId) {
-                m_lastOwnedByScreen.insert(screenId, shownId);
-            }
-        }
-        if (unowned.contains(shownId)) {
+        if (m_map.ownerOf(shownId).isEmpty()) {
             WorkspaceEntry entry;
             entry.desktopId = shownId;
-            m_map.insert(screenId, insertIndexBeforeTrailingEmpty(screenId), entry);
-            unowned.removeAll(shownId);
+            m_map.insert(screenId, kwinOrderedSlot(screenId, shownId), entry);
+        }
+        if (m_map.ownerOf(shownId) == screenId) {
             m_lastOwnedByScreen.insert(screenId, shownId);
         }
     }
 
-    // Pass 2: remaining desktops keep KWin order contiguous — each unowned id
-    // joins the owner of the nearest preceding owned desktop in global order;
-    // a leading run goes to the first screen.
-    for (const QString& id : unowned) {
-        const int globalIdx = ids.indexOf(id);
-        QString target;
-        for (int i = globalIdx - 1; i >= 0; --i) {
-            target = m_map.ownerOf(ids.at(i));
-            if (!target.isEmpty()) {
-                break;
-            }
+    // Pass 2: a desktop no screen shows goes where the caller saw its windows.
+    // Under KWin's global mode every output shows the same desktop, so a
+    // first adoption would otherwise hand every other desktop to whichever
+    // screen precedes it in KWin's order, and the owner-wins reunion would
+    // then move each window to that screen. A preference naming a screen
+    // outside the order is ignored.
+    for (const QString& id : ids) {
+        if (!m_map.ownerOf(id).isEmpty()) {
+            continue;
         }
-        if (target.isEmpty()) {
-            target = order.isEmpty() ? QString() : order.first();
-        }
-        if (target.isEmpty()) {
-            qCWarning(lcWorkspaceRec) << "adoption with no screens; desktop left unowned:" << id;
+        const QString preferred = preferredScreenByDesktopId.value(id);
+        if (preferred.isEmpty() || !order.contains(preferred)) {
             continue;
         }
         WorkspaceEntry entry;
         entry.desktopId = id;
-        m_map.insert(target, insertIndexBeforeTrailingEmpty(target), entry);
+        m_map.insert(preferred, kwinOrderedSlot(preferred, id), entry);
     }
 
+    // Pass 3: remaining desktops keep KWin order contiguous — each unowned id
+    // joins the owner of the nearest preceding owned desktop in global order;
+    // a leading run goes to the first screen.
+    for (int globalIdx = 0; globalIdx < ids.size(); ++globalIdx) {
+        const QString& id = ids.at(globalIdx);
+        if (!m_map.ownerOf(id).isEmpty()) {
+            continue;
+        }
+        QString target;
+        for (int i = globalIdx - 1; i >= 0 && target.isEmpty(); --i) {
+            target = m_map.ownerOf(ids.at(i));
+        }
+        if (target.isEmpty()) {
+            target = order.first();
+        }
+        WorkspaceEntry entry;
+        entry.desktopId = id;
+        m_map.insert(target, kwinOrderedSlot(target, id), entry);
+    }
+
+    m_adopted = true;
     maintainInvariants();
+    // Owner-wins over the seeded currents: a screen that came up showing a
+    // desktop a restored map gives to another screen needs the correction now,
+    // not at its next report.
+    evaluateForeignAll();
     bumpGeneration();
+    return true;
 }
 
 } // namespace PhosphorWorkspaces

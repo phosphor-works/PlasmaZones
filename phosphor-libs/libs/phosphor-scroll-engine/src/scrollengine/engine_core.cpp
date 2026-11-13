@@ -6,7 +6,6 @@
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorEngine/IWindowTrackingService.h>
 #include <PhosphorIdentity/WindowId.h>
-#include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorScrollEngine/IScrollSettings.h>
 
 #include "enginelimits.h"
@@ -306,8 +305,8 @@ void ScrollEngine::setActiveScreens(const QSet<QString>& screens)
     // A screen this engine no longer manages must not keep feeding the
     // hint-less shortcut paths, the same clear pruneStatesForRemovedScreen
     // makes for a departed output. resolveOperationScreen re-checks
-    // membership, so this is belt-and-braces, but it keeps the one writer of
-    // the field honest about what it means.
+    // membership, so this is belt-and-braces, but it keeps the field meaning
+    // what its readers take it to mean: a screen this engine scrolls.
     if (!m_activeScreen.isEmpty() && !m_scrollingScreens.contains(m_activeScreen)) {
         m_activeScreen.clear();
     }
@@ -513,22 +512,78 @@ void ScrollEngine::stashStripStructure(const PhosphorEngine::PlacementStateKey& 
     // serializeStripState's terms for a stash beside a live strip: the live
     // columns first, then the stashed tiles that are neither in the capture
     // nor already claimed, with the larger of the two cursors.
+    //
+    // A pending tile whose stashed column already has a sibling in the capture
+    // joins that sibling's captured column, at its stashed place among the
+    // siblings, instead of being appended as a column of its own. The restore
+    // finds a column through the siblings its entry lists, and the captured
+    // siblings are no longer listed beside the pending tile once the old entry
+    // is folded, so a split here would make the late arrival open a new column
+    // where, before the leave, it would have rejoined its siblings.
     if (const auto existing = m_stripStash.constFind(key); existing != m_stripStash.cend()) {
-        QSet<QString> captured;
-        for (const StashedColumn& col : std::as_const(stash.columns)) {
-            for (const StashedTile& tile : col.tiles) {
-                captured.insert(tile.windowId);
+        QHash<QString, int> capturedColumn;
+        for (int c = 0; c < stash.columns.size(); ++c) {
+            for (const StashedTile& tile : std::as_const(stash.columns.at(c).tiles)) {
+                capturedColumn.insert(tile.windowId, c);
             }
         }
         const QSet<QString> consumed = m_stripStashConsumed.value(key);
-        for (StashedColumn col : existing->columns) {
-            col.tiles.removeIf([&captured, &consumed](const StashedTile& tile) {
-                return captured.contains(tile.windowId) || consumed.contains(tile.windowId);
-            });
-            if (!col.tiles.isEmpty()) {
-                stash.columns.append(col);
+        // The joins first, against the capture's own columns, and the
+        // unjoined columns appended after, so a join never lands in a column
+        // carried over from the old entry. An unjoined column has, by
+        // definition, no tile in the capture, so only its claimed tiles go.
+        QVector<StashedColumn> unjoined;
+        for (const StashedColumn& col : existing->columns) {
+            int host = -1;
+            for (const StashedTile& tile : col.tiles) {
+                if (const auto hit = capturedColumn.constFind(tile.windowId); hit != capturedColumn.cend()) {
+                    host = *hit;
+                    break;
+                }
+            }
+            if (host < 0) {
+                StashedColumn pending = col;
+                pending.tiles.removeIf([&consumed](const StashedTile& tile) {
+                    return consumed.contains(tile.windowId);
+                });
+                if (!pending.tiles.isEmpty()) {
+                    unjoined.append(pending);
+                }
+                continue;
+            }
+            // Walk the old column in order. A sibling found in the host moves
+            // the insertion point to just after it, so each pending tile lands
+            // after the last sibling that preceded it in the stash (or before
+            // the first sibling, for a tile that led the column).
+            QVector<StashedTile>& hostTiles = stash.columns[host].tiles;
+            const auto indexInHost = [&hostTiles](const QString& windowId) {
+                for (int t = 0; t < hostTiles.size(); ++t) {
+                    if (hostTiles.at(t).windowId == windowId) {
+                        return t;
+                    }
+                }
+                return -1;
+            };
+            int insertAt = -1;
+            for (const StashedTile& tile : col.tiles) {
+                if (const int at = indexInHost(tile.windowId); at >= 0) {
+                    insertAt = at;
+                    break;
+                }
+            }
+            for (const StashedTile& tile : col.tiles) {
+                if (const int at = indexInHost(tile.windowId); at >= 0) {
+                    insertAt = at + 1;
+                    continue;
+                }
+                if (capturedColumn.contains(tile.windowId) || consumed.contains(tile.windowId)) {
+                    continue;
+                }
+                hostTiles.insert(qBound(0, insertAt, int(hostTiles.size())), tile);
+                ++insertAt;
             }
         }
+        stash.columns.append(unjoined);
         // Absorbed only when both cursors count against the same blueprint,
         // migrateStateKey's rule for the same pairing: a cursor is meaningful
         // only beside the identity it was counted against.
@@ -778,20 +833,36 @@ bool ScrollEngine::restoreFromStripStash(ScrollState* state, const PhosphorEngin
         }
         inserted = state->strip().insertWindowIntoColumnAt(liveCol, at, windowId, params, minWidth, minHeight);
     } else {
-        // New column at its stashed position among the stashed columns
-        // that already have a representative on the strip.
-        int colAt = 0;
-        for (int i = 0; i < colIdx; ++i) {
-            for (const StashedTile& t : stash.at(i).tiles) {
-                if (state->strip().columnOfWindow(t.windowId) >= 0) {
-                    ++colAt;
-                    break;
+        if (sc.arrivesAsMove) {
+            // A column moved here from another desktop: its index among the
+            // stashed columns belongs to no strip this one ever was, so it
+            // opens where a fresh arrival would. Never INTO the active column,
+            // which is the one position that would dissolve the column the
+            // move exists to keep. The insert takes focus like any fresh
+            // arrival, and windowOpened's focus tiers decide whether that
+            // stands.
+            const ScrollInsertPosition pos = effectiveInsertPosition(overridesForScreen(key.screenId));
+            inserted = state->strip().insertWindow(
+                windowId, sc.width, sc.display, params, minWidth, minHeight,
+                pos == ScrollInsertPosition::IntoActiveColumn ? ScrollInsertPosition::RightOfActive : pos);
+        } else {
+            // New column at its stashed position among the stashed columns
+            // that already have a representative on the strip.
+            int colAt = 0;
+            for (int i = 0; i < colIdx; ++i) {
+                for (const StashedTile& t : stash.at(i).tiles) {
+                    if (state->strip().columnOfWindow(t.windowId) >= 0) {
+                        ++colAt;
+                        break;
+                    }
                 }
             }
+            inserted = state->strip().insertWindowAt(colAt, windowId, sc.width, sc.display, params);
+            if (inserted) {
+                state->strip().setWindowMinimumSize(windowId, minWidth, minHeight);
+            }
         }
-        inserted = state->strip().insertWindowAt(colAt, windowId, sc.width, sc.display, params);
         if (inserted) {
-            state->strip().setWindowMinimumSize(windowId, minWidth, minHeight);
             // The stashed maximize-to-edges state, applied on the arrival that
             // CREATES the column and nowhere else — width and display above
             // are creation-only for the same reason, and the setter stamps the
@@ -998,43 +1069,6 @@ QString ScrollEngine::resolveOperationScreen(const QString& screenId) const
     // QSet iteration order is unspecified; pick the lexicographic minimum so
     // repeated shortcut presses with no active screen land deterministically.
     return *std::min_element(m_scrollingScreens.cbegin(), m_scrollingScreens.cend());
-}
-
-QString ScrollEngine::scrollingScreenForPhysical(const QString& screenId) const
-{
-    if (screenId.isEmpty()) {
-        return {};
-    }
-    if (m_scrollingScreens.contains(screenId)) {
-        return screenId;
-    }
-    // A virtual sub-screen of the named monitor. samePhysical strips the
-    // "/vs:N" suffix, so "DP-1" matches "DP-1/vs:0" while "DP-10" does not.
-    //
-    // Exactly one match is the answer. SEVERAL matches (a monitor split into
-    // two scrolling sub-screens) are decidable only when the active screen is
-    // one of them; with the user on another monitor every tie-break is a coin
-    // toss, and the caller RELOCATES the column of whatever this names. A
-    // wrong guess silently moves a column the user never addressed, so refuse
-    // instead and leave the verb on its "needs a scrolling screen" hint.
-    QString match;
-    int matches = 0;
-    for (const QString& candidate : m_scrollingScreens) {
-        if (!PhosphorIdentity::VirtualScreenId::samePhysical(candidate, screenId)) {
-            continue;
-        }
-        if (candidate == m_activeScreen) {
-            return candidate;
-        }
-        ++matches;
-        match = candidate;
-    }
-    if (matches > 1) {
-        qCWarning(lcScrollEngine) << "scrollingScreenForPhysical: output" << screenId << "carries" << matches
-                                  << "scrolling sub-screens and none of them is the active screen — refusing to guess";
-        return {};
-    }
-    return match;
 }
 
 // ── Tracking predicates ─────────────────────────────────────────────────────

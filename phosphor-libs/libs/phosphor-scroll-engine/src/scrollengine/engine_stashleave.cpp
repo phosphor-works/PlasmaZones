@@ -15,6 +15,12 @@
 // gives: they test LIVE strip membership, and the window that left is not on
 // that strip. Split out of engine_context.cpp, which was at the file-size
 // ceiling.
+//
+// stashColumnForDesktopMove is the arrival side of the same question: a
+// column that leaves for another desktop as a whole is recorded under the
+// context it is going to, so the windows rejoin one column there.
+// stashStripForOutputMove does the same for a whole strip whose workspace
+// moves to another monitor.
 
 #include <PhosphorScrollEngine/ScrollEngine.h>
 
@@ -100,6 +106,249 @@ void ScrollEngine::forgetStashedWindowWhere(const QString& windowId,
     for (const QString& screenId : std::as_const(touchedScreens)) {
         Q_EMIT placementChanged(screenId);
     }
+}
+
+bool ScrollEngine::stashColumnForDesktopMove(const QString& screenId, const QStringList& windowIds, int targetDesktop)
+{
+    if (screenId.isEmpty() || targetDesktop < 1 || windowIds.isEmpty() || !m_scrollingScreens.contains(screenId)) {
+        return false;
+    }
+    const PlacementStateKey sourceKey = currentKeyForScreen(screenId);
+    ScrollState* state = m_states.stateForKey(sourceKey);
+    if (!state) {
+        return false;
+    }
+    // The key the arrivals will be looked up under: insertOpenedWindow claims
+    // against currentKeyForScreen once the screen shows the target desktop,
+    // and that resolution puts a sticky pin above the shown desktop. A pinned
+    // screen therefore resolves the destination to the very strip the column
+    // is leaving, and there is no record that could rejoin it anywhere else.
+    PlacementStateKey destKey{screenId, targetDesktop, sourceKey.activity};
+    if (const int pin = m_context.stickyPinnedDesktop(screenId); pin > 0) {
+        destKey.desktop = pin;
+    }
+    if (destKey == sourceKey) {
+        return false;
+    }
+    QStringList ids;
+    ids.reserve(windowIds.size());
+    for (const QString& raw : windowIds) {
+        const QString id = canonicalizeForLookup(raw);
+        if (!id.isEmpty() && !ids.contains(id)) {
+            ids.append(id);
+        }
+    }
+    // The column's presentation comes from the live column holding the first
+    // listed window that is still a tile here.
+    int columnIndex = -1;
+    for (const QString& id : std::as_const(ids)) {
+        columnIndex = state->strip().columnOfWindow(id);
+        if (columnIndex >= 0) {
+            break;
+        }
+    }
+    if (columnIndex < 0) {
+        return false;
+    }
+    const Column& live = state->strip().columns().at(columnIndex);
+    // Per-tile data for every window this strip still holds, a hidden member
+    // included: the live column first, then any tile that has moved to
+    // another column since the caller enumerated the group.
+    QHash<QString, StashedTile> known;
+    for (const StashedTile& tile : columnTilesWithHiddenMembers(state, columnIndex)) {
+        known.insert(tile.windowId, tile);
+    }
+    StashedColumn column;
+    column.width = live.width;
+    column.display = live.display;
+    column.maximizedToEdges = live.maximizedToEdges;
+    column.arrivesAsMove = true;
+    for (const QString& id : std::as_const(ids)) {
+        if (const auto hit = known.constFind(id); hit != known.cend()) {
+            column.tiles.append(*hit);
+        } else if (state->strip().containsWindow(id)) {
+            StashedTile tile;
+            tile.windowId = id;
+            tile.height = state->strip().windowHeightIntent(id);
+            tile.windowedFullscreen = state->strip().isWindowedFullscreen(id);
+            column.tiles.append(tile);
+        }
+        // Anything else is no longer this strip's (closed, or moved away
+        // since the press): it has no shape here to carry.
+    }
+    if (column.tiles.isEmpty()) {
+        return false;
+    }
+    const auto listed = [&column](const QString& windowId) {
+        return !windowId.isEmpty()
+            && std::any_of(column.tiles.cbegin(), column.tiles.cend(), [&windowId](const StashedTile& tile) {
+                   return tile.windowId == windowId;
+               });
+    };
+    if (!live.tiles.isEmpty()) {
+        const QString shown = live.tiles.at(qBound(0, live.activeTileIdx, int(live.tiles.size()) - 1)).windowId;
+        column.activeWindowId = listed(shown) ? shown : column.tiles.constFirst().windowId;
+    }
+    if (listed(live.heightOwnerId)) {
+        column.heightOwnerId = live.heightOwnerId;
+    }
+
+    bool fresh = false;
+    StashedStrip& entry = mergeMovedColumnsIntoStash(destKey, {column}, &fresh);
+    if (fresh) {
+        // A new entry hands over no focus or view (the record above names
+        // none) and no blueprint cursor or identity, which count the entries
+        // the LEAVING strip spent. The axis is stamped for completeness only:
+        // with no focus to restore, the restore never reads the anchor.
+        entry.axis = stripAxisForScreen(screenId).axis();
+    }
+    qCInfo(lcScrollEngine) << "stashColumnForDesktopMove: recorded" << column.tiles.size() << "window(s) of" << screenId
+                           << "as one column for desktop" << destKey.desktop;
+    // The persisted strip structure gained the column.
+    Q_EMIT placementChanged(screenId);
+    return true;
+}
+
+StashedStrip& ScrollEngine::mergeMovedColumnsIntoStash(const PlacementStateKey& destKey,
+                                                       const QVector<StashedColumn>& columns, bool* fresh)
+{
+    // Merged into whatever the destination already has stashed, never in
+    // place of it: an entry there holds tiles still waiting for windows of
+    // that context's own strip, and its focus, view and blueprint cursor are
+    // that strip's. The moved windows are taken out of it first, tiles and
+    // claim marks both, so a window the entry remembers from an earlier stay
+    // is placed by the moved column rather than by a stale slot, and a claim
+    // mark from that stay cannot refuse the arrival.
+    QSet<QString> moved;
+    for (const StashedColumn& column : columns) {
+        for (const StashedTile& tile : column.tiles) {
+            moved.insert(tile.windowId);
+        }
+    }
+    if (fresh) {
+        *fresh = !m_stripStash.contains(destKey);
+    }
+    StashedStrip& entry = m_stripStash[destKey];
+    for (auto colIt = entry.columns.begin(); colIt != entry.columns.end();) {
+        colIt->tiles.removeIf([&moved](const StashedTile& tile) {
+            return moved.contains(tile.windowId);
+        });
+        if (moved.contains(colIt->activeWindowId)) {
+            colIt->activeWindowId.clear();
+        }
+        if (moved.contains(colIt->heightOwnerId)) {
+            colIt->heightOwnerId.clear();
+        }
+        colIt = colIt->tiles.isEmpty() ? entry.columns.erase(colIt) : std::next(colIt);
+    }
+    if (moved.contains(entry.focusedWindowId)) {
+        entry.focusedWindowId.clear();
+    }
+    if (auto consumedIt = m_stripStashConsumed.find(destKey); consumedIt != m_stripStashConsumed.end()) {
+        consumedIt->subtract(moved);
+        if (consumedIt->isEmpty()) {
+            m_stripStashConsumed.erase(consumedIt);
+        }
+    }
+    entry.columns.append(columns);
+    // Newest entry for these windows, by serializeStripState's recency rule.
+    entry.sequence = ++m_stashSequence;
+    return entry;
+}
+
+bool ScrollEngine::stashStripForOutputMove(const QString& sourceStripScreenId, const QString& targetStripScreenId,
+                                           int desktop, const QStringList& windowIds)
+{
+    if (sourceStripScreenId.isEmpty() || targetStripScreenId.isEmpty() || desktop < 1 || windowIds.isEmpty()
+        || sourceStripScreenId == targetStripScreenId) {
+        return false;
+    }
+    // Both keys resolve the way the arrivals and the leaving strip do: the
+    // current activity, and a sticky pin above the desktop on either screen
+    // (a pinned screen keys every desktop by its pin).
+    const QString activity = currentKeyForScreen(sourceStripScreenId).activity;
+    PlacementStateKey sourceKey{sourceStripScreenId, desktop, activity};
+    if (const int pin = m_context.stickyPinnedDesktop(sourceStripScreenId); pin > 0) {
+        sourceKey.desktop = pin;
+    }
+    const ScrollState* state = m_states.stateForKey(sourceKey);
+    if (!state || state->strip().isEmpty()) {
+        return false;
+    }
+    PlacementStateKey destKey{targetStripScreenId, desktop, activity};
+    if (const int pin = m_context.stickyPinnedDesktop(targetStripScreenId); pin > 0) {
+        destKey.desktop = pin;
+    }
+    QSet<QString> listed;
+    for (const QString& raw : windowIds) {
+        const QString id = canonicalizeForLookup(raw);
+        if (!id.isEmpty()) {
+            listed.insert(id);
+        }
+    }
+    // Every column of the strip, in strip order, with its hidden members at
+    // their slots, cut down to the windows that move. Positional, not
+    // arrivesAsMove: the windows arrive one by one in no particular order,
+    // and the stashed order is what puts each column back beside its
+    // neighbours whichever of them lands first.
+    QVector<StashedColumn> columns;
+    const QVector<Column>& live = state->strip().columns();
+    for (int c = 0; c < live.size(); ++c) {
+        StashedColumn column;
+        for (const StashedTile& tile : columnTilesWithHiddenMembers(state, c)) {
+            if (listed.contains(tile.windowId)) {
+                column.tiles.append(tile);
+            }
+        }
+        if (column.tiles.isEmpty()) {
+            continue;
+        }
+        const Column& source = live.at(c);
+        column.width = source.width;
+        column.display = source.display;
+        column.maximizedToEdges = source.maximizedToEdges;
+        const auto kept = [&column](const QString& windowId) {
+            return !windowId.isEmpty()
+                && std::any_of(column.tiles.cbegin(), column.tiles.cend(), [&windowId](const StashedTile& tile) {
+                       return tile.windowId == windowId;
+                   });
+        };
+        if (!source.tiles.isEmpty()) {
+            const QString shown =
+                source.tiles.at(qBound(0, source.activeTileIdx, int(source.tiles.size()) - 1)).windowId;
+            column.activeWindowId = kept(shown) ? shown : column.tiles.constFirst().windowId;
+        }
+        if (kept(source.heightOwnerId)) {
+            column.heightOwnerId = source.heightOwnerId;
+        }
+        columns.append(column);
+    }
+    if (columns.isEmpty()) {
+        return false;
+    }
+    // The strip moves as a whole, so its focus, view and blueprint spent-ness
+    // go with it, unlike a single column's. Only into a fresh entry: an entry
+    // already there keeps its own. The view anchor is restored only on the
+    // axis it was captured on (restoreFromStripStash), so a target monitor
+    // with the other orientation drops it and keeps the focus.
+    const StashedStrip captured = buildStashFromState(state);
+    bool fresh = false;
+    StashedStrip& entry = mergeMovedColumnsIntoStash(destKey, columns, &fresh);
+    if (fresh) {
+        entry.axis = captured.axis;
+        if (listed.contains(captured.focusedWindowId)) {
+            entry.focusedWindowId = captured.focusedWindowId;
+            entry.viewAnchor = captured.viewAnchor;
+            entry.viewDetached = captured.viewDetached;
+        }
+        entry.blueprintCursor = captured.blueprintCursor;
+        entry.blueprintIdentity = captured.blueprintIdentity;
+    }
+    qCInfo(lcScrollEngine) << "stashStripForOutputMove: recorded" << columns.size() << "column(s) of"
+                           << sourceStripScreenId << "for desktop" << destKey.desktop << "on" << targetStripScreenId;
+    // The persisted strip structure gained the entry.
+    Q_EMIT placementChanged(targetStripScreenId);
+    return true;
 }
 
 void ScrollEngine::releaseWindowOffScreen(const QString& windowId, const QString& keepScreenId)

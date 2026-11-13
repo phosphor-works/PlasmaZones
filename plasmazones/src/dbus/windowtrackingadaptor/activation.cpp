@@ -7,6 +7,7 @@
 // hold-and-replay of reports naming a screen the daemon does not know yet.
 
 #include "windowtrackingadaptor.h"
+#include "lifecyclerelay.h"
 #include "internal.h"
 #include "core/interfaces/interfaces.h"
 #include "core/platform/logging.h"
@@ -141,6 +142,15 @@ void WindowTrackingAdaptor::screenDesktopChanged(const QString& screenId, int de
     // currentDesktopForScreen resolves an effective id up to its parent output on a
     // key miss before falling back to the global desktop. updateScreenDesktop emits
     // screenDesktopChanged only on a real change (emit-on-change).
+    //
+    // The raw report goes to in-process subscribers first, changed or not. The
+    // effect answers a per-screen switch request with a forced report that
+    // often repeats the desktop the manager already holds, and the manager's
+    // equality gate swallows it, so a subscriber waiting on that answer (the
+    // workspace controller's SetCurrent ledger) hears it only here. Emitted
+    // BEFORE the update so the subscriber can still tell a repeat from a
+    // change by comparing against the manager's row.
+    Q_EMIT m_lifecycleRelay->screenDesktopReported(screenId, desktop);
     m_virtualDesktopManager->updateScreenDesktop(screenId, desktop);
 }
 

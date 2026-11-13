@@ -102,8 +102,9 @@ void SettingsController::buildApplicationController()
     // Top-level entries. The rail reads top → bottom as three blocks split by
     // two dividers: (1) top/global — Overview (status dashboard), Profiles
     // (which frames everything below it) + General (global settings);
-    // (2) per-feature configuration — Virtual Screens, Placement, Appearance
-    // (which parents Decorations, Animations and Overlays), Rules;
+    // (2) per-feature configuration — Virtual Screens, Workspaces (where the
+    // build carries them), Placement, Appearance (which parents Decorations,
+    // Animations and Overlays), Rules;
     // (3) tools & meta — Editor, About.
     // `divider` flags mark only those two seams (after General, after Rules)
     // plus one inside the feature block (after Placement, to set the
@@ -136,32 +137,40 @@ void SettingsController::buildApplicationController()
                QStringLiteral("pages/screens/VirtualScreensPage.qml"), QStringLiteral("virtual-desktops"),
                /*collapsible=*/false,
                /*divider=*/false, AdvancedOnly);
+#ifdef USE_KDE_FRAMEWORKS
     // Dynamic per-monitor workspaces: a top-level DRILL-IN parent like the
     // placement modes (empty qmlFile + children), carrying the same sidebar
     // enable toggle (Main.qml trailing delegate). The parent id avoids the
-    // existing "overview" (monitor dashboard) id.
+    // existing "overview" (monitor dashboard) id. Compiled out of a
+    // USE_KDE_FRAMEWORKS=OFF build, which carries no dynamic workspaces.
+    //
+    // The parent and the Behavior and Named pages show in BOTH modes: the
+    // enable toggle rides the parent's row, so a simple-mode user running the
+    // feature must still be able to reach it and the two everyday pages. A
+    // virtual parent hides once every leaf beneath it is filtered out, and a
+    // single-leaf header dissolves in the simple rail, so the parent alone
+    // being Always would not be enough. Quick Shortcuts is the advanced one.
     //
     // preferences-desktop-virtual rather than virtual-desktops: the Virtual
     // Screens row directly above already carries virtual-desktops, and two
     // adjacent top-level rows sharing one glyph read as two views of the same
-    // thing (the rule the Snapping registration's icon note states). This is
-    // the glyph KDE's own Virtual Desktops module uses, so it stays on topic.
-    regVirtual(QStringLiteral("workspaces"), QString(), PhosphorI18n::tr("Workspaces"), QString(),
-               QStringLiteral("preferences-desktop-virtual"), /*collapsible=*/false,
-               /*divider=*/false, AdvancedOnly);
-    regVirtual(QStringLiteral("workspaces-behavior"), QStringLiteral("workspaces"), PhosphorI18n::tr("Behavior"),
-               QStringLiteral("pages/workspaces/WorkspacesBehaviorPage.qml"), QStringLiteral("configure"),
-               /*collapsible=*/false,
-               /*divider=*/false, AdvancedOnly);
-    regVirtual(QStringLiteral("workspaces-named"), QStringLiteral("workspaces"), PhosphorI18n::tr("Named Workspaces"),
-               QStringLiteral("pages/workspaces/NamedWorkspacesPage.qml"), QStringLiteral("bookmark"),
-               /*collapsible=*/false,
-               /*divider=*/false, AdvancedOnly);
+    // thing. This is the glyph KDE's own Virtual Desktops module uses, so it
+    // stays on topic. The leaves follow their siblings elsewhere in the rail:
+    // Quick Shortcuts takes the bookmark glyph every other Quick Shortcuts
+    // page uses, and Named Workspaces a tag, since a name is what it adds.
+    regVirtual(QStringLiteral("workspaces"), QString(), PhosphorI18n::tr("Workspaces", "@title settings sidebar page"),
+               QString(), QStringLiteral("preferences-desktop-virtual"));
+    regVirtual(QStringLiteral("workspaces-behavior"), QStringLiteral("workspaces"),
+               PhosphorI18n::tr("Behavior", "@title settings sidebar page"),
+               QStringLiteral("pages/workspaces/WorkspacesBehaviorPage.qml"), QStringLiteral("configure"));
+    regVirtual(QStringLiteral("workspaces-named"), QStringLiteral("workspaces"),
+               PhosphorI18n::tr("Named Workspaces", "@title settings sidebar page"),
+               QStringLiteral("pages/workspaces/NamedWorkspacesPage.qml"), QStringLiteral("tag"));
     regVirtual(QStringLiteral("workspaces-shortcuts"), QStringLiteral("workspaces"),
-               PhosphorI18n::tr("Quick Shortcuts"), QStringLiteral("pages/workspaces/WorkspacesShortcutsPage.qml"),
-               QStringLiteral("input-keyboard"),
-               /*collapsible=*/false,
-               /*divider=*/false, AdvancedOnly);
+               PhosphorI18n::tr("Quick Shortcuts", "@title settings sidebar page"),
+               QStringLiteral("pages/workspaces/WorkspacesShortcutsPage.qml"), QStringLiteral("bookmark"),
+               /*collapsible=*/false, /*divider=*/false, AdvancedOnly);
+#endif
     // Placement groups the three placement modes (Snapping / Tiling / Scrolling) as an
     // inline-collapsible category. Divider after it (i.e.
     // above Appearance) sets the placement categories apart from the
@@ -229,7 +238,8 @@ void SettingsController::buildApplicationController()
     // toggles. In simple mode the flat rail keeps each mode as an expandable
     // header row of its own (a multi-leaf drill parent no longer dissolves —
     // see SidebarRows' flat walk), so Main.qml's trailing delegate keys the
-    // toggles off exactly these three ids in both modes.
+    // toggles off these three ids in both modes, plus "workspaces" (registered
+    // above) for the dynamic-workspaces toggle.
     regVirtual(QStringLiteral("snapping"), QStringLiteral("placement"),
                PhosphorI18n::tr("Snapping", "@title settings sidebar page"), QString(),
                QStringLiteral("view-split-left-right"));

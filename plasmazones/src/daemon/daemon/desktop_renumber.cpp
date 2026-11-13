@@ -56,6 +56,43 @@ std::function<bool(const PhosphorRules::Rule&)> unchangedStartupRule(const QList
     };
 }
 
+/// Whether @p rule is one context's own setting (its assignment, a disable
+/// switch, or another rule of the exact context shape carrying only context
+/// actions), which remapContextRules drops with its desktop. The same test
+/// remapContextRules applies; anything else is a window rule.
+bool isContextSettingRule(const PhosphorRules::Rule& rule)
+{
+    namespace Bridge = PhosphorRules::ContextRuleBridge;
+    QString screenId;
+    int desktop = 0;
+    QString activity;
+    return rule.match.isContextOnly() && !Bridge::pinsNonDimensionContextField(rule.match)
+        && Bridge::contextDimsOf(rule.match, screenId, desktop, activity)
+        && Bridge::detail::isContextSetting(rule, screenId, desktop, activity);
+}
+
+/// @p applies narrowed to the context settings while dynamic workspaces run
+/// (decision rule_reap, F402). The controller creates and reaps desktops as
+/// windows come and go, so a desktop number is a position that churns many
+/// times a session. Following those edits would switch off every window rule
+/// naming a reaped desktop for good and rewrite rules.json each time, so the
+/// window rules are held exactly as written: not renumbered, not switched off
+/// for a removed desktop, not swept by the count prune. A context's own
+/// settings still go with their desktop.
+std::function<bool(const PhosphorRules::Rule&)>
+holdWindowRulesWhile(bool workspacesLive, std::function<bool(const PhosphorRules::Rule&)> applies)
+{
+    if (!workspacesLive) {
+        return applies;
+    }
+    if (!applies) {
+        return isContextSettingRule;
+    }
+    return [applies = std::move(applies)](const PhosphorRules::Rule& rule) {
+        return isContextSettingRule(rule) && applies(rule);
+    };
+}
+
 } // namespace
 
 void Daemon::onDesktopsRenumbered(const PhosphorEngine::DesktopRemap& remap)
@@ -81,7 +118,8 @@ void Daemon::onDesktopsRenumbered(const PhosphorEngine::DesktopRemap& remap)
                                return to > remap.newCount() ? 0 : to;
                            },
                            {},
-                           unchangedStartupRule(std::exchange(m_lateStartupRules, {}))});
+                           holdWindowRulesWhile(m_workspaceController != nullptr,
+                                                unchangedStartupRule(std::exchange(m_lateStartupRules, {})))});
         int recordsMoved = 0;
         if (PhosphorPlacement::WindowTrackingService* service =
                 m_windowTrackingAdaptor ? m_windowTrackingAdaptor->service() : nullptr) {
@@ -103,12 +141,14 @@ void Daemon::onDesktopsRenumbered(const PhosphorEngine::DesktopRemap& remap)
     // resolves each screen's mode, diffActiveAssignments resolves each context
     // through isContextDisabled, and hideDisabledAndRefresh is named for it.
     // Moving them afterwards would publish one pass built from the old
-    // numbering (F786).
+    // numbering (F786). While dynamic workspaces run only the context settings
+    // move (holdWindowRulesWhile).
     applyContextRemap(m_ruleStore.get(),
                       {[&remap](int desktop) {
                            return remap.map(desktop);
                        },
-                       {}});
+                       {},
+                       holdWindowRulesWhile(m_workspaceController != nullptr, {})});
 
     // Same ordering the count handler documents: a live preview resolves its
     // state through a create-if-missing lookup, so a cancel arriving after the
@@ -131,6 +171,26 @@ void Daemon::onDesktopsRenumbered(const PhosphorEngine::DesktopRemap& remap)
     const bool readoptEvictees = m_running && !removedDesktops.isEmpty() && m_tilingAdaptor && m_windowTrackingAdaptor;
     if (readoptEvictees) {
         m_tilingAdaptor->noteRenumberEvictees(m_windowTrackingAdaptor->knownWindowIds(), removedDesktops);
+    }
+    // Re-announce the managed set as a desktop switch, UNCONDITIONALLY (F692).
+    // The effect re-reads its per-output report cache into the new numbering
+    // on KWin's own renumber, and its staleness gate drops WHOLE any switch
+    // announce whose per-screen desktop stamps disagree with that cache. A
+    // switch this change caused (an output that showed a removed desktop) was
+    // announced from the screenDesktopChanged handler in the OLD numbering and
+    // is dropped there, which leaves the effect owing that output an announce
+    // (its SwitchAnnounceLedger) that the re-seed below does not send when the
+    // managed set did not change. The adaptor coalesces onto the next
+    // event-loop turn and stamps each screen's desktop at emit time, so this
+    // announce carries the new numbering, is accepted and settles the ledger.
+    // Queued HERE, ahead of every engine change, because a tile batch relayed
+    // while an announce is queued is held and sent right behind it: with no
+    // switch behind it the effect reads this as an edge-less switch announce
+    // and voids every output's in-flight applies, and no batch of this pass
+    // may be in flight ahead of it. Not at start-up (m_running false): no
+    // switch has been announced yet that this could correct.
+    if (m_running && m_tilingAdaptor) {
+        m_tilingAdaptor->notifyEngineScreensChanged(/*isDesktopSwitch=*/true);
     }
     // Every engine takes the change through the one map, an insert and a
     // reorder included: each prunes a removed desktop's state while the
@@ -221,15 +281,16 @@ void Daemon::onDesktopCountChanged(int newCount)
     // is the genuine out-of-range case.
     //
     // The rules naming a desktop past the count go too. With KWin's list in
-    // use a shrinking count commits with that list, AFTER desktopsRenumbered,
-    // so the map has already dropped them and this finds nothing to write; a
-    // growing count goes out first (F1022) and finds nothing past it. Without
-    // the list (onNumberOfDesktopsChanged's fallback commits a bare count),
-    // and at start-up (reconcileDesktopsAtStartup), this is the only prune
-    // they get (F1044). While a late first list is awaited the rules start-up
-    // found are still in the previous session's numbering, which a count
-    // committed ahead of that list says nothing about: the held renumber
-    // prunes them against the list's own count (F1106).
+    // use every count change commits with that list, AFTER desktopsRenumbered,
+    // so the map has already dropped them and this finds nothing to write.
+    // Without the list (the desktop manager's fallback, when KWin's desktop
+    // signals did not add up to a list, commits the count first), and at
+    // start-up (reconcileDesktopsAtStartup), this is the only prune they get
+    // (F1044). While a late first list is awaited the rules start-up found are
+    // still in the previous session's numbering, which a count committed ahead
+    // of that list says nothing about: the held renumber prunes them against
+    // the list's own count (F1106). While dynamic workspaces run the window
+    // rules are not swept at all (holdWindowRulesWhile).
     std::function<bool(const PhosphorRules::Rule&)> liveNumbered;
     if (m_lateStartupRenumberUpTo) {
         liveNumbered = [held = unchangedStartupRule(m_lateStartupRules)](const PhosphorRules::Rule& rule) {
@@ -241,7 +302,7 @@ void Daemon::onDesktopCountChanged(int newCount)
                            return desktop > newCount ? 0 : desktop;
                        },
                        {},
-                       std::move(liveNumbered)});
+                       holdWindowRulesWhile(m_workspaceController != nullptr, std::move(liveNumbered))});
 
     // A live preview must unwind BEFORE the prunes: autotile's cancel
     // resolves its state via a create-if-missing lookup, so a cancel arriving

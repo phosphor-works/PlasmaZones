@@ -44,6 +44,10 @@ SnapResult SnapEngine::calculateSnapToPlacementRule(const QString& windowId, con
 
 int SnapEngine::routedOpenDesktop(const QString& windowId, const QString& screenId) const
 {
+    // A resolve of its own, for applyNoMatchFloatDefault alone. The open path
+    // never comes here: resolveWindowRestore resolves once and pins its float
+    // terminals to that directive's desktop, because a second resolve in the
+    // same pass no longer receives the open's routing verdict.
     if (!m_placementZonesResolver) {
         return 0;
     }

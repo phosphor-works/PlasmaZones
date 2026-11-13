@@ -108,8 +108,24 @@ void ConfigMigration::migrateV1ToV2(QJsonObject& root)
     // Snapping.Behavior.ZoneSpan
     QJsonObject zoneSpan;
     moveKey(v1Activation, QLatin1String("ZoneSpanEnabled"), zoneSpan, QLatin1String("Enabled"));
-    moveKey(v1Activation, QLatin1String("ZoneSpanModifier"), zoneSpan, QLatin1String("Modifier"));
     moveKey(v1Activation, QLatin1String("ZoneSpanTriggers"), zoneSpan, QLatin1String("Triggers"));
+    // v1 also carried the span chord as a single ZoneSpanModifier scalar. v2
+    // keeps only the trigger list, so when a v1 config has the scalar but no
+    // list, fold the scalar into a one-entry list here: the {modifier,
+    // mouseButton} shape the list holds, with no button. A config that has
+    // both keeps its list, which already supersedes the scalar. The scalar
+    // itself is not carried into v2.
+    if (!v1Activation.contains(QLatin1String("ZoneSpanTriggers"))
+        && v1Activation.contains(QLatin1String("ZoneSpanModifier"))) {
+        bool ok = false;
+        const int modifier = v1Activation.value(QLatin1String("ZoneSpanModifier")).toVariant().toInt(&ok);
+        if (ok) {
+            QJsonObject trigger;
+            trigger[QLatin1String("modifier")] = modifier;
+            trigger[QLatin1String("mouseButton")] = 0;
+            zoneSpan[QLatin1String("Triggers")] = QJsonArray{trigger};
+        }
+    }
 
     // Snapping.Behavior.SnapAssist
     QJsonObject snapAssist;

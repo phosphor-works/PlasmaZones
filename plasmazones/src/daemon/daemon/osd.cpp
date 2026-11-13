@@ -434,13 +434,18 @@ void Daemon::showContextDisabledOsd(const QString& screenId, int desktop, const 
     case DisabledReason::DesktopDisabled: {
         QString desktopLabel;
         if (m_virtualDesktopManager) {
-            // rawDesktopNames, so an unnamed desktop comes back EMPTY and the
-            // translated fallback below actually runs. desktopNames() fills
-            // its own untranslatable "Desktop N" placeholder (the library
-            // links no i18n), which pre-empted that fallback and shipped the
-            // English string to every locale. The list is neither padded to
-            // the desktop count nor populated at all without the KWin D-Bus
-            // link, which the bounds test below already covers.
+            // rawDesktopNames, KWin's names exactly as KWin reports them. KWin
+            // gives every desktop it creates without a name a positional
+            // default label of its own ("Desktop N", already in KWin's
+            // language), and the workspace controller pushes such a label
+            // wherever it means unnamed, so that label is what the card
+            // shows. An entry is empty only when a client explicitly set an
+            // empty name, and then the translated fallback below runs.
+            // desktopNames() is not used: it fills empty entries with its own
+            // untranslatable "Desktop N" placeholder (the library links no
+            // i18n), which would pre-empt that fallback. The list is neither
+            // padded to the desktop count nor populated at all without the
+            // KWin D-Bus link, which the bounds test below already covers.
             const QStringList names = m_virtualDesktopManager->rawDesktopNames();
             if (desktop > 0 && desktop <= names.size()) {
                 desktopLabel = names[desktop - 1];
@@ -1069,6 +1074,15 @@ void Daemon::showDesktopSwitchOsdForScreen(const QString& screenId, const QStrin
         return;
     }
     showOsdForScreens(targets, activity);
+}
+
+bool Daemon::takeFirstDesktopReport(const QString& screenId)
+{
+    if (m_desktopReportedScreens.contains(screenId)) {
+        return false;
+    }
+    m_desktopReportedScreens.insert(screenId);
+    return true;
 }
 
 void Daemon::showOsdForAllScreens(const QString& activity)

@@ -314,8 +314,10 @@ public Q_SLOTS:
 public:
     /// Park @p windowId for a snap restore once the desktop it is on comes into
     /// view, for @p cause (see DesktopArrivalParks). Called from
-    /// PlasmaZonesEffect::slotWindowDesktopMoveRequested when the target desktop
-    /// is not the one on screen or the move is refused, and for a snapped
+    /// PlasmaZonesEffect::applyWorkspaceMove when the target desktop is not the
+    /// one the window's landing output shows, from
+    /// PlasmaZonesEffect::placeAfterRefusedDesktopMove when the move did not
+    /// happen on a snapping screen, and for a snapped
     /// window on a desktop not in view from the screen-change zone re-apply
     /// (ScreenChangeHandler::applyWindowGeometries) and the zone sync at daemon
     /// bring-up (NavigationHandler::syncZonesFromDaemon). @p windowId is the

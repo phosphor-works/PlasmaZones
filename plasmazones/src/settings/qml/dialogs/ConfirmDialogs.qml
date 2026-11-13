@@ -182,7 +182,9 @@ Item {
         id: daemonStopConfirm
 
         title: i18n("Stop daemon?")
-        subtitle: i18n("Stopping the PlasmaZones daemon disables window snapping, tiling, scrolling and dynamic workspaces until you start it again.")
+        // Names dynamic workspaces only where the build has them
+        // (SettingsController::workspacesAvailable).
+        subtitle: settingsController.workspacesAvailable ? i18n("Stopping the PlasmaZones daemon disables window snapping, tiling, scrolling and dynamic workspaces until you start it again.") : i18n("Stopping the PlasmaZones daemon disables window snapping, tiling and scrolling until you start it again.")
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {

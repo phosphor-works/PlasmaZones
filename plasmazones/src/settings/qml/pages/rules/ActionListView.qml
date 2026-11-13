@@ -103,8 +103,9 @@ ColumnLayout {
     /// The advisory `max` a param descriptor publishes, or no cap when it
     /// carries none (never a second copy of the constant). SnapToZone's two
     /// params publish the ordinal cap and the per-name character cap this way,
-    /// and RouteToDesktop its desktop cap, so the read-only view filters on the
-    /// same bounds the validator and the C++ summary apply.
+    /// RouteToDesktop its desktop cap and RouteToWorkspace its name cap, so
+    /// the read-only view filters on the same bounds the validator and the
+    /// C++ summary apply.
     function _paramBound(param) {
         return param && param.max !== undefined ? param.max : Number.POSITIVE_INFINITY;
     }
@@ -163,7 +164,8 @@ ColumnLayout {
 
     /// Resolve a single param value to the user-facing string the rule
     /// editor would show. The mapping per `kind` mirrors the editor's
-    /// pickers — see `ActionRow.qml` for the source of truth.
+    /// pickers: see `ActionParamEditors.qml` and `ActionParamPickers.qml`
+    /// for the source of truth.
     function _resolveParamValue(param, action) {
         var raw = action[param.key];
         if (raw === undefined || raw === null)
@@ -264,7 +266,7 @@ ColumnLayout {
         }
         if (kind === "decorationChain") {
             // Surface-pack ids resolve through the decoration pack catalog
-            // (mirrors ActionRow's _decorationChainEditor source); unknown ids
+            // (mirrors ActionParamEditors' _decorationChainEditor source); unknown ids
             // render verbatim. An empty chain clears the CUSTOM packs and
             // falls back to the config-backed layers — same wording as the
             // rules-list summary; turning decorations off entirely is
@@ -292,7 +294,8 @@ ColumnLayout {
         }
         if (kind === "overlayShader") {
             // Overlay shaders come from the overlay shader registry, not the
-            // animation one (mirrors ActionRow's _overlayShaderEditor source).
+            // animation one (mirrors ActionParamEditors' _overlayShaderEditor
+            // source).
             var ssCtl = root.appSettings ? root.appSettings.overlaysPage : null;
             if (!ssCtl)
                 return rawStr;
@@ -394,9 +397,9 @@ ColumnLayout {
             // back to the raw id when the monitor isn't currently connected so the
             // user still sees what the rule pins to.
             var screens = root.appSettings && root.appSettings.screens ? root.appSettings.screens : [];
-            // Trimmed before the compare: ids are stored trimmed, and an
-            // untrimmed hand-edited payload would silently miss every screen
-            // and fall through to the raw form.
+            // Trimmed before the compare, as the daemon reads the id: a
+            // hand-edited payload can carry stray whitespace, which would
+            // otherwise miss every screen and fall through to the raw form.
             var screenId = rawStr.trim();
             for (var s = 0; s < screens.length; ++s) {
                 if (screens[s].name === screenId)
@@ -405,18 +408,49 @@ ColumnLayout {
             return rawStr;
         }
         if (kind === "workspaceName") {
-            // Quote the name like zoneNames so a digit-only workspace name
-            // cannot read as a desktop ordinal; an undeclared name still
-            // renders (the rule is dormant, not broken).
+            // The name shown follows the C++ twin in rulemodel_labels.cpp: the
+            // live name of the declaration carrying the stored entry id
+            // (PhosphorRules::ActionParam::TargetWorkspaceId), else the stored
+            // name, trimmed and bounded by the descriptor. A stored name past
+            // the bound or blank is one the validator rejects, so the pill
+            // stays empty, as the C++ summary drops to its bare label.
             //
-            // Trimmed and bounded exactly like the C++ twin in
-            // rulemodel_labels.cpp: a hand-edited payload past the descriptor's
-            // bound is one the validator rejects, so it echoes raw rather than
-            // flooding the pill as if it were a real target.
+            // Quoted like zoneNames so a digit-only workspace name cannot read
+            // as a desktop ordinal. Unlike the one-line summary, this view
+            // also marks a target that no declaration matches by id or name:
+            // the rule is dormant, not broken, and not live either.
+            var fields = (root.appSettings && root.appSettings.namedEntryFields) || ({
+                    "id": "id",
+                    "name": "name"
+                });
+            var declared = (root.appSettings && root.appSettings.namedWorkspaces) || [];
+            var normId = function (id) {
+                return ("" + (id || "")).trim().replace(/^\{|\}$/g, "").toLowerCase();
+            };
+            var wantId = normId(action.targetWorkspaceId);
             var wsName = rawStr.trim();
+            var live = "";
+            if (wantId !== "") {
+                for (var w = 0; w < declared.length; ++w) {
+                    if (normId(declared[w][fields.id]) === wantId) {
+                        live = declared[w][fields.name];
+                        break;
+                    }
+                }
+            }
+            if (live === "" && wsName && wsName.length <= root._paramBound(param)) {
+                for (var x = 0; x < declared.length; ++x) {
+                    if (declared[x][fields.name] === wsName) {
+                        live = wsName;
+                        break;
+                    }
+                }
+            }
+            if (live !== "")
+                return i18nc("a quoted workspace name", "“%1”", live);
             if (!wsName || wsName.length > root._paramBound(param))
-                return rawStr;
-            return i18nc("a quoted workspace name", "“%1”", wsName);
+                return "";
+            return i18nc("a quoted workspace name that is no longer declared", "“%1” (not declared)", wsName);
         }
         if (kind === "virtualDesktop") {
             // Render "N: <name>" when KWin reports a name for the 1-based desktop,
@@ -431,7 +465,7 @@ ColumnLayout {
                 return rawStr;
             if (names.length >= num && names[num - 1])
                 // Same one-i18nc composition as the desktop pickers in
-                // MatchLeafEditor and ActionParamEditors, so the summary and
+                // MatchLeafEditor and ActionParamPickers, so the summary and
                 // the editors render a desktop identically.
                 return i18nc("virtual desktop number, then its name", "%1: %2", num, names[num - 1]);
             return String(num);

@@ -36,9 +36,9 @@ QtObject {
     readonly property string noLayoutToken: "none"
 
     /// The three routing-target pickers (RouteToScreen / RouteToDesktop /
-    /// RouteToWorkspace), which moved to their own file when this one reached
-    /// the file-size ceiling. ActionRow reaches them through
-    /// `paramEditors.pickers._…Editor`; they take the same `row` handle.
+    /// RouteToWorkspace), which live in their own file, ActionParamPickers.
+    /// ActionRow reaches them through `paramEditors.pickers._…Editor`; they
+    /// take the same `row` handle.
     property ActionParamPickers pickers: ActionParamPickers {
         row: editors.row
     }
@@ -454,8 +454,9 @@ QtObject {
             // currentIndex at -1, and ComboBox's default `displayText` is
             // `currentText`, which is empty there — a blank combo that hides
             // what the rule pins, while the read-only summary shows the raw
-            // token. Fall back to the token for the same reason the layout,
-            // template, screen and desktop editors below do.
+            // token. Fall back to the token for the same reason the layout
+            // and template editors below and the screen and desktop pickers
+            // in ActionParamPickers do.
             displayText: currentIndex >= 0 ? currentText : (row.action[_param.key] || "")
             Accessible.name: _param.label
             onActivated: function (index) {
@@ -977,9 +978,6 @@ QtObject {
         }
     }
 
-    // Overlay-shader picker for OverrideOverlayShader actions — the zone
-    // overlay shader registry (Appearance → Overlays), distinct from the
-    // animation shaders above. Wire value is the shader id.
     // The OverlayShaderTree NODE an OverrideOverlayShader rule targets — the
     // overlay twin of _animationEventEditor, where the animation rule picks the
     // event node it overrides. The rows are the assignments page's own cards
@@ -1019,6 +1017,9 @@ QtObject {
         }
     }
 
+    // Overlay-shader picker for OverrideOverlayShader actions — the zone
+    // overlay shader registry (Appearance → Overlays), distinct from the
+    // animation shaders above. Wire value is the shader id.
     property Component _overlayShaderEditor: Component {
         // Cascading category menu of the zone overlay shaders, grouped by
         // category. Same registry the Appearance → Overlays pages browse and

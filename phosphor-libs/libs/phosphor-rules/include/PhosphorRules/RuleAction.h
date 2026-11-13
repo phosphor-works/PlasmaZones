@@ -95,9 +95,10 @@ struct PHOSPHORRULES_EXPORT RuleAction
  * switch. `kind` is a UI-side hint string (the canonical kinds are
  * `string`, `number`, `percent`, `enum`, `bool`, `color`, plus the
  * picker-aware kinds `snappingLayout`, `tilingAlgorithm`,
- * `scrollingTemplate`, `animationEvent`, `shaderEffect`, `overlayShader`,
- * `zoneOrdinals`, `zoneNames`, `curveEditor`, `screenId`,
- * `virtualDesktop`, `decorationChain`); QML loaders dispatch on it. Labels stay in the GPL
+ * `scrollingTemplate`, `animationEvent`, `shaderEffect`, `shaderPreset`,
+ * `overlayShader`, `overlayLayout`, `zoneOrdinals`, `zoneNames`,
+ * `curveEditor`, `screenId`, `virtualDesktop`, `workspaceName`,
+ * `decorationChain`); QML loaders dispatch on it. Labels stay in the GPL
  * settings layer because they need translation through PhosphorI18n::tr —
  * the lib only owns the structural part of the schema.
  *
@@ -117,8 +118,10 @@ struct PHOSPHORRULES_EXPORT RuleAction
  *     seed). Shorter `#RGB`/`#RRGGBB` shapes still load for hand-edited values.
  *   - picker-aware kinds normally carry no schema state — the QML loader
  *     knows to swap in the catalogue-driven ComboBox — though one MAY carry
- *     advisory bounds (RouteToDesktop's `virtualDesktop` declares min/max);
- *     the loader dispatches on `kind` alone either way.
+ *     advisory bounds the editor reads from the schema: an ordinal range
+ *     (RouteToDesktop's `virtualDesktop` declares min/max, `zoneOrdinals`
+ *     a max) or a per-character `max` on a name-like kind (`zoneNames`,
+ *     `workspaceName`). The loader dispatches on `kind` alone either way.
  */
 struct PHOSPHORRULES_EXPORT ParamSchema
 {

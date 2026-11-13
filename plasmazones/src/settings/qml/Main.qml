@@ -386,8 +386,9 @@ PhosphorUi.SettingsAppWindow {
                 accessibleName: i18n("Toggle daemon")
                 // The switch is fully controlled (checked is bound to
                 // daemonRunning and never self-toggles), so it stays visually
-                // "on" until the daemon actually stops. Turning OFF kills tiling
-                // + snapping for the whole session, so confirm first; turning ON
+                // "on" until the daemon actually stops. Turning OFF stops every
+                // placement mode (and dynamic workspaces, where the build has
+                // them) for the whole session, so confirm first; turning ON
                 // applies immediately.
                 // Routes through confirmDialogs.daemonStop (a root-level dialog
                 // in ConfirmDialogs.qml) so the page-nav shortcut guard can see
@@ -898,8 +899,9 @@ PhosphorUi.SettingsAppWindow {
     //      one of its descendants for a collapsed category header) is
     //      dirty. The user sees pending edits hiding inside categories
     //      without having to drill in.
-    //   2. Inline SettingsSwitch on the snapping / tiling rows so a
-    //      whole feature can be disabled without drilling in.
+    //   2. Inline SettingsSwitch on the snapping / tiling / scrolling /
+    //      workspaces rows so a whole feature can be disabled without
+    //      drilling in.
     // Simple mode gets a mostly flat rail: category headers dissolve and
     // every visible page becomes a top-level row, except that a multi-leaf
     // drill parent (the three placement modes, each showing General + its
@@ -1032,17 +1034,20 @@ PhosphorUi.SettingsAppWindow {
             // "id" to "pageId" (the prior name shadowed the QML id:
             // directive); read `entry.pageId` accordingly.
             readonly property var entry: parent ? parent.modelData : null
-            // Match the three placement-mode parent rows. Both rails render
-            // them as rows of their own now — the advanced tree as drill
-            // parents, the simple flat rail as expandable multi-leaf headers
-            // (see SidebarRows' flat walk) — so the inline enable toggle
-            // keys off exactly these three ids in both modes.
+            // Match the three placement-mode parent rows and the workspaces
+            // one. Both rails render them as rows of their own — the advanced
+            // tree as drill parents, the simple flat rail as expandable
+            // multi-leaf headers (see SidebarRows' flat walk; the workspaces
+            // parent keeps two simple-mode leaves, Behavior and Named
+            // Workspaces, so it stays a header there too) — so the inline
+            // enable toggle keys off exactly these four ids in both modes.
             readonly property bool isSnapping: entry && entry.pageId === "snapping"
             readonly property bool isTiling: entry && entry.pageId === "tiling"
             readonly property bool isScrolling: entry && entry.pageId === "scrolling"
             // The dynamic-workspaces drill parent carries the same inline
-            // enable toggle as the three placement modes.
-            readonly property bool isWorkspaces: entry && entry.pageId === "workspaces"
+            // enable toggle as the three placement modes. A build without the
+            // feature registers no such page; the gate says so here as well.
+            readonly property bool isWorkspaces: settingsController.workspacesAvailable && entry && entry.pageId === "workspaces"
             // The id whose dirty state this row REPRESENTS, which is not
             // always the id it renders. Simple mode condenses a whole subtree
             // down to one visible row, and that row's own dirty state covers
@@ -1173,6 +1178,13 @@ PhosphorUi.SettingsAppWindow {
                     else if (trailingRow.isWorkspaces)
                         appSettings.workspacesEnabled = newValue;
                     settingsController.endExternalEdit();
+                    // Turned on from the rail while KWin's per-output desktops
+                    // are off and no consent is pending: the feature would sit
+                    // dormant, and the only thing that says so (the consent
+                    // warning) is on the Behavior page. Open that page so the
+                    // warning is in front of the user who just flipped it.
+                    if (trailingRow.isWorkspaces && newValue && !settingsController.workspacesActive)
+                        settingsController.activePage = "workspaces-behavior";
                 }
             }
         }

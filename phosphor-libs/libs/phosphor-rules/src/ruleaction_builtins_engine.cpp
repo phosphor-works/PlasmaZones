@@ -400,7 +400,7 @@ void ActionRegistry::registerBuiltinsEngine()
         .displayOrder = 2,
     });
 
-    // ── open-routing: send a matched window to a target monitor / desktop ──
+    // ── open-routing: send a matched window to a target monitor, desktop or named workspace ──
     registerAction(ActionDescriptor{
         .type = QString(ActionType::RouteToScreen),
         .slotFor = constantSlot(ActionSlot::RouteScreen),
@@ -418,11 +418,10 @@ void ActionRegistry::registerBuiltinsEngine()
         .terminal = false,
         .allowedKeys = {QString(ActionParam::TargetScreenId)},
         .domain = ActionDomain::Window,
-        // The advisory `max` publishes the per-character cap so the settings
-        // editor reads the bound from the schema, matching zoneNames' shape.
-        .params = {P{.key = QString(ActionParam::TargetScreenId),
-                     .kind = QStringLiteral("screenId"),
-                     .max = static_cast<double>(MaxScreenIdLength)}},
+        // No advisory `max`, unlike the name-like kinds: the editor picks the
+        // id from the live monitor list and never types one, so a published
+        // bound would have no reader (see MaxScreenIdLength).
+        .params = {P{.key = QString(ActionParam::TargetScreenId), .kind = QStringLiteral("screenId")}},
         // No tags: RouteToScreen is daemon open-path routing only, not an
         // Effect / Border / Animation / Overlay / Gap action.
         .category = QStringLiteral("windowManagement"),
@@ -463,26 +462,41 @@ void ActionRegistry::registerBuiltinsEngine()
             [](const QJsonObject& p) {
                 // A non-blank declared-workspace NAME, bounded and measured
                 // trimmed so this check and the daemon's trimmed-name resolution
-                // judge the same string. Like RouteToScreen's id, the name is
-                // not validated against live state here — a rule naming a
-                // not-currently-declared workspace is legitimate (it fires once
-                // the declaration exists); the daemon no-ops an unresolvable
-                // name at open time.
-                return hasNonBlankStringWithin(p, ActionParam::TargetWorkspaceName, MaxWorkspaceNameLength);
+                // judge the same string. The name is REQUIRED even beside an
+                // id: it is what the rule shows while no declaration carries
+                // the id, and the daemon's fallback when none does.
+                //
+                // The persistent entry id is OPTIONAL, so a rule written before
+                // ids existed still loads. When present it is held to the same
+                // non-blank, trimmed-and-bounded shape, so a malformed id cannot
+                // ride in on a valid name.
+                //
+                // Like RouteToScreen's id, neither is validated against live
+                // state here: a rule naming a not-currently-declared workspace
+                // is legitimate (it fires once the declaration exists), and
+                // the daemon no-ops an unresolvable target at open time.
+                if (!hasNonBlankStringWithin(p, ActionParam::TargetWorkspaceName, MaxWorkspaceNameLength)) {
+                    return false;
+                }
+                return !p.contains(ActionParam::TargetWorkspaceId)
+                    || hasNonBlankStringWithin(p, ActionParam::TargetWorkspaceId, MaxWorkspaceIdLength);
             },
         .terminal = false,
-        .allowedKeys = {QString(ActionParam::TargetWorkspaceName)},
+        .allowedKeys = {QString(ActionParam::TargetWorkspaceName), QString(ActionParam::TargetWorkspaceId)},
         .domain = ActionDomain::Window,
         // The advisory `max` publishes the per-character cap so the settings
         // editor reads the bound from the schema, matching zoneNames' shape.
+        // The id has no ParamSchema entry: nobody types it, and the
+        // workspace picker writes it together with the name it picks, so a
+        // schema entry would only give the editor a field to render for it.
         .params = {P{.key = QString(ActionParam::TargetWorkspaceName),
                      .kind = QStringLiteral("workspaceName"),
                      .max = static_cast<double>(MaxWorkspaceNameLength)}},
         .category = QStringLiteral("windowManagement"),
-        // displayOrder is unique per category (pinned by
-        // testDisplayOrderUniqueWithinCategory), and windowManagement's slots
-        // span BOTH builtin files (0-5 here, 6-11 in the appearance file), so
-        // the next free ordinal is after the whole category's tail.
+        // displayOrder only has to be unique within the category, which
+        // testDisplayOrderUniqueWithinCategory pins. windowManagement's
+        // descriptors are registered from both builtin files, so a new one
+        // takes an ordinal neither file uses yet.
         .displayOrder = 12,
     });
 

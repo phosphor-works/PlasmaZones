@@ -93,32 +93,6 @@ void WindowTrackingAdaptor::saveState()
         tracking->writeString(ConfigKeys::activeLayoutIdKey(), m_layoutManager->activeLayout()->id().toString());
     }
 
-    // Snap zone assignments and pending-restore queues are no longer persisted
-    // as separate keys — a snapped window's restore state is one WindowPlacement
-    // record (state="snapped", engineData.zoneIds). The runtime SnapState maps are
-    // re-populated by resolveWindowRestore re-committing from the store on open.
-    tracking->deleteKey(ConfigKeys::windowZoneAssignmentsFullKey());
-    tracking->deleteKey(ConfigKeys::pendingRestoreQueuesKey());
-
-    // Clean up obsolete keys from old formats. Reached only when at
-    // least one dirty bit is set (the DirtyNone early-return above
-    // skips this path), so we always flush the deletions along with
-    // the rest of the write. On subsequent saves the keys are already
-    // gone so deleteKey is a cheap no-op.
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowScreenAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowDesktopAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowLayoutAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoletePendingWindowZoneNumbersKey());
-    tracking->deleteKey(ConfigKeys::obsoleteWindowZoneAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoleteWindowScreenAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::obsoleteWindowDesktopAssignmentsKey());
-
-    // Pre-tile (float-back) geometry is no longer persisted separately — it lives
-    // in the unified WindowPlacement record's shared freeGeometryByScreen (the single
-    // float-back store). Drop the obsolete keys.
-    tracking->deleteKey(ConfigKeys::preTileGeometriesFullKey());
-    tracking->deleteKey(ConfigKeys::preTileGeometriesKey());
-
     // Save last used zone info (from service)
     if (dirty & D::DirtyLastUsedZone) {
         tracking->writeString(ConfigKeys::lastUsedZoneIdKey(), m_service->lastUsedZoneId());
@@ -133,35 +107,14 @@ void WindowTrackingAdaptor::saveState()
         // live companions through unchanged to avoid blanking them.
     }
 
-    // The FloatingWindows key is retired: a float persists as its engine's floating
-    // slot in the placement record. Clear any stale entry an older version left.
-    tracking->deleteKey(ConfigKeys::obsoleteFloatingWindowsKey());
-
-    // Pre-float zone/screen assignments are no longer persisted separately — a
-    // floated window's pre-float zones live in its WindowPlacement record
-    // (engineData.preFloatZones), restored into SnapState on reopen.
-    tracking->deleteKey(ConfigKeys::preFloatZoneAssignmentsKey());
-    tracking->deleteKey(ConfigKeys::preFloatScreenAssignmentsKey());
-
     // Save user-snapped classes
-    QJsonArray userSnappedArray;
     if (dirty & D::DirtyUserSnapped) {
+        QJsonArray userSnappedArray;
         for (const QString& windowClass : m_service->userSnappedClasses()) {
             userSnappedArray.append(windowClass);
         }
         tracking->writeJson(ConfigKeys::userSnappedClassesKey(), userSnappedArray);
     }
-
-    // Autotile window orders and pending restores are no longer persisted as
-    // separate keys — an autotiled window's position is one WindowPlacement record
-    // (state="autotiled", engineData.position), captured by the common save-time
-    // snapshot and close hook, exactly like snap. Drop the obsolete keys.
-    tracking->deleteKey(ConfigKeys::autotileWindowOrdersKey());
-    tracking->deleteKey(ConfigKeys::autotilePendingRestoresKey());
-
-    // Obsolete float-restore queue — replaced by the unified WindowPlacementStore.
-    // Drop any stale key left by an older build.
-    tracking->deleteKey(ConfigKeys::floatRestoreQueuesKey());
 
     // Unified WindowPlacementStore — the single source of truth for per-window
     // restore state (snapped / floated). The keep predicate reuses the single

@@ -21,8 +21,12 @@
  * It is scoped to what can be checked cheaply and exactly: the one-owner rule
  * across the WHOLE manifest, and complete coverage of a swept subset of
  * schema groups. everySweptSchemaKeyIsOwned lists the swept groups and why
- * each one joined; every Editor.* group the schema declares is swept too,
- * found by prefix rather than listed.
+ * each one joined; every Scrolling and Editor.* group the schema declares is
+ * swept too, found by prefix rather than listed.
+ *
+ * The dynamic-workspaces pages exist only in a USE_KDE_FRAMEWORKS build. The
+ * Workspaces.* schema rows stay declared in every build, so an OFF build
+ * checks the opposite: no page owns them and no exemption names them.
  */
 
 #include <QSet>
@@ -46,8 +50,8 @@ QString qualify(const QString& group, const QString& key)
     return group + QLatin1Char('/') + key;
 }
 
-/// Schema keys under @p group that no page manifest owns ON PURPOSE. Anything
-/// not listed here has to have exactly one owner.
+/// Schema keys, qualified as "group/key", that no page manifest owns ON
+/// PURPOSE. Every other key in a swept group has to have exactly one owner.
 const QSet<QString>& deliberatelyUnowned()
 {
     static const QSet<QString> kSet{
@@ -79,6 +83,36 @@ const QSet<QString>& deliberatelyUnowned()
         qualify(ConfigDefaults::tilingBehaviorGroup(), ConfigDefaults::lockedScreensKey()),
     };
     return kSet;
+}
+
+/// Every (group, key) any page manifest lists, qualified.
+QSet<QString> ownedKeys()
+{
+    QSet<QString> owned;
+    const auto& manifest = SettingsController::pageOwnedConfigKeys();
+    for (auto it = manifest.constBegin(); it != manifest.constEnd(); ++it) {
+        for (const Settings::ConfigKey& pair : it.value()) {
+            owned.insert(qualify(pair.first, pair.second));
+        }
+    }
+    return owned;
+}
+
+/// The schema groups an ON build's workspaces pages own outright.
+QStringList workspacesSchemaGroups()
+{
+    return {ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::workspacesNamedGroup(),
+            ConfigDefaults::workspacesSlotsGroup()};
+}
+
+/// Whether @p qualified is a key one of the workspaces pages edits: a
+/// Workspaces.* key, or a workspace chord leaf of Shortcuts.Global.
+bool isWorkspaceKey(const QString& group, const QString& key)
+{
+    if (group.startsWith(ConfigDefaults::workspacesGroup() + QLatin1Char('.'))) {
+        return true;
+    }
+    return group == ConfigDefaults::shortcutsGlobalGroup() && key.startsWith(QLatin1String("Workspace"));
 }
 
 } // namespace
@@ -164,77 +198,72 @@ private Q_SLOTS:
     void everySweptSchemaKeyIsOwned()
     {
         const PhosphorConfig::Schema schema = buildSettingsSchema();
-        const auto& manifest = SettingsController::pageOwnedConfigKeys();
-
-        QSet<QString> owned;
-        for (auto it = manifest.constBegin(); it != manifest.constEnd(); ++it) {
-            for (const Settings::ConfigKey& pair : it.value()) {
-                owned.insert(qualify(pair.first, pair.second));
-            }
-        }
+        const QSet<QString> owned = ownedKeys();
 
         QStringList unowned;
         int checked = 0;
-        // All SIX scrolling schema groups. The two indicator groups were
-        // outside this sweep, so a key added to either could drop out of
-        // per-page Reset with nothing failing — which is the exact class of
-        // regression this file exists to catch, and the DropIndicator group
-        // was added while the gap was open. Rendering rides along for the
-        // same reason: its Gpu key shipped without a manifest owner (no
-        // dirty mark, per-page Reset and Discard silently skipped it)
-        // precisely because this sweep did not cover the group.
-        // Decorations.Performance joined when its fourth key
-        // (BlurScaleMultiplier) landed: all five are owned by the
-        // window-appearance page today, and sweeping the group is what kept
-        // the fifth (SuppressWhileFullscreen) from shipping ownerless the way
-        // Rendering.Gpu did.
+        // Every Scrolling schema group, found by prefix below. The two
+        // indicator groups were once outside a hand-listed sweep, so a key
+        // added to either could drop out of per-page Reset with nothing
+        // failing, which is the exact class of regression this file exists
+        // to catch. The DropIndicator group was added while that gap was
+        // open, and the Wheel.Focus and Wheel.View groups were missed the
+        // same way, hence the prefix. Rendering rides along for the same
+        // reason: its Gpu key shipped without a manifest owner (no dirty
+        // mark, per-page Reset and Discard silently skipped it) precisely
+        // because this sweep did not cover the group.
+        // Decorations.Performance joined when BlurScaleMultiplier landed:
+        // every key in it is owned by the window-appearance page today, and
+        // sweeping the group is what kept SuppressWhileFullscreen from
+        // shipping ownerless the way Rendering.Gpu did.
         // Snapping.Behavior, Snapping.Behavior.ZoneSpan and Tiling.Behavior
-        // joined with the trigger release graces: those three arms were the
-        // only ones of the four outside this sweep, so deleting any of their
-        // ownership entries would have dropped the key out of per-page dirty
-        // tracking, Reset and Discard with nothing failing.
+        // joined with the trigger release graces: those arms were the only
+        // ones outside this sweep, so deleting any of their ownership entries
+        // would have dropped the key out of per-page dirty tracking, Reset
+        // and Discard with nothing failing.
         // The Editor.* groups joined with Editor.Background (issue #1161): a
         // key missing from the editor page's manifest leaves the page clean
         // after an edit, so Save never appears and the change never reaches
         // the daemon or the open editor. They are found by prefix, so an
         // Editor group added later is swept without editing this list.
         QStringList sweptGroups = {
-            ConfigDefaults::scrollingGroup(),
-            ConfigDefaults::scrollingBehaviorGroup(),
-            ConfigDefaults::scrollingTabIndicatorGroup(),
-            ConfigDefaults::scrollingDropIndicatorGroup(),
-            ConfigDefaults::scrollingZoneSelectorGroup(),
-            ConfigDefaults::scrollingDragScrollGroup(),
-            ConfigDefaults::renderingGroup(),
-            ConfigDefaults::decorationsPerformanceGroup(),
-            ConfigDefaults::snappingBehaviorGroup(),
-            ConfigDefaults::snappingBehaviorZoneSpanGroup(),
+            ConfigDefaults::renderingGroup(),        ConfigDefaults::decorationsPerformanceGroup(),
+            ConfigDefaults::snappingBehaviorGroup(), ConfigDefaults::snappingBehaviorZoneSpanGroup(),
             ConfigDefaults::tilingBehaviorGroup(),
-            // The three Workspaces schema groups joined with dynamic per-monitor
-            // workspaces. Workspaces.Behavior holds the gate scalars,
-            // Workspaces.Named the named-entry list and Workspaces.Slots one
-            // target key per quick slot; all of them are owned by the
-            // workspaces pages. Sweeping the groups keeps a tenth slot, or
-            // another behaviour scalar, from shipping ownerless the way
-            // Rendering.Gpu did. The slots' own chords are Shortcuts.Global
-            // keys, not Workspaces.Slots ones, so they are outside this sweep
-            // by design.
-            ConfigDefaults::workspacesBehaviorGroup(),
-            ConfigDefaults::workspacesNamedGroup(),
-            ConfigDefaults::workspacesSlotsGroup(),
         };
+#ifdef USE_KDE_FRAMEWORKS
+        // The Workspaces schema groups joined with dynamic per-monitor
+        // workspaces. Workspaces.Behavior holds the gate scalars,
+        // Workspaces.Named the named-entry list and Workspaces.Slots the
+        // target pair of every quick slot, all owned by the workspaces
+        // pages. Sweeping the groups keeps another slot, or another behaviour
+        // scalar, from shipping ownerless the way Rendering.Gpu did. The
+        // workspace chords are Shortcuts.Global keys, outside this sweep;
+        // workspacesShortcutsPageOwnsEveryWorkspaceChord covers them. In a
+        // build without the feature no page exists to own these groups, and
+        // workspaceKeysHaveNoOwnerWithoutTheFeature checks that instead.
+        sweptGroups.append(workspacesSchemaGroups());
+#endif
+        const QString scrollingGroup = ConfigDefaults::scrollingGroup();
+        const QString scrollingPrefix = scrollingGroup + QLatin1Char('.');
         const QString editorPrefix = ConfigDefaults::editorGroup() + QLatin1Char('.');
         for (auto it = schema.groups.constBegin(); it != schema.groups.constEnd(); ++it) {
-            if (it.key().startsWith(editorPrefix)) {
+            if (it.key() == scrollingGroup || it.key().startsWith(scrollingPrefix)
+                || it.key().startsWith(editorPrefix)) {
                 sweptGroups.append(it.key());
             }
         }
-        // The Editor sweep must find the four groups declared today, so a
-        // renamed prefix cannot quietly sweep nothing.
-        for (const QString& editorGroup :
-             {ConfigDefaults::editorShortcutsGroup(), ConfigDefaults::editorSnappingGroup(),
-              ConfigDefaults::editorFillOnDropGroup(), ConfigDefaults::editorBackgroundGroup()}) {
-            QVERIFY2(sweptGroups.contains(editorGroup), qPrintable(editorGroup));
+        // The prefix sweeps must find the groups declared today, so a renamed
+        // prefix cannot quietly sweep nothing. The wheel groups are named
+        // because a hand-listed sweep once missed them.
+        for (const QString& prefixedGroup :
+             {scrollingGroup, ConfigDefaults::scrollingBehaviorGroup(), ConfigDefaults::scrollingTabIndicatorGroup(),
+              ConfigDefaults::scrollingDropIndicatorGroup(), ConfigDefaults::scrollingZoneSelectorGroup(),
+              ConfigDefaults::scrollingDragScrollGroup(), ConfigDefaults::scrollingWheelFocusGroup(),
+              ConfigDefaults::scrollingWheelViewGroup(), ConfigDefaults::editorShortcutsGroup(),
+              ConfigDefaults::editorSnappingGroup(), ConfigDefaults::editorFillOnDropGroup(),
+              ConfigDefaults::editorBackgroundGroup()}) {
+            QVERIFY2(sweptGroups.contains(prefixedGroup), qPrintable(prefixedGroup));
         }
         for (const QString& group : std::as_const(sweptGroups)) {
             const auto it = schema.groups.constFind(group);
@@ -287,22 +316,21 @@ private Q_SLOTS:
 
     /// The reset-exemption contract for the feature enable master switches:
     /// every exempt key must be manifest-owned (a dangling exemption means the
-    /// dirty-tracking fix regressed back to unowned), and all four switches
-    /// must be exempt (an enable key missing here would let a page Reset turn
-    /// its feature off). Workspaces is the outlier of the four: its enable
-    /// lives under the Behavior group rather than a mode root group.
-    void resetExemptEnableKeysAreOwnedAndComplete()
+    /// dirty-tracking fix regressed back to unowned), and every switch must
+    /// be exempt (an enable key missing here would let a page Reset turn its
+    /// feature off). Workspaces is the outlier: its enable lives under the
+    /// Behavior group rather than a mode root group, and only a build with
+    /// the feature has a page to own it.
+    void resetExemptModeEnableKeysAreOwnedAndComplete()
     {
-        QSet<QString> owned;
-        const auto& manifest = SettingsController::pageOwnedConfigKeys();
-        for (auto it = manifest.constBegin(); it != manifest.constEnd(); ++it) {
-            for (const auto& gk : it.value()) {
-                owned.insert(qualify(gk.first, gk.second));
-            }
-        }
+        const QSet<QString> owned = ownedKeys();
 
         const auto& exempt = SettingsController::resetExemptModeEnableKeys();
+#ifdef USE_KDE_FRAMEWORKS
         QCOMPARE(exempt.size(), 4);
+#else
+        QCOMPARE(exempt.size(), 3);
+#endif
         QSet<QString> exemptQualified;
         // Collect-then-assert, matching the rest of this file: a single
         // dangling exemption must not hide the state of the others.
@@ -319,9 +347,118 @@ private Q_SLOTS:
         QVERIFY(exemptQualified.contains(qualify(ConfigDefaults::snappingGroup(), ConfigDefaults::enabledKey())));
         QVERIFY(exemptQualified.contains(qualify(ConfigDefaults::tilingGroup(), ConfigDefaults::enabledKey())));
         QVERIFY(exemptQualified.contains(qualify(ConfigDefaults::scrollingGroup(), ConfigDefaults::enabledKey())));
+#ifdef USE_KDE_FRAMEWORKS
         QVERIFY(
             exemptQualified.contains(qualify(ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::enabledKey())));
+#endif
     }
+
+    /// The consent exemption: the ManageKWinPerOutput latch is written by the
+    /// Workspaces Behavior page's consent prompt, not a row, so a Reset of
+    /// that page must not withdraw it. It must still be owned, so a pending
+    /// grant takes part in dirty, Save and Discard. A build without the
+    /// feature has no page to own it and exempts nothing.
+    void resetExemptConsentKeysAreOwnedAndComplete()
+    {
+        const QSet<QString> owned = ownedKeys();
+        const auto& exempt = SettingsController::resetExemptConsentKeys();
+#ifdef USE_KDE_FRAMEWORKS
+        QCOMPARE(exempt.size(), 1);
+        const QString consent =
+            qualify(ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::manageKWinPerOutputKey());
+        QCOMPARE(qualify(exempt.first().first, exempt.first().second), consent);
+        QVERIFY2(owned.contains(consent), qPrintable(consent));
+        // Owned by the page whose Reset it is exempt from.
+        const Settings::ConfigKeyList behaviorKeys =
+            SettingsController::pageOwnedConfigKeys().value(QStringLiteral("workspaces-behavior"));
+        QVERIFY(behaviorKeys.contains(
+            Settings::ConfigKey{ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::manageKWinPerOutputKey()}));
+#else
+        Q_UNUSED(owned)
+        QVERIFY(exempt.isEmpty());
+#endif
+    }
+
+#ifdef USE_KDE_FRAMEWORKS
+    /// The workspace chords are Shortcuts.Global leaves, so the group sweep
+    /// above does not reach them. Every one of them, and the target pair of
+    /// every quick slot, must be owned by workspaces-shortcuts, the page whose
+    /// in-page recorders edit them: owned by another page, that page's Reset
+    /// would clear a chord the user set here, and unowned, an edit here
+    /// would never light Save. Driven from the schema, so a chord added to
+    /// appendWorkspacesShortcutKeys without a manifest entry fails here.
+    void workspacesShortcutsPageOwnsEveryWorkspaceChord()
+    {
+        const PhosphorConfig::Schema schema = buildSettingsSchema();
+        const Settings::ConfigKeyList pageKeys =
+            SettingsController::pageOwnedConfigKeys().value(QStringLiteral("workspaces-shortcuts"));
+        QSet<QString> pageOwned;
+        for (const Settings::ConfigKey& pair : pageKeys) {
+            pageOwned.insert(qualify(pair.first, pair.second));
+        }
+
+        QStringList expected;
+        const auto globals = schema.groups.constFind(ConfigDefaults::shortcutsGlobalGroup());
+        QVERIFY(globals != schema.groups.constEnd());
+        for (const PhosphorConfig::KeyDef& def : *globals) {
+            if (isWorkspaceKey(ConfigDefaults::shortcutsGlobalGroup(), def.key)) {
+                expected.append(qualify(ConfigDefaults::shortcutsGlobalGroup(), def.key));
+            }
+        }
+        for (int slot = 1; slot <= ConfigDefaults::WorkspaceSlotCount; ++slot) {
+            expected.append(
+                qualify(ConfigDefaults::workspacesSlotsGroup(), ConfigDefaults::workspaceSlotTargetIdKey(slot)));
+            expected.append(
+                qualify(ConfigDefaults::workspacesSlotsGroup(), ConfigDefaults::workspaceSlotTargetKey(slot)));
+        }
+        // The schema filter must have found the verb chords and both slot
+        // families, or a renamed key prefix would make this pass on nothing.
+        for (const QString& key :
+             {ConfigDefaults::workspaceFocusUpKey(), ConfigDefaults::workspaceMoveToMonitorRightKey(),
+              ConfigDefaults::workspaceFocusSlotKey(ConfigDefaults::WorkspaceSlotCount),
+              ConfigDefaults::workspaceMoveSlotKey(1)}) {
+            QVERIFY2(expected.contains(qualify(ConfigDefaults::shortcutsGlobalGroup(), key)), qPrintable(key));
+        }
+
+        QStringList missing;
+        for (const QString& qualified : std::as_const(expected)) {
+            if (!pageOwned.contains(qualified)) {
+                missing.append(qualified);
+            }
+        }
+        missing.sort();
+        QVERIFY2(missing.isEmpty(), qPrintable(missing.join(QLatin1String("; "))));
+    }
+#else
+    /// Without the feature the workspaces pages do not exist, while the
+    /// Workspaces.* schema rows stay declared so an OFF build never purges a
+    /// configuration an ON build on the same machine reads. No page may own
+    /// any of those keys, nor a workspace chord: an owner would put a Reset
+    /// button over keys the build cannot show.
+    void workspaceKeysHaveNoOwnerWithoutTheFeature()
+    {
+        const auto& manifest = SettingsController::pageOwnedConfigKeys();
+        for (const QString& page : {QStringLiteral("workspaces-behavior"), QStringLiteral("workspaces-named"),
+                                    QStringLiteral("workspaces-shortcuts")}) {
+            QVERIFY2(!manifest.contains(page), qPrintable(page));
+        }
+        QStringList owned;
+        for (auto it = manifest.constBegin(); it != manifest.constEnd(); ++it) {
+            for (const Settings::ConfigKey& pair : it.value()) {
+                if (isWorkspaceKey(pair.first, pair.second)) {
+                    owned.append(it.key() + QLatin1String(" -> ") + qualify(pair.first, pair.second));
+                }
+            }
+        }
+        owned.sort();
+        QVERIFY2(owned.isEmpty(), qPrintable(owned.join(QLatin1String("; "))));
+        // The rows themselves are still declared.
+        const PhosphorConfig::Schema schema = buildSettingsSchema();
+        for (const QString& group : workspacesSchemaGroups()) {
+            QVERIFY2(schema.groups.contains(group), qPrintable(group));
+        }
+    }
+#endif
 
     /// Same contract for the cross-page default selections: both keys must be
     /// manifest-owned (a dangling exemption means the dirty attribution
@@ -331,13 +468,7 @@ private Q_SLOTS:
     /// shows an editor row for).
     void resetExemptDefaultSelectionKeysAreOwnedAndComplete()
     {
-        QSet<QString> owned;
-        const auto& manifest = SettingsController::pageOwnedConfigKeys();
-        for (auto it = manifest.constBegin(); it != manifest.constEnd(); ++it) {
-            for (const auto& gk : it.value()) {
-                owned.insert(qualify(gk.first, gk.second));
-            }
-        }
+        const QSet<QString> owned = ownedKeys();
 
         const auto& exempt = SettingsController::resetExemptDefaultSelectionKeys();
         QCOMPARE(exempt.size(), 2);

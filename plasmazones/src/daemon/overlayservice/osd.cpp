@@ -496,6 +496,16 @@ void OverlayService::pushLayoutOsdContent(QObject* osdSlot, const LayoutOsdConte
 
 void OverlayService::showDisabledOsd(const QString& reason, const QString& screenId)
 {
+    showMessageCard(reason, screenId, QStringLiteral("dialog-cancel"));
+}
+
+void OverlayService::showInfoOsd(const QString& message, const QString& screenId)
+{
+    showMessageCard(message, screenId, QStringLiteral("dialog-information"));
+}
+
+void OverlayService::showMessageCard(const QString& reason, const QString& screenId, const QString& iconName)
+{
     const auto prep = prepareLayoutOsdWindow(screenId);
     if (!prep) {
         return;
@@ -543,11 +553,11 @@ void OverlayService::showDisabledOsd(const QString& reason, const QString& scree
     writeQmlProperty(osdSlot, QStringLiteral("disabledReason"), reason);
     // Written explicitly rather than left to the QML default: the slot is
     // REUSED across shows, so the glyph must be re-stated on each one.
-    writeQmlProperty(osdSlot, QStringLiteral("disabledIcon"), QStringLiteral("dialog-cancel"));
+    writeQmlProperty(osdSlot, QStringLiteral("disabledIcon"), iconName);
     writeQmlProperty(osdSlot, QStringLiteral("mode"), QStringLiteral("layout-osd"));
 
     finishOsdShow(window, surface, osdSlot, screenGeom, effectiveScreenId);
-    qCInfo(lcOverlay) << "Disabled OSD: reason=" << reason << "screen=" << screenId;
+    qCInfo(lcOverlay) << "Message OSD: text=" << reason << "icon=" << iconName << "screen=" << screenId;
 }
 
 // hideLayoutOsd / hideNavigationOsd (formerly Q_SLOTS connected to a QML

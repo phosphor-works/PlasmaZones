@@ -686,7 +686,9 @@ void ActionRegistry::registerBuiltinsAppearance()
         .slotFor = constantSlot(ActionSlot::AlgorithmParams),
         .validate =
             [](const QJsonObject& p) {
-                if (!hasNonEmptyString(p, ActionParam::Algorithm)) {
+                // Bounded like SetTilingAlgorithm's token: the same registry id,
+                // carried into the same evaluator and cache keys.
+                if (!hasBoundedNonEmptyString(p, ActionParam::Algorithm, MaxChainPackIdLength)) {
                     return false;
                 }
                 // The custom-parameter values are validated against the algorithm's
@@ -1074,14 +1076,9 @@ void ActionRegistry::registerBuiltinsAppearance()
         .slotFor = constantSlot(ActionSlot::OpenTabGroup),
         .validate =
             [](const QJsonObject& p) {
-                // Non-empty on the TRIMMED value: a name of spaces names
-                // nothing, and the daemon trims before it compares.
-                const QJsonValue v = p.value(ActionParam::Value);
-                if (!v.isString()) {
-                    return false;
-                }
-                const QString name = v.toString().trimmed();
-                return !name.isEmpty() && name.size() <= kMaxTabGroupNameLength;
+                // Non-blank and bounded on the TRIMMED value: a name of spaces
+                // names nothing, and the daemon trims before it compares.
+                return hasNonBlankStringWithin(p, ActionParam::Value, kMaxTabGroupNameLength);
             },
         .terminal = false,
         .allowedKeys = {QString(ActionParam::Value)},

@@ -3,15 +3,17 @@
 
 #include <PhosphorWorkspaces/WorkspaceMap.h>
 
+#include <algorithm>
 #include <iterator>
+#include <utility>
 
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
-#include <QUuid>
+#include <QSet>
 
-Q_LOGGING_CATEGORY(lcWorkspaceMap, "plasmazones.workspaces.map", QtWarningMsg)
+Q_LOGGING_CATEGORY(lcWorkspaceMap, "org.phosphor.workspaces.map", QtInfoMsg)
 
 namespace PhosphorWorkspaces {
 
@@ -218,6 +220,40 @@ bool WorkspaceMap::reorderWithinSlice(const QString& desktopId, int newSliceInde
     return false;
 }
 
+bool WorkspaceMap::reorderSlice(const QString& screenId, const QStringList& orderedIds)
+{
+    const auto slot = m_slices.find(screenId);
+    if (slot == m_slices.end()) {
+        return false;
+    }
+    QList<WorkspaceEntry>& entries = slot.value();
+    if (orderedIds.size() != entries.size()) {
+        return false;
+    }
+    QList<WorkspaceEntry> next;
+    next.reserve(entries.size());
+    for (const QString& desktopId : orderedIds) {
+        const auto found = std::find_if(entries.cbegin(), entries.cend(), [&desktopId](const WorkspaceEntry& entry) {
+            return entry.desktopId == desktopId;
+        });
+        if (found == entries.cend()) {
+            return false;
+        }
+        next.append(*found);
+    }
+    // A repeated id would have matched the same entry twice and still filled
+    // the list to size, so the permutation check finishes on the id set.
+    const QSet<QString> unique(orderedIds.cbegin(), orderedIds.cend());
+    if (unique.size() != orderedIds.size()) {
+        return false;
+    }
+    if (next == entries) {
+        return false;
+    }
+    entries = next;
+    return true;
+}
+
 bool WorkspaceMap::transfer(const QString& desktopId, const QString& toScreenId, int sliceIndex)
 {
     if (toScreenId.isEmpty()) {
@@ -248,6 +284,55 @@ void WorkspaceMap::setName(const QString& desktopId, const QString& name)
             return;
         }
     }
+}
+
+void WorkspaceMap::setNamedId(const QString& desktopId, const QString& namedId)
+{
+    const auto slot = m_slices.find(m_ownerOf.value(desktopId));
+    if (slot == m_slices.end()) {
+        return;
+    }
+    for (WorkspaceEntry& entry : slot.value()) {
+        if (entry.desktopId == desktopId) {
+            entry.namedId = namedId;
+            return;
+        }
+    }
+}
+
+bool WorkspaceMap::renameScreen(const QString& fromScreenId, const QString& toScreenId)
+{
+    if (fromScreenId.isEmpty() || toScreenId.isEmpty() || fromScreenId == toScreenId) {
+        return false;
+    }
+    if (!knowsScreen(fromScreenId) || m_slices.contains(toScreenId)) {
+        return false;
+    }
+    // The order slot is kept, so a rename never moves the slice in the
+    // concatenation. A stale order row already naming the new id goes first,
+    // or the screen would be listed twice.
+    m_screenOrder.removeAll(toScreenId);
+    const int at = m_screenOrder.indexOf(fromScreenId);
+    if (at >= 0) {
+        m_screenOrder[at] = toScreenId;
+    } else {
+        m_screenOrder.append(toScreenId);
+    }
+    const QList<WorkspaceEntry> entries = m_slices.take(fromScreenId);
+    if (!entries.isEmpty()) {
+        for (const WorkspaceEntry& entry : entries) {
+            m_ownerOf.insert(entry.desktopId, toScreenId);
+        }
+        m_slices.insert(toScreenId, entries);
+    }
+    for (auto it = m_slices.begin(); it != m_slices.end(); ++it) {
+        for (WorkspaceEntry& entry : it.value()) {
+            if (entry.homeScreenId == fromScreenId) {
+                entry.homeScreenId = toScreenId;
+            }
+        }
+    }
+    return true;
 }
 
 void WorkspaceMap::setHomeScreen(const QString& desktopId, const QString& homeScreenId)
@@ -326,11 +411,13 @@ QStringList WorkspaceMap::repairAgainst(const QStringList& kwinIds)
 {
     // Drop entries whose desktop vanished. A slice left with nothing is erased
     // rather than kept as an empty list, the same no-empty-slices invariant
-    // remove() and takeSlice() hold.
+    // remove() and takeSlice() hold. Membership through a set built once: a
+    // list lookup per entry is quadratic in the desktop count.
+    const QSet<QString> live(kwinIds.cbegin(), kwinIds.cend());
     for (auto it = m_slices.begin(); it != m_slices.end();) {
         auto& entries = it.value();
         for (int i = entries.size() - 1; i >= 0; --i) {
-            if (!kwinIds.contains(entries.at(i).desktopId)) {
+            if (!live.contains(entries.at(i).desktopId)) {
                 m_ownerOf.remove(entries.at(i).desktopId);
                 entries.removeAt(i);
             }
@@ -373,6 +460,9 @@ QString WorkspaceMap::toJson(quint64 generation, const QHash<QString, int>& curr
             if (!entry.name.isEmpty()) {
                 obj[QLatin1String("name")] = entry.name;
             }
+            if (!entry.namedId.isEmpty()) {
+                obj[QLatin1String("namedId")] = entry.namedId;
+            }
             if (includeState && !entry.homeScreenId.isEmpty()) {
                 obj[QLatin1String("homeScreen")] = entry.homeScreenId;
             }
@@ -387,7 +477,6 @@ QString WorkspaceMap::toJson(quint64 generation, const QHash<QString, int>& curr
 
 bool WorkspaceMap::fromJson(const QString& json)
 {
-    clear();
     QJsonParseError error{};
     const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8(), &error);
     if (error.error != QJsonParseError::NoError || !doc.isObject()) {
@@ -419,7 +508,10 @@ bool WorkspaceMap::fromJson(const QString& json)
         }
     }
 
-    for (const QString& screenId : screens) {
+    // Built in a scratch map and swapped in only once the parse is through,
+    // so a caller holding a good map never loses it to a bad file.
+    WorkspaceMap parsed;
+    for (const QString& screenId : std::as_const(screens)) {
         const QJsonArray sliceArray = slices.value(screenId).toArray();
         QList<WorkspaceEntry> entries;
         for (const QJsonValue& entryValue : sliceArray) {
@@ -431,32 +523,34 @@ bool WorkspaceMap::fromJson(const QString& json)
             // nothing would still make the desktop destroy-exempt and the user
             // would have no way to see why the workspace never goes away.
             entry.name = obj.value(QLatin1String("name")).toString().trimmed();
+            entry.namedId = entry.name.isEmpty() ? QString() : obj.value(QLatin1String("namedId")).toString();
             entry.homeScreenId = obj.value(QLatin1String("homeScreen")).toString();
-            // The state file is a boundary: a desktop id is a KWin UUID, so
-            // anything that is not one cannot name a real desktop and would
-            // only sit in the map until the first settle dropped it. Whether a
-            // WELL-FORMED id still EXISTS is decided later by repairAgainst
-            // against KWin's live list, which is the only authority on that.
-            if (entry.desktopId.isEmpty() || QUuid::fromString(entry.desktopId).isNull()) {
-                qCWarning(lcWorkspaceMap)
-                    << "ignoring a stored workspace entry whose desktop id is not a UUID:" << entry.desktopId;
+            // The state file is a boundary, but a desktop id is opaque: KWin
+            // mints unbraced UUIDs and keeps whatever a kwinrc it loaded
+            // carried, so only the empty and the absurd are refused here.
+            // Whether a well-formed id still EXISTS is decided later by
+            // repairAgainst against KWin's live list, the only authority.
+            if (entry.desktopId.isEmpty() || entry.desktopId.size() > MaxDesktopIdLength) {
+                qCWarning(lcWorkspaceMap) << "ignoring a stored workspace entry with an unusable desktop id of length"
+                                          << entry.desktopId.size();
                 continue;
             }
-            if (m_ownerOf.contains(entry.desktopId)) {
+            if (parsed.m_ownerOf.contains(entry.desktopId)) {
                 continue;
             }
             entries.append(entry);
-            m_ownerOf.insert(entry.desktopId, screenId);
+            parsed.m_ownerOf.insert(entry.desktopId, screenId);
         }
-        m_screenOrder.append(screenId);
+        parsed.m_screenOrder.append(screenId);
         // Materialize the slice only when it holds something: an empty entry
         // would make hasScreen() true for a screen the restore knows nothing
         // real about, and the reconciler reads hasScreen as "this output is
         // part of the world".
         if (!entries.isEmpty()) {
-            m_slices.insert(screenId, entries);
+            parsed.m_slices.insert(screenId, entries);
         }
     }
+    *this = parsed;
     return true;
 }
 

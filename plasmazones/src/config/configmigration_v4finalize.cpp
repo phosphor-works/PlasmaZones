@@ -6,6 +6,7 @@
 #include "configbackends.h"
 #include "configdefaults.h"
 #include "configkeys.h"
+#include "configkeys_disablelabels.h"
 #include "settings.h"
 #include "configmigration_v4detail.h"
 #include "configmigration_util.h"
@@ -57,7 +58,7 @@ QStringList parseDisableList(const QString& csv)
 /// Build a context rule from a v3 monitor disable-list entry (`screenId`).
 PhosphorRules::Rule disableRuleForMonitor(const QString& screenId, PhosphorZones::AssignmentEntry::Mode mode)
 {
-    const QString name = disableRulePrefixFor(mode) + screenId;
+    const QString name = disableRuleName(mode, screenId, 0, QString());
     return PhosphorRules::ContextRuleBridge::makeDisableRule(name, screenId, 0, QString(),
                                                              PhosphorZones::modeToWireString(mode),
                                                              PhosphorRules::ContextRuleBridge::kContextBandBase);
@@ -83,7 +84,7 @@ std::optional<PhosphorRules::Rule> disableRuleForDesktop(const QString& entry,
     if (!ok || desktop <= 0) {
         return std::nullopt;
     }
-    const QString name = disableRulePrefixFor(mode) + screenId + disableRuleDesktopSuffix(desktop);
+    const QString name = disableRuleName(mode, screenId, desktop, QString());
     return PhosphorRules::ContextRuleBridge::makeDisableRule(name, screenId, desktop, QString(),
                                                              PhosphorZones::modeToWireString(mode),
                                                              PhosphorRules::ContextRuleBridge::kContextBandBase);
@@ -98,8 +99,7 @@ std::optional<PhosphorRules::Rule> disableRuleForDesktop(const QString& entry,
 /// the screen ID. Activity UUIDs are canonical and never contain `/`, so
 /// the trailing segment is unambiguously the activity uuid; everything
 /// to the left is the screen ID (which may carry an embedded `/CONNECTOR`
-/// suffix). Matches the live `Settings::writeDisableEntries` decoder in
-/// src/config/settings.cpp.
+/// suffix). Matches the live `Settings::writeDisableEntries` decoder.
 std::optional<PhosphorRules::Rule> disableRuleForActivity(const QString& entry,
                                                           PhosphorZones::AssignmentEntry::Mode mode)
 {
@@ -109,7 +109,7 @@ std::optional<PhosphorRules::Rule> disableRuleForActivity(const QString& entry,
     }
     const QString screenId = entry.left(slash);
     const QString activity = entry.mid(slash + 1);
-    const QString name = disableRulePrefixFor(mode) + screenId + disableRuleActivitySuffix();
+    const QString name = disableRuleName(mode, screenId, 0, activity);
     return PhosphorRules::ContextRuleBridge::makeDisableRule(name, screenId, 0, activity,
                                                              PhosphorZones::modeToWireString(mode),
                                                              PhosphorRules::ContextRuleBridge::kContextBandBase);
@@ -169,22 +169,13 @@ bool parseAssignmentGroup(const QString& groupName, const QString& prefix, QStri
     return !screenId.isEmpty();
 }
 
-/// Human-readable label for a migrated assignment rule. Reuses the same
-/// suffix helpers the disable-rule writer goes through (configkeys.h)
-/// so a future tweak to the suffix format (e.g. localising the bullet,
-/// switching to ` — Desktop `) flows to both assignment and disable
-/// rule names in lockstep — the rule editor stays scannable instead of
-/// forking visual styles.
+/// Human-readable label for a migrated assignment rule: the context label
+/// every context rule carries (ContextRuleBridge::contextRuleName), the same
+/// one disableRuleName composes after its mode prefix, so assignment and
+/// disable rule names stay in one visual style in the rule editor.
 QString assignmentRuleName(const QString& screenId, int desktop, const QString& activity)
 {
-    QString name = screenId;
-    if (desktop > 0) {
-        name += disableRuleDesktopSuffix(desktop);
-    }
-    if (!activity.isEmpty()) {
-        name += disableRuleActivitySuffix();
-    }
-    return name;
+    return PhosphorRules::ContextRuleBridge::contextRuleName(screenId, desktop, activity);
 }
 
 // Frozen on-disk keys for the v4 per-layout settings relocation. Local literals

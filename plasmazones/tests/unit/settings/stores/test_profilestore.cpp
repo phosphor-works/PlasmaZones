@@ -271,6 +271,78 @@ private Q_SLOTS:
                  "re-activation applied a blob: isActiveModified treated the machine-scoped pin as a modification");
     }
 
+    /// A profile file placed in the folder by hand (or imported) is not
+    /// trusted to leave the machine-scoped keys out. Reading it strips
+    /// Rendering.Gpu and the Workspaces.Behavior ManageKWinPerOutput consent
+    /// latch from its delta, so neither is listed as a change nor written
+    /// back out by an export, while RebindKWinDesktopShortcuts in the same
+    /// group rides the profile like any preference.
+    ///
+    /// The diff and the export both read the record readProfileFile built, so
+    /// both fail if its Settings::stripMachineScopedKeys call is removed. The
+    /// activation leg alone would not: resolveConfig strips again.
+    void handPlacedFileLosesMachineScopedKeysOnRead()
+    {
+        const QString bracedId = QUuid::createUuid().toString();
+        const QString path =
+            m_dir->path() + QLatin1Char('/') + QUuid(bracedId).toString(QUuid::WithoutBraces) + QStringLiteral(".json");
+        const QJsonObject delta{
+            {ConfigDefaults::renderingGroup(), QJsonObject{{ConfigDefaults::gpuKey(), QStringLiteral("10de:1e84")}}},
+            {ConfigDefaults::workspacesBehaviorGroup(),
+             QJsonObject{{ConfigDefaults::manageKWinPerOutputKey(), true},
+                         {ConfigDefaults::rebindKWinDesktopShortcutsKey(), false}}},
+        };
+        const QJsonObject file{
+            {QStringLiteral("_version"), 5},
+            {QStringLiteral("id"), bracedId},
+            {QStringLiteral("name"), QStringLiteral("Hand placed")},
+            {QStringLiteral("config"), delta},
+        };
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(QJsonDocument(file).toJson());
+        }
+        m_store->refresh();
+
+        // The diff lists the rebind toggle and nothing machine-scoped.
+        QStringList listed;
+        for (const QVariant& v : m_store->configChanges(bracedId)) {
+            const QVariantMap row = v.toMap();
+            listed.append(row.value(QStringLiteral("rawGroup")).toString() + QLatin1Char('/')
+                          + row.value(QStringLiteral("rawKey")).toString());
+        }
+        const QString rebind = ConfigDefaults::workspacesBehaviorGroup() + QLatin1Char('/')
+            + ConfigDefaults::rebindKWinDesktopShortcutsKey();
+        QVERIFY2(listed.contains(rebind), qPrintable(listed.join(QLatin1String(", "))));
+        QVERIFY2(!listed.contains(ConfigDefaults::workspacesBehaviorGroup() + QLatin1Char('/')
+                                  + ConfigDefaults::manageKWinPerOutputKey()),
+                 qPrintable(listed.join(QLatin1String(", "))));
+        QVERIFY2(!listed.contains(ConfigDefaults::renderingGroup() + QLatin1Char('/') + ConfigDefaults::gpuKey()),
+                 qPrintable(listed.join(QLatin1String(", "))));
+
+        // The export carries the same record, so the same keys.
+        const QString destPath = m_dir->path() + QStringLiteral("/exported-hand-placed");
+        QVERIFY(m_store->exportProfile(bracedId, destPath));
+        QFile exported(destPath);
+        QVERIFY(exported.open(QIODevice::ReadOnly));
+        const QJsonObject exportedConfig =
+            QJsonDocument::fromJson(exported.readAll()).object().value(QStringLiteral("config")).toObject();
+        const QJsonObject exportedWorkspaces =
+            exportedConfig.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
+        QVERIFY(exportedWorkspaces.contains(ConfigDefaults::rebindKWinDesktopShortcutsKey()));
+        QVERIFY(!exportedWorkspaces.contains(ConfigDefaults::manageKWinPerOutputKey()));
+        QVERIFY(!exportedConfig.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
+
+        // Activation applies the rebind toggle and leaves both machine-scoped
+        // keys out of the staged blob, so the live values stay as they were.
+        QVERIFY(m_store->activateProfile(bracedId));
+        const QJsonObject appliedWorkspaces = m_lastApplied.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
+        QCOMPARE(appliedWorkspaces.value(ConfigDefaults::rebindKWinDesktopShortcutsKey()).toBool(true), false);
+        QVERIFY(!appliedWorkspaces.contains(ConfigDefaults::manageKWinPerOutputKey()));
+        QVERIFY(!m_lastApplied.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
+    }
+
     /// Three-level chain: each node stores its delta against its parent, and
     /// resolving overlays the whole chain.
     void threeLevelChain()

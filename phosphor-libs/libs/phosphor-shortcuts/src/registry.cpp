@@ -26,14 +26,22 @@ Registry::Registry(IBackend* backend, QObject* parent)
 
     connect(backend, &IBackend::activated, this, &Registry::onBackendActivated);
     connect(backend, &IBackend::ready, this, &Registry::onBackendReady);
-    connect(backend, &IBackend::triggersChanged, this, [this](const QString& id) {
-        // Filter to ids we own — a shared backend may carry other consumers'
-        // entries, and forwarding those would make consumers re-query ids
-        // they never bound.
-        if (m_entries.contains(id)) {
-            Q_EMIT triggersChanged(id);
-        }
-    });
+    // Queued: a backend may report from inside a register or update call,
+    // i.e. while flush() is walking m_entries, and a consumer slot that binds
+    // or unbinds in response (a cheatsheet refresh dismissing itself drops
+    // its Escape grab) would mutate the hash under that walk.
+    connect(
+        backend, &IBackend::triggersChanged, this,
+        [this](const QString& id) {
+            // Filter to ids we own — a shared backend may carry other
+            // consumers' entries, and forwarding those would make consumers
+            // re-query ids they never bound. Checked at delivery, so an id
+            // unbound since the report is dropped too.
+            if (m_entries.contains(id)) {
+                Q_EMIT triggersChanged(id);
+            }
+        },
+        Qt::QueuedConnection);
 }
 
 Registry::~Registry() = default;
@@ -107,7 +115,14 @@ void Registry::rebind(const QString& id, const QKeySequence& seq)
         }
         it->binding.currentSeq = QKeySequence();
         if (it->registered && m_backend) {
+            // Destructive on KGlobalAccel (removeAllShortcuts deletes the
+            // record), so nothing is left for a later revival to autoload.
             m_backend->unregisterShortcut(id);
+        } else if (it->settled) {
+            // Nothing registered to unregister, but the platform may still
+            // keep the record of a chord this entry held before it was parked.
+            // Left alone, a later registration would autoload that old chord.
+            it->storePending = true;
         }
         // Reset the full sent-state to match a fresh Entry — the backend has
         // forgotten this id, so every lastSent field must say "nothing sent".
@@ -126,6 +141,11 @@ void Registry::rebind(const QString& id, const QKeySequence& seq)
         return;
     }
     it->binding.currentSeq = seq;
+    if (!it->registered && it->settled) {
+        // A real change while the backend holds no registration (parked, or
+        // cleared earlier). See Entry::storePending.
+        it->storePending = true;
+    }
 }
 
 void Registry::setActive(const QString& id, bool active)
@@ -151,6 +171,22 @@ void Registry::unbind(const QString& id)
     }
 }
 
+void Registry::purge(const QString& id)
+{
+    if (m_entries.contains(id)) {
+        unbind(id);
+        return;
+    }
+    if (m_backend) {
+        m_backend->forgetShortcut(id);
+    }
+}
+
+std::optional<QStringList> Registry::storedShortcutIds() const
+{
+    return m_backend ? m_backend->storedShortcutIds() : std::nullopt;
+}
+
 void Registry::flush()
 {
     if (!m_backend) {
@@ -162,8 +198,12 @@ void Registry::flush()
         return;
     }
 
+    const bool registersUnbound = m_backend->registersUnboundIds();
     for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
         auto& entry = *it;
+        // Marked before anything else so a rebind() arriving from now on is
+        // known to be a change, not the consumer's initial config.
+        entry.settled = true;
         if (!entry.active) {
             // Parked by setActive(). Release the grab through the
             // non-destructive path so the platform keeps whatever the user
@@ -171,18 +211,36 @@ void Registry::flush()
             // re-registers it from scratch with the stored binding.
             if (entry.registered) {
                 m_backend->suspendShortcut(entry.binding.id);
+                // A rebind() in the same batch as the park never reached the
+                // backend (registered entries are updated only on the active
+                // arm below), so the record still holds the old chord.
+                // Writing it through after the suspend keeps the new chord
+                // without grabbing it.
+                if (entry.lastSentCurrent != entry.binding.currentSeq) {
+                    entry.storePending = true;
+                }
                 entry.registered = false;
                 entry.lastSentDefault = QKeySequence();
                 entry.lastSentCurrent = QKeySequence();
                 entry.lastSentPersistent = true;
             }
+            if (entry.storePending) {
+                m_backend->storeShortcut(entry.binding.id, entry.binding.currentSeq);
+                entry.storePending = false;
+            }
             continue;
         }
-        if (entry.binding.currentSeq.isEmpty()) {
+        if (entry.binding.currentSeq.isEmpty() && !registersUnbound) {
             // Don't ask the backend to grab nothing — skips the stale-grab
             // hazard on KGlobalAccel. Entry stays in the registry (so a
             // later rebind() to a non-empty seq will register it) and we
-            // don't mark it sent because nothing has been sent.
+            // don't mark it sent because nothing has been sent. A record the
+            // entry left behind while parked is deleted, so a later
+            // registration cannot autoload it.
+            if (entry.storePending) {
+                m_backend->storeShortcut(entry.binding.id, QKeySequence());
+                entry.storePending = false;
+            }
             continue;
         }
 
@@ -199,6 +257,13 @@ void Registry::flush()
             // backend refresh its "reset to default" target and its crash-purge
             // decision — KGlobalAccelBackend and PortalBackend both handle this
             // idempotently.
+            if (entry.storePending) {
+                // The sequence moved while nothing was registered. Write it
+                // into the platform's record FIRST: registration autoloads
+                // that record, and would otherwise hand back the old chord.
+                m_backend->storeShortcut(entry.binding.id, entry.binding.currentSeq);
+                entry.storePending = false;
+            }
             m_backend->registerShortcut(entry.binding.id, entry.binding.defaultSeq, entry.binding.currentSeq,
                                         entry.binding.description, entry.persistent);
             entry.registered = true;

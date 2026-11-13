@@ -3,10 +3,10 @@
 
 // SettingsController — the rule-list label lookups. The RuleController renders
 // its match / action summaries through resolver closures this controller
-// installs (screen and activity ids, desktop numbers, zone ids, layout ids,
-// algorithm tokens, animation, overlay shader and decoration pack ids,
-// animation event paths), the two zone enumerators its pickers read, and the
-// refresh wiring that keeps all of them live. Split from settingscontroller.cpp
+// installs (screen and activity ids, desktop numbers, named workspace ids,
+// zone ids, layout ids, algorithm tokens, animation, overlay shader and
+// decoration pack ids, animation event paths), the two zone enumerators its
+// pickers read, and the refresh wiring that keeps all of them live. Split from settingscontroller.cpp
 // for file-size; same class, separate TU.
 
 #include "settingscontroller.h"
@@ -91,6 +91,13 @@ void SettingsController::installRuleLabelLookups()
             return m_virtualDesktopNames.at(num - 1);
         }
         return QString();
+    });
+    // RouteToWorkspace targets a named entry by its persistent id. The summary
+    // shows that entry's CURRENT name, so a rename shows up on the rule at
+    // once; an id no entry carries resolves to empty and the summary falls
+    // back to the name the action stored.
+    m_rulesPage->setWorkspaceLookup([this](const QString& entryId) -> QString {
+        return namedWorkspaceName(entryId);
     });
     // Distinct zone names for the SnapToZone "Zone names" picker, read from the
     // registry's Zone objects because the LayoutPreview list carries no zone
@@ -331,6 +338,9 @@ void SettingsController::installRuleLabelLookups()
     // on renames too, like its screen/activity/layout siblings, or a rule's
     // "Desktop: Work" label stays stale until an unrelated refresh fires.
     connect(this, &SettingsController::virtualDesktopsChanged, this, &SettingsController::refreshRuleLabels);
+    // The workspace resolver reads the named list live; a rename or removal
+    // there changes what a RouteToWorkspace summary shows.
+    connect(this, &SettingsController::namedWorkspacesChanged, this, &SettingsController::refreshRuleLabels);
     // A shader-pack rescan (user drops in a new effect, or one is removed)
     // can change an id→name mapping; refresh so resolved Shader labels track it.
     connect(m_animationShaderRegistry, &PhosphorAnimationShaders::AnimationShaderRegistry::effectsChanged, this,

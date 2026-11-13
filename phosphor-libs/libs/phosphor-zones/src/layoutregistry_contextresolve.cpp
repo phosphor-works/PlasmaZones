@@ -439,11 +439,10 @@ ContextGapOverride LayoutRegistry::resolveContextGaps(const QString& screenId, i
             // Resolve each gap slot from the highest-priority matching rule that
             // carries that slot's action. Any CATCH-ALL managed rule is EXCLUDED.
             // No current build writes one: the global default gaps are config-backed
-            // and the managed baseline gap rule was retired (ConfigDefaults::
-            // baselineGapRuleId survives only as a startup strip target). The guard
-            // is LEGACY DEFENCE — a rules.json written by an older version can still
-            // carry that baseline, and it may be read here before the daemon's strip
-            // pass has run. Were it admitted, its catch-all match would fill every
+            // and the managed baseline gap rule was retired. The guard is LEGACY
+            // DEFENCE, and the only one: nothing strips such a rule any more, so a
+            // rules.json written by an older version can still carry that baseline
+            // for good. Were it admitted, its catch-all match would fill every
             // gap slot with the old global default and masquerade as a top-tier
             // context override, shadowing both the per-layout tier and the live
             // config default that must sit below context overrides. SCREEN-scoped gap rules

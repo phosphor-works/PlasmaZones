@@ -88,17 +88,19 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                             {PhosphorI18n::tr("split"), PhosphorI18n::tr("subdivide"), PhosphorI18n::tr("region"),
                              PhosphorI18n::tr("monitor")});
 
+#ifdef USE_KDE_FRAMEWORKS
     // Dynamic per-monitor workspaces (the three leaves under the "workspaces"
-    // drill parent). Multi-word phrases included whole — the ranker matches
-    // the query as one un-split needle. "niri" stays untranslated.
+    // drill parent), compiled in with the feature like the pages themselves.
+    // Multi-word phrases included whole: the ranker matches the query as one
+    // un-split needle. "niri" stays untranslated.
     //
     // The master toggle (workspacesEnabled) and the KWin per-output latch
     // (workspacesManageKWinPerOutput) get keywords here rather than their own
     // addSetting entries. Neither has a searchAnchor: the master toggle lives
-    // in the sidebar header, like the snapping / tiling / scrolling ones which
-    // are also uncatalogued, and the latch is reached through a consent
-    // warning rather than a settings row. An addSetting for either would
-    // publish an anchor that resolves to nothing on the page.
+    // on the section's sidebar row, like the snapping / tiling / scrolling
+    // ones which are also uncatalogued, and the latch is reached through a
+    // consent warning rather than a settings row. An addSetting for either
+    // would publish an anchor that resolves to nothing on the page.
     search->setPageKeywords(QStringLiteral("workspaces-behavior"),
                             {PhosphorI18n::tr("workspace"), PhosphorI18n::tr("virtual desktop"),
                              PhosphorI18n::tr("dynamic workspaces"), PhosphorI18n::tr("per monitor"),
@@ -116,17 +118,27 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                 PhosphorI18n::tr("rebind")});
     search->setPageKeywords(QStringLiteral("workspaces-named"),
                             {PhosphorI18n::tr("workspace"), PhosphorI18n::tr("named workspace"),
-                             PhosphorI18n::tr("pin"), PhosphorI18n::tr("persistent"), PhosphorI18n::tr("rename")});
+                             PhosphorI18n::tr("pin"), PhosphorI18n::tr("persistent"), PhosphorI18n::tr("rename"),
+                             PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("hotkey")});
     addSection(search, QStringLiteral("workspaces-named"), QStringLiteral("workspacesNamedAdd"),
                PhosphorI18n::tr("Add named workspace"));
     addSection(search, QStringLiteral("workspaces-named"), QStringLiteral("workspacesNamedList"),
                PhosphorI18n::tr("Named workspaces"));
+    // The page carries the in-page chord recorders for the workspace verbs
+    // as well as the quick slots, so both get a section anchor and the verbs'
+    // own words. The named workspaces' chords are recorded in their rows on
+    // the Named Workspaces page, reached through workspacesNamedList above.
     search->setPageKeywords(QStringLiteral("workspaces-shortcuts"),
                             {PhosphorI18n::tr("workspace"), PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("hotkey"),
                              PhosphorI18n::tr("keybind"), PhosphorI18n::tr("keyboard"), PhosphorI18n::tr("key"),
-                             PhosphorI18n::tr("quick shortcut"), PhosphorI18n::tr("move window")});
+                             PhosphorI18n::tr("quick shortcut"), PhosphorI18n::tr("move window"),
+                             PhosphorI18n::tr("focus workspace"), PhosphorI18n::tr("move column"),
+                             PhosphorI18n::tr("reorder workspace"), PhosphorI18n::tr("move to monitor")});
+    addSection(search, QStringLiteral("workspaces-shortcuts"), QStringLiteral("workspaceVerbShortcuts"),
+               PhosphorI18n::tr("Workspace shortcuts"));
     addSection(search, QStringLiteral("workspaces-shortcuts"), QStringLiteral("workspaceQuickShortcuts"),
                PhosphorI18n::tr("Workspace quick shortcuts"));
+#endif
     // The three per-mode library pages (the old tabbed Layouts page, split).
     // Each hosts the shared LayoutBrowserPage, whose LayoutManageCard
     // (import / open folder) carries the manageLayouts anchor on every view.
@@ -331,9 +343,19 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                              PhosphorI18n::tr("spacing"), PhosphorI18n::tr("padding"), PhosphorI18n::tr("margin"),
                              PhosphorI18n::tr("blur"), PhosphorI18n::tr("performance")});
     search->setPageKeywords(QStringLiteral("rules"),
-                            {PhosphorI18n::tr("rule"), PhosphorI18n::tr("exclude"), PhosphorI18n::tr("float"),
-                             PhosphorI18n::tr("monitor"), PhosphorI18n::tr("priority"), PhosphorI18n::tr("activity"),
-                             PhosphorI18n::tr("workspace")});
+                            {
+                                PhosphorI18n::tr("rule"),
+                                PhosphorI18n::tr("exclude"),
+                                PhosphorI18n::tr("float"),
+                                PhosphorI18n::tr("monitor"),
+                                PhosphorI18n::tr("priority"),
+                                PhosphorI18n::tr("activity"),
+#ifdef USE_KDE_FRAMEWORKS
+                                // The RouteToWorkspace action, offered only
+                                // where the feature is compiled in.
+                                PhosphorI18n::tr("workspace"),
+#endif
+                            });
     search->setPageKeywords(QStringLiteral("profiles"),
                             {PhosphorI18n::tr("profile"), PhosphorI18n::tr("profiles"), PhosphorI18n::tr("preset"),
                              PhosphorI18n::tr("switch"), PhosphorI18n::tr("import"), PhosphorI18n::tr("export"),
@@ -471,7 +493,7 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
     addSection(search, QStringLiteral("tiling-behavior"), QStringLiteral("focus"), PhosphorI18n::tr("Focus"));
 
     // ── Setting + section anchors: appearance / algorithm / behaviour rows ──
-    // Snapping › Overlay (appearance)
+    // Appearance › Overlays › Appearance
     addSection(search, QStringLiteral("overlays-appearance"), QStringLiteral("colors"), PhosphorI18n::tr("Colors"));
     addSection(search, QStringLiteral("overlays-appearance"), QStringLiteral("opacity"), PhosphorI18n::tr("Opacity"));
     addSection(search, QStringLiteral("overlays-appearance"), QStringLiteral("border"), PhosphorI18n::tr("Border"));

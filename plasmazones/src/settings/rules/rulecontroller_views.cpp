@@ -714,6 +714,61 @@ QVariantList RuleController::validationIssuesForJson(const QVariantMap& ruleJson
     return out;
 }
 
+QString RuleController::modeScopedInertHint(const QVariantMap& ruleJson) const
+{
+    const QJsonObject obj = QJsonObject::fromVariantMap(ruleJson);
+    const QJsonValue matchValue = obj.value(QLatin1String("match"));
+    if (!matchValue.isObject()) {
+        return {};
+    }
+    const auto match = MatchExpression::fromJson(matchValue.toObject());
+    if (!match || !match->referencesAnyField({Field::Mode})) {
+        return {};
+    }
+    // The action types whose daemon readers resolve under admitScreenStamped
+    // (rules_admission.h). Keep in step with that predicate's documented list.
+    static const QSet<QString> neverApplied = {
+        QString(ActionType::RouteToWorkspace),        QString(ActionType::RouteToScreen),
+        QString(ActionType::RouteToDesktop),          QString(ActionType::RestorePosition),
+        QString(ActionType::SetRestoreToZoneOnLogin),
+    };
+    QStringList inert;
+    bool snapsAtOpen = false;
+    const QJsonValue actionsValue = obj.value(QLatin1String("actions"));
+    if (actionsValue.isArray()) {
+        for (const QJsonValue& v : actionsValue.toArray()) {
+            const QString type = v.toObject().value(QLatin1String("type")).toString();
+            if (neverApplied.contains(type)) {
+                const QString label = PhosphorI18n::tr("“%1”").arg(RuleAuthoring::actionTypeLabel(type));
+                if (!inert.contains(label)) {
+                    inert.append(label);
+                }
+            } else if (type == ActionType::SnapToZone) {
+                snapsAtOpen = true;
+            }
+        }
+    }
+    QStringList sentences;
+    if (inert.size() == 1) {
+        sentences.append(PhosphorI18n::tr("%1 never takes effect in a rule that checks the placement mode, because it "
+                                          "is decided before the mode is known. Move it to a rule without a mode "
+                                          "condition.")
+                             .arg(inert.constFirst()));
+    } else if (inert.size() > 1) {
+        sentences.append(PhosphorI18n::tr("%1 never take effect in a rule that checks the placement mode, because "
+                                          "they are decided before the mode is known. Move them to a rule without a "
+                                          "mode condition.")
+                             .arg(QLocale().createSeparatedList(inert)));
+    }
+    if (snapsAtOpen) {
+        sentences.append(PhosphorI18n::tr("“%1” does not place a window when it opens in a rule that checks the "
+                                          "placement mode, because the opening placement is decided before the mode "
+                                          "is known.")
+                             .arg(RuleAuthoring::actionTypeLabel(QString(ActionType::SnapToZone))));
+    }
+    return sentences.join(QLatin1Char(' '));
+}
+
 bool RuleController::matchIsContextOnly(const QVariantMap& matchJson) const
 {
     // An empty / unparseable match collapses to the default catch-all, which

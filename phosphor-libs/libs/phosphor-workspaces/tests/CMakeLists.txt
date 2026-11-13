@@ -30,10 +30,13 @@ else()
     endfunction()
 endif()
 
-# The workspace-map and reconciler suites. Headless: the WorkspaceMap is a pure
-# value type and the WorkspaceReconciler's inputs are plain calls (no D-Bus), so
-# the suites drive scripted notification sequences directly. GUILESS, because
-# the reconciler's ledger expiry and destroy debounce need an event dispatcher.
+# The workspace-map, reconciler, ledger and VirtualDesktopManager suites.
+# Headless: the WorkspaceMap is a pure value type, and the WorkspaceReconciler's
+# and the manager's inputs are plain calls (no D-Bus, no KWin), so the suites
+# drive scripted notification sequences directly. The reconciler's ledger
+# expiry and destroy debounce run on timers, so those suites need a running
+# event loop, which a QCoreApplication supplies without a platform plugin.
+# Every suite uses QTEST_GUILESS_MAIN, and nothing here links Qt6::Gui.
 function(pw_add_test _name)
     add_executable(${_name} ${ARGN})
     set_target_properties(${_name} PROPERTIES AUTOMOC ON)
@@ -60,21 +63,8 @@ if(TARGET Plasma::Activities OR TARGET KF6::Activities)
     # The private bus matters more here than for most suites: the test registers a
     # fake org.kde.ActivityManager, and on the ambient session bus it would either
     # meet the real kactivitymanagerd (the test then skips) or stand in for it in
-    # the developer's own session.
-    add_executable(pw_test_activitymanager
-        test_activitymanager.cpp
-    )
-
-    target_link_libraries(pw_test_activitymanager
-        PRIVATE
-            PhosphorWorkspaces::PhosphorWorkspaces
-            Qt6::DBus
-            Qt6::Test
-    )
-
-    add_test(NAME pw_test_activitymanager COMMAND pw_test_activitymanager)
-    phosphor_apply_test_isolation(pw_test_activitymanager)
-    set_property(TEST pw_test_activitymanager APPEND PROPERTY LABELS "phosphorworkspaces")
-    # No QT_QPA_PLATFORM=offscreen: QTEST_GUILESS_MAIN runs on a QCoreApplication,
-    # so no platform plugin is ever loaded.
+    # the developer's own session. Qt6::DBus on top of the shared set, because the
+    # fake service is a QDBus object the test registers itself.
+    pw_add_test(pw_test_activitymanager test_activitymanager.cpp)
+    target_link_libraries(pw_test_activitymanager PRIVATE Qt6::DBus)
 endif()

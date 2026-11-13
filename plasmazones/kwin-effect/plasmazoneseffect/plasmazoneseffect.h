@@ -323,27 +323,20 @@ private Q_SLOTS:
                                     const QString& screenId, bool sizeOnly, int purpose);
     void slotActivateWindowRequested(const QString& windowId);
     void slotFullscreenHandBackRequested(const QString& windowId);
+    /// Move a window to the desktop KWin numbers @p desktop, on the output it
+    /// is on (the desktop shortcut, a RouteToDesktop rule, an engine crossing).
     void slotWindowDesktopMoveRequested(const QString& windowId, int desktop);
-    /// Same move, with the desktop named by its stable id. The daemon sends
-    /// this for a named-workspace route, where a position resolved before the
-    /// D-Bus hop can be renumbered by the time it lands here.
-    void slotWindowDesktopMoveByIdRequested(const QString& windowId, const QString& desktopId);
-
-private:
-    /// Shared tail of both desktop-move slots, so the two agree on the sticky
-    /// carve-out, the recovery restore for a desktop that does not exist (a
-    /// null @p target), and the membership write.
-    void applyDesktopMove(KWin::EffectWindow* w, KWin::VirtualDesktop* target, const QString& windowId);
-
-private Q_SLOTS:
-    void slotWindowOutputMoveRequested(const QString& windowId, const QString& targetScreenId);
-    /// Cache the dynamic-workspaces ownership map (daemon stream + replay).
-    /// Consumer stub: the future overview renders from this; nothing else
-    /// reads it yet.
-    void slotWorkspaceMapChanged(const QString& mapJson);
-    /// Per-output desktop switch (dynamic workspaces focus verbs and
-    /// owner-wins snap-back): effects->setCurrentDesktop(desktop, output).
-    void slotSetScreenDesktopRequested(const QString& screenId, int desktop);
+    /// A dynamic-workspace verb's move: the desktop named by its stable id
+    /// (by number when @p desktopId is empty, and no desktop leg at all when
+    /// the number is below 1 too) and, when @p targetScreenId is set, the
+    /// output, carried out as one step by applyWorkspaceMove.
+    void slotWindowWorkspaceMoveRequested(const QString& windowId, const QString& desktopId, int desktop,
+                                          const QString& targetScreenId);
+    /// Per-output desktop switch (dynamic workspaces focus verbs and the
+    /// owner-wins return): effects->setCurrentDesktop(desktop, output), answered
+    /// with this output's live desktop. @p purpose is a
+    /// PhosphorProtocol::ScreenDesktopSwitchPurpose on the wire.
+    void slotSetScreenDesktopRequested(const QString& screenId, const QString& desktopId, int purpose);
     void slotWindowOutputMoveExpected(const QString& windowId, const QString& targetScreenId,
                                       const QString& sourceScreenId);
 
@@ -379,6 +372,24 @@ private:
     /// so none of the state-pushing D-Bus calls can fire against a daemon
     /// that rejected the bridge handshake.
     void continueDaemonReadySetup();
+
+    /// The shared body of both desktop-move slots: the sticky carve-out, the
+    /// output leg when @p destination is set (first, verified against KWin's
+    /// pending output), the desktop leg (verified), the undo and re-placement
+    /// of a move KWin refused, and the arrival park and focus hand-off, both
+    /// judged on the output the window lands on. With @p desktopLeg a null
+    /// @p target is a desktop that does not exist, placed where the window is;
+    /// without it the move is output-only (applyOutputOnlyMove).
+    void applyWorkspaceMove(KWin::EffectWindow* w, KWin::VirtualDesktop* target, KWin::LogicalOutput* destination,
+                            const QString& windowId, bool desktopLeg);
+    /// applyWorkspaceMove's output-only arm (@p desktopLeg false): the window
+    /// crosses to @p destination and joins the desktop it shows, as KWin's
+    /// Move to Screen does; a refused move is placed again where it is.
+    void applyOutputOnlyMove(KWin::EffectWindow* w, KWin::LogicalOutput* destination, const QString& windowId);
+    /// Place @p w again where it is after a desktop move that did not happen
+    /// (no such desktop, or a KWin rule kept it): re-announced on a tiling or
+    /// scrolling screen, the arrival restore on a snapping one.
+    void placeAfterRefusedDesktopMove(KWin::EffectWindow* w);
 
 public:
     /**
@@ -934,12 +945,15 @@ private:
     QString outputScreenId(const KWin::LogicalOutput* output, const KWin::LogicalOutput* excluded = nullptr) const;
     /// Report a screen's current virtual desktop to the daemon (Plasma 6.7
     /// per-output virtual desktops). Deduplicates against m_lastScreenDesktop and
-    /// only fires when the daemon service is registered.
+    /// only fires when the daemon service is registered. A report marks no
+    /// context switch: the per-output desktopChanged handler does that, for a
+    /// switch KWin actually made.
     ///
-    /// @param force skips the dedup. The dynamic-workspaces reconciler treats
-    /// the resulting screenDesktopChanged as the ACK that retires a SetCurrent
-    /// ledger entry, so the path answering a daemon setScreenDesktopRequested
-    /// must report even when the value did not change.
+    /// @param force skips the dedup, for the answer to a daemon
+    /// setScreenDesktopRequested that switched nothing: the daemon's SetCurrent
+    /// ledger reads that answer, so it is sent even when the value did not
+    /// change. Whether an unchanged value reaches the ledger is the daemon's
+    /// side of the wire.
     void reportScreenDesktop(const QString& screenId, int desktop, bool force = false);
 
     /// What this effect last told the daemon each screen's desktop is.
@@ -970,9 +984,11 @@ private:
     /// pendingWindowScreenId when empty). A no-op for any window but the one
     /// this effect last reported activated.
     void reportActiveWindowScreen(KWin::EffectWindow* w, const QString& screenId = QString());
-    /// The KWin output a window sits on by POSITION (centre containment),
-    /// falling back to w->screen() only when no output contains the centre
-    /// (KWin can pick the wrong one of two identical outputs, #724).
+    /// The KWin output a window sits on by POSITION: KWin's screenAt for the
+    /// frame centre, which answers the output containing it or else the
+    /// nearest one, so a frame partly off every output still resolves by where
+    /// it is (KWin can pick the wrong one of two identical outputs for
+    /// w->screen(), #724). w->screen() answers only when KWin has no output.
     KWin::LogicalOutput* windowOutput(KWin::EffectWindow* w) const;
     /// The KWin output carrying a (physical or virtual) screen id, else nullptr. Counterpart to outputScreenId.
     KWin::LogicalOutput* outputForScreenId(const QString& screenId) const;
@@ -3892,30 +3908,23 @@ private:
     PixelSizeDecisions::Ledger m_pixelSizeLedger;
     // A flushOutputPixelSizes is queued for the end of this event-loop turn.
     bool m_outputPixelSizeFlushQueued = false;
-    /// Last dynamic-workspaces map payload from the daemon (see
-    /// slotWorkspaceMapChanged). The effect is a validated ingest point for
-    /// this stream: it parses, orders and caches the payload but has no
-    /// consumer yet. The consumer will be the workspace overview, which reads
-    /// the cached map to lay out its desktop thumbnails without a round trip.
-    /// Empty until the feature streams.
-    QString m_workspaceMapJson;
-    quint64 m_workspaceMapGeneration = 0; ///< ordering guard for the cache above
-    /// Monotonic epoch bumped on every slotWorkspaceMapChanged push. The
-    /// generation above cannot order a bringup workspaceMap() reply against a
-    /// live push from the SAME daemon cycle: the empty-payload arm floors the
-    /// generation to 0 (deliberately, so a re-enable's restarted counter is
-    /// accepted), after which an in-flight reply carrying the map the daemon
-    /// just disabled is accepted by the empty-cache arm, and the bridge
-    /// generation is unchanged. Queries capture this and drop a stale reply.
-    quint64 m_workspaceMapEpoch = 0;
-    /// Set for the duration of a setCurrentDesktop() issued to satisfy a daemon
-    /// setScreenDesktopRequested, and consumed by the desktop.switch blend
-    /// connection: an owner-wins snap-back is not a switch the user asked for.
-    /// KWin delivers desktopChanged from inside setCurrentDesktop on the paths
-    /// that emit it at all, so a scope guard clears the flag as the call
-    /// returns; were the signal ever queued the flag is already down and the
-    /// blend simply runs, as it does today.
-    bool m_programmaticDesktopSwitch = false;
+    /// Set for the duration of a setCurrentDesktop() issued for a daemon
+    /// setScreenDesktopRequested whose purpose is a Correction (the owner-wins
+    /// return), and read by the desktop.switch transition's desktopChanged
+    /// handler, which KWin calls from inside setCurrentDesktop: a correction
+    /// runs no PlasmaZones desktop-switch transition and ends the user's own
+    /// switch leg on that output. All it saves is the transition's capture
+    /// cost. It claims no fullscreen effect, so a desktop-switch effect of
+    /// KWin's own (Slide, enabled by default) still animates the correction.
+    /// A user focus verb leaves it down and is shown like any switch.
+    bool m_correctiveDesktopSwitch = false;
+    /// A desktop-switch decoration sweep is queued for the end of this
+    /// event-loop turn (lifecycle_wiring.cpp): one sweep per burst of
+    /// per-output desktopChanged emissions.
+    bool m_desktopSwitchSweepQueued = false;
+    /// A desktop-arrival park drain is queued for the end of this event-loop
+    /// turn, coalesced the same way across desktop and activity switches.
+    bool m_desktopArrivalDrainQueued = false;
 
     // Last effective screen ID reported to daemon (physical or virtual).
     // Used for deduplication of cursorScreenChanged D-Bus calls when virtual

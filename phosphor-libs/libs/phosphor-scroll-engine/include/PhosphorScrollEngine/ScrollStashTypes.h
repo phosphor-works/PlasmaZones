@@ -119,6 +119,18 @@ struct StashedColumn
     /// the far side of a restart.
     bool shownTabRestored = false;
     bool heightOwnerRestored = false;
+    /// Recorded by ScrollEngine::stashColumnForDesktopMove for a column moved
+    /// here from another desktop, rather than captured from this context's
+    /// own strip. Its index among the entry's columns says nothing about
+    /// where it belongs on a strip it never stood in, so its first arrival
+    /// opens the column where a fresh arrival would (the screen's insert
+    /// position) instead of at that index. Later arrivals join it through the
+    /// ordinary sibling lookup.
+    ///
+    /// In-memory only, like the two latches above: a move still pending at a
+    /// restart is restored at its stashed index, which is a weaker answer for
+    /// the position and the same answer for the column's shape.
+    bool arrivesAsMove = false;
 };
 
 /// One stashed strip: the structural columns plus the focus/view pair

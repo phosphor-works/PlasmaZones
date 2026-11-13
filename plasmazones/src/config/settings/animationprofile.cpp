@@ -18,19 +18,10 @@ namespace PlasmaZones {
 // decomposes / composes the blob. `animationsEnabled` stays a standalone bool
 // in settings.cpp.
 
-// Process-wide fallback registry for standalone Settings instances
-// constructed without an injected CurveRegistry (tests, settings-app
-// tools that don't share a registry with the daemon). Consolidated
-// here as a single function-local static so every fallback path
-// resolves curve wire-format strings through the same registry —
-// avoids the "two identical spring:14,0.6 strings resolve to different
-// shared_ptr<const Curve> instances" surprise that three separate
-// per-method statics introduced.
-static PhosphorAnimation::CurveRegistry& fallbackCurveRegistry()
-{
-    static PhosphorAnimation::CurveRegistry s_registry;
-    return s_registry;
-}
+// Settings instances constructed without an injected CurveRegistry resolve
+// curves through ConfigDefaults::fallbackCurveRegistry(), the one
+// process-wide registry the schema's default Profile also uses, so every
+// fallback path resolves a curve string to the same shared_ptr<const Curve>.
 
 namespace {
 /// Read the Profile blob as a mutable QJsonObject. Stored as a nested
@@ -81,7 +72,8 @@ PhosphorAnimation::Profile Settings::animationProfile() const
     if (obj.isEmpty()) {
         return PhosphorAnimation::Profile{};
     }
-    const PhosphorAnimation::CurveRegistry& reg = m_curveRegistry ? *m_curveRegistry : fallbackCurveRegistry();
+    const PhosphorAnimation::CurveRegistry& reg =
+        m_curveRegistry ? *m_curveRegistry : ConfigDefaults::fallbackCurveRegistry();
     return PhosphorAnimation::Profile::fromJson(obj, reg);
 }
 
@@ -411,7 +403,8 @@ void Settings::setAnimationEasingCurve(const QString& curve)
     // the warning below and produces a canonical wire-form when the spec
     // resolves. Either way, the blob keeps the caller's string intact so
     // the user's edit round-trips cleanly through the Q_PROPERTY.
-    PhosphorAnimation::CurveRegistry& reg = m_curveRegistry ? *m_curveRegistry : fallbackCurveRegistry();
+    PhosphorAnimation::CurveRegistry& reg =
+        m_curveRegistry ? *m_curveRegistry : ConfigDefaults::fallbackCurveRegistry();
     auto resolved = reg.tryCreate(curve);
     QString toStore;
     if (resolved) {

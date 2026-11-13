@@ -226,6 +226,56 @@ void SnapEngine::releaseWindowOffScreen(const QString& windowId, const QString& 
                                              << released << "membership(s), keeping" << keepScreenId;
 }
 
+PhosphorEngine::MembershipReconcileResult SnapEngine::releaseWindowOutsideSpan(const QString& windowId,
+                                                                               const QString& screenId,
+                                                                               const PhosphorEngine::DesktopSpan& span)
+{
+    PhosphorEngine::MembershipReconcileResult result;
+    if (windowId.isEmpty() || screenId.isEmpty()) {
+        return result;
+    }
+    const QString canonical = canonicalWindowId(windowId);
+    QStringList removed;
+    bool lastUsedCleared = false;
+    // Snapshot: each release edits the membership list being walked.
+    const QList<PhosphorEngine::PlacementStateKey> held = m_states.membershipsForWindow(canonical);
+    for (const PhosphorEngine::PlacementStateKey& key : held) {
+        // The globals holder has no screen and no desktop identity; nothing
+        // here can say the window left it.
+        if (key.screenId.isEmpty()) {
+            continue;
+        }
+        // An unknown span keeps every membership on the screen: reading it as
+        // "covers nothing" would release a multi-desktop window's other
+        // desktops on a report that only lacks the desktop field.
+        const bool onScreen = isKeptScreen(key.screenId, screenId);
+        if (onScreen && (!span.known || span.coversKey(key))) {
+            continue;
+        }
+        lastUsedCleared |= releaseMembership(windowId, key, removed);
+        result.released.append({canonical, key});
+    }
+    for (SnapState* state : m_states.states()) {
+        const QString home = state ? state->preFloatScreen(canonical) : QString();
+        if (!home.isEmpty() && !isKeptScreen(home, screenId)) {
+            dropPreFloatHome(state, windowId);
+        }
+    }
+    lastUsedCleared |= clearGlobalLastUsedIfRemoved(removed);
+    if (lastUsedCleared && m_windowTracker) {
+        m_windowTracker->markLastUsedZoneDirty();
+    }
+    if (result.released.isEmpty()) {
+        return result;
+    }
+    if (m_states.membershipsForWindow(canonical).isEmpty()) {
+        m_states.removeWindow(canonical);
+    }
+    qCInfo(PhosphorSnapEngine::lcSnapEngine) << "SnapEngine::releaseWindowOutsideSpan:" << canonical << "released"
+                                             << result.released.size() << "membership(s) outside" << screenId;
+    return result;
+}
+
 bool SnapEngine::releaseMembership(const QString& windowId, const PhosphorEngine::PlacementStateKey& key,
                                    QStringList& removed)
 {

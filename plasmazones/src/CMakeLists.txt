@@ -19,15 +19,14 @@ endif()
 # ═══════════════════════════════════════════════════════════════════════════════
 add_subdirectory(shared)
 
-# Wayland layer-shell protocol code generation moved to PhosphorWayland library.
-# PlasmaZones uses PhosphorWayland::LayerSurface via compatibility wrappers in core/.
+# Wayland layer-shell protocol code generation lives in the PhosphorWayland
+# library; nothing in this tier runs wayland-scanner.
 
 # Core library sources
 set(plasmazones_core_SRCS
     phosphor_qml_i18n.h
     phosphor_qml_i18n.cpp
     core/types/constants.h
-    core/types/baselinecleanup.h
     core/platform/logging.h
     core/platform/logging.cpp
     core/utils/translationloader.h
@@ -342,44 +341,22 @@ target_include_directories(plasmazones_core SYSTEM PRIVATE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/phosphor-libs/libs/phosphor-shortcuts/include>
 )
 
-# Conditionally link PlasmaActivities/KActivities if available
-if(PlasmaActivities_FOUND)
-    # Check for Plasma 6 target first
-    if(TARGET Plasma::Activities)
-        target_link_libraries(plasmazones_core
-            PUBLIC
-                Plasma::Activities
-        )
-        target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-        message(STATUS "Linking PlasmaActivities via Plasma::Activities target")
-    elseif(TARGET KF6::Activities)
-        target_link_libraries(plasmazones_core
-            PUBLIC
-                KF6::Activities
-        )
-        target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-        message(STATUS "Linking PlasmaActivities via KF6::Activities target")
-    else()
-        # Fallback to library name lookup
-        find_library(PLASMA_ACTIVITIES_LIBRARY NAMES PlasmaActivities KActivities)
-        if(PLASMA_ACTIVITIES_LIBRARY)
-            target_link_libraries(plasmazones_core
-                PUBLIC
-                    ${PLASMA_ACTIVITIES_LIBRARY}
-            )
-            target_compile_definitions(plasmazones_core PRIVATE HAVE_KACTIVITIES)
-            message(STATUS "Linking PlasmaActivities via library: ${PLASMA_ACTIVITIES_LIBRARY}")
-        else()
-            message(WARNING "PlasmaActivities found but no linkable target/library available")
-        endif()
-    endif()
+# Activities are not linked here: ActivityManager lives in PhosphorWorkspaces,
+# which finds PlasmaActivities itself and keeps the link PRIVATE, and nothing
+# in this target includes an activities header.
+
+# kwinrc read for PerOutputVirtualDesktops (common/kwinperoutputdesktops.cpp).
+# Dynamic workspaces compile out of the USE_KDE_FRAMEWORKS=OFF build, so the
+# link exists only where the feature does. PRIVATE: no plasmazones_core header
+# exposes a KConfig type.
+if(USE_KDE_FRAMEWORKS)
+    target_link_libraries(plasmazones_core PRIVATE KF6::ConfigCore)
 endif()
 
 target_include_directories(plasmazones_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/plasmazones>  # For shared/ headers (virtualscreenid.h)
         $<INSTALL_INTERFACE:include/plasmazones>
 )
 
@@ -657,8 +634,10 @@ qt_add_resources(plasmazones_daemon_SRCS daemon/resources.qrc)
 add_executable(plasmazonesd ${plasmazones_daemon_SRCS})
 
 if(USE_KDE_FRAMEWORKS)
-    # KConfig for the consented kwinrc write in daemon/workspaces.cpp; the
-    # Qt-only build keeps its QSettings arm behind the same #ifdef.
+    # KConfig for the consented kwinrc write in daemon/daemon/workspaces.cpp.
+    # Named here rather than inherited: plasmazones_core links it PRIVATE.
+    # Dynamic workspaces compile out of the USE_KDE_FRAMEWORKS=OFF build, so
+    # that build has no kwinrc writer at all.
     target_link_libraries(plasmazonesd PRIVATE KF6::ConfigCore)
 endif()
 
@@ -694,8 +673,9 @@ target_link_libraries(plasmazonesd
         PhosphorOverlay::PhosphorOverlay  # per-screen shell-host + slot mechanism (Phase 2 onward)
         # Frozen-snapshot per-screen mode + disable/lock cascade façade.
         # The daemon owns a `ContextResolver` over three local adapters
-        # (DaemonWorkspaceStateAdapter / ScreenModeAdapter / SettingsGateAdapter
-        # in daemon/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
+        # (DaemonWorkspaceStateAdapter / DaemonScreenModeAdapter /
+        # DaemonSettingsGateAdapter in
+        # daemon/controllers/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
         # + OverlayService borrow it via `Daemon::contextResolver()`.
         PhosphorContextResolver::PhosphorContextResolver
         # Daemon is headless: runs under QGuiApplication. No Qt6::Widgets
