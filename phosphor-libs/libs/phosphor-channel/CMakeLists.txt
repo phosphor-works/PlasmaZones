@@ -6,23 +6,18 @@
 # channels over any connected byte stream (a Unix socket, or ssh's standard
 # input and output).
 #
-# No Qt and no other Phosphor library, in the library and in its build: a
-# headless daemon on a host without Qt builds it alone. The tests use Qt
-# Test, as the other libraries do, and are left out when Qt is not found.
+# The library links no Qt and no other Phosphor library. The tests use Qt
+# Test, as the other libraries do.
 # Linux only: memfd, SCM_RIGHTS and MSG_NOSIGNAL have no portable stand-in.
 
 cmake_minimum_required(VERSION 3.16)
 
 set(PHOSPHORCHANNEL_VERSION "0.1.0")
 
-# The top of the build when built alone. A project that adds it with
-# add_subdirectory keeps its own settings and its own BUILD_TESTING.
-if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+if(NOT PROJECT_VERSION)
     project(PhosphorChannel VERSION ${PHOSPHORCHANNEL_VERSION} LANGUAGES CXX)
     set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
-    set(CMAKE_CXX_EXTENSIONS OFF)
-    option(BUILD_TESTING "Build the PhosphorChannel tests (needs Qt6 Test)" ON)
 endif()
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -85,8 +80,7 @@ target_link_libraries(PhosphorChannel PRIVATE Threads::Threads)
 
 # The callbacks of a Stream are the consumer's code, which may throw. The
 # tree's KDECompilerSettings turn exceptions off; built so, the library's
-# frames would unwind without their cleanups, and differ from the standalone
-# build. On for the whole library.
+# frames would unwind without their cleanups. On for the whole library.
 target_compile_options(PhosphorChannel PRIVATE
     $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-fexceptions>)
 
@@ -147,12 +141,7 @@ install(FILES
 # Tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-if(BUILD_TESTING)
-    find_package(Qt6 QUIET COMPONENTS Test)
-    if(Qt6Test_FOUND)
-        enable_testing()
-        add_subdirectory(tests)
-    else()
-        message(STATUS "PhosphorChannel: Qt6 Test not found, so its tests are not built")
-    endif()
+if(CMAKE_PROJECT_NAME STREQUAL "PhosphorChannel" OR BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
 endif()

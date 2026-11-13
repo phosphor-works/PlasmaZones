@@ -14,13 +14,8 @@ payload. The library stores the tag and never reads the payload. Payload
 versioning lives in the consumer.
 
 The first consumer is the mux daemon of Afterglow, which sends terminal state
-to a window and input back. The daemon has no Qt and can run on a host
-without it, so the library builds alone, from the repository root:
-
-```bash
-cmake -S phosphor-libs/libs/phosphor-channel -B build-channel -DCMAKE_BUILD_TYPE=Release
-cmake --build build-channel
-```
+to a window and input back. The library links no Qt, so that daemon does not
+need it. It builds with the rest of phosphor-libs.
 
 It needs Linux: memfd, SCM_RIGHTS and MSG_NOSIGNAL have no portable stand-in,
 and the configure stops on any other system.
@@ -113,8 +108,5 @@ version is 0.x, so a consumer built against 0.1 does not load 0.2.
 ## Tests
 
 `phosphorchannel_test_ring`, `phosphorchannel_test_handshake` and
-`phosphorchannel_test_stream` use Qt Test, as the other libraries do. A
-standalone configure builds them unless `-DBUILD_TESTING=OFF`, and leaves them
-out when Qt is not found. A host without Qt therefore builds the library but
-cannot run its tests; CI runs them in a standalone build that has Qt, and
-builds once more without Qt.
+`phosphorchannel_test_stream` use Qt Test, as the other libraries do, and run
+with the rest of the tier under `BUILD_TESTING`.
