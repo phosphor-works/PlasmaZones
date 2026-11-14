@@ -5,9 +5,9 @@
 # One-command phosphor-shell harness: a nested kwin_wayland session with
 # the BUILD-TREE shell running inside it, drivable over the shell's own
 # IPC socket and screenshot-able for eyes-free (AI) test loops. No
-# install, no logout, and nothing touches the live session — the power
-# menu's logind actions act on the NESTED session's scope, so clicking
-# Suspend in here does not suspend the machine you are sitting at.
+# install or logout. Configuration and shell IPC are isolated. Hardware
+# services and logind power actions still reach the host: use service
+# fixtures when testing actions such as suspend, reboot or shutdown.
 #
 # Usage:
 #   phosphor-shell/scripts/nested-shell/run-shell.sh [output-count] [width height] [scale]
@@ -46,9 +46,15 @@
 # show in the pixels; committed geometry still comes from dump-windows.sh.
 #
 # Environment knobs (all inherited by the sibling scripts through env.sh):
-#   PZ_NESTED_SESSION                 — a second, independent session:
-#                                       suffixes the default state dir and
-#                                       socket, as for nested-kwin.
+#   PZ_NESTED_SESSION                 — one name for a whole extra session,
+#                                       setting both the directory and the
+#                                       wayland socket so two can run at
+#                                       once without colliding. Every
+#                                       sibling script reads it too:
+#                                         PZ_NESTED_SESSION=ai run-shell.sh 1
+#                                         PZ_NESTED_SESSION=ai ctl.sh list
+#                                       PZ_NESTED_DIR / PZ_NESTED_SOCKET
+#                                       still win where they are set.
 #   PZ_NESTED_DIR / PZ_NESTED_SOCKET  — per-worktree isolation, as for
 #                                       nested-kwin (defaults pz-nested/
 #                                       pznested).

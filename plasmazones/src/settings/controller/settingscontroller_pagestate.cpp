@@ -265,12 +265,14 @@ void SettingsController::onSettingsPropertyChanged()
     // (Settings::eventFilter) fires the zone-color NOTIFYs for the colours
     // that follow the palette, but it is palette-driven, not a user edit, and
     // writes nothing. Flipping needsSave here would show a phantom
-    // unsaved-changes footer on every theme switch.
+    // unsaved-changes footer on every theme switch. Runtime decoration seeds
+    // similarly announce appearance previews without modifying the store.
     //
     // isAnnouncingReload(): values adopted from disk by an edit-preserving
     // reload, including one run from inside a composite setter, are someone
     // else's change, not an edit made here.
-    if (!m_saving && !m_loading && !m_settings.isAnnouncingPaletteChange() && !m_settings.isAnnouncingReload()) {
+    if (!m_saving && !m_loading && !m_settings.isAnnouncingPaletteChange()
+        && !m_settings.isAnnouncingDecorationSeedChange() && !m_settings.isAnnouncingReload()) {
         setNeedsSave(true);
         // A value edited BACK to its committed state would otherwise strand
         // its page in m_dirtyPages forever — nothing else reconciles on a
@@ -300,7 +302,8 @@ void SettingsController::onValueBlindSettingsChanged()
     // AFTER the mark and only when something is actually tracked, so
     // setNeedsSave's virtual-node early return cannot strand the latch with
     // an empty dirty set.
-    if (!m_saving && !m_loading && !m_settings.isAnnouncingPaletteChange() && !m_settings.isAnnouncingReload()) {
+    if (!m_saving && !m_loading && !m_settings.isAnnouncingPaletteChange()
+        && !m_settings.isAnnouncingDecorationSeedChange() && !m_settings.isAnnouncingReload()) {
         setNeedsSave(true);
         if (!m_dirtyPages.isEmpty()) {
             m_valueBlindDirty = true;

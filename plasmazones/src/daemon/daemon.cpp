@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "daemon.h"
+#ifdef PHOSPHOR_BUILD_SHELL
+#include "common/shelldecorationseeds.h"
+#endif
 
 #include <QGuiApplication>
 #include <QStandardPaths>
@@ -208,6 +211,9 @@ Daemon::Daemon(QObject* parent)
     // `QObject((ensureScreenIdResolver(), parent))` comma-operator trick
     // because that idiom reads as an accidental typo.
     ensureScreenIdResolver();
+#ifdef PHOSPHOR_BUILD_SHELL
+    installShellDecorationSeeds(*m_settings);
+#endif
 
     // Start watching rules.json now that the store has loaded in its
     // constructor: start() runs one immediate synchronous reload (an

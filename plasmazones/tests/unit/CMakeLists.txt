@@ -18,21 +18,10 @@
 # to every target here, so no target repeats them. A target names only the
 # extra roots it needs (the effect tree, a library's tests directory).
 
-# Helper macro for simple tests (Qt6::Test + Qt6::Core + plasmazones_core).
-#
-# IMPORTANT: This macro hands you Qt6::Test + Qt6::Core ONLY. If your test
-# source includes a D-Bus header, a Wayland-client header, or any other Qt
-# component not in that minimal pair, use a hand-rolled `add_executable` +
-# `target_link_libraries` with an explicit `target_link_libraries(... PRIVATE
-# Qt6::DBus ...)` instead. The macro will SEEM to work because plasmazones_core's
-# INTERFACE_LINK_LIBRARIES pulls Qt6::DBus transitively today — but that's
-# coincidental, not contractual. A future refactor that drops Qt6::DBus from
-# plasmazones_core's interface link would silently break every test that
-# relied on the transitive pull.
-#
-# Same caveat for QTEST_MAIN: with no Qt6::Gui here it expands to whichever
-# application class the transitively-linked Qt modules select, so a test that
-# genuinely needs QGuiApplication should link Qt6::Gui explicitly.
+# Simple tests get Qt6::Test, Qt6::Core, and plasmazones_core. Tests using other
+# components must declare them explicitly with target_link_libraries; transitive
+# core dependencies are not a contract. QTEST_MAIN tests needing QGuiApplication
+# must link Qt6::Gui explicitly to select the correct application type.
 macro(p_add_test _name _src)
     add_executable(${_name} ${_src})
     target_link_libraries(${_name} PRIVATE Qt6::Test Qt6::Core plasmazones_core)
@@ -559,6 +548,15 @@ add_executable(test_settings_decoration_tree config/settings/test_settings_decor
 target_link_libraries(test_settings_decoration_tree PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core)
 add_test(NAME test_settings_decoration_tree COMMAND test_settings_decoration_tree)
 
+# The shell appearance adapter's runtime decoration seeds. Built only with the
+# shell tier, which is the only configuration that declares the adapter.
+if(TARGET plasmazones_shellappearance)
+    add_executable(test_shell_decoration_seeds config/settings/test_shell_decoration_seeds.cpp)
+    target_link_libraries(test_shell_decoration_seeds PRIVATE
+        Qt6::Test Qt6::Core Qt6::Gui plasmazones_shellappearance PhosphorTheme::PhosphorTheme)
+    add_test(NAME test_shell_decoration_seeds COMMAND test_shell_decoration_seeds)
+endif()
+
 # Companion test executable: the Decorations.Performance/SuppressWhileFullscreen
 # persistence chain — absent-key default (the key is default-true, so a reader
 # that skips the fallback inverts it rather than disabling it), change-gated
@@ -925,6 +923,13 @@ target_link_libraries(test_cheatsheet_compression PRIVATE pz_test_shortcut_manag
 target_link_libraries(test_cheatsheet_compression
     PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
 add_test(NAME test_cheatsheet_compression COMMAND test_cheatsheet_compression)
+
+qt_add_executable(test_shell_cheatsheet_bridge
+    daemon/test_shell_cheatsheet_bridge.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/shellcheatsheetbridge.cpp
+)
+target_link_libraries(test_shell_cheatsheet_bridge PRIVATE Qt6::Test Qt6::Core Qt6::Network)
+add_test(NAME test_shell_cheatsheet_bridge COMMAND test_shell_cheatsheet_bridge)
 
 # Shortcuts.Scrolling four-list parity (schema / registration / catalog /
 # D-Bus registry). Same ShortcutManager sources as the suite above, and it
@@ -3024,7 +3029,7 @@ add_executable(test_layout_adaptor_signals dbus/test_layout_adaptor_signals.cpp)
 # plasmazones_core.
 target_link_libraries(test_layout_adaptor_signals PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
                       PhosphorTiles::PhosphorTiles PhosphorZones::PhosphorZones
-                      PhosphorLayoutApi::PhosphorLayoutApi)
+                      PhosphorLayoutApi::PhosphorLayoutApi PhosphorScreens::Runtime)
 add_test(NAME test_layout_adaptor_signals COMMAND test_layout_adaptor_signals)
 
 # LayoutAdaptor scrolling-template surface: the set/get pair's validation and

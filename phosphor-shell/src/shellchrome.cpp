@@ -9,6 +9,7 @@
 #include <PhosphorSurface/SurfaceShaderEffect.h>
 #include <PhosphorSurface/SurfaceThemeResolve.h>
 #include <PhosphorTheme/PaletteStore.h>
+#include <PhosphorTheme/ShellPalette.h>
 
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -147,6 +148,14 @@ void ShellChrome::setPalette(PhosphorTheme::PaletteStore* palette)
 
 ShellChrome::~ShellChrome() = default;
 
+void ShellChrome::setAppearance(const QVariantMap& settings)
+{
+    if (m_appearance == settings)
+        return;
+    m_appearance = settings;
+    bump();
+}
+
 int ShellChrome::revision() const
 {
     return m_revision;
@@ -228,12 +237,17 @@ QVariantList ShellChrome::chainFor(const QString& surfacePath) const
     const QVariantMap allParams = profile.effectiveParameters();
     // The pack flag resolver's theme: the spectrum's own tokens, so a pack
     // that asks for the accent gets the focus colour of the chrome around it.
-    const PhosphorSurfaceShaders::SurfaceThemeColors theme{
+    PhosphorSurfaceShaders::SurfaceThemeColors theme{
         tokenOr(m_palette, QStringLiteral("primary"), QColor(0x3b, 0x82, 0xf6)),
         tokenOr(m_palette, QStringLiteral("outline"), QColor(0x33, 0x41, 0x55)),
         tokenOr(m_palette, QStringLiteral("surface"), QColor(0x0b, 0x10, 0x20)),
         tokenOr(m_palette, QStringLiteral("on_surface"), QColor(0xe6, 0xed, 0xff)),
     };
+    if (!m_appearance.isEmpty()) {
+        const auto palette = PhosphorTheme::ShellPalette::fromSettings(m_appearance);
+        theme = {palette.stops.value(m_appearance.value(QStringLiteral("accentIndex")).toInt(), palette.stops[1]),
+                 palette.outline, palette.surface, palette.text};
+    }
     // One silhouette for the whole chain, resolved before any stage is composed.
     // A backdrop pack that squares its bottom corners against the panel edge has
     // to take the border and halo packs with it, or they trace an outline the

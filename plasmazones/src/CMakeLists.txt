@@ -241,6 +241,19 @@ set(plasmazones_core_SRCS
 add_library(plasmazones_core SHARED ${plasmazones_core_SRCS})
 
 
+# Shell appearance is an application adapter, never a dependency of core Settings.
+if(BUILD_PHOSPHOR_SHELL)
+    add_library(plasmazones_shellappearance STATIC
+        common/shelldecorationseeds.h
+        common/shelldecorationseeds.cpp
+    )
+    target_compile_definitions(plasmazones_shellappearance PUBLIC PHOSPHOR_BUILD_SHELL=1)
+    target_link_libraries(plasmazones_shellappearance
+        PUBLIC plasmazones_core PhosphorSurface::PhosphorSurface
+        PRIVATE PhosphorTheme::PhosphorTheme
+    )
+endif()
+
 # Generate export header
 generate_export_header(plasmazones_core
     EXPORT_FILE_NAME plasmazones_export.h
@@ -618,6 +631,8 @@ set(plasmazones_daemon_SRCS
     daemon/rendering/dmabufglimport.h
     daemon/controllers/shortcutmanager.cpp
     daemon/controllers/shortcutmanager.h
+    daemon/controllers/shellcheatsheetbridge.cpp
+    daemon/controllers/shellcheatsheetbridge.h
     daemon/controllers/zoneselectorcontroller.cpp
     daemon/controllers/zoneselectorcontroller.h
     # Mode tracking and smart toggle (Unified Layout Model)
@@ -634,6 +649,9 @@ set(plasmazones_daemon_SRCS
 qt_add_resources(plasmazones_daemon_SRCS daemon/resources.qrc)
 
 add_executable(plasmazonesd ${plasmazones_daemon_SRCS})
+if(BUILD_PHOSPHOR_SHELL)
+    target_link_libraries(plasmazonesd PRIVATE plasmazones_shellappearance)
+endif()
 
 target_link_libraries(plasmazonesd
     PRIVATE
@@ -678,6 +696,7 @@ target_link_libraries(plasmazonesd
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::Concurrent  # Pre-load shader bake cache on registry refresh
+        Qt6::Network  # Optional shell shortcut IPC, also available in shell-OFF builds
         Qt6::ShaderTools  # QShaderBaker for ZoneShaderNodeRhi (runtime GLSL bake)
 )
 

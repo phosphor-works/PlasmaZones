@@ -61,6 +61,8 @@ public:
                     SLOT(onAssignmentsApplied(QStringList)));
         bus.connect(Name, ObjectPath, Iface::LayoutRegistry, QStringLiteral("currentActivityChanged"), this,
                     SLOT(onCurrentActivityChanged(QString)));
+        bus.connect(Name, ObjectPath, Iface::Settings, QStringLiteral("settingsChanged"), this,
+                    SLOT(onSettingsChanged()));
         bus.connect(Name, ObjectPath, Iface::WindowTracking, QStringLiteral("windowStateChanged"), this,
                     SLOT(onWindowStateChanged(QString, PhosphorProtocol::WindowStateEntry)));
         // Phase-3 surfaces: an older daemon never emits them, which is harmless.
@@ -113,6 +115,11 @@ Q_SIGNALS:
     void screenGeometryChanged(const QString& screenId);
 
 private Q_SLOTS:
+    void onSettingsChanged()
+    {
+        // Master switches can change capabilities without changing assignments.
+        Q_EMIT layoutChanged(QString());
+    }
     void onScreenLayoutChanged(const QString& screenId)
     {
         Q_EMIT layoutChanged(screenId);

@@ -716,31 +716,45 @@ void SettingsAdaptor::initializeRegistry()
     m_schemas[QString(PhosphorProtocol::Service::SettingProperty::AnimationShaderSearchPaths)] =
         QStringLiteral("string");
 
-    // The shared inner/outer gaps are config-backed (the Gaps group), written
-    // by the settings app's Window Appearance page — not over this generic
-    // map. But the editor (a separate process) reads the resolved global gap
-    // values over D-Bus, so register READ-ONLY getters (no setter) for them; a
-    // write attempt still fails because no setter is registered. All seven are
-    // on the ISettings geometry interface (IZoneGeometrySettings), so they
-    // register through m_settings like adjacentThreshold — a non-Settings
-    // backend keeps the keys.
-    {
-        namespace Key = PhosphorProtocol::Service::SettingProperty;
-        const auto registerGap = [this](QLatin1String key, auto getter, const QString& schema) {
-            m_getters[QString(key)] = [this, getter]() {
-                return QVariant::fromValue((m_settings->*getter)());
-            };
-            m_schemas[QString(key)] = schema;
+    // The shared inner/outer gaps (the Gaps group). The editor reads the
+    // resolved values over D-Bus, and the Phosphor shell's desktop style
+    // writes them here rather than into config.json behind the daemon's back,
+    // so the geometry cascade sees the change through the setters' signals.
+    // All seven are on the ISettings geometry interface
+    // (IZoneGeometrySettings), so they register through m_settings like
+    // adjacentThreshold and a non-Settings backend keeps the keys. The
+    // setters clamp through the config schema, as setSetting documents.
+    const auto registerGap = [this](QLatin1String key, int (ISettings::*getter)() const,
+                                    void (ISettings::*setter)(int)) {
+        m_getters[QString(key)] = [this, getter]() {
+            return QVariant((m_settings->*getter)());
         };
-        const QString intSchema = QStringLiteral("int");
-        registerGap(Key::InnerGap, &ISettings::innerGap, intSchema);
-        registerGap(Key::OuterGap, &ISettings::outerGap, intSchema);
-        registerGap(Key::UsePerSideOuterGap, &ISettings::usePerSideOuterGap, QStringLiteral("bool"));
-        registerGap(Key::OuterGapTop, &ISettings::outerGapTop, intSchema);
-        registerGap(Key::OuterGapBottom, &ISettings::outerGapBottom, intSchema);
-        registerGap(Key::OuterGapLeft, &ISettings::outerGapLeft, intSchema);
-        registerGap(Key::OuterGapRight, &ISettings::outerGapRight, intSchema);
-    }
+        m_setters[QString(key)] = [this, setter](const QVariant& v) {
+            bool ok = false;
+            const int parsed = v.toInt(&ok);
+            if (!ok) {
+                return false;
+            }
+            (m_settings->*setter)(parsed);
+            return true;
+        };
+        m_schemas[QString(key)] = QStringLiteral("int");
+    };
+    namespace Key = PhosphorProtocol::Service::SettingProperty;
+    registerGap(Key::InnerGap, &ISettings::innerGap, &ISettings::setInnerGap);
+    registerGap(Key::OuterGap, &ISettings::outerGap, &ISettings::setOuterGap);
+    registerGap(Key::OuterGapTop, &ISettings::outerGapTop, &ISettings::setOuterGapTop);
+    registerGap(Key::OuterGapBottom, &ISettings::outerGapBottom, &ISettings::setOuterGapBottom);
+    registerGap(Key::OuterGapLeft, &ISettings::outerGapLeft, &ISettings::setOuterGapLeft);
+    registerGap(Key::OuterGapRight, &ISettings::outerGapRight, &ISettings::setOuterGapRight);
+    m_getters[QString(Key::UsePerSideOuterGap)] = [this]() {
+        return QVariant(m_settings->usePerSideOuterGap());
+    };
+    m_setters[QString(Key::UsePerSideOuterGap)] = [this](const QVariant& v) {
+        m_settings->setUsePerSideOuterGap(v.toBool());
+        return true;
+    };
+    m_schemas[QString(Key::UsePerSideOuterGap)] = QStringLiteral("bool");
 
     // Per-surface decoration tree (JSON blob round-trip via D-Bus), mirroring
     // the animation shaderProfileTree registration above. The out-of-process

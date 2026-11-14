@@ -10,6 +10,8 @@
 # the org.phosphor.surface module), which is what lets the moon workspace
 # enforce the tier order.
 
+find_package(KF6Config REQUIRED)
+
 add_subdirectory(cli/phosphorctl)       # phosphorctl call / list / schema / subscribe
 
 # Build the bundled example shell as a Qt QML module so qmlcachegen
@@ -45,6 +47,18 @@ add_executable(phosphor-shell
     src/layerpopouttransport.cpp
     src/QmlComponentBarWidgetFactory.h
     src/qmlcomponentbarwidgetfactory.cpp
+    src/DesktopStyleController.h
+    src/desktopstylecontroller.cpp
+    src/AirplaneController.h
+    src/airplanecontroller.cpp
+    src/ColorModeController.h
+    src/colormodecontroller.cpp
+    src/QuickSettingsController.h
+    src/quicksettingscontroller.cpp
+    src/StatusIconsController.h
+    src/StatusIconsSource.h
+    src/statusiconscontroller.cpp
+    src/statusiconsservices.cpp
     src/ControlCenterController.h
     src/controlcentercontroller.cpp
     src/QmlComponentTileFactory.h
@@ -88,6 +102,13 @@ add_executable(phosphor-shell
     src/qmlcomponentosdfactory.cpp
     src/ToastController.h
     src/toastcontroller.cpp
+    # The notification centre: the org.freedesktop.Notifications server
+    # this process owns, plus the retained list the bar's notification
+    # panel reads as the NotificationRegistry context property. The
+    # server's own model tracks only LIVE notifications, so the centre
+    # keeps its own snapshots (see the header).
+    src/NotificationController.h
+    src/notificationcontroller.cpp
     # The PolicyKit agent owner (registers the shell as the session's
     # agent, starts each PAM conversation, carries the requester's pid
     # and the prompt's placement) and the picker strip's open state:
@@ -100,7 +121,13 @@ add_executable(phosphor-shell
 
 target_link_libraries(phosphor-shell
     PRIVATE
+        Qt6::QuickControls2
+        KF6::ConfigCore
+        PhosphorControl::PhosphorControl
         PhosphorShell::PhosphorShell
+        # KPluginMetaData, for DesktopStyleController's probe of the
+        # installed window decoration plugin.
+        KF6::CoreAddons
         # Registry core (Registry<IBarWidgetFactory> + RegistryNotifier)
         # for BarController, and the Phosphor.Bar QML module + its plugin
         # registrar so the bar delegates resolve at runtime.

@@ -36,9 +36,10 @@ struct SurfaceShaderEffect;
  * Without those flags a user-authored profile keeps its configured shape and
  * layers. Returns true when the pack stays in the chain.
  *
- * Host-optional, and not yet wired by any host in the tree: no decoration host
- * currently passes a window's maximized state through, so nothing calls this or
- * chainSquareWhenMaximized today, and no bundled pack declares either flag.
+ * Host-optional: only a host that knows whether its window fills its output
+ * calls it. The PlasmaZones KWin effect's window decorations do, together with
+ * chainSquareWhenMaximized; the overlay and shell hosts decorate surfaces with
+ * no maximized state and do not. No bundled pack declares either flag.
  */
 PHOSPHORSURFACE_EXPORT bool resolveWindowStateParams(const SurfaceShaderEffect& effect, QVariantMap& friendlyParams,
                                                      bool maximized, bool squareCorners);

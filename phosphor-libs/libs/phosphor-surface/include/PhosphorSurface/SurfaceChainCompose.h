@@ -180,9 +180,9 @@ PHOSPHORSURFACE_EXPORT QString roundBottomCornersParamId();
  * pack. Invalid when no pack in the chain states a usable answer, which a host
  * treats as false.
  *
- * Host-optional, and no host in the tree calls it yet: like
- * resolveWindowStateParams it is for a host that knows whether its window is
- * maximized, and none of the current hosts wires that state through.
+ * Host-optional: like resolveWindowStateParams it is for a host that knows
+ * whether its window is maximized, which in the tree is the PlasmaZones KWin
+ * effect's window decorations.
  */
 PHOSPHORSURFACE_EXPORT QVariant chainSquareWhenMaximized(const SurfaceShaderRegistry& registry,
                                                          const QStringList& chain, const QVariantMap& allPackParams);

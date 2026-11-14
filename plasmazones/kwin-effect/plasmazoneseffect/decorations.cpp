@@ -17,9 +17,11 @@
 #include <PhosphorSurface/DecorationSupportedPaths.h>
 #include <PhosphorSurface/SurfaceChainCompose.h>
 #include <PhosphorSurface/SurfaceThemeResolve.h>
+#include <PhosphorSurface/SurfaceWindowStateResolve.h>
 
 #include <effect/effecthandler.h>
 #include <effect/effectwindow.h>
+#include <window.h>
 
 #include <QColor>
 #include <QGuiApplication>
@@ -489,7 +491,6 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
         undecorate();
         return;
     }
-    const QString basePackId = chain.first();
     // Debug-level, once per (re)resolve rather than per frame: the one place
     // the chain a window will fold is known, so a live session can answer
     // "did the tree reach this window, and with which packs" from the log
@@ -503,7 +504,6 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
     // already drives a fresh paint on every change.
     WindowDecoration wb;
     wb.chain = chain;
-    wb.basePackId = basePackId;
     wb.isShellSurface = isShellSurface;
 
     // Resolve THIS window's param values for every pack in the chain. Windows
@@ -601,10 +601,10 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
         // default when the caller supplies no override. Pack metadata is an
         // installable boundary, so a third-party "border" pack shipping
         // useThemeNeutral default true would otherwise silently discard the
-        // accent-resolved colours here. The useWindowAccent pin is inert
-        // today, because this host's SurfaceThemeColors (below) carries no
-        // window identity colour and the resolver reads the flag only when
-        // one is valid. It guards the day this host is fed one.
+        // accent-resolved colours here. The useWindowAccent pin matters
+        // under the shell's desktop style, where this host's
+        // SurfaceThemeColors (below) carries the window's identity colour:
+        // easy mode's resolved colours win over it as well.
         borderParams.insert(QStringLiteral("useSystemAccent"), false);
         borderParams.insert(QStringLiteral("useThemeNeutral"), false);
         borderParams.insert(QStringLiteral("useWindowAccent"), false);
@@ -657,18 +657,37 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
     // from the daemon-plumbed border colours (same source the plain-border layer
     // uses); background / foreground come from the compositor's palette, which
     // tracks the active colour scheme. Built once for the whole chain.
-    // Known refresh gap, accepted: the effect installs no palette listener of
-    // its own, so with all four zone colours PINNED (no daemon
-    // settingsChanged on a scheme switch) the two palette-derived entries
-    // refresh only on the next unrelated decoration update. Closing it needs
-    // an effect-side ApplicationPaletteChange filter → scheduleBorderSweep.
+    // ApplicationPaletteChange schedules a coalesced sweep even when the
+    // daemon's accent settings are pinned. The shell's identity palette uses
+    // the same appearance watcher as its native titlebar and dynamic seeds.
     const QPalette pal = QGuiApplication::palette();
+    const auto windowColorIndex = m_shellOverview->windowColorIndex(w);
+    const QColor windowAccent =
+        m_shellDesktopStyleActive && windowColorIndex ? m_shellWindowColors[*windowColorIndex] : QColor();
     const PhosphorSurfaceShaders::SurfaceThemeColors themeColors{
         m_borderAccentColor.isValid() ? m_borderAccentColor
                                       : QColor(QString(PhosphorCompositor::DecorationDefaults::FallbackAccentHex)),
         m_borderInactiveColor.isValid() ? m_borderInactiveColor
                                         : QColor(QString(PhosphorCompositor::DecorationDefaults::FallbackInactiveHex)),
-        pal.color(QPalette::Active, QPalette::Window), pal.color(QPalette::Active, QPalette::WindowText)};
+        pal.color(QPalette::Active, QPalette::Window), pal.color(QPalette::Active, QPalette::WindowText), windowAccent};
+    const bool maximized = w->isFullScreen() || (w->window() && w->window()->maximizeMode() == KWin::MaximizeFull);
+    // Drop the packs a maximized window hides BEFORE the chain-wide votes below,
+    // so a hidden pack neither casts a silhouette vote nor pads the canvas. The
+    // square flag is passed false here because only the hide answer is read;
+    // the real square answer is applied in the per-pack loop.
+    QStringList drawnChain;
+    drawnChain.reserve(chain.size());
+    for (const QString& packId : std::as_const(chain)) {
+        const PhosphorSurfaceShaders::SurfaceShaderEffect eff = m_surfaceShaderRegistry.effect(packId);
+        if (eff.isValid()) {
+            QVariantMap hideProbe = allPackParams.value(packId).toMap();
+            if (!PhosphorSurfaceShaders::resolveWindowStateParams(eff, hideProbe, maximized, false)) {
+                wb.chain.removeAll(packId);
+                continue;
+            }
+        }
+        drawnChain.append(packId);
+    }
     // One bottom-corner answer for the whole chain, resolved before any pack's
     // uniforms are built. This is the path a blur + border chain on a real window
     // takes, and it is where the two used to disagree: the backdrop squared its
@@ -679,20 +698,27 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
     // rule that moves the silhouette moves it for every pack in that window's
     // chain rather than for the one pack the rule happens to name.
     const QVariant chainBottomCorners =
-        PhosphorSurfaceShaders::chainRoundBottomCorners(m_surfaceShaderRegistry, chain, allPackParams);
-    for (const QString& packId : std::as_const(chain)) {
+        PhosphorSurfaceShaders::chainRoundBottomCorners(m_surfaceShaderRegistry, drawnChain, allPackParams);
+    // The maximized-square answer is the chain's too, for the same reason: a
+    // border that squares while its glow keeps a radius curves through empty
+    // space. Invalid (no pack stated one) reads as false.
+    const bool squareCorners = maximized
+        && PhosphorSurfaceShaders::chainSquareWhenMaximized(m_surfaceShaderRegistry, drawnChain, allPackParams)
+               .toBool();
+    for (const QString& packId : std::as_const(drawnChain)) {
         const PhosphorSurfaceShaders::SurfaceShaderEffect eff = m_surfaceShaderRegistry.effect(packId);
         if (!eff.isValid()) {
             continue;
         }
+        QVariantMap packOverrides = allPackParams.value(packId).toMap();
+        // Cannot drop the pack here: the hide answer was settled above.
+        PhosphorSurfaceShaders::resolveWindowStateParams(eff, packOverrides, maximized, squareCorners);
         // Any needsBackdrop pack in the chain switches the window onto the
         // composite path with a per-frame backdrop capture (see paintWindow).
         needsBackdrop = needsBackdrop || eff.needsBackdrop;
         chainInteriorOpaque = chainInteriorOpaque && eff.interiorOpaque;
         sawDrawingPack = true;
-        QVariantMap packOverrides = allPackParams.value(packId).toMap();
-        // Honour the pack's host-consumed theme flags (border useThemeNeutral /
-        // useSystemAccent, glow/shadow useThemeTint) via the shared resolver, so
+        // Honour the pack's declared identity/theme colour flags via the shared resolver, so
         // window decorations resolve them identically to the daemon overlay path.
         PhosphorSurfaceShaders::resolveThemeParamColors(eff, packOverrides, themeColors);
         // The chain's silhouette, injected unconditionally: resolveSurfaceParamValues
@@ -715,6 +741,11 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
                                       static_cast<double>(PhosphorSurfaceShaders::kMaxDecorationOuterPaddingPx));
         outerPadding = qMax(outerPadding, qCeil(request));
     }
+    if (wb.chain.isEmpty()) {
+        undecorate();
+        return;
+    }
+    wb.basePackId = wb.chain.first();
     // Defensive cap: a hostile/typo'd pack can't request an absurd canvas.
     wb.outerPadding = qBound(0, outerPadding, PhosphorSurfaceShaders::kMaxDecorationOuterPaddingPx);
     wb.needsBackdrop = needsBackdrop;
@@ -731,7 +762,7 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
         // else naming the cause. This line makes the symptom attributable to
         // the chain that asserted the contract.
         qCDebug(lcEffect) << "decoration chain declares interiorOpaque (occlusion hint kept) for" << windowId << ":"
-                          << chain;
+                          << wb.chain;
     }
     // The plain opacity-tint layer folds the window's resolved opacity
     // (config default, SetOpacity rule winning) into its pack param — the
@@ -799,9 +830,9 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
     // it never clips individual client subsurfaces — and crucially we do NOT touch
     // the KWin window's own BorderRadius: setting it made KWin clip the client
     // surface independently, which on a server-side-decorated window cut the inner
-    // surface and left the shader's corner inset behind KWin's. We draw no drop
-    // shadow: KWin does not render the shadow into this redirected texture (its
-    // expanded margin arrives transparent), so there is nothing here to reshape.
+    // surface and left the shader's corner inset behind KWin's. KWin draws no
+    // native shadow into this redirected texture (its expanded margin arrives
+    // transparent). Shadow/glow packs draw into their requested outer margin.
 
     // Drop the cached static-prefix fold ONLY when a fold input actually moved. The cached
     // prefix (SurfaceMultipassState::prefixTex) bakes the chain and the resolved pack
