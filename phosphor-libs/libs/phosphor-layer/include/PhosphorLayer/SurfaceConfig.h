@@ -32,7 +32,8 @@ namespace PhosphorLayer {
  *
  * Reconfiguration = destroy + recreate. This matches wlr-layer-shell, which
  * forbids most post-show property changes (layer, anchors, output, scope
- * are all immutable per protocol).
+ * are all immutable per protocol). Keyboard interactivity is the exception
+ * the protocol allows: Surface::setKeyboardInteractivity changes it live.
  *
  * Exactly one of @ref contentUrl / @ref contentItem must be non-empty.
  *
@@ -63,27 +64,39 @@ struct PHOSPHORLAYER_EXPORT SurfaceConfig
     QScreen* screen = nullptr;
 
     /// Injected into the surface's QML root context. Keys become context
-    /// properties visible to the loaded QML as global identifiers.
+    /// properties visible to the loaded QML as global identifiers. For
+    /// @ref contentUrl content only: a @ref contentItem was created in its
+    /// caller's own context, and the factory refuses the combination rather
+    /// than ignore the properties.
     QVariantMap contextProperties;
 
-    /// Applied to the QQuickWindow as dynamic properties (via QObject::
-    /// setProperty) BEFORE the QML content loads. Lets the QML access
-    /// them via the implicit `window.foo` binding. Distinct from
+    /// Applied to the QQuickWindow before the QML content completes. For
+    /// @ref contentItem or Item-rooted QML that is the wrapper window, and
+    /// every key goes through QObject::setProperty when that window is
+    /// created, before the content is parented into it. For Window-rooted QML it is the QML root itself, between
+    /// beginCreate and completeCreate: a key the root declares (its own QML
+    /// `property` or a QQuickWindow property) is set as an initial property,
+    /// anything else as a dynamic one via QObject::setProperty. Lets the QML
+    /// access them via the implicit `window.foo` binding. Distinct from
     /// @ref contextProperties: window properties are per-surface (won't
     /// leak between shared-engine surfaces) and are observable through
     /// Qt's property system (QVariant).
     QVariantMap windowProperties;
 
-    /// Opt-in shared QQmlEngine. Nullptr (default) → Surface owns its own
-    /// engine for full isolation. Non-null → Surface uses the provided
-    /// engine; caller retains ownership.
+    /// Opt-in shared QQmlEngine for @ref contentUrl content. Nullptr
+    /// (default) → the Surface takes one from the engine provider, or owns
+    /// its own for full isolation. Non-null → Surface uses the provided
+    /// engine; caller retains ownership. A @ref contentItem surface needs no
+    /// engine and ignores it.
     QQmlEngine* sharedEngine = nullptr;
 
     // ── Per-instance overrides ──────────────────────────────────────────
     // nullopt = use the role's default. All are applied at surface-creation
     // time; post-show mutation of these fields has no effect (the Surface
     // holds its own copy privately and exposes it only through
-    // Surface::config() const).
+    // Surface::config() const). keyboardOverride is the one exception:
+    // Surface::setKeyboardInteractivity updates the Surface's copy and the
+    // live transport handle.
 
     std::optional<Layer> layerOverride;
     std::optional<Anchors> anchorsOverride;
@@ -109,6 +122,13 @@ struct PHOSPHORLAYER_EXPORT SurfaceConfig
     ///
     /// With animateRoot=false nothing animates the root, so hide() only
     /// flips input transparency and the consumer owns the hidden visual.
+    ///
+    /// Input transparency covers pointer and touch, not the keyboard: a
+    /// hidden surface that stays mapped keeps whatever keyboard interactivity
+    /// it had, Exclusive included. A consumer drops it with
+    /// Surface::setKeyboardInteractivity(None) on hide and restores it on
+    /// show, and under KWin even None does not hand focus back until another
+    /// window is activated.
     ///
     /// Default `false` preserves the original lifecycle: hide() unmaps the
     /// window immediately and a future show() pays the reattach cost.

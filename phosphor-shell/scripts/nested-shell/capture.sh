@@ -5,7 +5,7 @@
 # Screenshot one nested output as a PNG — the harness's eyes for
 # headless / AI-driven runs.
 #
-#   scripts/nested-shell/capture.sh [OutputName] <out.png>
+#   phosphor-shell/scripts/nested-shell/capture.sh [OutputName] <out.png>
 #
 # OutputName defaults to Virtual-0 (kwin's first --virtual output; in
 # PZ_NESTED_VISIBLE mode list the real names with
@@ -33,7 +33,7 @@ case $# in
 esac
 
 if [ ! -f "$NEST/env.sh" ]; then
-    echo "no nested session in $NEST (run scripts/nested-shell/run-shell.sh first)" >&2
+    echo "no nested session in $NEST (run phosphor-shell/scripts/nested-shell/run-shell.sh first)" >&2
     exit 1
 fi
 # shellcheck disable=SC1091

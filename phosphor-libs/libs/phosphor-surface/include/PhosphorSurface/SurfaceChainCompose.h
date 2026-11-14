@@ -53,8 +53,8 @@ PHOSPHORSURFACE_EXPORT double paddingRequest(const SurfaceShaderEffect& effect, 
  * @p resolvedParams is the pack's FRIENDLY parameter map after the host has
  * applied its own resolutions — `resolveThemeParamColors` for theme-derived
  * colours, `resolveWindowStateParams` for a host that knows its window's
- * maximized state, plus any host-specific injection such as the card corner
- * radius.
+ * maximized state (host-optional, and no host wires it yet), plus any
+ * host-specific injection such as the card corner radius.
  * Those stay at the call site because they are host state, not pack data.
  *
  * Multipass fields are emitted only when the pack both opts into multipass
@@ -176,9 +176,13 @@ PHOSPHORSURFACE_EXPORT QString roundBottomCornersParamId();
  *
  * The same reasoning applies: a border that squares while the glow around it
  * keeps tracing a radius is a halo curving through empty space, so the answer
- * is the chain's, and the host hands it to resolveWindowStateParams for every
+ * is the chain's, and a host passes it to resolveWindowStateParams for every
  * pack. Invalid when no pack in the chain states a usable answer, which a host
  * treats as false.
+ *
+ * Host-optional, and no host in the tree calls it yet: like
+ * resolveWindowStateParams it is for a host that knows whether its window is
+ * maximized, and none of the current hosts wires that state through.
  */
 PHOSPHORSURFACE_EXPORT QVariant chainSquareWhenMaximized(const SurfaceShaderRegistry& registry,
                                                          const QStringList& chain, const QVariantMap& allPackParams);

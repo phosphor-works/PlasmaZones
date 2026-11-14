@@ -55,6 +55,12 @@ public:
         return false;
     }
 
+    // fill() writes qt_Opacity from the frame state.
+    bool readsQtOpacity() const override
+    {
+        return true;
+    }
+
 private:
     SurfaceUniforms m_u = {};
 };

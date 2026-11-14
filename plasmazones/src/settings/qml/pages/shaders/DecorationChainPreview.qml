@@ -402,9 +402,10 @@ Item {
             // clip, so it would draw over the neighbouring cards. See
             // SurfaceDecoration.layeredStages.
             layeredStages: true
-            // This host draws the composed decoration scaled down, so the
-            // layered last stage needs a mip chain to stay an honest miniature.
-            minifiedStages: true
+            // A mip chain only while the composed decoration is drawn scaled
+            // down: the detail pane composes at about 1:1, where regenerating
+            // mips for an animated pack is pure cost.
+            minifiedStages: root._canvasScale < 1.0
             animationsPaused: root.animationsPaused
             // Only decoded for a pack that actually samples it. Every other pack
             // ignores the backdrop, and handing one over regardless would upload a

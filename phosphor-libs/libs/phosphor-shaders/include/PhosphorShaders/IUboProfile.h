@@ -262,6 +262,16 @@ public:
     {
         return false;
     }
+
+    /// Whether fill() writes UboFrameState::qtOpacity into the buffer. A node
+    /// raises the scene region on an inherited-opacity change only for a
+    /// profile that answers true, so a profile that pins qt_Opacity does not
+    /// re-upload on every frame of an ancestor fade. Defaults to false;
+    /// appended last for the same installed-header reason as the one above.
+    virtual bool readsQtOpacity() const
+    {
+        return false;
+    }
 };
 
 } // namespace PhosphorShaders

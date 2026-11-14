@@ -235,8 +235,11 @@ FocusScope {
         property bool shaderAnchor: true
 
         anchors.fill: parent
-        color: Theme.surface
-        opacity: 0.72
+        // The depth is the colour's alpha rather than the item's opacity: a
+        // surface pack captures this item from below its opacity node, so an
+        // opacity here would be lost from the decorated output, while a
+        // colour alpha is part of what the pack samples.
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surface.a * 0.72)
     }
     DecorationSlot {
         id: decorationSlot

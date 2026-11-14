@@ -30,11 +30,15 @@ struct SurfaceShaderEffect;
  *   chainRoundBottomCorners), so when it is true every pack that declares
  *   `cornerRadius` gets 0, a halo that declares no square flag of its own
  *   included, and a border and the glow around it cannot disagree about the
- *   corners. Call this AFTER any host injection of `cornerRadius` (the daemon
- *   injects its card radius), or the injection undoes the squaring.
+ *   corners. Call this AFTER the host's own injection of `cornerRadius`, if it
+ *   has one, or the injection undoes the squaring.
  *
  * Without those flags a user-authored profile keeps its configured shape and
  * layers. Returns true when the pack stays in the chain.
+ *
+ * Host-optional, and not yet wired by any host in the tree: no decoration host
+ * currently passes a window's maximized state through, so nothing calls this or
+ * chainSquareWhenMaximized today, and no bundled pack declares either flag.
  */
 PHOSPHORSURFACE_EXPORT bool resolveWindowStateParams(const SurfaceShaderEffect& effect, QVariantMap& friendlyParams,
                                                      bool maximized, bool squareCorners);

@@ -40,8 +40,11 @@
 # PZ_NESTED_SESSION set; private to the user). nest-dir.sh is the one place
 # that default is resolved, and every sibling script sources it. The daemon's
 # log is $NEST/daemon.log, written by daemon.sh and by a daemon the nested bus
-# activates; the compositor's output stays on this terminal. After the session
-# is up, source env.sh from there in every follow-up shell:
+# activates. The compositor's output stays on this terminal and, unless stderr
+# is already redirected to a regular file (run-shell.sh and the regression
+# runner do that), is also written to $NEST/compositor.log. dump-windows.sh
+# reads KWin script output from whichever file the compositor's stderr reaches.
+# After the session is up, source env.sh from there in every follow-up shell:
 #   . "$XDG_RUNTIME_DIR/pz-nested/env.sh"
 # then start the daemon with daemon.sh, and inspect with dump-windows.sh
 # and capture-output.py. Set PZ_NESTED_BUILD to use a configure dir other
@@ -54,22 +57,30 @@
 # is present and an edit to one is live at the next rescan. It overrides an
 # installed asset of the same id but cannot hide an installed one the branch
 # deleted or renamed: that still loads under its old id from the install.
+# Those dirs are symlinks into the checkout, so a bundled file's canonical path
+# lies outside every data dir. A user copy of a bundled layout therefore loses
+# its "restore system original" origin when it is reloaded here (the layout
+# loader drops a systemSourcePath that does not resolve inside a system data
+# dir); probe that restore on an installed build instead.
 #
 # Every run wipes the XDG homes for a clean slate. PZ_NESTED_KEEP_STATE
 # (any value) keeps them, which is the only way to probe session restore:
 # daemon.sh restarts the daemon but not the effect, so a login-shaped restore
 # needs a full nested restart with the session.json the daemon reads still on
-# disk. Stopping the compositor normally needs no PZ_NESTED_FORCE afterwards:
-# kwin unlinks its wayland socket, and both live-session guards below probe
-# for a BOUND listener rather than for a socket file, so a file a killed bus
-# leaves behind (Ctrl+C takes dbus-daemon down without unlinking it) does not
-# block the next launch either. One case does: a terminal hangup can leave the
-# session's dbus-daemon running with no session around it (it treats SIGHUP as
-# a config reload, while the launcher exits). The next launch then reports the
-# session as live; kill that dbus-daemon by pid (pgrep -a dbus-daemon). FORCE
-# skips the liveness probes, so use it only if a guard refuses a session you
-# know has been stopped; it cannot take over a socket a live compositor still
-# holds the lock on. Services the nested bus activated are stopped when the
+# disk. Stopping the compositor normally needs no PZ_NESTED_FORCE afterwards.
+# Neither live-session guard below tests for a file: the wayland guard asks
+# whether a process still holds the lock on the socket's ".lock" file, which
+# a compositor releases however it exits, and the bus guard asks whether the
+# previous bus address still has a BOUND listener, so a socket file a killed
+# bus leaves behind (Ctrl+C takes dbus-daemon down without unlinking it) does
+# not block the next launch either. One case does: a terminal hangup can leave
+# the session's dbus-daemon running with no session around it (it treats
+# SIGHUP as a config reload, while the launcher exits). The next launch then
+# reports the session as live; kill that dbus-daemon by pid (pgrep -a
+# dbus-daemon). FORCE skips the bus guard only, so use it only if that guard
+# refuses a session you know has been stopped. The wayland guard applies even
+# under FORCE, because a socket a live compositor still holds the lock on
+# cannot be taken over. Services the nested bus activated are stopped when the
 # compositor exits, and again at the next launch for a session that died
 # before it could (see sweep-activated.sh below).
 #
@@ -161,7 +172,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 # The character class matters as much as the location. This path is written
 # unquoted into the generated D-Bus service file's Exec= line, which is parsed
 # as a command line and cannot express a path containing whitespace, and it is
-# interpolated into the activation heredoc and the `sh -c` text below, where a
+# interpolated into the activation heredoc and the `bash -c` text below, where a
 # quote or a dollar sign would either break the shim or run as shell. A
 # scratch directory has no business carrying any of that.
 case "$NEST" in
@@ -215,8 +226,13 @@ done
 # BEFORE the previous session's state and evidence are reset below.
 #
 # PZ_NESTED_BUILD is a configure dir RELATIVE to the repository, and REPO is
-# where this checkout lives. Both reach the activation heredoc and env.sh, so
-# they get the same character class as PZ_NESTED_DIR.
+# where this checkout lives. BUILD gets the same character class as
+# PZ_NESTED_DIR. REPO is a path someone already has, so it is refused only for
+# what actually breaks: it reaches the activation shim inside a double-quoted
+# string (a quote, dollar sign, backtick, backslash or newline would end it or
+# run as shell) and PATH, QT_PLUGIN_PATH and XDG_DATA_DIRS (a colon would split
+# it). env.sh carries it single-quoted by shell_quote, and it never reaches the
+# service file's Exec= line, so a space or a '+' is fine.
 BUILD="${PZ_NESTED_BUILD:-build}"
 case "$BUILD" in
     '' | /* | *[!A-Za-z0-9._/-]*)
@@ -225,8 +241,9 @@ case "$BUILD" in
         ;;
 esac
 case "$REPO" in
-    *[!A-Za-z0-9._/-]*)
-        echo "refusing: the repository path '$REPO' contains characters the generated scripts cannot carry" >&2
+    *[\"\$\`\\:]* | *"
+"*)
+        echo "refusing: the repository path '$REPO' contains a quote, dollar sign, backtick, backslash, colon or newline, which the generated scripts cannot carry" >&2
         exit 1
         ;;
 esac
@@ -250,6 +267,21 @@ if [ ! -x "$DAEMON_BIN" ]; then
     echo "no build-tree daemon at $DAEMON_BIN; build the plasmazonesd target first" >&2
     exit 1
 fi
+# The rest of the environment the launch needs, refused here for the same
+# reason: everything below resets the previous session's state and evidence
+# (its homes, env.sh and daemon.log), and a run that then cannot start loses
+# them for nothing. The visible backend needs the host compositor, so say why
+# instead of letting kwin die with a bare backend error.
+for tool in kwin_wayland dbus-run-session flock; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "$tool is not on PATH; the nested session needs it" >&2
+        exit 1
+    fi
+done
+if [ -n "${PZ_NESTED_VISIBLE:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    echo "PZ_NESTED_VISIBLE needs a live host Wayland session (WAYLAND_DISPLAY is unset)" >&2
+    exit 1
+fi
 
 HOME_N="$NEST/home"
 
@@ -261,7 +293,7 @@ HOME_N="$NEST/home"
 # points them both at whichever started last.
 PZ_NESTED_SOCKET="${PZ_NESTED_SOCKET:-pznested${PZ_NESTED_SESSION:+-$PZ_NESTED_SESSION}}"
 # Validated like the numeric arguments above, and for a sharper reason: this
-# one is interpolated into the `sh -c` command text and into env.sh below, so a
+# one is interpolated into the `bash -c` command text and into env.sh below, so a
 # name carrying a space, a quote or a shell metacharacter either breaks every
 # follow-up script or runs as shell. It is a wayland socket NAME, so the
 # character class is not a restriction anyone will notice.
@@ -351,7 +383,7 @@ chmod 700 "$NEST"
 # or daemon it starts, and never a terminal the user sourced env.sh into (a
 # shell's `export` does not rewrite its /proc/<pid>/environ). The address
 # embeds the bus's unique guid, so a match is this session's bus and no other.
-# The session runs it when the compositor exits (see the sh -c below); the
+# The session runs it when the compositor exits (see the bash -c below); the
 # launch-time call here is the backstop for a session that never got to, such
 # as one killed with SIGKILL.
 cat > "$NEST/sweep-activated.sh" <<'SWEEP'
@@ -460,13 +492,36 @@ fi
 rm -f "$NEST/env.sh" "$NEST/env.sh.static" "$NEST/daemon.pid" "$NEST/activation-blocked"
 # The previous daemon's log is the record of what it persisted, which is the
 # evidence a restore probe compares the new session against; under keep-state
-# it is rotated rather than deleted.
-if [ "$KEEP_STATE" = "1" ] && [ -f "$NEST/daemon.log" ]; then
-    mv -f "$NEST/daemon.log" "$NEST/daemon.log.prev"
-else
-    rm -f "$NEST/daemon.log" "$NEST/daemon.log.prev"
-fi
+# it is rotated rather than deleted, and so is the compositor's log.
+for log in daemon.log compositor.log; do
+    if [ "$KEEP_STATE" = "1" ] && [ -f "$NEST/$log" ]; then
+        mv -f "$NEST/$log" "$NEST/$log.prev"
+    else
+        rm -f "$NEST/$log" "$NEST/$log.prev"
+    fi
+done
 mkdir -p "$HOME_N/config" "$HOME_N/data" "$HOME_N/cache" "$HOME_N/state"
+
+# A home kept from a harness that still COPIED the bundled data into the user
+# data home carries those copies, and a user-dir file wins over the repo-data
+# system dir below: the session would run the stale copies as user files.
+# Named rather than deleted, because under keep-state the user dir is the state
+# under test and some of it may be the probe's own.
+if [ "$KEEP_STATE" = "1" ] && [ -d "$HOME_N/data/plasmazones" ]; then
+    shadowing=0
+    for sub in layouts scrolling-templates curves overlays animations surface pointer algorithms; do
+        [ -d "$HOME_N/data/plasmazones/$sub" ] || continue
+        for entry in "$HOME_N/data/plasmazones/$sub"/*; do
+            if [ -e "$entry" ] && [ -e "$REPO/plasmazones/data/$sub/${entry##*/}" ]; then
+                shadowing=$((shadowing + 1))
+            fi
+        done
+    done
+    if [ "$shadowing" -gt 0 ]; then
+        echo "warning: the kept home holds $shadowing user-dir copies named like bundled assets under $HOME_N/data/plasmazones;" >&2
+        echo "they override the checkout's data as user files. Delete them unless the probe wrote them itself." >&2
+    fi
+fi
 
 # The repository's bundled data, served as a SYSTEM-tier data dir (see the
 # header). Symlinks laid out the way the install rules in
@@ -529,8 +584,11 @@ export KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1
 # kwin-prefixed categories, and org.phosphor.* / phosphor* for the placement
 # engines and the phosphor libraries both processes link. Under a host
 # qtlogging.ini that turns debug off by default, any category left out here
-# stays at warning level and the placement trace is silently incomplete.
-export QT_LOGGING_RULES="plasmazones.*=true;kwin.effect.plasmazones.*=true;org.phosphor.*=true;phosphor*=true"
+# stays at warning level and the placement trace is silently incomplete. js is
+# the category a KWin script's print() logs under, at debug level: it carries
+# what dump-windows.sh and the regression probes read back, so the same host
+# default must not drop it.
+export QT_LOGGING_RULES="plasmazones.*=true;kwin.effect.plasmazones.*=true;org.phosphor.*=true;phosphor*=true;js=true"
 # Without this the rules above buy you nothing. Qt's default handler sends
 # messages to JOURNALD whenever stderr is not a tty, which is exactly the case
 # here (the compositor's output is redirected), so the nested effect's log
@@ -617,15 +675,10 @@ EXTRA_FLAGS=""
 [ -n "${PZ_NESTED_XWAYLAND:-}" ] && EXTRA_FLAGS="$EXTRA_FLAGS --xwayland"
 
 # Backend selection: headless virtual outputs by default; a visible nested
-# window when PZ_NESTED_VISIBLE is set. The visible backend needs the host
-# compositor, so fail early with the reason instead of letting kwin die
-# with a bare backend error.
+# window when PZ_NESTED_VISIBLE is set (its host-session requirement was
+# checked with the other inputs, before any state was reset).
 BACKEND_FLAGS="--virtual --output-count $OUTPUTS"
 if [ -n "${PZ_NESTED_VISIBLE:-}" ]; then
-    if [ -z "${WAYLAND_DISPLAY:-}" ]; then
-        echo "PZ_NESTED_VISIBLE needs a live host Wayland session (WAYLAND_DISPLAY is unset)" >&2
-        exit 1
-    fi
     BACKEND_FLAGS="--output-count $OUTPUTS"
     # kwin_wayland's own windowed default is 1024x768 (its --help); pick a
     # roomier one when the caller gave no size.
@@ -640,7 +693,7 @@ fi
 
 # env.sh, written in two parts. Everything but the bus address is known now,
 # so it is written HERE, by this shell, with each value single-quoted by
-# shell_quote: interpolated into the `sh -c` text instead, a host value
+# shell_quote: interpolated into the `bash -c` text instead, a host value
 # carrying a quote, a dollar sign or a backtick (PATH is the most free-form of
 # them) would break env.sh or run as shell inside the session. The inner shell
 # appends only the bus address, which does not exist until dbus-run-session
@@ -671,8 +724,19 @@ shell_quote() {
     echo "export PZ_NESTED_BUILD=$(shell_quote "$BUILD")"
 } > "$NEST/env.sh.static"
 
-exec dbus-run-session -- sh -c "
-  # set -e inside the child: the outer set -eu does NOT cross an sh -c, so
+# The compositor's log file. KWin script print() output (category js) goes to
+# the compositor's stderr under QT_FORCE_STDERR_LOGGING, never to the journal,
+# so dump-windows.sh and the regression probes read it back from a file. When
+# stderr already IS a regular file (run-shell.sh's launch log, the regression
+# runner's per-probe log), that file is the log and nothing is duplicated.
+# Otherwise (a terminal, a pipe, /dev/null) the compositor's output is also
+# copied into $NEST/compositor.log. dump-windows.sh finds the right one through
+# the compositor's own fd 2, so the two cases need no flag in env.sh.
+COMPOSITOR_TEE=1
+[ -f /dev/stderr ] && COMPOSITOR_TEE=0
+
+exec dbus-run-session -- bash -c "
+  # set -e inside the child: the outer set -eu does NOT cross a bash -c, so
   # without this a failed env.sh write (full disk, read-only or unwritable
   # runtime dir) falls straight through to the compositor start below and the
   # compositor comes up healthy with no state file — after which every helper
@@ -688,8 +752,11 @@ exec dbus-run-session -- sh -c "
   # and nested homes and then open their windows on the host desktop. This
   # changes only the bus's activation environment, not this shell's, so the
   # visible backend still reaches the host compositor. DISPLAY is emptied for
-  # the same reason; a nested Xwayland's display is not known yet.
-  dbus-update-activation-environment WAYLAND_DISPLAY='$PZ_NESTED_SOCKET' DISPLAY= || true
+  # the same reason; a nested Xwayland's display is not known yet. A failure
+  # does not stop the session, but it is said out loud: activated services
+  # would then reach the host display.
+  dbus-update-activation-environment WAYLAND_DISPLAY='$PZ_NESTED_SOCKET' DISPLAY= \\
+    || echo 'warning: dbus-update-activation-environment failed; services the nested bus activates keep the HOST WAYLAND_DISPLAY and DISPLAY' >&2
   # \$EXTRA_FLAGS stays unquoted on purpose: it is a flag LIST and needs word
   # splitting. Everything else is quoted.
   # \$BACKEND_FLAGS is a flag list like \$EXTRA_FLAGS and needs the same
@@ -703,9 +770,22 @@ exec dbus-run-session -- sh -c "
   # for this shell. The trap keeps those signals from ending this shell before
   # the sweep: a trapped signal waits for the foreground command, and kwin
   # itself gets the default disposition back.
+  #
+  # The copy into compositor.log is a process substitution rather than a
+  # pipeline so kwin stays this shell's own foreground command and its exit
+  # status is the one reported. tee -i ignores the terminal's SIGINT, so a
+  # Ctrl+C cannot kill the reader and leave kwin writing into a closed pipe
+  # while it shuts down.
   trap : INT TERM HUP
   status=0
-  kwin_wayland $BACKEND_FLAGS$EXTRA_FLAGS --socket '$PZ_NESTED_SOCKET' --no-lockscreen --no-global-shortcuts --no-kactivities || status=\$?
+  run_kwin() {
+    kwin_wayland $BACKEND_FLAGS$EXTRA_FLAGS --socket '$PZ_NESTED_SOCKET' --no-lockscreen --no-global-shortcuts --no-kactivities
+  }
+  if [ '$COMPOSITOR_TEE' = 1 ]; then
+    run_kwin > >(exec tee -i -a '$NEST/compositor.log') 2>&1 || status=\$?
+  else
+    run_kwin || status=\$?
+  fi
   bash '$NEST/sweep-activated.sh' \"\$DBUS_SESSION_BUS_ADDRESS\" || true
   exit \$status
 "

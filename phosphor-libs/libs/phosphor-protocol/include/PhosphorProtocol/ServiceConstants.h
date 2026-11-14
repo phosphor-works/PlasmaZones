@@ -25,26 +25,36 @@ inline constexpr QLatin1String ObjectPath("/org/phosphor_works/Placement");
 /// Not a D-Bus name. The API name host descriptors and the host record are
 /// filed under (PhosphorConfig::HostDirectory):
 /// `<datadir>/phosphor-works/placement-hosts/` and
-/// `$XDG_STATE_HOME/phosphor-works/placement-host.json`. The install rule for
-/// the PlasmaZones descriptor in plasmazones/CMakeLists.txt and the uninstall
-/// backstop in cmake/uninstall.cmake.in spell the `placement-hosts` directory
-/// by hand, since CMake cannot read this header, and have to be changed in
-/// step with it.
+/// `$XDG_STATE_HOME/phosphor-works/placement-host.json`. These spell the
+/// derived names by hand, since none of them can read this header, and have to
+/// be changed in step with it: the install rule for the PlasmaZones descriptor
+/// in plasmazones/CMakeLists.txt and the uninstall backstop in
+/// cmake/uninstall.cmake.in (the `placement-hosts` directory), and
+/// packaging/local-install/uninstall.sh and the message in
+/// packaging/arch/plasmazones.install (the `placement-host.json` state
+/// record).
 inline constexpr QLatin1String HostApi("placement");
 
 /// Quick-layout slots are numbered 1..QuickLayoutSlotCount. Protocol-level
 /// because the daemon validates the bound on the D-Bus boundary while the
 /// settings app walks it in its Quick Shortcuts reset loop, and the two live
-/// in different trees. Kept here so those two cannot drift. The mirrors named
-/// next are NOT covered by this definition and must be updated in step by hand
-/// if the count ever changes. The phosphor-zones one,
-/// `LayoutRegistry::QuickSlotCount`
-/// (phosphor-libs/libs/phosphor-zones/include/PhosphorZones/LayoutRegistry.h),
-/// enforces the same 1..9 bound as its own named constant, because that
-/// library deliberately does not depend on phosphor-protocol. The settings
-/// app's QuickLayoutSlotsCard.qml
+/// in different trees. Kept here so those two cannot drift.
+///
+/// It bounds more than the quick-layout slots. The snap-to-zone and
+/// scroll-focus-tab shortcut families size their settings schemas and key
+/// guards by it, and their own slot counts static_assert equal to it
+/// (SnapToZoneSlotCount and ScrollFocusTabSlotCount), so raising it moves
+/// those families too.
+///
+/// Mirrors repeat the value where this header cannot be the source. The
+/// daemon's shortcut table registers the indexed slot families from
+/// `kIndexedSlotCount` (shortcutmanager_ids.h), static_asserted equal to it in
+/// shortcutmanager.cpp. phosphor-zones' `LayoutRegistry::QuickSlotCount` does
+/// not depend on phosphor-protocol; the daemon's LayoutAdaptor, which links
+/// both, static_asserts the two equal. The settings app's QuickLayoutSlotsCard.qml
 /// (plasmazones/src/settings/qml/pages/layouts/) spells the count as the
-/// literal `model` of its slot Repeater, because QML cannot read this header.
+/// literal `model` of its slot Repeater, because QML cannot read this header,
+/// and that one has to be changed in step by hand.
 inline constexpr int QuickLayoutSlotCount = 9;
 
 /// The largest running-windows payload (Settings.provideRunningWindows) the
@@ -60,10 +70,12 @@ inline constexpr QLatin1String Settings("org.phosphor_works.Placement.Settings")
 inline constexpr QLatin1String WindowDrag("org.phosphor_works.Placement.WindowDrag");
 inline constexpr QLatin1String WindowTracking("org.phosphor_works.Placement.WindowTracking");
 inline constexpr QLatin1String Overlay("org.phosphor_works.Placement.Overlay");
-// Shared tiling-family engine pipeline (autotile + scrolling). Renamed
-// from org.phosphor_works.Placement.Autotile when the scrolling engine joined; the
-// project ships daemon and effect together, so no wire compatibility
-// alias is kept.
+// Shared tiling-family engine pipeline (autotile + scrolling). The
+// lifecycle surface moved here from the Autotile interface (then
+// org.plasmazones.Autotile, see the v5 and v11 notes below) when the
+// scrolling engine joined; the Autotile name now carries only autotile's own
+// verbs. The project ships daemon and effect together, so no wire
+// compatibility alias is kept.
 inline constexpr QLatin1String Tiling("org.phosphor_works.Placement.Tiling");
 // Engine-specific sibling interfaces (autotile verbs / scrolling screen
 // set). Listed so this namespace stays a complete index of published
@@ -111,9 +123,9 @@ inline constexpr QLatin1String DecorationBlurScaleMultiplier("decorationBlurScal
 /// The resolved global gaps as the Settings interface serves them. The daemon
 /// registers them read-only (the settings app writes the stored values through
 /// the config, under ConfigDefaults' own Gaps keys), and the editor reads them
-/// to draw its gap overlay. The spellings coincide with PhosphorLayout::GapKeys,
-/// the layout-file field names, but the two are independent contracts and
-/// neither follows the other.
+/// to draw its gap overlay. The per-side spellings coincide with
+/// PhosphorLayout::GapKeys, the layout-file field names, but the two are
+/// independent contracts and neither follows the other.
 ///@{
 inline constexpr QLatin1String InnerGap("innerGap");
 inline constexpr QLatin1String OuterGap("outerGap");
@@ -131,6 +143,10 @@ inline constexpr QLatin1String OuterGapRight("outerGapRight");
 /// window-rule resolvers match the same fields the effect path resolves. A key is
 /// PRESENT only when the value is known — absence leaves the WindowQuery field
 /// disengaged, mirroring window_query.cpp's engage-only-when-known contract.
+/// Two map shapes are the exception: an EMPTY map, and one carrying only
+/// CaptionNormal, are a caption-only refresh that carries the previous
+/// snapshot forward. A sender meaning "nothing is known" must not use either
+/// (see the setWindowMetadata DocString in the WindowTracking XML).
 namespace WindowMetadataKey {
 inline constexpr QLatin1String IsMinimized("isMinimized");
 /// Urgency (KWin's demandsAttention). Like IsMinimized, and unlike the
@@ -411,19 +427,20 @@ inline constexpr QLatin1String Interface("org.phosphor_works.PlasmaZones.Editor"
 //       ApiVersion exactly, so those steps were unobservable outside the
 //       branch. A new change AFTER v5 ships needs v6.
 //
-//       Interfaces. The org.phosphor_works.Placement.Autotile lifecycle surface moved
-//       wholesale to the engine-neutral org.phosphor_works.Placement.Tiling interface
+//       Interfaces (the names this release used, before the v11 rename).
+//       The org.plasmazones.Autotile lifecycle surface moved
+//       wholesale to the engine-neutral org.plasmazones.Tiling interface
 //       (property managedScreens, signal managedScreensChanged), with
-//       engine-specific verbs split onto org.phosphor_works.Placement.Autotile /
-//       org.phosphor_works.Placement.Scrolling. The scrolling tab indicators moved from a
+//       engine-specific verbs split onto org.plasmazones.Autotile /
+//       org.plasmazones.Scrolling. The scrolling tab indicators moved from a
 //       daemon-rendered layer surface into the KWin effect's own paint pass,
-//       so org.phosphor_works.Placement.Scrolling LOST scrollTabSurfaces and
-//       scrollTabSurfaceChanged and org.phosphor_works.Placement.Tiling GAINED the
+//       so org.plasmazones.Scrolling LOST scrollTabSurfaces and
+//       scrollTabSurfaceChanged and org.plasmazones.Tiling GAINED the
 //       transport that replaces them (scrollTabStrips / scrollTabStripsChanged,
 //       scrollTabPaintOverrides / scrollTabPaintOverridesChanged,
 //       scrollTabColors / scrollTabColorsChanged).
 //
-//       NOT part of this step: org.phosphor_works.Placement.Overlay's
+//       NOT part of this step: org.plasmazones.Overlay's
 //       setWindowThumbnailDmabuf, the zero-copy thumbnail path. It has been on
 //       the wire with its present signature since 3.1.0, the first release to
 //       carry v4. A false reply routes the caller back to
@@ -829,13 +846,26 @@ inline constexpr QLatin1String Interface("org.phosphor_works.PlasmaZones.Editor"
 //       re-homed them, a workspace verb would do nothing visible, and the
 //       owner-wins correction would never land.
 //
+//       Names. The service, object path, interfaces and error names moved
+//       from org.plasmazones, /PlasmaZones, org.plasmazones.<Interface> and
+//       org.plasmazones.Error.* to org.phosphor_works.Placement,
+//       /org/phosphor_works/Placement, org.phosphor_works.Placement.<Interface>
+//       and org.phosphor_works.Placement.Error.*, and the apps' own D-Bus
+//       names to the Apps namespace's entries. A v10 peer therefore never reaches
+//       the version check at all: it finds no service under the name it
+//       knows, which a reader should not mistake for a handshake refusal.
+//
 //       WindowTracking gains setScreenDesktopRequested (s s i): switch ONE
 //       output's current desktop, named by its stable VirtualDesktop::id()
 //       rather than a number a concurrent renumber can re-point, with a
 //       ScreenDesktopSwitchPurpose (a user focus verb is shown like any user
-//       switch, a daemon correction is not). The compositor answers every
-//       request for an output it knows with a forced screenDesktopChanged
-//       carrying the output's live desktop.
+//       switch, a daemon correction is not). The compositor answers each
+//       request for an output it knows with EXACTLY ONE screenDesktopChanged
+//       carrying the output's live desktop: the switch's own report when the
+//       output switched, otherwise a forced one (an unknown desktop, a refusal
+//       under global desktops, a correction deferred under Show Desktop, an
+//       output already on that desktop). Never both, because the daemon counts
+//       one answer per request.
 //
 //       WindowTracking gains windowWorkspaceMoveRequested (s s i s): a
 //       workspace move as ONE step carrying both legs, the destination
@@ -868,18 +898,21 @@ inline constexpr int MinPeerApiVersion = 11;
 
 // Scrolling.reportCommittedSize tolerance, in logical pixels, on each axis:
 // a size a client committed within this many pixels of the rect the strip
-// offered it COUNTS AS THE OFFER. It is not an answer, and nothing about it
-// teaches the engine anything. Fractional scaling, and a server-side
-// decoration with fractional borders, round the frame of a client that took
-// its tile exactly to a pixel either side of it, and reading that pixel as an
-// answer would plant (or give back) a one-pixel floor and relayout the strip
-// for it.
+// offered it COUNTS AS THE OFFER, the size the engine holds the column to.
+// For an ordinary tile it is not an answer and teaches the engine nothing. A
+// PARKED tile is the exception: its matched commit is reported whatever the
+// delta, because the client's answer to a park is what ends the engine's peek
+// memory (see the after-v10 note on reportCommittedSize). Fractional scaling,
+// and a server-side decoration with fractional borders, round the frame of a
+// client that took its tile exactly to a pixel either side of it, and reading
+// that pixel as an answer would plant (or give back) a one-pixel floor and
+// relayout the strip for it.
 //
 // Both ends of the wire apply it, and they must agree, which is why it lives
-// here. The compositor reports only answers beyond it, and the engine reads
-// any answer within it as the offer. A wider value on the compositor side
-// would withhold answers the engine would act on. A narrower one would send
-// answers the engine discards as the offer.
+// here. For a tile that is not parked the compositor reports only answers
+// beyond it, and the engine reads any answer within it as the offer. A wider
+// value on the compositor side would withhold answers the engine would act
+// on. A narrower one would send answers the engine discards as the offer.
 inline constexpr int CommittedSizeTolerancePx = 1;
 
 // Hard cap on blocking synchronous D-Bus calls to the daemon: the editor and
@@ -898,15 +931,18 @@ inline constexpr int CommittedSizeTolerancePx = 1;
 // so a watcher on a daemon that never answers is released after it.
 inline constexpr int SyncCallTimeoutMs = 500;
 
-// Timeout for the kwin-effect's daemon-readiness probe (an Introspect call
+// Timeout for the compositor side's daemon-readiness probe (an Introspect call
 // fired against the org.phosphor_works.Placement service to detect "daemon up but the
-// daemonReady signal was emitted before the effect connected"). 3 s gives
+// daemonReady signal was emitted before the effect connected"). Two probes
+// use it: the KWin effect's inline one and the default of
+// PhosphorCompositor::DaemonClient::probeDaemonAvailable. 3 s gives
 // the daemon ample time to answer once its event loop is responsive while
 // still keeping the effect from hanging on a wedged daemon.
 inline constexpr int DaemonReadyProbeTimeoutMs = 3000;
 
-// Timeout for the kwin-effect's snap-assist thumbnail post (carries an
-// ARGB32 pixel payload). 2 s is "definitely something is wrong, drop the
+// Timeout for either of the kwin-effect's snap-assist thumbnail posts: the
+// dma-buf setWindowThumbnailDmabuf (the default transport) and its raw ARGB32
+// fallback setSnapAssistThumbnail. 2 s is "definitely something is wrong, drop the
 // watcher" rather than expected latency. Without it, the effect would
 // otherwise leak a watcher per snap-assist candidate per show until Qt's
 // default 25 s timeout expires, which under daemon stress turns a

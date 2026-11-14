@@ -190,6 +190,9 @@ FocusScope {
         component: root.decoration
         contentItem: block
         surfacePath: "shell.phosphor.lock"
+        // The block fades in and out on its own opacity, which the pack's
+        // capture does not see, so the decorated output follows it here.
+        surfaceOpacity: block.opacity
     }
 
     // The content block: clock, date, field, left-aligned to the region.

@@ -46,11 +46,16 @@ scripts/nested-kwin/run-nested.sh [output-count] [width height] [scale]
   The only way to probe session restore: `daemon.sh` restarts the daemon but
   not the effect, so a login-shaped restore needs a full nested restart with
   the `session.json` the daemon reads still on disk. No `PZ_NESTED_FORCE` is
-  needed after the compositor stops: both live-session guards probe for a
-  bound listener, so a socket file left behind does not block the next launch.
-  After a terminal hangup the session's `dbus-daemon` can survive on its own;
-  kill it by pid (`pgrep -a dbus-daemon`) rather than reaching for FORCE. The
-  previous daemon log is rotated to `daemon.log.prev` for comparison.
+  needed after the compositor stops. The wayland guard tests whether a
+  compositor still holds the lock on the socket's `.lock` file, and the bus
+  guard tests whether the previous bus still has a bound listener, so files
+  left behind do not block the next launch. After a terminal hangup the
+  session's `dbus-daemon` can survive on its own; kill it by pid
+  (`pgrep -a dbus-daemon`) rather than reaching for FORCE, which skips only the
+  bus guard. The previous daemon and compositor logs are rotated to
+  `daemon.log.prev` and `compositor.log.prev` for comparison. A kept home made
+  by an older harness, which copied the bundled data into the user data home,
+  gets a warning: those copies override the checkout's data as user files.
 - `PZ_NESTED_SESSION=<name>` runs a second, independent session: it suffixes
   both the default state dir (`pz-nested-<name>`) and the default socket
   (`pznested-<name>`), and every sibling script resolves the same dir from it.
@@ -61,7 +66,11 @@ scripts/nested-kwin/run-nested.sh [output-count] [width height] [scale]
   an edit to one is live at the next registry rescan. It overrides an installed
   asset of the same id but cannot hide one the branch deleted or renamed: that
   still loads under its old id from the install, so check a removal on a host
-  without the install or by id in the logs.
+  without the install or by id in the logs. Those dirs are symlinks into the
+  checkout, so a user copy of a bundled layout loses its "restore system
+  original" origin when it reloads in the nested session (the loader drops a
+  `systemSourcePath` that does not resolve inside a system data dir). Probe
+  that restore on an installed build.
 
 State lives in `$PZ_NESTED_DIR` (default `$XDG_RUNTIME_DIR/pz-nested`, or
 `$XDG_RUNTIME_DIR/pz-nested-<name>` with `PZ_NESTED_SESSION`). In every
@@ -95,7 +104,9 @@ scripts/nested-kwin/dump-windows.sh
 
 Committed geometry and KWin output assignment for every normal window, read
 from inside the compositor via a throwaway KWin script. **Committed geometry is
-the ground truth for boundary bugs; screenshots are not.**
+the ground truth for boundary bugs; screenshots are not.** The script's output
+is read back from the compositor's log (see below), not the journal, and the
+command fails rather than printing nothing when that output never arrives.
 
 ```bash
 scripts/nested-kwin/capture-output.py <OutputName> <out.png>
@@ -110,8 +121,12 @@ logical geometry. Needs `dbus-python` and Pillow.
 
 ## Reading the logs
 
-The daemon log is the only log file; the compositor's output stays on the
-terminal that launched it. For the host session:
+The daemon log is `$NEST/daemon.log`, written by `daemon.sh` and by a daemon
+the nested bus activates. The compositor's output stays on the terminal that
+launched it and is also written to `$NEST/compositor.log`, unless its stderr
+was already redirected to a file (`run-shell.sh` and the regression runner do
+that, and the runner's per-probe `NAME.kwin.log` is then the log). For the host
+session:
 
 ```bash
 journalctl --user -f -u plasma-kwin_wayland.service

@@ -56,6 +56,10 @@ public:
         /// Optional. Nullptr → each Surface owns its own QQmlEngine (default
         /// isolation). Non-null → provider decides (e.g. return the same
         /// engine for every call to share).
+        ///
+        /// **Lifetime contract**: see IQmlEngineProvider. A destroyed Surface
+        /// releases its engine from the event loop after its window is gone,
+        /// so the provider has to outlive that call too.
         IQmlEngineProvider* engineProvider = nullptr;
 
         /// Optional. Nullptr → Surface uses the no-op default animator
@@ -74,9 +78,6 @@ public:
         /// destroys the factory (and any Surfaces it parented) before the
         /// animator. See `OverlayService` member ordering for an example.
         ISurfaceAnimator* animator = nullptr;
-
-        /// Logging category name for internal diagnostics. Empty → "phosphorlayer".
-        QString loggingCategory;
     };
 
     explicit SurfaceFactory(Deps deps, QObject* parent = nullptr);

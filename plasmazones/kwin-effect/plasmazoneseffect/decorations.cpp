@@ -599,9 +599,12 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
         // useSystemAccent: the resolver checks useWindowAccent and then
         // useThemeNeutral ahead of it and falls back to the PACK'S declared
         // default when the caller supplies no override. Pack metadata is an
-        // installable boundary — a third-party "border" pack shipping either
-        // default true would otherwise silently discard the accent-resolved
-        // colours here.
+        // installable boundary, so a third-party "border" pack shipping
+        // useThemeNeutral default true would otherwise silently discard the
+        // accent-resolved colours here. The useWindowAccent pin is inert
+        // today, because this host's SurfaceThemeColors (below) carries no
+        // window identity colour and the resolver reads the flag only when
+        // one is valid. It guards the day this host is fed one.
         borderParams.insert(QStringLiteral("useSystemAccent"), false);
         borderParams.insert(QStringLiteral("useThemeNeutral"), false);
         borderParams.insert(QStringLiteral("useWindowAccent"), false);

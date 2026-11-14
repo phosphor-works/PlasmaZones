@@ -10,6 +10,7 @@
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
 
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorShortcuts/Factory.h>
 #include <PhosphorShortcuts/IBackend.h>
 #include <PhosphorShortcuts/Registry.h>
@@ -37,6 +38,12 @@ using ShortcutTable::StaticEntry;
 // silently registering a slot the config cannot store.
 static_assert(kIndexedSlotCount == ConfigDefaults::WorkspaceSlotCount,
               "workspace slot families are registered with kIndexedSlotCount; keep it equal to the config bound");
+// The quick-layout, snap-to-zone and scroll-focus-tab families are registered
+// from the same loops and bounded by the protocol's slot count, which the
+// daemon validates on the D-Bus boundary.
+static_assert(kIndexedSlotCount == PhosphorProtocol::Service::QuickLayoutSlotCount,
+              "the indexed shortcut families are registered with kIndexedSlotCount; keep it equal to "
+              "PhosphorProtocol::Service::QuickLayoutSlotCount");
 
 // Indexed slot defaults — array of static accessors so the slot loop can
 // resolve defaults by index without one constexpr-if branch per slot. Sized

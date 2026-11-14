@@ -4,6 +4,7 @@
 #include <PhosphorSurface/SurfaceShaderUniforms.h>
 #include <PhosphorSurface/SurfaceUniformProfile.h>
 
+#include <PhosphorShaders/BaseUniformProfile.h>
 #include <PhosphorShaders/IUboProfile.h>
 
 #include <QtTest/QtTest>
@@ -307,6 +308,17 @@ private Q_SLOTS:
         profile.setAppField1(99);
         const int rc = std::memcmp(profile.data(), before.constData(), static_cast<size_t>(sz));
         QCOMPARE(rc, 0);
+    }
+
+    /// The surface profile writes qt_Opacity from the frame state, so a node
+    /// must re-upload on an inherited-opacity change. The base profile pins it
+    /// and must not.
+    void reads_qt_opacity_only_where_fill_writes_it()
+    {
+        SurfaceUniformProfile surface;
+        QVERIFY(surface.readsQtOpacity());
+        PhosphorShaders::BaseUniformProfile base;
+        QVERIFY(!base.readsQtOpacity());
     }
 
     void dirty_regions_matrix_plus_scene()

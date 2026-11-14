@@ -9,8 +9,8 @@
 // `shaderAnchor: true`), its surface path in the decoration tree, and
 // whether it is focused; the composition root hands it a Component that
 // draws the chain. Without one the slot is empty and the surface draws
-// its own stroke; with one, `active` says a chain is engaged so the
-// surface can hand its outline to the pack.
+// its own stroke; with one, `active` says a chain is drawing (resolved and
+// with no failed stage) so the surface can hand its outline to the pack.
 //
 //   DecorationSlot {
 //       anchors.fill: parent

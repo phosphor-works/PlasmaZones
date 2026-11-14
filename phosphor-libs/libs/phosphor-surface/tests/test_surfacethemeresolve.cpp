@@ -224,13 +224,20 @@ private Q_SLOTS:
         effect.parameters = {
             parameter(QStringLiteral("hideWhenMaximized"), QStringLiteral("bool"), true),
             parameter(QStringLiteral("shadowSize"), QStringLiteral("int"), 36),
+            parameter(QStringLiteral("cornerRadius"), QStringLiteral("int"), 12),
         };
         QVariantMap values{{QStringLiteral("shadowSize"), 48}};
-        QVERIFY(!resolveWindowStateParams(effect, values, true, false));
-        QVERIFY(resolveWindowStateParams(effect, values, false, false));
+        const QVariantMap authored = values;
+        // A dropped pack's map is left alone, even when the chain would
+        // otherwise square its declared radius.
+        QVERIFY(!resolveWindowStateParams(effect, values, true, true));
+        QCOMPARE(values, authored);
+        QVERIFY(resolveWindowStateParams(effect, values, false, true));
+        QCOMPARE(values, authored);
 
         values.insert(QStringLiteral("hideWhenMaximized"), false);
         QVERIFY(resolveWindowStateParams(effect, values, true, false));
+        QCOMPARE(values.value(QStringLiteral("shadowSize")).toInt(), 48);
 
         // A value for a flag the pack does not declare is not the pack's
         // opinion and cannot drop it.

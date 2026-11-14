@@ -390,35 +390,10 @@ inline bool insideBodyOf(const QList<SourceFn>& fns, const QSet<QString>& names,
     return false;
 }
 
-/// Every setting key the effect fetches, scraped from its own sources rather than
-/// duplicated here — a hand-copied list is exactly the thing that drifts.
-///
-/// WHAT counts as a fetch is discovered, not listed: the set is seeded with
-/// loadSettingAsync and grows to include any function that hands one of its OWN key
-/// parameters to a member of the set (the audio wrappers do exactly that). A wrapper added
-/// tomorrow is covered without touching this file, which matters because the alternative —
-/// a list of names here — is one more thing to forget, and forgetting it is what once took
-/// the numerator and the denominator out of agreement.
-///
-/// Every fetch must NAME its key somewhere in its argument list, in one of two shapes:
-///
-///   loadSettingAsync(QStringLiteral("key"), …)   a literal
-///   loadSettingAsync(SettingProperty::X, …)      a named constant, resolved from
-///                                                ServiceConstants.h
-///
-/// and so must every call to a discovered wrapper. A fetch whose key the scrape cannot read
-/// off the call site is UNACCOUNTED, and unaccounted is LOUD — including a key bound to a
-/// local variable first, which is the shape that defeated the previous version of this file.
-///
-/// The one thing that is exempt is PLUMBING: a call that forwards a key it was itself
-/// handed. That is recognised by POSITION (the call lies inside the brace-matched body of a
-/// fetcher) and not by the NAME of the argument, which is not a property of plumbing at all.
-///
-/// @p unaccounted receives every call site that is neither. The caller asserts it is empty:
-/// a fetch written in a shape this function does not know would otherwise simply not be
-/// seen, and the test would pass green on precisely the bug it exists to catch. It has done
-/// exactly that eight times.
-inline QStringList keysFetchedByEffect(QString* whyFailed, QStringList* unaccounted)
+/// SettingProperty::Name -> "actualKey", scraped from ServiceConstants.h. Shared by the
+/// effect and editor scrapes so both resolve a named constant the same way. Empty, with
+/// @p whyFailed set, when the scrape cannot account for every constant in the block.
+inline QHash<QString, QString> settingPropertyConstants(QString* whyFailed)
 {
     const QString constantsSrc =
         readSource(QStringLiteral(PLASMAZONES_PROTOCOL_INC_DIR "/PhosphorProtocol/ServiceConstants.h"), whyFailed);
@@ -464,6 +439,43 @@ inline QStringList keysFetchedByEffect(QString* whyFailed, QStringList* unaccoun
                          "scrape does not recognise, and every fetch through it would go unchecked")
                          .arg(constants.size())
                          .arg(declared);
+        return {};
+    }
+    return constants;
+}
+
+/// Every setting key the effect fetches, scraped from its own sources rather than
+/// duplicated here — a hand-copied list is exactly the thing that drifts.
+///
+/// WHAT counts as a fetch is discovered, not listed: the set is seeded with
+/// loadSettingAsync and grows to include any function that hands one of its OWN key
+/// parameters to a member of the set (the audio wrappers do exactly that). A wrapper added
+/// tomorrow is covered without touching this file, which matters because the alternative —
+/// a list of names here — is one more thing to forget, and forgetting it is what once took
+/// the numerator and the denominator out of agreement.
+///
+/// Every fetch must NAME its key somewhere in its argument list, in one of two shapes:
+///
+///   loadSettingAsync(QStringLiteral("key"), …)   a literal
+///   loadSettingAsync(SettingProperty::X, …)      a named constant, resolved from
+///                                                ServiceConstants.h
+///
+/// and so must every call to a discovered wrapper. A fetch whose key the scrape cannot read
+/// off the call site is UNACCOUNTED, and unaccounted is LOUD — including a key bound to a
+/// local variable first, which is the shape that defeated the previous version of this file.
+///
+/// The one thing that is exempt is PLUMBING: a call that forwards a key it was itself
+/// handed. That is recognised by POSITION (the call lies inside the brace-matched body of a
+/// fetcher) and not by the NAME of the argument, which is not a property of plumbing at all.
+///
+/// @p unaccounted receives every call site that is neither. The caller asserts it is empty:
+/// a fetch written in a shape this function does not know would otherwise simply not be
+/// seen, and the test would pass green on precisely the bug it exists to catch. It has done
+/// exactly that eight times.
+inline QStringList keysFetchedByEffect(QString* whyFailed, QStringList* unaccounted)
+{
+    const QHash<QString, QString> constants = settingPropertyConstants(whyFailed);
+    if (constants.isEmpty()) {
         return {};
     }
 
@@ -686,10 +698,15 @@ inline QStringList keysFetchedByEffect(QString* whyFailed, QStringList* unaccoun
 /// ever see the key.
 ///
 /// A fetcher's call sites must NAME their keys: a literal in the argument list, or a named
-/// QStringList of literals declared in the same file (the batch shape). Every element of
-/// that list must be a literal — not merely one of them.
+/// QStringList declared in the same file (the batch shape). Every element of that list must
+/// name a key the scrape can read — a literal, or a fully qualified SettingProperty constant
+/// resolved from ServiceConstants.h — not merely one of them.
 inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccounted)
 {
+    const QHash<QString, QString> constants = settingPropertyConstants(whyFailed);
+    if (constants.isEmpty()) {
+        return {};
+    }
     static const QSet<QString> notSource{QStringLiteral("md"),  QStringLiteral("txt"), QStringLiteral("json"),
                                          QStringLiteral("qml"), QStringLiteral("in"),  QStringLiteral("cmake"),
                                          QStringLiteral("ts"),  QStringLiteral("png"), QStringLiteral("svg")};
@@ -720,6 +737,19 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
     // The D-Bus read methods. Wherever one of these is NAMED, a setting is being fetched.
     static const QRegularExpression dbusReadRe(dbusReadPattern());
     static const QRegularExpression literalRe(QLatin1String("QStringLiteral\\(\"([A-Za-z0-9_]+)\"\\)"));
+    // One batch-list element: a literal, or a SettingProperty constant spelled in full.
+    // Anything else — including a constant through a namespace alias, which the scrape
+    // cannot resolve — is empty, and the caller reports it as unaccounted.
+    static const QRegularExpression elementRe(
+        QLatin1String("^(?:QStringLiteral\\(\"([A-Za-z0-9_]+)\"\\)"
+                      "|QString\\(PhosphorProtocol::Service::SettingProperty::([A-Za-z0-9_]+)\\))$"));
+    const auto elementKey = [&constants](const QString& element) -> QString {
+        const auto em = elementRe.match(element.trimmed());
+        if (!em.hasMatch()) {
+            return {};
+        }
+        return em.captured(1).isEmpty() ? constants.value(em.captured(2)) : em.captured(1);
+    };
 
     QStringList keys;
     QSet<QString> fetchers;
@@ -826,15 +856,15 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
             if (braceEnd > brace) {
                 const QStringList elements = splitTopLevel(args.mid(brace + 1, braceEnd - brace - 1));
                 for (const QString& element : elements) {
-                    const auto em = literalRe.match(element.trimmed());
-                    if (!em.hasMatch()) {
+                    const QString key = elementKey(element);
+                    if (key.isEmpty()) {
                         *unaccounted << QStringLiteral(
                                             "%1: an inline batch key list has an element the scrape cannot "
-                                            "read as a literal key (%2)")
+                                            "read as a key (%2)")
                                             .arg(QFileInfo(path).fileName(), element.trimmed());
                         continue;
                     }
-                    keys << em.captured(1);
+                    keys << key;
                 }
                 continue;
             }
@@ -864,20 +894,20 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
                                     .arg(QFileInfo(path).fileName());
                 continue;
             }
-            // EVERY element must be a literal, not merely one of them. A list that mixes
-            // QStringLiteral with a QLatin1String or a constant would otherwise contribute
-            // the literals it happens to have and drop the rest, silently.
+            // EVERY element must be readable, not merely one of them. A list that mixes
+            // readable keys with a QLatin1String or an aliased constant would otherwise
+            // contribute the keys it happens to have and drop the rest, silently.
             const QStringList elements = splitTopLevel(src.mid(open + 1, end - open - 1));
             for (const QString& element : elements) {
-                const auto em = literalRe.match(element);
-                if (!em.hasMatch()) {
+                const QString key = elementKey(element);
+                if (key.isEmpty()) {
                     *unaccounted << QStringLiteral(
                                         "%1: batch key list %2 has an element the scrape cannot read as a "
-                                        "literal key (%3) — it would go unchecked")
+                                        "key (%3) — it would go unchecked")
                                         .arg(QFileInfo(path).fileName(), listName, element);
                     continue;
                 }
-                keys << em.captured(1);
+                keys << key;
             }
         }
     }

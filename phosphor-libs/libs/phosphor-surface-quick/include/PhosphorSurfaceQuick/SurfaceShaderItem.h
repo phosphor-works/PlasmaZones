@@ -63,9 +63,11 @@ class PHOSPHORSURFACEQUICK_EXPORT SurfaceShaderItem : public PhosphorRendering::
     /** Host fade factor for the decoration's output, 0..1. Multiplied with the
      * scene graph's inherited opacity into the shader's qt_Opacity, which the
      * generated surface entry point applies to the final premultiplied colour.
-     * Use this rather than QQuickItem::opacity for a fade the host drives: item
-     * opacity is also applied by a layer composite, so a layered item would
-     * take it twice. */
+     * Use this rather than QQuickItem::opacity for a fade the host drives: a
+     * stage that a hide-source ShaderEffectSource captures (every decoration
+     * stage but the last, and the last one too while SurfaceAnimator runs a
+     * shader leg) loses its own item opacity in the capture, while this factor
+     * is baked into what the capture samples. */
     Q_PROPERTY(qreal surfaceOpacity READ surfaceOpacity WRITE setSurfaceOpacity NOTIFY surfaceOpacityChanged FINAL)
     /** Logical→device pixel scale for the decorated surface. Maps to
      * UboFrameState::surfaceScale (the shader's `uSurfaceScale`). */

@@ -322,14 +322,19 @@ void SurfaceAnimator::Private::connectSurfaceCleanup(PhosphorLayer::Surface* sur
             // we only use the pointer value as a map key.
             auto* surf = static_cast<PhosphorLayer::Surface*>(dying);
             // Mutating m_destroyedConnections at the end of this
-            // slot is safe because destroyPendingReuseFor's only
-            // synchronous side-effect is deleteLater() on shader
-            // pieces — Qt's deferred-delete mechanism queues the
-            // destruction for the next event-loop iteration and
-            // never re-enters connectSurfaceCleanup. If a future
-            // edit ever makes destroyPendingReuseEntry synchronous
-            // (e.g. a hard delete instead of deleteLater) and
-            // re-enters this animator, this remove() must happen
+            // slot, and iterating the live m_pendingReuse inside
+            // destroyPendingReuseFor, are safe because nothing in
+            // that walk can re-enter this animator. Every entry in
+            // the stash is parked and therefore already dormant, so
+            // destroyPendingReuseEntry's dormancy setters
+            // (setVisible / setLive / setHideSource) are no-ops that
+            // emit nothing, and the destruction itself is a
+            // deleteLater() Qt runs on a later event-loop iteration.
+            // Only a LIVE transient (a runLeg bail, the destructor's
+            // in-flight drain) makes those setters emit, and neither
+            // of those iterates a live map. If a future edit ever
+            // parks a live entry or makes the destruction
+            // synchronous (a hard delete), this remove() must happen
             // BEFORE that path or be re-checked for invalidation.
             destroyPendingReuseFor(surf);
             // Also drop every still-tracked (surf, *) entry;
@@ -469,9 +474,10 @@ void SurfaceAnimator::Private::runLeg(PhosphorLayer::Surface* surface, QQuickIte
         }
     }
     // A hide of a surface that is already invisible has nothing to show. Run it
-    // as the zero-distance opacity leg, which completes in place, rather than
-    // attaching a capture and running the shader for its full duration over
-    // nothing. The pieces parked for this target stay for the next real leg.
+    // as the zero-distance opacity leg alone, which completes in place, rather
+    // than attaching a capture and running the shader (or a scale leg, see
+    // hasScaleLeg below) for its full duration over nothing. The pieces parked
+    // for this target stay for the next real leg.
     const bool invisibleHide = !(toOpacity > fromOpacity) && fromOpacity <= 0.0;
     const bool keepShaderStash = resolvedShaderEff.isValid() && invisibleHide;
     const bool hasShaderLeg = resolvedShaderEff.isValid() && !invisibleHide;
@@ -608,8 +614,10 @@ void SurfaceAnimator::Private::runLeg(PhosphorLayer::Surface* surface, QQuickIte
     // When a shader leg is active, it IS the transition — suppress
     // the scale leg so the built-in popin motion doesn't fight the
     // shader's own visual. Matches the Niri model where custom
-    // shaders replace the default animation, not layer on top.
-    const bool hasScaleLeg = !scaleProfilePath.isEmpty() && !hasShaderLeg;
+    // shaders replace the default animation, not layer on top. An invisible
+    // hide runs no scale leg either: there is nothing to see it, and it would
+    // hold the caller's onComplete for the scale profile's whole duration.
+    const bool hasScaleLeg = !scaleProfilePath.isEmpty() && !hasShaderLeg && !invisibleHide;
     const int legCount = 1 + (hasScaleLeg ? 1 : 0) + (hasShaderLeg ? 1 : 0);
 
     // Install the bookkeeping slot BEFORE the synchronous pre-
@@ -676,11 +684,15 @@ void SurfaceAnimator::Private::runLeg(PhosphorLayer::Surface* surface, QQuickIte
         target->setScale(1.0);
     } else {
         target->setOpacity(fromOpacity);
-        // The same residual-scale reasoning as the shader branch: a leg with
+        // The same residual-scale reasoning as the shader branch: a SHOW with
         // no scale animation of its own starts from scale 1, or a previous
-        // hide's scale-down carries into this leg (and compounds across
-        // cycles, since the next hide reads the live scale as its start).
-        if (!hasScaleLeg) {
+        // hide's scale-down carries into it (and compounds across cycles,
+        // since the next hide reads the live scale as its start). Show legs
+        // only: a hide without a scale leg that interrupts a scaling show
+        // keeps the scale it found rather than snapping to 1 on its first
+        // frame, and the next show resets it. An invisible hide also lands
+        // here and leaves the scale alone, which nothing can see.
+        if (!hasScaleLeg && isShowLeg) {
             target->setScale(1.0);
         }
     }

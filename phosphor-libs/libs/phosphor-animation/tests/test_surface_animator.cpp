@@ -1345,6 +1345,86 @@ private Q_SLOTS:
 
         delete surface;
     }
+
+    /// A hide of a surface that is already invisible has nothing to show, so it
+    /// completes in place: onComplete fires before beginHide returns, no shader
+    /// leg claims the parked tower (it stays for the next real leg), and a
+    /// configured hide scale profile runs no scale leg over nothing either.
+    void hide_of_an_invisible_surface_completes_in_place_and_keeps_the_stash()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString packDir = tmp.path() + QStringLiteral("/invisible-probe");
+        QVERIFY(QDir(tmp.path()).mkpath(QStringLiteral("invisible-probe")));
+        {
+            QFile meta(packDir + QStringLiteral("/metadata.json"));
+            QVERIFY(meta.open(QIODevice::WriteOnly));
+            meta.write(R"({"id":"invisible-probe","name":"Invisible","description":"probe",)"
+                       R"("author":"test","version":"1.0","category":"Test",)"
+                       R"("fragmentShader":"effect.frag","parameters":[],"appliesTo":["appearance"]})");
+        }
+        {
+            QFile frag(packDir + QStringLiteral("/effect.frag"));
+            QVERIFY(frag.open(QIODevice::WriteOnly));
+            frag.write("void main(){}\n");
+        }
+        PhosphorAnimationShaders::AnimationShaderRegistry shaderRegistry;
+        shaderRegistry.addSearchPath(tmp.path());
+        shaderRegistry.refresh();
+        QVERIFY2(shaderRegistry.effect(QStringLiteral("invisible-probe")).isValid(), "fixture pack must resolve");
+
+        SurfaceAnimator::Config cfg;
+        cfg.showProfile = QStringLiteral("test.show");
+        cfg.hideProfile = QStringLiteral("test.hide");
+        cfg.hideShaderEffectId = QStringLiteral("invisible-probe");
+        cfg.hideShaderProfile = QStringLiteral("test.hide");
+        // Suppressed under a shader leg, and must stay off for the invisible
+        // hide too, or completion waits out the scale profile's duration.
+        cfg.hideScaleProfile = QStringLiteral("test.scale-show");
+        cfg.hideScaleTo = 0.5;
+        SurfaceAnimator anim(m_registry, cfg);
+        anim.setAnimationShaderRegistry(&shaderRegistry);
+
+        PhosphorLayer::Testing::MockTransport t;
+        PhosphorLayer::Testing::MockScreenProvider s;
+        auto deps = PhosphorLayer::Testing::makeDeps(&t, &s);
+        SurfaceFactory f(deps);
+
+        PhosphorLayer::SurfaceConfig sc;
+        sc.role = PhosphorShellPatterns::Modal();
+        sc.contentItem = std::make_unique<QQuickItem>();
+        sc.screen = s.primary();
+        sc.keepMappedOnHide = true;
+        sc.debugName = QStringLiteral("invisible-hide-test");
+
+        auto* surface = f.create(std::move(sc));
+        QVERIFY(surface);
+        surface->warmUp();
+        QQuickItem* target = animatedItem(surface);
+        QVERIFY(target);
+
+        // A real shader hide first: it ends at opacity 0 and parks its tower.
+        int hides = 0;
+        anim.beginHide(surface, target, [&hides]() {
+            ++hides;
+        });
+        QVERIFY(waitFor(
+            [&hides] {
+                return hides == 1;
+            },
+            500));
+        QVERIFY(target->opacity() <= 0.0);
+        QVERIFY2(anim.hasParkedShaders(), "the shader hide must park its tower");
+
+        // The second hide finds nothing to show.
+        anim.beginHide(surface, target, [&hides]() {
+            ++hides;
+        });
+        QCOMPARE(hides, 2);
+        QVERIFY2(anim.hasParkedShaders(), "an invisible hide must leave the parked tower for the next real leg");
+
+        delete surface;
+    }
 };
 
 QTEST_MAIN(TestSurfaceAnimator)

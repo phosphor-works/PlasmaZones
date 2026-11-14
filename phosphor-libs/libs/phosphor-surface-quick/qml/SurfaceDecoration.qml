@@ -57,7 +57,7 @@ import QtQuick.Window
  *
  * ## Hide-source idiom — mirrors SurfaceAnimator verbatim
  *
- * `PhosphorAnimation::detail::attachShaderToAnchor` (surfaceanimator_shaderattach.cpp in
+ * `PhosphorAnimationLayer::detail::attachShaderToAnchor` (surfaceanimator_shaderattach.cpp in
  * phosphor-libs/libs/phosphor-animation) snapshots
  * the anchor via a `QQuickShaderEffectSource` with `hideSource: true`, parked
  * far off-screen and `live: true`, then feeds THAT source to the shader's
@@ -96,10 +96,11 @@ Item {
     /// Applied once, on the last stage only, through
     /// SurfaceShaderItem.surfaceOpacity, which the generated surface entry
     /// point multiplies into the final premultiplied colour. Deliberately a
-    /// separate property rather than a copy of contentItem.opacity: a host's
-    /// content often carries a static material alpha (a translucent ground or
-    /// band) that should tint the content without dimming the pack's border and
-    /// halo, and only the host knows which of its opacities is a transition.
+    /// separate property rather than a copy of contentItem.opacity: only the
+    /// host knows which of its opacities is a transition. A static material
+    /// alpha (a translucent ground or band) belongs in the anchor's COLOUR,
+    /// where the capture sees it and the pack's border and halo stay at full
+    /// strength; an opacity on the anchor itself never reaches the output.
     /// An ancestor's fade (the daemon's SurfaceAnimator fading a slot) needs
     /// nothing here: the render node reads the scene graph's inherited opacity
     /// itself.
@@ -346,7 +347,9 @@ Item {
     /// card draws itself, the anchor keeps its own animator tag, and the stages
     /// stay out of the scene. The delegates themselves follow decorationActive,
     /// not this, so the error count survives and a recompile (a source change
-    /// or a reload sets Loading first) brings the chain back.
+    /// or a reload sets Loading first) brings the chain back. A reload of a
+    /// pack that is still broken therefore engages the chain until its bake
+    /// fails again, a frame or two, and then falls back once more.
     readonly property bool decorationDrawing: decorationActive && !chainHasError
 
     /// Stages that have SETTLED — compiled, or failed to. Maintained by the
@@ -825,9 +828,11 @@ Item {
                 // The host's fade, on the LAST stage only. Every earlier stage
                 // is captured into the next one's input, so a factor there
                 // would compound once per stage and also thin the input a halo
-                // pack gates on. Item opacity is left alone: it is applied
-                // again by a layer composite, and the render node already
-                // folds in the inherited opacity of every ancestor.
+                // pack gates on. Item opacity is left alone: a hide-source
+                // capture (the next stage's tap, SurfaceAnimator's leg capture)
+                // drops a captured stage's own opacity, and the render node
+                // already folds in the inherited opacity of every ancestor
+                // that is not behind such a capture.
                 surfaceOpacity: stage.isLast ? root.surfaceOpacity : 1.0
                 x: root._stageRect.x
                 y: root._stageRect.y

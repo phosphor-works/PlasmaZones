@@ -23,7 +23,7 @@ REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 . "$REPO/scripts/nested-kwin/nest-dir.sh"
 
 if [ ! -f "$NEST/env.sh" ]; then
-    echo "no nested session in $NEST (run scripts/nested-shell/run-shell.sh first)" >&2
+    echo "no nested session in $NEST (run phosphor-shell/scripts/nested-shell/run-shell.sh first)" >&2
     exit 1
 fi
 # shellcheck disable=SC1091

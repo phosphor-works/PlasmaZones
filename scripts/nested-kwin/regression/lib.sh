@@ -567,14 +567,19 @@ dpid() {
     tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep -q '^DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-' || return 1
     echo "$p"
 }
-# dlogged: the running daemon is the one daemon.sh started, so daemon.log is its log. A daemon the
-# effect D-Bus-activated instead logs into the compositor's output, and reads through dlog would
-# miss every line. run.sh keeps activation blocked for the whole session to rule that out; this
-# is the check that it held.
+# dlogged: the running daemon is the one this probe started with (or that drestart started), the
+# daemon whose log dlog reads. The session's activation shim also logs into daemon.log and writes
+# daemon.pid, so the pid file alone cannot tell a daemon that died and was D-Bus-activated again
+# from the original: the comparison is against PZR_DAEMON_PID, the owner recorded when lib.sh
+# finished loading and again after each drestart. run.sh keeps activation blocked for the whole
+# session to rule a replacement out; this is the check that it held, and it still holds where
+# activation is live.
+PZR_DAEMON_PID=""
 dlogged() {
     local p
     p=$(dpid) || return 1
-    [ "$p" = "$(cat "$NEST/daemon.pid" 2>/dev/null)" ]
+    [ "$p" = "$(cat "$NEST/daemon.pid" 2>/dev/null)" ] || return 1
+    [ -z "$PZR_DAEMON_PID" ] || [ "$p" = "$PZR_DAEMON_PID" ]
 }
 # dlogged_wait: dlogged, retried for about 5 s, for the checks that run right after a start or a
 # restart, while a daemon that lost the name race may still be on its way out
@@ -585,8 +590,8 @@ dlogged_wait() {
     done
     return 1
 }
-# downer_note -> "owner pid P, daemon.pid D" for a failure message ("none" for a missing one)
-downer_note() { echo "owner pid $(dpid || echo none), daemon.pid $(cat "$NEST/daemon.pid" 2>/dev/null || echo none)"; }
+# downer_note -> "owner pid P, daemon.pid D, started with S" for a failure message ("none" for a missing one)
+downer_note() { echo "owner pid $(dpid || echo none), daemon.pid $(cat "$NEST/daemon.pid" 2>/dev/null || echo none), started with ${PZR_DAEMON_PID:-none}"; }
 # dstop: freeze the nested daemon (SIGSTOP; its bus traffic queues at the bus), status 1 when the
 # gate finds no daemon. dcont lets it run again; every cleanup runs dcont first, so a failed
 # staging never leaves the daemon stopped.
@@ -644,7 +649,11 @@ drestart() {
     cat "$NEST/daemon.log" >> "$NEST/daemon.log.earlier" 2>/dev/null
     PZ_NESTED_DIR="$NEST" "$PZR_REPO/scripts/nested-kwin/daemon.sh" 2>&1 | tail -1
     dpid >/dev/null || stage_fail "the nested daemon did not come back"
+    # The restarted daemon is a new pid: the snapshot is cleared so dlogged checks it against
+    # daemon.pid alone, then retaken from the daemon that passed.
+    PZR_DAEMON_PID=""
     dlogged_wait || stage_fail "the daemon owning org.phosphor_works.Placement is not the one daemon.sh started ($(downer_note))"
+    PZR_DAEMON_PID=$(dpid) || stage_fail "the nested daemon went away right after the restart"
     PZR_DAEMON_DOWN=0
 }
 
@@ -927,3 +936,5 @@ qrectf_centre() {
 # running daemon is the one daemon.sh started.
 # --------------------------------------------------------------------------------------------
 dlogged_wait || stage_fail "the daemon owning org.phosphor_works.Placement is not the one daemon.sh started ($(downer_note)), so daemon.log is not its log"
+# The daemon this probe starts with. finish counts a different owner later as a replacement.
+PZR_DAEMON_PID=$(dpid) || stage_fail "the nested daemon went away while lib.sh was loading"

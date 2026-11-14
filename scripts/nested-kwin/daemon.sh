@@ -125,7 +125,12 @@ for pid in $(pgrep -x plasmazonesd 2>/dev/null || true); do
     esac
 done
 BUILD="${PZ_NESTED_BUILD:-build}"
-nohup "$PZ_NESTED_REPO/$BUILD/bin/plasmazonesd" > "$NEST/daemon.log" 2>&1 &
+# Truncated first, then appended to, the way the activation shim writes it. A
+# daemon the bus activated just before the block above can still hold this
+# file open, and with one writer in append mode and one writing from offset 0
+# the second overwrites the head of the first one's log.
+: > "$NEST/daemon.log"
+nohup "$PZ_NESTED_REPO/$BUILD/bin/plasmazonesd" >> "$NEST/daemon.log" 2>&1 &
 echo $! > "$NEST/daemon.pid"
 
 # "Up" means it OWNS the bus name, not merely that the pid exists — a

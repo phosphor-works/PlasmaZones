@@ -269,8 +269,13 @@ public:
      * in prepare(), because a render node is responsible for applying the
      * scene graph's opacity itself. Inside a layer or ShaderEffectSource
      * capture the renderer stops that walk at the captured item's root node,
-     * so a captured node reads 1 and the capture's composite applies the
-     * item's opacity once.
+     * which sits below the captured item's own opacity node, so the node
+     * reads only the opacities between itself and that item. What happens to
+     * the captured item's own opacity depends on the capture: an item layer
+     * (layer.enabled) forwards it to the layer's composite, so it applies
+     * once; a hide-source ShaderEffectSource (a decoration tap,
+     * SurfaceAnimator's capture) drops it, and only the opacity of the
+     * consumer that draws the captured texture applies.
      */
     void setSurfaceOpacity(float opacity);
     void setSurfaceScale(float scale);
