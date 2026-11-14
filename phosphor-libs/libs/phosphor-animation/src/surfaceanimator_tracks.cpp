@@ -13,6 +13,7 @@
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorAnimation/Profile.h>
 #include <PhosphorRendering/ShaderEffect.h>
+
 #include <PhosphorLayer/Surface.h>
 
 #include <QQuickItem>
@@ -72,8 +73,9 @@ PhosphorAnimation::MotionSpec<qreal> buildSpec(const PhosphorAnimation::Profile&
 } // namespace
 
 /// Wind down the per-leg shader pieces, parking the
-/// ShaderEffect/Source pair into m_pendingReuse[surface] so a
-/// follow-up runLeg can reclaim them under the same effect id.
+/// ShaderEffect/Source pair into m_pendingReuse[{surface, target}] so a
+/// follow-up runLeg on the same target can reclaim them under the same
+/// effect id.
 ///
 /// The shaderTime AV is leg-specific (its `from`/`to` are tied to
 /// the leg's iTime direction) and goes to the graveyard regardless.
@@ -106,9 +108,10 @@ PhosphorAnimation::MotionSpec<qreal> buildSpec(const PhosphorAnimation::Profile&
 /// while contributing no per-frame cost between legs.
 ///
 /// Surface destruction is handled by the destroyed-signal
-/// connection installed in connectSurfaceCleanup — when surface
-/// dies, the QPointers in m_pendingReuse auto-null and the entry
-/// is dropped.
+/// connection installed in connectSurfaceCleanup, whose handler drops
+/// every entry for that surface through destroyPendingReuseFor. The
+/// pieces are QQuickItems parented under the anchor's parent, not the
+/// Surface, so nothing would clear them on its own.
 void SurfaceAnimator::Private::teardownShaderLeg(PhosphorLayer::Surface* surface, Track& track)
 {
     if (track.shaderTime) {
@@ -221,6 +224,18 @@ void SurfaceAnimator::Private::teardownShaderLeg(PhosphorLayer::Surface* surface
 /// anchor into a queued-for-delete receiver.
 void SurfaceAnimator::Private::destroyPendingReuseEntry(PendingReuseShader& pending)
 {
+    // Make the pieces dormant first, exactly as teardownShaderLeg does before
+    // it parks them. Most callers hand over pieces that are already dormant,
+    // and for those this is a no-op, but a live pair (a bail after a fresh
+    // attach or a reuse wake) would otherwise keep drawing a stale frame over
+    // the anchor and keep the anchor hidden until the deferred delete runs.
+    if (pending.shaderItem) {
+        pending.shaderItem->setVisible(false);
+    }
+    if (pending.shaderSource) {
+        pending.shaderSource->setLive(false);
+        pending.shaderSource->setHideSource(false);
+    }
     if (pending.shaderItem) {
         if (pending.shaderAnchor) {
             QObject::disconnect(pending.shaderAnchor.data(), nullptr, pending.shaderItem.data(), nullptr);
@@ -453,7 +468,13 @@ void SurfaceAnimator::Private::runLeg(PhosphorLayer::Surface* surface, QQuickIte
             }
         }
     }
-    const bool hasShaderLeg = resolvedShaderEff.isValid();
+    // A hide of a surface that is already invisible has nothing to show. Run it
+    // as the zero-distance opacity leg, which completes in place, rather than
+    // attaching a capture and running the shader for its full duration over
+    // nothing. The pieces parked for this target stay for the next real leg.
+    const bool invisibleHide = !(toOpacity > fromOpacity) && fromOpacity <= 0.0;
+    const bool keepShaderStash = resolvedShaderEff.isValid() && invisibleHide;
+    const bool hasShaderLeg = resolvedShaderEff.isValid() && !invisibleHide;
 
     // Supersede BEFORE the null-target check — leaving a prior
     // entry behind on null-target strands its AV (custom
@@ -487,6 +508,16 @@ void SurfaceAnimator::Private::runLeg(PhosphorLayer::Surface* surface, QQuickIte
         return;
     }
     cancelTrackingFor(surface, target);
+    // The cancel restores the previous leg's hidden siblings, and a consumer's
+    // visibleChanged handler can re-enter beginShow/beginHide for this same
+    // target. A slot present now was installed by that nested runLeg, which is
+    // the newer request: leave it, and the reuse stash it may have claimed,
+    // alone. Adopting it below would overwrite its slot and orphan its shader
+    // pieces. This call is superseded, so its onComplete does not fire, the
+    // same outcome as the generation-mismatch bail further down.
+    if (m_tracks.find(TrackKey{surface, target}) != m_tracks.end()) {
+        return;
+    }
 
     // Reuse stashed shader pieces from the previous leg if the
     // effect id, target, anchor, and shader item all still match
@@ -564,7 +595,7 @@ void SurfaceAnimator::Private::runLeg(PhosphorLayer::Surface* surface, QQuickIte
                 m_pendingReuse.erase(pendIt);
             }
         }
-    } else {
+    } else if (!keepShaderStash) {
         // Non-shader leg following a shader leg on THIS target —
         // drop ONLY this target's stash. Other slots on the same
         // surface may have valid parked shaders that should
@@ -645,6 +676,13 @@ void SurfaceAnimator::Private::runLeg(PhosphorLayer::Surface* surface, QQuickIte
         target->setScale(1.0);
     } else {
         target->setOpacity(fromOpacity);
+        // The same residual-scale reasoning as the shader branch: a leg with
+        // no scale animation of its own starts from scale 1, or a previous
+        // hide's scale-down carries into this leg (and compounds across
+        // cycles, since the next hide reads the live scale as its start).
+        if (!hasScaleLeg) {
+            target->setScale(1.0);
+        }
     }
     if (hasScaleLeg) {
         target->setScale(fromScale);

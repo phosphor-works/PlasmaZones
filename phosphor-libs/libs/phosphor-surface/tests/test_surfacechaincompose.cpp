@@ -871,6 +871,59 @@ private Q_SLOTS:
     {
         QCOMPARE(roundBottomCornersParamId(), QStringLiteral("roundBottomCorners"));
     }
+
+    // ── chainSquareWhenMaximized ─────────────────────────────────────
+
+    /// The square-on-maximize switch is a chain answer by the same rules: a
+    /// border that declares it decides for a glow that does not, so the two
+    /// cannot disagree about the corners. A pack declaring nothing abstains.
+    void chainSquareWhenMaximized_follows_the_declaring_pack_for_the_whole_chain()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const auto writePack = [&](const QString& id, bool declares) {
+            QJsonObject meta;
+            meta.insert(QLatin1String("id"), id);
+            meta.insert(QLatin1String("name"), id);
+            meta.insert(QLatin1String("fragmentShader"), QStringLiteral("effect.frag"));
+            QJsonArray params;
+            QJsonObject radius;
+            radius.insert(QLatin1String("id"), QStringLiteral("cornerRadius"));
+            radius.insert(QLatin1String("name"), QStringLiteral("Corner radius"));
+            radius.insert(QLatin1String("type"), QStringLiteral("int"));
+            radius.insert(QLatin1String("default"), 8);
+            params.append(radius);
+            if (declares) {
+                QJsonObject square;
+                square.insert(QLatin1String("id"), squareWhenMaximizedParamId());
+                square.insert(QLatin1String("name"), QStringLiteral("Square when maximized"));
+                square.insert(QLatin1String("type"), QStringLiteral("bool"));
+                square.insert(QLatin1String("default"), false);
+                params.append(square);
+            }
+            meta.insert(QLatin1String("parameters"), params);
+            const QString packDir = tmp.path() + QLatin1Char('/') + id;
+            return writeFile(packDir + QStringLiteral("/metadata.json"), QJsonDocument(meta).toJson())
+                && writeFile(packDir + QStringLiteral("/effect.frag"), QByteArrayLiteral("// stub\n"));
+        };
+        QVERIFY(writePack(QStringLiteral("glow"), false));
+        QVERIFY(writePack(QStringLiteral("border"), true));
+
+        SurfaceShaderRegistry registry;
+        registry.addSearchPaths(QStringList{tmp.path()}, PhosphorFsLoader::LiveReload::Off);
+        QVERIFY(registry.hasEffect(QStringLiteral("glow")));
+        QVERIFY(registry.hasEffect(QStringLiteral("border")));
+
+        const QStringList chain{QStringLiteral("glow"), QStringLiteral("border")};
+        // Nothing stored: the border's declared default decides, the glow abstains.
+        QCOMPARE(chainSquareWhenMaximized(registry, chain, {}).toBool(), false);
+        QVERIFY(chainSquareWhenMaximized(registry, chain, {}).isValid());
+        // The user turned it on for the border: the whole chain squares.
+        const QVariantMap allParams{{QStringLiteral("border"), QVariantMap{{squareWhenMaximizedParamId(), true}}}};
+        QCOMPARE(chainSquareWhenMaximized(registry, chain, allParams).toBool(), true);
+        // A chain of packs that never declare it has no answer.
+        QVERIFY(!chainSquareWhenMaximized(registry, {QStringLiteral("glow")}, allParams).isValid());
+    }
 };
 
 QTEST_MAIN(TestSurfaceChainCompose)

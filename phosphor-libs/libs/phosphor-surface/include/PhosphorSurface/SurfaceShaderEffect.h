@@ -8,6 +8,7 @@
 #include <PhosphorShaders/CustomParamsKey.h>
 #include <PhosphorShaders/ShaderPresetParse.h>
 
+#include <QAnyStringView>
 #include <QJsonObject>
 #include <QList>
 #include <QString>
@@ -339,6 +340,19 @@ struct PHOSPHORSURFACE_EXPORT SurfaceShaderEffect
         QVariant stepValue; ///< Optional slider step; JSON/QML key: `step`. QML falls back to (max-min)/200.
     };
     QList<ParameterInfo> parameters;
+
+    /// The declared parameter with id @p id, or nullptr when the pack does not
+    /// declare it. The one lookup the host-side resolvers use to ask whether a
+    /// flag or value belongs to the pack before reading or writing it.
+    const ParameterInfo* findParameter(QAnyStringView id) const
+    {
+        for (const ParameterInfo& param : parameters) {
+            if (QAnyStringView::equal(param.id, id)) {
+                return &param;
+            }
+        }
+        return nullptr;
+    }
 
     /// User texture slot. Each entry binds an asset file to one of the
     /// runtime's user-texture samplers (slot 0 / 1 / 2 here). The

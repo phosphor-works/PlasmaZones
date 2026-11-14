@@ -218,6 +218,62 @@ private Q_SLOTS:
         delete surface;
     }
 
+    /// A show with no scale leg of its own starts from scale 1, even right
+    /// after a hide that scaled the surface down. A config may set the two
+    /// scale profiles independently, and without the reset the show reappeared
+    /// at the hide's final scale and every later hide shrank further from it.
+    void show_without_scale_leg_resets_a_hides_residual_scale()
+    {
+        PhosphorLayer::Testing::MockTransport t;
+        PhosphorLayer::Testing::MockScreenProvider s;
+
+        SurfaceAnimator::Config cfg;
+        cfg.showProfile = QStringLiteral("test.show");
+        cfg.hideProfile = QStringLiteral("test.hide");
+        cfg.hideScaleProfile = QStringLiteral("test.scale-show");
+        cfg.hideScaleTo = 0.5;
+        SurfaceAnimator anim(m_registry, cfg);
+
+        auto deps = PhosphorLayer::Testing::makeDeps(&t, &s);
+        SurfaceFactory f(deps);
+
+        PhosphorLayer::SurfaceConfig sc;
+        sc.role = PhosphorShellPatterns::Modal();
+        sc.contentItem = std::make_unique<QQuickItem>();
+        sc.screen = s.primary();
+        sc.keepMappedOnHide = true;
+        sc.debugName = QStringLiteral("residual-scale-test");
+
+        auto* surface = f.create(std::move(sc));
+        QVERIFY(surface);
+        surface->warmUp();
+        QQuickItem* target = animatedItem(surface);
+        QVERIFY(target);
+
+        anim.beginShow(surface, target, [] { });
+        QVERIFY(waitFor(
+            [target] {
+                return target->opacity() >= 0.999;
+            },
+            500));
+        anim.beginHide(surface, target, [] { });
+        QVERIFY(waitFor(
+            [target] {
+                return target->opacity() <= 0.001 && qAbs(target->scale() - 0.5) < 0.001;
+            },
+            500));
+        anim.beginShow(surface, target, [] { });
+        QVERIFY(qFuzzyCompare(target->scale(), 1.0));
+        QVERIFY(waitFor(
+            [target] {
+                return target->opacity() >= 0.999;
+            },
+            500));
+        QVERIFY(qFuzzyCompare(target->scale(), 1.0));
+
+        delete surface;
+    }
+
     /// Live profile re-resolution: replacing a registered profile between
     /// dispatches must apply the new curve / duration on the next show.
     /// Lock in the contract from the PR description: "live profile

@@ -595,14 +595,16 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
                             appearance->borderWidth.value_or(PhosphorCompositor::DecorationDefaults::BorderWidth));
         borderParams.insert(QStringLiteral("cornerRadius"),
                             appearance->borderRadius.value_or(PhosphorCompositor::DecorationDefaults::BorderRadius));
-        // Pin BOTH host-consumed theme flags, not just useSystemAccent: the
-        // resolver checks useThemeNeutral FIRST and falls back to the PACK'S
-        // declared default when the caller supplies no override. The shipped
-        // metadata declares it false, but pack metadata is an installable
-        // boundary — a third-party "border" pack shipping useThemeNeutral=true
-        // would otherwise silently discard the accent-resolved colours here.
+        // Pin EVERY host-consumed border colour flag, not just
+        // useSystemAccent: the resolver checks useWindowAccent and then
+        // useThemeNeutral ahead of it and falls back to the PACK'S declared
+        // default when the caller supplies no override. Pack metadata is an
+        // installable boundary — a third-party "border" pack shipping either
+        // default true would otherwise silently discard the accent-resolved
+        // colours here.
         borderParams.insert(QStringLiteral("useSystemAccent"), false);
         borderParams.insert(QStringLiteral("useThemeNeutral"), false);
+        borderParams.insert(QStringLiteral("useWindowAccent"), false);
         const QColor active = appearance->activeColor.value_or(accentOr);
         borderParams.insert(QStringLiteral("activeColor"), active);
         borderParams.insert(QStringLiteral("inactiveColor"), appearance->inactiveColor.value_or(active));
