@@ -376,6 +376,19 @@ void ShaderNodeRhi::prepare()
     // m_item pointer and rect() never touches m_item.
     m_cachedWidth.store(static_cast<float>(itemWidth), std::memory_order_release);
     m_cachedHeight.store(static_cast<float>(itemHeight), std::memory_order_release);
+    // The batch renderer writes the inherited opacity before calling
+    // prepare(), and a render node applies it itself. See setSurfaceOpacity.
+    // Only a profile that writes qt_Opacity needs the upload: one that pins
+    // it (BaseUniformProfile) would otherwise re-upload the scene region on
+    // every frame of an ancestor fade for no visible change.
+    const float inherited = static_cast<float>(inheritedOpacity());
+    if (m_inheritedOpacity != inherited) {
+        m_inheritedOpacity = inherited;
+        if (m_uboProfile->readsQtOpacity()) {
+            m_uniformsDirty = true;
+            m_sceneDataDirty = true;
+        }
+    }
     if (!rhi) {
         qCDebug(lcShaderNode) << "prepare(): bail — rhi is null";
         return;
@@ -787,9 +800,9 @@ void ShaderNodeRhi::prepare()
                 }
                 QSize ps = m_multiBufferTextures[i]->pixelSize();
                 cb->beginPass(m_multiBufferRenderTargets[i].get(), clearColor, {1.0f, 0});
+                cb->setGraphicsPipeline(m_multiBufferPipelines[i].get());
                 cb->setViewport(QRhiViewport(0, 0, ps.width(), ps.height()));
                 cb->setScissor(QRhiScissor(0, 0, ps.width(), ps.height()));
-                cb->setGraphicsPipeline(m_multiBufferPipelines[i].get());
                 cb->setShaderResources(m_multiBufferSrbs[i].get());
                 QRhiCommandBuffer::VertexInput vbufBinding(m_vbo.get(), 0);
                 cb->setVertexInput(0, 1, &vbufBinding);
@@ -852,11 +865,11 @@ void ShaderNodeRhi::prepare()
                 ? m_bufferTextureB.get()
                 : m_bufferTexture.get();
             cb->beginPass(bufferRT, clearColor, {1.0f, 0});
+            cb->setGraphicsPipeline(m_bufferPipeline.get());
             cb->setViewport(
                 QRhiViewport(0, 0, writtenTexture->pixelSize().width(), writtenTexture->pixelSize().height()));
             cb->setScissor(
                 QRhiScissor(0, 0, writtenTexture->pixelSize().width(), writtenTexture->pixelSize().height()));
-            cb->setGraphicsPipeline(m_bufferPipeline.get());
             cb->setShaderResources(bufferSrb);
             QRhiCommandBuffer::VertexInput vbufBinding(m_vbo.get(), 0);
             cb->setVertexInput(0, 1, &vbufBinding);
@@ -934,6 +947,12 @@ void ShaderNodeRhi::render(const RenderState* state)
     int vpY = 0;
     int vpW = outputSize.width();
     int vpH = outputSize.height();
+    // The scissor is the viewport clipped to the render target. They differ
+    // only for a direct-to-window item partly off the framebuffer.
+    int scX = 0;
+    int scY = 0;
+    int scW = vpW;
+    int scH = vpH;
     bool offScreen = false;
     // Compute viewport/scissor from item geometry under the lock — every
     // m_item dereference (width, height, mapToItem, window) needs to happen
@@ -981,29 +1000,61 @@ void ShaderNodeRhi::render(const RenderState* state)
                 // exactly the SurfaceAnimator's animation-shader case
                 // (attachShaderToAnchor doesn't enable layer on shaderItem).
                 //
-                // Compute the unclamped item rect in framebuffer pixels (Y-up),
-                // then intersect with the framebuffer; if the intersection is
-                // empty the item is fully off-screen and we skip the draw
-                // (qBound-only would have collapsed the rect to a 1px strip
-                // glued to the nearest framebuffer edge).
-                const QPointF topLeft = m_item->mapToItem(win->contentItem(), QPointF(0, 0));
-                const int rawVpX = qRound(topLeft.x() * dpr);
-                const int rawVpY = outputSize.height() - qRound(topLeft.y() * dpr) - itemPxH;
+                // Compute the unclamped item rect in framebuffer pixels (Y-up).
+                // That rect IS the viewport: the fullscreen quad maps onto the
+                // viewport, so clamping the viewport to the framebuffer would
+                // squash the whole item into its visible part (a padded glow
+                // stage near a screen edge drawn compressed) instead of
+                // clipping it. QRhi takes an out-of-bounds viewport as is, and
+                // only the SCISSOR is clamped: here, and again by QRhi's
+                // Bounded conversion on the top-left-origin backends. An
+                // empty intersection means the item is fully off-screen and we
+                // skip the draw.
+                //
+                // Each EDGE is rounded and the size taken as the difference,
+                // so at a fractional dpr an animating rect moves its edges
+                // without its size flickering by a pixel from frame to frame.
+                //
+                // The rect is the item's MAPPED rect, so an ancestor scale
+                // (a SurfaceAnimator scale leg on a slot) shrinks the drawn
+                // quad with it. Sizing from width() * dpr alone moved a scaled
+                // item without resizing it. The layer-FBO test above stays on
+                // the unscaled size: a layer FBO is sized to the item itself.
+                // A known limit of that heuristic: a DIRECT-to-window item
+                // whose unscaled size matches the window within the tolerance
+                // is classified as a layer, so under an ancestor scale it is
+                // drawn full size. No known in-tree host has one.
+                const QRectF mapped =
+                    m_item->mapRectToItem(win->contentItem(), QRectF(0, 0, m_item->width(), m_item->height()));
+                const int sceneLeftPx = qRound(mapped.left() * dpr);
+                const int sceneRightPx = qRound(mapped.right() * dpr);
+                const int sceneTopPx = qRound(mapped.top() * dpr);
+                const int sceneBottomPx = qRound(mapped.bottom() * dpr);
+                const int drawPxW = sceneRightPx - sceneLeftPx;
+                const int drawPxH = sceneBottomPx - sceneTopPx;
+                const int rawVpX = sceneLeftPx;
+                const int rawVpY = outputSize.height() - sceneBottomPx;
                 const int leftPx = qMax(0, rawVpX);
                 const int bottomPx = qMax(0, rawVpY);
-                const int rightPx = qMin(outputSize.width(), rawVpX + itemPxW);
-                const int topPx = qMin(outputSize.height(), rawVpY + itemPxH);
+                const int rightPx = qMin(outputSize.width(), rawVpX + drawPxW);
+                const int topPx = qMin(outputSize.height(), rawVpY + drawPxH);
                 if (leftPx >= rightPx || bottomPx >= topPx) {
                     offScreen = true;
                 } else {
-                    vpX = leftPx;
-                    vpY = bottomPx;
-                    vpW = rightPx - leftPx;
-                    vpH = topPx - bottomPx;
+                    vpX = rawVpX;
+                    vpY = rawVpY;
+                    vpW = drawPxW;
+                    vpH = drawPxH;
+                    scX = leftPx;
+                    scY = bottomPx;
+                    scW = rightPx - leftPx;
+                    scH = topPx - bottomPx;
                 }
             } else {
                 vpW = itemPxW;
                 vpH = itemPxH;
+                scW = itemPxW;
+                scH = itemPxH;
             }
         }
     }
@@ -1015,9 +1066,12 @@ void ShaderNodeRhi::render(const RenderState* state)
         // sync that brings the item back on-screen will re-issue.
         return;
     }
-    cb->setViewport(QRhiViewport(vpX, vpY, vpW, vpH));
-    cb->setScissor(QRhiScissor(vpX, vpY, vpW, vpH));
+    // Bind the pipeline first: setScissor is only valid with a bound
+    // pipeline that has UsesScissor, and until this bind the bound one is
+    // whatever the batch renderer drew last.
     cb->setGraphicsPipeline(m_pipeline.get());
+    cb->setViewport(QRhiViewport(vpX, vpY, vpW, vpH));
+    cb->setScissor(QRhiScissor(scX, scY, scW, scH));
 
     const bool multiBufferMode = m_bufferPaths.size() > 1;
     const bool multipassSingle = !multiBufferMode && !m_bufferPaths.isEmpty() && m_bufferShaderReady && m_bufferPipeline

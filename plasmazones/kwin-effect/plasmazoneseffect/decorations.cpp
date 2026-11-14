@@ -595,8 +595,16 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
                             appearance->borderWidth.value_or(PhosphorCompositor::DecorationDefaults::BorderWidth));
         borderParams.insert(QStringLiteral("cornerRadius"),
                             appearance->borderRadius.value_or(PhosphorCompositor::DecorationDefaults::BorderRadius));
-        // Easy mode already resolved its colours. An installed border pack's
-        // default colour-source flags must not replace those resolved values.
+        // Pin EVERY host-consumed border colour flag, not just
+        // useSystemAccent: the resolver checks useWindowAccent and then
+        // useThemeNeutral ahead of it and falls back to the PACK'S declared
+        // default when the caller supplies no override. Pack metadata is an
+        // installable boundary, so a third-party "border" pack shipping
+        // useThemeNeutral default true would otherwise silently discard the
+        // accent-resolved colours here. The useWindowAccent pin matters
+        // under the shell's desktop style, where this host's
+        // SurfaceThemeColors (below) carries the window's identity colour:
+        // easy mode's resolved colours win over it as well.
         borderParams.insert(QStringLiteral("useSystemAccent"), false);
         borderParams.insert(QStringLiteral("useThemeNeutral"), false);
         borderParams.insert(QStringLiteral("useWindowAccent"), false);
@@ -663,6 +671,23 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
                                         : QColor(QString(PhosphorCompositor::DecorationDefaults::FallbackInactiveHex)),
         pal.color(QPalette::Active, QPalette::Window), pal.color(QPalette::Active, QPalette::WindowText), windowAccent};
     const bool maximized = w->isFullScreen() || (w->window() && w->window()->maximizeMode() == KWin::MaximizeFull);
+    // Drop the packs a maximized window hides BEFORE the chain-wide votes below,
+    // so a hidden pack neither casts a silhouette vote nor pads the canvas. The
+    // square flag is passed false here because only the hide answer is read;
+    // the real square answer is applied in the per-pack loop.
+    QStringList drawnChain;
+    drawnChain.reserve(chain.size());
+    for (const QString& packId : std::as_const(chain)) {
+        const PhosphorSurfaceShaders::SurfaceShaderEffect eff = m_surfaceShaderRegistry.effect(packId);
+        if (eff.isValid()) {
+            QVariantMap hideProbe = allPackParams.value(packId).toMap();
+            if (!PhosphorSurfaceShaders::resolveWindowStateParams(eff, hideProbe, maximized, false)) {
+                wb.chain.removeAll(packId);
+                continue;
+            }
+        }
+        drawnChain.append(packId);
+    }
     // One bottom-corner answer for the whole chain, resolved before any pack's
     // uniforms are built. This is the path a blur + border chain on a real window
     // takes, and it is where the two used to disagree: the backdrop squared its
@@ -673,17 +698,21 @@ void PlasmaZonesEffect::updateWindowDecoration(const QString& windowId, KWin::Ef
     // rule that moves the silhouette moves it for every pack in that window's
     // chain rather than for the one pack the rule happens to name.
     const QVariant chainBottomCorners =
-        PhosphorSurfaceShaders::chainRoundBottomCorners(m_surfaceShaderRegistry, chain, allPackParams);
-    for (const QString& packId : std::as_const(chain)) {
+        PhosphorSurfaceShaders::chainRoundBottomCorners(m_surfaceShaderRegistry, drawnChain, allPackParams);
+    // The maximized-square answer is the chain's too, for the same reason: a
+    // border that squares while its glow keeps a radius curves through empty
+    // space. Invalid (no pack stated one) reads as false.
+    const bool squareCorners = maximized
+        && PhosphorSurfaceShaders::chainSquareWhenMaximized(m_surfaceShaderRegistry, drawnChain, allPackParams)
+               .toBool();
+    for (const QString& packId : std::as_const(drawnChain)) {
         const PhosphorSurfaceShaders::SurfaceShaderEffect eff = m_surfaceShaderRegistry.effect(packId);
         if (!eff.isValid()) {
             continue;
         }
         QVariantMap packOverrides = allPackParams.value(packId).toMap();
-        if (!PhosphorSurfaceShaders::resolveWindowStateParams(eff, packOverrides, maximized)) {
-            wb.chain.removeAll(packId);
-            continue;
-        }
+        // Cannot drop the pack here: the hide answer was settled above.
+        PhosphorSurfaceShaders::resolveWindowStateParams(eff, packOverrides, maximized, squareCorners);
         // Any needsBackdrop pack in the chain switches the window onto the
         // composite path with a per-frame backdrop capture (see paintWindow).
         needsBackdrop = needsBackdrop || eff.needsBackdrop;

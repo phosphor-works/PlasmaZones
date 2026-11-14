@@ -9,6 +9,8 @@
 #include <QMap>
 #include <QQuickWindow>
 #include <QSize>
+#include <QStringList>
+#include <QVariantMap>
 
 #include <memory>
 
@@ -112,6 +114,11 @@ public:
         rec.args = args;
         rec.window = win;
         rec.sizeAtAttach = win ? win->size() : QSize();
+        rec.visibleAtAttach = win && win->isVisible();
+        rec.hadPlatformWindowAtAttach = win && win->handle() != nullptr;
+        for (const QString& name : std::as_const(m_capturePropertiesAtAttach)) {
+            rec.propertiesAtAttach.insert(name, win ? win->property(name.toUtf8().constData()) : QVariant());
+        }
         m_attachRecords.append(rec);
         if (m_rejectNextAttach) {
             m_rejectNextAttach = false;
@@ -167,7 +174,13 @@ public:
         TransportAttachArgs args;
         QQuickWindow* window = nullptr;
         QSize sizeAtAttach; ///< win->size() captured at attach-time
+        bool visibleAtAttach = false; ///< win->isVisible() at attach-time
+        bool hadPlatformWindowAtAttach = false; ///< win->handle() existed at attach-time
+        QVariantMap propertiesAtAttach; ///< the m_capturePropertiesAtAttach names, read off the window
     };
+
+    /// Window property names to snapshot into each AttachRecord.
+    QStringList m_capturePropertiesAtAttach;
 
     bool m_supported = true;
     bool m_rejectNextAttach = false;

@@ -241,7 +241,6 @@ int main(int argc, char* argv[])
         .screens = screenProvider.get(),
         .engineProvider = nullptr,
         .animator = nullptr,
-        .loggingCategory = QStringLiteral("phosphorshell.surface"),
     };
     PhosphorLayer::SurfaceFactory factory(factoryDeps, &app);
 

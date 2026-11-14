@@ -60,6 +60,15 @@ class PHOSPHORSURFACEQUICK_EXPORT SurfaceShaderItem : public PhosphorRendering::
     Q_OBJECT
     QML_NAMED_ELEMENT(SurfaceShaderItem)
 
+    /** Host fade factor for the decoration's output, 0..1. Multiplied with the
+     * scene graph's inherited opacity into the shader's qt_Opacity, which the
+     * generated surface entry point applies to the final premultiplied colour.
+     * Use this rather than QQuickItem::opacity for a fade the host drives: a
+     * stage that a hide-source ShaderEffectSource captures (every decoration
+     * stage but the last, and the last one too while SurfaceAnimator runs a
+     * shader leg) loses its own item opacity in the capture, while this factor
+     * is baked into what the capture samples. */
+    Q_PROPERTY(qreal surfaceOpacity READ surfaceOpacity WRITE setSurfaceOpacity NOTIFY surfaceOpacityChanged FINAL)
     /** Logical→device pixel scale for the decorated surface. Maps to
      * UboFrameState::surfaceScale (the shader's `uSurfaceScale`). */
     Q_PROPERTY(qreal surfaceScale READ surfaceScale WRITE setSurfaceScale NOTIFY surfaceScaleChanged FINAL)
@@ -119,6 +128,12 @@ public:
     // keys (the slot form SurfaceShaderRegistry::translateSurfaceParams emits)
     // onto the UBO, so no surface-specific param plumbing is needed here.
 
+    qreal surfaceOpacity() const
+    {
+        return m_surfaceOpacity;
+    }
+    void setSurfaceOpacity(qreal opacity);
+
     qreal surfaceScale() const
     {
         return m_surfaceScale;
@@ -162,6 +177,7 @@ public:
     void setBackdropSurfaceRect(const QRectF& rect);
 
 Q_SIGNALS:
+    void surfaceOpacityChanged();
     void surfaceScaleChanged();
     void surfaceFocusedChanged();
     void surfaceSizeChanged();
@@ -195,7 +211,9 @@ protected:
 
 private:
     // Surface-state inputs mirroring the UboFrameState surface-only field
-    // defaults (an identity decoration: full scale, unfocused, zero geometry).
+    // defaults (an identity decoration: opaque, full scale, unfocused, zero
+    // geometry).
+    qreal m_surfaceOpacity = 1.0;
     qreal m_surfaceScale = 1.0;
     bool m_surfaceFocused = false;
     QSizeF m_surfaceSize;

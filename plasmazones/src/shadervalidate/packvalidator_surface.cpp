@@ -232,9 +232,7 @@ int validateSurfacePack(const QString& packDir, QTextStream& out)
     // lands above its own `metadata ERROR` header. cornerRadius is not reserved, so a
     // pack may declare it for a badge and be right; only declarers get the silhouette.
     const auto declaresParam = [&eff](QLatin1String id) {
-        return std::any_of(eff.parameters.cbegin(), eff.parameters.cend(), [id](const auto& p) {
-            return p.id == id;
-        });
+        return eff.findParameter(id) != nullptr;
     };
     if (declaresParam(QLatin1String("cornerRadius")) && !declaresParam(QLatin1String("roundBottomCorners"))) {
         out << "  " << padLabel(QStringLiteral("note"))

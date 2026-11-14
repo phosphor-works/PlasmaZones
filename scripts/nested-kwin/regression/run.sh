@@ -343,13 +343,13 @@ launch() {
     done
     [ "$up" = 1 ] || return 1
     sleep 3
-    # The effect has usually D-Bus-activated a daemon by now, which logs into the compositor's
-    # output. daemon.sh evicts it and starts its own, but with activation live the effect can
-    # activate another in the gap and take the name first: daemon.sh's daemon then exits ("Already
-    # running") and the session runs a daemon whose log is not daemon.log and whose pid is not
-    # daemon.pid. So activation stays blocked from here to the session's end (run-nested.sh
-    # writes a fresh shim at the next launch), and a daemon that dies mid-probe stays gone, which
-    # finish counts as a failure.
+    # The effect has usually D-Bus-activated a daemon by now, through the session's shim, which
+    # logs into daemon.log and records its pid in daemon.pid. daemon.sh evicts it and starts its
+    # own, holding activation off while it does, but a shim already past that check can still
+    # start a daemon that takes the name first: daemon.sh's daemon then exits ("Already running").
+    # So activation stays blocked from here to the session's end (run-nested.sh writes a fresh shim
+    # at the next launch), and a daemon that dies mid-probe stays gone, which finish counts as a
+    # failure.
     printf '#!/bin/sh\nexit 1\n' > "$NEST/activate-daemon.sh"
     # The block cannot stop an activation already in flight: dbus-daemon may have spawned the shim
     # before it was overwritten, and that daemon can take the name after daemon.sh looked for an

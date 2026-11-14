@@ -15,7 +15,8 @@
 # retry state. Captures and input use the existing nested compositor tooling.
 set -eu
 REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
-NEST="${PZ_NESTED_DIR:-${XDG_RUNTIME_DIR:-/tmp/pz-nested-$(id -u)}/pz-nested${PZ_NESTED_SESSION:+-$PZ_NESTED_SESSION}}"
+# The same state-dir resolution run-nested.sh uses (PZ_NESTED_SESSION included).
+. "$REPO/scripts/nested-kwin/nest-dir.sh"
 if [ ! -f "$NEST/env.sh" ]; then
     echo "Start a nested session with run-shell.sh first." >&2
     exit 1

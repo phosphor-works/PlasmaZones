@@ -128,7 +128,10 @@ FocusScope {
 
         anchors.fill: parent
         radius: Tokens.radius_tile
-        color: Theme.surface_container
+        // Theme.depth, not opacity: a pack drops the anchor's own opacity, so
+        // the material alpha lives in the colour and only the transition fade
+        // below rides the opacity (forwarded to the pack as surfaceOpacity).
+        color: Theme.depth(Theme.surface_container, 0.96)
         // Fades with the rest of the pane, and NOT painted flat from the
         // instant the toplevel maps.
         //
@@ -157,7 +160,7 @@ FocusScope {
         // catch, so it was never captured, only inferred from the geometry.
         // Not worth the latency. Do not re-add it without a capture of the
         // flash first.
-        opacity: 0.96 * root._progress
+        opacity: root._progress
     }
 
     DecorationSlot {
@@ -168,6 +171,9 @@ FocusScope {
         contentItem: ground
         surfacePath: "shell.phosphor.popout"
         focused: root.open
+        // The ground fades on its own opacity, which the pack's capture does
+        // not see, so the decorated output follows the same progress.
+        surfaceOpacity: root._progress
     }
 
     SpectrumStroke {

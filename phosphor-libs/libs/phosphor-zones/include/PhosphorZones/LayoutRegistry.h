@@ -1075,6 +1075,16 @@ public:
     static constexpr QLatin1String QuickSlotsAutotileKey{"autotile"};
     static constexpr QLatin1String QuickSlotsScrollingKey{"scrolling"};
 
+    /// How many quick-layout slots one mode carries, i.e. the legal slot
+    /// numbers are 1..QuickSlotCount. The ONE authority for the bound inside
+    /// this library: both writers validate against it and the persistence
+    /// reader walks it, so a raise cannot half-land. Mirrors
+    /// PhosphorProtocol::Service::QuickLayoutSlotCount by hand, since this
+    /// library does not depend on phosphor-protocol — the same way
+    /// MinTemplateFraction repeats the engine's floor. Public so the daemon's
+    /// LayoutAdaptor, which links both, can static_assert the two equal.
+    static constexpr int QuickSlotCount = 9;
+
     Q_INVOKABLE Layout* layoutForShortcut(AssignmentEntry::Mode mode, int number) const;
     Q_INVOKABLE void applyQuickLayout(AssignmentEntry::Mode mode, int number, const QString& screenId);
     void setQuickLayoutSlot(AssignmentEntry::Mode mode, int number, const QString& layoutId);
@@ -1206,15 +1216,6 @@ private:
     QString layoutSettingsFilePath() const;
     void readQuickLayouts();
     void writeQuickLayouts();
-    /// How many quick-layout slots one mode carries, i.e. the legal slot
-    /// numbers are 1..QuickSlotCount. The ONE authority for the bound: both
-    /// writers validate against it and the persistence reader walks it, so a
-    /// raise cannot half-land. Mirrors
-    /// PhosphorProtocol::Service::QuickLayoutSlotCount by hand, since this
-    /// library does not depend on phosphor-protocol — the same way
-    /// MinTemplateFraction repeats the engine's floor. Raising one side without
-    /// the other makes the extra slots unreadable, not corrupt.
-    static constexpr int QuickSlotCount = 9;
     /// Map a tiling mode to its @ref m_quickLayoutSlots array index — the
     /// ONE authority every quick-slot entry point (read, apply, shortcut
     /// lookup, both writers) consults. Scrolling owns its OWN array since

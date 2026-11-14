@@ -38,8 +38,8 @@ import PlasmaZones
  * The stage is layered for the same reason DecorationChainPreview sets
  * `layeredStages` on its decoration (SurfaceDecoration.layeredStages): the
  * shader item is a render node that computes its own viewport and overwrites
- * the scissor Qt set for a clip, so a scaled host would otherwise get a
- * full-size pass drawn at a scaled position, spilling over the rows beside it.
+ * the scissor Qt set for a clip, so a clipped host would otherwise get a pass
+ * spilling over the rows beside it.
  * Layering makes the node render into an FBO sized to its own item, which the
  * scene graph then composites with the host's transform and clip like any
  * other texture.

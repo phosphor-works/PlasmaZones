@@ -16,12 +16,14 @@
 #   pid:    $PZ_NESTED_DIR/shell.pid
 set -eu
 
+# This tier's scripts live three levels below the repository root, and the
+# nested-kwin harness, the build tree and the shell QML all hang off that root.
 REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
-RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/pz-nested-$(id -u)}"
-NEST="${PZ_NESTED_DIR:-$RUNTIME_DIR/pz-nested${PZ_NESTED_SESSION:+-$PZ_NESTED_SESSION}}"
+# The same state-dir resolution run-nested.sh uses (PZ_NESTED_SESSION included).
+. "$REPO/scripts/nested-kwin/nest-dir.sh"
 
 if [ ! -f "$NEST/env.sh" ]; then
-    echo "no nested session in $NEST (run scripts/nested-shell/run-shell.sh first)" >&2
+    echo "no nested session in $NEST (run phosphor-shell/scripts/nested-shell/run-shell.sh first)" >&2
     exit 1
 fi
 # shellcheck disable=SC1091

@@ -17,6 +17,13 @@
 #     MetadataPackLoader<SurfacePack> with search-path management,
 #     live reload, friendly-param → slot-key translation, and the
 #     generated p_<id> preamble.
+#   * Decoration profiles — the per-surface profile tree that maps a surface
+#     path to its pack chain, and the uniform profile that lays out the
+#     surface UBO.
+#   * Host-shared resolution — the helpers every decoration host calls so the
+#     hosts resolve a chain identically: theme and window-state parameter
+#     resolution, the chain-wide silhouette votes, padding requests, and the
+#     stage map a QML host consumes.
 #
 # Mirrors phosphor-libs/libs/phosphor-animation's shader-pack subsystem; trimmed to the
 # parts a surface shader needs (no QML, no rendering, no surface lifecycle).
@@ -27,7 +34,11 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-set(PHOSPHORSURFACE_VERSION "0.1.0")
+# 0.2.0: SurfaceThemeColors grew windowAccent, and SurfaceWindowStateResolve,
+# chainSquareWhenMaximized and SurfaceShaderEffect::findParameter joined the
+# public API. SOVERSION stays 0, like the rest of the phosphor-* catalog,
+# until a deliberate ABI break.
+set(PHOSPHORSURFACE_VERSION "0.2.0")
 
 # The Qt floor this library requires AND advertises in its generated
 # PhosphorSurfaceConfig.cmake. Taken from the top-level QT_MIN_VERSION when built in-tree

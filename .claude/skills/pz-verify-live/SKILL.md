@@ -46,11 +46,34 @@ scripts/nested-kwin/run-nested.sh [output-count] [width height] [scale]
   The only way to probe session restore: `daemon.sh` restarts the daemon but
   not the effect, so a login-shaped restore needs a full nested restart with
   the `session.json` the daemon reads still on disk. No `PZ_NESTED_FORCE` is
-  needed after a clean exit: both sockets are removed when the session ends,
-  so neither live-session guard fires. The previous daemon log is rotated to
-  `daemon.log.prev` for comparison.
+  needed after the compositor stops. The wayland guard tests whether a
+  compositor still holds the lock on the socket's `.lock` file, and the bus
+  guard tests whether the previous bus still has a bound listener, so files
+  left behind do not block the next launch. After a terminal hangup the
+  session's `dbus-daemon` can survive on its own; kill it by pid
+  (`pgrep -a dbus-daemon`) rather than reaching for FORCE, which skips only the
+  bus guard. The previous daemon and compositor logs are rotated to
+  `daemon.log.prev` and `compositor.log.prev` for comparison. A kept home made
+  by an older harness, which copied the bundled data into the user data home,
+  gets a warning: those copies override the checkout's data as user files.
+- `PZ_NESTED_SESSION=<name>` runs a second, independent session: it suffixes
+  both the default state dir (`pz-nested-<name>`) and the default socket
+  (`pznested-<name>`), and every sibling script resolves the same dir from it.
+- The repository's bundled data (layouts, algorithms, scrolling templates and
+  every shader pack family) is served from `$NEST/repo-data`, a system-tier
+  data dir ahead of the installed one, rebuilt from the checkout at every
+  launch. A pack added on the branch is present without copying anything, and
+  an edit to one is live at the next registry rescan. It overrides an installed
+  asset of the same id but cannot hide one the branch deleted or renamed: that
+  still loads under its old id from the install, so check a removal on a host
+  without the install or by id in the logs. Those dirs are symlinks into the
+  checkout, so a user copy of a bundled layout loses its "restore system
+  original" origin when it reloads in the nested session (the loader drops a
+  `systemSourcePath` that does not resolve inside a system data dir). Probe
+  that restore on an installed build.
 
-State lives in `$PZ_NESTED_DIR` (default `$XDG_RUNTIME_DIR/pz-nested`). In every
+State lives in `$PZ_NESTED_DIR` (default `$XDG_RUNTIME_DIR/pz-nested`, or
+`$XDG_RUNTIME_DIR/pz-nested-<name>` with `PZ_NESTED_SESSION`). In every
 follow-up shell:
 
 ```bash
@@ -60,7 +83,7 @@ follow-up shell:
 **One run at a time per state directory.** Two sessions sharing a
 `PZ_NESTED_DIR` evict each other's daemon and overwrite each other's pid file.
 Concurrent sessions need a distinct `PZ_NESTED_SOCKET` *and* a distinct
-`PZ_NESTED_DIR`.
+`PZ_NESTED_DIR`; `PZ_NESTED_SESSION` gives both at once.
 
 ## Start the daemon
 
@@ -81,20 +104,29 @@ scripts/nested-kwin/dump-windows.sh
 
 Committed geometry and KWin output assignment for every normal window, read
 from inside the compositor via a throwaway KWin script. **Committed geometry is
-the ground truth for boundary bugs; screenshots are not.**
+the ground truth for boundary bugs; screenshots are not.** The script's output
+is read back from the compositor's log (see below), not the journal, and the
+command fails rather than printing nothing when that output never arrives.
 
 ```bash
 scripts/nested-kwin/capture-output.py <OutputName> <out.png>
 ```
 
-Caveat that has misled before: this render **bypasses the effect chain**, so it
-shows raw committed geometry and never effect-side suppression. Use it to verify
-geometry, not rendering. Needs `dbus-python` and Pillow.
+It uses ScreenShot2's `CaptureScreen`, which on KWin 6.7 includes compositor
+effects (verified with a shader-only border), so decorations and effect
+transforms can show in the pixels. Committed geometry still comes from
+`dump-windows.sh`, because those pixels can include effect transforms. The PNG
+is in device pixels; the script prints the output scale to convert against
+logical geometry. Needs `dbus-python` and Pillow.
 
 ## Reading the logs
 
-The daemon log is the only log file; the compositor's output stays on the
-terminal that launched it. For the host session:
+The daemon log is `$NEST/daemon.log`, written by `daemon.sh` and by a daemon
+the nested bus activates. The compositor's output stays on the terminal that
+launched it and is also written to `$NEST/compositor.log`, unless its stderr
+was already redirected to a file (`run-shell.sh` and the regression runner do
+that, and the runner's per-probe `NAME.kwin.log` is then the log). For the host
+session:
 
 ```bash
 journalctl --user -f -u plasma-kwin_wayland.service

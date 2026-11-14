@@ -198,11 +198,10 @@ Item {
                 height: PreviewCanvas.size.height
                 scale: _canvasScale
                 transformOrigin: Item.Center
-                // The shader item is a render node: it draws at full size and
-                // outside any ancestor clip unless the composition it belongs
-                // to is a layer, so without this the scale above never reaches
-                // it and a slot narrower than the canvas gets a full-size pass
-                // painted past the frame. Conditional so the 1:1 case, which is
+                // The shader item is a render node: it follows the scale above
+                // through its mapped viewport but draws outside any ancestor
+                // clip unless the composition it belongs to is a layer, and the
+                // layer is also what gives the reduced pass filtered sampling. Conditional so the 1:1 case, which is
                 // this dialog's normal one, neither pays for a texture nor
                 // nests the staging's own ShaderEffectSource capture inside an
                 // outer layer.

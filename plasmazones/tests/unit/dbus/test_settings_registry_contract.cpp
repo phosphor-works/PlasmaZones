@@ -148,7 +148,7 @@ private Q_SLOTS:
     /// The editor is a SECOND process reading the SAME registry over the same bus, and it
     /// fails the same way: an unregistered key answers with an error and the editor keeps
     /// its built-in default, silently. The effect had a tripwire and the editor did not, so
-    /// its two dozen keys were guarded by nothing at all.
+    /// its keys were guarded by nothing at all.
     void testEveryKeyTheEditorFetchesIsRegistered()
     {
         QString why;

@@ -3,7 +3,7 @@
 
 # PhosphorLayer unit tests. Headless — uses offscreen QPA.
 
-find_package(Qt6 REQUIRED COMPONENTS Test)
+find_package(Qt6 REQUIRED COMPONENTS Test Network)
 
 # Shared includes: mocks/ (in-tree header-only) + library public headers (via target).
 
@@ -73,6 +73,8 @@ pl_add_test(pl_test_factory test_factory.cpp)
 pl_add_test(pl_test_registry test_registry.cpp)
 pl_add_test(pl_test_topology test_topology.cpp)
 pl_add_test(pl_test_content_url test_content_url.cpp)
+# Serves QML over a test-only URL scheme so a load is genuinely asynchronous.
+target_link_libraries(pl_test_content_url PRIVATE Qt6::Network)
 pl_add_test(pl_test_default_screen_provider test_default_screen_provider.cpp)
 pl_add_test(pl_test_extensions test_extensions.cpp)
 pl_add_test(pl_test_surface_animator_dispatch test_surface_animator_dispatch.cpp)

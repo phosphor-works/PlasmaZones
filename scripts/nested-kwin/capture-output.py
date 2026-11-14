@@ -24,21 +24,23 @@ name, out = sys.argv[1], sys.argv[2]
 # Guard against silently capturing the HOST session: env.sh pins the nested
 # bus address, and running without it would connect to the host bus, where
 # ScreenShot2 also exists and answers with a plausible but meaningless PNG.
+# PZ_NESTED_DIR is required, not merely preferred: it is how the bus address is
+# checked, and a shell carrying only some of env.sh's variables (PZ_NESTED_REPO
+# without PZ_NESTED_DIR) would otherwise skip the check entirely.
 nest = os.environ.get("PZ_NESTED_DIR")
-if nest:
-    try:
-        with open(os.path.join(nest, "env.sh"), encoding="utf-8") as f:
-            env_sh = f.read()
-    except OSError:
-        sys.exit(f"cannot read {nest}/env.sh; is the nested session up?")
-    addr = os.environ.get("DBUS_SESSION_BUS_ADDRESS", "")
-    if not addr or f"'{addr}'" not in env_sh:
-        sys.exit(
-            "DBUS_SESSION_BUS_ADDRESS does not match the nested session's "
-            f"env.sh; source {nest}/env.sh first or the capture hits the HOST"
-        )
-elif not os.environ.get("PZ_NESTED_REPO"):
+if not nest:
     sys.exit("source the nested session's env.sh first (PZ_NESTED_DIR is unset)")
+try:
+    with open(os.path.join(nest, "env.sh"), encoding="utf-8") as f:
+        env_sh = f.read()
+except OSError:
+    sys.exit(f"cannot read {nest}/env.sh; is the nested session up?")
+addr = os.environ.get("DBUS_SESSION_BUS_ADDRESS", "")
+if not addr or f"'{addr}'" not in env_sh:
+    sys.exit(
+        "DBUS_SESSION_BUS_ADDRESS does not match the nested session's "
+        f"env.sh; source {nest}/env.sh first or the capture hits the HOST"
+    )
 
 bus = dbus.SessionBus()
 ss = bus.get_object("org.kde.KWin.ScreenShot2", "/org/kde/KWin/ScreenShot2")
@@ -50,20 +52,50 @@ os.close(w)
 width, height = int(res["width"]), int(res["height"])
 fmt = res.get("format")
 stride = int(res.get("stride", width * 4))
-# QImage::Format_ARGB32 = 5, Format_ARGB32_Premultiplied = 6, Format_RGB32
-# = 4 — the little-endian byte order for all three is BGRA, which is what
-# the decoder below assumes. An ABSENT key is tolerated (older replies);
-# anything else, including an explicit Format_Invalid (0), would decode
-# into a colour-swapped or sheared image, so bail loudly instead.
-if fmt is not None and int(fmt) not in (4, 5, 6):
-    sys.exit(f"unsupported image format {int(fmt)} from ScreenShot2 (expected a 32-bit BGRA layout)")
-data = b""
+# QImage format -> (Pillow mode, Pillow raw byte order). The formats KWin
+# returns changed between releases: 6.7 reads the frame back as
+# Format_ARGB32_Premultiplied, 6.8 as Format_RGBX8888 for a screen or area
+# and Format_RGBA8888_Premultiplied for a window. The ARGB32 family is a
+# native-endian 32-bit word, so its byte order follows the host (BGRA in
+# memory on little-endian). The 8888 family is a fixed byte order, R first,
+# on every host. Premultiplied alpha needs no undoing: the PNG is written
+# without alpha, and a premultiplied pixel's colour over an opaque output is
+# the colour itself.
+LITTLE = sys.byteorder == "little"
+LAYOUTS = {
+    4: ("RGB", "BGRX" if LITTLE else "XRGB"),  # Format_RGB32
+    5: ("RGBA", "BGRA" if LITTLE else "ARGB"),  # Format_ARGB32
+    6: ("RGBA", "BGRA" if LITTLE else "ARGB"),  # Format_ARGB32_Premultiplied
+    16: ("RGB", "RGBX"),  # Format_RGBX8888
+    17: ("RGBA", "RGBA"),  # Format_RGBA8888
+    18: ("RGBA", "RGBA"),  # Format_RGBA8888_Premultiplied
+}
+# An ABSENT key is tolerated (older replies predate it, and those were
+# ARGB32). Anything else, including an explicit Format_Invalid (0) or a
+# 10-bit or 16-bit-per-channel layout, would decode into a colour-swapped or
+# sheared image, so bail loudly instead.
+layout = LAYOUTS[6] if fmt is None else LAYOUTS.get(int(fmt))
+if layout is None:
+    sys.exit(
+        f"unsupported image format {int(fmt)} from ScreenShot2 (expected one of the 32-bit "
+        f"QImage formats {sorted(LAYOUTS)})"
+    )
+# A bytearray grows in place; appending to bytes copies the whole buffer on
+# every pipe read, which is quadratic in the image size.
+data = bytearray()
 while True:
     chunk = os.read(r, 1 << 20)
     if not chunk:
         break
     data += chunk
 os.close(r)
-img = Image.frombytes("RGBA", (width, height), data, "raw", "BGRA", stride)
-img.convert("RGB").save(out)
-print(f"saved {out} {width}x{height}")
+if len(data) < stride * height:
+    sys.exit(f"short read from ScreenShot2: {len(data)} bytes for {height} rows of {stride}")
+img = Image.frombytes(layout[0], (width, height), bytes(data), "raw", layout[1], stride)
+# PNG explicitly, as the usage says: inferring the format from the extension
+# fails only after the capture, on any name without ".png".
+img.convert("RGB").save(out, format="PNG")
+# With native-resolution the image is in DEVICE pixels; at a fractional output
+# scale it does not match dump-windows.sh's logical geometry without the scale.
+scale = res.get("scale")
+print(f"saved {out} {width}x{height} device px" + (f" at scale {float(scale)}" if scale is not None else ""))

@@ -416,9 +416,6 @@ QString LayerPopoutTransport::openSurface(const PhosphorPopout::PopoutRequest& r
     // Per-popout debug name so phosphorlayer's state-transition logs can tell
     // concurrent surfaces apart.
     cfg.debugName = QStringLiteral("phosphor-shell-popout:%1").arg(request.popoutId);
-    // Share the shell's engine rather than letting the Surface build a
-    // private one it would never use on the contentItem path.
-    cfg.sharedEngine = m_engine;
     cfg.contentItem = std::unique_ptr<QQuickItem>(hostItem);
 
     // Explicit parent: create(cfg, nullptr) would parent the Surface to the

@@ -987,6 +987,27 @@ private Q_SLOTS:
         QCOMPARE(e.bufferScales.at(0), 0.25);
         QCOMPARE(e.bufferScales.at(1), 0.0625);
     }
+
+    // ── Entry scaffold ───────────────────────────────────────────────────
+
+    /// The generated main() applies the host's qt_Opacity on the Qt RHI
+    /// branch, and only there: the compositor build defines PLASMAZONES_KWIN
+    /// and its uniform block has no qt_Opacity to read.
+    void entry_main_applies_qt_opacity_outside_the_compositor_only()
+    {
+        const QList<PhosphorShaders::EntryCandidate> candidates = SurfaceShaderRegistry::surfaceEntryCandidates();
+        QCOMPARE(candidates.size(), 1);
+        const QString main = candidates.first().generatedMain;
+        const qsizetype guard = main.indexOf(QLatin1String("#ifndef PLASMAZONES_KWIN"));
+        const qsizetype elseArm = main.indexOf(QLatin1String("#else"));
+        const qsizetype endif = main.indexOf(QLatin1String("#endif"));
+        QVERIFY(guard >= 0 && guard < elseArm && elseArm < endif);
+        const QString rhiArm = main.mid(guard, elseArm - guard);
+        const QString kwinArm = main.mid(elseArm, endif - elseArm);
+        QVERIFY(rhiArm.contains(QLatin1String("fragColor = pSurface(vTexCoord) * qt_Opacity;")));
+        QVERIFY(kwinArm.contains(QLatin1String("fragColor = pSurface(vTexCoord);")));
+        QVERIFY(!kwinArm.contains(QLatin1String("qt_Opacity")));
+    }
 };
 
 QTEST_MAIN(TestSurfaceShaderRegistry)

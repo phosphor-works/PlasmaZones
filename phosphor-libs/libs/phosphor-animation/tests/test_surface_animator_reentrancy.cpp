@@ -13,6 +13,10 @@
  */
 #include "SurfaceAnimatorTestHarness.h"
 
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
+
 class TestSurfaceAnimatorReentrancy : public QObject
 {
     Q_OBJECT
@@ -181,6 +185,113 @@ private Q_SLOTS:
         QCOMPARE(target->opacity(), qreal(0.0));
 
         delete surface;
+    }
+
+    /// A beginHide that cancels an in-flight SHADER leg restores the decorator
+    /// siblings that leg hid, and a consumer's visibleChanged handler on one of
+    /// them can re-enter beginShow for the same target before the hide's own
+    /// runLeg resumes. The nested show is the newer request: the hide must find
+    /// its slot after the cancel and stand down, so the show runs to completion
+    /// and only its onComplete fires. Without the post-cancel slot check the
+    /// hide adopted the nested slot, overwrote its leg and completion, and
+    /// faded the surface out under a show the consumer had just asked for.
+    void nested_show_from_sibling_restore_supersedes_the_cancelling_hide()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString packDir = tmp.path() + QStringLiteral("/reentry-probe");
+        QVERIFY(QDir(tmp.path()).mkpath(QStringLiteral("reentry-probe")));
+        {
+            QFile meta(packDir + QStringLiteral("/metadata.json"));
+            QVERIFY(meta.open(QIODevice::WriteOnly));
+            meta.write(R"({"id":"reentry-probe","name":"Reentry","description":"probe",)"
+                       R"("author":"test","version":"1.0","category":"Test",)"
+                       R"("fragmentShader":"effect.frag","parameters":[],"appliesTo":["appearance"]})");
+        }
+        {
+            QFile frag(packDir + QStringLiteral("/effect.frag"));
+            QVERIFY(frag.open(QIODevice::WriteOnly));
+            frag.write("void main(){}\n");
+        }
+        PhosphorAnimationShaders::AnimationShaderRegistry shaderRegistry;
+        shaderRegistry.addSearchPath(tmp.path());
+        shaderRegistry.refresh();
+        QVERIFY2(shaderRegistry.effect(QStringLiteral("reentry-probe")).isValid(), "fixture pack must resolve");
+
+        // The first show runs a long shader leg under its own role, so it is
+        // still in flight when the hide arrives. Every other leg uses the fast,
+        // shaderless defaults.
+        const QString slowPath = QStringLiteral("test.reentry-slow");
+        m_registry.registerProfile(slowPath, makeProfile(5000));
+        SurfaceAnimator anim(m_registry, defaultsForTesting());
+        anim.setAnimationShaderRegistry(&shaderRegistry);
+        const PhosphorLayer::Role slowRole =
+            PhosphorShellPatterns::Modal().withScopePrefix(QStringLiteral("pz-reentry-slow"));
+        SurfaceAnimator::Config slow = defaultsForTesting();
+        slow.showShaderEffectId = QStringLiteral("reentry-probe");
+        slow.showShaderProfile = slowPath;
+        anim.registerConfigForRole(slowRole, slow);
+
+        PhosphorLayer::Testing::MockTransport t;
+        PhosphorLayer::Testing::MockScreenProvider s;
+        auto deps = PhosphorLayer::Testing::makeDeps(&t, &s);
+        SurfaceFactory f(deps);
+
+        PhosphorLayer::SurfaceConfig cfg;
+        cfg.role = PhosphorShellPatterns::Modal();
+        cfg.contentItem = std::make_unique<QQuickItem>();
+        cfg.screen = s.primary();
+        cfg.keepMappedOnHide = true;
+        cfg.debugName = QStringLiteral("nested-show-from-sibling-restore");
+
+        auto* surface = f.create(std::move(cfg));
+        QVERIFY(surface);
+        surface->warmUp();
+        QQuickItem* target = animatedItem(surface);
+        QVERIFY(target);
+
+        // An explicit anchor and a visible decorator beside it, which the
+        // shader leg hides and its cancel restores.
+        auto* anchor = new QQuickItem(target);
+        anchor->setSize(QSizeF(100, 50));
+        anchor->setProperty("shaderAnchor", true);
+        auto* decorator = new QQuickItem(target);
+        decorator->setSize(QSizeF(100, 50));
+        QVERIFY(decorator->isVisible());
+
+        int slowShowFires = 0;
+        anim.beginShow(surface, target, slowRole, [&slowShowFires]() {
+            ++slowShowFires;
+        });
+        QVERIFY2(!decorator->isVisible(), "the shader show must hide the decorator sibling");
+
+        bool reentered = false;
+        int nestedShowFires = 0;
+        QMetaObject::Connection conn = QObject::connect(decorator, &QQuickItem::visibleChanged, decorator, [&]() {
+            if (reentered || !decorator->isVisible()) {
+                return;
+            }
+            reentered = true;
+            anim.beginShow(surface, target, [&nestedShowFires]() {
+                ++nestedShowFires;
+            });
+        });
+
+        int hideFires = 0;
+        anim.beginHide(surface, target, [&hideFires]() {
+            ++hideFires;
+        });
+        QObject::disconnect(conn);
+        QVERIFY2(reentered, "the cancel's sibling restore must re-enter beginShow");
+
+        QTRY_COMPARE_WITH_TIMEOUT(nestedShowFires, 1, 1000);
+        QTest::qWait(60); // a hide that had adopted the slot would complete here
+        QCOMPARE(hideFires, 0);
+        QCOMPARE(slowShowFires, 0);
+        QCOMPARE(target->opacity(), qreal(1.0));
+
+        delete surface;
+        m_registry.unregisterProfile(slowPath);
     }
 };
 

@@ -166,8 +166,7 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
         PhosphorLayer::SurfaceFactory::Deps{.transport = m_transport.get(),
                                             .screens = m_screenProvider.get(),
                                             .engineProvider = nullptr,
-                                            .animator = m_surfaceAnimator.get(),
-                                            .loggingCategory = QStringLiteral("plasmazones.overlay")});
+                                            .animator = m_surfaceAnimator.get()});
 
     const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     const QString pipelineCachePath =
