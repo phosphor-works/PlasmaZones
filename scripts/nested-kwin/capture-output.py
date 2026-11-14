@@ -24,21 +24,23 @@ name, out = sys.argv[1], sys.argv[2]
 # Guard against silently capturing the HOST session: env.sh pins the nested
 # bus address, and running without it would connect to the host bus, where
 # ScreenShot2 also exists and answers with a plausible but meaningless PNG.
+# PZ_NESTED_DIR is required, not merely preferred: it is how the bus address is
+# checked, and a shell carrying only some of env.sh's variables (PZ_NESTED_REPO
+# without PZ_NESTED_DIR) would otherwise skip the check entirely.
 nest = os.environ.get("PZ_NESTED_DIR")
-if nest:
-    try:
-        with open(os.path.join(nest, "env.sh"), encoding="utf-8") as f:
-            env_sh = f.read()
-    except OSError:
-        sys.exit(f"cannot read {nest}/env.sh; is the nested session up?")
-    addr = os.environ.get("DBUS_SESSION_BUS_ADDRESS", "")
-    if not addr or f"'{addr}'" not in env_sh:
-        sys.exit(
-            "DBUS_SESSION_BUS_ADDRESS does not match the nested session's "
-            f"env.sh; source {nest}/env.sh first or the capture hits the HOST"
-        )
-elif not os.environ.get("PZ_NESTED_REPO"):
+if not nest:
     sys.exit("source the nested session's env.sh first (PZ_NESTED_DIR is unset)")
+try:
+    with open(os.path.join(nest, "env.sh"), encoding="utf-8") as f:
+        env_sh = f.read()
+except OSError:
+    sys.exit(f"cannot read {nest}/env.sh; is the nested session up?")
+addr = os.environ.get("DBUS_SESSION_BUS_ADDRESS", "")
+if not addr or f"'{addr}'" not in env_sh:
+    sys.exit(
+        "DBUS_SESSION_BUS_ADDRESS does not match the nested session's "
+        f"env.sh; source {nest}/env.sh first or the capture hits the HOST"
+    )
 
 bus = dbus.SessionBus()
 ss = bus.get_object("org.kde.KWin.ScreenShot2", "/org/kde/KWin/ScreenShot2")
@@ -57,13 +59,20 @@ stride = int(res.get("stride", width * 4))
 # into a colour-swapped or sheared image, so bail loudly instead.
 if fmt is not None and int(fmt) not in (4, 5, 6):
     sys.exit(f"unsupported image format {int(fmt)} from ScreenShot2 (expected a 32-bit BGRA layout)")
-data = b""
+# A bytearray grows in place; appending to bytes copies the whole buffer on
+# every pipe read, which is quadratic in the image size.
+data = bytearray()
 while True:
     chunk = os.read(r, 1 << 20)
     if not chunk:
         break
     data += chunk
 os.close(r)
-img = Image.frombytes("RGBA", (width, height), data, "raw", "BGRA", stride)
-img.convert("RGB").save(out)
-print(f"saved {out} {width}x{height}")
+img = Image.frombytes("RGBA", (width, height), bytes(data), "raw", "BGRA", stride)
+# PNG explicitly, as the usage says: inferring the format from the extension
+# fails only after the capture, on any name without ".png".
+img.convert("RGB").save(out, format="PNG")
+# With native-resolution the image is in DEVICE pixels; at a fractional output
+# scale it does not match dump-windows.sh's logical geometry without the scale.
+scale = res.get("scale")
+print(f"saved {out} {width}x{height} device px" + (f" at scale {float(scale)}" if scale is not None else ""))

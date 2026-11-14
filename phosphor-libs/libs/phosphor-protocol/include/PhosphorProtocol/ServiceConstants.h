@@ -101,8 +101,20 @@ inline constexpr QLatin1String MotionProfileTree("motionProfileTree");
 inline constexpr QLatin1String AnimationShaderSearchPaths("animationShaderSearchPaths");
 inline constexpr QLatin1String DecorationProfileTree("decorationProfileTree");
 inline constexpr QLatin1String OverlayShaderTree("overlayShaderTree");
-/// The global window gaps (the Gaps group). Written by the Phosphor shell's
-/// desktop style and read by the editor.
+/// The user's decoration blur-quality tier. Read by every host that composes a
+/// decoration chain, so that a pack renders at one density whether it decorates a
+/// window, an OSD or a shell surface. The compositor loads it under this same name,
+/// and the daemon's SettingsAdaptor registers it through this constant.
+inline constexpr QLatin1String DecorationBlurScaleMultiplier("decorationBlurScaleMultiplier");
+
+/// @name Global window gaps
+/// The resolved global gaps as the Settings interface serves them. The daemon
+/// registers them read-only (the settings app writes the stored values through
+/// the config, under ConfigDefaults' own Gaps keys), and the editor reads them
+/// to draw its gap overlay. The spellings coincide with PhosphorLayout::GapKeys,
+/// the layout-file field names, but the two are independent contracts and
+/// neither follows the other.
+///@{
 inline constexpr QLatin1String InnerGap("innerGap");
 inline constexpr QLatin1String OuterGap("outerGap");
 inline constexpr QLatin1String UsePerSideOuterGap("usePerSideOuterGap");
@@ -110,11 +122,7 @@ inline constexpr QLatin1String OuterGapTop("outerGapTop");
 inline constexpr QLatin1String OuterGapBottom("outerGapBottom");
 inline constexpr QLatin1String OuterGapLeft("outerGapLeft");
 inline constexpr QLatin1String OuterGapRight("outerGapRight");
-/// The user's decoration blur-quality tier. Read by every host that composes a
-/// decoration chain, so that a pack renders at one density whether it decorates a
-/// window, an OSD or a shell surface. The compositor loads it under this same name,
-/// and the daemon's SettingsAdaptor registers it through this constant.
-inline constexpr QLatin1String DecorationBlurScaleMultiplier("decorationBlurScaleMultiplier");
+///@}
 }
 
 /// Keys for the extended-window-property QVariantMap (the trailing a{sv} argument

@@ -18,6 +18,7 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 
+#include <cmath>
 #include <memory>
 #include <optional>
 
@@ -113,13 +114,10 @@ SurfaceShaderItem::SurfaceShaderItem(QQuickItem* parent)
 {
     setShaderIncludePaths(surfaceIncludePaths());
 
-    // The surface shader node carries the item's opacity (pushed via
-    // setSurfaceOpacity(opacity()) each updatePaintNode), but the base
-    // ShaderEffect does not repaint on an opacity change. Schedule a paint when
-    // the item's own opacity changes so a host
-    // fading the decoration (the "host can fade the decoration" contract below)
-    // actually re-uploads the new value instead of going stale.
-    connect(this, &QQuickItem::opacityChanged, this, &QQuickItem::update);
+    // No opacityChanged→update() connection is needed either: the item's own
+    // and its ancestors' opacity reach the node as QSGRenderNode::
+    // inheritedOpacity(), which the node reads in prepare() on every frame the
+    // scene graph renders, and an opacity change always triggers that render.
     // No audioSpectrumChanged→update() connection is needed: the base
     // ShaderEffect's setAudioSpectrum / setAudioSpectrumVariant already call
     // update() on a value change, and update() schedules this item's
@@ -164,6 +162,17 @@ PhosphorRendering::ShaderNodeRhi* SurfaceShaderItem::createShaderNode()
 // render node each frame via ShaderNodeRhi's surface-state setters, so a border
 // or rounded-corner pack sees the real surface/frame geometry, scale and focus.
 // Storing + emitting on change keeps the QML host's binding surface reactive.
+
+void SurfaceShaderItem::setSurfaceOpacity(qreal opacity)
+{
+    const qreal bounded = std::isfinite(opacity) ? qBound(0.0, opacity, 1.0) : 1.0;
+    if (qFuzzyCompare(m_surfaceOpacity, bounded)) {
+        return;
+    }
+    m_surfaceOpacity = bounded;
+    Q_EMIT surfaceOpacityChanged();
+    update();
+}
 
 void SurfaceShaderItem::setSurfaceScale(qreal scale)
 {
@@ -336,9 +345,10 @@ QSGNode* SurfaceShaderItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeDat
     // ── Push surface-only state ──────────────────────────────────────
     // These land in the surface UBO's scene region (a SurfaceUniformProfile
     // reads them; a BaseUniformProfile ignores them). The geometry is what a
-    // border/rounded-corner pack uses to place its edges. Opacity comes from
-    // the item's own opacity so a host can fade the decoration.
-    node->setSurfaceOpacity(static_cast<float>(opacity()));
+    // border/rounded-corner pack uses to place its edges. The opacity pushed
+    // here is the host's explicit fade factor; the node folds in the scene
+    // graph's inherited opacity itself (see ShaderNodeRhi::setSurfaceOpacity).
+    node->setSurfaceOpacity(static_cast<float>(m_surfaceOpacity));
     node->setSurfaceScale(static_cast<float>(m_surfaceScale));
     node->setSurfaceFocused(m_surfaceFocused);
     node->setSurfaceSize(static_cast<float>(m_surfaceSize.width()), static_cast<float>(m_surfaceSize.height()));

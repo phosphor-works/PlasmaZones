@@ -17,18 +17,16 @@
 # distinct PZ_NESTED_SOCKET with a distinct PZ_NESTED_DIR); two sessions
 # sharing a directory are broken well before this script runs.
 set -euo pipefail
-# Must resolve exactly as run-nested.sh does, including the fallback when
-# XDG_RUNTIME_DIR is unset — a divergence here points this script at a
-# different state dir than the session it is meant to join.
-RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/pz-nested-$(id -u)}"
-NEST="${PZ_NESTED_DIR:-$RUNTIME_DIR/pz-nested}"
+# Resolved by the same file run-nested.sh sources — a divergence here points
+# this script at a different state dir than the session it is meant to join.
+. "$(dirname "$0")/nest-dir.sh"
 if [ ! -r "$NEST/env.sh" ]; then
     echo "no nested session state at $NEST/env.sh; start run-nested.sh first" >&2
     exit 1
 fi
 . "$NEST/env.sh"
 
-# env.sh is written just before kwin_wayland execs, so on a fast follow-up
+# env.sh is written just before kwin_wayland starts, so on a fast follow-up
 # the compositor may not be listening yet. Wait for the socket, bounded.
 SOCK="$RUNTIME_DIR/$WAYLAND_DISPLAY"
 for _ in $(seq 1 50); do
@@ -40,6 +38,15 @@ if [ ! -S "$SOCK" ]; then
     exit 1
 fi
 
+# Hold D-Bus activation off from here until this script's daemon owns the
+# name. Between evicting the owner and the new daemon's registration the name
+# is unowned (the daemon waits for KWin before it registers), and any effect
+# call in that gap would activate the session's activation shim, whose daemon
+# can take the name first; this one would then exit "Already running" while
+# daemon.pid and daemon.log describe it. The shim refuses while this exists.
+touch "$NEST/activation-blocked"
+trap 'rm -f "$NEST/activation-blocked"' EXIT
+
 # A leftover daemon from a previous nested run is invisible to the bus
 # check below (its bus died with the old session); kill it by pid first,
 # identity-gated so a recycled pid cannot hit an unrelated process.
@@ -48,10 +55,10 @@ if [ -f "$NEST/daemon.pid" ]; then
     # Bus address, not comm alone: comm only proves the pid is A
     # plasmazonesd, and after a pid recycle that can be the user's real
     # host-session daemon. A nested daemon always runs on a dbus-run-session
-    # bus under /tmp/dbus-, which the login bus never does.
+    # bus under /tmp/dbus-, which the login bus never does; older dbus binds
+    # that as an abstract socket, so both address forms are accepted.
     if [ "$(cat "/proc/$OLDPID/comm" 2>/dev/null)" = "plasmazonesd" ] \
-        && tr '\0' '\n' < "/proc/$OLDPID/environ" 2>/dev/null \
-        | grep -q '^DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-'; then
+        && grep -qszE '^DBUS_SESSION_BUS_ADDRESS=unix:(path|abstract)=/tmp/dbus-' "/proc/$OLDPID/environ"; then
         kill "$OLDPID" 2>/dev/null || true
     fi
     rm -f "$NEST/daemon.pid"

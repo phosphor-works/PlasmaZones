@@ -19,10 +19,15 @@
 //       surfacePath: "shell.phosphor.bar"
 //   }
 //
-// The instantiated item is given `contentItem`, `surfacePath` and
-// `focused` when it declares them, through bindings that follow this
-// slot's own, so a surface that swaps its frame or loses focus keeps the
-// pack in step.
+// The instantiated item is given `contentItem`, `surfacePath`, `focused`
+// and `surfaceOpacity` when it declares them, through bindings that follow
+// this slot's own, so a surface that swaps its frame or loses focus keeps
+// the pack in step.
+//
+// `surfaceOpacity` is the surface's TRANSITION fade (its open or close
+// progress), not its material alpha. A ground drawn at 0.92 should not draw
+// its pack's border at 0.92, so the slot never derives this from the frame
+// item's own opacity; a surface that fades binds it to its progress.
 
 import QtQuick
 
@@ -33,11 +38,14 @@ Item {
     property Item contentItem: null
     property string surfacePath: ""
     property bool focused: true
+    property real surfaceOpacity: 1.0
 
-    // A chain is engaged on this surface: the instantiated host reports
-    // `decorationActive` (SurfaceDecoration's contract), and a host
-    // without that property counts as active while it exists.
-    readonly property bool active: loader.item !== null && (loader.item.decorationActive === undefined || loader.item.decorationActive === true)
+    // A chain is drawing this surface: the instantiated host reports
+    // `decorationDrawing` (SurfaceDecoration's contract: a resolved chain
+    // with no failed stage), and a host without that property counts as
+    // active while it exists. A chain whose shader failed draws nothing, so
+    // the surface keeps its own stroke then.
+    readonly property bool active: loader.item !== null && (loader.item.decorationDrawing === undefined || loader.item.decorationDrawing === true)
     readonly property Item item: loader.item
 
     Loader {
@@ -67,6 +75,13 @@ Item {
         property: "focused"
         value: slot.focused
         when: loader.item !== null && loader.item.focused !== undefined
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    Binding {
+        target: loader.item
+        property: "surfaceOpacity"
+        value: slot.surfaceOpacity
+        when: loader.item !== null && loader.item.surfaceOpacity !== undefined
         restoreMode: Binding.RestoreBindingOrValue
     }
 }

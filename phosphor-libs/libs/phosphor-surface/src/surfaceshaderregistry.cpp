@@ -828,9 +828,14 @@ QString SurfaceShaderRegistry::surfaceEntryPrologue()
 QList<PhosphorShaders::EntryCandidate> SurfaceShaderRegistry::surfaceEntryCandidates()
 {
     // pSurface: the whole-fragment entry. The body returns the final
-    // premultiplied colour for the fragment at `uv` (the vertex texcoord); the
-    // generated main() just writes it to fragColor. Single candidate — surface
-    // packs have no per-element loop (that is the overlay category's pZone).
+    // premultiplied colour for the fragment at `uv` (the vertex texcoord). On
+    // the Qt RHI hosts the generated main() scales it by qt_Opacity, the host's
+    // fade times the scene graph's inherited opacity (see
+    // ShaderNodeRhi::setSurfaceOpacity); the compositor build defines
+    // PLASMAZONES_KWIN and has no qt_Opacity, so there it is written as is. A
+    // pack that writes its own main() bypasses this scaffold and so gets no
+    // opacity applied on any host. Single candidate — surface packs have no
+    // per-element loop (that is the overlay category's pZone).
     static const QString surfaceMain = QStringLiteral(
         "void main() {\n"
         "#ifndef PLASMAZONES_KWIN\n"

@@ -549,10 +549,12 @@ void EditorController::refreshGlobalGapOverlaySettings()
     // a fresh QDBusInterface. SettingsAdaptor::getSettings reads straight from
     // the in-memory registry, so the daemon-side cost is unchanged and the
     // editor startup hot path saves the extra IPC round-trips.
+    namespace Key = PhosphorProtocol::Service::SettingProperty;
     static const QStringList kGapOverlayKeys = {
-        QStringLiteral("innerGap"),      QStringLiteral("outerGap"),           QStringLiteral("usePerSideOuterGap"),
-        QStringLiteral("outerGapTop"),   QStringLiteral("outerGapBottom"),     QStringLiteral("outerGapLeft"),
-        QStringLiteral("outerGapRight"), QStringLiteral("overlayDisplayMode"),
+        QString(Key::InnerGap),           QString(Key::OuterGap),
+        QString(Key::UsePerSideOuterGap), QString(Key::OuterGapTop),
+        QString(Key::OuterGapBottom),     QString(Key::OuterGapLeft),
+        QString(Key::OuterGapRight),      QStringLiteral("overlayDisplayMode"),
     };
     const QVariantMap values = SettingsDbusQueries::querySettingsBatch(kGapOverlayKeys);
 

@@ -19,12 +19,9 @@ if [ -z "$QDBUS" ]; then
     echo "no qdbus6/qdbus-qt6/qdbus on PATH; cannot drive the KWin scripting API" >&2
     exit 1
 fi
-# id -u, not $USER: this must resolve EXACTLY as run-nested.sh and
-# daemon.sh do, including the fallback when XDG_RUNTIME_DIR is unset.
-# daemon.sh carries a comment saying a divergence here points the script
-# at a different state dir, and $USER additionally can be unset in a bare
-# environment, which yielded /tmp/pz-nested-.
-NEST="${PZ_NESTED_DIR:-${XDG_RUNTIME_DIR:-/tmp/pz-nested-$(id -u)}/pz-nested}"
+# Resolved by the same file run-nested.sh and daemon.sh source, so this joins
+# the session they do (PZ_NESTED_SESSION included).
+. "$(dirname "$0")/nest-dir.sh"
 if [ ! -r "$NEST/env.sh" ]; then
     echo "no nested session state at $NEST/env.sh; start run-nested.sh first" >&2
     exit 1

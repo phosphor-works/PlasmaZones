@@ -253,7 +253,7 @@ Item {
     /// composition is never distorted; the leftover is empty on one axis.
     ///
     /// Requires `layeredStages` on the decoration below — see that property.
-    /// A scaled SurfaceShaderItem draws at full size unless it is layered.
+    /// An unlayered SurfaceShaderItem ignores the clip around this fit.
     ///
     /// REDUCE-ONLY. The canvas above is deliberately a fixed size while
     /// everything composed inside it is gridUnit-derived, so a user on a larger
@@ -399,9 +399,12 @@ Item {
             surfaceFocused: root.focused
             // Load-bearing, not an optimisation: this host SCALES the composed
             // decoration, and an unlayered stage ignores the scene graph's
-            // transform and clip entirely — it would draw at full canvas size
-            // over the neighbouring cards. See SurfaceDecoration.layeredStages.
+            // clip, so it would draw over the neighbouring cards. See
+            // SurfaceDecoration.layeredStages.
             layeredStages: true
+            // This host draws the composed decoration scaled down, so the
+            // layered last stage needs a mip chain to stay an honest miniature.
+            minifiedStages: true
             animationsPaused: root.animationsPaused
             // Only decoded for a pack that actually samples it. Every other pack
             // ignores the backdrop, and handing one over regardless would upload a

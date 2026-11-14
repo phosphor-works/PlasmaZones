@@ -39,14 +39,16 @@
 #   scripts/nested-shell/capture.sh Virtual-1 out.png # look at it
 #   scripts/nested-shell/shell.sh                     # restart after a rebuild
 #
-# Screenshot note, and why the nested-kwin caveat does NOT apply here:
-# ScreenShot2 bypasses the PlasmaZones EFFECT chain, which is why the
-# sibling harness treats captures as geometry-only evidence. The shell is
-# an ordinary layer-shell CLIENT, composited on the normal path, so its
-# bars, popouts and toasts DO appear in captures — screenshots are real
-# rendering evidence for this harness.
+# Screenshot note: the shell is an ordinary layer-shell CLIENT, composited on
+# the normal path, so its bars, popouts and toasts appear in captures, and
+# screenshots are real rendering evidence for this harness. CaptureScreen
+# includes compositor effects on KWin 6.7 as well, so effect transforms can
+# show in the pixels; committed geometry still comes from dump-windows.sh.
 #
 # Environment knobs (all inherited by the sibling scripts through env.sh):
+#   PZ_NESTED_SESSION                 — a second, independent session:
+#                                       suffixes the default state dir and
+#                                       socket, as for nested-kwin.
 #   PZ_NESTED_DIR / PZ_NESTED_SOCKET  — per-worktree isolation, as for
 #                                       nested-kwin (defaults pz-nested/
 #                                       pznested).
@@ -56,9 +58,12 @@
 #                                       of seeding an editable copy.
 set -eu
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/pz-nested-$(id -u)}"
-NEST="${PZ_NESTED_DIR:-$RUNTIME_DIR/pz-nested}"
+# This tier's scripts live three levels below the repository root, and the
+# nested-kwin harness, the build tree and the shell QML all hang off that root.
+REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
+SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
+# The same state-dir resolution run-nested.sh uses (PZ_NESTED_SESSION included).
+. "$REPO/scripts/nested-kwin/nest-dir.sh"
 BUILD="${PZ_NESTED_BUILD:-build}"
 
 if [ ! -x "$REPO/$BUILD/bin/phosphor-shell" ]; then
@@ -75,7 +80,7 @@ fi
 mkdir -p "$NEST"
 PRE_ENV_ID=$(stat -c '%i %Y' "$NEST/env.sh" 2>/dev/null || echo none)
 
-# The launcher execs the compositor in the foreground; background it with
+# The launcher runs the compositor in the foreground; background it with
 # its output on a per-NEST temp name, renamed to the documented
 # compositor.log once the session is confirmed up. Per-NEST (not a shared
 # name in $RUNTIME_DIR) so concurrent per-worktree sessions cannot clobber
@@ -87,7 +92,7 @@ PRE_ENV_ID=$(stat -c '%i %Y' "$NEST/env.sh" 2>/dev/null || echo none)
 "$REPO/scripts/nested-kwin/run-nested.sh" "$@" > "$NEST/compositor.log.launch" 2>&1 &
 LAUNCHER_PID=$!
 
-# env.sh is written just before kwin execs, so a FRESH env.sh is the
+# env.sh is written just before kwin starts, so a FRESH env.sh is the
 # up-signal. The launcher exiting first means its guards refused — surface
 # its log instead of spinning the full timeout.
 env_fresh() {
@@ -113,7 +118,7 @@ fi
 mv "$NEST/compositor.log.launch" "$NEST/compositor.log"
 
 # Give the compositor a moment to bind its wayland socket — env.sh lands
-# a hair before the exec.
+# a hair before kwin starts.
 SOCK_PATH="$RUNTIME_DIR/$(. "$NEST/env.sh" && printf %s "$WAYLAND_DISPLAY")"
 for _ in $(seq 1 50); do
     [ -S "$SOCK_PATH" ] && break
@@ -130,8 +135,8 @@ fi
 if [ -z "${PZ_SHELL_NO_SEED:-}" ]; then
     SHELL_CFG="$NEST/home/config/phosphor-shell"
     mkdir -p "$SHELL_CFG"
-    cp -r "$REPO/examples/phosphor-shell/." "$SHELL_CFG/"
+    cp -r "$REPO/phosphor-shell/shell/." "$SHELL_CFG/"
     echo "seeded editable shell: $SHELL_CFG/shell.qml"
 fi
 
-exec "$REPO/scripts/nested-shell/shell.sh"
+exec "$SCRIPTS/shell.sh"

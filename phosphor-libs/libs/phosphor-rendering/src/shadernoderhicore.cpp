@@ -376,6 +376,14 @@ void ShaderNodeRhi::prepare()
     // m_item pointer and rect() never touches m_item.
     m_cachedWidth.store(static_cast<float>(itemWidth), std::memory_order_release);
     m_cachedHeight.store(static_cast<float>(itemHeight), std::memory_order_release);
+    // The batch renderer writes the inherited opacity before calling
+    // prepare(), and a render node applies it itself. See setSurfaceOpacity.
+    const float inherited = static_cast<float>(inheritedOpacity());
+    if (m_inheritedOpacity != inherited) {
+        m_inheritedOpacity = inherited;
+        m_uniformsDirty = true;
+        m_sceneDataDirty = true;
+    }
     if (!rhi) {
         qCDebug(lcShaderNode) << "prepare(): bail — rhi is null";
         return;
@@ -986,13 +994,22 @@ void ShaderNodeRhi::render(const RenderState* state)
                 // empty the item is fully off-screen and we skip the draw
                 // (qBound-only would have collapsed the rect to a 1px strip
                 // glued to the nearest framebuffer edge).
-                const QPointF topLeft = m_item->mapToItem(win->contentItem(), QPointF(0, 0));
-                const int rawVpX = qRound(topLeft.x() * dpr);
-                const int rawVpY = outputSize.height() - qRound(topLeft.y() * dpr) - itemPxH;
+                //
+                // The rect is the item's MAPPED rect, so an ancestor scale
+                // (a SurfaceAnimator scale leg on a slot) shrinks the drawn
+                // quad with it. Sizing from width() * dpr alone moved a scaled
+                // item without resizing it. The layer-FBO test above stays on
+                // the unscaled size: a layer FBO is sized to the item itself.
+                const QRectF mapped =
+                    m_item->mapRectToItem(win->contentItem(), QRectF(0, 0, m_item->width(), m_item->height()));
+                const int drawPxW = qRound(mapped.width() * dpr);
+                const int drawPxH = qRound(mapped.height() * dpr);
+                const int rawVpX = qRound(mapped.x() * dpr);
+                const int rawVpY = outputSize.height() - qRound(mapped.y() * dpr) - drawPxH;
                 const int leftPx = qMax(0, rawVpX);
                 const int bottomPx = qMax(0, rawVpY);
-                const int rightPx = qMin(outputSize.width(), rawVpX + itemPxW);
-                const int topPx = qMin(outputSize.height(), rawVpY + itemPxH);
+                const int rightPx = qMin(outputSize.width(), rawVpX + drawPxW);
+                const int topPx = qMin(outputSize.height(), rawVpY + drawPxH);
                 if (leftPx >= rightPx || bottomPx >= topPx) {
                     offScreen = true;
                 } else {

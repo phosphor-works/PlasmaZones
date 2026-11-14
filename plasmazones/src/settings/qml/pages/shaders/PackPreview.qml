@@ -41,7 +41,7 @@ import org.plasmazones.common as PZCommon
  * whole slot instead — see `_selfScaling`.
  *
  * **Layering.** The pointer and animation cores paint through render nodes,
- * which ignore ancestor clipping: a scale or a clip only reaches them once the
+ * which ignore ancestor clipping: a clip only reaches them once the
  * composition is a layer. So the stage below is layered, which is the same
  * reason DecorationChainPreview turns on `layeredStages`.
  *
@@ -324,8 +324,8 @@ Item {
         }
         scale: root._selfScaling ? 1.0 : root._canvasScale
         transformOrigin: Item.Center
-        // A render node draws at full size, outside any QML clip, unless the
-        // composition it belongs to is a layer. The decoration and pointer
+        // A render node draws outside any QML clip unless the composition it
+        // belongs to is a layer. The decoration and pointer
         // cores layer their own stages (see `_selfLayering`), so layering
         // them again here would only cost a texture.
         //

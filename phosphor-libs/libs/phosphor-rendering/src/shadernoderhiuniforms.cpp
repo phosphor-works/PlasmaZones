@@ -84,7 +84,7 @@ void ShaderNodeRhi::syncBaseUniforms(QRhi* rhi)
 
     // Surface-only fields — read by a SurfaceUniformProfile, ignored by the
     // BaseUniformProfile (so the overlay/animation UBO bytes are unchanged).
-    state.qtOpacity = m_surfaceOpacity;
+    state.qtOpacity = m_surfaceOpacity * m_inheritedOpacity;
     state.surfaceScale = m_surfaceScale;
     state.surfaceFocused = m_surfaceFocused ? 1.0f : 0.0f;
     state.surfaceSize[0] = m_surfaceSize[0];

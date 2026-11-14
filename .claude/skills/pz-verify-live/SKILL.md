@@ -46,11 +46,25 @@ scripts/nested-kwin/run-nested.sh [output-count] [width height] [scale]
   The only way to probe session restore: `daemon.sh` restarts the daemon but
   not the effect, so a login-shaped restore needs a full nested restart with
   the `session.json` the daemon reads still on disk. No `PZ_NESTED_FORCE` is
-  needed after a clean exit: both sockets are removed when the session ends,
-  so neither live-session guard fires. The previous daemon log is rotated to
-  `daemon.log.prev` for comparison.
+  needed after the compositor stops: both live-session guards probe for a
+  bound listener, so a socket file left behind does not block the next launch.
+  After a terminal hangup the session's `dbus-daemon` can survive on its own;
+  kill it by pid (`pgrep -a dbus-daemon`) rather than reaching for FORCE. The
+  previous daemon log is rotated to `daemon.log.prev` for comparison.
+- `PZ_NESTED_SESSION=<name>` runs a second, independent session: it suffixes
+  both the default state dir (`pz-nested-<name>`) and the default socket
+  (`pznested-<name>`), and every sibling script resolves the same dir from it.
+- The repository's bundled data (layouts, algorithms, scrolling templates and
+  every shader pack family) is served from `$NEST/repo-data`, a system-tier
+  data dir ahead of the installed one, rebuilt from the checkout at every
+  launch. A pack added on the branch is present without copying anything, and
+  an edit to one is live at the next registry rescan. It overrides an installed
+  asset of the same id but cannot hide one the branch deleted or renamed: that
+  still loads under its old id from the install, so check a removal on a host
+  without the install or by id in the logs.
 
-State lives in `$PZ_NESTED_DIR` (default `$XDG_RUNTIME_DIR/pz-nested`). In every
+State lives in `$PZ_NESTED_DIR` (default `$XDG_RUNTIME_DIR/pz-nested`, or
+`$XDG_RUNTIME_DIR/pz-nested-<name>` with `PZ_NESTED_SESSION`). In every
 follow-up shell:
 
 ```bash
@@ -60,7 +74,7 @@ follow-up shell:
 **One run at a time per state directory.** Two sessions sharing a
 `PZ_NESTED_DIR` evict each other's daemon and overwrite each other's pid file.
 Concurrent sessions need a distinct `PZ_NESTED_SOCKET` *and* a distinct
-`PZ_NESTED_DIR`.
+`PZ_NESTED_DIR`; `PZ_NESTED_SESSION` gives both at once.
 
 ## Start the daemon
 
@@ -87,9 +101,12 @@ the ground truth for boundary bugs; screenshots are not.**
 scripts/nested-kwin/capture-output.py <OutputName> <out.png>
 ```
 
-Caveat that has misled before: this render **bypasses the effect chain**, so it
-shows raw committed geometry and never effect-side suppression. Use it to verify
-geometry, not rendering. Needs `dbus-python` and Pillow.
+It uses ScreenShot2's `CaptureScreen`, which on KWin 6.7 includes compositor
+effects (verified with a shader-only border), so decorations and effect
+transforms can show in the pixels. Committed geometry still comes from
+`dump-windows.sh`, because those pixels can include effect transforms. The PNG
+is in device pixels; the script prints the output scale to convert against
+logical geometry. Needs `dbus-python` and Pillow.
 
 ## Reading the logs
 
