@@ -230,9 +230,10 @@ done
 # PZ_NESTED_DIR. REPO is a path someone already has, so it is refused only for
 # what actually breaks: it reaches the activation shim inside a double-quoted
 # string (a quote, dollar sign, backtick, backslash or newline would end it or
-# run as shell) and PATH, QT_PLUGIN_PATH and XDG_DATA_DIRS (a colon would split
-# it). env.sh carries it single-quoted by shell_quote, and it never reaches the
-# service file's Exec= line, so a space or a '+' is fine.
+# run as shell) and PATH and QT_PLUGIN_PATH (a colon would split it).
+# XDG_DATA_DIRS carries $NEST/repo-data, whose symlinks point into REPO, not
+# REPO itself. env.sh carries it single-quoted by shell_quote, and it never
+# reaches the service file's Exec= line, so a space or a '+' is fine.
 BUILD="${PZ_NESTED_BUILD:-build}"
 case "$BUILD" in
     '' | /* | *[!A-Za-z0-9._/-]*)
@@ -493,10 +494,34 @@ rm -f "$NEST/env.sh" "$NEST/env.sh.static" "$NEST/daemon.pid" "$NEST/activation-
 # The previous daemon's log is the record of what it persisted, which is the
 # evidence a restore probe compares the new session against; under keep-state
 # it is rotated rather than deleted, and so is the compositor's log.
+#
+# run-shell.sh leaves compositor.log as a SYMLINK when $NEST sits on another
+# filesystem than the runtime dir: the log itself stays where the compositor
+# opened it, $RUNTIME_DIR/pz-nested-launch.XXXXXX. Removing or overwriting only
+# the link would strand that file in the runtime dir until logout, so a link
+# that points at one of those launch logs takes its file with it. Nothing else
+# is followed: a link anywhere else is just unlinked.
+drop_launch_log() {
+    local link="$1" target name
+    [ -L "$link" ] || return 0
+    target=$(readlink -- "$link") || return 0
+    case "$target" in
+        "$RUNTIME_DIR"/pz-nested-launch.*) ;;
+        *) return 0 ;;
+    esac
+    name=${target#"$RUNTIME_DIR"/}
+    case "$name" in
+        */*) return 0 ;;
+    esac
+    rm -f -- "$target"
+}
 for log in daemon.log compositor.log; do
     if [ "$KEEP_STATE" = "1" ] && [ -f "$NEST/$log" ]; then
+        drop_launch_log "$NEST/$log.prev"
         mv -f "$NEST/$log" "$NEST/$log.prev"
     else
+        drop_launch_log "$NEST/$log"
+        drop_launch_log "$NEST/$log.prev"
         rm -f "$NEST/$log" "$NEST/$log.prev"
     fi
 done
@@ -730,8 +755,13 @@ shell_quote() {
 # stderr already IS a regular file (run-shell.sh's launch log, the regression
 # runner's per-probe log), that file is the log and nothing is duplicated.
 # Otherwise (a terminal, a pipe, /dev/null) the compositor's output is also
-# copied into $NEST/compositor.log. dump-windows.sh finds the right one through
-# the compositor's own fd 2, so the two cases need no flag in env.sh.
+# copied into $NEST/compositor.log. dump-windows.sh tells the two apart by the
+# fd 2 of the compositor's PARENT (this script's session shell; kwin itself is
+# not dumpable, so its own fd table is root-only): a regular file there is the
+# log, and anything else sends it to $NEST/compositor.log. In the copying case
+# that parent fd 2 is the copy's pipe, because bash applies a function call's
+# redirections in the calling shell, so the fallback is the one taken. The two
+# cases need no flag in env.sh.
 COMPOSITOR_TEE=1
 [ -f /dev/stderr ] && COMPOSITOR_TEE=0
 
@@ -773,16 +803,21 @@ exec dbus-run-session -- bash -c "
   #
   # The copy into compositor.log is a process substitution rather than a
   # pipeline so kwin stays this shell's own foreground command and its exit
-  # status is the one reported. tee -i ignores the terminal's SIGINT, so a
-  # Ctrl+C cannot kill the reader and leave kwin writing into a closed pipe
-  # while it shuts down.
+  # status is the one reported. The reader ignores INT, TERM and HUP, the same
+  # three signals the trap above holds off: each reaches the whole process
+  # group, and a reader that died on one would lose everything kwin logs while
+  # it shuts down (kwin ignores SIGPIPE, so it would not die with it, only go
+  # unrecorded). An ignored disposition survives the exec into tee, which ends
+  # on its own when kwin and its children close the pipe. Its copy goes to
+  # this shell's stderr, the channel kwin's own diagnostics used before the
+  # copy existed.
   trap : INT TERM HUP
   status=0
   run_kwin() {
     kwin_wayland $BACKEND_FLAGS$EXTRA_FLAGS --socket '$PZ_NESTED_SOCKET' --no-lockscreen --no-global-shortcuts --no-kactivities
   }
   if [ '$COMPOSITOR_TEE' = 1 ]; then
-    run_kwin > >(exec tee -i -a '$NEST/compositor.log') 2>&1 || status=\$?
+    run_kwin > >(trap '' INT TERM HUP; exec tee -a '$NEST/compositor.log' >&2) 2>&1 || status=\$?
   else
     run_kwin || status=\$?
   fi

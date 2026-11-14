@@ -53,9 +53,11 @@ public:
         /// Required. Source of truth for the QScreen set.
         IScreenProvider* screens = nullptr;
 
-        /// Optional. Nullptr → each Surface owns its own QQmlEngine (default
+        /// Optional. Nullptr → each Surface that loads contentUrl content
+        /// without a sharedEngine owns its own QQmlEngine (default
         /// isolation). Non-null → provider decides (e.g. return the same
-        /// engine for every call to share).
+        /// engine for every call to share). A contentItem surface takes no
+        /// engine either way.
         ///
         /// **Lifetime contract**: see IQmlEngineProvider. A destroyed Surface
         /// releases its engine from the event loop after its window is gone,
@@ -93,6 +95,8 @@ public:
      * - Both `cfg.contentUrl` and `cfg.contentItem` set (or both empty)
      * - `cfg.screen == nullptr` and the screen provider has no primary
      * - `cfg.sharedEngine` and `engineProvider` both set (mutually exclusive)
+     * - `cfg.contextProperties` set together with `cfg.contentItem`, which
+     *   was created in its caller's own context and cannot see them
      * - `cfg.role.isValid()` returns false
      */
     [[nodiscard]] Surface* create(SurfaceConfig cfg, QObject* parent = nullptr);

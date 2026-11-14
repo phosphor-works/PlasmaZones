@@ -26,8 +26,11 @@
 //
 // `surfaceOpacity` is the surface's TRANSITION fade (its open or close
 // progress), not its material alpha. A ground drawn at 0.92 should not draw
-// its pack's border at 0.92, so the slot never derives this from the frame
-// item's own opacity; a surface that fades binds it to its progress.
+// its pack's border at 0.92, so the slot does not derive this on its own. A
+// surface whose frame item itself carries the fade (LockScreen's block,
+// Toast's card) binds surfaceOpacity to that opacity, since the pack's
+// capture drops it; a static material alpha goes in the frame's colour
+// (Theme.depth).
 
 import QtQuick
 

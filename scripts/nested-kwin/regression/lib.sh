@@ -573,13 +573,17 @@ dpid() {
 # from the original: the comparison is against PZR_DAEMON_PID, the owner recorded when lib.sh
 # finished loading and again after each drestart. run.sh keeps activation blocked for the whole
 # session to rule a replacement out; this is the check that it held, and it still holds where
-# activation is live.
+# activation is live. A pass leaves the pid it validated in PZR_DLOGGED_PID, and the snapshot is
+# taken from that rather than from a second dpid read, which a replacement could slip in before.
 PZR_DAEMON_PID=""
+PZR_DLOGGED_PID=""
 dlogged() {
     local p
+    PZR_DLOGGED_PID=""
     p=$(dpid) || return 1
     [ "$p" = "$(cat "$NEST/daemon.pid" 2>/dev/null)" ] || return 1
-    [ -z "$PZR_DAEMON_PID" ] || [ "$p" = "$PZR_DAEMON_PID" ]
+    [ -z "$PZR_DAEMON_PID" ] || [ "$p" = "$PZR_DAEMON_PID" ] || return 1
+    PZR_DLOGGED_PID="$p"
 }
 # dlogged_wait: dlogged, retried for about 5 s, for the checks that run right after a start or a
 # restart, while a daemon that lost the name race may still be on its way out
@@ -650,10 +654,10 @@ drestart() {
     PZ_NESTED_DIR="$NEST" "$PZR_REPO/scripts/nested-kwin/daemon.sh" 2>&1 | tail -1
     dpid >/dev/null || stage_fail "the nested daemon did not come back"
     # The restarted daemon is a new pid: the snapshot is cleared so dlogged checks it against
-    # daemon.pid alone, then retaken from the daemon that passed.
+    # daemon.pid alone, then retaken from the pid that check validated.
     PZR_DAEMON_PID=""
     dlogged_wait || stage_fail "the daemon owning org.phosphor_works.Placement is not the one daemon.sh started ($(downer_note))"
-    PZR_DAEMON_PID=$(dpid) || stage_fail "the nested daemon went away right after the restart"
+    PZR_DAEMON_PID="$PZR_DLOGGED_PID"
     PZR_DAEMON_DOWN=0
 }
 
@@ -936,5 +940,6 @@ qrectf_centre() {
 # running daemon is the one daemon.sh started.
 # --------------------------------------------------------------------------------------------
 dlogged_wait || stage_fail "the daemon owning org.phosphor_works.Placement is not the one daemon.sh started ($(downer_note)), so daemon.log is not its log"
-# The daemon this probe starts with. finish counts a different owner later as a replacement.
-PZR_DAEMON_PID=$(dpid) || stage_fail "the nested daemon went away while lib.sh was loading"
+# The daemon this probe starts with, the one the check above validated. finish counts a different
+# owner later as a replacement.
+PZR_DAEMON_PID="$PZR_DLOGGED_PID"

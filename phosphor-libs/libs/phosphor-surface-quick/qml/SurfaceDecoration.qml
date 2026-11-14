@@ -830,9 +830,9 @@ Item {
                 // would compound once per stage and also thin the input a halo
                 // pack gates on. Item opacity is left alone: a hide-source
                 // capture (the next stage's tap, SurfaceAnimator's leg capture)
-                // drops a captured stage's own opacity, and the render node
-                // already folds in the inherited opacity of every ancestor
-                // that is not behind such a capture.
+                // drops a captured stage's own opacity, and the ancestors'
+                // opacity already lands once: the render node folds it in, or
+                // with layeredStages the layer's composite does.
                 surfaceOpacity: stage.isLast ? root.surfaceOpacity : 1.0
                 x: root._stageRect.x
                 y: root._stageRect.y

@@ -12,7 +12,7 @@ import org.plasmazones.common as PZCommon
  * The rendering core, kept separate from the pane that hosts it so a second
  * host shows the same composition rather than reimplementing it. The detail
  * dialog's pane is its only consumer today: the browser card carries no
- * inline thumbnail, whatever this comment claimed before.
+ * inline thumbnail.
  *
  * Everything here is the production path. The chain comes from
  * DecorationPreviewController (which composes stages through the same builder
@@ -330,8 +330,9 @@ Item {
 
     // Everything visible composes HERE, at _canvasSize, and the composition
     // is then scaled into the slot as one unit. Nothing inside may measure
-    // `root`: the whole point is that a 226px browser card and a 414px detail
-    // pane hand the shader chain identical geometry and get identical pixels.
+    // `root`: the whole point is that any slot size, the detail pane's or a
+    // future second host's, hands the shader chain identical geometry and
+    // gets identical pixels.
     Item {
         id: canvas
 

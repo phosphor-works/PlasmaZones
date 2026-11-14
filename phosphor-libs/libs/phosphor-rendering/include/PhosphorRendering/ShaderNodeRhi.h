@@ -867,7 +867,8 @@ private:
     //    path is byte-identical whether or not these are ever touched. ──
     float m_surfaceOpacity = 1.0f;
     /// QSGRenderNode::inheritedOpacity() as of the last prepare(). Kept so a
-    /// change in it marks the scene region dirty and reaches qt_Opacity.
+    /// change in it marks the scene region dirty and reaches qt_Opacity, for
+    /// a profile whose readsQtOpacity() is true.
     float m_inheritedOpacity = 1.0f;
     float m_surfaceScale = 1.0f;
     bool m_surfaceFocused = false;

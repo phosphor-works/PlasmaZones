@@ -527,6 +527,31 @@ private Q_SLOTS:
         delete surface;
     }
 
+    /// A provider that drops a screen from its list before it signals (a
+    /// filtering provider) is still reported: the attach notices the screen is
+    /// unlisted, emits screenLost and falls back to the primary.
+    void screenDroppedWithoutASignalIsReportedAtAttach()
+    {
+        MockTransport t;
+        MockScreenProvider s;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
+        const QList<QScreen*> all = s.screens();
+        QScreen* primary = s.primary();
+        QVERIFY(primary);
+
+        auto* surface = f.create(buildConfig(primary));
+        QSignalSpy lostSpy(surface, &Surface::screenLost);
+        // Drop it from the list without emitting screensChanged.
+        s.m_screens = {};
+        s.m_primary = nullptr;
+        surface->warmUp();
+        QVERIFY(lostSpy.wait(1000));
+        QCOMPARE(lostSpy.count(), 1);
+        s.m_screens = all;
+        s.m_primary = primary;
+        delete surface;
+    }
+
     void screenRemovalNullsStaleScreenReference()
     {
         // Anti-regression for the stale-QScreen* hazard (review L3).

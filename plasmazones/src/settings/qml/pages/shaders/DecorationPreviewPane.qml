@@ -91,8 +91,8 @@ Item {
             border.color: Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, Kirigami.Theme.frameContrast)
             clip: true
 
-            // Shared with the browser card's inline thumbnail, so the two can
-            // never disagree about what a pack looks like. Fed the dialog's
+            // The shared rendering core, so a second host could never
+            // disagree about what a pack looks like. Fed the dialog's
             // live parameter map, which is what makes a padding param (glow
             // size, shadow spread) grow the transparent room as it is dragged
             // rather than only on reopen.

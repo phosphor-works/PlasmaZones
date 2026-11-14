@@ -119,7 +119,8 @@ fi
 # documented name. A rename keeps the compositor's open fd and the path on one
 # inode, which needs both on one filesystem. Across filesystems mv would copy
 # and leave the compositor writing to the unlinked original, so the log stays
-# where it is and the documented name links to it instead.
+# where it is and the documented name links to it instead. run-nested.sh
+# deletes such a launch log along with the link when it next rotates the logs.
 if [ "$(stat -c %d "$LAUNCH_LOG")" = "$(stat -c %d "$NEST")" ]; then
     mv -f "$LAUNCH_LOG" "$NEST/compositor.log"
 else

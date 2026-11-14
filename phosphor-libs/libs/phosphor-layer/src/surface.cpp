@@ -495,9 +495,10 @@ private:
     {
         auto* screens = m_deps.screenProvider;
         if (screens && m_config.screen && !screens->screens().contains(m_config.screen)) {
-            qCWarning(lcPhosphorLayer) << "Surface" << m_config.effectiveDebugName()
-                                       << "screen is no longer in provider list — falling back to primary";
-            m_config.screen = nullptr;
+            // A provider can drop a screen before its (deferred) screensChanged
+            // reaches us, and that later signal would find the fallback screen
+            // listed and stay quiet. Report the loss here instead.
+            handleScreenLoss();
         }
         if (!m_config.screen && screens) {
             m_config.screen = screens->primary();
@@ -706,12 +707,28 @@ private:
         }
     }
 
+    /// A dotted windowProperties key ("contentItem.opacity") names a nested
+    /// property, which neither setInitialProperties nor setProperty can
+    /// reach. Warn and skip it rather than leave a junk dynamic property.
+    bool isNestedWindowPropertyKey(const QString& key) const
+    {
+        if (!key.contains(QLatin1Char('.'))) {
+            return false;
+        }
+        qCWarning(lcPhosphorLayer) << "Surface" << m_config.effectiveDebugName() << "windowProperties key" << key
+                                   << "names a nested property, which is not supported; skipped";
+        return true;
+    }
+
     /// Write windowProperties onto @p target with setProperty. With
     /// @p undeclaredOnly, skip the keys @p target's metaobject declares: the
     /// Window-rooted path hands those to setInitialProperties instead.
     void applyWindowProperties(QQuickWindow* target, bool undeclaredOnly = false)
     {
         for (auto it = m_config.windowProperties.begin(); it != m_config.windowProperties.end(); ++it) {
+            if (isNestedWindowPropertyKey(it.key())) {
+                continue;
+            }
             const QByteArray name = it.key().toUtf8();
             if (undeclaredOnly && target->metaObject()->indexOfProperty(name.constData()) >= 0) {
                 continue;
@@ -890,6 +907,11 @@ private:
             // go through setProperty.
             QVariantMap declared;
             for (auto it = m_config.windowProperties.cbegin(); it != m_config.windowProperties.cend(); ++it) {
+                // A nested key is skipped here and reported once by
+                // applyWindowProperties below.
+                if (it.key().contains(QLatin1Char('.'))) {
+                    continue;
+                }
                 if (win->metaObject()->indexOfProperty(it.key().toUtf8().constData()) >= 0) {
                     declared.insert(it.key(), it.value());
                 }

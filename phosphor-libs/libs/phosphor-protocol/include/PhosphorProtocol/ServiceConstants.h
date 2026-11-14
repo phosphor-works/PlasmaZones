@@ -49,7 +49,9 @@ inline constexpr QLatin1String HostApi("placement");
 /// Mirrors repeat the value where this header cannot be the source. The
 /// daemon's shortcut table registers the indexed slot families from
 /// `kIndexedSlotCount` (shortcutmanager_ids.h), static_asserted equal to it in
-/// shortcutmanager.cpp. phosphor-zones' `LayoutRegistry::QuickSlotCount` does
+/// shortcutmanager.cpp. The same file also asserts kIndexedSlotCount equal to
+/// ConfigDefaults::WorkspaceSlotCount, so raising this count means raising the
+/// workspace slot bound with it. phosphor-zones' `LayoutRegistry::QuickSlotCount` does
 /// not depend on phosphor-protocol; the daemon's LayoutAdaptor, which links
 /// both, static_asserts the two equal. The settings app's QuickLayoutSlotsCard.qml
 /// (plasmazones/src/settings/qml/pages/layouts/) spells the count as the

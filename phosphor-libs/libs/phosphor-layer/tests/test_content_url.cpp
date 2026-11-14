@@ -12,12 +12,13 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPointer>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQmlNetworkAccessManagerFactory>
 #include <QQuickItem>
-#include <QRegularExpression>
 #include <QQuickWindow>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -25,6 +26,10 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QUrl>
+
+#include <atomic>
+#include <memory>
+#include <optional>
 
 using namespace PhosphorLayer;
 using PhosphorLayer::Testing::MockScreenProvider;
@@ -34,38 +39,36 @@ namespace {
 
 /// The QML a test serves over kAsyncScheme, keyed by URL path.
 using AsyncSources = QHash<QString, QByteArray>;
+/// Shared between the test thread and the type loader's thread: replies hold
+/// their delivery until it is set.
+using ReleaseGate = std::shared_ptr<std::atomic<bool>>;
 constexpr QLatin1StringView kAsyncScheme("pltest");
 
 /// A reply that delivers its body (or a not-found error) on a later event-loop
-/// turn, the way a real network reply does.
+/// turn, the way a real network reply does, and not before its gate opens.
 class AsyncReply : public QNetworkReply
 {
 public:
     AsyncReply(QNetworkAccessManager::Operation op, const QNetworkRequest& request, std::optional<QByteArray> body,
-               QObject* parent)
+               ReleaseGate gate, QObject* parent)
         : QNetworkReply(parent)
         , m_body(body.value_or(QByteArray()))
+        , m_found(body.has_value())
+        , m_gate(std::move(gate))
     {
         setRequest(request);
         setUrl(request.url());
         setOperation(op);
         open(QIODevice::ReadOnly | QIODevice::Unbuffered);
-        const bool found = body.has_value();
-        if (found) {
+        if (m_found) {
             setHeader(QNetworkRequest::ContentLengthHeader, m_body.size());
             setAttribute(QNetworkRequest::HttpStatusCodeAttribute, 200);
         } else {
             setError(QNetworkReply::ContentNotFoundError, QStringLiteral("not served by the test"));
             setAttribute(QNetworkRequest::HttpStatusCodeAttribute, 404);
         }
-        QTimer::singleShot(10, this, [this, found] {
-            setFinished(true);
-            if (!found) {
-                Q_EMIT errorOccurred(error());
-            } else {
-                Q_EMIT readyRead();
-            }
-            Q_EMIT finished();
+        QTimer::singleShot(10, this, [this] {
+            deliverWhenReleased();
         });
     }
 
@@ -94,16 +97,36 @@ protected:
     }
 
 private:
+    void deliverWhenReleased()
+    {
+        if (!m_gate->load()) {
+            QTimer::singleShot(5, this, [this] {
+                deliverWhenReleased();
+            });
+            return;
+        }
+        setFinished(true);
+        if (!m_found) {
+            Q_EMIT errorOccurred(error());
+        } else {
+            Q_EMIT readyRead();
+        }
+        Q_EMIT finished();
+    }
+
     QByteArray m_body;
     qint64 m_offset = 0;
+    const bool m_found;
+    const ReleaseGate m_gate;
 };
 
 class AsyncNam : public QNetworkAccessManager
 {
 public:
-    AsyncNam(AsyncSources sources, QObject* parent)
+    AsyncNam(AsyncSources sources, ReleaseGate gate, QObject* parent)
         : QNetworkAccessManager(parent)
         , m_sources(std::move(sources))
+        , m_gate(std::move(gate))
     {
     }
 
@@ -111,30 +134,40 @@ protected:
     QNetworkReply* createRequest(Operation op, const QNetworkRequest& request, QIODevice*) override
     {
         const auto it = m_sources.constFind(request.url().path());
-        return new AsyncReply(op, request,
-                              it == m_sources.cend() ? std::nullopt : std::optional<QByteArray>(it.value()), this);
+        return new AsyncReply(
+            op, request, it == m_sources.cend() ? std::nullopt : std::optional<QByteArray>(it.value()), m_gate, this);
     }
 
 private:
     const AsyncSources m_sources;
+    const ReleaseGate m_gate;
 };
 
-/// The type loader calls create() from its own thread, so the sources are
-/// copied into each manager rather than shared.
+/// The type loader calls create() from its own thread. The sources are a
+/// const, implicitly shared QHash that every manager only reads, and the gate
+/// is atomic, so both are safe to hand across.
 class AsyncNamFactory : public QQmlNetworkAccessManagerFactory
 {
 public:
-    explicit AsyncNamFactory(AsyncSources sources)
+    /// With @p held, no reply is delivered until release() is called, so a
+    /// test can act while the load is guaranteed to be still pending.
+    explicit AsyncNamFactory(AsyncSources sources, bool held = false)
         : m_sources(std::move(sources))
+        , m_gate(std::make_shared<std::atomic<bool>>(!held))
     {
     }
     QNetworkAccessManager* create(QObject* parent) override
     {
-        return new AsyncNam(m_sources, parent);
+        return new AsyncNam(m_sources, m_gate, parent);
+    }
+    void release()
+    {
+        m_gate->store(true);
     }
 
 private:
     const AsyncSources m_sources;
+    const ReleaseGate m_gate;
 };
 
 } // namespace
@@ -282,8 +315,7 @@ private Q_SLOTS:
 
     void windowPropertiesInjectIntoWindowRoot()
     {
-        // createWithInitialProperties is used when windowProperties is non-empty;
-        // for Window-rooted QML the properties land on the Window itself.
+        // For Window-rooted QML the windowProperties land on the Window itself.
         const QUrl url = writeQml(u"window-init.qml",
                                   u"import QtQuick.Window 2.15\nWindow { property string injected: 'default' }\n");
 
@@ -395,8 +427,8 @@ private Q_SLOTS:
     /// take the provider's primary instead of attaching with no size.
     void screenLostDuringAsyncLoadFallsBackToPrimary()
     {
-        AsyncNamFactory namFactory(
-            {{QStringLiteral("/item.qml"), QByteArrayLiteral("import QtQuick 2.15\nItem {}\n")}});
+        AsyncNamFactory namFactory({{QStringLiteral("/item.qml"), QByteArrayLiteral("import QtQuick 2.15\nItem {}\n")}},
+                                   /*held=*/true);
         QQmlEngine engine;
         engine.setNetworkAccessManagerFactory(&namFactory);
 
@@ -422,6 +454,8 @@ private Q_SLOTS:
         QVERIFY(lostSpy.wait(1000));
         QCOMPARE(surface->config().screen, nullptr);
         s.setScreens({primary});
+        QCOMPARE(surface->state(), Surface::State::Warming);
+        namFactory.release();
 
         QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Hidden, 2000);
         QCOMPARE(t.m_attachRecords.size(), 1);
@@ -458,6 +492,30 @@ private Q_SLOTS:
         QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Hidden, 2000);
         QCOMPARE(surface->window()->property("injected").toString(), QStringLiteral("from-config"));
         QCOMPARE(surface->window()->property("dynamicOnly").toInt(), 5);
+    }
+
+    /// A dotted key names a nested property, which neither route can reach.
+    /// It is skipped with a warning rather than left as a junk dynamic
+    /// property on the window.
+    void nestedWindowPropertyKeyIsSkipped()
+    {
+        const QUrl url = writeQml(u"window-nested.qml", u"import QtQuick.Window 2.15\nWindow {}\n");
+
+        MockTransport t;
+        MockScreenProvider s;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
+        SurfaceConfig cfg;
+        cfg.role = Testing::makeModalRole();
+        cfg.contentUrl = url;
+        cfg.screen = s.primary();
+        cfg.windowProperties = {{QStringLiteral("contentItem.opacity"), 0.5}};
+
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("contentItem.opacity.*nested property")));
+        auto* surface = f.create(std::move(cfg));
+        surface->warmUp();
+        QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Hidden, 2000);
+        QVERIFY(!surface->window()->dynamicPropertyNames().contains("contentItem.opacity"));
+        QCOMPARE(surface->window()->contentItem()->opacity(), 1.0);
     }
 
     /// For Item-rooted QML the window properties go to the wrapper window
@@ -579,12 +637,15 @@ private Q_SLOTS:
         QTRY_COMPARE(failSpy.count(), 1);
     }
 
+    /// A show() issued while an async load is pending, the screen removed and
+    /// restored mid-load: the surface neither wedges in Warming nor fails.
     void screenRemovedWhileWarming()
     {
-        // Async load path + screen removal mid-Warming. The Surface has
-        // no observable "stuck in Warming" failure mode — we verify that
-        // it eventually reaches Shown or Failed, never wedges in Warming.
-        const QUrl url = writeQml(u"warm-race.qml", u"import QtQuick 2.15\nItem { width: 10; height: 10 }\n");
+        AsyncNamFactory namFactory({{QStringLiteral("/warm-race.qml"),
+                                     QByteArrayLiteral("import QtQuick 2.15\nItem { width: 10; height: 10 }\n")}},
+                                   /*held=*/true);
+        QQmlEngine engine;
+        engine.setNetworkAccessManagerFactory(&namFactory);
 
         MockTransport t;
         MockScreenProvider s;
@@ -593,21 +654,103 @@ private Q_SLOTS:
         SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
         SurfaceConfig cfg;
         cfg.role = Testing::makeModalRole();
-        cfg.contentUrl = url;
+        cfg.contentUrl = QUrl(kAsyncScheme + QStringLiteral(":/warm-race.qml"));
         cfg.screen = primary;
+        cfg.sharedEngine = &engine;
 
         auto* surface = f.create(std::move(cfg));
         surface->show();
-        // Drop the primary while the QML component loads. setScreens
-        // triggers screensChanged; the Surface's notifier slot nulls
-        // m_config.screen but does NOT advance state.
+        QCOMPARE(surface->state(), Surface::State::Warming);
         s.setScreens({});
-        // Restore the primary so finishAttach (when load completes) can
-        // resolve a real target via its fallback path.
         s.setScreens({primary});
+        namFactory.release();
 
-        QTRY_VERIFY_WITH_TIMEOUT(
-            surface->state() == Surface::State::Shown || surface->state() == Surface::State::Failed, 2000);
+        QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Shown, 2000);
+        QCOMPARE(t.m_attachRecords.first().args.screen, primary);
+        delete surface;
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+
+    /// A warmUp() after a show() while the load is pending must not demote the
+    /// pending show: the surface still reaches Shown when the load lands.
+    void warmUpDuringAsyncLoadKeepsAPendingShow()
+    {
+        AsyncNamFactory namFactory(
+            {{QStringLiteral("/show-warm.qml"), QByteArrayLiteral("import QtQuick 2.15\nItem {}\n")}},
+            /*held=*/true);
+        QQmlEngine engine;
+        engine.setNetworkAccessManagerFactory(&namFactory);
+
+        MockTransport t;
+        MockScreenProvider s;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
+        SurfaceConfig cfg;
+        cfg.role = Testing::makeModalRole();
+        cfg.contentUrl = QUrl(kAsyncScheme + QStringLiteral(":/show-warm.qml"));
+        cfg.screen = s.primary();
+        cfg.sharedEngine = &engine;
+
+        auto* surface = f.create(std::move(cfg));
+        surface->show();
+        surface->warmUp();
+        QCOMPARE(surface->state(), Surface::State::Warming);
+        namFactory.release();
+
+        QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Shown, 2000);
+        delete surface;
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+
+    /// The failure signals are deferred, so a consumer may delete the surface
+    /// from its stateChanged(Failed) slot without the pending failed() emit
+    /// touching the freed object.
+    void deletingFromTheFailedSlotIsSafe()
+    {
+        const QUrl url = writeQml(u"broken-delete.qml", u"import QtQuick 2.15\nItem { this is not qml }\n");
+
+        MockTransport t;
+        MockScreenProvider s;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
+        SurfaceConfig cfg;
+        cfg.role = Testing::makeModalRole();
+        cfg.contentUrl = url;
+        cfg.screen = s.primary();
+
+        QPointer<Surface> surface = f.create(std::move(cfg));
+        QVERIFY(surface);
+        QObject::connect(surface.data(), &Surface::stateChanged, surface.data(), [&surface](Surface::State state) {
+            if (state == Surface::State::Failed) {
+                delete surface.data();
+            }
+        });
+        surface->warmUp();
+        QTRY_VERIFY_WITH_TIMEOUT(surface.isNull(), 2000);
+        // Drain the queued failed() emit that was posted before the delete.
+        QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+
+    /// A Window root missing a required property fails the surface too, from
+    /// the completeCreate check on the Window-rooted branch.
+    void unsetRequiredPropertyOnAWindowRootFails()
+    {
+        const QUrl url = writeQml(u"required-window.qml",
+                                  u"import QtQuick.Window 2.15\nWindow { required property string needed }\n");
+
+        MockTransport t;
+        MockScreenProvider s;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
+        SurfaceConfig cfg;
+        cfg.role = Testing::makeModalRole();
+        cfg.contentUrl = url;
+        cfg.screen = s.primary();
+
+        auto* surface = f.create(std::move(cfg));
+        QSignalSpy failedSpy(surface, &Surface::failed);
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("failed:.*needed")));
+        surface->warmUp();
+        QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Failed, 2000);
+        QTRY_COMPARE_WITH_TIMEOUT(failedSpy.count(), 1, 2000);
     }
 
     void contextPropertiesAreVisibleToQml()

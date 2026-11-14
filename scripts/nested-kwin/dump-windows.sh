@@ -35,7 +35,18 @@ if [ ! -r "$NEST/env.sh" ]; then
     echo "no nested session state at $NEST/env.sh; start run-nested.sh first" >&2
     exit 1
 fi
+# The bus address has to come FROM env.sh. Every qdbus call below goes to
+# whatever DBUS_SESSION_BUS_ADDRESS holds, and one inherited from the caller is
+# the HOST bus, where org.kde.KWin also answers: the throwaway script would load
+# into the user's real compositor. Cleared before sourcing so an env.sh without
+# the line leaves it empty, and refused then (capture-output.py checks the same
+# thing from Python).
+unset DBUS_SESSION_BUS_ADDRESS
 . "$NEST/env.sh"
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    echo "$NEST/env.sh sets no DBUS_SESSION_BUS_ADDRESS; refusing to reach the host bus instead (restart run-nested.sh)" >&2
+    exit 1
+fi
 
 # The nested compositor, by the socket env.sh names. Anchored on the command
 # name, so the shell that launched it (whose command line carries the same

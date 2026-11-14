@@ -253,6 +253,9 @@ struct SourceFn
 {
     QString name;
     QStringList keyParams; ///< parameters whose type is a QString (however spelled)
+    /// Parameters a key or a LIST of keys can arrive through: keyParams plus QStringList and
+    /// QVariantList. What a bus call inside this function may forward without naming a key.
+    QStringList carrierParams;
     qsizetype bodyStart = -1;
     qsizetype bodyEnd = -1;
 };
@@ -265,6 +268,24 @@ inline QStringList keyParamsOf(const QString& params)
 {
     static const QRegularExpression paramRe(
         QLatin1String("(?:^|\\s)(?:const\\s+)?(QString|QStringView)\\s*&?\\s*([A-Za-z0-9_]+)\\s*$"));
+    QStringList out;
+    for (const QString& param : splitTopLevel(params)) {
+        const auto m = paramRe.match(param);
+        if (m.hasMatch()) {
+            out << m.captured(2);
+        }
+    }
+    return out;
+}
+
+/// Parameters of @p params that can carry a setting key or a list of them: every spelling
+/// keyParamsOf accepts, plus QStringList and QVariantList. Kept apart from keyParamsOf because
+/// the wrapper discovery must stay on single keys, while a bus call that forwards a whole list
+/// (querySettingsBatch's `{keys}`) is forwarding just as much as one that forwards a QString.
+inline QStringList carrierParamsOf(const QString& params)
+{
+    static const QRegularExpression paramRe(QLatin1String(
+        "(?:^|\\s)(?:const\\s+)?(QString|QStringView|QStringList|QVariantList)\\s*&?\\s*([A-Za-z0-9_]+)\\s*$"));
     QStringList out;
     for (const QString& param : splitTopLevel(params)) {
         const auto m = paramRe.match(param);
@@ -322,7 +343,8 @@ inline QList<SourceFn> functionsIn(const QString& src)
             if (bodyEnd < 0) {
                 continue;
             }
-            fns << SourceFn{name, keyParamsOf(src.mid(paren + 1, close - paren - 1)), i, bodyEnd};
+            const QString params = src.mid(paren + 1, close - paren - 1);
+            fns << SourceFn{name, keyParamsOf(params), carrierParamsOf(params), i, bodyEnd};
         }
     }
     return fns;
@@ -385,6 +407,40 @@ inline bool insideBodyOf(const QList<SourceFn>& fns, const QSet<QString>& names,
     for (const SourceFn& fn : fns) {
         if (names.contains(fn.name) && !fn.keyParams.isEmpty() && offset > fn.bodyStart && offset < fn.bodyEnd) {
             return true;
+        }
+    }
+    return false;
+}
+
+/// Does a bus call at @p offset, whose argument list is @p callArgs, FORWARD a key it was
+/// handed? True when one of the call's identifiers is a key-carrying parameter (carrierParams)
+/// of a function whose body encloses the call, the way querySettingsBatch hands its `keys` on.
+///
+/// This is what lets a bus call that names no key go unreported, and it has to be checked
+/// rather than assumed. Being inside SOME function is not enough: a `refresh()` that takes no
+/// key and fetches `{QString(Key::X)}` through an alias is inside a function too, and its own
+/// call sites name nothing (they pass no arguments at all), so the key would reach neither the
+/// scrape nor the unaccounted list. String literals are dropped first, so a method name such
+/// as "getSetting" cannot pass for a parameter of the same name.
+inline bool forwardsEnclosingParam(const QList<SourceFn>& fns, qsizetype offset, const QString& callArgs)
+{
+    static const QRegularExpression stringRe(QLatin1String("\"(?:[^\"\\\\]|\\\\.)*\""));
+    static const QRegularExpression identRe(QLatin1String("[A-Za-z_][A-Za-z0-9_]*"));
+    QString code = callArgs;
+    code.replace(stringRe, QStringLiteral("\"\""));
+    QSet<QString> idents;
+    auto it = identRe.globalMatch(code);
+    while (it.hasNext()) {
+        idents.insert(it.next().captured(0));
+    }
+    for (const SourceFn& fn : fns) {
+        if (offset <= fn.bodyStart || offset >= fn.bodyEnd) {
+            continue;
+        }
+        for (const QString& param : fn.carrierParams) {
+            if (idents.contains(param)) {
+                return true;
+            }
         }
     }
     return false;
@@ -456,9 +512,11 @@ inline QHash<QString, QString> settingPropertyConstants(QString* whyFailed)
 ///
 /// Every fetch must NAME its key somewhere in its argument list, in one of two shapes:
 ///
-///   loadSettingAsync(QStringLiteral("key"), …)   a literal
-///   loadSettingAsync(SettingProperty::X, …)      a named constant, resolved from
-///                                                ServiceConstants.h
+///   loadSettingAsync(QStringLiteral("key"), …)
+///       a literal
+///   loadSettingAsync(QString(PhosphorProtocol::Service::SettingProperty::X), …)
+///       a named constant, resolved from ServiceConstants.h. Only the fully qualified
+///       spelling resolves: a namespace alias or a `using` leaves the call naming no key.
 ///
 /// and so must every call to a discovered wrapper. A fetch whose key the scrape cannot read
 /// off the call site is UNACCOUNTED, and unaccounted is LOUD — including a key bound to a
@@ -551,13 +609,21 @@ inline QStringList keysFetchedByEffect(QString* whyFailed, QStringList* unaccoun
             // The key may be named AT the bus call rather than at a wrapper's call site —
             // that is what a hand-rolled ClientHelpers::syncCall(…, "getSetting", {"k"})
             // looks like. Read it here, where it is, instead of waiting for a call site that
-            // will never come. A bus call that names no readable key at all is loud.
+            // will never come. A bus call that names no readable key is loud unless it
+            // FORWARDS a key parameter of its enclosing function, which is the one case
+            // whose keys are named at that function's call sites instead.
             const qsizetype callOpen = src.lastIndexOf(QLatin1Char('('), dm.capturedStart(0));
             const qsizetype callClose = callOpen >= 0 ? matchDelimiter(src, callOpen, QLatin1Char(')')) : -1;
             if (callClose > dm.capturedEnd(0)) {
                 const QString callArgs = src.mid(callOpen + 1, callClose - callOpen - 1);
                 QString busUnresolved;
                 const QStringList busKeys = keysNamedBy(callArgs, constants, &busUnresolved);
+                if (!busUnresolved.isEmpty()) {
+                    *unaccounted << QStringLiteral(
+                                        "%1: a getSetting D-Bus call names SettingProperty::%2, which the "
+                                        "ServiceConstants.h scrape cannot resolve")
+                                        .arg(QFileInfo(path).fileName(), busUnresolved);
+                }
                 bool named = false;
                 for (const QString& busKey : busKeys) {
                     if (busKey == dm.captured(1)) {
@@ -566,10 +632,20 @@ inline QStringList keysFetchedByEffect(QString* whyFailed, QStringList* unaccoun
                     keys << busKey;
                     named = true;
                 }
-                if (!named && !enclosed) {
-                    *unaccounted << QStringLiteral("%1: a getSetting D-Bus call names no key the scrape can read")
+                // A call outside every function was already reported above.
+                if (enclosed && !named && busUnresolved.isEmpty()
+                    && !forwardsEnclosingParam(functions[path], dm.capturedStart(0), callArgs)) {
+                    *unaccounted << QStringLiteral(
+                                        "%1: a getSetting D-Bus call names no key the scrape can read and "
+                                        "forwards no key parameter of its function, so the key it fetches is "
+                                        "never checked")
                                         .arg(QFileInfo(path).fileName());
                 }
+            } else if (enclosed) {
+                *unaccounted << QStringLiteral(
+                                    "%1: a getSetting D-Bus call's argument list could not be located, so "
+                                    "the key it fetches is never checked")
+                                    .arg(QFileInfo(path).fileName());
             }
         }
     }
@@ -697,10 +773,12 @@ inline QStringList keysFetchedByEffect(QString* whyFailed, QStringList* unaccoun
 /// nothing but this stops someone pointing such a caller at getSetting where no scrape would
 /// ever see the key.
 ///
-/// A fetcher's call sites must NAME their keys: a literal in the argument list, or a named
-/// QStringList declared in the same file (the batch shape). Every element of that list must
-/// name a key the scrape can read — a literal, or a fully qualified SettingProperty constant
-/// resolved from ServiceConstants.h — not merely one of them.
+/// A fetcher's call sites must NAME their keys, each as a literal or a fully qualified
+/// SettingProperty constant resolved from ServiceConstants.h: in the argument list itself,
+/// in an inline braced or streamed (`QStringList() << …`) list, or in a named QStringList
+/// declared in the same file (the batch shape). Every element of a list must be readable,
+/// not merely one of them. A bus call that names no key must forward a key parameter of the
+/// function it sits in.
 inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccounted)
 {
     const QHash<QString, QString> constants = settingPropertyConstants(whyFailed);
@@ -736,7 +814,6 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
 
     // The D-Bus read methods. Wherever one of these is NAMED, a setting is being fetched.
     static const QRegularExpression dbusReadRe(dbusReadPattern());
-    static const QRegularExpression literalRe(QLatin1String("QStringLiteral\\(\"([A-Za-z0-9_]+)\"\\)"));
     // One batch-list element: a literal, or a SettingProperty constant spelled in full.
     // Anything else — including a constant through a namespace alias, which the scrape
     // cannot resolve — is empty, and the caller reports it as unaccounted.
@@ -776,17 +853,45 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
             // right there to be read — so read it, instead of merely reporting that something
             // unreadable happened. The enclosing call is the one whose argument list holds the
             // method name; anything else in that list that looks like a key IS the key.
+            //
+            // Read the way the effect's scrape reads it, through keysNamedBy, so a SettingProperty
+            // constant counts as well as a literal. A call that names no readable key is LOUD
+            // unless it forwards a key parameter of its enclosing function (querySettingsBatch
+            // handing on its `keys`): being inside some function proves nothing, since a
+            // key-less refresh() fetching through an aliased constant is inside one too, and
+            // its call sites pass nothing for Pass 2 to read.
             const qsizetype callOpen = src.lastIndexOf(QLatin1Char('('), m.capturedStart(0));
             const qsizetype callClose = callOpen >= 0 ? matchDelimiter(src, callOpen, QLatin1Char(')')) : -1;
             if (callClose > m.capturedEnd(0)) {
                 const QString callArgs = src.mid(callOpen + 1, callClose - callOpen - 1);
-                auto lit = literalRe.globalMatch(callArgs);
-                while (lit.hasNext()) {
-                    const QString literal = lit.next().captured(1);
-                    if (literal != m.captured(1)) { // not the method name itself
-                        keys << literal;
-                    }
+                QString busUnresolved;
+                const QStringList busKeys = keysNamedBy(callArgs, constants, &busUnresolved);
+                if (!busUnresolved.isEmpty()) {
+                    *unaccounted << QStringLiteral(
+                                        "%1: a getSetting call names SettingProperty::%2, which the "
+                                        "ServiceConstants.h scrape cannot resolve")
+                                        .arg(QFileInfo(path).fileName(), busUnresolved);
                 }
+                bool named = false;
+                for (const QString& busKey : busKeys) {
+                    if (busKey == m.captured(1)) {
+                        continue; // the method name itself, not a setting key
+                    }
+                    keys << busKey;
+                    named = true;
+                }
+                if (enclosed && !named && busUnresolved.isEmpty()
+                    && !forwardsEnclosingParam(functions[path], m.capturedStart(0), callArgs)) {
+                    *unaccounted << QStringLiteral(
+                                        "%1: a getSetting call names no key the scrape can read and forwards no "
+                                        "key parameter of its function, so the key it fetches is never checked")
+                                        .arg(QFileInfo(path).fileName());
+                }
+            } else if (enclosed) {
+                *unaccounted << QStringLiteral(
+                                    "%1: a getSetting call's argument list could not be located, so the key "
+                                    "it fetches is never checked")
+                                    .arg(QFileInfo(path).fileName());
             }
         }
     }
@@ -837,7 +942,7 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
                 continue; // plumbing: one helper calling another
             }
             // A BRACED list of keys, inline: querySettingsBatch({QStringLiteral("a"), ...}).
-            // Every element must be a literal, exactly as the named-list path below demands —
+            // Every element must be readable, exactly as the named-list path below demands —
             // this used to take match() rather than globalMatch() and so contributed only the
             // FIRST key of the list, silently dropping the rest.
             // Only when the brace opens the FIRST argument. Searching the whole argument list
@@ -868,18 +973,56 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
                 }
                 continue;
             }
-            // A single-key fetch: the key is the FIRST literal in the argument list. The
-            // arguments after it are the caller's fallback value, which is very often a
-            // literal too — demanding that every argument be a key would fail the test on
-            // perfectly good code, and a tripwire that cries wolf is a tripwire someone
-            // eventually loosens. That is not a hypothetical: it is how this file was broken
-            // twice.
-            const auto lm = literalRe.match(args);
-            if (lm.hasMatch()) {
-                keys << lm.captured(1);
+            // A STREAMED list, inline: querySettingsBatch(QStringList() << QStringLiteral("a")
+            // << QStringLiteral("b")). Read element by element like a braced list, and every
+            // element must be readable. The single-key read below would take the first key
+            // and silently drop the rest.
+            if (firstArg.contains(QLatin1String("<<"))) {
+                const QStringList parts = firstArg.split(QLatin1String("<<"));
+                const QString head = parts.first().trimmed();
+                const bool emptyList = head == QLatin1String("QStringList()") || head == QLatin1String("QStringList{}")
+                    || head == QLatin1String("QStringList {}");
+                if (!emptyList) {
+                    *unaccounted << QStringLiteral(
+                                        "%1: a streamed batch key list starts from %2 rather than an empty "
+                                        "QStringList, so the keys it already holds are never checked")
+                                        .arg(QFileInfo(path).fileName(), head);
+                    continue;
+                }
+                for (qsizetype p = 1; p < parts.size(); ++p) {
+                    const QString key = elementKey(parts.at(p));
+                    if (key.isEmpty()) {
+                        *unaccounted << QStringLiteral(
+                                            "%1: a streamed batch key list has an element the scrape cannot "
+                                            "read as a key (%2)")
+                                            .arg(QFileInfo(path).fileName(), parts.at(p).trimmed());
+                        continue;
+                    }
+                    keys << key;
+                }
                 continue;
             }
-            // Otherwise it must pass a named QStringList of literals declared in this file.
+            // A single-key fetch, read the way the effect's scrape reads one: EVERY key the
+            // argument list names, literal or SettingProperty constant. Taking only the first
+            // literal dropped the second arm of a ternary (cond ? QStringLiteral("a") :
+            // QStringLiteral("b")) silently, and could not read a constant at all. The cost is
+            // that a LITERAL fallback value after the key is read as a key too, and fails the
+            // registry check by name. That is the loud direction, and it says exactly what to
+            // change.
+            QString unresolved;
+            const QStringList named = keysNamedBy(args, constants, &unresolved);
+            if (!unresolved.isEmpty()) {
+                *unaccounted << QStringLiteral(
+                                    "%1: cannot resolve SettingProperty::%2 — is it declared in "
+                                    "ServiceConstants.h in the shape the scrape expects?")
+                                    .arg(QFileInfo(path).fileName(), unresolved);
+                continue;
+            }
+            if (!named.isEmpty()) {
+                keys << named;
+                continue;
+            }
+            // Otherwise it must pass a named QStringList of readable keys declared in this file.
             static const QRegularExpression identRe(QLatin1String("^\\s*([A-Za-z0-9_]+)\\s*$"));
             const auto im = identRe.match(args);
             const QString listName = im.hasMatch() ? im.captured(1) : QString();
@@ -890,7 +1033,7 @@ inline QStringList keysFetchedByEditor(QString* whyFailed, QStringList* unaccoun
             if (end < 0) {
                 *unaccounted << QStringLiteral(
                                     "%1: a batch fetch passes something the scrape cannot read as a list "
-                                    "of literal keys, so its keys are never checked")
+                                    "of readable keys, so its keys are never checked")
                                     .arg(QFileInfo(path).fileName());
                 continue;
             }

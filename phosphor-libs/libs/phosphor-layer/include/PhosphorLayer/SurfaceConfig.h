@@ -73,21 +73,25 @@ struct PHOSPHORLAYER_EXPORT SurfaceConfig
     /// Applied to the QQuickWindow before the QML content completes. For
     /// @ref contentItem or Item-rooted QML that is the wrapper window, and
     /// every key goes through QObject::setProperty when that window is
-    /// created, before the content is parented into it. For Window-rooted QML it is the QML root itself, between
-    /// beginCreate and completeCreate: a key the root declares (its own QML
-    /// `property` or a QQuickWindow property) is set as an initial property,
-    /// anything else as a dynamic one via QObject::setProperty. Lets the QML
-    /// access them via the implicit `window.foo` binding. Distinct from
-    /// @ref contextProperties: window properties are per-surface (won't
-    /// leak between shared-engine surfaces) and are observable through
-    /// Qt's property system (QVariant).
+    /// created, before the content is parented into it. For Window-rooted
+    /// QML it is the QML root itself, between beginCreate and completeCreate:
+    /// a key the root declares (its own QML `property` or a QQuickWindow
+    /// property) is set as an initial property, anything else as a dynamic
+    /// one via QObject::setProperty. Only declared properties are visible to
+    /// QML bindings; a dynamic one is for C++ readers (QObject::property). A
+    /// dotted key naming a nested property is not supported and is skipped
+    /// with a warning. Distinct from @ref contextProperties: window
+    /// properties are per-surface (won't leak between shared-engine
+    /// surfaces) and are observable through Qt's property system.
     QVariantMap windowProperties;
 
     /// Opt-in shared QQmlEngine for @ref contentUrl content. Nullptr
     /// (default) → the Surface takes one from the engine provider, or owns
     /// its own for full isolation. Non-null → Surface uses the provided
-    /// engine; caller retains ownership. A @ref contentItem surface needs no
-    /// engine and ignores it.
+    /// engine; caller retains ownership, and the engine must outlive the
+    /// Surface's teardown, which defers deleting the window (and any
+    /// per-surface child context) to the event loop. A @ref contentItem
+    /// surface needs no engine and ignores it.
     QQmlEngine* sharedEngine = nullptr;
 
     // ── Per-instance overrides ──────────────────────────────────────────

@@ -258,11 +258,8 @@ PanelWindow {
         // `bandRect` by the host (ShellEffects), since a client cannot
         // sample what lies behind its own surface; this rectangle is the
         // tint. Without a blur backend it reads as a plain navy tint.
-        // The depth is the colour's alpha rather than the item's opacity: a
-        // surface pack captures this item from below its opacity node, so an
-        // opacity here would be lost from the decorated output, while a
-        // colour alpha is part of what the pack samples.
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.surface.a * 0.55)
+        // Theme.depth, not opacity: a pack drops the anchor's own opacity.
+        color: Theme.depth(Theme.surface, 0.55)
     }
 
     // The band's pack, between the band and everything drawn on it.

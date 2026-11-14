@@ -274,6 +274,46 @@ private Q_SLOTS:
         delete surface;
     }
 
+    /// The residual-scale reset belongs to show legs only. A hide with no
+    /// scale leg of its own that interrupts a scaling show keeps the scale it
+    /// found rather than snapping the surface to full size.
+    void hide_without_scale_leg_keeps_an_interrupted_shows_scale()
+    {
+        PhosphorLayer::Testing::MockTransport t;
+        PhosphorLayer::Testing::MockScreenProvider s;
+
+        SurfaceAnimator::Config cfg;
+        cfg.showProfile = QStringLiteral("test.show");
+        cfg.hideProfile = QStringLiteral("test.hide");
+        cfg.showScaleProfile = QStringLiteral("test.scale-show");
+        cfg.showScaleFrom = 0.5;
+        SurfaceAnimator anim(m_registry, cfg);
+
+        auto deps = PhosphorLayer::Testing::makeDeps(&t, &s);
+        SurfaceFactory f(deps);
+
+        PhosphorLayer::SurfaceConfig sc;
+        sc.role = PhosphorShellPatterns::Modal();
+        sc.contentItem = std::make_unique<QQuickItem>();
+        sc.screen = s.primary();
+        sc.keepMappedOnHide = true;
+        sc.debugName = QStringLiteral("hide-keeps-scale-test");
+
+        auto* surface = f.create(std::move(sc));
+        QVERIFY(surface);
+        surface->warmUp();
+        QQuickItem* target = animatedItem(surface);
+        QVERIFY(target);
+
+        // The show writes its starting scale synchronously; no frame has run.
+        anim.beginShow(surface, target, [] { });
+        QVERIFY(qAbs(target->scale() - 0.5) < 0.001);
+        anim.beginHide(surface, target, [] { });
+        QVERIFY(qAbs(target->scale() - 0.5) < 0.001);
+
+        delete surface;
+    }
+
     /// Live profile re-resolution: replacing a registered profile between
     /// dispatches must apply the new curve / duration on the next show.
     /// Lock in the contract from the PR description: "live profile

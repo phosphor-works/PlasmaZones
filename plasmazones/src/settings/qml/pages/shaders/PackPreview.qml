@@ -55,7 +55,7 @@ import org.plasmazones.common as PZCommon
  * standing. They stay separate on purpose. Folding "the window is not
  * frontmost" into `active` makes a preview vanish while it is still fully
  * visible under a Plasma applet, and replay its whole load on refocus — a bug
- * already fixed once, recorded at DecorationChainPreview.qml:59-64.
+ * already fixed once, recorded on DecorationChainPreview.animationsPaused.
  */
 Item {
     id: root

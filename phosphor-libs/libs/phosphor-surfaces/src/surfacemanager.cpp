@@ -237,7 +237,6 @@ void SurfaceManager::createKeepAlive()
     PhosphorLayer::SurfaceConfig cfg;
     cfg.role = PhosphorShellPatterns::Wallpaper().withScopePrefix(QStringLiteral("phosphor-surfaces-keepalive"));
     cfg.contentItem = std::make_unique<QQuickItem>();
-    cfg.sharedEngine = m_impl->engine.get();
     cfg.debugName = QStringLiteral("keepalive");
     cfg.screen = screen;
     cfg.anchorsOverride = PhosphorLayer::AnchorNone;
@@ -245,8 +244,8 @@ void SurfaceManager::createKeepAlive()
     // Warm-up at 1x1 so the swapchain isn't first allocated at full-screen
     // geometry and then resized. A resize costs a destroy+recreate cycle on
     // NVIDIA's proprietary Vulkan stack and pre-allocates ~25 MB at 4K for a
-    // surface whose only job is to keep the QSG/QRhi device + QML engine warm
-    // for subsequent overlays. The surface is never shown: warmUp() leaves it
+    // surface whose only job is to keep the QSG/QRhi device warm for
+    // subsequent overlays. The surface is never shown: warmUp() leaves it
     // in Hidden with the QQuickWindow + swapchain materialised, which is all
     // we need to keep the device alive. Mapping a 1x1 Background layer-shell
     // surface would render a single visible pixel at output center, because

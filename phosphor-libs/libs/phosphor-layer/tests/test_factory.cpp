@@ -7,10 +7,12 @@
 #include "mocks/mocktransport.h"
 #include "mocks/testroles.h"
 
+#include <QFile>
 #include <QPointer>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QTemporaryDir>
 #include <QTest>
 
 using namespace PhosphorLayer;
@@ -133,47 +135,41 @@ private Q_SLOTS:
 
     void defaultPathSelfOwnsEngineAndCleansUp()
     {
-        // No engineProvider and no sharedEngine: Surface constructs and owns
-        // its own QQmlEngine. The dtor must deleteLater the engine alongside
-        // the window. Regression guard: a refactor that accidentally skipped
-        // the "self-owned engine" cleanup path would leak the engine until
-        // the test process exits, which the QPointer watcher catches.
+        // No engineProvider and no sharedEngine: a surface that loads QML from
+        // contentUrl constructs and owns its own QQmlEngine, and its teardown
+        // must deleteLater the engine after the window. Regression guard: a
+        // refactor that skipped the self-owned engine cleanup would leak the
+        // engine until the process exits, which the QPointer watcher catches.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile qml(dir.filePath(QStringLiteral("owned.qml")));
+        QVERIFY(qml.open(QIODevice::WriteOnly | QIODevice::Text));
+        qml.write("import QtQuick 2.15\nItem { width: 10; height: 10 }\n");
+        qml.close();
+
         MockTransport t;
         MockScreenProvider s;
         SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
         SurfaceConfig cfg;
         cfg.role = Testing::makeModalRole();
-        cfg.contentItem = std::make_unique<QQuickItem>();
+        cfg.contentUrl = QUrl::fromLocalFile(qml.fileName());
         cfg.screen = s.primary();
         auto* surface = f.create(std::move(cfg));
         QVERIFY(surface);
         surface->warmUp();
-        QCOMPARE(surface->state(), Surface::State::Hidden);
+        QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Hidden, 2000);
 
-        // Reach the owned engine indirectly via the window's engine pointer.
         auto* win = surface->window();
         QVERIFY(win);
-        auto* engine = qmlEngine(win->contentItem());
-        // Window-less wrapper path won't expose the engine via qmlEngine()
-        // on contentItem; fall back to any reachable QML-engine pointer.
-        if (!engine) {
-            for (QObject* child : win->contentItem()->childItems()) {
-                if ((engine = qmlEngine(child)) != nullptr) {
-                    break;
-                }
-            }
-        }
-        // Even if we can't reach it, the cleanup test still proves liveness
-        // via the surface/window QPointer watchers below — but the engine
-        // watcher is the strongest guarantee.
+        QVERIFY(!win->contentItem()->childItems().isEmpty());
+        QQmlEngine* engine = qmlEngine(win->contentItem()->childItems().first());
+        QVERIFY(engine);
         QPointer<QQmlEngine> engineWatcher(engine);
         QPointer<QQuickWindow> winWatcher(win);
 
         surface->deleteLater();
         QTRY_VERIFY_WITH_TIMEOUT(winWatcher.isNull(), 2000);
-        if (engineWatcher) {
-            QTRY_VERIFY_WITH_TIMEOUT(engineWatcher.isNull(), 2000);
-        }
+        QTRY_VERIFY_WITH_TIMEOUT(engineWatcher.isNull(), 2000);
     }
 };
 
