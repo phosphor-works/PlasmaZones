@@ -27,10 +27,9 @@
 // `surfaceOpacity` is the surface's TRANSITION fade (its open or close
 // progress), not its material alpha. A ground drawn at 0.92 should not draw
 // its pack's border at 0.92, so the slot does not derive this on its own. A
-// surface whose frame item itself carries the fade (LockScreen's block,
-// Toast's card) binds surfaceOpacity to that opacity, since the pack's
-// capture drops it; a static material alpha goes in the frame's colour
-// (Theme.depth).
+// surface whose frame item itself carries the fade (PaneHost's ground)
+// binds surfaceOpacity to that opacity, since the pack's capture drops it;
+// a static material alpha goes in the frame's colour (Theme.depth).
 
 import QtQuick
 
@@ -41,6 +40,11 @@ Item {
     property Item contentItem: null
     property string surfacePath: ""
     property bool focused: true
+    // SurfaceShaderItem renders through a custom scene-graph node. Hosts that
+    // animate this slot's parent (for example PopoutHost's close scale/fade)
+    // need the surface stages composited into textures first so the parent
+    // transform and opacity are applied to the finished decoration.
+    property bool layeredStages: false
     property real surfaceOpacity: 1.0
 
     // A chain is drawing this surface: the instantiated host reports
@@ -78,6 +82,13 @@ Item {
         property: "focused"
         value: slot.focused
         when: loader.item !== null && loader.item.focused !== undefined
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    Binding {
+        target: loader.item
+        property: "layeredStages"
+        value: slot.layeredStages
+        when: loader.item !== null && loader.item.layeredStages !== undefined
         restoreMode: Binding.RestoreBindingOrValue
     }
     Binding {
