@@ -193,8 +193,8 @@ option(USE_KDE_FRAMEWORKS "Build with KDE Frameworks integration" ON)
 # supporting libraries (phosphor-shell-libs/libs/phosphor-shell plus the
 # gated phosphor-service-* group; phosphor-shell-libs/CMakeLists.txt holds
 # the authoritative list, since this file now only enters the two tier
-# directories). Also builds the phosphor-shell binary and phosphorctl, and
-# the bundled shell QML tree under phosphor-shell/shell/. Default OFF so
+# directories). Also builds phosphorctl; the shell binary and its bundled
+# QML tree are being rebuilt on those libraries. Default OFF so
 # packaging / downstream installs of PlasmaZones don't pick up shell
 # artefacts before the shell ships. Enable explicitly for shell
 # development:
@@ -363,8 +363,8 @@ include_directories("${CMAKE_BINARY_DIR}/generated")
 #                        animation, config, ...) that need no shell
 #   phosphor-shell-libs/ the Phosphor desktop shell libraries and services,
 #                        gated behind BUILD_PHOSPHOR_SHELL
-#   phosphor-shell/      the phosphor-shell binary, phosphorctl and the shell
-#                        QML tree, gated behind BUILD_PHOSPHOR_SHELL
+#   phosphor-shell/      the phosphorctl IPC CLI, gated behind
+#                        BUILD_PHOSPHOR_SHELL
 #   plasmazones/         the PlasmaZones daemon, editor, settings, KCM, KWin
 #                        effect, bundled data and tests
 #
