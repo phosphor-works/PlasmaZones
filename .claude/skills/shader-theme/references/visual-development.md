@@ -70,13 +70,14 @@ to survive visual critique before implementing the rest of the coverage matrix.
 Use the runtime's assembly, parameter translation and sampling contracts. The only
 scripted capture in the repo is `plasmazones-shader-render` (read
 `plasmazones/tools/shader-render/README.md` first), and it renders OVERLAY packs and, with
-`--pointer`, POINTER packs, at device scale 1.0. Nothing scripts a capture of window animations, surface chains or the settings preview:
-the nested-KWin harness's `ScreenShot2` path (`scripts/nested-kwin/capture-output.py`)
-bypasses the effect chain by its own docstring and never shows PlasmaZones decorations or
-animations, and the nested-shell capture covers shell clients only. So animation, decoration
-and settings-preview evidence is MANUAL: run the live session, or
-`PZ_NESTED_VISIBLE=1 scripts/nested-kwin/run-nested.sh`, apply the packs, and capture from
-the HOST with `spectacle`, `grim` or `wf-recorder`, recording the conditions listed below.
+`--pointer`, POINTER packs, at device scale 1.0. The nested-KWin harness's
+`scripts/nested-kwin/capture-output.py` uses ScreenShot2's `CaptureScreen`, which on KWin 6.7
+includes compositor effects, so a still of a decorated window in a nested session is real
+rendering evidence (record the KWin version and output scale with it). Nothing scripts a
+capture of an animation's motion or of the settings preview, so that evidence is MANUAL: run
+the live session, or `PZ_NESTED_VISIBLE=1 scripts/nested-kwin/run-nested.sh`, apply the
+packs, and capture from the HOST with `spectacle`, `grim` or `wf-recorder`, recording the
+conditions listed below.
 When no session is available, say so and report the "prototype" outcome; do not substitute
 a nested screenshot, a mock or a generated concept image, none of which can prove shader
 output quality. Record any differences from the real host.

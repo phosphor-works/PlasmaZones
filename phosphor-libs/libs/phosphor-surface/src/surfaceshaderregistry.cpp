@@ -62,10 +62,12 @@ bool pathHasNoTraversalSegments(const QString& rawPath)
 /// canonical or lexical-vs-lexical comparison (i.e. `..`-traversal or
 /// symlink-escape from a relative path).
 ///
-/// Confinement only applies to relative paths: absolute paths are
-/// trusted to the caller's discretion (settings UI / D-Bus pickers
-/// can legitimately point at user-chosen files outside the effect
-/// dir). Missing target files are NOT rejected here — parseEffect
+/// @p policy decides absolute paths. Under AbsolutePathPolicy::Trust (the
+/// runtime override in translateSurfaceParams, where settings UI and D-Bus
+/// pickers legitimately point at user-chosen files) an absolute path is
+/// returned as is. Under AbsolutePathPolicy::Reject (every path a pack's own
+/// metadata declares) it has to pass the same containment check as a
+/// relative one. Missing target files are NOT rejected here — parseEffect
 /// tolerates missing texture files for the same reason it tolerates
 /// missing frag/vert (live-reload during development; QImage-load
 /// gracefully reports failure at use-time). The runtime override
@@ -153,12 +155,11 @@ std::optional<SurfaceShaderEffect> parseEffect(const QString& effectDir, const Q
 
     // Resolve directory-relative paths and confine them to the effect dir
     // with the SAME `..`-traversal / symlink-escape guard the texture list
-    // uses below (validateTexturePathWithinEffectDir returns absolute inputs
-    // unchanged, so schema tolerance stays symmetric with
-    // PhosphorShaders::ShaderRegistry's parser, and naive-concat double-root
-    // mangling is avoided). A relative frag/vert/preview that escapes the
-    // pack dir is cleared, which fail-closes the pack (an empty frag path
-    // compiles nothing) rather than reading source from outside the pack.
+    // uses below. Every metadata path goes through AbsolutePathPolicy::Reject,
+    // so an absolute path is confined exactly like a relative one rather than
+    // trusted. A frag/vert/preview that escapes the pack dir is cleared, which
+    // fail-closes the pack (an empty frag path compiles nothing) rather than
+    // reading source from outside the pack.
     if (!e.fragmentShaderPath.isEmpty()) {
         const auto validated = validateTexturePathWithinEffectDir(e.fragmentShaderPath, effectDir, e.id,
                                                                   PhosphorFsLoader::AbsolutePathPolicy::Reject);
@@ -828,12 +829,21 @@ QString SurfaceShaderRegistry::surfaceEntryPrologue()
 QList<PhosphorShaders::EntryCandidate> SurfaceShaderRegistry::surfaceEntryCandidates()
 {
     // pSurface: the whole-fragment entry. The body returns the final
-    // premultiplied colour for the fragment at `uv` (the vertex texcoord); the
-    // generated main() just writes it to fragColor. Single candidate — surface
-    // packs have no per-element loop (that is the overlay category's pZone).
+    // premultiplied colour for the fragment at `uv` (the vertex texcoord). On
+    // the Qt RHI hosts the generated main() scales it by qt_Opacity, the host's
+    // fade times the scene graph's inherited opacity (see
+    // ShaderNodeRhi::setSurfaceOpacity); the compositor build defines
+    // PLASMAZONES_KWIN and has no qt_Opacity, so there it is written as is. A
+    // pack that writes its own main() bypasses this scaffold and so gets no
+    // opacity applied on any host. Single candidate — surface packs have no
+    // per-element loop (that is the overlay category's pZone).
     static const QString surfaceMain = QStringLiteral(
         "void main() {\n"
+        "#ifndef PLASMAZONES_KWIN\n"
+        "    fragColor = pSurface(vTexCoord) * qt_Opacity;\n"
+        "#else\n"
         "    fragColor = pSurface(vTexCoord);\n"
+        "#endif\n"
         "}\n");
     return {PhosphorShaders::EntryCandidate{QStringLiteral("pSurface"), surfaceMain}};
 }

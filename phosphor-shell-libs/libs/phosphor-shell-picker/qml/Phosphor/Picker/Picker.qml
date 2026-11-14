@@ -235,8 +235,8 @@ FocusScope {
         property bool shaderAnchor: true
 
         anchors.fill: parent
-        color: Theme.surface
-        opacity: 0.72
+        // Theme.depth, not opacity: a pack drops the anchor's own opacity.
+        color: Theme.depth(Theme.surface, 0.72)
     }
     DecorationSlot {
         id: decorationSlot

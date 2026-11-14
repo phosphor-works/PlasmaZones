@@ -92,10 +92,9 @@ public:
         // root fade-out under the unmap-on-hide policy — is detected at the
         // hide call site, gated on animateRoot and on m_hideFootgunWarned for
         // once-per-surface diagnostics.
-        // Subscribe to screen-removal so we never hand the transport a dangling
-        // QScreen* after a hot-unplug. When the attached screen disappears we
-        // null m_config.screen; the next finishAttach() falls back to the
-        // provider's primary (validated on each call).
+        // Follow the bound screen two ways so m_config.screen never dangles:
+        // its own destroyed() signal, and the provider's list for a screen it
+        // dropped without destroying it. See handleScreenLoss.
         if (auto* screens = m_deps.screenProvider) {
             if (auto* notifier = screens->notifier()) {
                 m_screensChangedConnection =
@@ -104,11 +103,13 @@ public:
                     });
             }
         }
+        watchBoundScreen();
     }
 
     ~Impl()
     {
         QObject::disconnect(m_screensChangedConnection);
+        QObject::disconnect(m_boundScreenDestroyedConnection);
         // Cancel any in-flight animation BEFORE we tear the QQuickItem tree
         // down. The animator may be holding a QPropertyAnimation or a Phase-3
         // AnimatedValue<qreal> targeting `m_rootItem` / `m_window->contentItem()`
@@ -122,8 +123,9 @@ public:
         // reach into the engine, so releaseEngine() (which a per-surface provider
         // is documented as free to implement with `delete engine`) must NOT run
         // while the window is still alive. Posting the provider release behind
-        // the window's deleteLater via the engine's own event queue guarantees
-        // window teardown completes first on the main event loop.
+        // window teardown completes first: the release is tied to the window's
+        // destroyed() signal rather than to the order of the event queue (see
+        // the Provider case below).
         m_handle.reset();
 
         // QQmlComponent dtor can touch the engine — drop it while the engine
@@ -148,6 +150,13 @@ public:
             m_window->deleteLater();
         }
 
+        // The child context (shared engine + contextProperties only) is the
+        // context the window's QML objects were created in, so it has to
+        // outlive them. Hand it to the event loop after the window.
+        if (m_childContext) {
+            m_childContext.release()->deleteLater();
+        }
+
         switch (ownership) {
         case EngineOwnership::Self:
             if (engine) {
@@ -158,14 +167,22 @@ public:
             break;
         case EngineOwnership::Provider:
             if (engine && provider) {
-                // Same ordering guarantee: post a queued invocation on the engine's
-                // thread so it runs after the window's DeferredDelete event.
-                QMetaObject::invokeMethod(
-                    engine,
-                    [engine, provider]() {
-                        provider->releaseEngine(engine);
-                    },
-                    Qt::QueuedConnection);
+                // Released once the window is GONE, not merely after it in the
+                // queue. A DeferredDelete only runs back at the event-loop level
+                // it was posted from, while a queued call runs at any level, so a
+                // nested loop spun before control returns would run a queued
+                // release while the window's QML still lives on the engine. The
+                // engine is the connection's context: a provider that deletes
+                // the engines it issued in its own destructor cancels the
+                // pending release (the IQmlEngineProvider lifetime contract).
+                const auto release = [engine, provider]() {
+                    provider->releaseEngine(engine);
+                };
+                if (m_window) {
+                    QObject::connect(m_window.data(), &QObject::destroyed, engine, release, Qt::QueuedConnection);
+                } else {
+                    QMetaObject::invokeMethod(engine, release, Qt::QueuedConnection);
+                }
             }
             break;
         case EngineOwnership::None:
@@ -176,9 +193,13 @@ public:
     }
 
     Surface* const m_q;
-    SurfaceConfig m_config; // non-const so we can release contentItem in ensureContent
+    // Non-const: ensureContent releases contentItem from it, the screen
+    // tracking rewrites screen, and setKeyboardInteractivity writes
+    // keyboardOverride.
+    SurfaceConfig m_config;
     const SurfaceDeps m_deps;
     QMetaObject::Connection m_screensChangedConnection;
+    QMetaObject::Connection m_boundScreenDestroyedConnection;
 
     State m_state = State::Constructed;
     Intent m_intent = Intent::Idle;
@@ -202,8 +223,9 @@ public:
     EngineOwnership m_engineOwnership = EngineOwnership::None;
     /// Child QQmlContext used ONLY for the shared-engine + contextProperties
     /// combination, to keep per-surface overrides from leaking onto the
-    /// shared rootContext. Parented to m_q so teardown is automatic; lifetime
-    /// matches the Surface. Null on the owned/provider-engine path.
+    /// shared rootContext. Owned here; ~Impl hands it to the event loop after
+    /// the window, since the window's QML objects live in it. Null on the
+    /// owned/provider-engine path.
     std::unique_ptr<QQmlContext> m_childContext;
     // QPointer: survives external destruction (e.g. a consumer that mistakenly
     // deleteLater()s the window directly instead of the Surface). Prevents UB
@@ -242,6 +264,14 @@ public:
     void requestWarm()
     {
         if (!guardAgainstFailed(QLatin1String("warmUp"))) {
+            return;
+        }
+        // Already warm, or a show is pending while content loads: warmUp() has
+        // nothing to add. Overwriting the intent would turn a pending show into
+        // a warm-only load (the surface would stop at Hidden), and turning a
+        // Shown surface's intent to Warm would leave it nothing to resume.
+        if (m_state == State::Hidden || m_state == State::Shown
+            || (m_state == State::Warming && m_intent == Intent::Show)) {
             return;
         }
         m_intent = Intent::Warm;
@@ -387,46 +417,93 @@ private:
 
     void onScreensChanged()
     {
-        // A screen the Surface was bound to has been removed. The QScreen*
-        // is valid for the duration of the signal but dangling by the next
-        // event-loop turn. Null the config eagerly; the next finishAttach()
-        // falls back to the provider's primary.
+        // The provider dropped the bound screen from its list. Its emit may
+        // come an event-loop turn after Qt destroyed the screen
+        // (DefaultScreenProvider defers it); the destroyed() hookup in
+        // watchBoundScreen has already handled that case, so a screen still
+        // set here is alive and the list compare is safe.
         auto* screens = m_deps.screenProvider;
         if (!screens || !m_config.screen) {
             return;
         }
-        const auto list = screens->screens();
-        if (!list.contains(m_config.screen)) {
-            qCWarning(lcPhosphorLayer) << "Surface" << m_config.effectiveDebugName()
-                                       << "attached screen was removed — reassigning to primary on next attach";
-            m_config.screen = nullptr;
-            // Notify the consumer: if the Surface is Shown, its compositor-side
-            // handle now points at a phantom output. Consumers have two valid
-            // responses — destroy+rebuild, or wait for the screen to come back.
-            // The library cannot pick either for them (destroy-during-signal is
-            // unsafe without consumer cooperation), so surface the event.
-            if (m_state == State::Shown || m_state == State::Hidden) {
-                // Defer the emission via QueuedConnection so consumer slots
-                // that respond by destroying the Surface (a documented
-                // valid response — the slot can't always know whether to
-                // wait for the screen to come back) don't re-enter library
-                // code on a dead `this`. onScreensChanged itself touches
-                // m_config, m_state, and m_deps after the emit point would
-                // run — synchronous emit + synchronous delete would UAF.
-                // Matches the pattern `failed()` uses for the same reason.
-                //
-                // Receiver-based queued invocation: Qt cancels the queued
-                // invocation when m_q is destroyed before dispatch, so the
-                // lambda body cannot run on a dead receiver. No QPointer
-                // null-check needed — that path is unreachable.
-                QMetaObject::invokeMethod(
-                    m_q,
-                    [q = m_q]() {
-                        Q_EMIT q->screenLost();
-                    },
-                    Qt::QueuedConnection);
-            }
+        if (!screens->screens().contains(m_config.screen)) {
+            handleScreenLoss();
         }
+    }
+
+    /// Follow the bound QScreen's own lifetime. QObject::destroyed fires inside
+    /// the QScreen's destructor, before anything later can read the pointer, so
+    /// m_config.screen is nulled without waiting for the provider's signal.
+    void watchBoundScreen()
+    {
+        QObject::disconnect(m_boundScreenDestroyedConnection);
+        m_boundScreenDestroyedConnection = {};
+        if (m_config.screen) {
+            m_boundScreenDestroyedConnection = QObject::connect(m_config.screen, &QObject::destroyed, m_q, [this] {
+                handleScreenLoss();
+            });
+        }
+    }
+
+    /// The bound screen is gone (removed from the provider, or destroyed).
+    /// Null it and tell the consumer, in every state but Failed.
+    void handleScreenLoss()
+    {
+        if (!m_config.screen) {
+            return;
+        }
+        QObject::disconnect(m_boundScreenDestroyedConnection);
+        m_boundScreenDestroyedConnection = {};
+        m_config.screen = nullptr;
+        if (m_state == State::Failed) {
+            return;
+        }
+        if (m_state == State::Shown || m_state == State::Hidden) {
+            qCWarning(lcPhosphorLayer) << "Surface" << m_config.effectiveDebugName()
+                                       << "bound screen was removed; the attached layer surface stays on that output"
+                                       << "until the consumer recreates the Surface";
+        } else {
+            qCWarning(lcPhosphorLayer) << "Surface" << m_config.effectiveDebugName()
+                                       << "bound screen was removed before attach; it will attach to the primary"
+                                       << "unless the consumer destroys it first";
+        }
+        // Consumers have two valid responses — destroy+rebuild, or wait for
+        // the screen to come back. The library cannot pick either for them
+        // (destroy-during-signal is unsafe without consumer cooperation), so
+        // surface the event, deferred so a slot that destroys the Surface
+        // does not re-enter library code on a dead `this`: the screen tracking
+        // and drive() touch m_config and m_state after this point. Matches the
+        // pattern `failed()` uses for the same reason.
+        //
+        // Receiver-based queued invocation: Qt cancels the queued invocation
+        // when m_q is destroyed before dispatch, so the lambda body cannot run
+        // on a dead receiver.
+        QMetaObject::invokeMethod(
+            m_q,
+            [q = m_q]() {
+                Q_EMIT q->screenLost();
+            },
+            Qt::QueuedConnection);
+    }
+
+    /// Settle the screen the surface attaches to: drop one the provider no
+    /// longer lists, fall back to the provider's primary, and follow its
+    /// lifetime. Runs before each warm-up geometry is computed from it (at
+    /// ensureWarmed and again at instantiateFromComponent, which an async load
+    /// reaches later) and right before the transport attach.
+    void resolveScreen()
+    {
+        auto* screens = m_deps.screenProvider;
+        if (screens && m_config.screen && !screens->screens().contains(m_config.screen)) {
+            // A provider can drop a screen before its (deferred) screensChanged
+            // reaches us, and that later signal would find the fallback screen
+            // listed and stay quiet. Report the loss here instead.
+            handleScreenLoss();
+        }
+        if (!m_config.screen && screens) {
+            m_config.screen = screens->primary();
+        }
+        watchBoundScreen();
     }
 
     void driveWarmOrShow()
@@ -511,10 +588,20 @@ private:
 
     bool ensureWarmed()
     {
-        if (!ensureEngine()) {
-            return false;
+        // Before anything sizes the window from the screen: a screen lost while
+        // Constructed would otherwise leave computeWarmupGeometry with nothing
+        // and attach the surface with no warm-up size.
+        resolveScreen();
+        // An engine is needed only to load QML from contentUrl. A contentItem
+        // was created by its caller in that caller's own context and never
+        // touches this one, so building (or borrowing from a provider) an
+        // engine for it would only cost a JS engine per surface.
+        if (!m_config.contentItem) {
+            if (!ensureEngine()) {
+                return false;
+            }
+            applyContextProperties();
         }
-        applyContextProperties();
         return ensureContent();
     }
 
@@ -620,10 +707,33 @@ private:
         }
     }
 
-    void applyWindowProperties(QQuickWindow* target)
+    /// A dotted windowProperties key ("contentItem.opacity") names a nested
+    /// property, which neither setInitialProperties nor setProperty can
+    /// reach. Warn and skip it rather than leave a junk dynamic property.
+    bool isNestedWindowPropertyKey(const QString& key) const
+    {
+        if (!key.contains(QLatin1Char('.'))) {
+            return false;
+        }
+        qCWarning(lcPhosphorLayer) << "Surface" << m_config.effectiveDebugName() << "windowProperties key" << key
+                                   << "names a nested property, which is not supported; skipped";
+        return true;
+    }
+
+    /// Write windowProperties onto @p target with setProperty. With
+    /// @p undeclaredOnly, skip the keys @p target's metaobject declares: the
+    /// Window-rooted path hands those to setInitialProperties instead.
+    void applyWindowProperties(QQuickWindow* target, bool undeclaredOnly = false)
     {
         for (auto it = m_config.windowProperties.begin(); it != m_config.windowProperties.end(); ++it) {
-            target->setProperty(it.key().toUtf8().constData(), it.value());
+            if (isNestedWindowPropertyKey(it.key())) {
+                continue;
+            }
+            const QByteArray name = it.key().toUtf8();
+            if (undeclaredOnly && target->metaObject()->indexOfProperty(name.constData()) >= 0) {
+                continue;
+            }
+            target->setProperty(name.constData(), it.value());
         }
     }
 
@@ -633,13 +743,13 @@ private:
             return;
         }
         // Per-surface properties must NOT leak onto a shared engine's root
-        // context. Install them on a child context parented to m_q so
-        // destruction is automatic and sibling surfaces see an unpolluted
-        // root. The child context is used by instantiateFromComponent() /
-        // ensureContent() — see childContextOrRoot().
+        // context. Install them on a child context so sibling surfaces see an
+        // unpolluted root. It has no QObject parent: ~Impl alone owns it and
+        // defers its delete until after the window's. instantiateFromComponent()
+        // creates the QML in it, see childContextOrRoot().
         if (m_config.sharedEngine) {
             if (!m_childContext) {
-                m_childContext = std::make_unique<QQmlContext>(m_engine->rootContext(), m_q);
+                m_childContext = std::make_unique<QQmlContext>(m_engine->rootContext());
             }
             for (auto it = m_config.contextProperties.begin(); it != m_config.contextProperties.end(); ++it) {
                 m_childContext->setContextProperty(it.key(), it.value());
@@ -677,19 +787,11 @@ private:
                 return false;
             }
             if (m_component->isLoading()) {
-                // QPointer capture: if the Surface is destroyed while the
-                // component is still loading (rare but possible for qrc paths
-                // under bundled resources), the lambda body must not
-                // dereference a dead `this`. The receiver-based auto-
-                // disconnect protects against the connection firing after
-                // ~QObject, but the lambda can still race with ~Impl in the
-                // narrow window where consumer code synchronously deletes
-                // the Surface from inside a statusChanged slot elsewhere.
-                QPointer<Surface> self = m_q;
-                QObject::connect(m_component.get(), &QQmlComponent::statusChanged, m_q, [this, self] {
-                    if (!self) {
-                        return;
-                    }
+                // m_q as the context object drops the connection when the
+                // Surface's QObject is destroyed. ~Impl runs before that and
+                // resets m_component first, which destroys the sender, so no
+                // status change can arrive into a half-destroyed Surface.
+                QObject::connect(m_component.get(), &QQmlComponent::statusChanged, m_q, [this] {
                     onComponentStatus();
                 });
                 return true; // stays in Warming; drive() resumes on ready
@@ -722,7 +824,17 @@ private:
         // deletes — we deliberately do NOT add a misleading half-defense
         // here. failWith's signals are deferred (QueuedConnection above),
         // so the failure return paths above never see a sync-delete.
-        if (!instantiateFromComponent()) {
+        // Instantiate under drive()'s re-entry latch, as the synchronous path
+        // (ensureContent inside drive) does. finishAttach emits
+        // stateChanged(Hidden) before completeCreate, and a show() from that
+        // slot must be latched rather than map a QML Window whose
+        // componentComplete has not run yet. The drive() below then applies
+        // whatever intent was latched.
+        const bool wasDriving = m_driving;
+        m_driving = true;
+        const bool instantiated = instantiateFromComponent();
+        m_driving = wasDriving;
+        if (!instantiated) {
             return;
         }
         // Content ready — resume whatever intent was latched.
@@ -753,6 +865,10 @@ private:
         //    stays stuck. Setting screen geometry guarantees a valid
         //    initial commit; consumers that want a different size call
         //    setGeometry/setWidth/setHeight before show().
+        // An async load reaches here long after ensureWarmed resolved the
+        // screen, and a screen lost in between nulled it. Settle it again
+        // before computeWarmupGeometry reads it.
+        resolveScreen();
         auto* ctx = childContextOrRoot();
         QObject* root = m_component->beginCreate(ctx);
         if (!root) {
@@ -768,10 +884,6 @@ private:
         // between `beginCreate` and our later `m_window = win` / setParent.
         QQmlEngine::setObjectOwnership(root, QQmlEngine::CppOwnership);
 
-        if (!m_config.windowProperties.isEmpty()) {
-            m_component->setInitialProperties(root, m_config.windowProperties);
-        }
-
         if (auto* win = qobject_cast<QQuickWindow*>(root)) {
             m_window = win;
 
@@ -785,13 +897,29 @@ private:
             win->setMinimumSize(QSize(0, 0));
             win->setMaximumSize(QSize(kQtWindowSizeMax, kQtWindowSizeMax));
 
-            // Dynamic-property writes (setProperty) for anything
-            // windowProperties contains that is NOT declared via QML
-            // `property`. setInitialProperties above handles QML-declared
-            // props; this covers arbitrary QObject dynamic properties so
-            // both QML-rooted and Item-rooted paths honour the same
-            // SurfaceConfig contract.
-            applyWindowProperties(win);
+            // windowProperties belong to the WINDOW, so only this branch
+            // applies them to the QML root (the Item-rooted branch's wrapper
+            // window gets them in ensureWrapperWindow). The keys the root
+            // declares, its own QML `property`s and QQuickWindow's
+            // Q_PROPERTYs, go through setInitialProperties so the value is in
+            // place before bindings first run. The rest are dynamic
+            // properties, which setInitialProperties silently drops, so they
+            // go through setProperty.
+            QVariantMap declared;
+            for (auto it = m_config.windowProperties.cbegin(); it != m_config.windowProperties.cend(); ++it) {
+                // A nested key is skipped here and reported once by
+                // applyWindowProperties below.
+                if (it.key().contains(QLatin1Char('.'))) {
+                    continue;
+                }
+                if (win->metaObject()->indexOfProperty(it.key().toUtf8().constData()) >= 0) {
+                    declared.insert(it.key(), it.value());
+                }
+            }
+            if (!declared.isEmpty()) {
+                m_component->setInitialProperties(win, declared);
+            }
+            applyWindowProperties(win, /*undeclaredOnly=*/true);
 
             // Force the Window into Hidden visibility BEFORE completeCreate.
             // Default QQuickWindow visibility is AutomaticVisibility, and
@@ -830,6 +958,13 @@ private:
             // the auto-show branch is skipped and the window stays mapped-
             // but-hidden until show() flips it.
             m_component->completeCreate();
+            // completeCreate records errors (a required property the content
+            // did not get, for one) rather than refusing; QQmlComponent::create
+            // would have returned nullptr for them.
+            if (m_component->isError()) {
+                failWith(m_component->errorString());
+                return false;
+            }
             return true;
         }
 
@@ -842,6 +977,10 @@ private:
             m_rootItem->setParent(m_window);
             bindSize();
             m_component->completeCreate();
+            if (m_component->isError()) {
+                failWith(m_component->errorString());
+                return false;
+            }
             return finishAttach();
         }
 
@@ -867,25 +1006,12 @@ private:
 
     bool finishAttach()
     {
-        // Revalidate the screen right before handing it to the transport.
-        // onScreensChanged() nulls m_config.screen when the attached screen is
-        // removed, but we also guard here for belt-and-braces: a caller that
-        // short-circuits the notifier (e.g. a mock) could still leave us with
-        // a screen that isn't in the provider's current list. Fall back to
-        // primary; the transport accepts nullptr (compositor picks) but we
-        // prefer a deterministic target so failures surface at the boundary.
-        auto* screens = m_deps.screenProvider;
-        if (screens && m_config.screen) {
-            const auto list = screens->screens();
-            if (!list.contains(m_config.screen)) {
-                qCWarning(lcPhosphorLayer) << "Surface" << m_config.effectiveDebugName()
-                                           << "screen is no longer in provider list — falling back to primary";
-                m_config.screen = screens->primary();
-            }
-        }
-        if (!m_config.screen && screens) {
-            m_config.screen = screens->primary();
-        }
+        // Revalidate the screen right before handing it to the transport: a
+        // caller that short-circuits the notifier (a mock, for one) could
+        // still leave a screen the provider no longer lists. The transport
+        // accepts nullptr (compositor picks), but a deterministic target makes
+        // failures surface at the boundary.
+        resolveScreen();
 
         TransportAttachArgs args;
         args.screen = m_config.screen;
@@ -935,11 +1061,18 @@ private:
         // Receiver-based queued invocation: Qt cancels the queued invocation
         // when m_q is destroyed before dispatch, so the lambda body cannot
         // run on a dead receiver. No QPointer null-check needed.
+        //
+        // Both signals come from this one deferred call, so a slot that
+        // deletes the Surface on stateChanged(Failed) must not leave failed()
+        // emitting on a freed object.
         QMetaObject::invokeMethod(
             m_q,
             [q = m_q, reason]() {
+                const QPointer<Surface> alive(q);
                 Q_EMIT q->stateChanged(State::Failed);
-                Q_EMIT q->failed(reason);
+                if (alive) {
+                    Q_EMIT q->failed(reason);
+                }
             },
             Qt::QueuedConnection);
     }
@@ -970,6 +1103,30 @@ bool Surface::isLogicallyShown() const noexcept
 const SurfaceConfig& Surface::config() const noexcept
 {
     return m_impl->m_config;
+}
+
+void Surface::setKeyboardInteractivity(KeyboardInteractivity keyboard)
+{
+    if (keyboard != KeyboardInteractivity::None && keyboard != KeyboardInteractivity::OnDemand
+        && keyboard != KeyboardInteractivity::Exclusive) {
+        qCWarning(lcPhosphorLayer) << "Surface" << m_impl->m_config.effectiveDebugName()
+                                   << "setKeyboardInteractivity: out-of-range value" << static_cast<int>(keyboard)
+                                   << "ignored";
+        return;
+    }
+    if (m_impl->m_state == State::Failed) {
+        qCWarning(lcPhosphorLayer) << "Surface" << m_impl->m_config.effectiveDebugName()
+                                   << "setKeyboardInteractivity ignored: state is Failed";
+        return;
+    }
+    m_impl->m_config.keyboardOverride = keyboard;
+    // Forwarded unconditionally rather than compared against the config first:
+    // a consumer may also drive the handle directly through transport(), so the
+    // config is not proof of what the compositor holds. The handle dedupes an
+    // unchanged value itself, and the transport commits the change on its own.
+    if (m_impl->m_handle) {
+        m_impl->m_handle->setKeyboardInteractivity(keyboard);
+    }
 }
 
 QQuickWindow* Surface::window() const noexcept

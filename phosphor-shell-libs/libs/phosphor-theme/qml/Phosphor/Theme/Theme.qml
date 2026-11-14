@@ -100,6 +100,15 @@ QtObject {
     // dark or light brand ramp.
     readonly property bool isDark: (0.2126 * background.r + 0.7152 * background.g + 0.0722 * background.b) < 0.5
 
+    // A colour at a fraction of its own alpha, for a translucent ground that
+    // a surface pack decorates. The depth goes in the colour rather than the
+    // item's opacity: a pack captures its anchor from below the anchor's
+    // opacity node, so an opacity there is lost from the decorated output,
+    // while a colour alpha is part of what the pack samples.
+    function depth(c: color, k: real): color {
+        return Qt.rgba(c.r, c.g, c.b, c.a * k);
+    }
+
     // Token accessor with a loud-magenta fallback. Inline helper so
     // every accessor below stays a one-liner that reads naturally.
     function _t(name) {

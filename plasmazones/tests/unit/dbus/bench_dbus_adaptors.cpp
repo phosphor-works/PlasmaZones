@@ -35,6 +35,7 @@
 
 #include "dbus/settingsadaptor/settingsadaptor.h"
 #include "dbus/layoutadaptor/layoutadaptor.h"
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include "config/configbackends.h"
@@ -42,6 +43,8 @@
 #include "helpers/StubSettings.h"
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
+
+namespace GapKey = PhosphorProtocol::Service::SettingProperty;
 
 using namespace PlasmaZones;
 using PlasmaZones::TestHelpers::IsolatedConfigGuard;
@@ -136,9 +139,10 @@ private Q_SLOTS:
     void benchGetSettings_batch()
     {
         const QStringList keys{
-            QStringLiteral("innerGap"),      QStringLiteral("outerGap"),           QStringLiteral("usePerSideOuterGap"),
-            QStringLiteral("outerGapTop"),   QStringLiteral("outerGapBottom"),     QStringLiteral("outerGapLeft"),
-            QStringLiteral("outerGapRight"), QStringLiteral("overlayDisplayMode"),
+            QString(GapKey::InnerGap),           QString(GapKey::OuterGap),
+            QString(GapKey::UsePerSideOuterGap), QString(GapKey::OuterGapTop),
+            QString(GapKey::OuterGapBottom),     QString(GapKey::OuterGapLeft),
+            QString(GapKey::OuterGapRight),      QStringLiteral("overlayDisplayMode"),
         };
 
         QBENCHMARK {
@@ -149,9 +153,10 @@ private Q_SLOTS:
     void benchGetSetting_individual()
     {
         const QStringList keys{
-            QStringLiteral("innerGap"),      QStringLiteral("outerGap"),           QStringLiteral("usePerSideOuterGap"),
-            QStringLiteral("outerGapTop"),   QStringLiteral("outerGapBottom"),     QStringLiteral("outerGapLeft"),
-            QStringLiteral("outerGapRight"), QStringLiteral("overlayDisplayMode"),
+            QString(GapKey::InnerGap),           QString(GapKey::OuterGap),
+            QString(GapKey::UsePerSideOuterGap), QString(GapKey::OuterGapTop),
+            QString(GapKey::OuterGapBottom),     QString(GapKey::OuterGapLeft),
+            QString(GapKey::OuterGapRight),      QStringLiteral("overlayDisplayMode"),
         };
 
         QBENCHMARK {

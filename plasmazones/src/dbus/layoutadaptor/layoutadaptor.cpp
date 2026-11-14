@@ -41,6 +41,12 @@
 
 #include <optional>
 
+// The D-Bus boundary validates quick-layout slot numbers against the protocol
+// constant and the registry it forwards to validates against its own. They
+// have to agree, or the boundary accepts a slot the registry refuses.
+static_assert(PhosphorZones::LayoutRegistry::QuickSlotCount == PhosphorProtocol::Service::QuickLayoutSlotCount,
+              "LayoutRegistry::QuickSlotCount must equal PhosphorProtocol::Service::QuickLayoutSlotCount");
+
 namespace PlasmaZones {
 
 namespace {

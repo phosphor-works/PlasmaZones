@@ -12,6 +12,7 @@
 
 #include "phosphor_i18n.h"
 
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/ZoneJsonKeys.h>
 
 namespace PlasmaZones {
@@ -410,7 +411,7 @@ void EditorGapsModel::applyGlobalSettings(const QVariantMap& values)
 
     // innerGap
     {
-        const int newValue = readInt(QStringLiteral("innerGap"), Defaults::InnerGap);
+        const int newValue = readInt(QString(PhosphorProtocol::Service::SettingProperty::InnerGap), Defaults::InnerGap);
         if (m_cachedGlobalZonePadding != newValue) {
             m_cachedGlobalZonePadding = newValue;
             Q_EMIT globalZonePaddingChanged();
@@ -419,12 +420,17 @@ void EditorGapsModel::applyGlobalSettings(const QVariantMap& values)
 
     // outerGap cluster — one aggregate signal covers any field changing.
     {
-        const int newValue = readInt(QStringLiteral("outerGap"), Defaults::OuterGap);
-        const bool newUsePerSide = readBool(QStringLiteral("usePerSideOuterGap"), false);
-        const int newTop = readInt(QStringLiteral("outerGapTop"), Defaults::OuterGap);
-        const int newBottom = readInt(QStringLiteral("outerGapBottom"), Defaults::OuterGap);
-        const int newLeft = readInt(QStringLiteral("outerGapLeft"), Defaults::OuterGap);
-        const int newRight = readInt(QStringLiteral("outerGapRight"), Defaults::OuterGap);
+        const int newValue = readInt(QString(PhosphorProtocol::Service::SettingProperty::OuterGap), Defaults::OuterGap);
+        const bool newUsePerSide =
+            readBool(QString(PhosphorProtocol::Service::SettingProperty::UsePerSideOuterGap), false);
+        const int newTop =
+            readInt(QString(PhosphorProtocol::Service::SettingProperty::OuterGapTop), Defaults::OuterGap);
+        const int newBottom =
+            readInt(QString(PhosphorProtocol::Service::SettingProperty::OuterGapBottom), Defaults::OuterGap);
+        const int newLeft =
+            readInt(QString(PhosphorProtocol::Service::SettingProperty::OuterGapLeft), Defaults::OuterGap);
+        const int newRight =
+            readInt(QString(PhosphorProtocol::Service::SettingProperty::OuterGapRight), Defaults::OuterGap);
 
         const bool changed = (m_cachedGlobalOuterGap != newValue) || (m_cachedGlobalUsePerSideOuterGap != newUsePerSide)
             || (m_cachedGlobalOuterGapTop != newTop) || (m_cachedGlobalOuterGapBottom != newBottom)

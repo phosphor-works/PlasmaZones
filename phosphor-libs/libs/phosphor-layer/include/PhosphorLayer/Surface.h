@@ -41,11 +41,11 @@ class SurfaceFactory;
 struct SurfaceDeps
 {
     ILayerShellTransport* transport = nullptr;
-    IQmlEngineProvider* engineProvider = nullptr; // Optional — nullptr = per-surface engine
-    /// Screen provider the Surface subscribes to for hot-unplug detection.
-    /// Optional: if nullptr the Surface cannot re-validate its bound QScreen*
-    /// after screensChanged and will hand dangling pointers to the transport
-    /// on reattach. The factory always sets it.
+    IQmlEngineProvider* engineProvider = nullptr; // Optional — nullptr = per-surface engine for contentUrl content
+    /// Screen provider the Surface subscribes to for hot-unplug detection
+    /// and its primary-screen fallback. Optional: without it the Surface
+    /// still follows its bound screen's destruction but cannot fall back to a
+    /// primary. The factory always sets it.
     IScreenProvider* screenProvider = nullptr;
     /// Phase-5 hook for show/hide visual transitions. Optional: nullptr means
     /// the Surface uses the library-internal NoOp default (synchronous
@@ -58,14 +58,14 @@ struct SurfaceDeps
     /// (~Impl calls `animator().cancel(this)` to drop in-flight tracking).
     /// Dropping the animator while a Surface still holds the pointer is UB.
     ISurfaceAnimator* animator = nullptr;
-    QString loggingCategory;
 };
 
 /**
  * @brief One layer-shell surface with a managed lifecycle.
  *
- * Owns its QQuickWindow and (by default) its QQmlEngine. Constructed only
- * via SurfaceFactory so injected dependencies can travel with it.
+ * Owns its QQuickWindow and, for contentUrl content loaded without a shared
+ * or provider engine, its QQmlEngine. Constructed only via SurfaceFactory so
+ * injected dependencies can travel with it.
  *
  * ## Lifecycle (state machine)
  *
@@ -73,12 +73,15 @@ struct SurfaceDeps
  * |----------------|--------------------------|---------------|
  * | Constructed    | warmUp()                 | Warming       |
  * | Constructed    | show()                   | Warming       |
- * | Warming        | (content ready, intent=warm) | Hidden     |
- * | Warming        | (content ready, intent=show) | Shown      |
+ * | Warming        | (content ready)          | Hidden        |
+ * | Hidden         | (intent=show pending)    | Shown         |
  * | Warming        | (content error)          | Failed        |
  * | Hidden         | show()                   | Shown         |
  * | Shown          | hide()                   | Hidden        |
  * | any            | (transport rejected)     | Failed        |
+ *
+ * A first show() therefore emits stateChanged three times, Warming, then
+ * Hidden, then Shown: the surface attaches hidden and only then maps.
  *
  * Invalid transitions (e.g. `show()` from Failed) log `qCWarning` with the
  * debugName and no-op. They never throw.
@@ -86,13 +89,16 @@ struct SurfaceDeps
  * Topology-driven respawn (screen removal / compositor restart) is the
  * consumer's responsibility, not the library's: subscribe to
  * TopologyCoordinator callbacks or use ScreenSurfaceRegistry::syncToScreens
- * to decide when to destroy and rebuild surfaces. The library deliberately
- * keeps Surface oblivious to the screen lifecycle so consumers retain full
- * control over the save-state-before-destroy sequencing.
+ * to decide when to destroy and rebuild surfaces. Surface observes the
+ * removal of its own screen and reports it through @ref screenLost, but it
+ * never destroys or rebuilds itself, so consumers retain full control over
+ * the save-state-before-destroy sequencing.
  *
- * `hide()` is synchronous from the caller's perspective — the window is
- * unmapped immediately. We do not expose a transient "Hiding" state because
- * the compositor's acknowledgement is invisible to application code and the
+ * `hide()` is synchronous from the caller's perspective. Under the default
+ * policy the window is unmapped immediately; under
+ * SurfaceConfig::keepMappedOnHide it stays mapped and is made transparent to
+ * input instead. We do not expose a transient "Hiding" state because the
+ * compositor's acknowledgement is invisible to application code and the
  * surface is unusable until it's either Shown again or recreated.
  */
 class PHOSPHORLAYER_EXPORT Surface : public QObject
@@ -119,6 +125,25 @@ public:
 
     State state() const noexcept;
     const SurfaceConfig& config() const noexcept;
+    /**
+     * @brief Change the surface's keyboard interactivity.
+     *
+     * On an attached surface it takes effect live, through the transport
+     * handle, which commits it. Called before the first attach, it sets the
+     * policy the surface attaches with. config().effectiveKeyboard() reports
+     * the last value set either way. An out-of-range value, or a call on a
+     * Failed surface, warns and is ignored.
+     *
+     * Two compositor behaviours to design around, both seen under KWin:
+     * - Exclusive requested before the first presented frame reaches the
+     *   compositor with the first buffer, where focus-stealing prevention may
+     *   refuse a new surface the focus. A consumer that needs the grab sets
+     *   it after the first frame (ShellHost defers its grab the same way).
+     * - Dropping to None does not hand focus back: KWin keeps a surface active
+     *   until it is destroyed or another window is activated, so a consumer
+     *   that needs focus back hides or destroys the surface.
+     */
+    void setKeyboardInteractivity(KeyboardInteractivity keyboard);
 
     /**
      * @brief Convenience: is the Surface in the logical "shown" state?
@@ -142,8 +167,11 @@ public:
     [[nodiscard]] bool isLogicallyShown() const noexcept;
 
     /// @name Lifecycle
-    /// Idempotent and safe to call in any state. Invalid transitions warn
-    /// and no-op.
+    /// Safe to call in any state; invalid transitions warn and no-op.
+    /// hide() and warmUp() are no-ops when the surface is already in the
+    /// state they ask for. show() on a Shown surface is not: it replays the
+    /// root show animation (the root snaps transparent and fades back in)
+    /// unless SurfaceConfig::animateRoot is false.
     ///
     /// Declared as Q_SLOTS so consumers can wire QML-side signals (e.g. a
     /// dismissTimer's `dismissRequested()`) directly via the string-based
@@ -156,8 +184,9 @@ public:
 public Q_SLOTS:
     void show();
     void hide();
-    /// Create engine + window + content, leave hidden. Pre-compiles QML so
-    /// the first show() is latency-free.
+    /// Create window + content (and, for contentUrl content, the engine that
+    /// loads it), leave hidden. Pre-compiles QML so the first show() is
+    /// latency-free.
     void warmUp();
     /// @}
 
@@ -184,15 +213,20 @@ Q_SIGNALS:
     /// ## Safe to delete the Surface from this slot
     /// The library defers this signal via `Qt::QueuedConnection` so consumer
     /// slots that call `delete surface` do not re-enter library code on a
-    /// dead `this`. For non-failure `stateChanged` emissions the consumer
+    /// dead `this`. The stateChanged(Failed) that precedes it is delivered
+    /// from the same deferred call and is delete-safe too (failed() is then
+    /// not emitted). For non-failure `stateChanged` emissions the consumer
     /// must prefer `deleteLater()` over `delete`.
     void failed(const QString& reason);
 
-    /// Emitted when the QScreen the Surface was attached to is removed from
-    /// the IScreenProvider's list. The Surface stays in its current state
-    /// (Shown/Hidden); consumers decide whether to destroy+rebuild or wait
-    /// for the screen to come back. `m_config.screen` is nulled inside the
-    /// library so the next attach falls back to the provider's primary.
+    /// Emitted when the QScreen the Surface is bound to is removed from the
+    /// IScreenProvider's list or destroyed, in any state but Failed. The
+    /// Surface stays in its current state and config().screen reads nullptr.
+    /// An ATTACHED surface (Shown or Hidden) stays bound to the removed output
+    /// until the consumer destroys and recreates it; a surface not yet
+    /// attached (Constructed or Warming) attaches to the provider's primary
+    /// unless the consumer destroys it first. Consumers decide whether to
+    /// destroy+rebuild or wait for the screen to come back.
     ///
     /// ## Safe to delete the Surface from this slot
     /// The library defers this signal via `Qt::QueuedConnection` so consumer

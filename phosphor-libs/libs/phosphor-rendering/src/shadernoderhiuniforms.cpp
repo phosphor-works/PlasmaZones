@@ -84,7 +84,7 @@ void ShaderNodeRhi::syncBaseUniforms(QRhi* rhi)
 
     // Surface-only fields — read by a SurfaceUniformProfile, ignored by the
     // BaseUniformProfile (so the overlay/animation UBO bytes are unchanged).
-    state.qtOpacity = m_surfaceOpacity;
+    state.qtOpacity = m_surfaceOpacity * m_inheritedOpacity;
     state.surfaceScale = m_surfaceScale;
     state.surfaceFocused = m_surfaceFocused ? 1.0f : 0.0f;
     state.surfaceSize[0] = m_surfaceSize[0];
@@ -263,13 +263,16 @@ void ShaderNodeRhi::uploadExtensionToUbo(QRhiResourceUpdateBatch* batch)
 // with no compiler error. The inline restoration is just a safety net for the
 // image pass; the full prepare() sequence does the real work.
 //
-// Dirty-flag invariants (who sets what). The lists below name the SETTERS. SIX
-// non-setter paths also raise m_sceneDataDirty, and a future setter author would
+// Dirty-flag invariants (who sets what). The lists below name the SETTERS.
+// Non-setter paths also raise m_sceneDataDirty, and a future setter author would
 // not think to look for them: resetBufferTargets(), ensureBufferTarget()'s
 // create-success path, the audio-spectrum resize re-arm inside uploadDirtyTextures
 // itself, releaseRhiResources(), the source-provider identity-change branch inside
-// uploadDirtyTextures, and invalidateUniforms(). Each publishes iChannelResolution
-// or iAudioSpectrumSize from live textures:
+// uploadDirtyTextures, and invalidateUniforms(), each of which publishes
+// iChannelResolution or iAudioSpectrumSize from live textures; and prepare()'s
+// inherited-opacity arm, which republishes qt_Opacity when
+// QSGRenderNode::inheritedOpacity() moves, for a profile whose readsQtOpacity()
+// is true (it raises m_uniformsDirty too):
 //   m_timeDirty       ← setTime, setTimeDelta, setFrame, setBufferFeedback
 //                        (toggle), prepare() on feedback-buffer clear,
 //                        invalidateUniforms, releaseRhiResources

@@ -30,10 +30,10 @@
  * reference parameters in declaration order.
  *
  * NOT covered (documented gap, not an oversight): the settings/editor apps'
- * single-slot launch forwarders — SettingsAppAdaptor (org.phosphor_works.Placement
- * .SettingsController, dbus/org.phosphor_works.Facet.xml) and
- * EditorAppAdaptor (org.phosphor_works.PlasmaZones.Editor, dbus/org.phosphor_works.Placement
- * .EditorApp.xml). Their classes are app-internal (compiled into the app
+ * single-slot launch forwarders — SettingsAppAdaptor (org.phosphor_works.Facet,
+ * dbus/org.phosphor_works.Facet.xml) and EditorAppAdaptor
+ * (org.phosphor_works.PlasmaZones.Editor,
+ * dbus/org.phosphor_works.PlasmaZones.Editor.xml). Their classes are app-internal (compiled into the app
  * binaries, not exported from any linkable target), so their
  * staticMetaObjects cannot be linked here without dragging each app's
  * controller graph into the test. Each is one forwarder slot; drift there
@@ -41,6 +41,7 @@
  */
 
 #include <PhosphorProtocol/Registration.h>
+#include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 
 #include <QDBusMetaType>
@@ -67,6 +68,11 @@
 #include "dbus/ruleadaptor.h"
 #include "dbus/windowtrackingadaptor/windowtrackingadaptor.h"
 #include "dbus/zonedetectionadaptor.h"
+
+// The expected interface name comes from the constants clients call through, so
+// a typo or rename in a constant alone fails here instead of at runtime with
+// UnknownInterface.
+namespace Iface = PhosphorProtocol::Service::Interface;
 
 using namespace PlasmaZones;
 
@@ -556,61 +562,59 @@ private Q_SLOTS:
 
     void testCompositorBridgeContract()
     {
-        verifyContract(CompositorBridgeAdaptor::staticMetaObject,
-                       QStringLiteral("org.phosphor_works.Placement.CompositorBridge"));
+        verifyContract(CompositorBridgeAdaptor::staticMetaObject, QString(Iface::CompositorBridge));
     }
 
     void testWindowTrackingContract()
     {
         // No allowlist: the in-process close and prune notices live on
         // WindowLifecycleRelay, off the bus (F514).
-        verifyContract(WindowTrackingAdaptor::staticMetaObject,
-                       QStringLiteral("org.phosphor_works.Placement.WindowTracking"));
+        verifyContract(WindowTrackingAdaptor::staticMetaObject, QString(Iface::WindowTracking));
     }
 
     void testTilingContract()
     {
-        verifyContract(TilingAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Tiling"));
+        verifyContract(TilingAdaptor::staticMetaObject, QString(Iface::Tiling));
     }
 
     void testAutotileContract()
     {
-        verifyContract(AutotileAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Autotile"));
+        verifyContract(AutotileAdaptor::staticMetaObject, QString(Iface::Autotile));
     }
 
     void testSnapContract()
     {
-        verifyContract(SnapAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Snap"));
+        verifyContract(SnapAdaptor::staticMetaObject, QString(Iface::Snap));
     }
 
     void testScrollingContract()
     {
-        verifyContract(ScrollingAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Scrolling"));
+        verifyContract(ScrollingAdaptor::staticMetaObject, QString(Iface::Scrolling));
     }
 
     void testControlContract()
     {
-        verifyContract(ControlAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Control"));
+        verifyContract(ControlAdaptor::staticMetaObject, QString(Iface::Control));
     }
 
     void testLayoutRegistryContract()
     {
-        verifyContract(LayoutAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.LayoutRegistry"));
+        verifyContract(LayoutAdaptor::staticMetaObject, QString(Iface::LayoutRegistry));
     }
 
     void testOverlayContract()
     {
-        verifyContract(OverlayAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Overlay"));
+        verifyContract(OverlayAdaptor::staticMetaObject, QString(Iface::Overlay));
     }
 
     void testSettingsContract()
     {
-        verifyContract(SettingsAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Settings"));
+        verifyContract(SettingsAdaptor::staticMetaObject, QString(Iface::Settings));
     }
 
     void testShaderContract()
     {
-        verifyContract(ShaderAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Shader"));
+        verifyContract(ShaderAdaptor::staticMetaObject, QString(Iface::Shader));
     }
 
     void testWindowDragContract()
@@ -619,25 +623,23 @@ private Q_SLOTS:
         // method: the effect invokes it cross-process at shutdown, but it is
         // deliberately absent from the published XML (see its doc comment in
         // windowdragadaptor.h — it must STAY a slot).
-        verifyContract(WindowDragAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.WindowDrag"),
-                       {}, {QStringLiteral("clearForCompositorReconnect")});
+        verifyContract(WindowDragAdaptor::staticMetaObject, QString(Iface::WindowDrag), {},
+                       {QStringLiteral("clearForCompositorReconnect")});
     }
 
     void testRulesContract()
     {
-        verifyContract(RuleAdaptor::staticMetaObject, QStringLiteral("org.phosphor_works.Placement.Rules"));
+        verifyContract(RuleAdaptor::staticMetaObject, QString(Iface::Rules));
     }
 
     void testZoneDetectionContract()
     {
-        verifyContract(ZoneDetectionAdaptor::staticMetaObject,
-                       QStringLiteral("org.phosphor_works.Placement.ZoneDetection"));
+        verifyContract(ZoneDetectionAdaptor::staticMetaObject, QString(Iface::ZoneDetection));
     }
 
     void testScreenContract()
     {
-        verifyContract(PhosphorScreens::DBusScreenAdaptor::staticMetaObject,
-                       QStringLiteral("org.phosphor_works.Placement.Screen"));
+        verifyContract(PhosphorScreens::DBusScreenAdaptor::staticMetaObject, QString(Iface::Screen));
     }
 
     void testAllXmlFilesCovered()

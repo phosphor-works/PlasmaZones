@@ -191,11 +191,13 @@ public:
 
     /// Entry-point scaffold, matching the overlay (`pZone`/`pImage`) and
     /// animation (`pTransition`/`pIn`+`pOut`) categories. A pack may define
-    /// `vec4 pSurface(vec2 uv)` and omit `main()`; the harness generates
-    /// `void main() { fragColor = pSurface(vTexCoord); }` and prepends the
-    /// prologue (`#version`, `#include <surface_lib.glsl>`, the vertex-in /
-    /// fragColor-out declarations). A pack that writes its own `main()` is
-    /// passed through unchanged. Shared by the daemon (via
+    /// `vec4 pSurface(vec2 uv)` and omit `main()`; the harness generates a
+    /// `main()` that writes `pSurface(vTexCoord)` to fragColor, multiplied by
+    /// `qt_Opacity` on the Qt RHI hosts and unmultiplied under
+    /// `PLASMAZONES_KWIN`, and prepends the prologue (`#version`,
+    /// `#include <surface_lib.glsl>`, the vertex-in / fragColor-out
+    /// declarations). A pack that writes its own `main()` is passed through
+    /// unchanged and therefore applies no host opacity. Shared by the daemon (via
     /// ShaderEffect::setEntryScaffold) and the kwin-effect / validator paths
     /// (via PhosphorShaders::assembleEntryPoint) so all three compile the
     /// identical source.

@@ -258,8 +258,8 @@ PanelWindow {
         // `bandRect` by the host (ShellEffects), since a client cannot
         // sample what lies behind its own surface; this rectangle is the
         // tint. Without a blur backend it reads as a plain navy tint.
-        color: Theme.surface
-        opacity: 0.55
+        // Theme.depth, not opacity: a pack drops the anchor's own opacity.
+        color: Theme.depth(Theme.surface, 0.55)
     }
 
     // The band's pack, between the band and everything drawn on it.

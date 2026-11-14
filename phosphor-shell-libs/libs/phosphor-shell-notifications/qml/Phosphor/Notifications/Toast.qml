@@ -100,6 +100,9 @@ Item {
         contentItem: card
         surfacePath: "shell.phosphor.notification"
         focused: toast.hovered || toast.critical
+        // The card fades as it is swiped, on its own opacity, which the pack's
+        // capture does not see, so the decorated output follows it here.
+        surfaceOpacity: card.opacity
     }
 
     Item {

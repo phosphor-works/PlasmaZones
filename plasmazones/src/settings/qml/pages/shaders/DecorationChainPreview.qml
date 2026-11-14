@@ -12,7 +12,7 @@ import org.plasmazones.common as PZCommon
  * The rendering core, kept separate from the pane that hosts it so a second
  * host shows the same composition rather than reimplementing it. The detail
  * dialog's pane is its only consumer today: the browser card carries no
- * inline thumbnail, whatever this comment claimed before.
+ * inline thumbnail.
  *
  * Everything here is the production path. The chain comes from
  * DecorationPreviewController (which composes stages through the same builder
@@ -253,7 +253,7 @@ Item {
     /// composition is never distorted; the leftover is empty on one axis.
     ///
     /// Requires `layeredStages` on the decoration below — see that property.
-    /// A scaled SurfaceShaderItem draws at full size unless it is layered.
+    /// An unlayered SurfaceShaderItem ignores the clip around this fit.
     ///
     /// REDUCE-ONLY. The canvas above is deliberately a fixed size while
     /// everything composed inside it is gridUnit-derived, so a user on a larger
@@ -330,8 +330,9 @@ Item {
 
     // Everything visible composes HERE, at _canvasSize, and the composition
     // is then scaled into the slot as one unit. Nothing inside may measure
-    // `root`: the whole point is that a 226px browser card and a 414px detail
-    // pane hand the shader chain identical geometry and get identical pixels.
+    // `root`: the whole point is that any slot size, the detail pane's or a
+    // future second host's, hands the shader chain identical geometry and
+    // gets identical pixels.
     Item {
         id: canvas
 
@@ -399,9 +400,13 @@ Item {
             surfaceFocused: root.focused
             // Load-bearing, not an optimisation: this host SCALES the composed
             // decoration, and an unlayered stage ignores the scene graph's
-            // transform and clip entirely — it would draw at full canvas size
-            // over the neighbouring cards. See SurfaceDecoration.layeredStages.
+            // clip, so it would draw over the neighbouring cards. See
+            // SurfaceDecoration.layeredStages.
             layeredStages: true
+            // A mip chain only while the composed decoration is drawn scaled
+            // down: the detail pane composes at about 1:1, where regenerating
+            // mips for an animated pack is pure cost.
+            minifiedStages: root._canvasScale < 1.0
             animationsPaused: root.animationsPaused
             // Only decoded for a pack that actually samples it. Every other pack
             // ignores the backdrop, and handing one over regardless would upload a

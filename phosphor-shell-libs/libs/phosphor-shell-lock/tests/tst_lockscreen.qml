@@ -146,6 +146,15 @@ TestCase {
     }
 
     Component {
+        id: stubDecoration
+
+        Item {
+            property Item contentItem: null
+            property real surfaceOpacity: 1
+        }
+    }
+
+    Component {
         id: screenComponent
 
         LockScreen {
@@ -359,6 +368,24 @@ TestCase {
         verify(s.controller.placeholder.indexOf("Firefox") >= 0);
         s.controller.placeholderFor("");
         compare(s.controller.placeholder, "");
+    }
+
+    // The block fades on its own opacity, which a surface pack's capture
+    // drops, so the screen forwards it to the decoration as surfaceOpacity.
+    function test_blockFadeReachesTheDecoration() {
+        const scene = makeScene(false);
+        scene.screen.decoration = stubDecoration;
+        let decoration = null;
+        for (let i = 0; i < scene.screen.children.length && !decoration; ++i) {
+            const slot = scene.screen.children[i];
+            if (slot.component !== undefined && slot.item)
+                decoration = slot.item;
+        }
+        verify(decoration);
+        const block = decoration.contentItem;
+        verify(block);
+        block.opacity = 0.3;
+        compare(decoration.surfaceOpacity, 0.3);
     }
 
     function test_clockIsTabularTime() {

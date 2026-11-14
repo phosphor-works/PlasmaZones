@@ -141,10 +141,12 @@ The tree has no GPU timer, and the renderer's wall clock is startup and readback
 
 - The directory under `plasmazones/data/<family>/` is the registration: `plasmazones/CMakeLists.txt` installs each
   family with `install(DIRECTORY)`, so there is no list to edit. A new bundled pack gets a `CHANGELOG.md` entry.
-- Registries scan `plasmazones/<family>` in the XDG data dirs, user dir first, and rescan 50 ms after a change. To try
-  a pack live, `cp -r` it into the nested session's user dir (`$XDG_DATA_HOME/plasmazones/<family>/` from a shell
-  that sourced the nested `env.sh`, see `pz-verify-live`) and validate that copy with the family flag
-  (`references/validation.md` gate 6 explains the installed include lookup). Never copy into the host
+- Registries scan `plasmazones/<family>` in the XDG data dirs, user dir first, and rescan 50 ms after a change. A pack
+  under `plasmazones/data/<family>/` is already live in a nested session, which serves the checkout's data dirs
+  directly (see `pz-verify-live`), and an edit to it reaches the session at the next rescan. Only a pack kept outside
+  the tree needs copying, into the nested session's user dir (`$XDG_DATA_HOME/plasmazones/<family>/` from a shell
+  that sourced the nested `env.sh`). Validate with the family flag (`references/validation.md` gate 6 explains the
+  installed include lookup). Never copy into the host
   `~/.local/share/plasmazones/`: the user's running daemon rescans it and picks the pack up. Never `cmake --install`
   or sudo.
 - Selecting it is a profile change (decoration chain for surface and pointer, the latter at the `pointer` path):

@@ -724,34 +724,23 @@ void SettingsAdaptor::initializeRegistry()
     // on the ISettings geometry interface (IZoneGeometrySettings), so they
     // register through m_settings like adjacentThreshold — a non-Settings
     // backend keeps the keys.
-    m_getters[QStringLiteral("innerGap")] = [this]() {
-        return m_settings->innerGap();
-    };
-    m_schemas[QStringLiteral("innerGap")] = QStringLiteral("int");
-    m_getters[QStringLiteral("outerGap")] = [this]() {
-        return m_settings->outerGap();
-    };
-    m_schemas[QStringLiteral("outerGap")] = QStringLiteral("int");
-    m_getters[QStringLiteral("usePerSideOuterGap")] = [this]() {
-        return m_settings->usePerSideOuterGap();
-    };
-    m_schemas[QStringLiteral("usePerSideOuterGap")] = QStringLiteral("bool");
-    m_getters[QStringLiteral("outerGapTop")] = [this]() {
-        return m_settings->outerGapTop();
-    };
-    m_schemas[QStringLiteral("outerGapTop")] = QStringLiteral("int");
-    m_getters[QStringLiteral("outerGapBottom")] = [this]() {
-        return m_settings->outerGapBottom();
-    };
-    m_schemas[QStringLiteral("outerGapBottom")] = QStringLiteral("int");
-    m_getters[QStringLiteral("outerGapLeft")] = [this]() {
-        return m_settings->outerGapLeft();
-    };
-    m_schemas[QStringLiteral("outerGapLeft")] = QStringLiteral("int");
-    m_getters[QStringLiteral("outerGapRight")] = [this]() {
-        return m_settings->outerGapRight();
-    };
-    m_schemas[QStringLiteral("outerGapRight")] = QStringLiteral("int");
+    {
+        namespace Key = PhosphorProtocol::Service::SettingProperty;
+        const auto registerGap = [this](QLatin1String key, auto getter, const QString& schema) {
+            m_getters[QString(key)] = [this, getter]() {
+                return QVariant::fromValue((m_settings->*getter)());
+            };
+            m_schemas[QString(key)] = schema;
+        };
+        const QString intSchema = QStringLiteral("int");
+        registerGap(Key::InnerGap, &ISettings::innerGap, intSchema);
+        registerGap(Key::OuterGap, &ISettings::outerGap, intSchema);
+        registerGap(Key::UsePerSideOuterGap, &ISettings::usePerSideOuterGap, QStringLiteral("bool"));
+        registerGap(Key::OuterGapTop, &ISettings::outerGapTop, intSchema);
+        registerGap(Key::OuterGapBottom, &ISettings::outerGapBottom, intSchema);
+        registerGap(Key::OuterGapLeft, &ISettings::outerGapLeft, intSchema);
+        registerGap(Key::OuterGapRight, &ISettings::outerGapRight, intSchema);
+    }
 
     // Per-surface decoration tree (JSON blob round-trip via D-Bus), mirroring
     // the animation shaderProfileTree registration above. The out-of-process

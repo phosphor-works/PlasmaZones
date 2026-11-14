@@ -11,6 +11,7 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QPointF>
+#include <QQuickItem>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
@@ -23,6 +24,7 @@
 #include <QVariantMap>
 #include <QVector4D>
 
+#include <functional>
 #include <memory>
 
 using PhosphorSurfaceQuick::SurfaceShaderItem;
@@ -235,6 +237,29 @@ private Q_SLOTS:
         // Re-setting the same value must not emit (emit-only-on-change rule).
         item.setSurfaceScale(2.0);
         QCOMPARE(spy.count(), 1);
+    }
+
+    void testSurfaceShaderItem_surfaceOpacitySetterEmitsOnChangeAndBounds()
+    {
+        SurfaceShaderItem item;
+        QSignalSpy spy(&item, &SurfaceShaderItem::surfaceOpacityChanged);
+        QVERIFY(qFuzzyCompare(item.surfaceOpacity(), 1.0));
+
+        item.setSurfaceOpacity(0.5);
+        QCOMPARE(spy.count(), 1);
+        QVERIFY(qFuzzyCompare(item.surfaceOpacity(), 0.5));
+
+        item.setSurfaceOpacity(0.5);
+        QCOMPARE(spy.count(), 1);
+
+        // A fade factor outside 0..1, or not finite, cannot be a fade: it would
+        // brighten a premultiplied colour past its alpha or poison it.
+        item.setSurfaceOpacity(2.0);
+        QVERIFY(qFuzzyCompare(item.surfaceOpacity(), 1.0));
+        item.setSurfaceOpacity(-1.0);
+        QVERIFY(qFuzzyCompare(1.0 + item.surfaceOpacity(), 1.0));
+        item.setSurfaceOpacity(qQNaN());
+        QVERIFY(qFuzzyCompare(item.surfaceOpacity(), 1.0));
     }
 
     void testSurfaceShaderItem_surfaceFocusedSetterEmitsOnChange()
@@ -506,6 +531,63 @@ Item {
         QVERIFY(obj->property("decorationChain").isValid());
         QVERIFY(obj->property("decorationOuterPadding").isValid());
         QCOMPARE(obj->property("chainReady").toBool(), false);
+    }
+
+    /// The host's fade reaches the LAST stage only, through surfaceOpacity, and
+    /// no stage carries the content's item opacity. Every earlier stage is
+    /// captured into the next one's input, so a factor there compounds per
+    /// stage; item opacity is applied again by a layer composite; and the
+    /// content's opacity may be a static material alpha the pack must not
+    /// inherit.
+    void decorationAppliesTheHostFadeOnTheLastStageOnly()
+    {
+        QQmlComponent comp(&m_engine);
+        comp.setData(
+            QByteArrayLiteral("import QtQuick\nimport org.phosphor.surface\n"
+                              "Item {\n"
+                              "    width: 200; height: 100\n"
+                              "    property alias decoration: deco\n"
+                              "    Item { id: card; width: 100; height: 50; opacity: 0.6;\n"
+                              "           property bool shaderAnchor: true }\n"
+                              "    SurfaceDecoration { id: deco; anchors.fill: parent; contentItem: card;\n"
+                              "        surfaceOpacity: 0.5;\n"
+                              "        decorationChain: [{ source: \"\" }, { source: \"\" }, { source: \"\" }] }\n"
+                              "}\n"),
+            QUrl(QStringLiteral("inline://SurfaceDecorationFade.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(comp.status() != QQmlComponent::Loading, 5000);
+        QVERIFY2(!comp.isError(), qPrintable(comp.errorString()));
+        std::unique_ptr<QObject> obj(comp.create());
+        QVERIFY(obj != nullptr);
+        auto* deco = obj->property("decoration").value<QQuickItem*>();
+        QVERIFY(deco != nullptr);
+        QVERIFY(deco->property("decorationActive").toBool());
+
+        QList<SurfaceShaderItem*> stages;
+        const std::function<void(QQuickItem*)> collect = [&](QQuickItem* item) {
+            for (QQuickItem* child : item->childItems()) {
+                if (auto* stage = qobject_cast<SurfaceShaderItem*>(child)) {
+                    stages.append(stage);
+                }
+                collect(child);
+            }
+        };
+        collect(deco);
+        QCOMPARE(stages.size(), 3);
+
+        int faded = 0;
+        for (SurfaceShaderItem* stage : std::as_const(stages)) {
+            QVERIFY(qFuzzyCompare(stage->opacity(), 1.0));
+            if (qFuzzyCompare(stage->surfaceOpacity(), 0.5)) {
+                ++faded;
+            } else {
+                QVERIFY(qFuzzyCompare(stage->surfaceOpacity(), 1.0));
+            }
+        }
+        QCOMPARE(faded, 1);
+        // The one faded stage is the one carrying the animator tag, i.e. the last.
+        for (SurfaceShaderItem* stage : std::as_const(stages)) {
+            QCOMPARE(stage->property("shaderAnchor").toBool(), qFuzzyCompare(stage->surfaceOpacity(), 0.5));
+        }
     }
 
     /// SurfaceDecoration's readiness gate compares a stage against

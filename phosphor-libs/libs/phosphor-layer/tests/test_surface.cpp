@@ -7,11 +7,17 @@
 #include "mocks/mocktransport.h"
 #include "mocks/testroles.h"
 
+#include <QEventLoop>
+#include <QFile>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QRegularExpression>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
+#include <QUrl>
 
 using namespace PhosphorLayer;
 using PhosphorLayer::Testing::MockScreenProvider;
@@ -70,6 +76,99 @@ private Q_SLOTS:
         QCOMPARE(spy.at(0).at(0).value<Surface::State>(), Surface::State::Warming);
         QCOMPARE(spy.at(1).at(0).value<Surface::State>(), Surface::State::Hidden);
         QCOMPARE(spy.at(2).at(0).value<Surface::State>(), Surface::State::Shown);
+    }
+
+    void keyboardPolicyUpdatesWithoutRecreatingTheSurface()
+    {
+        MockTransport transport;
+        MockScreenProvider screens;
+        SurfaceFactory factory(PhosphorLayer::Testing::makeDeps(&transport, &screens));
+        auto* surface = factory.create(buildConfig(screens.primary()));
+        surface->setKeyboardInteractivity(KeyboardInteractivity::OnDemand);
+        surface->show();
+        QCOMPARE(transport.m_lastArgs.keyboard, KeyboardInteractivity::OnDemand);
+        auto* window = surface->window();
+        surface->setKeyboardInteractivity(KeyboardInteractivity::Exclusive);
+        QCOMPARE(transport.m_lastHandle->m_keyboard, KeyboardInteractivity::Exclusive);
+        surface->setKeyboardInteractivity(KeyboardInteractivity::OnDemand);
+        QCOMPARE(transport.m_lastHandle->m_keyboard, KeyboardInteractivity::OnDemand);
+        QCOMPARE(surface->config().effectiveKeyboard(), KeyboardInteractivity::OnDemand);
+        QCOMPARE(transport.m_attachCount, 1);
+        QCOMPARE(surface->window(), window);
+    }
+
+    /// A consumer may drive the handle directly through transport() as well
+    /// (ShellHost does), so the setter cannot treat the config as proof of
+    /// what the compositor holds: setting the config's own value again must
+    /// still reach the handle.
+    void keyboardPolicyReachesTheHandleAfterADirectHandleWrite()
+    {
+        MockTransport transport;
+        MockScreenProvider screens;
+        SurfaceFactory factory(PhosphorLayer::Testing::makeDeps(&transport, &screens));
+        auto* surface = factory.create(buildConfig(screens.primary()));
+        surface->setKeyboardInteractivity(KeyboardInteractivity::None);
+        surface->show();
+        surface->transport()->setKeyboardInteractivity(KeyboardInteractivity::Exclusive);
+        QCOMPARE(transport.m_lastHandle->m_keyboard, KeyboardInteractivity::Exclusive);
+        surface->setKeyboardInteractivity(KeyboardInteractivity::None);
+        QCOMPARE(transport.m_lastHandle->m_keyboard, KeyboardInteractivity::None);
+    }
+
+    void keyboardPolicyRejectsAnOutOfRangeValue()
+    {
+        MockTransport transport;
+        MockScreenProvider screens;
+        SurfaceFactory factory(PhosphorLayer::Testing::makeDeps(&transport, &screens));
+        auto* surface = factory.create(buildConfig(screens.primary()));
+        surface->show();
+        surface->setKeyboardInteractivity(KeyboardInteractivity::OnDemand);
+        QCOMPARE(transport.m_lastHandle->m_keyboard, KeyboardInteractivity::OnDemand);
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("out-of-range value")));
+        surface->setKeyboardInteractivity(static_cast<KeyboardInteractivity>(5));
+        QCOMPARE(transport.m_lastHandle->m_keyboard, KeyboardInteractivity::OnDemand);
+        QCOMPARE(surface->config().effectiveKeyboard(), KeyboardInteractivity::OnDemand);
+    }
+
+    /// A contentItem surface hosts an item its caller built in its own
+    /// engine, so it asks no provider for one (and builds none of its own).
+    void contentItemSurfaceTakesNoEngine()
+    {
+        struct CountingProvider : public IQmlEngineProvider
+        {
+            QQmlEngine* engineForSurface(const SurfaceConfig&) override
+            {
+                ++m_requests;
+                return &m_engine;
+            }
+            void releaseEngine(QQmlEngine*) override
+            {
+            }
+            QQmlEngine m_engine;
+            int m_requests = 0;
+        };
+        MockTransport t;
+        MockScreenProvider s;
+        CountingProvider p;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s, &p));
+        auto* surface = f.create(buildConfig(s.primary()));
+        surface->warmUp();
+        QCOMPARE(surface->state(), Surface::State::Hidden);
+        QCOMPARE(p.m_requests, 0);
+    }
+
+    /// contextProperties cannot reach a contentItem (it lives in its caller's
+    /// context), so the factory refuses the combination instead of dropping
+    /// them silently.
+    void contextPropertiesWithContentItemAreRefused()
+    {
+        MockTransport t;
+        MockScreenProvider s;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
+        auto cfg = buildConfig(s.primary());
+        cfg.contextProperties = {{QStringLiteral("tag"), 1}};
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("contentUrl content only")));
+        QCOMPARE(f.create(std::move(cfg)), nullptr);
     }
 
     void warmUpStaysAtHidden()
@@ -179,7 +278,7 @@ private Q_SLOTS:
         QCOMPARE(surface, nullptr);
     }
 
-    void windowPropertiesApplyBeforeContent()
+    void windowPropertiesLandOnWrapperWindow()
     {
         MockTransport t;
         MockScreenProvider s;
@@ -225,8 +324,12 @@ private Q_SLOTS:
         // dtor called releaseEngine() SYNCHRONOUSLY while the window's
         // deleteLater was still queued — a provider that `delete engine` in
         // releaseEngine would free the engine before the window's QML
-        // children had torn down. The fix marshals releaseEngine via the
-        // engine's event queue so it runs after the window's DeferredDelete.
+        // children had torn down. The fix queues releaseEngine on the window's
+        // destroyed() signal, with the engine as context, so it runs only once
+        // the window is gone. Merely queueing it after the window's
+        // deleteLater is not enough: a DeferredDelete runs only back at the
+        // loop level it was posted from, while a queued call runs in any
+        // nested loop. The teardown below spins one to split the two.
         struct TrackingProvider : public IQmlEngineProvider
         {
             QQmlEngine* engineForSurface(const SurfaceConfig&) override
@@ -246,13 +349,27 @@ private Q_SLOTS:
             int m_releaseCalls = 0;
         };
 
+        // contentUrl content: only a surface that loads its own QML takes an
+        // engine from the provider, so only it has one to release.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile qml(dir.filePath(QStringLiteral("provider.qml")));
+        QVERIFY(qml.open(QIODevice::WriteOnly | QIODevice::Text));
+        qml.write("import QtQuick 2.15\nItem { width: 10; height: 10 }\n");
+        qml.close();
+
         MockTransport t;
         MockScreenProvider s;
         TrackingProvider p;
         SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s, &p));
-        auto* surface = f.create(buildConfig(s.primary()));
+        SurfaceConfig cfg;
+        cfg.role = Testing::makeModalRole();
+        cfg.contentUrl = QUrl::fromLocalFile(qml.fileName());
+        cfg.screen = s.primary();
+        auto* surface = f.create(std::move(cfg));
         surface->warmUp();
-        QCOMPARE(surface->state(), Surface::State::Hidden);
+        QTRY_COMPARE_WITH_TIMEOUT(surface->state(), Surface::State::Hidden, 2000);
+        QVERIFY(p.m_engine != nullptr);
 
         QPointer<QQuickWindow> winWatch(surface->window());
         QVERIFY(winWatch);
@@ -263,13 +380,31 @@ private Q_SLOTS:
             p.m_windowDestroyed = true;
         });
 
-        surface->deleteLater();
+        // Destroy the Surface from an event handler running under an event
+        // loop, then spin a nested loop before returning, the shape a modal
+        // dialog or a QEventLoop-based wait in a consumer's slot produces. The
+        // window's DeferredDelete is held until the handler returns, while a
+        // plain queued release would run inside the nested loop with the
+        // window still alive (the QVERIFY in releaseEngine catches that).
+        int releasesDuringNestedLoop = -1;
+        QEventLoop outer;
+        QTimer::singleShot(0, &outer, [&] {
+            delete surface;
+            QEventLoop nested;
+            QTimer::singleShot(50, &nested, &QEventLoop::quit);
+            nested.exec();
+            releasesDuringNestedLoop = p.m_releaseCalls;
+            outer.quit();
+        });
+        outer.exec();
         // Wait for the deferred-delete chain to settle rather than pumping
         // a fixed number of passes — the exact depth depends on Qt internals
         // and is not a behaviour this test needs to pin. Polling via
         // QTRY_VERIFY keeps it robust as Qt / the Surface teardown graph
         // evolve.
         QTRY_VERIFY_WITH_TIMEOUT(winWatch.isNull(), 2000);
+        QTRY_COMPARE_WITH_TIMEOUT(p.m_releaseCalls, 1, 2000);
+        QCOMPARE(releasesDuringNestedLoop, 0);
         QVERIFY(p.m_windowDestroyed);
         QCOMPARE(p.m_releaseCalls, 1);
     }
@@ -280,10 +415,10 @@ private Q_SLOTS:
         // (commit 4630da9d): for a wlr-layer-shell surface that is NOT
         // doubly-anchored on both axes, the initial commit MUST carry a
         // non-zero size or the compositor echoes back 0×0 and the surface
-        // stays stuck. Surface::instantiateFromComponent calls
-        // setGeometry(screen->geometry()) before completeCreate precisely
-        // to prevent this. Verify the transport sees a non-zero size at
-        // attach time.
+        // stays stuck. This pins the contentItem path, where
+        // ensureWrapperWindow sizes the wrapper window before the attach;
+        // test_content_url's windowRootAttachesHiddenSizedAndBeforeComplete
+        // pins the Window-rooted path in instantiateFromComponent.
         MockTransport t;
         MockScreenProvider s;
         SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
@@ -363,23 +498,58 @@ private Q_SLOTS:
         QCOMPARE(t.m_attachRecords.first().sizeAtAttach, screenSize);
     }
 
-    void compositorLostDoesNotCrashShownSurface()
+    /// A screen lost before the surface attaches is still reported, and the
+    /// later attach falls back to the provider's primary rather than the
+    /// screen that went away.
+    void screenLostBeforeAttachFallsBackToPrimary()
     {
-        // A Surface in Shown state must tolerate a compositor-lost pulse
-        // without crashing. The library contract (documented on Surface.h)
-        // is "state is preserved; recovery is the consumer's job via
-        // TopologyCoordinator" — so Shown stays Shown, not Failed. The
-        // previous OR-assertion tolerated both outcomes and would have
-        // masked a regression that silently transitioned to Failed.
         MockTransport t;
         MockScreenProvider s;
         SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
-        auto* surface = f.create(buildConfig(s.primary()));
-        surface->show();
-        QCOMPARE(surface->state(), Surface::State::Shown);
+        QScreen* primary = s.primary();
+        QVERIFY(primary);
 
-        t.simulateCompositorLost();
-        QCOMPARE(surface->state(), Surface::State::Shown);
+        auto* surface = f.create(buildConfig(primary));
+        QSignalSpy lostSpy(surface, &Surface::screenLost);
+        QCOMPARE(surface->state(), Surface::State::Constructed);
+
+        s.setScreens({});
+        QVERIFY(lostSpy.wait(1000));
+        QCOMPARE(lostSpy.count(), 1);
+        QCOMPARE(surface->config().screen, nullptr);
+
+        s.setScreens({primary});
+        surface->warmUp();
+        QCOMPARE(surface->state(), Surface::State::Hidden);
+        QCOMPARE(t.m_attachRecords.size(), 1);
+        QCOMPARE(t.m_attachRecords.first().args.screen, primary);
+        QCOMPARE(lostSpy.count(), 1);
+        delete surface;
+    }
+
+    /// A provider that drops a screen from its list before it signals (a
+    /// filtering provider) is still reported: the attach notices the screen is
+    /// unlisted, emits screenLost and falls back to the primary.
+    void screenDroppedWithoutASignalIsReportedAtAttach()
+    {
+        MockTransport t;
+        MockScreenProvider s;
+        SurfaceFactory f(PhosphorLayer::Testing::makeDeps(&t, &s));
+        const QList<QScreen*> all = s.screens();
+        QScreen* primary = s.primary();
+        QVERIFY(primary);
+
+        auto* surface = f.create(buildConfig(primary));
+        QSignalSpy lostSpy(surface, &Surface::screenLost);
+        // Drop it from the list without emitting screensChanged.
+        s.m_screens = {};
+        s.m_primary = nullptr;
+        surface->warmUp();
+        QVERIFY(lostSpy.wait(1000));
+        QCOMPARE(lostSpy.count(), 1);
+        s.m_screens = all;
+        s.m_primary = primary;
+        delete surface;
     }
 
     void screenRemovalNullsStaleScreenReference()

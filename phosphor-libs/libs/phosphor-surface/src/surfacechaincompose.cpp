@@ -46,10 +46,8 @@ double paddingRequest(const SurfaceShaderEffect& effect, const QVariantMap& frie
     // is reachable rather than theoretical: resolveParams copies deltas
     // verbatim and clampToBounds skips ids with no declared bound, so an
     // undeclared id survives the flatten and arrives here.
-    const auto declared = std::find_if(effect.parameters.cbegin(), effect.parameters.cend(), [&](const auto& param) {
-        return param.id == effect.paddingParam;
-    });
-    if (declared == effect.parameters.cend()) {
+    const SurfaceShaderEffect::ParameterInfo* declared = effect.findParameter(effect.paddingParam);
+    if (!declared) {
         // paddingParam names a parameter the pack does not declare: no room
         // asked for. Callers clamp anyway, so a bad name degrades to the
         // margin-less 1:1 geometry rather than to an unbounded canvas.
@@ -182,10 +180,12 @@ static bool usableBool(const QVariant& value, bool* out)
     return true;
 }
 
-QVariant chainRoundBottomCorners(const SurfaceShaderRegistry& registry, const QStringList& chain,
-                                 const QVariantMap& allPackParams)
+/// The chain-wide vote chainRoundBottomCorners documents, for any boolean
+/// silhouette control @p key. Shared so every control that has to describe ONE
+/// shape for the whole chain resolves by exactly the same rules.
+static QVariant chainBoolVote(const SurfaceShaderRegistry& registry, const QStringList& chain,
+                              const QVariantMap& allPackParams, const QString& key)
 {
-    const QString key = roundBottomCornersParamId();
     // Step 2's answer, held back until the whole chain has been searched for a
     // step 1 answer. A stored value ANYWHERE in the chain outranks any declared
     // default, including one declared by an earlier pack.
@@ -204,11 +204,8 @@ QVariant chainRoundBottomCorners(const SurfaceShaderRegistry& registry, const QS
         if (!effect.isValid()) {
             continue;
         }
-        const auto declared =
-            std::find_if(effect.parameters.cbegin(), effect.parameters.cend(), [&key](const auto& param) {
-                return param.id == key;
-            });
-        if (declared == effect.parameters.cend()) {
+        const SurfaceShaderEffect::ParameterInfo* declared = effect.findParameter(key);
+        if (!declared) {
             continue;
         }
         // Bound to a named local: constFind on the temporary QVariantMap that
@@ -236,6 +233,23 @@ QVariant chainRoundBottomCorners(const SurfaceShaderRegistry& registry, const QS
         }
     }
     return declaredFallback;
+}
+
+QVariant chainRoundBottomCorners(const SurfaceShaderRegistry& registry, const QStringList& chain,
+                                 const QVariantMap& allPackParams)
+{
+    return chainBoolVote(registry, chain, allPackParams, roundBottomCornersParamId());
+}
+
+QVariant chainSquareWhenMaximized(const SurfaceShaderRegistry& registry, const QStringList& chain,
+                                  const QVariantMap& allPackParams)
+{
+    return chainBoolVote(registry, chain, allPackParams, squareWhenMaximizedParamId());
+}
+
+QString squareWhenMaximizedParamId()
+{
+    return QStringLiteral("squareWhenMaximized");
 }
 
 } // namespace PhosphorSurfaceShaders

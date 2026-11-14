@@ -65,6 +65,14 @@ std::optional<SurfaceDeps> SurfaceFactory::validateAndPrepareDeps(SurfaceConfig&
                                    << "hasUrl=" << hasUrl << "hasItem=" << hasItem << "debugName=" << debug;
         return std::nullopt;
     }
+    // Context properties reach QML the Surface loads itself. A contentItem
+    // was created by its caller in the caller's own context, which the
+    // Surface cannot see into, so they would be silently ignored.
+    if (hasItem && !cfg.contextProperties.isEmpty()) {
+        qCWarning(lcPhosphorLayer) << "SurfaceFactory: contextProperties apply to contentUrl content only;"
+                                   << "set them on the contentItem's own context instead. debugName=" << debug;
+        return std::nullopt;
+    }
 
     // Engine ownership is tri-state (None / Self / Provider). sharedEngine
     // and engineProvider are documented as mutually exclusive (the former is
@@ -113,8 +121,6 @@ std::optional<SurfaceDeps> SurfaceFactory::validateAndPrepareDeps(SurfaceConfig&
     sdeps.engineProvider = m_impl->m_deps.engineProvider;
     sdeps.screenProvider = m_impl->m_deps.screens;
     sdeps.animator = m_impl->m_deps.animator;
-    sdeps.loggingCategory =
-        m_impl->m_deps.loggingCategory.isEmpty() ? QStringLiteral("phosphorlayer") : m_impl->m_deps.loggingCategory;
     return sdeps;
 }
 

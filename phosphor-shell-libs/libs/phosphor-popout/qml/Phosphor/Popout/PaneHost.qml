@@ -90,8 +90,8 @@ FocusScope {
 
         anchors.fill: parent
         radius: Tokens.radius_tile
-        color: Theme.surface_container
-        opacity: 0.96
+        // Theme.depth, not opacity: a pack drops the anchor's own opacity.
+        color: Theme.depth(Theme.surface_container, 0.96)
     }
 
     DecorationSlot {

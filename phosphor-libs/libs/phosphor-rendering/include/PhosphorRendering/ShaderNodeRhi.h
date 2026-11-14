@@ -263,6 +263,19 @@ public:
      * values as UboFrameState. A border or rounded-corner pack needs the real
      * surface/frame geometry to know where its edges are, so the host
      * (SurfaceShaderItem) must push these each frame from updatePaintNode.
+     *
+     * The opacity set here is the host's explicit factor only. The uploaded
+     * qt_Opacity is that factor times QSGRenderNode::inheritedOpacity(), read
+     * in prepare(), because a render node is responsible for applying the
+     * scene graph's opacity itself. Inside a layer or ShaderEffectSource
+     * capture the renderer stops that walk at the captured item's root node,
+     * which sits below the captured item's own opacity node, so the node
+     * reads only the opacities between itself and that item. What happens to
+     * the captured item's own opacity depends on the capture: an item layer
+     * (layer.enabled) forwards it to the layer's composite, so it applies
+     * once; a hide-source ShaderEffectSource (a decoration tap,
+     * SurfaceAnimator's capture) drops it, and only the opacity of the
+     * consumer that draws the captured texture applies.
      */
     void setSurfaceOpacity(float opacity);
     void setSurfaceScale(float scale);
@@ -853,6 +866,10 @@ private:
     //    the BaseUniformProfile). Defaults mirror UboFrameState so the overlay
     //    path is byte-identical whether or not these are ever touched. ──
     float m_surfaceOpacity = 1.0f;
+    /// QSGRenderNode::inheritedOpacity() as of the last prepare(). Kept so a
+    /// change in it marks the scene region dirty and reaches qt_Opacity, for
+    /// a profile whose readsQtOpacity() is true.
+    float m_inheritedOpacity = 1.0f;
     float m_surfaceScale = 1.0f;
     bool m_surfaceFocused = false;
     float m_surfaceSize[2] = {0.0f, 0.0f};

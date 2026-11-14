@@ -19,14 +19,22 @@ struct SurfaceConfig;
  * @brief Hook point for consumer-controlled QQmlEngine ownership policy.
  *
  * Default (when @ref SurfaceFactory::Deps::engineProvider is nullptr):
- * every Surface constructs its own QQmlEngine at warmUp() and destroys it
- * in its own dtor. Full isolation — no cross-surface QML state leakage.
+ * every Surface that loads contentUrl content without a shared engine
+ * constructs its own QQmlEngine at warmUp() and destroys it in its own dtor.
+ * Full isolation — no cross-surface QML state leakage.
  *
  * Opt-in sharing: implement this interface, return the same QQmlEngine
  * pointer from every @ref engineForSurface() call, and release it (or
  * not) as you see fit. Singletons and type registrations become visible
  * to all surfaces sharing the engine; that is the trade-off you make
  * when you opt in.
+ *
+ * **Lifetime contract.** A Surface asks for an engine only when it loads QML
+ * from SurfaceConfig::contentUrl. When it is destroyed it calls
+ * releaseEngine() later, from the event loop, once its window is gone. The
+ * provider must therefore outlive every Surface it served AND those deferred
+ * calls, or delete the engines it issued in its own destructor: the release
+ * is tied to the engine, so deleting the engine cancels it.
  */
 class PHOSPHORLAYER_EXPORT IQmlEngineProvider
 {
@@ -44,7 +52,8 @@ public:
      * - a shared engine (return the same pointer every time);
      * - a pool-selected engine (e.g. one per Role, one per content URL, …).
      *
-     * The returned engine must outlive the Surface that receives it.
+     * The returned engine must outlive the Surface that receives it, up to
+     * the Surface's deferred releaseEngine() call.
      */
     virtual QQmlEngine* engineForSurface(const SurfaceConfig& cfg) = 0;
 
