@@ -79,10 +79,10 @@ set(PLASMAZONES_DEP_phosphor-shell-libs_SHA256 "4f93d39a3d793787007c9cb21ca7b580
 # The suite's branding release (CC-BY-SA-4.0, phosphor-works/branding): the app
 # icons, installed from it with its cmake/PhosphorBranding.cmake. No app keeps
 # icon files of its own.
-set(PLASMAZONES_DEP_branding_VERSION "0.1.0")
-set(PLASMAZONES_DEP_branding_URL "https://github.com/phosphor-works/branding/releases/download/v0.1.0/phosphor-branding-0.1.0.tar.gz")
-set(PLASMAZONES_DEP_branding_FILE "phosphor-branding-0.1.0.tar.gz")
-set(PLASMAZONES_DEP_branding_SHA256 "53c7247e7e2c304a4d2e75a7bdd1a87164c63c1defa4159f3cef8da23d8244b3")
+set(PLASMAZONES_DEP_branding_VERSION "0.2.0")
+set(PLASMAZONES_DEP_branding_URL "https://github.com/phosphor-works/branding/releases/download/v0.2.0/phosphor-branding-0.2.0.tar.gz")
+set(PLASMAZONES_DEP_branding_FILE "phosphor-branding-0.2.0.tar.gz")
+set(PLASMAZONES_DEP_branding_SHA256 "f070cae3490eefe364d0230b737ae7e1ae9463e3ba5c9f93b93a7119665d413c")
 
 # The surface decoration packs commit (LGPL-2.1-or-later with a few GPL-3.0 and
 # BSD-3-Clause files, phosphor-works/phosphor-surface-packs): the border, glow,
