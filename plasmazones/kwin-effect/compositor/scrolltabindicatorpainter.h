@@ -117,7 +117,7 @@ struct ScrollTabIndicatorStyle
     // rules (active = highlight, urgent = negativeText, inactive bar =
     // text at 0.35, inactive chip = transparent) live in resolveTabColor()
     // in scrolltabindicatorpainter_raster.cpp and are MIRRORED by hand in
-    // src/shared/ZoneColorDefaults.qml for the settings page's swatches:
+    // ZoneColorDefaults.qml (Phosphor.Components, phosphor-works/phosphor-components) for the settings page's swatches:
     // change one, change both.
     QColor themeHighlight;
     QColor themeHighlightedText;

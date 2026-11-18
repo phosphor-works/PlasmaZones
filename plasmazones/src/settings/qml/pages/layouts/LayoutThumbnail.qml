@@ -4,11 +4,11 @@
 import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Thumbnail preview of a layout — thin wrapper around the shared
- * QFZCommon.LayoutCard so the settings app renders the exact same stack
+ * Components.LayoutCard so the settings app renders the exact same stack
  * (face color, zone fills, selection state, label/badge row) as the
  * daemon's layout-picker and zone-selector popups.
  *
@@ -164,7 +164,7 @@ Item {
     // root stays out of the accessibility tree.
     Accessible.role: root.Accessible.name !== "" ? Accessible.Graphic : Accessible.NoRole
 
-    QFZCommon.LayoutCard {
+    Components.LayoutCard {
         anchors.fill: parent
         // The card carries its own Pane name (the layout's display name). When
         // the host named the thumbnail itself, that Pane would be announced
@@ -200,9 +200,9 @@ Item {
         // from the injected settingsSource. Zone fill/border colors need no
         // override: LayoutCard's ZoneColorDefaults preview* defaults already
         // resolve through the same source.
-        activeOpacity: QFZCommon.ZoneColorDefaults.settingsSource ? QFZCommon.ZoneColorDefaults.settingsSource.activeOpacity : root._fallbackActiveOpacity
-        inactiveOpacity: QFZCommon.ZoneColorDefaults.settingsSource ? QFZCommon.ZoneColorDefaults.settingsSource.inactiveOpacity : root._fallbackInactiveOpacity
-        highlightColor: QFZCommon.ZoneColorDefaults.settingsSource ? QFZCommon.ZoneColorDefaults.settingsSource.highlightColor : Kirigami.Theme.highlightColor
+        activeOpacity: Components.ZoneColorDefaults.settingsSource ? Components.ZoneColorDefaults.settingsSource.activeOpacity : root._fallbackActiveOpacity
+        inactiveOpacity: Components.ZoneColorDefaults.settingsSource ? Components.ZoneColorDefaults.settingsSource.inactiveOpacity : root._fallbackInactiveOpacity
+        highlightColor: Components.ZoneColorDefaults.settingsSource ? Components.ZoneColorDefaults.settingsSource.highlightColor : Kirigami.Theme.highlightColor
         fontFamily: root.fontFamily
         fontSizeScale: root.fontSizeScale
         fontWeight: root.fontWeight

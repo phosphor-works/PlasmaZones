@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Live preview pane for a POINTER (cursor-decoration) pack.
@@ -91,7 +91,7 @@ Item {
             // Covers the stage while the shader is still compiling, and stays
             // up when it failed. Opaque and slot-coloured — the item
             // underneath has to keep rendering to compile at all.
-            PZCommon.ShaderPreviewPlaceholder {
+            Components.ShaderPreviewPlaceholder {
                 anchors.fill: parent
                 anchors.margins: 1
                 visible: !stage.showable || stage.hasError

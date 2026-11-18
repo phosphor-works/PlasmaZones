@@ -9,7 +9,6 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
 
 /**
  * @brief Shared layout/algorithm/template library browser.

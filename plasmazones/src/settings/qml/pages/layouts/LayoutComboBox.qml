@@ -7,7 +7,7 @@ import QtQuick.Layouts
 import QtQuick.Templates as T
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Reusable combo box for selecting layouts with consistent model building
@@ -662,7 +662,7 @@ ComboBox {
                 border.width: highlighted ? root._previewBorderHighlighted : root._previewBorderWidth
                 visible: root.showPreview && hasLayout
 
-                PZCommon.ZonePreview {
+                Components.ZonePreview {
                     anchors.fill: parent
                     anchors.margins: Math.round(Kirigami.Units.smallSpacing * 0.75)
                     zones: (modelData.layout && modelData.layout.zones) || []
@@ -720,7 +720,7 @@ ComboBox {
                     }
 
                     // Category badge (layout type)
-                    PZCommon.CategoryBadge {
+                    Components.CategoryBadge {
                         visible: hasLayout && modelData.category >= 0
                         category: modelData.category
                         // Ternary, not `a && b`: on the None entry `layout` is
@@ -731,12 +731,12 @@ ComboBox {
                     }
 
                     // Autotile capability badges (memory / reflow / script-state)
-                    PZCommon.CapabilityBadgeRow {
+                    Components.CapabilityBadgeRow {
                         layoutData: modelData.layout || ({})
                     }
 
                     // Aspect ratio badge
-                    PZCommon.AspectRatioBadge {
+                    Components.AspectRatioBadge {
                         aspectRatioClass: (modelData.layout && modelData.layout.aspectRatioClass) || "any"
                     }
                 }

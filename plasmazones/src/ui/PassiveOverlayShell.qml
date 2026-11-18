@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.phosphor.surface as PhosphorSurface
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Passive overlay shell — single per-screen wlr-layer-shell host that
@@ -170,14 +170,14 @@ Window {
         property var zones: []
         property color backgroundColor: Kirigami.Theme.backgroundColor
         property color textColor: Kirigami.Theme.textColor
-        property color highlightColor: QFZCommon.ZoneColorDefaults.previewActiveZoneColor
+        property color highlightColor: Components.ZoneColorDefaults.previewActiveZoneColor
         // MUST be declared: the daemon pushes these with setProperty
         // (osd.cpp pushLayoutOsdContent) and the layoutOsdComp bindings
         // below forward them — an undeclared name silently becomes a
         // dynamic property no binding observes, so the forwarding would
         // bind undefined and the OSD preview would never recolor.
-        property color inactiveColor: QFZCommon.ZoneColorDefaults.previewInactiveZoneColor
-        property color borderColor: QFZCommon.ZoneColorDefaults.previewZoneBorderColor
+        property color inactiveColor: Components.ZoneColorDefaults.previewInactiveZoneColor
+        property color borderColor: Components.ZoneColorDefaults.previewZoneBorderColor
         // Zone fill opacities for the OSD preview. Same declare-and-forward
         // contract as the colors above: osd.cpp pushLayoutOsdContent writes
         // the settings/override-resolved pair; the defaults match
@@ -575,9 +575,9 @@ Window {
         property int scaledBorderWidth: 1
         property int scaledBorderRadius: 2
         property bool locked: false
-        property color highlightColor: QFZCommon.ZoneColorDefaults.previewActiveZoneColor
-        property color inactiveColor: QFZCommon.ZoneColorDefaults.previewInactiveZoneColor
-        property color borderColor: QFZCommon.ZoneColorDefaults.previewZoneBorderColor
+        property color highlightColor: Components.ZoneColorDefaults.previewActiveZoneColor
+        property color inactiveColor: Components.ZoneColorDefaults.previewInactiveZoneColor
+        property color borderColor: Components.ZoneColorDefaults.previewZoneBorderColor
         property string fontFamily: ""
         property real fontSizeScale: 1
         property int fontWeight: Font.Bold
@@ -743,9 +743,9 @@ Window {
         property var highlightedZoneIds: []
         property bool showNumbers: true
         property var previewZones: []
-        property color highlightColor: QFZCommon.ZoneColorDefaults.activeZoneColor
-        property color inactiveColor: QFZCommon.ZoneColorDefaults.inactiveZoneColor
-        property color borderColor: QFZCommon.ZoneColorDefaults.zoneBorderColor
+        property color highlightColor: Components.ZoneColorDefaults.activeZoneColor
+        property color inactiveColor: Components.ZoneColorDefaults.inactiveZoneColor
+        property color borderColor: Components.ZoneColorDefaults.zoneBorderColor
         property color labelFontColor: Kirigami.Theme.textColor
         property string fontFamily: ""
         property real fontSizeScale: 1

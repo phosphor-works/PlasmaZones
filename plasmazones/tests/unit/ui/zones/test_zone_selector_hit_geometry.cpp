@@ -22,7 +22,7 @@
 // no config / registry dependency, precisely so test TUs can include it.
 #include "runtime/overlay/overlay_helpers.h"
 
-Q_IMPORT_PLUGIN(org_plasmazones_commonPlugin)
+Q_IMPORT_PLUGIN(Phosphor_ComponentsPlugin)
 
 using PlasmaZones::collectQmlItemsByName;
 using PlasmaZones::mapVisibleRectToItem;
@@ -94,8 +94,8 @@ private:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.LayoutCard { showCardBackground: true }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.LayoutCard { showCardBackground: true }\n",
             QUrl(QStringLiteral("qrc:/test_zone_selector_hit_geometry.qml")));
 
         QHash<int, QRectF> rects;

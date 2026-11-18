@@ -7,7 +7,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../../js/WizardUtils.js" as WizardUtils
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Multi-step wizard for creating a new snapping layout.
@@ -304,7 +304,7 @@ Kirigami.Dialog {
                                 root.currentStep = 1;
                             }
 
-                            QFZCommon.ZonePreview {
+                            Components.ZonePreview {
                                 anchors.fill: parent
                                 zones: templateDelegate.modelData.zones
                                 showZoneNumbers: true
@@ -332,7 +332,7 @@ Kirigami.Dialog {
                 WizardPreviewFrame {
                     aspectRatio: root.screenAspectRatio
 
-                    QFZCommon.ZonePreview {
+                    Components.ZonePreview {
                         anchors.fill: parent
                         anchors.margins: Kirigami.Units.largeSpacing
                         // Space for the bottom name bar (LayoutThumbnail's

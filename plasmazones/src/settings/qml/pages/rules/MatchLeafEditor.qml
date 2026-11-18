@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 import "../../js/MatchWireValue.js" as MatchWireValue
 
 /**
@@ -207,10 +207,10 @@ RowLayout {
     }
 
     // Categorized field picker — the same cascading category-menu button the
-    // shader choosers use (PZCommon.CategoryMenuButton). The field list is long,
+    // shader choosers use (Components.CategoryMenuButton). The field list is long,
     // so it's grouped into Identity / State / Size / Context. Keyed on the
     // field's `wire` string, matching `leaf.node.field`.
-    PZCommon.CategoryMenuButton {
+    Components.CategoryMenuButton {
         id: fieldCombo
 
         Layout.alignment: Qt.AlignTop
@@ -768,7 +768,7 @@ RowLayout {
     Component {
         id: zoneValueEditor
 
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             id: zonePicker
 
             // Picker over `controller.zoneMatchOptions`, one submenu per

@@ -239,6 +239,8 @@ endif()
 set(PHOSPHOR_LIBS_BUNDLED_PACKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plasmazones/data" CACHE PATH
     "Directory holding bundled animations/ and pointer/ packs, for the phosphor-libs tests that check them" FORCE)
 plasmazones_add_phosphor_libs()
+# Phosphor.Components, on the phosphor-libs tree just added.
+plasmazones_add_phosphor_components()
 
 # ---------------------------------------------------------------------------
 # Code formatting (clang-format for C++, qmlformat for QML)

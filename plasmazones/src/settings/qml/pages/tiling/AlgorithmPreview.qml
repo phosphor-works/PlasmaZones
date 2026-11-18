@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 import "../../js/AlgorithmCapabilities.js" as AlgoCaps
 
 /**
@@ -93,7 +93,7 @@ Item {
     }
 
     // Render using shared ZonePreview (same component used in LayoutComboBox dropdowns)
-    QFZCommon.ZonePreview {
+    Components.ZonePreview {
         id: zonePreview
 
         anchors.fill: parent
@@ -108,8 +108,8 @@ Item {
         // border alpha is re-applied at a fixed 0.9 and fill opacity comes from
         // ZonePreview's activeOpacity, so a custom alpha in the effective
         // colors is not reproduced here.
-        highlightColor: QFZCommon.ZoneColorDefaults.previewActiveZoneColor
-        borderColor: Qt.rgba(QFZCommon.ZoneColorDefaults.previewZoneBorderColor.r, QFZCommon.ZoneColorDefaults.previewZoneBorderColor.g, QFZCommon.ZoneColorDefaults.previewZoneBorderColor.b, 0.9)
+        highlightColor: Components.ZoneColorDefaults.previewActiveZoneColor
+        borderColor: Qt.rgba(Components.ZoneColorDefaults.previewZoneBorderColor.r, Components.ZoneColorDefaults.previewZoneBorderColor.g, Components.ZoneColorDefaults.previewZoneBorderColor.b, 0.9)
         zonePadding: 1
         edgeGap: 0
         minZoneSize: 4

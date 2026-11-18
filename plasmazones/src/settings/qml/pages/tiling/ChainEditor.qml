@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Ordered editor for a chain of shader packs.
@@ -430,7 +430,7 @@ ColumnLayout {
 
     // ── Add row ──────────────────────────────────────────────────────────
     // Compact right-aligned pack picker in a labelled SettingsRow, matching the
-    // animation "Set shader pack" selector (PZCommon.CategoryMenuButton) rather
+    // animation "Set shader pack" selector (Components.CategoryMenuButton) rather
     // than a full-width dropdown bar. It is an ACTION, not a persistent
     // selection: selecting a pack appends it to the chain, so currentId stays
     // empty and the button always shows its placeholder.
@@ -457,7 +457,7 @@ ColumnLayout {
             return i18n("All installed packs are already in the chain");
         }
 
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             // SettingsRow lays its default children out in a plain Row
             // positioner, so Layout.* attached properties are inert here —
             // size explicitly or the button sits at implicit width. Clamped to

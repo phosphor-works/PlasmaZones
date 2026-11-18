@@ -4,7 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Navigation OSD content — Item-rooted body for use inside the
@@ -707,14 +707,14 @@ Item {
         onRequest: root.dismissRequested()
     }
 
-    // The OSD card. QFZCommon.PopupFrame owns the opaque card body and the
+    // The OSD card. Components.PopupFrame owns the opaque card body and the
     // SurfaceAnimator shader anchor; border, glow, and shadow come from the
     // surface-decoration pipeline. PopupFrame's internal captureItem extends
     // past the frame by captureMargin so any decoration halo and the show /
     // hide shader transition are captured with the card through bounce /
     // fly-in / etc. instead of snapping in when the leg ends. Matches
     // LayoutOsdContent; the a11y labels live on the root Item.
-    QFZCommon.PopupFrame {
+    Components.PopupFrame {
         id: container
 
         anchors.centerIn: parent

@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Shortcut cheatsheet content — Item-rooted body hosted in
@@ -446,7 +446,7 @@ Item {
         Accessible.onPressAction: root._requestDismiss()
     }
 
-    QFZCommon.PopupFrame {
+    Components.PopupFrame {
         id: container
 
         anchors.centerIn: parent

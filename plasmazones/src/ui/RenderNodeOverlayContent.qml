@@ -8,6 +8,8 @@ import org.kde.kirigami as Kirigami
 import org.phosphor.animation
 import org.plasmazones.common 1.0
 
+import Phosphor.Components
+
 /**
  * Shader-mode zone overlay content body, hosted inside the unified
  * PassiveOverlayShell's mainOverlay slot when shader rendering is enabled for

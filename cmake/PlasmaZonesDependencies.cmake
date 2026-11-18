@@ -3,8 +3,8 @@
 #
 # What PlasmaZones builds from that is not in this repository, each pinned to
 # one archive by version, URL and SHA-256: the phosphor-libs commit it builds
-# against, the suite's branding release and the surface decoration packs
-# commit. This file is the only place these pins live. The phosphor-libs tree pins its own third-party sources (Luau,
+# against, the phosphor-components commit whose QML components it draws with,
+# the suite's branding release and the surface decoration packs commit. This file is the only place these pins live. The phosphor-libs tree pins its own third-party sources (Luau,
 # valijson) in its cmake/PhosphorDependencies.cmake, at the commit pinned here.
 # The packaging recipes repeat the URL and hash of every archive they fetch,
 # both these and the library tree's, and scripts/check-conventions.py (the
@@ -50,7 +50,7 @@ include_guard(GLOBAL)
 # ─── Pins ────────────────────────────────────────────────────────────────────
 # PLASMAZONES_DEPS lists them all, for the fetch script and for the dep-pins
 # rule.
-set(PLASMAZONES_DEPS phosphor-libs branding phosphor-surface-packs)
+set(PLASMAZONES_DEPS phosphor-libs phosphor-components branding phosphor-surface-packs)
 
 # The phosphor-libs commit PlasmaZones builds against (LGPL-2.1-or-later,
 # phosphor-works/phosphor-libs): its placement engines, rendering, layer-shell
@@ -59,6 +59,17 @@ set(PLASMAZONES_DEP_phosphor-libs_VERSION "3d4654ea36a3d1e5d9cdeeebab3b39aecfde0
 set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/3d4654ea36a3d1e5d9cdeeebab3b39aecfde0cf3.tar.gz")
 set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-3d4654ea36a3d1e5d9cdeeebab3b39aecfde0cf3.tar.gz")
 set(PLASMAZONES_DEP_phosphor-libs_SHA256 "34fdd79c5216dd4133edb917f0ac4d77de113522d73d05c85cedc6f4572f21cf")
+
+# The phosphor-components commit (LGPL-2.1-or-later,
+# phosphor-works/phosphor-components): the Phosphor.Components QML module the
+# overlays, the settings app and the editor draw layout cards, zone previews,
+# badges and the shader parameter editor with, and its catalog. Added as a
+# subproject after phosphor-libs, so it builds on this tree's phosphor-libs. A
+# commit, so VERSION is the commit hash.
+set(PLASMAZONES_DEP_phosphor-components_VERSION "e5639ede94313fca5380b4d5eded14b8e66efd40")
+set(PLASMAZONES_DEP_phosphor-components_URL "https://github.com/phosphor-works/phosphor-components/archive/e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz")
+set(PLASMAZONES_DEP_phosphor-components_FILE "phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz")
+set(PLASMAZONES_DEP_phosphor-components_SHA256 "a932243fdffe2b5c496558d322e2878d54f825469a6be3715179d427558940aa")
 
 # The suite's branding release (CC-BY-SA-4.0, phosphor-works/branding): the app
 # icons, installed from it with its cmake/PhosphorBranding.cmake. No app keeps
@@ -283,6 +294,34 @@ macro(plasmazones_add_phosphor_libs)
     # The library tree's helper modules (PhosphorTestIsolation, PhosphorTestPch),
     # reachable by name from here on.
     list(APPEND CMAKE_MODULE_PATH "${PHOSPHOR_LIBS_CMAKE_DIR}")
+endmacro()
+
+# plasmazones_add_phosphor_components()
+#
+# Adds the phosphor-components tree as a subproject, after phosphor-libs, which
+# it then builds on rather than fetching its own: its pin is not used here. A
+# macro, like plasmazones_add_phosphor_libs. PlasmaZones links the static
+# module, so the plugin the tree would install into Qt's QML directory is not
+# built; its catalogs are installed.
+macro(plasmazones_add_phosphor_components)
+    if(NOT TARGET PhosphorAnimation)
+        message(FATAL_ERROR "plasmazones_add_phosphor_components() needs phosphor-libs added first "
+                            "(plasmazones_add_phosphor_libs)")
+    endif()
+    set(PHOSPHOR_COMPONENTS_QML_INSTALL OFF CACHE BOOL
+        "Also build Phosphor.Components as an installed plugin (PlasmaZones links the static module)" FORCE)
+    if(PHOSPHOR_DEPS_ARCHIVES)
+        plasmazones_fetch_dependency(phosphor-components)
+        add_subdirectory("${phosphor-components_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/_deps/phosphor-components-build")
+    else()
+        CPMAddPackage(NAME phosphor-components
+                      URL "${PLASMAZONES_DEP_phosphor-components_URL}"
+                      URL_HASH SHA256=${PLASMAZONES_DEP_phosphor-components_SHA256})
+    endif()
+    if(NOT TARGET PhosphorComponents::PhosphorComponentsQml)
+        message(FATAL_ERROR "phosphor-components at ${phosphor-components_SOURCE_DIR} defines no "
+                            "PhosphorComponents::PhosphorComponentsQml")
+    endif()
 endmacro()
 
 # phosphor_put_glslang_on_test_path(<test>...)

@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Zone Selector content body — Item version of the legacy
@@ -60,7 +60,7 @@ Item {
     property int containerTopMargin: 10
     property int containerSideMargin: 10
     /// Effective edge margins for corner / edge selector positions. The
-    /// captureItem inside QFZCommon.PopupFrame extends `container.captureMargin`
+    /// captureItem inside Components.PopupFrame extends `container.captureMargin`
     /// past the visible card on every side; if `containerTopMargin` or
     /// `containerSideMargin` is smaller than that, the capture ring (and the
     /// decoration halo drawn into it) is pushed off the slot edge and clipped,
@@ -69,7 +69,7 @@ Item {
     /// state.
     ///
     /// Use the Kirigami literal directly (not `container.captureMargin`)
-    /// because `container` (the QFZCommon.PopupFrame instance) is declared later
+    /// because `container` (the Components.PopupFrame instance) is declared later
     /// in this file and would resolve to `undefined` during initial
     /// construction — `Math.max(int, undefined) === NaN`, which silently coerces
     /// to 0 when assigned to anchors.topMargin / leftMargin etc. and produces a
@@ -94,9 +94,9 @@ Item {
     property int scaledBorderWidth: 1
     property int scaledBorderRadius: 2
     property bool locked: false
-    property color highlightColor: QFZCommon.ZoneColorDefaults.previewActiveZoneColor
-    property color inactiveColor: QFZCommon.ZoneColorDefaults.previewInactiveZoneColor
-    property color borderColor: QFZCommon.ZoneColorDefaults.previewZoneBorderColor
+    property color highlightColor: Components.ZoneColorDefaults.previewActiveZoneColor
+    property color inactiveColor: Components.ZoneColorDefaults.previewInactiveZoneColor
+    property color borderColor: Components.ZoneColorDefaults.previewZoneBorderColor
     property string fontFamily: ""
     property real fontSizeScale: 1
     property int fontWeight: Font.Bold
@@ -174,7 +174,7 @@ Item {
         }
     }
 
-    QFZCommon.PopupFrame {
+    Components.PopupFrame {
         id: container
 
         // The SurfaceAnimator shader anchor, and the `shaderAnchor`
@@ -579,7 +579,7 @@ Item {
                             Layout.preferredWidth: width
                             Layout.preferredHeight: height
 
-                            QFZCommon.LayoutCard {
+                            Components.LayoutCard {
                                 anchors.fill: parent
                                 layoutData: indicator.modelData
                                 isActive: indicator.isActive

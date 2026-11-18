@@ -12,7 +12,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Layout picker content — Item-rooted body hosted in PassiveOverlayShell's
@@ -82,12 +82,12 @@ Item {
     // Theme colors
     property color backgroundColor: Kirigami.Theme.backgroundColor
     property color textColor: Kirigami.Theme.textColor
-    property color highlightColor: QFZCommon.ZoneColorDefaults.previewActiveZoneColor
+    property color highlightColor: Components.ZoneColorDefaults.previewActiveZoneColor
     // Zone appearance — effective values arrive via the host slot's
     // bindings: snapassist.cpp's writeColorSettings pushes onto
     // layoutPickerSlot, which forwards them here. No picker-direct push.
-    property color inactiveColor: QFZCommon.ZoneColorDefaults.previewInactiveZoneColor
-    property color borderColor: QFZCommon.ZoneColorDefaults.previewZoneBorderColor
+    property color inactiveColor: Components.ZoneColorDefaults.previewInactiveZoneColor
+    property color borderColor: Components.ZoneColorDefaults.previewZoneBorderColor
     property real activeOpacity: 0.5
     property real inactiveOpacity: 0.3
     // Font properties for zone number labels
@@ -350,7 +350,7 @@ Item {
     }
 
     // Main container card
-    QFZCommon.PopupFrame {
+    Components.PopupFrame {
         id: container
 
         // The SurfaceAnimator shader anchor lives inside PopupFrame (on
@@ -542,7 +542,7 @@ Item {
                 root.confirmSelection();
             }
 
-            QFZCommon.LayoutCard {
+            Components.LayoutCard {
                 anchors.fill: parent
                 // The delegate above is the accessible Button for this card;
                 // LayoutCard's own Pane node would announce the same name a

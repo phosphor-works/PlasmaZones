@@ -4,7 +4,7 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief The body every "configure one pack" surface shows: its parameters
@@ -220,7 +220,7 @@ GridLayout {
     columnSpacing: Kirigami.Units.largeSpacing
     rowSpacing: Kirigami.Units.smallSpacing
 
-    PZCommon.ShaderParamsEditor {
+    Components.ShaderParamsEditor {
         id: paramEditor
 
         Layout.fillWidth: true

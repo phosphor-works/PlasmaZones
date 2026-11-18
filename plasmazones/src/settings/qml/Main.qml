@@ -8,7 +8,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.phosphor.animation
 import org.phosphor.control as PhosphorUi
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 // Top-level settings window. Chrome (sidebar, breadcrumbs, apply/discard
 // footer, "select a page" placeholder) comes from
@@ -489,7 +489,7 @@ PhosphorUi.SettingsAppWindow {
         // ZoneColorDefaults singleton cannot resolve the appSettings context
         // property itself (compiled-module singletons have no root-context
         // chain), so inject it once here.
-        QFZCommon.ZoneColorDefaults.settingsSource = appSettings;
+        Components.ZoneColorDefaults.settingsSource = appSettings;
 
         var geo = settingsController.loadWindowGeometry();
         if (geo.width > 0 && geo.height > 0) {

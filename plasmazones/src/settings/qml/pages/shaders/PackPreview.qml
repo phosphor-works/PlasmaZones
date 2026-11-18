@@ -3,7 +3,7 @@
 
 import QtQuick
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief One pack's preview STAGE, rendered the same way wherever it appears.
@@ -414,7 +414,7 @@ Item {
     // text cannot make this split, because they see only showable and
     // hasError and not whether a stage is active, so they keep the one
     // wording.
-    PZCommon.ShaderPreviewPlaceholder {
+    Components.ShaderPreviewPlaceholder {
         anchors.fill: parent
         visible: root.showPlaceholder && (!root.showable || root.hasError)
         backgroundColor: Kirigami.Theme.alternateBackgroundColor

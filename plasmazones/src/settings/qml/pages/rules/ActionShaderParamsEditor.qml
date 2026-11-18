@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import QtQuick
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief The shader-uniform editor shared by both shader-override rule actions.
@@ -28,7 +28,7 @@ import org.plasmazones.common as PZCommon
  * That is the same defect the assignment hosts carry `_effectiveValues` for, and
  * this was the last editor without it.
  */
-PZCommon.ShaderParamsEditor {
+Components.ShaderParamsEditor {
     id: paramEditor
 
     /// The ActionRow this editor belongs to. Passed in rather than reached for

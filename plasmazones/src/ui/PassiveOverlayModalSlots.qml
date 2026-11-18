@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.phosphor.surface as PhosphorSurface
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * The passive shell's three modal popup slots (snap assist, layout picker,
@@ -47,9 +47,9 @@ Item {
         // only the Image bindings that read it — re-pushing the whole
         // candidates list rebuilt every delegate and reset hover state.
         property var thumbnails: ({})
-        property color highlightColor: QFZCommon.ZoneColorDefaults.activeZoneColor
-        property color inactiveColor: QFZCommon.ZoneColorDefaults.inactiveZoneColor
-        property color borderColor: QFZCommon.ZoneColorDefaults.zoneBorderColor
+        property color highlightColor: Components.ZoneColorDefaults.activeZoneColor
+        property color inactiveColor: Components.ZoneColorDefaults.inactiveZoneColor
+        property color borderColor: Components.ZoneColorDefaults.zoneBorderColor
         property real activeOpacity: 0.5
         property real inactiveOpacity: 0.3
         property int borderWidth: Kirigami.Units.smallSpacing
@@ -169,9 +169,9 @@ Item {
         property bool locked: false
         property color backgroundColor: Kirigami.Theme.backgroundColor
         property color textColor: Kirigami.Theme.textColor
-        property color highlightColor: QFZCommon.ZoneColorDefaults.previewActiveZoneColor
-        property color inactiveColor: QFZCommon.ZoneColorDefaults.previewInactiveZoneColor
-        property color borderColor: QFZCommon.ZoneColorDefaults.previewZoneBorderColor
+        property color highlightColor: Components.ZoneColorDefaults.previewActiveZoneColor
+        property color inactiveColor: Components.ZoneColorDefaults.previewInactiveZoneColor
+        property color borderColor: Components.ZoneColorDefaults.previewZoneBorderColor
         property real activeOpacity: 0.5
         property real inactiveOpacity: 0.3
         property string fontFamily: ""

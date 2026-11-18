@@ -83,7 +83,7 @@ is private to phosphor-scripting.
    `LuauTileAlgorithm` override. Follow the noexcept rule in the comment in `TilingAlgorithm.h`.
 6. **To the picker.** `AlgorithmMetadata` (`phosphor-layout-api/include/PhosphorLayoutApi/AlgorithmMetadata.h`),
    `buildMetadata` in `autotilelayoutsource.cpp`, `writeAlgorithmFlat` in
-   `plasmazones/src/common/layoutpreviewserialize.cpp`, then the QML (`plasmazones/src/shared/CapabilityBadgeRow.qml`,
+   `plasmazones/src/common/layoutpreviewserialize.cpp`, then the QML (`CapabilityBadgeRow.qml` in phosphor-works/phosphor-components,
    the filters in `plasmazones/src/settings/qml/pages/layouts/LayoutBrowserPage.qml`).
 7. **To D-Bus `algorithmInfo`**, if needed. Change all of these together, or the bus round trip breaks:
    `AlgorithmInfoEntry` and its signature comment (`phosphor-protocol/include/PhosphorProtocol/AutotileTypes.h`),

@@ -6,7 +6,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import PlasmaZones
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Live preview pane for an ANIMATION (transition) pack — every class.
@@ -362,7 +362,7 @@ Item {
                         onWidthChanged: field.syncGeometry()
                         onHeightChanged: field.syncGeometry()
 
-                        PZCommon.DecorationPreviewCard {
+                        Components.DecorationPreviewCard {
                             anchors.fill: parent
                             // Inset by the margin ring for the canvas
                             // classes (zero everywhere else), so the
@@ -711,7 +711,7 @@ Item {
             // Covers the preview while the shader is still compiling, and
             // stays up when it failed. Opaque and slot-coloured — the item
             // underneath must keep rendering to compile.
-            PZCommon.ShaderPreviewPlaceholder {
+            Components.ShaderPreviewPlaceholder {
                 anchors.fill: parent
                 anchors.margins: 1
                 visible: !root._previewable || !previewLoader.item || !previewLoader.item.configured || previewLoader.item.shaderItem.status === AnimationShaderItem.Error || previewLoader.item.shaderItem.status === AnimationShaderItem.Loading
