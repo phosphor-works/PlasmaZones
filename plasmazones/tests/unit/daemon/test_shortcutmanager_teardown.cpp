@@ -31,6 +31,7 @@
 // grab per id (Portal) must never register the parked ids at all.
 
 #include "runtime/controllers/shortcutmanager.h"
+#include "common/engineruntimenamespace.h"
 #include "runtime/controllers/shortcutmanager_ids.h"
 
 #include "config/settings.h"

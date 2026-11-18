@@ -25,7 +25,6 @@
  */
 
 #include <memory>
-
 #include <QCoreApplication>
 #include <QDBusAbstractAdaptor>
 #include <QDBusConnection>

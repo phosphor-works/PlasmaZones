@@ -23,7 +23,6 @@
  */
 
 #include "daemon/waylandsessioncheck.h"
-
 #include <PhosphorWayland/LayerShellPluginLoader.h>
 
 #include <QByteArray>

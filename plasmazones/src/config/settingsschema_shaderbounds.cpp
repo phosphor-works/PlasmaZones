@@ -5,7 +5,7 @@
 
 #include <QMetaType>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 bool overLongShaderString(const QVariant& value)
 {
@@ -76,4 +76,4 @@ QVariantMap boundedIdMap(const QVariantMap& in, int maxCount)
     return out;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

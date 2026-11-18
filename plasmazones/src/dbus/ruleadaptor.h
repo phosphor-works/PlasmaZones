@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 
 #include <QDBusAbstractAdaptor>
@@ -13,9 +15,11 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class RuleService;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief The D-Bus binding of RuleService: org.phosphor_works.Placement.Rules

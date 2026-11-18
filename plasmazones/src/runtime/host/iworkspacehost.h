@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief What dynamic per-monitor workspaces need from the compositor that hosts the engine
@@ -61,4 +61,4 @@ public:
     virtual void restoreStockDesktopShortcuts() = 0;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

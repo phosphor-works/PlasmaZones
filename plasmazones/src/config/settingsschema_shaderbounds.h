@@ -8,7 +8,7 @@
 #include <QVariant>
 #include <QVariantMap>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @file
@@ -103,4 +103,4 @@ QStringList boundedIdList(const QStringList& in, int maxCount, IdListDuplicates 
 /// string is the meaningful "none" answer rather than a repair.
 QVariantMap boundedIdMap(const QVariantMap& in, int maxCount);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

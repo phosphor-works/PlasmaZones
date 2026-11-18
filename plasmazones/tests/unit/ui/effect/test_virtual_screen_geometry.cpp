@@ -15,7 +15,6 @@
  */
 
 #include "plasmazoneseffect/virtualscreengeometry.h"
-
 #include <PhosphorScreens/VirtualScreen.h>
 
 #include <QTest>

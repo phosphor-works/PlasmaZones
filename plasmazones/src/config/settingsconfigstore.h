@@ -9,7 +9,7 @@
 
 #include <QPointer>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class Settings;
 
@@ -51,4 +51,4 @@ private:
     QPointer<Settings> m_settings;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

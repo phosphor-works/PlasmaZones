@@ -22,7 +22,7 @@
 #include <QPalette>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // Shader-specific JSON keys (overlay-local, not shared with serialization)
@@ -49,7 +49,7 @@ constexpr QLatin1String ShaderBorderWidth{"shaderBorderWidth"};
 quint64 hashLabelsTextureInputs(const QVariantList& patched, const QSize& size, qreal devicePixelRatio,
                                 bool showNumbers, const LabelFontSettings& lfs)
 {
-    // NOTE: inside `namespace PlasmaZones {}` the unqualified name `qHash`
+    // NOTE: inside `namespace PhosphorEngineRuntime {}` the unqualified name `qHash`
     // resolves to a user-defined overload and never falls through to Qt's global `::qHash`: a
     // using-declaration in core/types/types.h pulls one in, which stops ordinary lookup here,
     // and an overload on an argument's own namespace type is found by ADL regardless. Always
@@ -460,4 +460,4 @@ void OverlayService::updateZonesForAllWindows()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

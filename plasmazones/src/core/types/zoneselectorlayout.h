@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Computed layout dimensions for the zone selector popup
@@ -254,4 +254,4 @@ inline ZoneSelectorLayout computeZoneSelectorLayout(const ZoneSelectorConfig& co
 // forward stripFractions, so any future caller on a strip screen would have
 // silently fallen back to uniform-cell sizing.
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

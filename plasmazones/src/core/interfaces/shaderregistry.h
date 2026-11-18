@@ -21,7 +21,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// PlasmaZones-specific ShaderRegistry that adds:
 /// - Hardcoded system/user shader paths (plasmazones/overlays)
@@ -91,4 +91,4 @@ private:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

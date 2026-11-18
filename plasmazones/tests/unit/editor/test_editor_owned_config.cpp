@@ -14,6 +14,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorConfig/IBackend.h>
 #include <PhosphorConfig/Schema.h>

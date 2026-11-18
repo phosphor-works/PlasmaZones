@@ -29,6 +29,7 @@
  */
 
 #include <QFile>
+#include "common/engineruntimenamespace.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSignalSpy>

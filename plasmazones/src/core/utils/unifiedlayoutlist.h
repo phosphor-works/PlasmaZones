@@ -43,15 +43,15 @@ namespace PhosphorTiles {
 class ITileAlgorithmRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class IOrderingSettings;
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
 
 namespace PhosphorZones::LayoutUtils {
 
-using ::PlasmaZones::IOrderingSettings;
+using ::PhosphorEngineRuntime::IOrderingSettings;
 
 /**
  * @brief Build list of all available layouts (manual, optionally autotile,

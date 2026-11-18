@@ -20,7 +20,7 @@
  * rather than trusting a caller to have stopped them.
  */
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Sampling interval of the drag edge auto-scroll heartbeat, ~60 Hz. Not a
 // tunable: it sets how finely the strip is sampled, never how fast it
@@ -161,4 +161,4 @@ void DragResolver::clearScrollDropIndicator()
     m_dropIndicatorScreenId.clear();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

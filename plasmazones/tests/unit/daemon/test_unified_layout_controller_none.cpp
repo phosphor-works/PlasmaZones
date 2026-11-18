@@ -33,6 +33,7 @@
  */
 
 #include <QScopedPointer>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 
 #include <algorithm>

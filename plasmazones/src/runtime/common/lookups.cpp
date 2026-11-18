@@ -13,7 +13,7 @@
 #include <QGuiApplication>
 #include <QScreen>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace Lookups {
 
 QString resolveScreenId(PhosphorScreens::ScreenManager* mgr, const QString& screenId)
@@ -75,4 +75,4 @@ QScreen* resolvePhysicalQScreen(PhosphorScreens::ScreenManager* mgr, const QStri
 }
 
 } // namespace Lookups
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

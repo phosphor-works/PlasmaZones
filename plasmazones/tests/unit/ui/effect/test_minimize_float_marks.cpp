@@ -7,7 +7,6 @@
 // test_pretile_decisions.
 
 #include <tilinghandler/minimizefloatmarks.h>
-
 #include <QTest>
 
 using PlasmaZones::MinimizeFloatMarks;

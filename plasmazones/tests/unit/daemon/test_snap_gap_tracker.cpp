@@ -9,6 +9,7 @@
 // rule exists for.
 
 #include <QHash>
+#include "common/engineruntimenamespace.h"
 #include <QObject>
 #include <QString>
 #include <QStringList>

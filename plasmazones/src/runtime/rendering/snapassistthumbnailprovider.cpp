@@ -13,7 +13,7 @@
 // kwin.effect.plasmazones.snapassist.trace category.
 Q_LOGGING_CATEGORY(lcSnapAssistTrace, "plasmazones.daemon.snapassist.trace", QtInfoMsg)
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 SnapAssistThumbnailProvider::SnapAssistThumbnailProvider()
     : QQuickImageProvider(QQuickImageProvider::Image)
@@ -134,4 +134,4 @@ void SnapAssistThumbnailProvider::clear()
     m_cache.clear();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

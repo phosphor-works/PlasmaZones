@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "layoutpreviewserialize.h"
-
 #include <PhosphorLayoutApi/AlgorithmMetadata.h>
 #include <PhosphorLayoutApi/AspectRatioClass.h>
 #include <PhosphorLayoutApi/LayoutPreview.h>
@@ -15,7 +14,7 @@
 #include <QVariantList>
 #include <QtMath>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -227,4 +226,4 @@ QVariantMap toVariantMap(const PhosphorLayout::LayoutPreview& preview)
     return map;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

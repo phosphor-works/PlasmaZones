@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 #include <PhosphorProtocol/ZoneMarshalling.h>
 #include <QDBusAbstractAdaptor>
@@ -16,10 +18,12 @@
 class QDBusConnection;
 class QDBusServiceWatcher;
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class IOverlayService;
 class OverlayControlService;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief The D-Bus binding of OverlayControlService: org.phosphor_works.Placement.Overlay

@@ -30,6 +30,7 @@
  */
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>

@@ -34,7 +34,7 @@
 #include <optional>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -904,4 +904,4 @@ void WindowTracker::handleCrossModeSwap(const QString& windowId, const QString& 
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

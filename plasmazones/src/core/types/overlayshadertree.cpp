@@ -8,7 +8,7 @@
 #include <QJsonValue>
 #include <QLatin1String>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ─── OverlayShaderProfile ───────────────────────────────────────────────────
 
@@ -171,4 +171,4 @@ OverlayShaderProfile withPresetsResolved(const OverlayShaderProfile& profile,
     return out;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

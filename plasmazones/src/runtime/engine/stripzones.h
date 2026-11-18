@@ -30,7 +30,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones::StripZones {
+namespace PhosphorEngineRuntime::StripZones {
 
 using VisibleTile = PhosphorScrollEngine::ScrollEngine::VisibleTile;
 
@@ -129,4 +129,4 @@ inline QVariantList numberMapsForTiles(const QVector<VisibleTile>& tiles)
     return zones;
 }
 
-} // namespace PlasmaZones::StripZones
+} // namespace PhosphorEngineRuntime::StripZones

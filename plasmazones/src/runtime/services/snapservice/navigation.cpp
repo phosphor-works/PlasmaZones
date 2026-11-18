@@ -10,7 +10,7 @@
 #include <PhosphorEngine/GeometryUtils.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Snap-mode navigation D-Bus slots: the focused-window verbs, gated as the
@@ -395,4 +395,4 @@ void SnapService::handleBatchedResnap(const QString& resnapData, bool restoresAd
     commitResnapBatch(admitted);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

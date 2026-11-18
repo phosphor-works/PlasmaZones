@@ -75,7 +75,7 @@ class ResolvedActions;
 struct WindowQuery;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ScreenModeRouter;
 
@@ -2219,4 +2219,4 @@ private:
                             const PhosphorEngine::IPlacementEngine* arrival);
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

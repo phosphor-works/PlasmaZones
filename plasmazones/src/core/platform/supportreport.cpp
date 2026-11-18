@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "supportreport.h"
+#include "common/engineruntimenamespace.h"
 #include "logging.h"
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorZones/LayoutRegistry.h>

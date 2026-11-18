@@ -10,6 +10,7 @@
 // of the engine BEING SEEDED, never a fixed one — the same per-engine rule.
 
 #include <QObject>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 
 #include "runtime/engine/seedorderfilter.h"

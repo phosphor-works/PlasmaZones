@@ -18,7 +18,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 OverlayControlService::OverlayControlService(IOverlayService* overlay, PhosphorZones::IZoneDetector* detector,
                                              PhosphorZones::IZoneLayoutRegistry* layoutRegistry,
@@ -233,4 +233,4 @@ bool OverlayControlService::isSnapAssistVisible()
     return m_overlayService ? m_overlayService->isSnapAssistVisible() : false;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -14,6 +14,7 @@
  */
 
 #include <QByteArray>
+#include "common/engineruntimenamespace.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>

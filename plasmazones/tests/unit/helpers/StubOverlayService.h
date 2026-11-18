@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 /**
  * @brief No-op IOverlayService for unit tests that need a constructible
  * DragResolver (whose ctor qFatals on a null overlay). Every method is

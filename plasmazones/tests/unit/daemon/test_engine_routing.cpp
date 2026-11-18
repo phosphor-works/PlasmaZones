@@ -6,6 +6,7 @@
 // and the synthesized-slot engine id share.
 
 #include <QObject>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 
 #include "runtime/engine/enginerouting.h"

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <QTest>
-
 #include "tilinghandler/untiledecisions.h"
 
 using PlasmaZones::UntileDecisions::SwitchAnnounceLedger;

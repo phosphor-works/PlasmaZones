@@ -23,7 +23,6 @@
  */
 
 #include <QTest>
-
 #include <QColor>
 #include <QDir>
 #include <QDirIterator>

@@ -4,7 +4,7 @@
 #include "ioverlayservice.h"
 #include "isettings.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Out-of-line virtual destructors anchor each interface's vtable in this
 // translation unit. Prevents ODR violations across shared-library
@@ -18,4 +18,4 @@ ISettings::~ISettings() = default;
 
 IOverlayService::~IOverlayService() = default;
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -15,7 +15,6 @@
  */
 
 #include "daemon/replaceincumbent.h"
-
 #include <QByteArray>
 #include <QString>
 #include <QTest>

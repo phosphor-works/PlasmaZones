@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <optional>
-
 #include <QTest>
 #include <QTemporaryDir>
 #include <QDir>

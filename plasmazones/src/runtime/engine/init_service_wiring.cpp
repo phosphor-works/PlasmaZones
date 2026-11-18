@@ -8,7 +8,7 @@
 
 #include <PhosphorProtocol/ZoneTypes.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::initServiceWiring()
 {
@@ -37,4 +37,4 @@ void EngineRuntime::initServiceWiring()
             });
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

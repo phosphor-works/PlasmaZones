@@ -27,7 +27,7 @@
 #include <QStringList>
 #include <QVariantMap>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::setupIdleService()
 {
@@ -260,4 +260,4 @@ void EngineRuntime::compositorConnected(const QString& compositorName)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

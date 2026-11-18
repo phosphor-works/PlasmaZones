@@ -14,7 +14,6 @@
  */
 
 #include "wta_snap_nav_fixture.h"
-
 #include <QSignalSpy>
 
 using PhosphorEngine::NavigationContext;

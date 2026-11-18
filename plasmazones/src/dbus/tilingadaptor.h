@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/AutotileMarshalling.h>
@@ -16,9 +18,11 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class TilingService;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief The D-Bus binding of TilingService: org.phosphor_works.Placement.Tiling

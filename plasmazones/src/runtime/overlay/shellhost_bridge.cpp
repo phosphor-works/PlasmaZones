@@ -33,7 +33,7 @@
 #include <QScreen>
 #include <QStringList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // Whether a modal slot (snap assist, layout picker, cheatsheet) is visible,
@@ -444,4 +444,4 @@ QString OverlayService::currentKeyForSlotItem(const QPointer<QQuickItem>& slotIt
     return issuedId;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

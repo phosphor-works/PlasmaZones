@@ -12,7 +12,6 @@
  */
 
 #include "tilinghandler/stackdecisions.h"
-
 #include <QString>
 #include <QStringList>
 #include <QTest>

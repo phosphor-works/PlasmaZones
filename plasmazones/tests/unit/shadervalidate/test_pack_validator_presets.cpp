@@ -14,7 +14,6 @@
 // test_pack_validators.cpp. Both files compile all four validator arms, so which
 // arm a slot is about is worth stating and each one says so.
 #include <QtTest>
-
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>

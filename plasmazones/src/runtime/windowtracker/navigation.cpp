@@ -21,7 +21,7 @@
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/VirtualScreen.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 QStringList WindowTracker::resolveSnapModeScreensForResnap(const QString& screenFilter) const
 {
@@ -70,4 +70,4 @@ void WindowTracker::reportNavigationFeedback(bool success, const QString& action
     Q_EMIT navigationFeedback(success, action, reason, sourceZoneId, targetZoneId, screenId);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

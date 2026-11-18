@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "config/configdefaults.h"
 #include "phosphor_i18n.h"
 #include "config/settings.h"
@@ -66,8 +68,11 @@ class RuleStore;
 class RuleStoreWatcher;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 class ShaderRegistry;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 class ShaderPreviewController;
 class RegistryShaderPreviewBackend;
 }

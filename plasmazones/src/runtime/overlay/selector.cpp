@@ -33,7 +33,7 @@
 #include "phosphor_roles.h"
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -949,4 +949,4 @@ void OverlayService::scrollZoneSelector(int angleDeltaY)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

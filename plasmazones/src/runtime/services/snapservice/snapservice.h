@@ -24,7 +24,7 @@ namespace PhosphorSnapEngine {
 class SnapEngine;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class WindowTracker;
 class ISettings;
@@ -538,4 +538,4 @@ private:
     QVector<QMetaObject::Connection> m_connections;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

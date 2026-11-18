@@ -25,7 +25,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -1148,4 +1148,4 @@ QVector<QVariantMap> ShortcutManager::compressCheatsheetFamilies(QVector<QVarian
     return out;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

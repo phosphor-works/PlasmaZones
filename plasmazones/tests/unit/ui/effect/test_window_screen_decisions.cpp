@@ -12,7 +12,6 @@
  */
 
 #include "plasmazoneseffect/windowscreendecisions.h"
-
 #include <QTest>
 
 using namespace PlasmaZones::WindowScreenDecisions;

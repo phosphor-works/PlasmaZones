@@ -12,6 +12,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QScopeGuard>
 #include <QString>
 #include <QUuid>

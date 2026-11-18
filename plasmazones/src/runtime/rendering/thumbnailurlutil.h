@@ -6,7 +6,7 @@
 #include <QLatin1Char>
 #include <QString>
 
-namespace PlasmaZones::ThumbnailUrl {
+namespace PhosphorEngineRuntime::ThumbnailUrl {
 
 /// Normalise a compositor handle to the unbraced UUID form used for cache
 /// keys and URL paths. Accepts both `{xxxxxxxx-...}` and `xxxxxxxx-...`.
@@ -42,4 +42,4 @@ inline QString makeUrl(const char* providerId, const QString& handle, quint32 ge
     return QStringLiteral("image://%1/%2/%3").arg(QString::fromLatin1(providerId), handle, QString::number(generation));
 }
 
-} // namespace PlasmaZones::ThumbnailUrl
+} // namespace PhosphorEngineRuntime::ThumbnailUrl

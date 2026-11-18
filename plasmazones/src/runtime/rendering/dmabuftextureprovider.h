@@ -13,7 +13,7 @@
 #include <QSet>
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Texture-type QML image provider that imports DMA-BUF window thumbnails
@@ -154,4 +154,4 @@ private:
     quint32 m_generation = 0;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

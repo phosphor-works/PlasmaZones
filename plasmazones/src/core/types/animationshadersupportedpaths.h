@@ -10,7 +10,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Leaf event paths the daemon's overlay service AND the KWin effect
 /// actually resolve a shader effect for, by one of three mechanisms:
@@ -259,4 +259,4 @@ pruneShaderProfileTreeToSupportedPaths(const PhosphorAnimationShaders::ShaderPro
     return pruned;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -20,7 +20,6 @@
 // a seam inside the lint collector. See that file's header for the seam.
 
 #include "packvalidators_surface_lints.h"
-
 #include "packvalidatorcommon.h"
 
 #include <PhosphorShaders/CustomParamsKey.h>

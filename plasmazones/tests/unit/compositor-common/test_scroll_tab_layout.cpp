@@ -12,7 +12,6 @@
 // clipped to the indicator it belongs to.
 
 #include "compositor/scrolltabindicatorpainter.h"
-
 #include <QColor>
 #include <QFont>
 #include <QFontDatabase>

@@ -26,7 +26,7 @@
 #include <optional>
 #include <string_view>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -767,4 +767,4 @@ void appendLayoutAppRulesAsSnapToZone(QList<PhosphorRules::Rule>& rules, const Q
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -10,7 +10,6 @@
 // prevents rather than just the formula it checks.
 
 #include <QtTest>
-
 #include "transitions/stripmotionsampler.h"
 
 using PlasmaZones::StripMotionSampler;

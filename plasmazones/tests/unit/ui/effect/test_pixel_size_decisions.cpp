@@ -10,7 +10,6 @@
  */
 
 #include "plasmazoneseffect/pixelsizedecisions.h"
-
 #include <QTest>
 
 using namespace PlasmaZones::PixelSizeDecisions;

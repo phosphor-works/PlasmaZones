@@ -44,7 +44,7 @@
 #include <optional>
 #include <string_view>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Schema migration: v1 → v2 ───────────────────────────────────────────────
 // Restructures flat groups (Activation, Display, etc.) into nested dot-path
@@ -640,4 +640,4 @@ void ConfigMigration::migrateV1ToV2(QJsonObject& root)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

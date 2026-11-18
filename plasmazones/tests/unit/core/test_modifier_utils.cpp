@@ -12,6 +12,7 @@
 // together.
 
 #include "core/types/enums.h"
+#include "common/engineruntimenamespace.h"
 #include "core/utils/modifierutils.h"
 
 #include <QTest>

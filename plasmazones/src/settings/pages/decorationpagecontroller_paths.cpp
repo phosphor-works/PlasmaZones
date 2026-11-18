@@ -8,7 +8,6 @@
 // the animation sub-pages — there is no C++ label accessor.)
 
 #include "decorationpagecontroller.h"
-
 #include <PhosphorSurface/DecorationSupportedPaths.h>
 
 namespace PlasmaZones {

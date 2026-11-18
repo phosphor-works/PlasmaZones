@@ -20,6 +20,7 @@
  */
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QRectF>
 #include <QSignalSpy>
 #include <QTest>

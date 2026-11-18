@@ -34,7 +34,7 @@ namespace PhosphorSnapEngine {
 class SnapEngine;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 class WindowTracker;
 namespace WindowTrackingInternal {
 
@@ -552,4 +552,4 @@ inline QString indicatorBorderRadius()
 }
 } // namespace WindowPaintKeys
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

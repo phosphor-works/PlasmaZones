@@ -10,7 +10,7 @@
 // below.
 #include "configkeymacro.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The Workspaces.* group names, key strings and named-entry field names.
@@ -168,6 +168,6 @@ public:
     P_CONFIG_KEY(workspaceMoveToMonitorRightKey, "WorkspaceMoveToMonitorRight")
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
 
 #include "configkeymacro_undef.h"

@@ -44,7 +44,7 @@ namespace PhosphorWorkspaces {
 class VirtualDesktopManager;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 class ScreenModeRouter;
@@ -93,4 +93,4 @@ EngineSet createEngines(PhosphorZones::LayoutRegistry* layoutManager,
                         PhosphorZones::IZoneDetector* zoneDetector, ISettings* settings,
                         PhosphorWorkspaces::VirtualDesktopManager* vdm, PhosphorEngine::WindowRegistry* windowRegistry);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

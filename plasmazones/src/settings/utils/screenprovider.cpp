@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "screenprovider.h"
+#include "common/engineruntimenamespace.h"
 #include "dbusutils.h"
 #include "core/platform/logging.h"
 #include <QDBusConnection>

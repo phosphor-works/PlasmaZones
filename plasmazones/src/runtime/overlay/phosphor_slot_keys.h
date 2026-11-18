@@ -16,7 +16,7 @@
 
 #include <QString>
 
-namespace PlasmaZones::PhosphorSlotKeys {
+namespace PhosphorEngineRuntime::PhosphorSlotKeys {
 
 inline const QString& Osd()
 {
@@ -60,4 +60,4 @@ inline const QString& ScrollDropIndicator()
     return s;
 }
 
-} // namespace PlasmaZones::PhosphorSlotKeys
+} // namespace PhosphorEngineRuntime::PhosphorSlotKeys

@@ -8,6 +8,7 @@
 // contract (no filtering, no reordering).
 
 #include "common/stripcardserialize.h"
+#include "common/engineruntimenamespace.h"
 #include "core/types/zoneselectorlayout.h"
 
 #include <PhosphorScrollEngine/ScrollEngineTypes.h>

@@ -11,6 +11,7 @@
 // algorithms can't disturb the manual-zone tests.
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>

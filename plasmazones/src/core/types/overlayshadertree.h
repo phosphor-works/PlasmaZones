@@ -18,7 +18,7 @@ namespace PhosphorShaders {
 class ShaderPresetRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief One zone-overlay shader selection: which pack, with what parameters.
@@ -211,4 +211,4 @@ private:
 PLASMAZONES_EXPORT OverlayShaderProfile withPresetsResolved(const OverlayShaderProfile& profile,
                                                             const PhosphorShaders::ShaderPresetRegistry& presets);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

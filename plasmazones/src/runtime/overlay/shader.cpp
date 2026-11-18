@@ -38,7 +38,7 @@
 #include <QPalette>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Shader Support Methods
@@ -511,4 +511,4 @@ void OverlayService::updateShaderUniforms()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

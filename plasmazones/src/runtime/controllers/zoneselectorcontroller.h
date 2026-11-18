@@ -29,7 +29,7 @@ class ITileAlgorithmRegistry;
 #include <QScreen>
 #include <QQuickItem>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Controller for the PhosphorZones::Zone Selector UI component
@@ -294,4 +294,4 @@ private:
     QTimer m_proximityCheckTimer; // Periodic proximity check during drag
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

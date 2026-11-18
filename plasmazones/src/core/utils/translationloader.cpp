@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "translationloader.h"
+#include "common/engineruntimenamespace.h"
 #include "core/platform/logging.h"
 
 #include <QCoreApplication>

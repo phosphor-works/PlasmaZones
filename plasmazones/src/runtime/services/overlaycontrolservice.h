@@ -17,7 +17,7 @@ class IZoneLayoutRegistry;
 class IZoneDetector;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class IOverlayService;
 class ISettings;
@@ -108,4 +108,4 @@ private:
     ISettings* m_settings; // Interface type (DIP) - for configurable constants
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

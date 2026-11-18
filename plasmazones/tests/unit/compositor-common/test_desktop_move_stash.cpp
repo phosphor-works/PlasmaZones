@@ -9,7 +9,6 @@
  */
 
 #include <QTest>
-
 #include "tilinghandler/desktopmovestash.h"
 
 using PlasmaZones::DesktopMoveStash;

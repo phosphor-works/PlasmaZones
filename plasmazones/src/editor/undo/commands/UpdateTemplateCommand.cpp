@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "UpdateTemplateCommand.h"
-
 #include "../../EditorTemplateModel.h"
 
 namespace PlasmaZones {

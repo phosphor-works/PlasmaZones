@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 /**
  * @file DecorationSetHelpers.h
  * @brief Shared fixtures for the decoration-set test binaries.

@@ -36,7 +36,7 @@
 #include "qml_property_names.h"
 #include "core/types/enums.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Recursive QML item search by objectName, returning the first match.
 inline QQuickItem* findQmlItemByName(QQuickItem* item, const QString& objectName)
@@ -164,4 +164,4 @@ inline void ensureShaderTimerStarted(QElapsedTimer& timer, QMutex& mutex, std::a
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

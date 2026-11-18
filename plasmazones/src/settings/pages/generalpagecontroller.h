@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "config/configdefaults.h"
 
 #include <PhosphorControl/PageController.h>

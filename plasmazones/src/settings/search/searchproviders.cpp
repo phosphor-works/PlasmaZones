@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "searchproviders.h"
-
 #include "settings/controller/settingscontroller.h"
 #include "settings/rules/rulecontroller.h"
 #include "settings/pages/profilepagecontroller.h"

@@ -46,7 +46,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // The rule vocabulary's follow-the-accent token (PhosphorRules::
@@ -927,4 +927,4 @@ void SettingsService::initializeRegistry()
 #undef REGISTER_CONCRETE_STRING
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

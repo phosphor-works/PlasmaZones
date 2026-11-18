@@ -38,7 +38,7 @@
 #include <memory>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // Follow-up panel geometry requery delay (ms): after the debounced geometry update
@@ -1711,4 +1711,4 @@ void EngineRuntime::processPendingGeometryUpdates()
     });
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

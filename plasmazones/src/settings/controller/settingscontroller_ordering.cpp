@@ -15,6 +15,7 @@
 // Same class as settingscontroller_session.cpp, separate TU, no API change.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 

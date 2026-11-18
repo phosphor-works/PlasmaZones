@@ -5,7 +5,7 @@
 #include "config/configdefaults.h"
 #include "core/platform/logging.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // All Store-backed groups (Shaders, Appearance, Ordering, Animations,
 // Rendering, Performance, ZoneGeometry, Shortcuts, Editor, Exclusions,
@@ -141,4 +141,4 @@ void Settings::saveVirtualScreenConfigs(PhosphorConfig::IBackend* backend)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

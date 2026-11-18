@@ -16,6 +16,7 @@
  */
 
 #include "wta_float_back_fixture.h"
+#include "common/engineruntimenamespace.h"
 
 #include "runtime/windowtracker/internal.h"
 #include "dbus/windowtrackingadaptor.h"

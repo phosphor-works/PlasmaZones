@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "runtime/rendering/zoneshaderitem.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorSurfaceQuick/SurfaceShaderItem.h>
 #include <PhosphorRendering/ZoneLabelTexture.h>

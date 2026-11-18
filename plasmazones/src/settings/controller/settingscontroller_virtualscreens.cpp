@@ -13,7 +13,6 @@
 //     driven by save().
 
 #include "settingscontroller.h"
-
 #include "settings/utils/dbusutils.h"
 
 #include <PhosphorProtocol/ClientHelpers.h>

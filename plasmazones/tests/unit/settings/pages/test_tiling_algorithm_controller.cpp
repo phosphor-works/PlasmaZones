@@ -22,7 +22,6 @@
  */
 
 #include <QTest>
-
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTiles/AutotileConstants.h>
 #include <PhosphorTiles/TilingAlgorithm.h>

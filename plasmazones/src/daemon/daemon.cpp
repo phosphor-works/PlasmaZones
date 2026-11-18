@@ -7,6 +7,7 @@
 // the plasma-workspace.target probe in plasmaworkspace.cpp.
 
 #include "daemon/daemon.h"
+#include "common/engineruntimenamespace.h"
 
 #include "common/hostsettings.h"
 #include "config/settings.h"

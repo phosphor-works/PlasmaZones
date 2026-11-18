@@ -27,6 +27,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QVariant>
 #include <QVariantMap>

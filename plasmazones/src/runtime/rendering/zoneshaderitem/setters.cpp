@@ -7,7 +7,7 @@
 
 #include <QMutexLocker>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ============================================================================
 // PhosphorZones::Zone Data Setters
@@ -151,4 +151,4 @@ void ZoneShaderItem::setLabelsTextureVariant(const QVariant& labels)
     setLabelsTexture({});
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

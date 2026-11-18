@@ -10,7 +10,7 @@
 
 #include <memory>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void loadRuntimeTranslations(QCoreApplication* app)
 {
@@ -39,4 +39,4 @@ void loadRuntimeTranslations(QCoreApplication* app)
     qCDebug(lcCore) << "No engine runtime translations found for locale" << locale.name();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

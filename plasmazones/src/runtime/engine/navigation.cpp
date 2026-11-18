@@ -26,7 +26,7 @@
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <QScreen>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Local helper: mode check with nullptr-safe fallback. Every daemon
@@ -866,4 +866,4 @@ void EngineRuntime::handleRotateVirtualScreens(bool clockwise)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

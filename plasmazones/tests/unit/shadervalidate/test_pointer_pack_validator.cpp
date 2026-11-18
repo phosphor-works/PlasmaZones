@@ -19,7 +19,6 @@
 // whatever is INSTALLED rather than the working tree.
 
 #include <QtTest>
-
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>

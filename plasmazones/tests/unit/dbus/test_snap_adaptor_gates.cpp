@@ -15,6 +15,7 @@
  */
 
 #include "wta_float_back_fixture.h"
+#include "common/engineruntimenamespace.h"
 #include "helpers/VirtualScreenTestHelpers.h"
 #include "runtime/services/controlservice.h"
 #include "runtime/services/snapservice/snapservice.h"

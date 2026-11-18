@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // Page-class predicates, shared-domain config key lists, the quick-layout slot
 // count, and the loading-flag scope guard shared across the settings app's page
 // translation units.

@@ -10,6 +10,7 @@
 // TU.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "common/kwinperoutputdesktops.h"
 #include "config/configdefaults.h"

@@ -7,6 +7,7 @@
 // also guard the shared writeAlgorithmFlat() path used by both projections.
 
 #include <QJsonObject>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 #include <QVariantMap>
 

@@ -26,7 +26,7 @@
 #include <QKeySequence>
 #include <QScreen>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -301,4 +301,4 @@ void EngineRuntime::onCheatsheetDismissed()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

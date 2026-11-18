@@ -7,6 +7,7 @@
 // the security-sensitive install path is the shared ShaderPackInstaller.
 
 #include "decorationpagecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "core/interfaces/isettings.h"

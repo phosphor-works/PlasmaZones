@@ -26,7 +26,6 @@
  */
 
 #include <QTest>
-
 #include <QFile>
 #include <QMetaMethod>
 #include <QMetaObject>

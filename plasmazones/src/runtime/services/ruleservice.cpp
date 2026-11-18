@@ -16,7 +16,7 @@
 
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -264,4 +264,4 @@ void RuleService::resetManagedDefaults()
     m_store->load();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

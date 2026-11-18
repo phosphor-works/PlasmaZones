@@ -24,7 +24,6 @@
 // radius parameter to come out clean, so it lives in the blur-chain file instead.
 
 #include <QtTest>
-
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>

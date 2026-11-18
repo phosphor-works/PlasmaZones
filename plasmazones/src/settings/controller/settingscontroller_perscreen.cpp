@@ -19,6 +19,7 @@
 // private state. Same class, separate translation unit, no API change.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "config/settings.h"

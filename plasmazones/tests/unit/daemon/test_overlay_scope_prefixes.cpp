@@ -34,6 +34,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 
 #include <memory>
 

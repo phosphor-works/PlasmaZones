@@ -13,7 +13,7 @@
 #include <QScopedValueRollback>
 #include <QThread>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Appearance: palette-following colours ────────────────────────────────────
 // The four zone-colour keys (and the scrolling drop indicator's two, which
@@ -227,4 +227,4 @@ QColor Settings::resolvedSystemColor(SystemColorRole role)
     return pal.color(QPalette::Active, QPalette::Highlight);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

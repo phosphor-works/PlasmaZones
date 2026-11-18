@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // The window's desktop set as the engines key their states: x11 numbering,
@@ -283,4 +283,4 @@ void TilingService::readoptRenumberEvictees(const InViewTest& inView)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

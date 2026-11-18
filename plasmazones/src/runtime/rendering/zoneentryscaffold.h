@@ -10,7 +10,7 @@
 #include <QList>
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// The harness scaffold for zone fragment shaders authored against the T1.4
 /// entry-point convention (scope B): a pack defines only `vec4 pZone(ZoneCtx)`
@@ -47,4 +47,4 @@ PLASMAZONES_RENDERING_EXPORT QList<PhosphorShaders::EntryCandidate> zoneEntryCan
 /// source while colliding on one key.
 PLASMAZONES_RENDERING_EXPORT QString assembleZoneEntrySource(const QString& rawFragmentSource);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

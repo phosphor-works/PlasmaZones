@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "stagingservice.h"
+#include "common/engineruntimenamespace.h"
 
 #include "settings/controller/settingscontroller_pagekeys.h"
 #include "settings/utils/dbusutils.h"

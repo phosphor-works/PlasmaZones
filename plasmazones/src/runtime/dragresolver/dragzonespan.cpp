@@ -22,7 +22,7 @@
  * belong together and apart from the tick that dispatches them.
  */
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void DragResolver::handleZoneSpanModifier(int x, int y)
 {
@@ -279,4 +279,4 @@ bool DragResolver::unregisterDropProxy(const QString& screenId, const QString& o
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

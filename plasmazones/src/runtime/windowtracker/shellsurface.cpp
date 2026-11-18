@@ -19,7 +19,7 @@
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 bool WindowTracker::isRegistryTracked(const QString& windowId) const
 {
@@ -135,4 +135,4 @@ void WindowTracker::onShellRegistryWindowGone(const QString& instanceId)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -8,7 +8,7 @@
 #include <PhosphorCompositor/DecorationDefaults.h>
 #include <PhosphorSurface/DecorationSupportedPaths.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 4: audio-spectrum shader, decoration-shader, and
 // decoration-performance default accessors.
@@ -361,4 +361,4 @@ public:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -16,7 +16,7 @@
 
 #include <memory>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 ControlService::ControlService(WindowTracker* wta, SnapService* snapService,
                                PhosphorZones::LayoutRegistry* layoutManager,
@@ -136,4 +136,4 @@ void ControlService::detach()
     m_modeToggle = nullptr;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

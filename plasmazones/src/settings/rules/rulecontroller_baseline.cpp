@@ -11,6 +11,7 @@
 // gone — the Rules page carries only user-authored rules now.
 
 #include "rulecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 

@@ -34,7 +34,7 @@
 #include <QColor>
 #include <QUuid> // id-format validation (defaultScrollingTemplate, scrollingTemplateOrder)
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void SettingsService::initializeRegistryScrolling()
 {
@@ -865,4 +865,4 @@ void SettingsService::initializeRegistryScrolling()
 #undef REGISTER_CONCRETE_STRING
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

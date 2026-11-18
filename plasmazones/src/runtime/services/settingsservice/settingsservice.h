@@ -17,7 +17,7 @@ namespace PhosphorAnimation {
 class PhosphorProfileRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 class Settings; // Forward declaration for concrete type
@@ -346,4 +346,4 @@ private:
     QString m_cachedShaderSearchPaths;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

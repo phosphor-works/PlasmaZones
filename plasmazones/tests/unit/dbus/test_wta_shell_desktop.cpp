@@ -23,6 +23,7 @@
  */
 
 #include <QDBusConnection>
+#include "common/engineruntimenamespace.h"
 #include <QDBusMessage>
 #include <QScopeGuard>
 #include <QTest>

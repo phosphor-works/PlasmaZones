@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "TemplateService.h"
+#include "common/engineruntimenamespace.h"
 #include "TemplateStrategy.h"
 #include "core/types/constants.h"
 

@@ -13,6 +13,7 @@
  */
 
 #include <QJsonArray>
+#include "common/engineruntimenamespace.h"
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>

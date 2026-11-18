@@ -16,7 +16,7 @@
 
 #include <memory>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Primary user config (~/.config/plasmazones/config.json).
 PLASMAZONES_EXPORT std::unique_ptr<PhosphorConfig::IBackend> createDefaultConfigBackend();
@@ -25,4 +25,4 @@ PLASMAZONES_EXPORT std::unique_ptr<PhosphorConfig::IBackend> createDefaultConfig
 /// Separate file from config.json to avoid write contention.
 PLASMAZONES_EXPORT std::unique_ptr<PhosphorConfig::IBackend> createSessionBackend();
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

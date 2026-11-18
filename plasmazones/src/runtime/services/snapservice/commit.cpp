@@ -10,7 +10,7 @@
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Snap confirmations from the compositor: only the registered bridge may make
@@ -365,4 +365,4 @@ bool SnapService::validateWindowId(const QString& windowId, const QString& opera
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

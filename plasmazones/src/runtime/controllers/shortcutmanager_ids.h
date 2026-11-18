@@ -12,7 +12,7 @@
 // (shortcutmanager_catalog.cpp), and the daemon's named-workspace chord
 // binding, which builds its adhoc ids with the builders below.
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace ShortcutIds {
 
 // Stable string ids are documented contract: they appear in
@@ -193,4 +193,4 @@ inline QString scrollFocusTabId(int slotZeroBased)
 }
 
 } // namespace ShortcutIds
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

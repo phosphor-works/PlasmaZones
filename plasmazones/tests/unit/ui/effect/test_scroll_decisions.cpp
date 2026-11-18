@@ -27,7 +27,6 @@
 // the pure halves are extracted into a header this test includes directly.
 
 #include <tilinghandler/scrolldecisions.h>
-
 #include <QTest>
 
 using namespace PlasmaZones::ScrollDecisions;

@@ -38,7 +38,7 @@ namespace PhosphorSurfaceShaders {
 class DecorationProfileTree;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class OverlayShaderTree;
 
@@ -1231,4 +1231,4 @@ Q_SIGNALS:
     void systemColorSchemeChanged();
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

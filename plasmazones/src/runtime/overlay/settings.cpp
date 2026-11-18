@@ -17,7 +17,7 @@
 #include <QScreen>
 #include <QTimer>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void OverlayService::setSettings(ISettings* settings)
 {
@@ -600,4 +600,4 @@ void OverlayService::scheduleIdleQuiesce()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

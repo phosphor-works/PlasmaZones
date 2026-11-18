@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// One resolver instance per process — stateless, shared by every backend
@@ -52,4 +52,4 @@ std::unique_ptr<PhosphorConfig::IBackend> createSessionBackend()
     return backend;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

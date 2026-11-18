@@ -31,7 +31,7 @@
 
 #include <QVariantList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 PLASMAZONES_EXPORT QVariantList stripColumnsToVariantList(const PhosphorScrollEngine::ScrollStripSnapshot& snapshot);
 
@@ -43,4 +43,4 @@ PLASMAZONES_EXPORT QVariantList stripColumnsToVariantList(const PhosphorScrollEn
 /// full-width fallback for out-of-range values.
 PLASMAZONES_EXPORT QList<qreal> stripFractionsFromColumns(const QVariantList& columns);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

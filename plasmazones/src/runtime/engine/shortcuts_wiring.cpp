@@ -26,7 +26,7 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::connectShortcutSignals()
 {
@@ -579,4 +579,4 @@ void EngineRuntime::connectShortcutSignals()
     });
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

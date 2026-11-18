@@ -5,7 +5,7 @@
 
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -70,4 +70,4 @@ void SnapGapTracker::clear()
     m_verdicts.clear();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

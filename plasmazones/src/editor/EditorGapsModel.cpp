@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "EditorGapsModel.h"
+#include "common/engineruntimenamespace.h"
 
 #include "EditorController.h"
 #include "undo/UndoController.h"

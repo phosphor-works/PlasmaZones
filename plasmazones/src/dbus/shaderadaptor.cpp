@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "shaderadaptor.h"
+#include "common/engineruntimenamespace.h"
 
 #include "runtime/services/shaderservice.h"
 

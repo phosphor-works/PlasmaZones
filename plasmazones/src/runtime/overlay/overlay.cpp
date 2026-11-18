@@ -33,7 +33,7 @@
 
 #include <utility> // std::as_const
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -1144,4 +1144,4 @@ void OverlayService::updateOverlayWindow(const QString& screenId, QScreen* physS
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

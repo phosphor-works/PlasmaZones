@@ -11,7 +11,7 @@
 
 #include <functional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// The daemon's evacuee ledger. When an output disconnects, KWin moves its
 /// windows to another one and each engine parks what it held of them there
@@ -76,4 +76,4 @@ struct EvacueeLedger
     QList<QMetaObject::Connection> touchConnections;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

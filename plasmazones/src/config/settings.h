@@ -40,7 +40,7 @@
 #include <memory>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Global settings for PlasmaZones
@@ -3053,4 +3053,4 @@ private:
     PhosphorAnimation::CurveRegistry* m_curveRegistry = nullptr;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

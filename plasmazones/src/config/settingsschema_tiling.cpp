@@ -21,7 +21,7 @@
 
 using namespace Qt::StringLiterals;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using SchemaValidators::canonicalCommaList;
 using SchemaValidators::clampDouble;
@@ -152,4 +152,4 @@ void appendAutotilingSchema(PhosphorConfig::Schema& schema)
     };
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

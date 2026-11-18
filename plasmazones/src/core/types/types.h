@@ -13,7 +13,7 @@
 #include <QStringList>
 #include <QRect>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using NavigationContext = PhosphorEngine::NavigationContext;
 
@@ -77,4 +77,4 @@ struct PLASMAZONES_EXPORT NavigationCommand
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

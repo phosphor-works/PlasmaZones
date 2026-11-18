@@ -29,7 +29,7 @@
 
 Q_LOGGING_CATEGORY(lcWorkspaceCtl, "plasmazones.workspaces.controller", QtInfoMsg)
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// Adoption grace: how long to wait for every screen's per-output desktop
@@ -1098,4 +1098,4 @@ PhosphorWorkspaces::WorkspaceReconciler& WorkspaceController::reconciler()
     return m_reconciler;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

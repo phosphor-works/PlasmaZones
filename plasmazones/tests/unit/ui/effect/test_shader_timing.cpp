@@ -19,7 +19,6 @@
  */
 
 #include <QTest>
-
 #include <cmath>
 
 #include <PhosphorAnimation/AnimationLimits.h>

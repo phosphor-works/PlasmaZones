@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "config/configdefaults.h"
 #include "config/settingsschema.h"
 #include "core/interfaces/interfaces.h"

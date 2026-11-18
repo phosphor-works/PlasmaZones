@@ -15,6 +15,7 @@
  */
 
 #include <QJsonValue>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QTest>
 #include <QUuid>

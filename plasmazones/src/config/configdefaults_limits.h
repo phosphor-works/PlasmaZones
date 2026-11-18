@@ -5,7 +5,7 @@
 
 #include "configdefaults_gaps.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 3: performance, exclusion, and animation/decoration window-filtering
 // (min-size / transient) default accessors.
@@ -179,4 +179,4 @@ public:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

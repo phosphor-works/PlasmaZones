@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "windowtrackingadaptor.h"
+#include "common/engineruntimenamespace.h"
 
 #include "dbushelpers.h"
 #include "core/utils/dbusvariantutils.h"

@@ -13,6 +13,7 @@
  */
 
 #include <QByteArray>
+#include "common/engineruntimenamespace.h"
 #include <QFile>
 #include <QIODevice>
 #include <QJsonArray>

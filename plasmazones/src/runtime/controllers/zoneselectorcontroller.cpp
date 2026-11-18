@@ -18,7 +18,7 @@
 #include "core/platform/logging.h"
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 constexpr int CollapseDelayMs = 300; // Delay before collapsing selector after cursor leaves
@@ -105,7 +105,7 @@ QVariantList ZoneSelectorController::layouts() const
         m_includeAutotileLayouts, aspectRatio, m_settings && m_settings->filterLayoutsByAspectRatio(),
         PhosphorZones::LayoutUtils::buildCustomOrder(m_settings, m_includeManualLayouts, m_includeAutotileLayouts),
         m_autotileLayoutSource);
-    return PlasmaZones::toVariantList(entries);
+    return PhosphorEngineRuntime::toVariantList(entries);
 }
 
 void ZoneSelectorController::setAlgorithmRegistry(PhosphorTiles::ITileAlgorithmRegistry* registry)
@@ -534,4 +534,4 @@ ZoneSelectorController::State ZoneSelectorController::stringToState(const QStrin
     return State::Hidden;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

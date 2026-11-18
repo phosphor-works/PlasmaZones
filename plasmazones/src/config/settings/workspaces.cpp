@@ -14,7 +14,7 @@
 #include <iterator>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Workspaces (PhosphorConfig::Store-backed) ───────────────────────────────
 // Dynamic per-monitor workspaces: the gate scalars, the named-workspace
@@ -397,4 +397,4 @@ P_WORKSPACE_SLOT(8)
 P_WORKSPACE_SLOT(9)
 #undef P_WORKSPACE_SLOT
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

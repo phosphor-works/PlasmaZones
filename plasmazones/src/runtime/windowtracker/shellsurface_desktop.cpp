@@ -18,7 +18,7 @@
 #include "core/platform/logging.h"
 #include <PhosphorEngine/WindowRegistry.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void WindowTracker::recordShellWindowFacts(const QString& windowId, const PhosphorEngine::WindowMetadata& current)
 {
@@ -110,4 +110,4 @@ QString WindowTracker::findWindowByPid(int pid)
     return best;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

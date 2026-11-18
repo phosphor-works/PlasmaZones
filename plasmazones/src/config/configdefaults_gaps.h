@@ -5,7 +5,7 @@
 
 #include "configdefaults_appearance.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 2: shared inner/outer gap + adjacency default accessors.
 class ConfigDefaultsGaps : public ConfigDefaultsAppearance
@@ -107,4 +107,4 @@ public:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

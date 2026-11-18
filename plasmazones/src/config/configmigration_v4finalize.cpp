@@ -38,7 +38,7 @@
 #include <optional>
 #include <string_view>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -1165,4 +1165,4 @@ bool ConfigMigration::renameRetiredAnimationEventPaths(const QString& jsonPath)
     });
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -57,7 +57,7 @@
 #include <QTimer>
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -1252,4 +1252,4 @@ void EngineRuntime::initEnginesAndWiring()
             &EngineRuntime::handleAssignmentChangesApplied);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -29,7 +29,6 @@
  */
 
 #include <PhosphorAnimation/ProfilePaths.h>
-
 #include <QTest>
 
 #include <QDir>

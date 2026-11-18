@@ -22,7 +22,7 @@
 #include <QHash>
 #include <QSet>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void WindowTracker::pruneStaleWindows(const QStringList& aliveWindowIds)
 {
@@ -280,4 +280,4 @@ void WindowTracker::pruneStaleWindows(const QStringList& aliveWindowIds)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

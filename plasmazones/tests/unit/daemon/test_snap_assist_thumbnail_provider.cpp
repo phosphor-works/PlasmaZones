@@ -6,6 +6,7 @@
 // braced-UUID lookup path.
 
 #include "runtime/rendering/snapassistthumbnailprovider.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QtTest/QtTest>
 #include <QImage>

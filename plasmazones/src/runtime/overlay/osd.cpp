@@ -28,7 +28,7 @@
 
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // Size the OSD window to its target screen rect. The wl_surface is now
@@ -874,4 +874,4 @@ void OverlayService::showNavigationOsd(bool success, const QString& action, cons
 // overlay shell created by ensurePassiveShellFor above, so a single
 // create/destroy pair serves both OSD modes.
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -9,6 +9,7 @@
 // as settingscontroller.cpp, separate translation unit, no API change.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 #include "version.h"
 
 #include "config/configdefaults.h"

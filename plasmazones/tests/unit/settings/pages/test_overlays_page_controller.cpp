@@ -38,6 +38,7 @@
  */
 
 #include <QSignalSpy>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 #include <QUuid>
 

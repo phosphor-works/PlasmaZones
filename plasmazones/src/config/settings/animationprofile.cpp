@@ -10,7 +10,7 @@
 
 #include <QJsonObject>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Animations (PhosphorConfig::Store-backed) ───────────────────────────────
 // Snapping + autotile geometry-change transitions. The animation Profile is one
@@ -476,4 +476,4 @@ void Settings::setAnimationStaggerInterval(int ms)
                            &Settings::animationStaggerIntervalChanged);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

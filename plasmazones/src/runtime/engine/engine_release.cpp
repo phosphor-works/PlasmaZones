@@ -27,7 +27,7 @@
 
 #include <QRect>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Shared windowsReleased handler for BOTH tiling-family engines: a screen
 // flipping back to SNAPPING restores each window's snap float bit and
@@ -316,4 +316,4 @@ void EngineRuntime::handleEngineWindowsReleased(PhosphorEngine::IPlacementEngine
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -44,7 +44,7 @@ class ActivityManager;
 class VirtualDesktopManager;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 
@@ -840,4 +840,4 @@ private:
     QTimer m_layoutSourceCoalesce;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

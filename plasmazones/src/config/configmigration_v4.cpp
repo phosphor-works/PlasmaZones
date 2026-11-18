@@ -44,7 +44,7 @@
 #include <optional>
 #include <string_view>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Schema migration: v3 → v4 ───────────────────────────────────────────────
 // Window-rule consolidation — Phase 3.
@@ -295,4 +295,4 @@ void ConfigMigration::migrateV3ToV4(QJsonObject& root)
     root[ConfigKeys::versionKey()] = 4;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -4,7 +4,7 @@
 #include "dragactivation.h"
 #include <limits>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 ActivationDecision resolveActivationActive(bool triggerHeld, bool toggleMode, bool alwaysActiveOnDrag,
                                            bool prevTriggerHeld, bool activationToggled)
@@ -117,4 +117,4 @@ bool shouldRearmGraceExpiry(bool timerActive, int timerRemainingMs, int dueMs)
     return !timerActive || timerRemainingMs > dueMs;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

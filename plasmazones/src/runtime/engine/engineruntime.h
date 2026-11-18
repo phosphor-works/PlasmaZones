@@ -40,7 +40,7 @@
 #include "runtime/engine/screenreshapetracker.h"
 #include "runtime/engine/snapgaptracker.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The placement engine runtime: layouts, the three engines, window
@@ -1090,7 +1090,7 @@ private:
      * active-assignment snapshot and the handler's own diff resolves them
      * with whatever size is in force, and as the first step of
      * @ref onCompositorPixelSizeChanged. A parked report is left pending.
-     * The work is PlasmaZones::admitPixelSizeReport's, over this daemon's
+     * The work is PhosphorEngineRuntime::admitPixelSizeReport's, over this daemon's
      * ScreenManager and with the window-tracking adaptor's session state as
      * the persist sink. Returns the tracker's verdict.
      */
@@ -2065,4 +2065,4 @@ private:
     QTimer m_gapResnapTimer;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

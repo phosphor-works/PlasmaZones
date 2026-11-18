@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "singleinstanceservice.h"
+#include "common/engineruntimenamespace.h"
 
 #include "logging.h"
 

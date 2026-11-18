@@ -21,7 +21,7 @@
 #include <QSet>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// D-Bus boundary guard shared by every per-desktop slot in this file:
@@ -1112,4 +1112,4 @@ void LayoutService::setAssignmentEntry(const QString& screenId, int virtualDeskt
                          << "tiling=" << tilingAlgorithm << "template=" << entry.scrollingTemplateLayout;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

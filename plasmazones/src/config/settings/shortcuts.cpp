@@ -6,7 +6,7 @@
 #include "config/configdefaults.h"
 #include "core/platform/logging.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Shortcuts (PhosphorConfig::Store-backed) ────────────────────────────────
 // Every shortcut is a flat string; schema registers them without validators.
@@ -179,4 +179,4 @@ P_STORE_GET(int, fillOnDropModifier, editorFillOnDropGroup, modifierKey, int)
 P_STORE_SET_INT(setFillOnDropModifier, editorFillOnDropGroup, modifierKey, fillOnDropModifierChanged)
 P_STORE_GET(qreal, editorBackgroundOpacity, editorBackgroundGroup, opacityKey, double)
 P_STORE_SET_DOUBLE(setEditorBackgroundOpacity, editorBackgroundGroup, opacityKey, editorBackgroundOpacityChanged)
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

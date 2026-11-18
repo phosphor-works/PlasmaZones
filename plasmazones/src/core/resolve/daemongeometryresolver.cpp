@@ -10,7 +10,7 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ZoneDefaults.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 QVariantMap DaemonGeometryResolver::contextGapOverrideFor(const QString& screenId) const
 {
@@ -74,4 +74,4 @@ int DaemonGeometryResolver::snapBorderInset() const
     return 0;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

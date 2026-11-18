@@ -86,7 +86,7 @@ namespace PhosphorShaders {
 class ShaderPresetRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 class ShaderRegistry;
 class SnapAssistThumbnailProvider;
 class DmabufTextureProvider;
@@ -102,7 +102,7 @@ class QQuickItem;
 class QScreen;
 class QTimer;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Manages zone overlay windows
@@ -125,7 +125,7 @@ public:
     /// Per-screen overlay state (window pointers, physical screen references,
     /// geometry). Defined in overlayservice_types.h; aliased here so existing
     /// OverlayService::PerScreenOverlayState references keep working.
-    using PerScreenOverlayState = PlasmaZones::PerScreenOverlayState;
+    using PerScreenOverlayState = PhosphorEngineRuntime::PerScreenOverlayState;
 
     /// @param screenManager Borrowed; must outlive this service.
     /// @param shaderRegistry Borrowed; must outlive this service. Used by
@@ -892,7 +892,7 @@ private:
     /// Defined in overlayservice_types.h (hoisted with the other value
     /// types); aliased so existing OverlayService::LayoutIncludeFlags
     /// references keep working.
-    using LayoutIncludeFlags = PlasmaZones::LayoutIncludeFlags;
+    using LayoutIncludeFlags = PhosphorEngineRuntime::LayoutIncludeFlags;
     /// Resolve the per-screen include filter. buildLayoutsList (the popup
     /// model) and visibleLayoutCount (used by isNearTriggerEdge to size
     /// the keep-visible bar) both go through here so the trigger geometry
@@ -1340,7 +1340,7 @@ private:
     /// Shared property-push parameters for layout-OSD content. Defined in
     /// overlayservice_types.h; aliased here so existing nested-name
     /// references keep working.
-    using LayoutOsdContentParams = PlasmaZones::LayoutOsdContentParams;
+    using LayoutOsdContentParams = PhosphorEngineRuntime::LayoutOsdContentParams;
     void pushLayoutOsdContent(QObject* osdSlot, const LayoutOsdContentParams& params);
 
     /// Resolve a surface-decoration pack from the settings' DecorationProfileTree
@@ -1543,7 +1543,7 @@ private:
     /// Parameters for @ref createLayerSurface. Defined in
     /// overlayservice_types.h; aliased here so existing nested-name
     /// references keep working.
-    using LayerSurfaceParams = PlasmaZones::LayerSurfaceParams;
+    using LayerSurfaceParams = PhosphorEngineRuntime::LayerSurfaceParams;
 
     /**
      * @brief Create a PhosphorLayer::Surface for a layer-shell-backed overlay window.
@@ -1686,4 +1686,4 @@ private:
     QSet<QString> m_excludedScreens;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

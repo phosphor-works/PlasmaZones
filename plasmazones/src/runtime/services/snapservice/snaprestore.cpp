@@ -16,7 +16,7 @@
 
 #include <QScopeGuard>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // Non-blocking startup gate shared by all synchronous snap D-Bus methods.
@@ -510,4 +510,4 @@ bool SnapService::applySnapResult(const SnapResult& result, const QString& windo
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

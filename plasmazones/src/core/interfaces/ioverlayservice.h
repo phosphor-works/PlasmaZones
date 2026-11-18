@@ -30,7 +30,7 @@ class Layout;
 class Zone;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 
@@ -365,4 +365,4 @@ Q_SIGNALS:
     void cheatsheetDismissed();
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

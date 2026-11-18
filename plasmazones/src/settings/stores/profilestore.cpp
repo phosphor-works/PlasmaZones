@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "profilestore.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/utils/utils.h"
 #include "config/configkeys.h"

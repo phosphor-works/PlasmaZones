@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QHash>
 #include <QString>
 #include <QStringList>
@@ -11,9 +13,11 @@
 #include <functional>
 #include <optional>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class Settings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /// Owns the "staged-but-not-yet-saved" state that the Settings app
 /// accumulates between `load()` and `save()`.

@@ -32,7 +32,7 @@
 
 #include <QJsonArray>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Engine wiring — cross-references and shared navigation feedback
@@ -622,4 +622,4 @@ void WindowTracker::setRuleStore(PhosphorRules::RuleStore* store)
     m_ruleEvaluator.reset();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

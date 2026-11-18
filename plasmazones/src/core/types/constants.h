@@ -29,7 +29,7 @@
 // autotile namespaces now include `<PhosphorTiles/AutotileConstants.h>`
 // directly.
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Dynamic QCoreApplication property carrying the GPU-preference environment
 /// variable names this process exported (a QStringList; see
@@ -67,7 +67,7 @@ inline constexpr const char* PDaemonEnvIntroducedVarsProperty = "_p_daemonEnvInt
 inline constexpr const char* PDaemonEnvInheritedVarsProperty = "_p_daemonEnvInheritedVars";
 
 // PhosphorZones::ZoneGeometryMode lives in libs/phosphor-zones —
-// `PhosphorZones::Zone.h` declares it inside `namespace PlasmaZones` so it's
+// `PhosphorZones::Zone.h` declares it inside `namespace PhosphorEngineRuntime` so it's
 // visible to existing callers via the same name.  No alias needed here;
 // consumers that need the enum include `<PhosphorZones/Zone.h>` directly.
 
@@ -319,4 +319,4 @@ inline constexpr auto& RestoreSentinel = PhosphorEngine::RestoreSentinel;
 // All PlasmaZones-side callers now reference it qualified directly — no
 // `using EdgeGaps = ...` alias here.
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

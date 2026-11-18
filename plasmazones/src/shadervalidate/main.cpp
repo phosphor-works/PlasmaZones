@@ -47,6 +47,7 @@
 // root that holds pack subdirectories. Exits non-zero if any pack has an error.
 
 #include "packvalidatorcommon.h"
+#include "common/engineruntimenamespace.h"
 #include "packvalidators.h"
 #include "common/hostsettings.h"
 #include "core/types/constants.h"

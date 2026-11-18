@@ -26,7 +26,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcSnapAssistTrace)
 #include <functional>
 #include <unistd.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -719,4 +719,4 @@ void DmabufTextureProvider::clear()
     m_revealed.clear();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

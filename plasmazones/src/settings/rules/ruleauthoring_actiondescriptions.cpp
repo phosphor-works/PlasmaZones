@@ -16,7 +16,6 @@
 // picker side.
 
 #include "ruleauthoring.h"
-
 #include "phosphor_i18n.h"
 
 #include <PhosphorRules/RuleAction.h>

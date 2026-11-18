@@ -7,7 +7,7 @@
 
 #include <PhosphorAudio/IAudioSpectrumProvider.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Assemble the CAVA provider's full parameter set from ISettings. The
 /// provider normalizes (clamps/sanitizes) on apply, so values pass through
@@ -37,4 +37,4 @@ inline PhosphorAudio::SpectrumOptions cavaOptionsFromSettings(const ISettings* s
     return opts;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

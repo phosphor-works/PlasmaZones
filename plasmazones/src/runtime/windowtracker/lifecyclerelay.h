@@ -9,7 +9,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// In-process notices of a window's close and of a prune sweep, for the
 /// sibling adaptors that keep their own per-window state, and of the effect's
@@ -41,4 +41,4 @@ Q_SIGNALS:
     void screenDesktopReported(const QString& screenId, int desktop);
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

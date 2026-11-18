@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "profilepagecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "config/configmigration.h"

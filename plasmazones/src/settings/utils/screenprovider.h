@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorScreens/ScreenInfo.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <QList>
@@ -12,9 +14,11 @@
 
 class QObject;
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ISettings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief Fetch the list of connected screens via D-Bus (daemon) with Qt fallback

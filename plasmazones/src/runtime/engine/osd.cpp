@@ -38,7 +38,7 @@
 
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -1270,4 +1270,4 @@ bool EngineRuntime::isCurrentContextLockedForMode(const QString& screenId,
 
 // The shortcut cheatsheet overlay lives in daemon/cheatsheet.cpp.
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

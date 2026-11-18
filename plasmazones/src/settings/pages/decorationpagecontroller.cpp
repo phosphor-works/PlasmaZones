@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "decorationpagecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "decoration_controller_detail.h"
 #include "decorationpreviewcontroller.h"

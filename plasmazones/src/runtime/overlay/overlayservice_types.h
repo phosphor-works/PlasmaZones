@@ -26,7 +26,7 @@ namespace PhosphorLayer {
 class Surface;
 } // namespace PhosphorLayer
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Per-screen overlay state, grouping window pointers, physical screen
@@ -200,4 +200,4 @@ struct PreparedLayoutOsdWindow
     QString effectiveScreenId = {};
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

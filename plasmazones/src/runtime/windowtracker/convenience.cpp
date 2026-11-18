@@ -14,7 +14,7 @@
 
 #include <array>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 PhosphorProtocol::WindowStateEntry WindowTracker::stateRowFor(const QString& windowId) const
 {
@@ -114,4 +114,4 @@ PhosphorProtocol::WindowStateList WindowTracker::getAllWindowStates()
     return result;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

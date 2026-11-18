@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "virtualscreenutils.h"
-
 #include <PhosphorIdentity/VirtualScreenId.h>
 
 #include <QRectF>

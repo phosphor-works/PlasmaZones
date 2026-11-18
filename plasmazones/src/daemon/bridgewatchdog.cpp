@@ -7,6 +7,7 @@
 // user once. Daemon::start() arms the watchdog and connects it here.
 
 #include "daemon/daemon.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 #include "dbus/compositorbridgeadaptor.h"

@@ -24,7 +24,7 @@ namespace PhosphorScreens {
 class ScreenManager;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Lookup and validation helpers shared by the runtime's services and
@@ -358,4 +358,4 @@ QRectF resolveScreenGeometry(PhosphorScreens::ScreenManager* mgr, PhosphorZones:
                              const QString& screenId);
 
 } // namespace Lookups
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -10,6 +10,7 @@
 // workspace moved to another monitor.
 
 #include "runtime/controllers/workspacecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "runtime/controllers/shortcutmanager.h"
 

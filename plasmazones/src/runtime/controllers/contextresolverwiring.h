@@ -16,7 +16,7 @@ namespace PhosphorZones {
 class LayoutRegistry;
 } // namespace PhosphorZones
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 class ScreenModeRouter;
@@ -133,4 +133,4 @@ private:
     PhosphorZones::LayoutRegistry* m_layoutRegistry;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

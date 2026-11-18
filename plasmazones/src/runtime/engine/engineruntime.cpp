@@ -91,7 +91,7 @@
 #include "common/screenidresolver.h"
 #include "common/layoutbundlebuilder.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Snapping and autotile share one unified gap model: a single innerGap (the
 // gap between two adjacent regions — each zone's interior edge insets by
@@ -348,4 +348,4 @@ void EngineRuntime::showSystemOsd(const QString& iconName, const QString& text)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

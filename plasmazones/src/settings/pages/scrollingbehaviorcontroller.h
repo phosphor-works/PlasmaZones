@@ -3,13 +3,17 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorControl/PageController.h>
 #include <QObject>
 #include <QVariantList>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ISettings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /// Q_PROPERTY surface for the scrolling trigger lists on the
 /// "Scrolling → Window" page: the drag re-insert triggers (the Triggers

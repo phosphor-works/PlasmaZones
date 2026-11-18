@@ -24,7 +24,7 @@
 #include <algorithm>
 #include <iterator>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -662,4 +662,4 @@ void ShortcutManager::buildEntries()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

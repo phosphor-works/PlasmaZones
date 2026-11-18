@@ -17,7 +17,7 @@
 #include <initializer_list>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Declare the legal values of an int-valued enum key.
 ///
@@ -65,4 +65,4 @@ inline QVector<PhosphorConfig::ChoiceDef> tokenChoices(const QStringList& tokens
     return out;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

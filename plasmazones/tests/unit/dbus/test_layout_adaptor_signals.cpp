@@ -29,6 +29,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QGuiApplication>
 #include <QDBusVariant>
 #include <QScopeGuard>

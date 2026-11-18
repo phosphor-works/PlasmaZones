@@ -9,7 +9,6 @@
 // and on its own in a user data dir with the helpers installed elsewhere.
 
 #include <QtTest>
-
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>

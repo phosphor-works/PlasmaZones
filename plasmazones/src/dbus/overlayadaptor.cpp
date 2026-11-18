@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "overlayadaptor.h"
+#include "common/engineruntimenamespace.h"
 #include "runtime/services/overlaycontrolservice.h"
 #include "dbushelpers.h"
 #include "runtime/common/lookups.h"

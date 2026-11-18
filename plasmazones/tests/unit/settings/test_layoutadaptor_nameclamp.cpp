@@ -14,6 +14,7 @@
 // name the user never typed reaching disk.
 
 #include "core/types/constants.h"
+#include "common/engineruntimenamespace.h"
 
 #include "runtime/services/layoutservice/layoutservice.h"
 #include <PhosphorZones/Layout.h>

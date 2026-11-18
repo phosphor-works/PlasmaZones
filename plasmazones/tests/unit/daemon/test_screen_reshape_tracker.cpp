@@ -12,6 +12,7 @@
 // connector's apply.
 
 #include <QHash>
+#include "common/engineruntimenamespace.h"
 #include <QObject>
 #include <QRect>
 #include <QSet>

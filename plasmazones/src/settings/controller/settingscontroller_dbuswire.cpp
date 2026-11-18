@@ -26,6 +26,7 @@
 // no API change.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 #include "settings/utils/dbusutils.h"

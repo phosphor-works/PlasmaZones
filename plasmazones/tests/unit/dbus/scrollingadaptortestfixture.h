@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // The ScrollingService test fixture, shared by test_scrolling_adaptor (the
 // read-side surface: strip snapshots, screen set, relays, teardown) and
 // test_scrolling_adaptor_verbs (the wire verbs: the wheel pair and the

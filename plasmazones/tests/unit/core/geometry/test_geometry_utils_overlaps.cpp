@@ -7,6 +7,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QRect>
 #include <QVector>
 #include <QSize>

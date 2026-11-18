@@ -3,13 +3,18 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "runtime/host/iworkspacehost.h"
+
+namespace PhosphorEngineRuntime {
+class Settings;
+class ShortcutManager;
+} // namespace PhosphorEngineRuntime
 
 namespace PlasmaZones {
 
 class HostSettings;
-class Settings;
-class ShortcutManager;
 
 /**
  * @brief IWorkspaceHost for KWin: kwinrc's PerOutputVirtualDesktops and

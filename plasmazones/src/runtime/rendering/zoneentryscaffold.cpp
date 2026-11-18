@@ -3,7 +3,7 @@
 
 #include "zoneentryscaffold.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 QString zoneEntryPrologue()
 {
@@ -68,4 +68,4 @@ QString assembleZoneEntrySource(const QString& rawFragmentSource)
     return PhosphorShaders::assembleEntryPoint(rawFragmentSource, zoneEntryPrologue(), zoneEntryCandidates());
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -31,7 +31,7 @@
 
 #include <PhosphorOverlay/ShellHost.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -513,4 +513,4 @@ void OverlayService::applyShaderProfilesToAnimator(const PAS::ShaderProfileTree&
     m_shellHost->registerConfigForRole(PhosphorRoles::Cheatsheet, buildCheatsheetConfig(tree, presets));
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

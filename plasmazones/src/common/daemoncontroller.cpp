@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "daemoncontroller.h"
+#include "common/engineruntimenamespace.h"
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QProcess>

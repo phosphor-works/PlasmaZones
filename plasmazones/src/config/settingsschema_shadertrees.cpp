@@ -95,7 +95,7 @@
 #include <QJsonObject>
 #include <QMetaType>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -242,4 +242,4 @@ QVariant sanitizeDecorationProfileTree(const QVariant& v)
     return QVariant(out.toJson().toVariantMap());
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -7,7 +7,7 @@
 
 #include <PhosphorConfig/IGroupPathResolver.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief PhosphorConfig path resolver for PlasmaZones per-screen override groups
@@ -56,4 +56,4 @@ public:
     static QString categoryToPrefix(const QString& category);
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

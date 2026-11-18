@@ -22,7 +22,7 @@
 
 using namespace Qt::StringLiterals;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using SchemaValidators::canonicalFontFamily;
 using SchemaValidators::canonicalProportionList;
@@ -723,4 +723,4 @@ void appendScrollingShortcutsSchema(PhosphorConfig::Schema& schema)
     };
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

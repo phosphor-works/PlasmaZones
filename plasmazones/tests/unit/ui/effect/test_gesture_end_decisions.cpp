@@ -15,7 +15,6 @@
  */
 
 #include "plasmazoneseffect/gestureenddecisions.h"
-
 #include <QTest>
 
 using namespace PlasmaZones::GestureEndDecisions;

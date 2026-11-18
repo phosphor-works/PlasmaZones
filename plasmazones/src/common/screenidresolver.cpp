@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "screenidresolver.h"
-
 #include <PhosphorScreens/ScreenIdentity.h>
 #include <PhosphorZones/Layout.h>
 
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void ensureScreenIdResolver()
 {
@@ -28,4 +27,4 @@ void ensureScreenIdResolver()
     (void)installed;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

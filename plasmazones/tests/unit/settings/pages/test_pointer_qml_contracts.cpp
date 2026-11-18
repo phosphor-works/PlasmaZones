@@ -20,7 +20,6 @@
  */
 
 #include "pages/pointerpreviewcontroller.h"
-
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>

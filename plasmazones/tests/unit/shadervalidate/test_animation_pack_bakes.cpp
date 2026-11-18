@@ -17,7 +17,6 @@
 // lose coverage, while this target is also a developer's inner-loop test.
 
 #include <QtTest>
-
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>

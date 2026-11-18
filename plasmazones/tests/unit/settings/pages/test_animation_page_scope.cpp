@@ -20,7 +20,6 @@
  */
 
 #include <QTest>
-
 #include <PhosphorAnimation/ShaderProfile.h>
 #include <PhosphorAnimation/ShaderProfileTree.h>
 

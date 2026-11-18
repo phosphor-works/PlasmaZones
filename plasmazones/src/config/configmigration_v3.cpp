@@ -42,7 +42,7 @@
 #include <optional>
 #include <string_view>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Schema migration: v2 → v3 ───────────────────────────────────────────────
 // Splits the single "this monitor / desktop / activity is disabled in PlasmaZones"
@@ -186,4 +186,4 @@ void ConfigMigration::migrateV2ToV3(QJsonObject& root)
     root[ConfigKeys::versionKey()] = 3;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

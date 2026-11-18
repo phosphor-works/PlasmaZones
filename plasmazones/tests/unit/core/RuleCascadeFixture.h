@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QDir>
 #include <QString>
 #include <QUuid>

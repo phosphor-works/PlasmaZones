@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ZoneSerialization.h"
+#include "common/engineruntimenamespace.h"
 #include "core/types/constants.h"
 #include <PhosphorZones/Zone.h>
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "rulecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "ruleauthoring.h"
 #include "ruletemplates.h"

@@ -21,7 +21,7 @@ class ScreenManager;
 #include <climits>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace Utils {
 
 /**
@@ -300,4 +300,4 @@ inline QString contextLockKey(int mode, const QString& screenId)
 }
 
 } // namespace Utils
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

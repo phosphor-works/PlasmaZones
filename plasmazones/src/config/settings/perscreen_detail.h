@@ -23,7 +23,7 @@
 
 #include <PhosphorConfig/IBackend.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class Settings;
 
@@ -191,4 +191,4 @@ QVariant validateZoneSelectorValue(const QString& key, const QVariant& value);
 QVariant validateStripSelectorValue(const QString& key, const QVariant& value);
 
 } // namespace PerScreenDetail
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

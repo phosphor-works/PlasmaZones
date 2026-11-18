@@ -15,7 +15,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Per-screen zone selector configuration
@@ -797,4 +797,4 @@ inline bool pruneDisabledActivityEntries(QStringList& entries, const QSet<QStrin
     return entries.size() != before;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

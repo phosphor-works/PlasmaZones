@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ruletemplates.h"
-
 #include "phosphor_i18n.h"
 
 #include <PhosphorRules/MatchExpression.h>

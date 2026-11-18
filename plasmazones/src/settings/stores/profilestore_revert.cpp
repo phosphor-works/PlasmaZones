@@ -8,7 +8,6 @@
 // concern, the same way the diff surface is.
 
 #include "profilestore.h"
-
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>

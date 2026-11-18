@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorControl/PageController.h>
 
 // Complete type, not a forward declaration: moc must see it to register the
@@ -16,10 +18,13 @@
 
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 class ISettings;
 class OverlayShaderTree;
 class ShaderRegistry;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 class ShaderPreviewController;
 }
 

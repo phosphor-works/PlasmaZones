@@ -20,6 +20,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "settings/pages/windowappearancecontroller.h"

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 
 #include <QDBusAbstractAdaptor>
@@ -21,11 +23,14 @@ namespace PhosphorScreens {
 class ScreenManager;
 }
 
+namespace PhosphorEngineRuntime {
+class ControlService;
+class ScreenModeRouter;
+} // namespace PhosphorEngineRuntime
+
 namespace PlasmaZones {
 
 class CompositorBridgeAdaptor;
-class ControlService;
-class ScreenModeRouter;
 
 /**
  * @brief The D-Bus binding of ControlService: org.phosphor_works.Placement.Control

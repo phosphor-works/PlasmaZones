@@ -37,7 +37,7 @@
 #include <utility>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 WindowTracker::WindowTracker(PhosphorZones::LayoutRegistry* layoutManager, PhosphorZones::IZoneDetector* zoneDetector,
                              PhosphorScreens::ScreenManager* screenManager, ISettings* settings,
@@ -77,7 +77,7 @@ WindowTracker::WindowTracker(PhosphorZones::LayoutRegistry* layoutManager, Phosp
     // desktop/activity callbacks let it resolve per-context gap rules for the
     // context a snap happens in (current desktop/activity), mirroring the
     // current-desktop occupancy filter used in buildEmptyZoneList.
-    m_geometryResolver = std::make_unique<PlasmaZones::DaemonGeometryResolver>(
+    m_geometryResolver = std::make_unique<PhosphorEngineRuntime::DaemonGeometryResolver>(
         settings, layoutManager,
         [vdm = m_virtualDesktopManager](const QString& screenId) -> int {
             return vdm ? vdm->currentDesktopForScreen(screenId) : 0;
@@ -496,4 +496,4 @@ void WindowTracker::reapplyWindowAppearance()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -10,7 +10,7 @@
 #include <QString>
 #include <QStringView>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Role presets for PlasmaZones' layer-shell surfaces.
 ///
@@ -207,4 +207,4 @@ inline const PhosphorLayer::Role ScrollDropIndicator =
 
 } // namespace PhosphorRoles
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

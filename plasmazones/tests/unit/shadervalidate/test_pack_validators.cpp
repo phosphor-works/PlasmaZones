@@ -26,7 +26,6 @@
 // shared/ helpers linked in (REQUIRE_ANIMATION_FIXTURE).
 
 #include <QtTest>
-
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>

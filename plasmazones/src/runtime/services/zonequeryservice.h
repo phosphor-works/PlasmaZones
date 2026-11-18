@@ -19,7 +19,7 @@ class Layout;
 class LayoutRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 
@@ -151,4 +151,4 @@ private:
     ISettings* m_settings; // For zonePadding setting
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

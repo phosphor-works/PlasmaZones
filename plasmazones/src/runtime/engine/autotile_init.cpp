@@ -40,7 +40,7 @@
 
 using PlacementEngineBase = PhosphorEngine::PlacementEngineBase;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::initializeAutotile()
 {
@@ -814,4 +814,4 @@ void EngineRuntime::toggleScreenMode(const QString& screenId, bool snappingAutot
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -37,7 +37,7 @@ namespace PhosphorZones::LayoutUtils {
 using ::PhosphorLayout::AspectRatioClass;
 using ::PhosphorLayout::LayoutPreview;
 namespace ScreenClassification = ::PhosphorLayout::ScreenClassification;
-namespace Utils = ::PlasmaZones::Utils;
+namespace Utils = ::PhosphorEngineRuntime::Utils;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Unified layout list building

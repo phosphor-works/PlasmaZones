@@ -41,7 +41,7 @@ namespace PhosphorEngine {
 class PlacementEngineBase;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class Settings;
 
@@ -377,4 +377,4 @@ private:
     mutable QMetaObject::Connection m_templateStoreConnection;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

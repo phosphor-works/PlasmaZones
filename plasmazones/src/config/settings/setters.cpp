@@ -10,7 +10,7 @@
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTileEngine/AutotileConfig.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Every concrete setter implementation now lives in settings.cpp and routes
 // through PhosphorConfig::Store. The macro-generated boilerplate this file
@@ -159,4 +159,4 @@ bool Settings::renameVirtualScreenConfig(const QString& oldPhysicalScreenId, con
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

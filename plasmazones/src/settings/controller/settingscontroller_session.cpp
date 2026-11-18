@@ -24,6 +24,7 @@
 // unit, no API change.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "settingscontroller_pagekeys.h"
 

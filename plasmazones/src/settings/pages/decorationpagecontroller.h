@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // Not forward-declared: moc needs the complete type to register the
 // ShaderSetStore* Q_PROPERTY below as a pointer meta-type.
 #include "settings/stores/shadersetstore.h"
@@ -26,10 +28,13 @@ namespace PhosphorPointerShaders {
 class PointerShaderRegistry;
 }
 
+namespace PhosphorEngineRuntime {
+class ISettings;
+} // namespace PhosphorEngineRuntime
+
 namespace PlasmaZones {
 
 class DecorationPreviewController;
-class ISettings;
 class PointerPreviewController;
 
 /// Q_INVOKABLE surface for the "Decoration" drill-down settings pages

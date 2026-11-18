@@ -15,6 +15,7 @@
 // tell an absent key from a zero), and each carrying the engine's own value.
 
 #include "runtime/engine/stripzones.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScrollEngine/ScrollEngineTypes.h>

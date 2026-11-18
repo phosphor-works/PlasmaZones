@@ -7,7 +7,7 @@
 
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// The application's directory under the XDG config and data roots: every
 /// config file (config.json, session.json, rules.json, ...) lives in
@@ -22,4 +22,4 @@ namespace PlasmaZones {
 PLASMAZONES_EXPORT void setAppDirectoryName(const QString& name);
 PLASMAZONES_EXPORT QString appDirectoryName();
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

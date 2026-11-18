@@ -37,6 +37,7 @@
  */
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QDir>
 #include <QSignalSpy>
 #include <QTest>

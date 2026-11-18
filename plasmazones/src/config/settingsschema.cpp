@@ -37,7 +37,7 @@
 
 using namespace Qt::StringLiterals;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 HostSettingsExtension& installedHostSettingsExtension()
@@ -1274,4 +1274,4 @@ const PhosphorConfig::Schema& cachedSettingsSchema()
     return schema;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

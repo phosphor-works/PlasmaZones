@@ -5,7 +5,7 @@
 
 #include "configdefaults_scrolling_shortcuts.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 9: dynamic per-monitor workspaces (Workspaces.*). The feature is
 // a global layer below the three placement modes — the defaults here gate the
@@ -163,4 +163,4 @@ public:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

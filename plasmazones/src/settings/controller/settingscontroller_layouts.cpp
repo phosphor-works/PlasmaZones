@@ -9,6 +9,7 @@
 // executable. No API changes.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "common/daemonscreenscale.h"
 #include "common/layoutpreviewserialize.h"

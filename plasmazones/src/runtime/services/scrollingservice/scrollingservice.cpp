@@ -21,7 +21,7 @@
 #include <QSize>
 #include <QVector>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// The presetVocabularyJson payload keys, in one place so the two writes
@@ -692,4 +692,4 @@ void ScrollingService::clearEngine()
     // exception rather than an omission.
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

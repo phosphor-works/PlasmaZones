@@ -3,15 +3,19 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_export.h"
 
 #include <QObject>
 #include <QString>
 #include <QStringList>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class Settings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /// Ready this process as a PlasmaZones host: its app directory name, and the
 /// settings PlasmaZones adds to the engine's (HostSettings, installed as the

@@ -18,6 +18,7 @@
  */
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QObject>
 #include <QScopeGuard>
 #include <QTest>

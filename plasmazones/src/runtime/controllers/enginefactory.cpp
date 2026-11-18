@@ -15,7 +15,7 @@
 #include "core/interfaces/isettings.h"
 #include "core/resolve/screenmoderouter.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 EngineSet createEngines(PhosphorZones::LayoutRegistry* layoutManager,
                         PhosphorPlacement::WindowTrackingService* windowTracker,
@@ -63,4 +63,4 @@ EngineSet createEngines(PhosphorZones::LayoutRegistry* layoutManager,
                      .router = std::move(router)};
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

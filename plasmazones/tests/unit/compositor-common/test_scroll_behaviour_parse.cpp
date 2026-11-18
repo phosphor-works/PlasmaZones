@@ -10,7 +10,6 @@
 // symptom on screen.
 
 #include "compositor/scrollbehaviourparse.h"
-
 #include <QDBusVariant>
 #include <QTest>
 

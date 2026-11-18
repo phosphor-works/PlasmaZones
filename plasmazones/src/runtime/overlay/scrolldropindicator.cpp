@@ -38,7 +38,7 @@
 
 #include <functional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void OverlayService::setScrollDropIndicatorOverrides(const QString& screenId, const QVariantMap& overrides)
 {
@@ -328,4 +328,4 @@ void OverlayService::updateScrollDropIndicator(const QString& screenId, const QR
     syncPassiveShellSurfaceStateForSurface(shellSurface);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

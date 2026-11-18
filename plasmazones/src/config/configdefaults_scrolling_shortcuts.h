@@ -5,7 +5,7 @@
 
 #include "configdefaults_scrolling_behavior.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 8: the Shortcuts.Scrolling chord defaults. Split out of
 // configdefaults_scrolling.h; the engine's own Scrolling defaults stay there (link 6) and its behaviour
@@ -372,4 +372,4 @@ public:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -8,7 +8,6 @@
 // there is no shared private header.
 
 #include "rulemodel.h"
-
 #include "ruleauthoring.h"
 
 #include "phosphor_i18n.h"

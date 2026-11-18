@@ -17,7 +17,7 @@
 
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using namespace settings_detail;
 
@@ -544,4 +544,4 @@ void Settings::setContextLocked(const QString& screenIdOrName, int virtualDeskto
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
