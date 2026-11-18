@@ -437,7 +437,7 @@ void EngineRuntime::reconcileDesktopsAtStartup()
             m_windowTracker->setKnownDesktopIds(liveIds);
         }
     }
-    if (PhosphorWorkspaces::ActivityManager::isAvailable()) {
+    if (m_activityManager && m_activityManager->isAvailable()) {
         onActivitiesChanged();
     }
 }

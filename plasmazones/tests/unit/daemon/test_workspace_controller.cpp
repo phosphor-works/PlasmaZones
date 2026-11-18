@@ -33,8 +33,8 @@ using PlasmaZones::WorkspaceController;
 
 namespace {
 
-/// Commits desktop lists and replays KWin's desktop signals the way the
-/// manager's D-Bus handlers do once a message is parsed.
+/// Commits desktop lists and replays a desktop backend's change signals the
+/// way the manager receives them.
 class ListDriver : public PhosphorWorkspaces::VirtualDesktopManager
 {
 public:
@@ -50,11 +50,11 @@ public:
     }
     void removed(const QString& desktopId)
     {
-        QVERIFY(QMetaObject::invokeMethod(this, "onKWinDesktopRemoved", Q_ARG(QString, desktopId)));
+        QVERIFY(QMetaObject::invokeMethod(this, "onSourceDesktopRemoved", Q_ARG(QString, desktopId)));
     }
-    void count(uint count)
+    void count(int count)
     {
-        QVERIFY(QMetaObject::invokeMethod(this, "onNumberOfDesktopsChanged", Q_ARG(uint, count)));
+        QVERIFY(QMetaObject::invokeMethod(this, "onSourceCountChanged", Q_ARG(int, count)));
     }
 };
 

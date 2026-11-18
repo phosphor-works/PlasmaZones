@@ -869,6 +869,12 @@ RUNTIME_FORBIDDEN = (
     (re.compile(r"^PhosphorWayland/|^wayland-"), "a Wayland client"),
     (re.compile(r"^(KGlobalAccel|KActivities|PlasmaActivities)\b"), "a KDE platform service"),
     (re.compile(r"^(kwin|effect|core)/|^kwin\w*\.h$"), "KWin"),
+    # The host's own platform pieces, which reach the runtime through
+    # EngineRuntime::Platform and are chosen by whoever builds it.
+    (re.compile(r"^PhosphorWorkspaces/Plasma/"), "KWin's and Plasma's workspace backends"),
+    (re.compile(r"^PhosphorLayer/(defaults/PhosphorWaylandTransport|phosphorlayerwayland_export)\.h$"),
+     "the wlr-layer-shell transport"),
+    (re.compile(r"^PhosphorScreens/PlasmaPanelSource\.h$"), "Plasma's panel source"),
 )
 RUNTIME_PROJECT_FORBIDDEN = re.compile(r"^(dbus|daemon)/")
 

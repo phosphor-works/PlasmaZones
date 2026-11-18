@@ -29,6 +29,8 @@
 #include "core/types/types.h"
 #include <PhosphorLayer/ILayerShellTransport.h>
 #include <PhosphorScreens/IPanelSource.h>
+#include <PhosphorWorkspaces/IActivityBackend.h>
+#include <PhosphorWorkspaces/IVirtualDesktopBackend.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/Swapper.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
@@ -65,6 +67,12 @@ public:
         /// Where the desktop's panels are, so available geometry leaves them
         /// clear. Null means the host has no panels.
         std::unique_ptr<PhosphorScreens::IPanelSource> panels;
+        /// The compositor's virtual desktops: KWin's for plasmazonesd. Null
+        /// means a single desktop.
+        std::unique_ptr<PhosphorWorkspaces::IVirtualDesktopBackend> desktops;
+        /// The desktop's activities: Plasma's for plasmazonesd. Null means
+        /// none.
+        std::unique_ptr<PhosphorWorkspaces::IActivityBackend> activities;
     };
 
     explicit EngineRuntime(Platform platform, QObject* parent = nullptr);

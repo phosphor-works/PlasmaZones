@@ -36,6 +36,7 @@
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 #include <PhosphorScreens/PlasmaPanelSource.h>
+#include <PhosphorWorkspaces/Plasma/Backends.h>
 
 #include <QDBusConnection>
 #include <QDBusError>
@@ -49,13 +50,15 @@ const QString Login1Path = QStringLiteral("/org/freedesktop/login1");
 const QString Login1ManagerInterface = QStringLiteral("org.freedesktop.login1.Manager");
 const QString PrepareForSleepSignal = QStringLiteral("PrepareForSleep");
 
-/// plasmazonesd's overlays are wlr-layer-shell surfaces, and its panels are
-/// Plasma's.
+/// plasmazonesd's overlays are wlr-layer-shell surfaces, and its panels,
+/// virtual desktops and activities are Plasma's and KWin's.
 EngineRuntime::Platform kwinSessionPlatform()
 {
     EngineRuntime::Platform platform;
     platform.layerShell = std::make_unique<PhosphorLayer::PhosphorWaylandTransport>();
     platform.panels = std::make_unique<PhosphorScreens::PlasmaPanelSource>();
+    platform.desktops = PhosphorWorkspaces::Plasma::createVirtualDesktopBackend();
+    platform.activities = PhosphorWorkspaces::Plasma::createActivityBackend();
     return platform;
 }
 } // namespace

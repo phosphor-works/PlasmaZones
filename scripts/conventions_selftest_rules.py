@@ -709,6 +709,17 @@ def _runtime_firewall_failures(partition_readable) -> list[str]:
             (write(rt + "wayland.cpp", "#include <PhosphorWayland/LayerSurface.h>\n"), True, "PhosphorWayland"),
             (write(rt + "accel.cpp", "#include <KGlobalAccel>\n"), True, "KGlobalAccel"),
             (write(rt + "kwin.cpp", "#include <effect/effecthandler.h>\n"), True, "a KWin header"),
+            (write(rt + "kwinvd.cpp", "#include <PhosphorWorkspaces/Plasma/Backends.h>\n"), True,
+             "KWin's and Plasma's workspace backends"),
+            (write(rt + "layershell.cpp", "#include <PhosphorLayer/defaults/PhosphorWaylandTransport.h>\n"), True,
+             "the wlr-layer-shell transport"),
+            (write(rt + "panels.cpp", "#include <PhosphorScreens/PlasmaPanelSource.h>\n"), True,
+             "Plasma's panel source"),
+            (write(rt + "neutral.cpp",
+                   "#include <PhosphorWorkspaces/IVirtualDesktopBackend.h>\n"
+                   "#include <PhosphorLayer/ILayerShellTransport.h>\n"
+                   "#include <PhosphorScreens/NoOpPanelSource.h>\n"), False,
+             "the platform interfaces and a neutral panel source"),
             (write(rt + "types.cpp", "#include <PhosphorProtocol/WindowTypes.h>\n"), False,
              "a PhosphorProtocol *Types.h header"),
             (write(rt + "enum.cpp", "#include <PhosphorProtocol/WindowTypeEnum.h>\n"), False,

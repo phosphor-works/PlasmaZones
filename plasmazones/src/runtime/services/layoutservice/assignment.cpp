@@ -628,7 +628,7 @@ void LayoutService::connectActivitySignals()
 
 bool LayoutService::isActivitiesAvailable()
 {
-    return PhosphorWorkspaces::ActivityManager::isAvailable();
+    return m_activityManager && m_activityManager->isAvailable();
 }
 
 QStringList LayoutService::getActivities()
