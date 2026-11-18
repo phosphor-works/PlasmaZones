@@ -28,7 +28,7 @@
 #include "runtime/windowtracker/lifecyclerelay.h"
 #include "runtime/windowtracker/windowtracker.h"
 
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 #include "runtime/host/iworkspacehost.h"
 
 #include <PhosphorEngine/PlacementEngineBase.h>
@@ -291,7 +291,7 @@ void EngineRuntime::initializeWorkspaces()
     connect(controller, &WorkspaceController::snapBackOccurred, wiring,
             [this, showWorkspaceHint](const QString& screenId) {
                 if (m_settings->workspacesSnapBackOsdHint()) {
-                    showWorkspaceHint(PhosphorI18n::tr("That workspace is on another monitor.", "OSD hint"), screenId,
+                    showWorkspaceHint(RuntimeI18n::tr("That workspace is on another monitor.", "OSD hint"), screenId,
                                       /*isRefusal=*/true);
                 }
             });
@@ -302,14 +302,14 @@ void EngineRuntime::initializeWorkspaces()
             [this, showWorkspaceHint](const QString& screenId) {
                 if (m_settings->workspacesSnapBackOsdHint()) {
                     showWorkspaceHint(
-                        PhosphorI18n::tr("That workspace closed. The window moved to the current one.", "OSD hint"),
+                        RuntimeI18n::tr("That workspace closed. The window moved to the current one.", "OSD hint"),
                         screenId, /*isRefusal=*/false);
                 }
             });
     // Desktop-cap degradation hint (once per episode, reconciler-gated).
     // Screen-less: the cap is global.
     connect(reconciler, &PhosphorWorkspaces::WorkspaceReconciler::capReached, wiring, [showWorkspaceHint]() {
-        showWorkspaceHint(PhosphorI18n::tr("Workspace limit reached.", "OSD hint"), QString(), /*isRefusal=*/true);
+        showWorkspaceHint(RuntimeI18n::tr("Workspace limit reached.", "OSD hint"), QString(), /*isRefusal=*/true);
     });
     // The screen that adopts externally created desktops and realizes
     // unpinned named workspaces: the one the user is working on, asked at the
@@ -365,15 +365,15 @@ void EngineRuntime::initializeWorkspaces()
                     QString text;
                     switch (reason) {
                     case Refusal::NotScrolling:
-                        text = PhosphorI18n::tr("Moving a column needs a scrolling screen.", "OSD hint");
+                        text = RuntimeI18n::tr("Moving a column needs a scrolling screen.", "OSD hint");
                         break;
                     case Refusal::FloatFocused:
                         text =
-                            PhosphorI18n::tr("A floating window has focus, so there is no column to move.", "OSD hint");
+                            RuntimeI18n::tr("A floating window has focus, so there is no column to move.", "OSD hint");
                         break;
                     case Refusal::NoColumn:
                     case Refusal::None:
-                        text = PhosphorI18n::tr("There is no column to move.", "OSD hint");
+                        text = RuntimeI18n::tr("There is no column to move.", "OSD hint");
                         break;
                     }
                     showWorkspaceHint(text, stripScreen, /*isRefusal=*/true);
@@ -456,7 +456,7 @@ void EngineRuntime::initializeWorkspaces()
             const QString key = entryId.isEmpty() ? name : entryId;
             offer(ShortcutIds::workspaceNamedFocusId(key),
                   entry.value(ConfigDefaults::namedEntryFocusShortcutField()).toString(),
-                  PhosphorI18n::tr("Focus Workspace \"%1\"", "named workspace shortcut").arg(name),
+                  RuntimeI18n::tr("Focus Workspace \"%1\"", "named workspace shortcut").arg(name),
                   [this, entryId, name]() {
                       if (m_workspaceController) {
                           m_workspaceController->focusNamedWorkspace(entryId, name);
@@ -464,7 +464,7 @@ void EngineRuntime::initializeWorkspaces()
                   });
             offer(ShortcutIds::workspaceNamedMoveId(key),
                   entry.value(ConfigDefaults::namedEntryMoveShortcutField()).toString(),
-                  PhosphorI18n::tr("Move Window to Workspace \"%1\"", "named workspace shortcut").arg(name),
+                  RuntimeI18n::tr("Move Window to Workspace \"%1\"", "named workspace shortcut").arg(name),
                   [this, entryId, name]() {
                       if (m_workspaceController && m_windowTracker) {
                           m_workspaceController->moveWindowToNamedWorkspace(entryId, name,

@@ -8,7 +8,7 @@
 #include "config/configdefaults.h"
 #include "config/settings.h"
 #include "core/platform/logging.h"
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorShortcuts/Factory.h>
@@ -541,7 +541,7 @@ void ShortcutManager::buildEntries()
         Entry e;
         e.id = QString::fromLatin1(src.id);
         e.defaultSeq = parseSequence(src.defGetter(), e.id);
-        e.description = PhosphorI18n::tr(src.label);
+        e.description = RuntimeI18n::tr(src.label);
         const auto curGetter = src.curGetter;
         const QString idCopy = e.id;
         e.currentSeq = [s, curGetter, idCopy] {
@@ -563,7 +563,7 @@ void ShortcutManager::buildEntries()
         Entry e;
         e.id = quickLayoutId(i);
         e.defaultSeq = parseSequence(kQuickLayoutDefaults[i](), e.id);
-        e.description = PhosphorI18n::tr("Apply Layout %1").arg(i + 1);
+        e.description = RuntimeI18n::tr("Apply Layout %1").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
             return parseSequence(s->quickLayoutShortcut(i), idCopy);
@@ -589,7 +589,7 @@ void ShortcutManager::buildEntries()
         // Shortcuts KCM, and the chord does NOT move the window to the Nth
         // workspace. It moves it to whichever named workspace the settings
         // app assigned to slot N, the quick-layout model.
-        e.description = PhosphorI18n::tr("Move Window to Workspace Slot %1", "single workspace slot number").arg(i + 1);
+        e.description = RuntimeI18n::tr("Move Window to Workspace Slot %1", "single workspace slot number").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
             return parseSequence(s->workspaceMoveSlotShortcut(i), idCopy);
@@ -610,7 +610,7 @@ void ShortcutManager::buildEntries()
         e.id = workspaceFocusSlotId(i);
         e.defaultSeq = parseSequence(ConfigDefaults::workspaceFocusSlotShortcut(), e.id);
         e.workspaceGated = true;
-        e.description = PhosphorI18n::tr("Focus Workspace %1", "single workspace slot number").arg(i + 1);
+        e.description = RuntimeI18n::tr("Focus Workspace %1", "single workspace slot number").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
             return parseSequence(s->workspaceFocusSlotShortcut(i), idCopy);
@@ -628,7 +628,7 @@ void ShortcutManager::buildEntries()
         Entry e;
         e.id = snapToZoneId(i);
         e.defaultSeq = parseSequence(kSnapToZoneDefaults[i](), e.id);
-        e.description = PhosphorI18n::tr("Snap to Zone %1").arg(i + 1);
+        e.description = RuntimeI18n::tr("Snap to Zone %1").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
             return parseSequence(s->snapToZoneShortcut(i), idCopy);
@@ -647,7 +647,7 @@ void ShortcutManager::buildEntries()
         Entry e;
         e.id = scrollFocusTabId(i);
         e.defaultSeq = parseSequence(kScrollFocusTabDefaults[i](), e.id);
-        e.description = PhosphorI18n::tr("Focus Tab %1", "single tab ordinal").arg(i + 1);
+        e.description = RuntimeI18n::tr("Focus Tab %1", "single tab ordinal").arg(i + 1);
         const QString idCopy = e.id;
         e.currentSeq = [s, i, idCopy] {
             return parseSequence(s->scrollFocusTabShortcut(i), idCopy);

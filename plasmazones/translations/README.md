@@ -4,6 +4,16 @@ PlasmaZones uses Qt Linguist for all internationalization (daemon,
 editor, and KCM).  C++ code calls `PhosphorI18n::tr()`; QML code calls
 `i18n()` via `PhosphorLocalizedContext`.
 
+There are two catalogs. `plasmazones_<lang>.ts` is the application's.
+`phosphor-engine-runtime_<lang>.ts` is the engine runtime's
+(`plasmazones/src/runtime/`): its C++ calls `RuntimeI18n::tr()` and its
+shortcut names are marked `QT_TRANSLATE_NOOP("PhosphorEngineRuntime", ...)`,
+all under the `PhosphorEngineRuntime` context. It installs to
+`share/phosphor-engine-runtime/translations`, the daemon loads it with
+`loadRuntimeTranslations()`, and it goes with the runtime into phosphor-libs.
+The runtime's QML still translates through the application's catalog until
+the overlay QML moves too. `update-ts` refreshes both.
+
 ## File layout
 
 ```

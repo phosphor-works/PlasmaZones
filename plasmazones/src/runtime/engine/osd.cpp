@@ -33,7 +33,7 @@
 #include <QRegularExpression>
 #include <QScreen>
 #include <QTimer>
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 #include <PhosphorScreens/ScreenIdentity.h>
 
 #include <utility>
@@ -111,7 +111,7 @@ void pushScrollingStripOsd(OverlayService* overlay, PhosphorScreens::ScreenManag
             // Context kept verbatim in step with the settings page's copy of
             // this sentence (MonitorStatePage.qml), so the merged catalog
             // carries ONE entry for the two surfaces.
-            emptyCaption = PhosphorI18n::tr("No windows on the strip yet", "scrolling strip preview, empty strip");
+            emptyCaption = RuntimeI18n::tr("No windows on the strip yet", "scrolling strip preview, empty strip");
         } else {
             // Tiles but no screen geometry to place them in. The card shows
             // the empty state rather than drawing rects it cannot normalize,
@@ -130,11 +130,11 @@ void pushScrollingStripOsd(OverlayService* overlay, PhosphorScreens::ScreenManag
             // caption, which showScrollingStripOsd refuses outright.
             qCWarning(lcDaemon) << "Strip preview OSD: no geometry for screen=" << screenId << "tiles=" << tiles.size()
                                 << "— showing the empty state";
-            emptyCaption = PhosphorI18n::tr("This screen could not be measured",
-                                            "scrolling strip preview, screen geometry lookup failed");
+            emptyCaption = RuntimeI18n::tr("This screen could not be measured",
+                                           "scrolling strip preview, screen geometry lookup failed");
         }
     }
-    overlay->showScrollingStripOsd(PhosphorI18n::tr("Scrolling", "tiling mode name"), zones, verticalAxis, emptyCaption,
+    overlay->showScrollingStripOsd(RuntimeI18n::tr("Scrolling", "tiling mode name"), zones, verticalAxis, emptyCaption,
                                    screenId);
     qCInfo(lcDaemon) << "Showing scrolling-mode strip preview OSD: screen=" << screenId << "tiles=" << tiles.size()
                      << "zones=" << zones.size() << "empty=" << !emptyCaption.isEmpty();
@@ -312,7 +312,7 @@ void EngineRuntime::showLayoutOsd(PhosphorZones::Layout* layout, const QString& 
         return;
 
     case OsdStyle::Text: {
-        QString displayText = PhosphorI18n::tr("Layout: %1").arg(layoutName);
+        QString displayText = RuntimeI18n::tr("Layout: %1").arg(layoutName);
         showSystemOsd(QStringLiteral("plasmazones"), displayText);
         qCInfo(lcDaemon) << "Showing text OSD for layout=" << layoutName;
     } break;
@@ -339,7 +339,7 @@ void EngineRuntime::showLockedOsd(const QString& screenId)
         return;
     }
 
-    showSystemOsd(QStringLiteral("object-locked"), PhosphorI18n::tr("Layout Locked"));
+    showSystemOsd(QStringLiteral("object-locked"), RuntimeI18n::tr("Layout Locked"));
     qCInfo(lcDaemon) << "Showing locked text OSD for screen=" << screenId;
 }
 
@@ -353,7 +353,7 @@ void EngineRuntime::showUnlockedOsd(const QString& screenId)
         return;
     }
 
-    showSystemOsd(QStringLiteral("object-unlocked"), PhosphorI18n::tr("Layout Unlocked"));
+    showSystemOsd(QStringLiteral("object-unlocked"), RuntimeI18n::tr("Layout Unlocked"));
     qCInfo(lcDaemon) << "Showing unlocked text OSD for screen=" << screenId;
 }
 
@@ -429,7 +429,7 @@ void EngineRuntime::showContextDisabledOsd(const QString& screenId, int desktop,
     QString reasonText;
     switch (reason) {
     case DisabledReason::MonitorDisabled:
-        reasonText = PhosphorI18n::tr("Disabled on this monitor");
+        reasonText = RuntimeI18n::tr("Disabled on this monitor");
         break;
     case DisabledReason::DesktopDisabled: {
         QString desktopLabel;
@@ -452,9 +452,9 @@ void EngineRuntime::showContextDisabledOsd(const QString& screenId, int desktop,
             }
         }
         if (desktopLabel.isEmpty()) {
-            desktopLabel = PhosphorI18n::tr("Desktop %1").arg(desktop);
+            desktopLabel = RuntimeI18n::tr("Desktop %1").arg(desktop);
         }
-        reasonText = PhosphorI18n::tr("Disabled on %1").arg(desktopLabel);
+        reasonText = RuntimeI18n::tr("Disabled on %1").arg(desktopLabel);
         break;
     }
     case DisabledReason::ActivityDisabled: {
@@ -463,9 +463,9 @@ void EngineRuntime::showContextDisabledOsd(const QString& screenId, int desktop,
             activityLabel = m_activityManager->activityName(activity);
         }
         if (activityLabel.isEmpty()) {
-            reasonText = PhosphorI18n::tr("Disabled on this activity");
+            reasonText = RuntimeI18n::tr("Disabled on this activity");
         } else {
-            reasonText = PhosphorI18n::tr("Disabled on %1").arg(activityLabel);
+            reasonText = RuntimeI18n::tr("Disabled on %1").arg(activityLabel);
         }
         break;
     }
@@ -493,7 +493,7 @@ void EngineRuntime::showNotAssignedOsd(const QString& screenId)
     if (style == OsdStyle::None) {
         return;
     }
-    const QString text = PhosphorI18n::tr("No layout assigned");
+    const QString text = RuntimeI18n::tr("No layout assigned");
     if (style == OsdStyle::Preview && m_overlayService) {
         m_overlayService->showDisabledOsd(text, screenId);
         qCInfo(lcDaemon) << "Showing not-assigned preview OSD: screen=" << screenId;
@@ -607,7 +607,7 @@ void EngineRuntime::showScrollingModeOsd(const QString& screenId, OsdTrigger tri
     }
     stopScrollingOsdSettleTimer(screenId);
     recordAnnouncedScrollingTemplate(screenId);
-    showSystemOsd(QStringLiteral("plasmazones"), PhosphorI18n::tr("Scrolling", "tiling mode name"));
+    showSystemOsd(QStringLiteral("plasmazones"), RuntimeI18n::tr("Scrolling", "tiling mode name"));
     qCInfo(lcDaemon) << "Showing scrolling-mode text OSD: screen=" << screenId;
 }
 
@@ -659,7 +659,7 @@ void EngineRuntime::showScrollingTemplateOsd(const PhosphorZones::ScrollingTempl
         // it works without an overlay service. Only the preview arm below
         // needs one, which is why the null check sits there and not above.
         showSystemOsd(QStringLiteral("plasmazones"),
-                      PhosphorI18n::tr("Column template — %1", "OSD caption, %1 is the template name").arg(templ.name));
+                      RuntimeI18n::tr("Column template — %1", "OSD caption, %1 is the template name").arg(templ.name));
         return;
     }
     if (!m_overlayService) {
@@ -726,7 +726,7 @@ void EngineRuntime::showLayoutOsdForAlgorithm(const QString& algorithmId, const 
         return;
 
     case OsdStyle::Text: {
-        QString displayText = PhosphorI18n::tr("Tiling: %1").arg(displayName);
+        QString displayText = RuntimeI18n::tr("Tiling: %1").arg(displayName);
         showSystemOsd(QStringLiteral("plasmazones"), displayText);
         qCInfo(lcDaemon) << "Showing text OSD for algorithm=" << displayName;
     } break;

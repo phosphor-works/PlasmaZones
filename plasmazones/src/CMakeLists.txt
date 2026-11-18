@@ -155,6 +155,8 @@ set(plasmazones_core_SRCS
     dbus/dbushelpers.cpp
     runtime/common/lookups.cpp
     runtime/common/lookups.h
+    runtime/common/runtimei18n.cpp
+    runtime/common/runtimei18n.h
     dbus/layoutadaptor.cpp
     dbus/layoutadaptor.h
     runtime/services/layoutservice/layoutservice.cpp

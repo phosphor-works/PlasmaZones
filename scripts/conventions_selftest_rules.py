@@ -246,6 +246,8 @@ def _prose_extraction_failures(partition_readable) -> list[str]:
         # The BIGGEST surface in the tree, and it was unpinned: every translatable literal
         # in C++ and QML, through PhosphorI18n::tr() and QML i18n()/i18nc().
         "src/a.cpp": f'void f() {{ label = PhosphorI18n::tr("{splice}"); }}\n',
+        # The engine runtime's own context, its strings no less user-facing.
+        "src/runtime_probe.cpp": f'void f() {{ label = RuntimeI18n::tr("{splice}"); }}\n',
         "src/A.qml": f'Item {{ text: i18n("{splice}") }}\n',
         # The SECOND biggest, and the one CLAUDE.md names as user-facing prose in its own
         # right: a settings-schema KeyDef description. Gated on the FILENAME prefix, so the
@@ -706,6 +708,9 @@ def _runtime_firewall_failures(partition_readable) -> list[str]:
              "the PhosphorProtocol umbrella, which includes the marshalling"),
             (write(rt + "adaptor.cpp", '#include "dbus/windowtrackingadaptor.h"\n'), True, "a dbus/ header"),
             (write(rt + "daemon.cpp", '#include "daemon/daemon.h"\n'), True, "a daemon/ header"),
+            (write(rt + "appi18n.cpp", '#include "phosphor_i18n.h"\n'), True, "PlasmaZones' translation context"),
+            (write(rt + "rti18n.cpp", '#include "runtime/common/runtimei18n.h"\n'), False,
+             "the runtime's own translation context"),
             (write(rt + "wayland.cpp", "#include <PhosphorWayland/LayerSurface.h>\n"), True, "PhosphorWayland"),
             (write(rt + "accel.cpp", "#include <KGlobalAccel>\n"), True, "KGlobalAccel"),
             (write(rt + "kwin.cpp", "#include <effect/effecthandler.h>\n"), True, "a KWin header"),

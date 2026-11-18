@@ -3,7 +3,7 @@
 
 #include "layoutservice.h"
 #include "runtime/common/lookups.h"
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 #include "core/interfaces/interfaces.h"
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutFactory.h>
@@ -867,7 +867,7 @@ QStringList LayoutService::getVirtualDesktopNames()
 QStringList LayoutService::displayDesktopNames() const
 {
     const auto fallback = [](int position) {
-        return PhosphorI18n::tr("Desktop %1").arg(position);
+        return RuntimeI18n::tr("Desktop %1").arg(position);
     };
     if (!m_virtualDesktopManager) {
         return QStringList{fallback(1)};

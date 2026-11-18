@@ -60,7 +60,7 @@
 
 #include <PhosphorContext/ContextResolver.h>
 #include "core/utils/utils.h"
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 #include "config/configdefaults.h"
 #include "config/settingsconfigstore.h"
 #include <PhosphorScreens/DBusScreenAdaptor.h>

@@ -6,6 +6,7 @@
 #include "config/configdefaults.h"
 #include "config/configmigration.h"
 #include "core/types/constants.h"
+#include "runtime/common/runtimei18n.h"
 #include "core/platform/logging.h"
 #include "core/utils/translationloader.h"
 #include "phosphor_i18n.h"
@@ -510,6 +511,8 @@ int main(int argc, char* argv[])
     app.setProperty(PlasmaZones::PDaemonEnvInheritedVarsProperty, privateEnvChanges.inherited);
 
     PlasmaZones::loadTranslations(&app);
+    // The engine runtime's own strings, in its own catalog.
+    PlasmaZones::loadRuntimeTranslations(&app);
 
     // Register D-Bus struct types for typed signal/method exchange
     PhosphorProtocol::registerWireTypes();

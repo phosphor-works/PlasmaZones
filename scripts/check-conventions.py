@@ -501,7 +501,7 @@ def iter_json_prose(path: str):
 
 # Forms whose FIRST argument is the user-visible string.
 TR_LITERAL = re.compile(
-    r'(?<![\w:.])(?:PhosphorI18n::tr|qsTr|i18n|i18np)\s*\(\s*((?:"(?:[^"\\]|\\.)*"\s*)+)'
+    r'(?<![\w:.])(?:PhosphorI18n::tr|RuntimeI18n::tr|qsTr|i18n|i18np)\s*\(\s*((?:"(?:[^"\\]|\\.)*"\s*)+)'
 )
 # Forms whose first argument is a disambiguation CONTEXT, never shown to a
 # user. Matching them with the pattern above checked the context and left the
@@ -877,6 +877,11 @@ RUNTIME_FORBIDDEN = (
     (re.compile(r"^PhosphorScreens/PlasmaPanelSource\.h$"), "Plasma's panel source"),
 )
 RUNTIME_PROJECT_FORBIDDEN = re.compile(r"^(dbus|daemon)/")
+# PlasmaZones' C++ translation context. The runtime's C++ translates under its
+# own (runtime/common/runtimei18n.h), into its own catalog. Its QML still
+# resolves through PlasmaZones' QML context (phosphor_qml_i18n.h) until the
+# overlay's QML moves with it.
+RUNTIME_APP_I18N = re.compile(r"^phosphor_i18n\.h$")
 
 
 def rule_runtime_firewall(files: list[str]) -> list[Violation]:
@@ -891,6 +896,8 @@ def rule_runtime_firewall(files: list[str]) -> list[Violation]:
             if quote == '"':
                 if RUNTIME_PROJECT_FORBIDDEN.match(target):
                     why = f"the {target.split('/')[0]}/ tree, which stays in plasmazonesd"
+                elif RUNTIME_APP_I18N.match(target):
+                    why = "PlasmaZones' translation context (use RuntimeI18n::tr)"
             elif target.startswith("PhosphorProtocol/"):
                 if not RUNTIME_PROTOCOL_OK.match(target):
                     why = "PhosphorProtocol's D-Bus half (use its *Types.h headers)"
