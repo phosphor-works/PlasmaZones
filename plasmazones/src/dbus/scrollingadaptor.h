@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <QDBusAbstractAdaptor>
 #include <QJsonObject>
@@ -28,7 +28,7 @@ class ScrollingService;
  * Its compositor-only reports (clearWindowedFullscreen, reapplyWindowGeometry, reportCommittedSize,
  * setWindowFullscreenFloat) admit only the registered bridge (DbusHelpers::admitCompositorReport, #1155).
  */
-class PLASMAZONES_EXPORT ScrollingAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT ScrollingAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Scrolling")

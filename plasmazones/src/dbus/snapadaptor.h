@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/NavigationMarshalling.h>
 #include <PhosphorProtocol/WindowMarshalling.h>
@@ -31,7 +31,7 @@ class SnapService;
  * Its compositor-only members admit only the registered bridge (DbusHelpers::admitCompositorReport, #1155), and
  * handleBatchedResnap admits restore entries only from the bridge or a direct call.
  */
-class PLASMAZONES_EXPORT SnapAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT SnapAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Snap")

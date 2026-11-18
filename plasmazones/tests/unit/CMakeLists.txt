@@ -1700,21 +1700,21 @@ target_link_libraries(test_wta_convenience PRIVATE Qt6::Test Qt6::Core Qt6::DBus
 add_test(NAME test_wta_convenience COMMAND test_wta_convenience)
 
 add_executable(test_scrolling_adaptor dbus/test_scrolling_adaptor.cpp dbus/scrollingadaptortestfixture.h)
-target_link_libraries(test_scrolling_adaptor PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_scrolling_adaptor PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                                                      PhosphorScrollEngine::PhosphorScrollEngine)
 add_test(NAME test_scrolling_adaptor COMMAND test_scrolling_adaptor)
 # The wire verbs (wheel pair, absolute setters), split out of the suite
 # above once it passed the size ceiling; same fixture header.
 add_executable(test_scrolling_adaptor_verbs dbus/test_scrolling_adaptor_verbs.cpp
                                             dbus/scrollingadaptortestfixture.h)
-target_link_libraries(test_scrolling_adaptor_verbs PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_scrolling_adaptor_verbs PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                                                            PhosphorScrollEngine::PhosphorScrollEngine)
 add_test(NAME test_scrolling_adaptor_verbs COMMAND test_scrolling_adaptor_verbs)
 # The placement-map surfaces (stripModelJson, focusColumnAt, scrollViewByPx)
 # the Phosphor shell's strip map rides on; same fixture header.
 add_executable(test_scrolling_adaptor_map dbus/test_scrolling_adaptor_map.cpp
                                           dbus/scrollingadaptortestfixture.h)
-target_link_libraries(test_scrolling_adaptor_map PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_scrolling_adaptor_map PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                                                          PhosphorScrollEngine::PhosphorScrollEngine)
 add_test(NAME test_scrolling_adaptor_map COMMAND test_scrolling_adaptor_map)
 
@@ -1795,7 +1795,7 @@ add_test(NAME test_wta_capture_guards COMMAND test_wta_capture_guards)
 # link as the capture guards.
 add_executable(test_wta_float_back_model dbus/test_wta_float_back_model.cpp)
 target_link_libraries(test_wta_float_back_model PRIVATE pz_test_fake_screens)
-target_link_libraries(test_wta_float_back_model PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_wta_float_back_model PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                                                         PhosphorWorkspaces::PhosphorWorkspaces)
 add_test(NAME test_wta_float_back_model COMMAND test_wta_float_back_model)
 
@@ -1848,7 +1848,7 @@ add_test(NAME test_wta_bus_boundary COMMAND test_wta_bus_boundary)
 # the BusHost metaobject a stranger peer's batch is called through.
 add_executable(test_snap_adaptor_gates dbus/test_snap_adaptor_gates.cpp helpers/BusPeer.h)
 target_link_libraries(test_snap_adaptor_gates PRIVATE pz_test_fake_screens)
-target_link_libraries(test_snap_adaptor_gates PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_snap_adaptor_gates PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                                                       PhosphorWorkspaces::PhosphorWorkspaces)
 add_test(NAME test_snap_adaptor_gates COMMAND test_snap_adaptor_gates)
 
@@ -1950,7 +1950,7 @@ add_test(NAME test_wta_shell_surface COMMAND test_wta_shell_surface)
 # getWindowStatesForDesktop's desktop / sticky / screen filter and
 # findWindowByPid's most-recent-push tie-break.
 add_executable(test_wta_shell_desktop dbus/test_wta_shell_desktop.cpp)
-target_link_libraries(test_wta_shell_desktop PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_wta_shell_desktop PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                       PhosphorSnapEngine::PhosphorSnapEngine)
 add_test(NAME test_wta_shell_desktop COMMAND test_wta_shell_desktop)
 
@@ -1958,7 +1958,7 @@ add_test(NAME test_wta_shell_desktop COMMAND test_wta_shell_desktop)
 # getShortcutsJson serialises the injected provider's rows and answers []
 # without one; shortcutsChanged relays notifyShortcutsChanged.
 add_executable(test_control_shortcuts dbus/test_control_shortcuts.cpp)
-target_link_libraries(test_control_shortcuts PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
+target_link_libraries(test_control_shortcuts PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME test_control_shortcuts COMMAND test_control_shortcuts)
 
 add_executable(test_settings_schema dbus/test_settings_schema.cpp)
@@ -1973,7 +1973,7 @@ add_test(NAME test_settings_schema COMMAND test_settings_schema)
 # what makes AUTOMOC generate its metaobject, and Qt finds the call context
 # through that metaobject's qt_metacast.
 add_executable(test_settings_adaptor_batch dbus/test_settings_adaptor_batch.cpp helpers/BusPeer.h)
-target_link_libraries(test_settings_adaptor_batch PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
+target_link_libraries(test_settings_adaptor_batch PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME test_settings_adaptor_batch COMMAND test_settings_adaptor_batch)
 
 # A bus call's context reaches an adaptor through the object it is exported
@@ -1981,7 +1981,7 @@ add_test(NAME test_settings_adaptor_batch COMMAND test_settings_adaptor_batch)
 # OverlayAdaptor's thumbnail gate refuses a bus peer that is not the
 # compositor. Called by a second connection on the private test bus.
 add_executable(test_adaptor_bus_context dbus/test_adaptor_bus_context.cpp helpers/BusPeer.h)
-target_link_libraries(test_adaptor_bus_context PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
+target_link_libraries(test_adaptor_bus_context PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME test_adaptor_bus_context COMMAND test_adaptor_bus_context)
 
 # DbusHelpers::admitCompositorReport and CompositorBridgeAdaptor registration
@@ -1989,13 +1989,13 @@ add_test(NAME test_adaptor_bus_context COMMAND test_adaptor_bus_context)
 # documented compositor-only to a gated slot. Links plasmazones_core only;
 # PhosphorProtocol arrives through it.
 add_executable(test_compositor_only_gate dbus/test_compositor_only_gate.cpp helpers/BusPeer.h)
-target_link_libraries(test_compositor_only_gate PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
+target_link_libraries(test_compositor_only_gate PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 target_compile_definitions(test_compositor_only_gate PRIVATE
     "PHOSPHOR_SCREENS_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-screens\"")
 add_test(NAME test_compositor_only_gate COMMAND test_compositor_only_gate)
 
 add_executable(test_compositor_bridge dbus/test_compositor_bridge.cpp)
-target_link_libraries(test_compositor_bridge PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
+target_link_libraries(test_compositor_bridge PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME test_compositor_bridge COMMAND test_compositor_bridge)
 
 # A blanket disconnect(sender, &Signal, this, nullptr) removes EVERY connection
@@ -2036,7 +2036,7 @@ add_test(NAME test_preset_registry_wiring COMMAND test_preset_registry_wiring)
 add_executable(test_dbus_contract_sync dbus/test_dbus_contract_sync.cpp)
 target_compile_definitions(test_dbus_contract_sync
                            PRIVATE PLASMAZONES_DBUS_XML_DIR="${CMAKE_SOURCE_DIR}/plasmazones/dbus")
-target_link_libraries(test_dbus_contract_sync PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
+target_link_libraries(test_dbus_contract_sync PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME test_dbus_contract_sync COMMAND test_dbus_contract_sync)
 
 # Every setting the KWin effect fetches must be present in SettingsAdaptor's
@@ -2059,7 +2059,7 @@ target_compile_definitions(test_settings_registry_contract
 # it stops the test depending on that staying true, per the note at the top of
 # this file.
 target_link_libraries(test_settings_registry_contract
-                      PRIVATE Qt6::Test Qt6::Core Qt6::DBus Qt6::Gui plasmazones_core
+                      PRIVATE Qt6::Test Qt6::Core Qt6::DBus Qt6::Gui plasmazones_core plasmazones_dbus
                               PhosphorAnimation::PhosphorAnimation)
 add_test(NAME test_settings_registry_contract COMMAND test_settings_registry_contract)
 
@@ -2173,7 +2173,7 @@ add_test(NAME test_windowdrag_cross_screen COMMAND test_windowdrag_cross_screen)
 # registered over the bus retiring with its owner (helpers/BusPeer.h, listed
 # so AUTOMOC generates its BusHost metaobject).
 add_executable(test_windowdrag_drop_proxy dbus/test_windowdrag_drop_proxy.cpp helpers/BusPeer.h)
-target_link_libraries(test_windowdrag_drop_proxy PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_windowdrag_drop_proxy PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                                                          PhosphorSnapEngine::PhosphorSnapEngine)
 add_test(NAME test_windowdrag_drop_proxy COMMAND test_windowdrag_drop_proxy)
 
@@ -3044,7 +3044,7 @@ add_executable(test_layout_adaptor_signals dbus/test_layout_adaptor_signals.cpp)
 # PhosphorLayoutApi for LayoutId::makeAutotileId — both constructed directly
 # here, so name them rather than relying on the transitive pull through
 # plasmazones_core.
-target_link_libraries(test_layout_adaptor_signals PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
+target_link_libraries(test_layout_adaptor_signals PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus
                       PhosphorTiles::PhosphorTiles PhosphorZones::PhosphorZones
                       PhosphorLayoutApi::PhosphorLayoutApi PhosphorScreens::Runtime)
 add_test(NAME test_layout_adaptor_signals COMMAND test_layout_adaptor_signals)
@@ -3066,7 +3066,7 @@ add_test(NAME test_layout_adaptor_scrolling_template COMMAND test_layout_adaptor
 # benchmark output); use `ctest -LE bench` to exclude it — the LABELS
 # property below exists exactly for that.
 add_executable(bench_dbus_adaptors dbus/bench_dbus_adaptors.cpp)
-target_link_libraries(bench_dbus_adaptors PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
+target_link_libraries(bench_dbus_adaptors PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME bench_dbus_adaptors COMMAND bench_dbus_adaptors)
 # LABELS=bench so `ctest -L bench` can select it for a perf-regression run.
 # Note that nothing currently passes `-LE bench`: CI and every
