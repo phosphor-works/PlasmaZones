@@ -20,6 +20,7 @@
 #include "phosphor_i18n.h"
 #include "config/settings.h"
 #include "common/daemoncontroller.h"
+#include "common/hostsettings.h"
 #include "settings/controller/screenstatescache.h"
 #include "settings/utils/screenhelper.h"
 #include "core/types/constants.h"
@@ -497,6 +498,11 @@ public:
     Settings* settings()
     {
         return &m_settings;
+    }
+    /// PlasmaZones' own settings, stored through settings().
+    HostSettings* hostSettings()
+    {
+        return &m_hostSettings;
     }
     DaemonController* daemonController()
     {
@@ -1243,6 +1249,7 @@ private:
     /// migration on EVERY construction path. The stored value is unused.
     [[maybe_unused]] const bool m_screenIdResolverReady;
     Settings m_settings;
+    HostSettings m_hostSettings;
     /// Per-monitor editing scope; empty = "All Monitors". See the
     /// scopeScreenName Q_PROPERTY. Plain UI state, not persisted.
     QString m_scopeScreenName;

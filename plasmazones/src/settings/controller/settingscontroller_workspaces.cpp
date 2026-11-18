@@ -168,7 +168,7 @@ void SettingsController::refreshWorkspacesActive()
     // Ordered so the kwinrc read is the last resort: off, or consent already
     // recorded, needs no file read.
     const bool active = m_settings.workspacesEnabled()
-        && (m_settings.workspacesManageKWinPerOutput() || kwinPerOutputVirtualDesktopsEnabled());
+        && (m_hostSettings.workspacesManageKWinPerOutput() || kwinPerOutputVirtualDesktopsEnabled());
 #else
     const bool active = false;
 #endif
@@ -187,7 +187,7 @@ void SettingsController::wireWorkspaces()
     connect(&m_settings, &Settings::workspacesNamedEntriesChanged, this, &SettingsController::namedWorkspacesChanged);
 #ifdef USE_KDE_FRAMEWORKS
     connect(&m_settings, &Settings::workspacesEnabledChanged, this, &SettingsController::refreshWorkspacesActive);
-    connect(&m_settings, &Settings::workspacesManageKWinPerOutputChanged, this,
+    connect(&m_hostSettings, &HostSettings::workspacesManageKWinPerOutputChanged, this,
             &SettingsController::refreshWorkspacesActive);
     // The other input is KWin's own per-output flag, which the user can flip
     // in System Settings while this app is open, and which the daemon writes

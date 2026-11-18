@@ -42,6 +42,7 @@
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/Rule.h>
 
+#include "common/hostsettings.h"
 #include "config/configdefaults.h"
 #include "config/configmigration.h"
 #include "phosphor_i18n.h"
@@ -289,8 +290,8 @@ private Q_SLOTS:
         const QJsonObject delta{
             {ConfigDefaults::renderingGroup(), QJsonObject{{ConfigDefaults::gpuKey(), QStringLiteral("10de:1e84")}}},
             {ConfigDefaults::workspacesBehaviorGroup(),
-             QJsonObject{{ConfigDefaults::manageKWinPerOutputKey(), true},
-                         {ConfigDefaults::rebindKWinDesktopShortcutsKey(), false}}},
+             QJsonObject{{HostSettings::manageKWinPerOutputKey(), true},
+                         {HostSettings::rebindKWinDesktopShortcutsKey(), false}}},
         };
         const QJsonObject file{
             {QStringLiteral("_version"), 5},
@@ -313,10 +314,10 @@ private Q_SLOTS:
                           + row.value(QStringLiteral("rawKey")).toString());
         }
         const QString rebind = ConfigDefaults::workspacesBehaviorGroup() + QLatin1Char('/')
-            + ConfigDefaults::rebindKWinDesktopShortcutsKey();
+            + HostSettings::rebindKWinDesktopShortcutsKey();
         QVERIFY2(listed.contains(rebind), qPrintable(listed.join(QLatin1String(", "))));
         QVERIFY2(!listed.contains(ConfigDefaults::workspacesBehaviorGroup() + QLatin1Char('/')
-                                  + ConfigDefaults::manageKWinPerOutputKey()),
+                                  + HostSettings::manageKWinPerOutputKey()),
                  qPrintable(listed.join(QLatin1String(", "))));
         QVERIFY2(!listed.contains(ConfigDefaults::renderingGroup() + QLatin1Char('/') + ConfigDefaults::gpuKey()),
                  qPrintable(listed.join(QLatin1String(", "))));
@@ -330,16 +331,16 @@ private Q_SLOTS:
             QJsonDocument::fromJson(exported.readAll()).object().value(QStringLiteral("config")).toObject();
         const QJsonObject exportedWorkspaces =
             exportedConfig.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
-        QVERIFY(exportedWorkspaces.contains(ConfigDefaults::rebindKWinDesktopShortcutsKey()));
-        QVERIFY(!exportedWorkspaces.contains(ConfigDefaults::manageKWinPerOutputKey()));
+        QVERIFY(exportedWorkspaces.contains(HostSettings::rebindKWinDesktopShortcutsKey()));
+        QVERIFY(!exportedWorkspaces.contains(HostSettings::manageKWinPerOutputKey()));
         QVERIFY(!exportedConfig.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
 
         // Activation applies the rebind toggle and leaves both machine-scoped
         // keys out of the staged blob, so the live values stay as they were.
         QVERIFY(m_store->activateProfile(bracedId));
         const QJsonObject appliedWorkspaces = m_lastApplied.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
-        QCOMPARE(appliedWorkspaces.value(ConfigDefaults::rebindKWinDesktopShortcutsKey()).toBool(true), false);
-        QVERIFY(!appliedWorkspaces.contains(ConfigDefaults::manageKWinPerOutputKey()));
+        QCOMPARE(appliedWorkspaces.value(HostSettings::rebindKWinDesktopShortcutsKey()).toBool(true), false);
+        QVERIFY(!appliedWorkspaces.contains(HostSettings::manageKWinPerOutputKey()));
         QVERIFY(!m_lastApplied.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
     }
 

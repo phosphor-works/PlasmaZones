@@ -39,6 +39,40 @@ using namespace Qt::StringLiterals;
 
 namespace PlasmaZones {
 
+namespace {
+HostSettingsExtension& installedHostSettingsExtension()
+{
+    static HostSettingsExtension extension;
+    return extension;
+}
+} // namespace
+
+void setHostSettingsExtension(const HostSettingsExtension& extension)
+{
+    installedHostSettingsExtension() = extension;
+}
+
+const HostSettingsExtension& hostSettingsExtension()
+{
+    return installedHostSettingsExtension();
+}
+
+QList<std::pair<QString, QString>> hostSchemaKeys()
+{
+    QList<std::pair<QString, QString>> keys;
+    if (const auto append = hostSettingsExtension().appendSchema) {
+        // What the extension adds to an empty schema is exactly its own.
+        PhosphorConfig::Schema own;
+        append(own);
+        for (auto group = own.groups.cbegin(); group != own.groups.cend(); ++group) {
+            for (const PhosphorConfig::KeyDef& def : group.value()) {
+                keys.append({group.key(), def.key});
+            }
+        }
+    }
+    return keys;
+}
+
 PhosphorConfig::Schema buildSettingsSchema()
 {
     PhosphorConfig::Schema s;
@@ -70,6 +104,11 @@ PhosphorConfig::Schema buildSettingsSchema()
     appendWorkspacesSchema(s);
     appendGapsSchema(s);
     appendDecorationsSchema(s);
+
+    // Last, so the host may extend an engine group as well as add its own.
+    if (const auto append = hostSettingsExtension().appendSchema) {
+        append(s);
+    }
 
     return s;
 }

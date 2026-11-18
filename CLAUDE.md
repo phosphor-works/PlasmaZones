@@ -119,6 +119,7 @@ User-facing strings MUST read like plain, human-written prose with no LLM tics. 
 ### Architecture
 - `ISettings` interface → `Settings` class → `PhosphorConfig::Store` over a pluggable `PhosphorConfig::IBackend` (default `JsonBackend`: `~/.config/plasmazones/config.json`)
 - `ConfigDefaults` for all default values; the old `.kcfg` schema files were removed from the repo
+- PlasmaZones' own choices about KWin (the per-output desktops consent, the stock-shortcut takeover) are not engine settings: `plasmazones/src/common/hostsettings.{h,cpp}` declares them through the host settings extension (`HostSettingsExtension`, installed by `initPlasmaZonesHost()` at the top of every main), and `HostSettings` serves them. A new KWin-only setting goes there, not through the steps below
 - Editor settings: separate, in `EditorController` (separate process)
 
 ### Adding a Setting

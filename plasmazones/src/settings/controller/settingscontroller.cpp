@@ -365,6 +365,7 @@ SettingsController::SettingsController(QObject* parent)
     // First call initialises the static; later constructions reuse it.
     , m_screenIdResolverReady((ensureScreenIdResolver(), true))
     , m_settings(m_localRuleStore.get(), nullptr)
+    , m_hostSettings(&m_settings)
     , m_screenHelper(&m_settings, this)
     , m_localAlgorithmRegistry(std::make_unique<PhosphorTiles::AlgorithmRegistry>(nullptr))
     , m_localLayoutManager(

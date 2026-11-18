@@ -48,6 +48,7 @@
 
 #include "packvalidatorcommon.h"
 #include "packvalidators.h"
+#include "common/hostsettings.h"
 #include "core/types/constants.h"
 
 #include <PhosphorAnimation/AnimationShaderEffect.h>
@@ -203,7 +204,7 @@ int emitPreamble(const QString& packDir, PackModel model, bool quiet, QTextStrea
 int main(int argc, char** argv)
 {
     // Before anything reads a config or data path.
-    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+    PlasmaZones::initPlasmaZonesHost();
 
     // The installed-copy fallback of SurfaceShaderRegistry's `builtin:` buffer
     // tokens looks here, so it matches the runtime's.

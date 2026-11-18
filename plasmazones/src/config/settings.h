@@ -16,6 +16,7 @@
 #include "core/interfaces/interfaces.h"
 #include "configbackends.h"
 #include "configdefaults.h"
+#include "settingsschema.h"
 
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorAnimation/Profile.h>
@@ -390,14 +391,10 @@ public:
     // Workspaces Settings (Workspaces.* and their Shortcuts.Global chord leaves),
     // dynamic per-monitor workspaces.
     Q_PROPERTY(bool workspacesEnabled READ workspacesEnabled WRITE setWorkspacesEnabled NOTIFY workspacesEnabledChanged)
-    Q_PROPERTY(bool workspacesManageKWinPerOutput READ workspacesManageKWinPerOutput WRITE
-                   setWorkspacesManageKWinPerOutput NOTIFY workspacesManageKWinPerOutputChanged)
     Q_PROPERTY(bool workspacesSnapBackOsdHint READ workspacesSnapBackOsdHint WRITE setWorkspacesSnapBackOsdHint NOTIFY
                    workspacesSnapBackOsdHintChanged)
     Q_PROPERTY(QVariantList workspacesNamedEntries READ workspacesNamedEntries WRITE setWorkspacesNamedEntries NOTIFY
                    workspacesNamedEntriesChanged)
-    Q_PROPERTY(bool workspacesRebindKWinShortcuts READ workspacesRebindKWinShortcuts WRITE
-                   setWorkspacesRebindKWinShortcuts NOTIFY workspacesRebindKWinShortcutsChanged)
     // The workspace chords and quick-slot targets. Q_PROPERTY presence is
     // load-bearing, as it is for the scrolling shortcuts below: the reload,
     // profile-overlay and per-page reset/discard change detection walks the
@@ -1492,14 +1489,10 @@ public:
     // ═══════════════════════════════════════════════════════════════════════════
     bool workspacesEnabled() const;
     void setWorkspacesEnabled(bool enabled);
-    bool workspacesManageKWinPerOutput() const;
-    void setWorkspacesManageKWinPerOutput(bool enabled);
     bool workspacesSnapBackOsdHint() const;
     void setWorkspacesSnapBackOsdHint(bool enabled);
     QVariantList workspacesNamedEntries() const;
     void setWorkspacesNamedEntries(const QVariantList& entries);
-    bool workspacesRebindKWinShortcuts() const;
-    void setWorkspacesRebindKWinShortcuts(bool enabled);
     QString workspaceFocusUpShortcut() const;
     void setWorkspaceFocusUpShortcut(const QString& shortcut);
     QString workspaceFocusDownShortcut() const;
@@ -2436,14 +2429,21 @@ public:
     /// discardKeys().
     void resetKeys(const ConfigKeyList& keys);
 
+    // ── Host keys (HostSettingsExtension) ───────────────────────────────────
+    /// A key the host's extension declares, read through the store and coerced
+    /// by its schema entry like any other.
+    QVariant hostValue(const QString& group, const QString& key) const;
+    /// Write a key the host's extension declares. Emits hostValueChanged() and
+    /// settingsChanged() when the stored value moved, and answers whether it
+    /// did. A key the extension does not declare is refused.
+    bool setHostValue(const QString& group, const QString& key, const QVariant& value);
+
     // ── Settings-profiles support (settings app) ────────────────────────────
     /// Keys that belong to this machine rather than to a set of preferences,
     /// so no profile and no full-settings import may carry them from one
     /// machine to another. Rendering.Gpu names hardware another machine
-    /// cannot satisfy. Workspaces.Behavior ManageKWinPerOutput records the
-    /// consent this machine's user gave for PlasmaZones to write KWin's
-    /// PerOutputVirtualDesktops key, which an import from elsewhere must never
-    /// grant (and a profile switch must never silently withdraw).
+    /// cannot satisfy, and the host's extension names its own
+    /// (HostSettingsExtension::isMachineScopedKey).
     /// The one predicate every capture, apply and import path consults.
     static bool isMachineScopedKey(const QString& group, const QString& key);
     /// Remove every isMachineScopedKey() key from a config blob shaped
@@ -2552,14 +2552,16 @@ Q_SIGNALS:
     /// signals per the existing NOTIFY wiring.
     void animationProfileChanged();
 
+    /// A key the host's extension declares changed, by setHostValue() or by a
+    /// reload that found a different value on disk.
+    void hostValueChanged(const QString& group, const QString& key);
+
     /// Workspaces (dynamic per-monitor workspaces): one NOTIFY per key, the
     /// quick slots included. Declared here rather than on ISettings because
     /// every consumer holds the concrete Settings and reads the value there.
     void workspacesEnabledChanged();
-    void workspacesManageKWinPerOutputChanged();
     void workspacesSnapBackOsdHintChanged();
     void workspacesNamedEntriesChanged();
-    void workspacesRebindKWinShortcutsChanged();
     void workspaceFocusUpShortcutChanged();
     void workspaceFocusDownShortcutChanged();
     void workspaceMoveWindowUpShortcutChanged();
@@ -2799,6 +2801,8 @@ private:
         QHash<PhosphorZones::AssignmentEntry::Mode, QStringList> disabledMonitors;
         QHash<PhosphorZones::AssignmentEntry::Mode, QStringList> disabledDesktops;
         QHash<PhosphorZones::AssignmentEntry::Mode, QStringList> disabledActivities;
+        /// The host keys' values, in m_hostKeys order (snapshotHostValues).
+        QVector<QVariant> hostValues;
     };
 
     // Refresh the committed baseline, the last-persisted value of every
@@ -2809,6 +2813,12 @@ private:
     // this baseline and isKeyModified() compares against it. Private: mutating
     // the baseline anywhere else desyncs dirty tracking.
     void captureBaseline();
+
+    // The host keys' values in m_hostKeys order, and the announcement of each
+    // that moved since such a snapshot (hostValueChanged). The latter answers
+    // whether any did, for the caller's settingsChanged().
+    QVector<QVariant> snapshotHostValues() const;
+    bool emitChangedHostValues(const QVector<QVariant>& before);
 
     // Palette-following colours: resolve one of the theme-fallback roles from
     // the live application palette (with the ZoneDefaults alphas), falling back
@@ -2916,6 +2926,9 @@ private:
     // groups are spread over settingsschema.cpp and its per-domain
     // settingsschema_*.cpp siblings.
     std::unique_ptr<PhosphorConfig::Store> m_store;
+    /// The keys the host's extension declares (hostSchemaKeys()), fixed for
+    /// this instance's life like the schema its store was built from.
+    const QList<std::pair<QString, QString>> m_hostKeys = hostSchemaKeys();
 
     // Committed baseline: the last-persisted value of every schema-declared
     // key, keyed group → {key → value}. Refreshed by captureBaseline() (see

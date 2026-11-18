@@ -14,15 +14,42 @@
 
 #include <PhosphorConfig/Schema.h>
 
+#include <QList>
 #include <QString>
 #include <QVariant>
 
+#include <utility>
+
 namespace PlasmaZones {
 
-/// Returns the full PZ settings schema. Called once during Settings
-/// construction and handed to Store; a new domain adds its appendXxx() call
-/// to buildSettingsSchema.
+/// What the host process adds to the engine's settings: keys of its own,
+/// appended to the schema (into its own groups or the engine's), and which
+/// keys describe only the machine they were set on. Under PlasmaZones these
+/// are the KWin-specific choices; another host brings its own or none.
+struct HostSettingsExtension
+{
+    /// Appends the host's KeyDefs. Runs after every engine group is in place,
+    /// so it may add keys to an engine group as well as groups of its own.
+    void (*appendSchema)(PhosphorConfig::Schema& schema) = nullptr;
+    /// Whether (group, key) is one of the host's machine-scoped keys, which a
+    /// settings profile or an export leaves out (Settings::isMachineScopedKey).
+    bool (*isMachineScopedKey)(const QString& group, const QString& key) = nullptr;
+};
+
+/// Install the host's extension. Call once at startup, before the first
+/// Settings or cachedSettingsSchema(): the schema is built from it, and a store
+/// built without it deletes the host's keys as undeclared on its next save.
+PLASMAZONES_EXPORT void setHostSettingsExtension(const HostSettingsExtension& extension);
+/// The installed extension; empty when the host added nothing.
+PLASMAZONES_EXPORT const HostSettingsExtension& hostSettingsExtension();
+
+/// Returns the full PZ settings schema, the host's keys included. Called once
+/// during Settings construction and handed to Store; a new domain adds its
+/// appendXxx() call to buildSettingsSchema.
 PLASMAZONES_EXPORT PhosphorConfig::Schema buildSettingsSchema();
+
+/// The (group, key) pairs the host's extension declares, in its order.
+PLASMAZONES_EXPORT QList<std::pair<QString, QString>> hostSchemaKeys();
 
 /// Shared immortal schema for READ-ONLY consumers (choice lookups, value
 /// resolution). Built once on first use. Settings must NOT use this — it

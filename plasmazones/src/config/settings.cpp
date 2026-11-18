@@ -595,6 +595,9 @@ Settings::AnnouncedState Settings::captureAnnouncedState(bool withDisableLists) 
     // copy.
     state.editor = snapshotEditorSettings();
     state.members = captureMemberState();
+    // The host's keys have no Q_PROPERTY here; their owner announces them
+    // from hostValueChanged.
+    state.hostValues = snapshotHostValues();
     // Per-mode disable lists are NOT Q_PROPERTYs (their getters take a Mode
     // argument, which Q_PROPERTY can't express), so they are captured per Mode,
     // in canonical form (see the comparison in reloadFromDisk). Iterating
@@ -811,7 +814,9 @@ void Settings::reloadFromDisk(bool preserveLocalEdits, const AnnouncedState* bef
     // above, and the aggregate keeps a cross-process write (daemon shortcut,
     // D-Bus call) consistent with the direct setter path, which always ends in
     // settingsChanged (`writeDisableEntries` included).
-    if (anyChanged || anyDisableChanged || perScreenChanged)
+    const bool anyHostChanged = emitChangedHostValues(before->hostValues);
+
+    if (anyChanged || anyDisableChanged || perScreenChanged || anyHostChanged)
         Q_EMIT settingsChanged();
 
     // The store now mirrors disk, so refresh the committed baseline that
@@ -1251,13 +1256,34 @@ bool Settings::exportTo(const QString& filePath)
 
 bool Settings::isMachineScopedKey(const QString& group, const QString& key)
 {
-    if (group == ConfigDefaults::renderingGroup()) {
-        return key == ConfigDefaults::gpuKey();
+    if (group == ConfigDefaults::renderingGroup() && key == ConfigDefaults::gpuKey()) {
+        return true;
     }
-    if (group == ConfigDefaults::workspacesBehaviorGroup()) {
-        return key == ConfigDefaults::manageKWinPerOutputKey();
+    const auto hostScoped = hostSettingsExtension().isMachineScopedKey;
+    return hostScoped && hostScoped(group, key);
+}
+
+QVariant Settings::hostValue(const QString& group, const QString& key) const
+{
+    return m_store->readVariant(group, key);
+}
+
+bool Settings::setHostValue(const QString& group, const QString& key, const QVariant& value)
+{
+    if (!m_hostKeys.contains(std::pair{group, key})) {
+        qCWarning(lcConfig) << "setHostValue: the host's settings extension does not declare" << group << key;
+        return false;
     }
-    return false;
+    // Compared after the write: the schema's coercion runs on it, so the
+    // stored value may differ from the one passed in.
+    const QVariant before = m_store->readVariant(group, key);
+    m_store->write(group, key, value);
+    if (m_store->readVariant(group, key) == before) {
+        return false;
+    }
+    Q_EMIT hostValueChanged(group, key);
+    Q_EMIT settingsChanged();
+    return true;
 }
 
 void Settings::stripMachineScopedKeys(QJsonObject& config)
@@ -1458,6 +1484,7 @@ void Settings::discardKeys(const ConfigKeyList& keys)
     const AnimationProfileState animProfileBefore = animationProfileState();
     const QVector<QVariant> before = snapshotNotifyProperties();
     const QVector<QVariant> editorBefore = snapshotEditorSettings();
+    const QVector<QVariant> hostBefore = snapshotHostValues();
     for (const ConfigKey& gk : keys) {
         // Only keys captured in the committed baseline (i.e. schema-declared) can
         // be reverted; a mistyped manifest entry would otherwise write a default-
@@ -1480,7 +1507,8 @@ void Settings::discardKeys(const ConfigKeyList& keys)
     // The Editor.* settings announce on their own aggregate
     // (editorSettingsChanged), never on settingsChanged.
     emitChangedEditorSettings(editorBefore);
-    if (emitChangedNotifyProperties(before))
+    const bool hostChanged = emitChangedHostValues(hostBefore);
+    if (emitChangedNotifyProperties(before) || hostChanged)
         Q_EMIT settingsChanged();
 }
 
@@ -1489,14 +1517,39 @@ void Settings::resetKeys(const ConfigKeyList& keys)
     const AnimationProfileState animProfileBefore = animationProfileState();
     const QVector<QVariant> before = snapshotNotifyProperties();
     const QVector<QVariant> editorBefore = snapshotEditorSettings();
+    const QVector<QVariant> hostBefore = snapshotHostValues();
     for (const ConfigKey& gk : keys) {
         m_store->reset(gk.first, gk.second);
     }
     normalizeScrollingColumnWidthValue();
     emitAnimationProfileChangeIfMoved(animProfileBefore);
     emitChangedEditorSettings(editorBefore);
-    if (emitChangedNotifyProperties(before))
+    const bool hostChanged = emitChangedHostValues(hostBefore);
+    if (emitChangedNotifyProperties(before) || hostChanged)
         Q_EMIT settingsChanged();
+}
+
+QVector<QVariant> Settings::snapshotHostValues() const
+{
+    QVector<QVariant> snapshot;
+    snapshot.reserve(m_hostKeys.size());
+    for (const auto& [group, key] : m_hostKeys) {
+        snapshot.append(m_store->readVariant(group, key));
+    }
+    return snapshot;
+}
+
+bool Settings::emitChangedHostValues(const QVector<QVariant>& before)
+{
+    bool anyChanged = false;
+    for (qsizetype i = 0; i < m_hostKeys.size(); ++i) {
+        const auto& [group, key] = m_hostKeys.at(i);
+        if (m_store->readVariant(group, key) != before.value(i)) {
+            anyChanged = true;
+            Q_EMIT hostValueChanged(group, key);
+        }
+    }
+    return anyChanged;
 }
 
 void Settings::connectRuleStoreGapReactivity()

@@ -5,6 +5,7 @@
 
 #include "config/configdefaults.h"
 #include "config/configmigration.h"
+#include "common/hostsettings.h"
 #include "core/types/constants.h"
 #include "runtime/common/runtimei18n.h"
 #include "core/platform/logging.h"
@@ -346,7 +347,7 @@ KWinPresence waitForKWin(QDBusConnection& bus)
 int main(int argc, char* argv[])
 {
     // Before anything reads a config or data path.
-    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+    PlasmaZones::initPlasmaZonesHost();
 
     // --help and --version are answered HERE, before everything else, because
     // everything below assumes a live session: the Wayland guard exits cleanly

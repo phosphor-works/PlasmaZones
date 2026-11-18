@@ -8,6 +8,7 @@
 
 #include "daemon/daemon.h"
 
+#include "common/hostsettings.h"
 #include "config/settings.h"
 #include "runtime/engine/engineruntime.h"
 #include "daemon/host/kwinworkspacehost.h"
@@ -74,15 +75,17 @@ EngineRuntime::Platform kwinSessionPlatform()
 Daemon::Daemon(QObject* parent)
     : QObject(parent)
     , m_runtime(std::make_unique<EngineRuntime>(kwinSessionPlatform()))
-    , m_workspaceHost(std::make_unique<KWinWorkspaceHost>(m_runtime->shortcutManager(), m_runtime->settings()))
+    , m_hostSettings(std::make_unique<HostSettings>(m_runtime->settings()))
+    , m_workspaceHost(std::make_unique<KWinWorkspaceHost>(m_runtime->shortcutManager(), m_runtime->settings(),
+                                                          m_hostSettings.get()))
     , m_systemOsd(std::make_unique<PlasmaSystemOsd>())
 {
     m_runtime->setWorkspaceHost(m_workspaceHost.get());
-    // The KWin host's two preferences are PlasmaZones settings: the runtime
-    // hears of a change through the host's report, not the settings.
+    // The KWin host's two preferences are PlasmaZones' own settings: the
+    // runtime hears of a change through the host's report.
     for (const auto changed :
-         {&Settings::workspacesManageKWinPerOutputChanged, &Settings::workspacesRebindKWinShortcutsChanged}) {
-        connect(m_runtime->settings(), changed, m_runtime.get(), &EngineRuntime::workspaceHostPreferencesChanged);
+         {&HostSettings::workspacesManageKWinPerOutputChanged, &HostSettings::workspacesRebindKWinShortcutsChanged}) {
+        connect(m_hostSettings.get(), changed, m_runtime.get(), &EngineRuntime::workspaceHostPreferencesChanged);
     }
     m_runtime->setSystemOsd(m_systemOsd.get());
 

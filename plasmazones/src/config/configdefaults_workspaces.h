@@ -29,30 +29,11 @@ public:
         return false;
     }
 
-    /// Consent latch for writing KWin's PerOutputVirtualDesktops key on the
-    /// user's behalf. Never written silently; recorded when the user accepts
-    /// the inline confirmation on the Workspaces settings page.
-    static constexpr bool workspacesManageKWinPerOutput()
-    {
-        return false;
-    }
-
     /// OSD hints from the workspace controller: when owner-wins snap-back
     /// returns a monitor to its own workspace after a switch to one another
     /// monitor owns, and when a window that landed on a workspace being
     /// removed is moved to its monitor's current one.
     static constexpr bool workspacesSnapBackOsdHint()
-    {
-        return true;
-    }
-
-    /// Neutralize KWin's stock "Switch One Desktop" and "Walk Through
-    /// Desktops" chords while the feature is on (restored on disable). On by
-    /// default: the stock chords iterate the GLOBAL desktop pool and would
-    /// trip owner-wins snap-back on nearly every press, and the focus verbs'
-    /// defaults deliberately reuse Meta+Ctrl+Up/Down (user decision,
-    /// 2026-08-26).
-    static constexpr bool workspacesRebindKWinShortcuts()
     {
         return true;
     }
