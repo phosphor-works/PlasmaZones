@@ -36,9 +36,11 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUuid>
 
 #include "core/types/constants.h"
 #include "config/configdefaults.h"
+#include "runtime/host/ihostapps.h"
 #include "runtime/services/layoutservice/layoutservice.h"
 #include <PhosphorLayoutApi/LayoutId.h>
 #include <PhosphorZones/AssignmentEntry.h>
@@ -54,6 +56,26 @@
 
 using namespace PlasmaZones;
 using PlasmaZones::TestHelpers::IsolatedConfigGuard;
+
+namespace {
+/// The host's apps, recording what the engine asked for.
+class RecordingApps : public IHostApps
+{
+public:
+    QList<EditorRequest> editorRequests;
+    bool starts = true;
+
+    bool openSettings() override
+    {
+        return starts;
+    }
+    bool openEditor(const EditorRequest& request) override
+    {
+        editorRequests.append(request);
+        return starts;
+    }
+};
+} // namespace
 
 class TestLayoutAdaptorScrollingTemplate : public QObject
 {
@@ -83,6 +105,38 @@ private Q_SLOTS:
         m_adaptor = nullptr;
         m_store.reset();
         m_guard.reset();
+    }
+
+    /// Every editor verb asks the host's apps for the editor on what it
+    /// names, a refused id asks for nothing, and with no apps (or apps that
+    /// cannot start it) the verb answers false.
+    void testOpenEditorVerbs_askTheHostApps()
+    {
+        QVERIFY(!m_adaptor->openEditor());
+
+        RecordingApps apps;
+        m_adaptor->setHostApps(&apps);
+        const QString layoutId = QUuid::createUuid().toString();
+        QVERIFY(m_adaptor->openEditor());
+        QVERIFY(m_adaptor->openEditorForScreen(QStringLiteral("DP-1")));
+        QVERIFY(m_adaptor->openEditorForLayoutOnScreen(layoutId, QStringLiteral("DP-2")));
+        QVERIFY(m_adaptor->openEditorForScrollingTemplate(QString()));
+        QVERIFY(m_adaptor->openEditorForScrollingTemplate(m_templateId));
+        QVERIFY(!m_adaptor->openEditorForLayoutOnScreen(QStringLiteral("not-an-id"), QString()));
+        QVERIFY(!m_adaptor->openEditorForScrollingTemplate(QUuid::createUuid().toString()));
+
+        QCOMPARE(apps.editorRequests.size(), 5);
+        const auto& r = apps.editorRequests;
+        QVERIFY(r[0].screenId.isEmpty() && r[0].layoutId.isEmpty() && r[0].scrollingTemplateId.isEmpty()
+                && !r[0].newScrollingTemplate);
+        QCOMPARE(r[1].screenId, QStringLiteral("DP-1"));
+        QCOMPARE(r[2].layoutId, layoutId);
+        QCOMPARE(r[2].screenId, QStringLiteral("DP-2"));
+        QVERIFY(r[3].newScrollingTemplate);
+        QCOMPARE(r[4].scrollingTemplateId, m_templateId);
+
+        apps.starts = false;
+        QVERIFY(!m_adaptor->openEditor());
     }
 
     void testSetAssignmentEntry_acceptsTheReservedNoneWords()

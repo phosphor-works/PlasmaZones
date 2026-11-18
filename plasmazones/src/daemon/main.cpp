@@ -143,7 +143,7 @@ QList<std::optional<QByteArray>> inheritedPrivateEnvironment()
 // What main() did to kDaemonPrivateEnvVars, in the shape the spawn sites undo
 // it (PDaemonEnvIntroducedVarsProperty / PDaemonEnvInheritedVarsProperty in
 // core/types/constants.h, read by childProcessEnvironment() in
-// core/platform/childprocessenvironment.h). A variable that already had the daemon's value in
+// daemon/host/childprocessenvironment.h). A variable that already had the daemon's value in
 // the inherited environment appears in neither: the user set it that way, and
 // it reaches a child unchanged.
 struct PrivateEnvironmentChanges
@@ -504,10 +504,9 @@ int main(int argc, char* argv[])
     // fallback) search the subdir phosphor-surface-packs installs to.
     PhosphorSurfaceShaders::setSurfacePackDataSubdir(PlasmaZones::ConfigDefaults::surfacePacksSubdir());
 
-    // Publish the daemon-private variables changed above, so spawn sites in
-    // plasmazones_core (e.g. LayoutService::launchEditor) can undo them for a
-    // child through PlasmaZones::childProcessEnvironment() without a link
-    // dependency on this target. The GPU-preference variables are published
+    // Publish the daemon-private variables changed above, so the daemon's
+    // spawn sites (PlasmaZonesApps) can undo them for a child through
+    // childProcessEnvironment(). The GPU-preference variables are published
     // with the rendering backend below, after the Vulkan instance has
     // exported its own.
     app.setProperty(PlasmaZones::PDaemonEnvIntroducedVarsProperty, privateEnvChanges.introduced);

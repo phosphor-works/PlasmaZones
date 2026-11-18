@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "runtime/host/ihostapps.h"
 #include "plasmazones_export.h"
 #include <QObject>
 #include <QPointer>
@@ -69,6 +70,12 @@ public:
     void setVirtualDesktopManager(PhosphorWorkspaces::VirtualDesktopManager* vdm);
     void setActivityManager(PhosphorWorkspaces::ActivityManager* am);
     void setSettings(ISettings* settings);
+    /// The host's layout editor, which the openEditor verbs open. Not owned;
+    /// null makes them answer false.
+    void setHostApps(IHostApps* apps)
+    {
+        m_hostApps = apps;
+    }
     void setLayoutsAvailableResolver(std::function<bool(const QString&)> resolver)
     {
         m_layoutsAvailableResolver = std::move(resolver);
@@ -752,14 +759,9 @@ private:
      */
     std::optional<QJsonObject> parseJsonObject(const QString& jsonString, const QString& operation) const;
 
-    /**
-     * @brief Launch the editor with given arguments
-     * @param args Command line arguments for the editor
-     * @param description Description for logging (e.g., "for screen: DP-1")
-     */
-    /// Spawn the editor process. False when startDetached failed (missing or
-    /// unexecutable binary) — the four public launch verbs forward this.
-    bool launchEditor(const QStringList& args, const QString& description);
+    /// Ask the host to open its editor on @p request. False when the host has
+    /// no editor or could not start it; the public verbs forward this.
+    bool launchEditor(const IHostApps::EditorRequest& request, const QString& description);
 
     /**
      * @brief Build activity info JSON object
@@ -783,6 +785,7 @@ private:
     PhosphorWorkspaces::ActivityManager* m_activityManager = nullptr;
     PhosphorScreens::ScreenManager* m_screenManager = nullptr;
     ISettings* m_settings = nullptr;
+    IHostApps* m_hostApps = nullptr;
     std::function<bool(const QString&)> m_layoutsAvailableResolver;
     PhosphorTiles::ITileAlgorithmRegistry* m_algorithmRegistry = nullptr; ///< Borrowed; outlives adaptor
     PhosphorLayout::ILayoutSource* m_layoutSource = nullptr;

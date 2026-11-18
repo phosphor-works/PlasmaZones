@@ -97,7 +97,6 @@ set(plasmazones_core_SRCS
     core/platform/singleinstanceservice.h
     # Header-only: the environment the daemon's spawn sites hand the editor and
     # the settings app.
-    core/platform/childprocessenvironment.h
     # screen_resolver.{h,cpp} and screenmanager.{h,cpp} + screenmanager/
     # lifted to phosphor-libs/libs/phosphor-screens. Daemon consumers take
     # PhosphorScreens::ScreenManager* via constructor injection -
@@ -719,6 +718,10 @@ set(plasmazones_daemon_SRCS
     daemon/host/kwinworkspacehost.h
     daemon/host/plasmasystemosd.cpp
     daemon/host/plasmasystemosd.h
+    # The host's own apps (IHostApps): settings and the layout editor
+    daemon/host/childprocessenvironment.h
+    daemon/host/plasmazonesapps.cpp
+    daemon/host/plasmazonesapps.h
     runtime/controllers/workspacecontroller.cpp
     runtime/controllers/workspacecontroller_verbs.cpp
     runtime/controllers/workspacecontroller.h

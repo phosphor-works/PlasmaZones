@@ -34,6 +34,7 @@ namespace PlasmaZones {
 class HostSettings;
 class KWinWorkspaceHost;
 class PlasmaSystemOsd;
+class PlasmaZonesApps;
 class AutotileAdaptor;
 class CompositorBridgeAdaptor;
 class ControlAdaptor;
@@ -127,11 +128,12 @@ private:
     // PlasmaZones' own settings, stored through the runtime's Settings.
     std::unique_ptr<HostSettings> m_hostSettings;
 
-    // The host implementations the runtime reads through IWorkspaceHost and
-    // ISystemOsd. Destroyed before the runtime, which stop() has already
+    // The host implementations the runtime reads through IWorkspaceHost,
+    // ISystemOsd and IHostApps. Destroyed before the runtime, which stop() has already
     // released them from by then.
     std::unique_ptr<KWinWorkspaceHost> m_workspaceHost;
     std::unique_ptr<PlasmaSystemOsd> m_systemOsd;
+    std::unique_ptr<PlasmaZonesApps> m_apps;
 
     // The bus bindings of the runtime's services. QDBusAbstractAdaptor children
     // of this object (raw pointers). Each forwards to a service the runtime

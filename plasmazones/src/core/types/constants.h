@@ -36,9 +36,9 @@ namespace PhosphorEngineRuntime {
 /// runtime/rendering/vulkansupport.h). Spawn sites remove these names from a
 /// child's environment so an inherited export cannot trip the child's
 /// pre-set-value guards and freeze it on this process's stale GPU pin. The
-/// constant lives here (not in vulkansupport.h) so plasmazones_core spawn
-/// sites can read the property without a link dependency on the executables
-/// that compile vulkansupport.cpp.
+/// constant lives here, not in vulkansupport.h, so the host's spawn sites
+/// can read the property without the executables that compile
+/// vulkansupport.cpp.
 inline constexpr const char* PGpuExportedVarsProperty = "_p_gpuExportedVars";
 
 /// Companion property: environment variables this process CLEARED for the GPU
@@ -62,8 +62,8 @@ inline constexpr const char* PDaemonEnvIntroducedVarsProperty = "_p_daemonEnvInt
 /// environment the daemon inherited and that its main() unset or overwrote
 /// (a QVariantMap of name to the inherited value). Spawn sites put the
 /// inherited value back into the child environment. They read all four
-/// properties through childProcessEnvironment()
-/// (core/platform/childprocessenvironment.h).
+/// properties through the host's childProcessEnvironment() (under
+/// PlasmaZones, daemon/host/childprocessenvironment.h).
 inline constexpr const char* PDaemonEnvInheritedVarsProperty = "_p_daemonEnvInheritedVars";
 
 // PhosphorZones::ZoneGeometryMode lives in libs/phosphor-zones —

@@ -9,7 +9,6 @@
 #include <PhosphorZones/LayoutFactory.h>
 #include <PhosphorZones/Zone.h>
 #include "core/types/constants.h"
-#include "core/platform/childprocessenvironment.h"
 #include <PhosphorZones/LayoutUtils.h>
 #include <PhosphorZones/LayoutRegistry.h>
 // LayoutRegistry.h only forward-declares ScrollingTemplateStore; templateById()
@@ -21,11 +20,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QProcess>
-#include <QProcessEnvironment>
-#include <QStandardPaths>
-#include <QCoreApplication>
-#include <QFile>
 #include <QScopeGuard>
 
 #include <algorithm>
@@ -37,43 +31,14 @@ namespace PhosphorEngineRuntime {
 // Editor Launch Helper
 // ═══════════════════════════════════════════════════════════════════════════════
 
-bool LayoutService::launchEditor(const QStringList& args, const QString& description)
+bool LayoutService::launchEditor(const IHostApps::EditorRequest& request, const QString& description)
 {
-    // Resolved once for the daemon's lifetime, deliberately: the fallback is
-    // the bare name, which QProcess re-resolves against PATH at every spawn,
-    // so an editor installed after daemon start still launches. Only a
-    // package move to a different prefix goes stale until a daemon restart.
-    static const QString editor = []() {
-        QString found = QStandardPaths::findExecutable(QStringLiteral("plasmazones-editor"));
-        if (!found.isEmpty()) {
-            return found;
-        }
-
-        QString appDir = QCoreApplication::applicationDirPath();
-        QString localEditor = appDir + QStringLiteral("/plasmazones-editor");
-        if (QFile::exists(localEditor)) {
-            return localEditor;
-        }
-
-        return QStringLiteral("plasmazones-editor");
-    }();
-
+    if (!m_hostApps) {
+        qCWarning(lcDbusLayout) << "No layout editor on this host; not opening one" << description;
+        return false;
+    }
     qCInfo(lcDbusLayout) << "Launching editor" << description;
-    // Start the editor with the environment this daemon inherited, not the
-    // one it runs with (childProcessEnvironment).
-    // The GPU-preference variables the daemon exported come out: an inherited
-    // DRI_PRIME or QT_VK_PHYSICAL_DEVICE_INDEX would trip the editor's
-    // pre-set-value guards and freeze it on this process's stale pin instead
-    // of its own config read. So do the variables the daemon set for itself
-    // as a background service (the MangoHud opt-out, the simple animation
-    // driver, the layer-shell QPA plugin), and what it cleared is put back.
-    // Only what the daemon changed is touched, so a user's own session
-    // exports still reach the editor.
-    QProcess process;
-    process.setProgram(editor);
-    process.setArguments(args);
-    process.setProcessEnvironment(childProcessEnvironment());
-    if (!process.startDetached()) {
+    if (!m_hostApps->openEditor(request)) {
         qCWarning(lcDbusLayout) << "Failed to launch editor" << description;
         return false;
     }
@@ -490,7 +455,7 @@ bool LayoutService::openEditorForScreen(const QString& screenId)
 {
     // Intentionally passes the screen ID — the editor process
     // uses it for QScreen::name() matching and geometry lookup.
-    return launchEditor({QStringLiteral("--screen"), screenId}, QStringLiteral("for screen: %1").arg(screenId));
+    return launchEditor({.screenId = screenId}, QStringLiteral("for screen: %1").arg(screenId));
 }
 
 bool LayoutService::openEditorForLayoutOnScreen(const QString& layoutId, const QString& screenId)
@@ -501,11 +466,8 @@ bool LayoutService::openEditorForLayoutOnScreen(const QString& layoutId, const Q
         qCWarning(lcDbusLayout) << "openEditorForLayoutOnScreen: rejecting malformed layout id" << layoutId;
         return false;
     }
-    QStringList args{QStringLiteral("--layout"), layoutId};
-    if (!screenId.isEmpty()) {
-        args << QStringLiteral("--screen") << screenId;
-    }
-    return launchEditor(args, QStringLiteral("for layout: %1 on screen: %2").arg(layoutId, screenId));
+    return launchEditor({.screenId = screenId, .layoutId = layoutId},
+                        QStringLiteral("for layout: %1 on screen: %2").arg(layoutId, screenId));
 }
 
 bool LayoutService::openEditorForScrollingTemplate(const QString& templateId)
@@ -516,8 +478,7 @@ bool LayoutService::openEditorForScrollingTemplate(const QString& templateId)
     // caller bug answers false here instead of an editor showing
     // "no longer available".
     if (templateId.isEmpty()) {
-        return launchEditor({QStringLiteral("--new-scrolling-template")},
-                            QStringLiteral("for a new scrolling template"));
+        return launchEditor({.newScrollingTemplate = true}, QStringLiteral("for a new scrolling template"));
     }
     const QUuid parsed = QUuid::fromString(templateId);
     if (parsed.isNull()) {
@@ -529,7 +490,7 @@ bool LayoutService::openEditorForScrollingTemplate(const QString& templateId)
         qCWarning(lcDbusLayout) << "openEditorForScrollingTemplate: unknown template" << templateId;
         return false;
     }
-    return launchEditor({QStringLiteral("--scrolling-template"), templateId},
+    return launchEditor({.scrollingTemplateId = templateId},
                         QStringLiteral("for scrolling template: %1").arg(templateId));
 }
 

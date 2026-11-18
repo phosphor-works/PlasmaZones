@@ -8,7 +8,7 @@
 #include "runtime/engine/engineruntime.h"
 
 #include "config/settings.h"
-#include "core/platform/childprocessenvironment.h"
+#include "runtime/host/ihostapps.h"
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 #include "runtime/controllers/shortcutmanager.h"
@@ -23,10 +23,18 @@
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ScrollingTemplateStore.h> // count() (inline) for the picker's empty-store gate
-#include <QProcess>
-#include <QProcessEnvironment>
 
 namespace PhosphorEngineRuntime {
+
+void EngineRuntime::setHostApps(IHostApps* apps)
+{
+    m_hostApps = apps;
+    // The layout service is rebuilt on every init(), which hands it the
+    // current apps too; this reaches one already built.
+    if (m_layoutService) {
+        m_layoutService->setHostApps(apps);
+    }
+}
 
 void EngineRuntime::connectShortcutSignals()
 {
@@ -38,33 +46,14 @@ void EngineRuntime::connectShortcutSignals()
     // Screen detection: On X11, QCursor::pos() works; on Wayland, background daemons
     // get stale cursor data. resolveShortcutScreenId() handles both by falling back to
     // the screen reported by the KWin effect's windowActivated D-Bus call.
-    connect(m_shortcutManager.get(), &ShortcutManager::openSettingsRequested, this, []() {
-        // Start the settings app with the environment this daemon inherited,
-        // not the one it runs with (childProcessEnvironment). The
-        // GPU-preference variables the daemon
-        // exported come out: the settings app spawns the editor later, and an
-        // inherited DRI_PRIME / QT_VK_PHYSICAL_DEVICE_INDEX reaching that
-        // editor would trip its pre-set-value guards and freeze it on this
-        // daemon's stale pin. So do the variables the daemon set for itself as
-        // a background service, and what it cleared is put back. systemd-run
-        // --scope runs the command as a child of this call, so the environment
-        // set here is what the settings app inherits.
-        const QProcessEnvironment env = childProcessEnvironment();
-        // Launch in its own systemd scope so stopping the daemon service
-        // doesn't kill the settings app (they'd share a cgroup otherwise).
-        QProcess scoped;
-        scoped.setProgram(QStringLiteral("systemd-run"));
-        scoped.setArguments(
-            {QStringLiteral("--user"), QStringLiteral("--scope"), QStringLiteral("plasmazones-settings")});
-        scoped.setProcessEnvironment(env);
-        if (!scoped.startDetached()) {
-            // Fallback if systemd-run is unavailable
-            QProcess direct;
-            direct.setProgram(QStringLiteral("plasmazones-settings"));
-            direct.setProcessEnvironment(env);
-            if (!direct.startDetached()) {
-                qCWarning(lcDaemon) << "Failed to launch plasmazones-settings";
-            }
+    connect(m_shortcutManager.get(), &ShortcutManager::openSettingsRequested, this, [this]() {
+        // Which settings application, and how it starts, is the host's.
+        if (!m_hostApps) {
+            qCInfo(lcDaemon) << "No settings application on this host; not opening one";
+            return;
+        }
+        if (!m_hostApps->openSettings()) {
+            qCWarning(lcDaemon) << "Failed to open the host's settings application";
         }
     });
     connect(m_shortcutManager.get(), &ShortcutManager::openEditorRequested, this, [this]() {
