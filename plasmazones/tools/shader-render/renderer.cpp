@@ -303,7 +303,7 @@ QStringList shaderIncludePaths()
     // shared zone.vert fallback (see resolveZoneVertexShader) wouldn't find
     // anything either.
     QStringList paths;
-    // Existence-filtered and deduped, matching the daemon's appendUniquePath.
+    // Existence-filtered and deduped, matching the daemon's expandShaderIncludePaths.
     // Without both, an XDG_DATA_DIRS that repeats a directory (or the common
     // case where <root> itself is absent but <root>/shared was checked) puts
     // nonexistent and duplicate entries into the include path, so the list the
