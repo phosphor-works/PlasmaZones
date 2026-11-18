@@ -51,7 +51,7 @@ PhosphorUi.AboutPageShell {
                 LinkButton {
                     linkText: i18n("Documentation")
                     linkIcon: "documentation"
-                    url: "https://phosphor-works.github.io/plasmazones/"
+                    url: "https://phosphor-works.org/plasmazones/"
                 }
 
                 LinkButton {

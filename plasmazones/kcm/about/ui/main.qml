@@ -119,7 +119,7 @@ KCMUtils.SimpleKCM {
                 flat: true
                 text: qsTr("Documentation")
                 icon.name: "documentation"
-                onClicked: Qt.openUrlExternally("https://phosphor-works.github.io/plasmazones/")
+                onClicked: Qt.openUrlExternally("https://phosphor-works.org/plasmazones/")
             }
         }
 
