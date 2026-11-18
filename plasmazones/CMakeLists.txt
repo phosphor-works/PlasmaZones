@@ -279,6 +279,9 @@ phosphor_tier_target(plasmazones-tier)
 #
 # What falls through is the module having run and compiled no catalogs, for
 # want of Qt6LinguistTools or of .ts files. There is nothing to attach then.
+if(TARGET phosphor_engine_runtime_translations)
+    add_dependencies(plasmazones-tier phosphor_engine_runtime_translations)
+endif()
 if(TARGET plasmazones_translations)
     add_dependencies(plasmazones-tier plasmazones_translations)
 elseif(NOT TARGET update-ts)

@@ -13,7 +13,7 @@
 #include <array>
 #include <cmath>
 #include <optional>
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 #include "config/configdefaults.h"
 #include <PhosphorShortcuts/IAdhocRegistrar.h>
 #include "runtime/windowtracker/windowtracker.h"
@@ -785,7 +785,7 @@ void DragResolver::registerCancelOverlayShortcut()
         return;
     }
     m_shortcutRegistrar->registerAdhocShortcut(kCancelOverlayId, QKeySequence(Qt::Key_Escape),
-                                               PhosphorI18n::tr("Cancel Zone Overlay"), [this] {
+                                               RuntimeI18n::tr("Cancel Zone Overlay"), [this] {
                                                    cancelSnap();
                                                });
 }
@@ -844,24 +844,24 @@ void DragResolver::ensureLayoutPickerNavShortcutsRegistered(std::function<void(i
     // Response (see IAdhocRegistrar::registerAdhocShortcuts).
     using AdhocBinding = PhosphorShortcutsIntegration::IAdhocRegistrar::AdhocBinding;
     m_shortcutRegistrar->registerAdhocShortcuts(QVector<AdhocBinding>{
-        {kLayoutPickerLeftId, QKeySequence(Qt::Key_Left), PhosphorI18n::tr("Layout Picker: Move Left"),
+        {kLayoutPickerLeftId, QKeySequence(Qt::Key_Left), RuntimeI18n::tr("Layout Picker: Move Left"),
          [moveCb] {
              moveCb(-1, 0);
          }},
-        {kLayoutPickerRightId, QKeySequence(Qt::Key_Right), PhosphorI18n::tr("Layout Picker: Move Right"),
+        {kLayoutPickerRightId, QKeySequence(Qt::Key_Right), RuntimeI18n::tr("Layout Picker: Move Right"),
          [moveCb] {
              moveCb(1, 0);
          }},
-        {kLayoutPickerUpId, QKeySequence(Qt::Key_Up), PhosphorI18n::tr("Layout Picker: Move Up"),
+        {kLayoutPickerUpId, QKeySequence(Qt::Key_Up), RuntimeI18n::tr("Layout Picker: Move Up"),
          [moveCb] {
              moveCb(0, -1);
          }},
-        {kLayoutPickerDownId, QKeySequence(Qt::Key_Down), PhosphorI18n::tr("Layout Picker: Move Down"),
+        {kLayoutPickerDownId, QKeySequence(Qt::Key_Down), RuntimeI18n::tr("Layout Picker: Move Down"),
          [moveCb] {
              moveCb(0, 1);
          }},
-        {kLayoutPickerReturnId, QKeySequence(Qt::Key_Return), PhosphorI18n::tr("Layout Picker: Confirm"), confirmCb},
-        {kLayoutPickerEnterId, QKeySequence(Qt::Key_Enter), PhosphorI18n::tr("Layout Picker: Confirm (Numpad Enter)"),
+        {kLayoutPickerReturnId, QKeySequence(Qt::Key_Return), RuntimeI18n::tr("Layout Picker: Confirm"), confirmCb},
+        {kLayoutPickerEnterId, QKeySequence(Qt::Key_Enter), RuntimeI18n::tr("Layout Picker: Confirm (Numpad Enter)"),
          confirmCb},
     });
 }

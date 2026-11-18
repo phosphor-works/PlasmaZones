@@ -57,6 +57,16 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
     # natively, the same way the qsTr glob below serves its QML.
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-control/src/*.cpp"
 )
+# The engine runtime's C++ is NOT in PlasmaZones' catalog: it translates under
+# its own context (RuntimeI18n, runtime/common/runtimei18n.h) into its own
+# catalog, phosphor-engine-runtime_<lang>.ts, which goes with it into
+# phosphor-libs. Its QML still resolves through PlasmaZones' QML context and
+# stays in the glob below until the overlay's QML moves with it.
+list(FILTER PLASMAZONES_I18N_SOURCES EXCLUDE REGEX "/plasmazones/src/runtime/")
+file(GLOB_RECURSE PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.cpp"
+    "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.h"
+)
 file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/src/*.qml"
     # phosphor-control extracts nothing HERE today — its chrome calls qsTr(),
@@ -118,6 +128,13 @@ file(GLOB _all_ts_files CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/plasmazones/trans
 set(TRANSLATION_TS_FILES ${_all_ts_files})
 list(FILTER TRANSLATION_TS_FILES EXCLUDE REGEX "plasmazones_en\\.ts$")
 
+# The engine runtime's catalog, same layout: phosphor-engine-runtime_<lang>.ts,
+# its _en template excluded from compilation.
+file(GLOB _runtime_ts_files CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/plasmazones/translations/phosphor-engine-runtime_*.ts")
+set(RUNTIME_TRANSLATION_TS_FILES ${_runtime_ts_files})
+list(FILTER RUNTIME_TRANSLATION_TS_FILES EXCLUDE REGEX "phosphor-engine-runtime_en\\.ts$")
+
 # --- update-ts target ---
 # PhosphorI18n::tr() uses Q_DECLARE_TR_FUNCTIONS(plasmazones), so lupdate
 # recognizes the C++ side natively. QML goes through the stub step first.
@@ -160,6 +177,12 @@ if(Qt6LinguistTools_FOUND AND Python3_Interpreter_FOUND)
             ${PLASMAZONES_I18N_QML_QSTR}
             "@${_qml_stub_dir}/stubs.txt"
             -ts ${_all_ts_files}
+        # The engine runtime's catalog, from its own sources only.
+        COMMAND Qt6::lupdate
+            -no-obsolete
+            -I ${CMAKE_SOURCE_DIR}/plasmazones/src
+            ${PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES}
+            -ts ${_runtime_ts_files}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
 elseif(Qt6LinguistTools_FOUND)
@@ -191,4 +214,15 @@ if(Qt6LinguistTools_FOUND AND TRANSLATION_TS_FILES)
         QM_FILES_OUTPUT_VARIABLE QM_FILES
     )
     install(FILES ${QM_FILES} DESTINATION ${KDE_INSTALL_DATADIR}/plasmazones/translations)
+endif()
+
+# The engine runtime's catalog: phosphor-engine-runtime_<lang>.qm, which
+# loadRuntimeTranslations() (runtime/common/runtimei18n.cpp) finds by name.
+if(Qt6LinguistTools_FOUND AND RUNTIME_TRANSLATION_TS_FILES)
+    qt_add_lrelease(
+        LRELEASE_TARGET phosphor_engine_runtime_translations
+        TS_FILES ${RUNTIME_TRANSLATION_TS_FILES}
+        QM_FILES_OUTPUT_VARIABLE RUNTIME_QM_FILES
+    )
+    install(FILES ${RUNTIME_QM_FILES} DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-engine-runtime/translations)
 endif()

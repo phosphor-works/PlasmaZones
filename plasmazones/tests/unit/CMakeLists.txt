@@ -999,6 +999,16 @@ add_test(NAME test_workspace_shortcuts COMMAND test_workspace_shortcuts)
 
 # KWinWorkspaceHost's takeover of KWin's stock desktop-switch chords: backup,
 # clear, restore, a hand re-bind kept, and a backend that cannot read them.
+# The engine runtime's strings resolve in its own catalog (the built German
+# .qm). Only where lrelease produced the catalog.
+if(TARGET phosphor_engine_runtime_translations)
+    set(_runtime_de_qm ${RUNTIME_QM_FILES})
+    list(FILTER _runtime_de_qm INCLUDE REGEX "phosphor-engine-runtime_de\\.qm$")
+    p_add_test(test_runtime_translations daemon/test_runtime_translations.cpp)
+    target_compile_definitions(test_runtime_translations PRIVATE RUNTIME_DE_QM="${_runtime_de_qm}")
+    add_dependencies(test_runtime_translations phosphor_engine_runtime_translations)
+endif()
+
 add_executable(test_kwin_workspace_host
     daemon/test_kwin_workspace_host.cpp
     ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/host/kwinworkspacehost.cpp

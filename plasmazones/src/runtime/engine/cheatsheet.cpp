@@ -18,7 +18,7 @@
 #include "runtime/controllers/shellcheatsheetbridge.h"
 #include "runtime/dragresolver/dragresolver.h"
 #include "helpers.h"
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorScreens/ScreenIdentity.h>
@@ -151,7 +151,7 @@ void EngineRuntime::showCheatsheetOnScreen(const QString& screenId)
     // meantime.)
     if (m_overlayService->isCheatsheetVisible()) {
         m_shortcutManager->registerAdhocShortcut(kCheatsheetDismissId, QKeySequence(Qt::Key_Escape),
-                                                 PhosphorI18n::tr("Dismiss Shortcut Cheatsheet"), [this] {
+                                                 RuntimeI18n::tr("Dismiss Shortcut Cheatsheet"), [this] {
                                                      if (m_overlayService) {
                                                          m_overlayService->hideCheatsheet();
                                                      }
@@ -221,7 +221,7 @@ void EngineRuntime::showModelessOsd(const QString& screenId)
     if (style == OsdStyle::None) {
         return;
     }
-    const QString text = PhosphorI18n::tr("No placement mode is turned on");
+    const QString text = RuntimeI18n::tr("No placement mode is turned on");
     if (style == OsdStyle::Preview && m_overlayService) {
         m_overlayService->showDisabledOsd(text, screenId);
         qCInfo(lcDaemon) << "Cheatsheet: modeless context, preview OSD screen=" << screenId;

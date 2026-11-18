@@ -14,7 +14,7 @@
 #include "shortcutmanager_ids.h"
 
 #include "core/platform/logging.h"
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 
 #include <PhosphorShortcuts/Registry.h>
 
@@ -36,7 +36,7 @@ using namespace ShortcutIds;
 // cheatsheetModel(). Kept as a separate id-keyed table (rather than columns
 // on kStaticEntries) so registration stays independent of presentation and
 // the whole classification reads in one place. Category labels are
-// untranslated keys; catalogRows() runs them through PhosphorI18n::tr.
+// untranslated keys; catalogRows() runs them through RuntimeI18n::tr.
 //
 // Mode classification contract (maintainer-decided). A shortcut is tagged
 // with the modes it actually DOES something in, so the sheet never hides a
@@ -134,9 +134,9 @@ struct LabelWithContext
 constexpr int kNamedChordRowOrder = 9500;
 
 constexpr LabelWithContext kWorkspaceReorderUpLabel = QT_TRANSLATE_NOOP3(
-    "plasmazones", "Move Up", "cheatsheet row moving the current workspace earlier in its monitor's list");
+    "PhosphorEngineRuntime", "Move Up", "cheatsheet row moving the current workspace earlier in its monitor's list");
 constexpr LabelWithContext kWorkspaceReorderDownLabel = QT_TRANSLATE_NOOP3(
-    "plasmazones", "Move Down", "cheatsheet row moving the current workspace later in its monitor's list");
+    "PhosphorEngineRuntime", "Move Down", "cheatsheet row moving the current workspace later in its monitor's list");
 
 // The scrolling verbs do not fit under one heading. A single "Scrolling"
 // block ran to sixty-odd rows, which is a wall rather than a reference, so
@@ -177,19 +177,19 @@ struct ScrollCategory
     int order;
 };
 constexpr ScrollCategory kScrollFocusCategory = {
-    QT_TRANSLATE_NOOP3("plasmazones", "Focus", "scrolling cheatsheet category"), 10};
+    QT_TRANSLATE_NOOP3("PhosphorEngineRuntime", "Focus", "scrolling cheatsheet category"), 10};
 constexpr ScrollCategory kScrollColumnsCategory = {
-    QT_TRANSLATE_NOOP3("plasmazones", "Columns", "scrolling cheatsheet category"), 11};
+    QT_TRANSLATE_NOOP3("PhosphorEngineRuntime", "Columns", "scrolling cheatsheet category"), 11};
 constexpr ScrollCategory kScrollTabsCategory = {
-    QT_TRANSLATE_NOOP3("plasmazones", "Tabs", "scrolling cheatsheet category"), 12};
+    QT_TRANSLATE_NOOP3("PhosphorEngineRuntime", "Tabs", "scrolling cheatsheet category"), 12};
 constexpr ScrollCategory kScrollColumnWidthCategory = {
-    QT_TRANSLATE_NOOP3("plasmazones", "Column Width", "scrolling cheatsheet category"), 13};
+    QT_TRANSLATE_NOOP3("PhosphorEngineRuntime", "Column Width", "scrolling cheatsheet category"), 13};
 constexpr ScrollCategory kScrollWindowHeightCategory = {
-    QT_TRANSLATE_NOOP3("plasmazones", "Window Height", "scrolling cheatsheet category"), 14};
+    QT_TRANSLATE_NOOP3("PhosphorEngineRuntime", "Window Height", "scrolling cheatsheet category"), 14};
 constexpr ScrollCategory kScrollViewCategory = {
-    QT_TRANSLATE_NOOP3("plasmazones", "View", "scrolling cheatsheet category"), 15};
+    QT_TRANSLATE_NOOP3("PhosphorEngineRuntime", "View", "scrolling cheatsheet category"), 15};
 constexpr ScrollCategory kScrollFloatingCategory = {
-    QT_TRANSLATE_NOOP3("plasmazones", "Floating", "scrolling cheatsheet category"), 16};
+    QT_TRANSLATE_NOOP3("PhosphorEngineRuntime", "Floating", "scrolling cheatsheet category"), 16};
 
 CatalogMeta catalogMetaForId(const QString& id)
 {
@@ -204,37 +204,38 @@ CatalogMeta catalogMetaForId(const QString& id)
                      {category, order, mode, categoryDisambiguation, shortLabel, explanation, templatesExplanation,
                       seq++, shortLabelDisambiguation});
         };
-        add(kIdOpenEditor, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all");
-        add(kIdOpenSettings, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all");
-        add(kIdToggleCheatsheet, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all");
+        add(kIdOpenEditor, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "General"), 0, "all");
+        add(kIdOpenSettings, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "General"), 0, "all");
+        add(kIdToggleCheatsheet, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "General"), 0, "all");
         // "all", not a per-mode tag, and deliberately not gated on how many
         // modes are enabled. The row advertises the mode CYCLE, which is a
         // hard no-op only in the one configuration where every mode but the
         // current one is switched off — and in that configuration the honest
         // thing is still to show the key, because what fixes it is turning a
         // mode back on in settings, not a missing row.
-        add(kIdToggleAutotile, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all");
+        add(kIdToggleAutotile, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "General"), 0, "all");
         // Mode-neutral since the scrolling arm landed, so it sits in General
         // rather than the Autotile block: on a scrolling screen it re-flows
         // the strip, and the Templates slot carries that wording the way it
         // does for the layer-focus switch.
-        add(kIdRetile, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "managed", nullptr, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Re-applies the tiling algorithm to every window on the screen."),
-            QT_TRANSLATE_NOOP("plasmazones",
+        add(kIdRetile, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "General"), 0, "managed", nullptr, nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Re-applies the tiling algorithm to every window on the screen."),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Puts every column back to the screen's default width and display, and every "
                               "window back to an even share of its column."));
-        add(kIdToggleWindowFloat, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all");
+        add(kIdToggleWindowFloat, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "General"), 0, "all");
         // Mode-all row, so the label avoids "Tiled": snap users know their
         // layer as "snapped" (the OSD splits the token for exactly that
         // reason), and "placed" reads correctly in all three modes. The
         // tooltip promises the remembered window only conditionally — the
         // fallback scan is sorted, not recency-ordered.
-        add(kIdSwitchFocusFloatTiling, QT_TRANSLATE_NOOP("plasmazones", "General"), 0, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Switch Floating and Placed Focus"),
-            QT_TRANSLATE_NOOP("plasmazones",
+        add(kIdSwitchFocusFloatTiling, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "General"), 0, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Switch Floating and Placed Focus"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves focus between the floating windows and the placed layout. It returns to "
                               "the window that last had focus there when that window is still available."),
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves focus between the floating windows and the scrolling columns. It returns to "
                               "the window that last had focus there when that window is still available."));
         // "layouts" is a capability tag, not a mode name: the rows show
@@ -243,29 +244,30 @@ CatalogMeta catalogMetaForId(const QString& id)
         // as layoutsAvailable). That now includes scrolling screens, where
         // the same keys pick/cycle the TEMPLATE layout (LayoutSupport::
         // Templates); the rows hide only on a LayoutSupport::None engine.
-        add(kIdPreviousLayout, QT_TRANSLATE_NOOP("plasmazones", "Layouts"), 1, "layouts", nullptr, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Switches this screen to the previous layout in the list."),
-            QT_TRANSLATE_NOOP("plasmazones", "Switches this screen to the previous column template."));
-        add(kIdNextLayout, QT_TRANSLATE_NOOP("plasmazones", "Layouts"), 1, "layouts", nullptr, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Switches this screen to the next layout in the list."),
-            QT_TRANSLATE_NOOP("plasmazones", "Switches this screen to the next column template."));
-        add(kIdLayoutPicker, QT_TRANSLATE_NOOP("plasmazones", "Layouts"), 1, "layouts", nullptr, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Opens a picker to choose this screen's layout."),
-            QT_TRANSLATE_NOOP("plasmazones",
+        add(kIdPreviousLayout, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Layouts"), 1, "layouts", nullptr, nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Switches this screen to the previous layout in the list."),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Switches this screen to the previous column template."));
+        add(kIdNextLayout, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Layouts"), 1, "layouts", nullptr, nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Switches this screen to the next layout in the list."),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Switches this screen to the next column template."));
+        add(kIdLayoutPicker, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Layouts"), 1, "layouts", nullptr, nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Opens a picker to choose this screen's layout."),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Opens a picker to choose this screen's column template. Its column widths "
                               "become the widths columns cycle through."));
-        add(kIdToggleLayoutLock, QT_TRANSLATE_NOOP("plasmazones", "Layouts"), 1, "layouts", nullptr, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Locks this screen's layout so nothing switches it until unlocked."),
-            QT_TRANSLATE_NOOP("plasmazones",
+        add(kIdToggleLayoutLock, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Layouts"), 1, "layouts", nullptr, nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Locks this screen's layout so nothing switches it until unlocked."),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Locks this screen's column template so nothing switches it until unlocked."));
         // Resnap stays "all": it routes through the engine's reapplyLayout
         // intent, which every engine implements (scrolling re-lays the strip).
-        add(kIdResnapToNewLayout, QT_TRANSLATE_NOOP("plasmazones", "Layouts"), 1, "all");
+        add(kIdResnapToNewLayout, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Layouts"), 1, "all");
         // Mode-neutral sheet label: the registration description names zones
         // (System Settings lists it standalone), but the row is tagged "all"
         // and the action addresses zones only in snapping.
-        add(kIdSnapAllWindows, QT_TRANSLATE_NOOP("plasmazones", "Layouts"), 1, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Arrange All Windows"));
+        add(kIdSnapAllWindows, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Layouts"), 1, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Arrange All Windows"));
         // Heading is "Zones", not "Snap to Zone": the group holds mode-neutral
         // rows (restore size, the numbered slots) whose keys address a zone in
         // snapping, a layout slot in tiling and a visible strip tile in
@@ -274,111 +276,111 @@ CatalogMeta catalogMetaForId(const QString& id)
         // Restore size works in every mode (off snapping it is the float-back
         // half of toggle_window_float), so hiding it on the sheet outside
         // snapping hid a key that does something.
-        add(kIdRestoreWindowSize, QT_TRANSLATE_NOOP("plasmazones", "Zones"), 3, "all");
-        add(kIdPushToEmptyZone, QT_TRANSLATE_NOOP("plasmazones", "Zones"), 3, "snapping");
+        add(kIdRestoreWindowSize, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Zones"), 3, "all");
+        add(kIdPushToEmptyZone, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Zones"), 3, "snapping");
         // Directional families compress to one row each in cheatsheetModel(),
         // so Move/Focus/Swap/rotate/cycle all fit one "Windows" group instead
         // of four near-empty ones.
-        add(kIdMoveWindowLeft, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
-        add(kIdMoveWindowRight, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
-        add(kIdMoveWindowUp, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
-        add(kIdMoveWindowDown, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
+        add(kIdMoveWindowLeft, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
+        add(kIdMoveWindowRight, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
+        add(kIdMoveWindowUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
+        add(kIdMoveWindowDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
         // Directional focus is "Move Focus" on the sheet, not "Focus Zone":
         // the keys move focus to the neighbour in that direction, which is a
         // zone in snapping, a layout slot in tiling and a strip tile in
         // scrolling. The registration descriptions keep the zone wording —
         // System Settings lists them without the sheet's context — so only
         // the sheet labels are neutralized here.
-        add(kIdFocusZoneLeft, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Focus Left"));
-        add(kIdFocusZoneRight, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Focus Right"));
-        add(kIdFocusZoneUp, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Focus Up"));
-        add(kIdFocusZoneDown, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Focus Down"));
-        add(kIdSwapWindowLeft, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
-        add(kIdSwapWindowRight, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
-        add(kIdSwapWindowUp, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
-        add(kIdSwapWindowDown, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all");
+        add(kIdFocusZoneLeft, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Focus Left"));
+        add(kIdFocusZoneRight, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Focus Right"));
+        add(kIdFocusZoneUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Focus Up"));
+        add(kIdFocusZoneDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Focus Down"));
+        add(kIdSwapWindowLeft, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
+        add(kIdSwapWindowRight, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
+        add(kIdSwapWindowUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
+        add(kIdSwapWindowDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all");
         // Span grows/shrinks a multi-zone snap — a hard no-op off snapping.
-        add(kIdSpanWindowLeft, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "snapping");
-        add(kIdSpanWindowRight, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "snapping");
-        add(kIdSpanWindowUp, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "snapping");
-        add(kIdSpanWindowDown, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "snapping");
+        add(kIdSpanWindowLeft, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "snapping");
+        add(kIdSpanWindowRight, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "snapping");
+        add(kIdSpanWindowUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "snapping");
+        add(kIdSpanWindowDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "snapping");
         // Rotate is meaningful in every mode, and the unit it rotates differs
         // per mode by design: zones in snapping, layout slots in tiling, and
         // whole COLUMNS in scrolling. That last one is deliberately coarser
         // than the visible TILE the scroll zone numbers and the digits
         // address, so the two are not the same space and the wording here
         // must not be aligned with the tile-numbering wording elsewhere.
-        add(kIdRotateWindowsCW, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Rotate Clockwise"));
-        add(kIdRotateWindowsCCW, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Rotate Counterclockwise"));
+        add(kIdRotateWindowsCW, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Rotate Clockwise"));
+        add(kIdRotateWindowsCCW, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Rotate Counterclockwise"));
         // Every engine implements the focus cycle and the router does not gate
         // it, so tagging it snapping-only dropped a working shortcut off the
         // sheet in the other two modes. The label drops "in Zone" with the
         // tag: what it cycles through is a zone in snapping, a layout slot in
         // tiling and a column's tiles in scrolling.
-        add(kIdCycleWindowForward, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Cycle Focus Forward"));
-        add(kIdCycleWindowBackward, QT_TRANSLATE_NOOP("plasmazones", "Windows"), 4, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Cycle Focus Backward"));
+        add(kIdCycleWindowForward, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Cycle Focus Forward"));
+        add(kIdCycleWindowBackward, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Windows"), 4, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Cycle Focus Backward"));
         // ── Dynamic workspaces (mode-neutral). The family holds grabs only
         // while the feature runs, and catalogRows() leaves parked rows out,
         // so with the feature off this block does not appear at all. The
         // chords are assigned on the settings app's workspace shortcuts page,
         // and the bound ones also stay rebindable in System Settings.
         // Short labels drop the "Workspace" the group heading already says.
-        add(kIdWorkspaceFocusUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Focus Above"));
-        add(kIdWorkspaceFocusDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Focus Below"));
-        add(kIdWorkspaceMoveWindowUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Window Above"));
-        add(kIdWorkspaceMoveWindowDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Window Below"));
-        add(kIdWorkspaceMoveColumnUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "scrolling", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Column Above"),
-            QT_TRANSLATE_NOOP("plasmazones", "Moves the focused column to the workspace above."));
-        add(kIdWorkspaceMoveColumnDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "scrolling", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move Column Below"),
-            QT_TRANSLATE_NOOP("plasmazones", "Moves the focused column to the workspace below."));
-        add(kIdWorkspaceReorderUp, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+        add(kIdWorkspaceFocusUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Focus Above"));
+        add(kIdWorkspaceFocusDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Focus Below"));
+        add(kIdWorkspaceMoveWindowUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Window Above"));
+        add(kIdWorkspaceMoveWindowDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Window Below"));
+        add(kIdWorkspaceMoveColumnUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "scrolling", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Column Above"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves the focused column to the workspace above."));
+        add(kIdWorkspaceMoveColumnDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "scrolling",
+            nullptr, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move Column Below"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves the focused column to the workspace below."));
+        add(kIdWorkspaceReorderUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
             kWorkspaceReorderUpLabel.source,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves the current workspace earlier in this monitor's list."), nullptr,
-            kWorkspaceReorderUpLabel.comment);
-        add(kIdWorkspaceReorderDown, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves the current workspace earlier in this monitor's list."),
+            nullptr, kWorkspaceReorderUpLabel.comment);
+        add(kIdWorkspaceReorderDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
             kWorkspaceReorderDownLabel.source,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves the current workspace later in this monitor's list."), nullptr,
-            kWorkspaceReorderDownLabel.comment);
-        add(kIdWorkspaceMoveToMonitorLeft, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move to Left Monitor"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves the current workspace later in this monitor's list."),
+            nullptr, kWorkspaceReorderDownLabel.comment);
+        add(kIdWorkspaceMoveToMonitorLeft, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move to Left Monitor"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves the current workspace and its windows to the monitor on the left."));
-        add(kIdWorkspaceMoveToMonitorRight, QT_TRANSLATE_NOOP("plasmazones", "Workspaces"), 5, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Move to Right Monitor"),
-            QT_TRANSLATE_NOOP("plasmazones",
+        add(kIdWorkspaceMoveToMonitorRight, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"), 5, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move to Right Monitor"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves the current workspace and its windows to the monitor on the right."));
-        add(kIdSwapVirtualScreenLeft, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Swap Screen Left"));
-        add(kIdSwapVirtualScreenRight, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Swap Screen Right"));
-        add(kIdSwapVirtualScreenUp, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Swap Screen Up"));
-        add(kIdSwapVirtualScreenDown, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Swap Screen Down"));
-        add(kIdRotateVirtualScreensCW, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Rotate Clockwise"));
-        add(kIdRotateVirtualScreensCCW, QT_TRANSLATE_NOOP("plasmazones", "Virtual Screens"), 8, "all", nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Rotate Counterclockwise"));
-        add(kIdFocusMaster, QT_TRANSLATE_NOOP("plasmazones", "Autotile"), 9, "autotile");
-        add(kIdSwapMaster, QT_TRANSLATE_NOOP("plasmazones", "Autotile"), 9, "autotile");
-        add(kIdIncreaseMasterRatio, QT_TRANSLATE_NOOP("plasmazones", "Autotile"), 9, "autotile");
-        add(kIdDecreaseMasterRatio, QT_TRANSLATE_NOOP("plasmazones", "Autotile"), 9, "autotile");
-        add(kIdIncreaseMasterCount, QT_TRANSLATE_NOOP("plasmazones", "Autotile"), 9, "autotile");
-        add(kIdDecreaseMasterCount, QT_TRANSLATE_NOOP("plasmazones", "Autotile"), 9, "autotile");
+        add(kIdSwapVirtualScreenLeft, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Virtual Screens"), 8, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Swap Screen Left"));
+        add(kIdSwapVirtualScreenRight, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Virtual Screens"), 8, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Swap Screen Right"));
+        add(kIdSwapVirtualScreenUp, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Virtual Screens"), 8, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Swap Screen Up"));
+        add(kIdSwapVirtualScreenDown, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Virtual Screens"), 8, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Swap Screen Down"));
+        add(kIdRotateVirtualScreensCW, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Virtual Screens"), 8, "all", nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Rotate Clockwise"));
+        add(kIdRotateVirtualScreensCCW, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Virtual Screens"), 8, "all",
+            nullptr, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Rotate Counterclockwise"));
+        add(kIdFocusMaster, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Autotile"), 9, "autotile");
+        add(kIdSwapMaster, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Autotile"), 9, "autotile");
+        add(kIdIncreaseMasterRatio, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Autotile"), 9, "autotile");
+        add(kIdDecreaseMasterRatio, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Autotile"), 9, "autotile");
+        add(kIdIncreaseMasterCount, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Autotile"), 9, "autotile");
+        add(kIdDecreaseMasterCount, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Autotile"), 9, "autotile");
         // Every scrolling row carries an explanation: the column vocabulary
         // (consume, expel, grow) is opaque to anyone who has not used a
         // scrolling tiler before, and the sheet is where they look it up.
@@ -392,29 +394,32 @@ CatalogMeta catalogMetaForId(const QString& id)
         // ── Focus ──
         add(kIdScrollFocusColumnFirst, kScrollFocusCategory.label.source, kScrollFocusCategory.order, "scrolling",
             kScrollFocusCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves focus to the first column."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves focus to the first column."));
         add(kIdScrollFocusColumnLast, kScrollFocusCategory.label.source, kScrollFocusCategory.order, "scrolling",
             kScrollFocusCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves focus to the last column."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves focus to the last column."));
         add(kIdScrollFocusColumnLeft, kScrollFocusCategory.label.source, kScrollFocusCategory.order, "scrolling",
-            kScrollFocusCategory.label.comment, QT_TRANSLATE_NOOP("plasmazones", "Focus Previous Column (Edge Stop)"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            kScrollFocusCategory.label.comment,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Focus Previous Column (Edge Stop)"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves focus one column toward the start of the strip and stops at the edge. The "
                               "regular focus shortcut continues onto the next monitor instead."));
         add(kIdScrollFocusColumnRight, kScrollFocusCategory.label.source, kScrollFocusCategory.order, "scrolling",
-            kScrollFocusCategory.label.comment, QT_TRANSLATE_NOOP("plasmazones", "Focus Next Column (Edge Stop)"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            kScrollFocusCategory.label.comment,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Focus Next Column (Edge Stop)"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves focus one column toward the end of the strip and stops at the edge. The "
                               "regular focus shortcut continues onto the next monitor instead."));
         add(kIdScrollFocusColumnLeftOrLast, kScrollFocusCategory.label.source, kScrollFocusCategory.order, "scrolling",
-            kScrollFocusCategory.label.comment, QT_TRANSLATE_NOOP("plasmazones", "Focus Previous Column (Wrap)"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            kScrollFocusCategory.label.comment,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Focus Previous Column (Wrap)"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves focus one column toward the start of the strip, wrapping to the last column "
                               "at the edge."));
         add(kIdScrollFocusColumnRightOrFirst, kScrollFocusCategory.label.source, kScrollFocusCategory.order,
             "scrolling", kScrollFocusCategory.label.comment,
-            QT_TRANSLATE_NOOP("plasmazones", "Focus Next Column (Wrap)"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Focus Next Column (Wrap)"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves focus one column toward the end of the strip, wrapping to the first column "
                               "at the edge."));
         // No shortLabel on this pair: the registration names ("Focus First /
@@ -423,65 +428,68 @@ CatalogMeta catalogMetaForId(const QString& id)
         // translatable string saying the same thing.
         add(kIdScrollFocusWindowTop, kScrollFocusCategory.label.source, kScrollFocusCategory.order, "scrolling",
             kScrollFocusCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves focus to the first window of the focused column."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves focus to the first window of the focused column."));
         add(kIdScrollFocusWindowBottom, kScrollFocusCategory.label.source, kScrollFocusCategory.order, "scrolling",
             kScrollFocusCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves focus to the last window of the focused column."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves focus to the last window of the focused column."));
         // ── Arranging columns ──
         add(kIdScrollMoveColumnToFirst, kScrollColumnsCategory.label.source, kScrollColumnsCategory.order, "scrolling",
             kScrollColumnsCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves the focused column to the first position."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves the focused column to the first position."));
         add(kIdScrollMoveColumnToLast, kScrollColumnsCategory.label.source, kScrollColumnsCategory.order, "scrolling",
             kScrollColumnsCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Moves the focused column to the last position."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Moves the focused column to the last position."));
         add(kIdScrollConsumeWindow, kScrollColumnsCategory.label.source, kScrollColumnsCategory.order, "scrolling",
-            kScrollColumnsCategory.label.comment, QT_TRANSLATE_NOOP("plasmazones", "Consume Window"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            kScrollColumnsCategory.label.comment, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Consume Window"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Pulls a window from the next column into the focused column, stacking them."));
         add(kIdScrollExpelWindow, kScrollColumnsCategory.label.source, kScrollColumnsCategory.order, "scrolling",
-            kScrollColumnsCategory.label.comment, QT_TRANSLATE_NOOP("plasmazones", "Expel Window"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            kScrollColumnsCategory.label.comment, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Expel Window"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Moves the focused window out of a shared column into a new column after it."));
         add(kIdScrollConsumeOrExpelLeft, kScrollColumnsCategory.label.source, kScrollColumnsCategory.order, "scrolling",
             kScrollColumnsCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Splits the focused window out of a shared column toward the start of the strip. "
                               "A window alone in its column merges into the previous column instead."));
         add(kIdScrollConsumeOrExpelRight, kScrollColumnsCategory.label.source, kScrollColumnsCategory.order,
             "scrolling", kScrollColumnsCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Splits the focused window out of a shared column toward the end of the strip. "
                               "A window alone in its column merges into the next column instead."));
         add(kIdScrollToggleColumnTabbed, kScrollTabsCategory.label.source, kScrollTabsCategory.order, "scrolling",
             kScrollTabsCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Switches the focused column between stacked windows and tabs."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Switches the focused column between stacked windows and tabs."));
         add(kIdScrollCycleTab, kScrollTabsCategory.label.source, kScrollTabsCategory.order, "scrolling",
             kScrollTabsCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Shows the next tab of the focused column, wrapping round to the first one at the end. "
                               "In a column that is not tabbed it focuses the next window down the stack."));
         add(kIdScrollCycleTabBack, kScrollTabsCategory.label.source, kScrollTabsCategory.order, "scrolling",
             kScrollTabsCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Shows the previous tab of the focused column, wrapping round to the last one at the "
                               "start. In a column that is not tabbed it focuses the previous window up the "
                               "stack."));
         // ── Column width ──
         add(kIdScrollIncreaseColumnWidth, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Grows the focused column along the strip by the configured step."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Grows the focused column along the strip by the configured step."));
         add(kIdScrollDecreaseColumnWidth, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Shrinks the focused column along the strip by the configured step."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Shrinks the focused column along the strip by the configured step."));
         add(kIdScrollCycleColumnWidth, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment,
-            QT_TRANSLATE_NOOP("plasmazones", "Cycle Column Width"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Cycle Column Width"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Steps the focused column through the screen's size presets along the strip."));
         add(kIdScrollCycleColumnWidthBack, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment,
-            QT_TRANSLATE_NOOP("plasmazones", "Cycle Column Width Back"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Cycle Column Width Back"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Steps the focused column through the screen's size presets along the strip, "
                               "in reverse."));
         // "A smaller size", not "its previous width": the engine keeps ONE
@@ -491,14 +499,14 @@ CatalogMeta catalogMetaForId(const QString& id)
         // (panels excluded), not the screen.
         add(kIdScrollMaximizeColumn, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Toggles the focused column between filling the work area and a smaller size."));
         // The state the titlebar button shows. Distinct from Maximize Column
         // on purpose: that one only widens along the strip and leaves the
         // maximize button alone.
         add(kIdScrollMaximizeToEdges, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Toggles the focused column between covering the whole work area with no gaps "
                               "and its normal size. The covering state is the one the window's maximize "
                               "button shows."));
@@ -509,33 +517,35 @@ CatalogMeta catalogMetaForId(const QString& id)
         // identical labels in the list.
         add(kIdScrollExpandColumn, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Grows the focused column to fill the empty space visible on screen. "
                               "Other columns keep their size."));
         add(kIdScrollMinimizeColumnWidth, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Shrinks the focused column to the smallest size preset."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Shrinks the focused column to the smallest size preset."));
         add(kIdScrollEqualizeColumnWidths, kScrollColumnWidthCategory.label.source, kScrollColumnWidthCategory.order,
             "scrolling", kScrollColumnWidthCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Gives every column on screen an equal share of the screen. A column "
                               "clipped at an edge comes fully into view."));
         // ── Window height ──
         add(kIdScrollIncreaseWindowHeight, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Grows the focused window within its column by the configured step."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Grows the focused window within its column by the configured step."));
         add(kIdScrollDecreaseWindowHeight, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Shrinks the focused window within its column by the configured step."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Shrinks the focused window within its column by the configured step."));
         add(kIdScrollCycleWindowHeight, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment,
-            QT_TRANSLATE_NOOP("plasmazones", "Cycle Window Height"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Cycle Window Height"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Steps the focused window through the screen's size presets within its column."));
         add(kIdScrollCycleWindowHeightBack, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment,
-            QT_TRANSLATE_NOOP("plasmazones", "Cycle Window Height Back"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Cycle Window Height Back"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Steps the focused window through the screen's size presets within its column, "
                               "in reverse."));
         // The height twins of Maximize Column, Grow Column into Empty Space,
@@ -543,53 +553,56 @@ CatalogMeta catalogMetaForId(const QString& id)
         // width siblings appear above.
         add(kIdScrollMaximizeWindowHeight, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Toggles the focused window between filling its column and the height it "
                               "had before, or an even share with the other windows there if it had none."));
         add(kIdScrollExpandWindow, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Grows the focused window to fill the empty space left in its column. "
                               "The other windows there keep their size."));
         add(kIdScrollMinimizeWindowHeight, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Shrinks the focused window to the smallest size preset."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Shrinks the focused window to the smallest size preset."));
         add(kIdScrollEqualizeWindowHeights, kScrollWindowHeightCategory.label.source, kScrollWindowHeightCategory.order,
             "scrolling", kScrollWindowHeightCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Gives every window in the focused column an equal share of it."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Gives every window in the focused column an equal share of it."));
         // ── The view ──
         add(kIdScrollCenterColumn, kScrollViewCategory.label.source, kScrollViewCategory.order, "scrolling",
             kScrollViewCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Scrolls the view so the focused column sits centered on the screen."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Scrolls the view so the focused column sits centered on the screen."));
         add(kIdScrollCenterVisibleColumns, kScrollViewCategory.label.source, kScrollViewCategory.order, "scrolling",
             kScrollViewCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones", "Scrolls the view so the fully visible columns sit centered as a group."));
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                              "Scrolls the view so the fully visible columns sit centered as a group."));
         // "Back" and "forward" rather than left/right: the strip can run
         // either way, and these read correctly on a vertical one too.
         add(kIdScrollViewPageBack, kScrollViewCategory.label.source, kScrollViewCategory.order, "scrolling",
             kScrollViewCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Scrolls the view toward the start of the strip by a whole screen. "
                               "Focus stays where it is."));
         add(kIdScrollViewPageForward, kScrollViewCategory.label.source, kScrollViewCategory.order, "scrolling",
             kScrollViewCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Scrolls the view toward the end of the strip by a whole screen. "
                               "Focus stays where it is."));
         add(kIdScrollToggleWindowedFullscreen, kScrollViewCategory.label.source, kScrollViewCategory.order, "scrolling",
             kScrollViewCategory.label.comment, nullptr,
-            QT_TRANSLATE_NOOP("plasmazones",
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Puts the focused window into its fullscreen presentation while it keeps its "
                               "place in the column, so it does not cover the screen. Press again to leave "
                               "it."));
         // ── Floating ──
         add(kIdScrollMoveToFloating, kScrollFloatingCategory.label.source, kScrollFloatingCategory.order, "scrolling",
-            kScrollFloatingCategory.label.comment, QT_TRANSLATE_NOOP("plasmazones", "Move to Floating"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            kScrollFloatingCategory.label.comment, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move to Floating"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Makes the focused window float. Unlike the float toggle, it never re-tiles."));
         add(kIdScrollMoveToTiling, kScrollFloatingCategory.label.source, kScrollFloatingCategory.order, "scrolling",
-            kScrollFloatingCategory.label.comment, QT_TRANSLATE_NOOP("plasmazones", "Move to Tiled"),
-            QT_TRANSLATE_NOOP("plasmazones",
+            kScrollFloatingCategory.label.comment, QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Move to Tiled"),
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                               "Returns the focused floating window to its column. Unlike the float toggle, "
                               "it never floats."));
         return m;
@@ -607,13 +620,13 @@ CatalogMeta catalogMetaForId(const QString& id)
         // Same capability tag as the enumerated Layouts rows above — and the
         // same per-capability tooltip split those rows carry, since the
         // digit family's meaning shifts with the capability too.
-        return {QT_TRANSLATE_NOOP("plasmazones", "Layouts"),
+        return {QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Layouts"),
                 1,
                 "layouts",
                 nullptr,
                 nullptr,
-                QT_TRANSLATE_NOOP("plasmazones", "Applies the numbered layout to this screen."),
-                QT_TRANSLATE_NOOP("plasmazones", "Applies the numbered column template to this screen."),
+                QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Applies the numbered layout to this screen."),
+                QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Applies the numbered column template to this screen."),
                 9000};
     }
     if (id.startsWith(QLatin1String(kSnapToZonePrefix))) {
@@ -623,34 +636,36 @@ CatalogMeta catalogMetaForId(const QString& id)
         // more visible tiles than that numbers them all but leaves the ones
         // past 9 with no digit that reaches them. The tooltip stays
         // mode-neutral for exactly that per-mode divergence.
-        return {QT_TRANSLATE_NOOP("plasmazones", "Zones"),
-                3,
-                "all",
-                nullptr,
-                nullptr,
-                QT_TRANSLATE_NOOP("plasmazones", "Sends the focused window to the numbered slot on this screen."),
-                nullptr,
-                9000};
+        return {
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Zones"),
+            3,
+            "all",
+            nullptr,
+            nullptr,
+            QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Sends the focused window to the numbered slot on this screen."),
+            nullptr,
+            9000};
     }
     if (id.startsWith(QLatin1String(kWorkspaceMoveSlotPrefix))) {
-        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+        return {QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"),
                 5,
                 "all",
                 nullptr,
                 nullptr,
-                QT_TRANSLATE_NOOP("plasmazones",
+                QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                                   "Sends the active window to the named workspace assigned to this slot in "
                                   "Settings under Workspaces."),
                 nullptr,
                 9000};
     }
     if (id.startsWith(QLatin1String(kWorkspaceFocusSlotPrefix))) {
-        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+        return {QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"),
                 5,
                 "all",
                 nullptr,
                 nullptr,
-                QT_TRANSLATE_NOOP("plasmazones", "Switches this monitor to the numbered workspace of its own list."),
+                QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
+                                  "Switches this monitor to the numbered workspace of its own list."),
                 nullptr,
                 9000};
     }
@@ -663,7 +678,7 @@ CatalogMeta catalogMetaForId(const QString& id)
                 "scrolling",
                 kScrollTabsCategory.label.comment,
                 nullptr,
-                QT_TRANSLATE_NOOP("plasmazones",
+                QT_TRANSLATE_NOOP("PhosphorEngineRuntime",
                                   "Shows the numbered tab of the focused column. In a column that is not tabbed "
                                   "it focuses that window in the stack."),
                 nullptr,
@@ -674,29 +689,29 @@ CatalogMeta catalogMetaForId(const QString& id)
     // registration description already names the workspace, so it is the
     // row label as is.
     if (id.startsWith(QLatin1String(kWorkspaceNamedFocusPrefix))) {
-        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+        return {QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"),
                 5,
                 "all",
                 nullptr,
                 nullptr,
-                QT_TRANSLATE_NOOP("plasmazones", "Switches to this named workspace."),
+                QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Switches to this named workspace."),
                 nullptr,
                 kNamedChordRowOrder};
     }
     if (id.startsWith(QLatin1String(kWorkspaceNamedMovePrefix))) {
-        return {QT_TRANSLATE_NOOP("plasmazones", "Workspaces"),
+        return {QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Workspaces"),
                 5,
                 "all",
                 nullptr,
                 nullptr,
-                QT_TRANSLATE_NOOP("plasmazones", "Sends the active window to this named workspace."),
+                QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Sends the active window to this named workspace."),
                 nullptr,
                 kNamedChordRowOrder};
     }
     // A shortcut added to the table without catalog metadata still shows up
     // (miscategorised beats invisible), and the log points at the fix.
     qCWarning(lcShortcuts) << "cheatsheet: no catalog metadata for shortcut id" << id;
-    return {QT_TRANSLATE_NOOP("plasmazones", "Other"), 99, "all"};
+    return {QT_TRANSLATE_NOOP("PhosphorEngineRuntime", "Other"), 99, "all"};
 }
 
 /// The key token of a shortcut sequence: everything after the last '+'.
@@ -760,16 +775,16 @@ QVector<QVariantMap> ShortcutManager::catalogRows() const
         QVariantMap row;
         row.insert(QStringLiteral("id"), id);
         row.insert(QStringLiteral("label"),
-                   meta.shortLabel ? PhosphorI18n::tr(meta.shortLabel, meta.shortLabelDisambiguation) : description);
+                   meta.shortLabel ? RuntimeI18n::tr(meta.shortLabel, meta.shortLabelDisambiguation) : description);
         // Always present (possibly empty) so the QML tooltip binding never
         // reads an undefined role.
-        row.insert(QStringLiteral("description"), meta.explanation ? PhosphorI18n::tr(meta.explanation) : QString());
+        row.insert(QStringLiteral("description"), meta.explanation ? RuntimeI18n::tr(meta.explanation) : QString());
         // Templates-capability tooltip variant; falls back to the plain
         // explanation so QML can bind one expression per row.
         row.insert(QStringLiteral("templatesDescription"),
-                   meta.templatesExplanation ? PhosphorI18n::tr(meta.templatesExplanation)
-                                             : (meta.explanation ? PhosphorI18n::tr(meta.explanation) : QString()));
-        row.insert(QStringLiteral("category"), PhosphorI18n::tr(meta.category, meta.categoryDisambiguation));
+                   meta.templatesExplanation ? RuntimeI18n::tr(meta.templatesExplanation)
+                                             : (meta.explanation ? RuntimeI18n::tr(meta.explanation) : QString()));
+        row.insert(QStringLiteral("category"), RuntimeI18n::tr(meta.category, meta.categoryDisambiguation));
         row.insert(QStringLiteral("categoryOrder"), meta.categoryOrder);
         // In-category sort key; the catalog table's authoring order. A merged
         // family row keeps its FIRST member's slot.
@@ -862,7 +877,7 @@ QVariantList ShortcutManager::cheatsheetModel() const
     // folded behind a combined chip (maintainer decision, 2026-08-23).
     const QStringList arrowTokens{QStringLiteral("Left"), QStringLiteral("Right"), QStringLiteral("Up"),
                                   QStringLiteral("Down")};
-    const QString arrowsTail = PhosphorI18n::tr("Arrows");
+    const QString arrowsTail = RuntimeI18n::tr("Arrows");
     QStringList digitTokens;
     QStringList quickLayoutIds;
     QStringList snapToZoneIds;
@@ -902,14 +917,14 @@ QVariantList ShortcutManager::cheatsheetModel() const
         // locale may phrase a range differently from an ordinal — without the
         // context lupdate would merge the two into one translatable unit.
         {quickLayoutIds, digitTokens,
-         PhosphorI18n::tr("Apply Layout %1", "range of layout slots, e.g. 1-9").arg(digitRange), digitRange},
+         RuntimeI18n::tr("Apply Layout %1", "range of layout slots, e.g. 1-9").arg(digitRange), digitRange},
         // "Zone", not "Snap to Zone": the group heading already carries that,
         // and the digits address a zone in snapping, a layout slot in tiling
         // and a visible tile in scrolling, so the row itself stays out of any
         // one mode's vocabulary.
         // Disambiguated like the quick-layout range: the editor's ordinal zone
         // names share the bare "Zone %1" source.
-        {snapToZoneIds, digitTokens, PhosphorI18n::tr("Zone %1", "range of zone slots, e.g. 1-9").arg(digitRange),
+        {snapToZoneIds, digitTokens, RuntimeI18n::tr("Zone %1", "range of zone slots, e.g. 1-9").arg(digitRange),
          digitRange},
         // The two workspace slot families are digit families like the two
         // above, and get the same treatment: without a spec here they show up
@@ -919,10 +934,10 @@ QVariantList ShortcutManager::cheatsheetModel() const
         // disambiguations are needed for the same reason quick layouts' is:
         // the registration table uses these source strings with an ordinal.
         {workspaceMoveSlotIds, digitTokens,
-         PhosphorI18n::tr("Move Window to Workspace Slot %1", "range of workspace slots, e.g. 1-9").arg(digitRange),
+         RuntimeI18n::tr("Move Window to Workspace Slot %1", "range of workspace slots, e.g. 1-9").arg(digitRange),
          digitRange},
         {workspaceFocusSlotIds, digitTokens,
-         PhosphorI18n::tr("Focus Workspace %1", "range of workspace slots, e.g. 1-9").arg(digitRange), digitRange},
+         RuntimeI18n::tr("Focus Workspace %1", "range of workspace slots, e.g. 1-9").arg(digitRange), digitRange},
         // Ships unbound, so by default it folds into one unassigned row. A
         // user who binds all nine on one prefix gets the one range row the
         // other digit families give. Its prefix-generated explanation is
@@ -930,34 +945,34 @@ QVariantList ShortcutManager::cheatsheetModel() const
         // above sanctions. Disambiguated against the registration table's
         // ordinal use of the same source string.
         {scrollFocusTabIds, digitTokens,
-         PhosphorI18n::tr("Focus Tab %1", "range of tab ordinals, e.g. 1-9").arg(digitRange), digitRange},
+         RuntimeI18n::tr("Focus Tab %1", "range of tab ordinals, e.g. 1-9").arg(digitRange), digitRange},
         {{QString::fromLatin1(kIdMoveWindowLeft), QString::fromLatin1(kIdMoveWindowRight),
           QString::fromLatin1(kIdMoveWindowUp), QString::fromLatin1(kIdMoveWindowDown)},
          arrowTokens,
-         PhosphorI18n::tr("Move Window"),
+         RuntimeI18n::tr("Move Window"),
          arrowsTail},
         {{QString::fromLatin1(kIdFocusZoneLeft), QString::fromLatin1(kIdFocusZoneRight),
           QString::fromLatin1(kIdFocusZoneUp), QString::fromLatin1(kIdFocusZoneDown)},
          arrowTokens,
          // Mode-neutral, like the per-row labels: what it focuses is a zone in
          // snapping, a layout slot in tiling and a strip tile in scrolling.
-         PhosphorI18n::tr("Move Focus"),
+         RuntimeI18n::tr("Move Focus"),
          arrowsTail},
         {{QString::fromLatin1(kIdSwapWindowLeft), QString::fromLatin1(kIdSwapWindowRight),
           QString::fromLatin1(kIdSwapWindowUp), QString::fromLatin1(kIdSwapWindowDown)},
          arrowTokens,
-         PhosphorI18n::tr("Swap Window"),
+         RuntimeI18n::tr("Swap Window"),
          arrowsTail},
         {{QString::fromLatin1(kIdSpanWindowLeft), QString::fromLatin1(kIdSpanWindowRight),
           QString::fromLatin1(kIdSpanWindowUp), QString::fromLatin1(kIdSpanWindowDown)},
          arrowTokens,
-         PhosphorI18n::tr("Span Window"),
+         RuntimeI18n::tr("Span Window"),
          arrowsTail},
         {{QString::fromLatin1(kIdSwapVirtualScreenLeft), QString::fromLatin1(kIdSwapVirtualScreenRight),
           QString::fromLatin1(kIdSwapVirtualScreenUp), QString::fromLatin1(kIdSwapVirtualScreenDown)},
          arrowTokens,
          // Group heading ("Virtual Screens") carries the context.
-         PhosphorI18n::tr("Swap Screens"),
+         RuntimeI18n::tr("Swap Screens"),
          arrowsTail},
     };
 
