@@ -313,7 +313,7 @@ void Daemon::showLayoutOsd(PhosphorZones::Layout* layout, const QString& screenI
 
     case OsdStyle::Text: {
         QString displayText = PhosphorI18n::tr("Layout: %1").arg(layoutName);
-        showKdeTextOsd(QStringLiteral("plasmazones"), displayText);
+        showSystemOsd(QStringLiteral("plasmazones"), displayText);
         qCInfo(lcDaemon) << "Showing text OSD for layout=" << layoutName;
     } break;
 
@@ -339,7 +339,7 @@ void Daemon::showLockedOsd(const QString& screenId)
         return;
     }
 
-    showKdeTextOsd(QStringLiteral("object-locked"), PhosphorI18n::tr("Layout Locked"));
+    showSystemOsd(QStringLiteral("object-locked"), PhosphorI18n::tr("Layout Locked"));
     qCInfo(lcDaemon) << "Showing locked text OSD for screen=" << screenId;
 }
 
@@ -353,7 +353,7 @@ void Daemon::showUnlockedOsd(const QString& screenId)
         return;
     }
 
-    showKdeTextOsd(QStringLiteral("object-unlocked"), PhosphorI18n::tr("Layout Unlocked"));
+    showSystemOsd(QStringLiteral("object-unlocked"), PhosphorI18n::tr("Layout Unlocked"));
     qCInfo(lcDaemon) << "Showing unlocked text OSD for screen=" << screenId;
 }
 
@@ -480,7 +480,7 @@ void Daemon::showContextDisabledOsd(const QString& screenId, int desktop, const 
     }
 
     // Fall back to text OSD
-    showKdeTextOsd(QStringLiteral("dialog-cancel"), reasonText);
+    showSystemOsd(QStringLiteral("dialog-cancel"), reasonText);
     qCInfo(lcDaemon) << "Showing disabled text OSD:" << reasonText << "screen=" << screenId;
 }
 
@@ -499,7 +499,7 @@ void Daemon::showNotAssignedOsd(const QString& screenId)
         qCInfo(lcDaemon) << "Showing not-assigned preview OSD: screen=" << screenId;
         return;
     }
-    showKdeTextOsd(QStringLiteral("dialog-information"), text);
+    showSystemOsd(QStringLiteral("dialog-information"), text);
     qCInfo(lcDaemon) << "Showing not-assigned text OSD: screen=" << screenId;
 }
 
@@ -607,7 +607,7 @@ void Daemon::showScrollingModeOsd(const QString& screenId, OsdTrigger trigger, S
     }
     stopScrollingOsdSettleTimer(screenId);
     recordAnnouncedScrollingTemplate(screenId);
-    showKdeTextOsd(QStringLiteral("plasmazones"), PhosphorI18n::tr("Scrolling", "tiling mode name"));
+    showSystemOsd(QStringLiteral("plasmazones"), PhosphorI18n::tr("Scrolling", "tiling mode name"));
     qCInfo(lcDaemon) << "Showing scrolling-mode text OSD: screen=" << screenId;
 }
 
@@ -658,9 +658,8 @@ void Daemon::showScrollingTemplateOsd(const PhosphorZones::ScrollingTemplate& te
         // The text card is a bare D-Bus call to plasmashell's OSD service, so
         // it works without an overlay service. Only the preview arm below
         // needs one, which is why the null check sits there and not above.
-        showKdeTextOsd(
-            QStringLiteral("plasmazones"),
-            PhosphorI18n::tr("Column template — %1", "OSD caption, %1 is the template name").arg(templ.name));
+        showSystemOsd(QStringLiteral("plasmazones"),
+                      PhosphorI18n::tr("Column template — %1", "OSD caption, %1 is the template name").arg(templ.name));
         return;
     }
     if (!m_overlayService) {
@@ -727,7 +726,7 @@ void Daemon::showLayoutOsdForAlgorithm(const QString& algorithmId, const QString
 
     case OsdStyle::Text: {
         QString displayText = PhosphorI18n::tr("Tiling: %1").arg(displayName);
-        showKdeTextOsd(QStringLiteral("plasmazones"), displayText);
+        showSystemOsd(QStringLiteral("plasmazones"), displayText);
         qCInfo(lcDaemon) << "Showing text OSD for algorithm=" << displayName;
     } break;
 

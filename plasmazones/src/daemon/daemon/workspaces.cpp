@@ -16,7 +16,6 @@
 
 #include "daemon/daemon.h"
 
-#include "common/kwinperoutputdesktops.h"
 #include "config/configdefaults.h"
 #include "config/settings.h"
 #include "config/settingsschema.h"
@@ -30,6 +29,7 @@
 #include "runtime/windowtracker/windowtracker.h"
 
 #include "phosphor_i18n.h"
+#include "runtime/host/iworkspacehost.h"
 
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
@@ -40,15 +40,8 @@
 #include <PhosphorWorkspaces/WorkspaceReconciler.h>
 #include <PhosphorZones/AssignmentEntry.h>
 
-#include <QDBusConnection>
-#include <QDBusMessage>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QHash>
 #include <QKeySequence>
-#include <QSettings>
-#include <QStandardPaths>
 #include <QUuid>
 
 #include <memory>
@@ -57,76 +50,17 @@
 namespace PlasmaZones {
 
 namespace {
-QString kwinShortcutBackupPath()
-{
-    // StateLocation is already app-scoped. .ini because every reader and
-    // writer opens it as QSettings::IniFormat.
-    return QStandardPaths::writableLocation(QStandardPaths::StateLocation)
-        + QStringLiteral("/kwin-shortcut-backup.ini");
-}
-
-/// Give KWin its stolen desktop-switch chords back. Runs on every stop
-/// (logout included) and on every start that leaves the feature off or
-/// dormant, so a takeover persisted by an earlier session is always undone.
-/// Consumes the backup entry by entry, and only entries that are settled:
-/// restored, or found re-bound by hand. Dropping an entry after a failed
-/// call (kglobalaccel unreachable) would strand the user's chord on "none"
-/// forever, while keeping it means the next restore tries again.
-void restoreKWinShortcutBackup(ShortcutManager* shortcutManager)
-{
-    if (!shortcutManager || !QFile::exists(kwinShortcutBackupPath())) {
-        return;
-    }
-    QSettings backup(kwinShortcutBackupPath(), QSettings::IniFormat);
-    const QStringList backedUp = backup.allKeys();
-    for (const QString& action : backedUp) {
-        const std::optional<QList<QKeySequence>> current =
-            shortcutManager->foreignShortcuts(QStringLiteral("kwin"), action);
-        if (!current) {
-            // This backend cannot read KWin's bindings (or kglobalacceld is
-            // unreachable), so it cannot restore them either. Every entry
-            // stays for a pass that can.
-            qCInfo(lcDaemon) << "cannot reach KWin's shortcuts to restore the desktop-switch chords; keeping"
-                             << backedUp.size() << "backup entries";
-            break;
-        }
-        if (!current->isEmpty()) {
-            // The chord was cleared when it was taken, so a binding now means
-            // the user set one by hand while the backup was held. Theirs wins.
-            qCInfo(lcDaemon) << "KWin shortcut" << action
-                             << "was re-bound while PlasmaZones held it; keeping that binding";
-            backup.remove(action);
-            continue;
-        }
-        // listFromString also reads the pre-multi-sequence single-string
-        // format (a one-element list).
-        const QList<QKeySequence> sequences = QKeySequence::listFromString(backup.value(action).toString());
-        if (shortcutManager->setForeignShortcuts(QStringLiteral("kwin"), action, sequences)) {
-            backup.remove(action);
-        } else {
-            qCWarning(lcDaemon) << "could not restore KWin shortcut" << action << "- keeping its backup entry";
-        }
-    }
-    backup.sync();
-}
-
 /// The feature is off or dormant: its shortcut family holds no grabs, and
-/// KWin gets back any chords a previous run took.
-void parkWorkspaceShortcuts(ShortcutManager* shortcutManager)
+/// the compositor gets back any desktop-switch chords a previous run took.
+void parkWorkspaceShortcuts(ShortcutManager* shortcutManager, IWorkspaceHost* host)
 {
     if (!shortcutManager) {
         return;
     }
     shortcutManager->setWorkspaceFamilyActive(false);
-    restoreKWinShortcutBackup(shortcutManager);
-}
-
-#ifdef USE_KDE_FRAMEWORKS
-void askKWinToReconfigure()
-{
-    QDBusConnection::sessionBus().asyncCall(
-        QDBusMessage::createMethodCall(QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"),
-                                       QStringLiteral("org.kde.KWin"), QStringLiteral("reconfigure")));
+    if (host) {
+        host->restoreStockDesktopShortcuts();
+    }
 }
 
 /// QKeySequence(QString) answers an empty sequence on anything it cannot
@@ -173,26 +107,20 @@ bool isNamedEntry(const QVariantMap& entry, const QString& namedId, const QStrin
     return id.isEmpty() && entry.value(ConfigDefaults::namedEntryNameField()).toString() == name;
 }
 
-/// The stock KWin desktop-switch actions the rebind toggle takes over.
-const QStringList& kwinDesktopActions()
-{
-    static const QStringList actions{
-        QStringLiteral("Switch One Desktop Up"),          QStringLiteral("Switch One Desktop Down"),
-        QStringLiteral("Switch One Desktop to the Left"), QStringLiteral("Switch One Desktop to the Right"),
-        QStringLiteral("Walk Through Desktops"),          QStringLiteral("Walk Through Desktops (Reverse)")};
-    return actions;
-}
-#endif
 } // namespace
 
 void Daemon::initializeWorkspaces()
 {
-#ifndef USE_KDE_FRAMEWORKS
-    if (m_settings && m_settings->workspacesEnabled()) {
-        qCInfo(lcDaemon) << "dynamic workspaces need KDE Frameworks, which this build leaves out";
+    // A host that cannot run the feature (under KWin, a build without the KDE
+    // Frameworks that read and write kwinrc) keeps it off whatever the
+    // settings say, and makes no connection below.
+    if (!m_workspaceHost || !m_workspaceHost->supportsDynamicWorkspaces()) {
+        if (m_settings && m_settings->workspacesEnabled()) {
+            qCInfo(lcDaemon) << "dynamic workspaces are not available on this host";
+        }
+        parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
+        return;
     }
-    parkWorkspaceShortcuts(m_shortcutManager.get());
-#else
     if (!m_settings) {
         return;
     }
@@ -254,31 +182,27 @@ void Daemon::initializeWorkspaces()
         }
     }
     if (!m_settings->workspacesEnabled()) {
-        parkWorkspaceShortcuts(m_shortcutManager.get());
+        parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
         return;
     }
-    // Consent is one-shot: it authorizes ONE write of the kwinrc flag. After
-    // that, per-output desktops being off again is the user's own choice, and
-    // the feature stays dormant (the settings page offers the consent again)
-    // rather than writing the flag back.
+    // Consent is one-shot: it authorizes ONE write of the host's per-output
+    // setting (kwinrc under KWin). After that, per-output desktops being off
+    // again is the user's own choice, and the feature stays dormant (the
+    // settings page offers the consent again) rather than writing it back.
     bool wroteKWinConfig = false;
-    if (!kwinPerOutputVirtualDesktopsEnabled()) {
+    if (!m_workspaceHost->perOutputDesktopsConfigured()) {
         if (!m_settings->workspacesManageKWinPerOutput()) {
             qCWarning(lcDaemon) << "dynamic workspaces enabled but KWin per-output virtual desktops is off and no "
                                    "consent to manage it; feature stays dormant";
-            parkWorkspaceShortcuts(m_shortcutManager.get());
+            parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
             return;
         }
-        if (!enableKWinPerOutputVirtualDesktops()) {
-            qCWarning(lcDaemon) << "could not turn on KWin per-output virtual desktops (the kwinrc entry is locked or "
-                                   "kwinrc cannot be written); dynamic workspaces stay dormant";
-            parkWorkspaceShortcuts(m_shortcutManager.get());
+        if (!m_workspaceHost->enablePerOutputDesktops()) {
+            qCWarning(lcDaemon) << "could not turn on per-output virtual desktops; dynamic workspaces stay dormant";
+            parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
             return;
         }
-        askKWinToReconfigure();
         wroteKWinConfig = true;
-        qCInfo(lcDaemon)
-            << "wrote PerOutputVirtualDesktops=true to kwinrc and asked KWin to reconfigure (user consent)";
     } else if (m_windowTracker && m_windowTracker->perOutputDesktopsMode() == std::optional<bool>(false)) {
         // kwinrc says on, the running compositor says off: KWin has not
         // applied the file. The mode gate above starts the feature once it
@@ -286,7 +210,7 @@ void Daemon::initializeWorkspaces()
         // necessarily predates the reconfigure just requested.
         qCWarning(lcDaemon) << "kwinrc enables per-output virtual desktops but KWin reports them off; dynamic "
                                "workspaces stay dormant until KWin applies the setting";
-        parkWorkspaceShortcuts(m_shortcutManager.get());
+        parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
         return;
     }
 
@@ -314,7 +238,7 @@ void Daemon::initializeWorkspaces()
             return;
         }
         if (m_settings->osdStyle() == OsdStyle::Text) {
-            showKdeTextOsd(isRefusal ? QStringLiteral("dialog-cancel") : QStringLiteral("dialog-information"), text);
+            showSystemOsd(isRefusal ? QStringLiteral("dialog-cancel") : QStringLiteral("dialog-information"), text);
             return;
         }
         if (!m_overlayService) {
@@ -654,66 +578,20 @@ void Daemon::initializeWorkspaces()
                 m_settings->save();
             });
 
-    // ── Stock KWin desktop-shortcut takeover (Phase 5) ─────────────────────
-    // The stock desktop-switch actions (the "Switch One Desktop" quad plus
-    // the two Walk Through Desktops chords) iterate the GLOBAL pool, tripping
-    // owner-wins snap-back on nearly every press, and the quad's Down/Up
-    // chords are the focus verbs' defaults. With the rebind toggle on, back
-    // each chord up (state dir, once) and clear it via the KGlobalAccel
-    // foreign-rebind pass-through; restore on toggle-off and on every stop.
-    // If the backend cannot rebind (portal), nothing is stolen and
-    // snap-back-with-hint stays the story.
+    // ── Stock desktop-shortcut takeover (Phase 5) ──────────────────────────
+    // The compositor's stock desktop-switch actions (KWin's "Switch One
+    // Desktop" quad plus the two Walk Through Desktops chords) iterate the
+    // GLOBAL pool, tripping owner-wins snap-back on nearly every press, and
+    // the quad's Down/Up chords are the focus verbs' defaults. With the rebind
+    // toggle on, the host takes them over (KWinWorkspaceHost backs each chord
+    // up and clears it); they are restored on toggle-off and on every stop.
+    // If the host cannot take them (the portal backend), nothing is stolen
+    // and snap-back-with-hint stays the story.
     const auto applyStockRebind = [this]() {
-        if (!m_settings->workspacesRebindKWinShortcuts()) {
-            restoreKWinShortcutBackup(m_shortcutManager.get());
-            return;
-        }
-        const QString path = kwinShortcutBackupPath();
-        if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
-            qCWarning(lcDaemon) << "cannot create the state directory for" << path
-                                << "- leaving KWin's desktop-switch chords alone";
-            return;
-        }
-        QSettings backup(path, QSettings::IniFormat);
-        for (const QString& action : kwinDesktopActions()) {
-            // A backup entry already present means the chord is ALREADY
-            // stolen, so nothing re-reads it. That also means a user who
-            // re-binds the stock chord by hand while we hold the backup keeps
-            // it: re-stealing would fight the user's explicit choice.
-            if (backup.contains(action)) {
-                continue;
-            }
-            const std::optional<QList<QKeySequence>> current =
-                m_shortcutManager->foreignShortcuts(QStringLiteral("kwin"), action);
-            if (!current) {
-                // The query FAILED: a backend without foreign rebinding (the
-                // portal, the D-Bus trigger fallback) or kglobalacceld
-                // unreachable. That is not "unbound", and stealing on the
-                // strength of it would clear a live chord with no backup. The
-                // rest of the actions would fail the same way, so the pass
-                // stops here and the next one tries again.
-                qCInfo(lcDaemon) << "cannot read KWin's desktop-switch shortcuts through this shortcut backend; "
-                                    "leaving them alone";
-                return;
-            }
-            if (current->isEmpty()) {
-                continue; // genuinely unbound; nothing to steal or restore
-            }
-            // The backup is written and FLUSHED before the clear, per action,
-            // and the clear only happens once the flush is known to have
-            // landed: a clear with no backup on disk loses the user's chord
-            // for good. A backup for a clear that then failed is harmless,
-            // the restore simply rewrites a value that is already live.
-            backup.setValue(action, QKeySequence::listToString(*current, QKeySequence::PortableText));
-            backup.sync();
-            if (backup.status() != QSettings::NoError) {
-                qCWarning(lcDaemon) << "cannot write" << path << "- leaving KWin's desktop-switch chords alone";
-                return;
-            }
-            if (!m_shortcutManager->setForeignShortcuts(QStringLiteral("kwin"), action, {})) {
-                qCWarning(lcDaemon) << "could not clear KWin shortcut" << action
-                                    << "- its backup entry stands and the next restore rewrites what is already live";
-            }
+        if (m_settings->workspacesRebindKWinShortcuts()) {
+            m_workspaceHost->takeOverStockDesktopShortcuts();
+        } else {
+            m_workspaceHost->restoreStockDesktopShortcuts();
         }
     };
     applyStockRebind();
@@ -822,7 +700,6 @@ void Daemon::initializeWorkspaces()
         m_settings->setWorkspacesManageKWinPerOutput(false);
         m_settings->save();
     }
-#endif
 }
 
 void Daemon::teardownWorkspaces()
@@ -832,7 +709,7 @@ void Daemon::teardownWorkspaces()
         // The family is parked and KWin's chords restored anyway: the
         // takeover survives in the state file across a restart, so a stop()
         // with the feature since disabled must still give the chords back.
-        parkWorkspaceShortcuts(m_shortcutManager.get());
+        parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
         return;
     }
     // The provider captures the daemon's screen manager and adaptor, so it is
@@ -855,7 +732,7 @@ void Daemon::teardownWorkspaces()
         m_windowTracker->setWorkspaceRouteResolver(nullptr);
     }
     m_workspaceController.reset();
-    parkWorkspaceShortcuts(m_shortcutManager.get());
+    parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
 }
 
 } // namespace PlasmaZones

@@ -227,7 +227,7 @@ void Daemon::showModelessOsd(const QString& screenId)
         qCInfo(lcDaemon) << "Cheatsheet: modeless context, preview OSD screen=" << screenId;
         return;
     }
-    showKdeTextOsd(QStringLiteral("dialog-cancel"), text);
+    showSystemOsd(QStringLiteral("dialog-cancel"), text);
     qCInfo(lcDaemon) << "Cheatsheet: modeless context, text OSD screen=" << screenId;
 }
 
