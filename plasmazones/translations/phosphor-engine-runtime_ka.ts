@@ -2091,6 +2091,64 @@
         <source>Swap Screens</source>
         <translation>ეკრანების გაცვლა</translation>
     </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="55"/>
+        <source>All Monitors</source>
+        <translation>ყველა მონიტორი</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="59"/>
+        <source>Standard (16:9)</source>
+        <translation>სტანდარტული (16:9)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="63"/>
+        <source>Ultrawide (21:9)</source>
+        <translation>ულტრაფართო (21:9)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="67"/>
+        <source>Super-Ultrawide (32:9)</source>
+        <translation>სუპერულტრაფართო (32:9)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="71"/>
+        <source>Portrait (9:16)</source>
+        <translation>შვეული (9:16)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="93"/>
+        <source>Scrolling Templates</source>
+        <translation>გადახვევის ნიმუშები</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="112"/>
+        <source>None</source>
+        <comment>the explicit no-template choice</comment>
+        <translation>არცერთი</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="114"/>
+        <source>Use no template on this screen, so columns keep the built-in widths and heights</source>
+        <translation>ამ ეკრანზე ნიმუში არ გამოიყენოს, რათა სვეტებმა ჩაშენებული სიგანეები და სიმაღლეები შეინარჩუნონ</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="136"/>
+        <source>None</source>
+        <comment>the explicit no-layout choice</comment>
+        <translation>არცერთი</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="137"/>
+        <source>Use no layout on this screen, so windows float and nothing snaps or tiles them</source>
+        <translation>ამ ეკრანზე განლაგება არ გამოიყენოს, რათა ფანჯრები მოტივტივე იყოს და არაფერმა მიამაგროს ან დააფილოს ისინი</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="141"/>
+        <source>None</source>
+        <comment>@title:group section holding the no-layout row</comment>
+        <translation>არცერთი</translation>
+    </message>
 </context>
 <context>
     <name>RenderNodeOverlayContent</name>
