@@ -126,11 +126,11 @@ let
       };
     }
     {
-      name = "phosphor-branding-0.3.0.tar.gz";
+      name = "phosphor-branding-0.3.1.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/branding/releases/download/v0.3.0/phosphor-branding-0.3.0.tar.gz";
-        # sha256 6d69c1e8e2cf862e52f8b929cf4ead83438ea0465f83c67fc0c3ee876b23f02c
-        hash = "sha256-bWnB6OLPhi5S+Lkpz06tg0OOoEZfg8Z/wMPuh2sj8Cw=";
+        url = "https://github.com/phosphor-works/branding/releases/download/v0.3.1/phosphor-branding-0.3.1.tar.gz";
+        # sha256 d6ec9261d4391148f5c21dfb02be410214d42ea675f1558a826042d63f495094
+        hash = "sha256-1uySYdQ5EUj1wh37Ar5BAhTULqZ18VWKgmBC1j9JUJQ=";
       };
     }
     {

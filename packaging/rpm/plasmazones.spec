@@ -56,8 +56,8 @@ Source1:        https://github.com/luau-lang/luau/archive/refs/tags/0.745.tar.gz
 Source2:        https://github.com/tristanpenman/valijson/archive/refs/tags/v1.1.3.tar.gz#/valijson-1.1.3.tar.gz
 # The suite's branding release, whose icons the build installs. Not code, so no
 # bundled() provide.
-# phosphor-branding-0.3.0.tar.gz sha256 6d69c1e8e2cf862e52f8b929cf4ead83438ea0465f83c67fc0c3ee876b23f02c
-Source3:        https://github.com/phosphor-works/branding/releases/download/v0.3.0/phosphor-branding-0.3.0.tar.gz#/phosphor-branding-0.3.0.tar.gz
+# phosphor-branding-0.3.1.tar.gz sha256 d6ec9261d4391148f5c21dfb02be410214d42ea675f1558a826042d63f495094
+Source3:        https://github.com/phosphor-works/branding/releases/download/v0.3.1/phosphor-branding-0.3.1.tar.gz#/phosphor-branding-0.3.1.tar.gz
 # The phosphor-libs commit PlasmaZones builds against, pinned in
 # cmake/PlasmaZonesDependencies.cmake. Its libraries are built from it and
 # installed with the package. Luau and valijson above are the archives that
