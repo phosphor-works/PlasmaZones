@@ -268,9 +268,9 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
              // Written by the page's consent confirmation, not a row, so it
              // is reset-exempt (resetExemptConsentKeys) but still owned here
              // for dirty/save/discard.
-             {CD::workspacesBehaviorGroup(), CD::manageKWinPerOutputKey()},
+             {CD::workspacesBehaviorGroup(), HostSettings::manageKWinPerOutputKey()},
              {CD::workspacesBehaviorGroup(), CD::snapBackOsdHintKey()},
-             {CD::workspacesBehaviorGroup(), CD::rebindKWinDesktopShortcutsKey()},
+             {CD::workspacesBehaviorGroup(), HostSettings::rebindKWinDesktopShortcutsKey()},
          }},
         {QStringLiteral("workspaces-named"),
          {
@@ -735,7 +735,7 @@ const Settings::ConfigKeyList& SettingsController::resetExemptConsentKeys()
     using CD = ConfigDefaults;
     static const Settings::ConfigKeyList keys = {
 #ifdef USE_KDE_FRAMEWORKS
-        {CD::workspacesBehaviorGroup(), CD::manageKWinPerOutputKey()},
+        {CD::workspacesBehaviorGroup(), HostSettings::manageKWinPerOutputKey()},
 #endif
     };
     return keys;

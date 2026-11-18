@@ -37,6 +37,7 @@
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorRules/ActionParams.h>
 
+#include "common/hostsettings.h"
 #include "config/configdefaults.h"
 #include "config/settings.h"
 #include "config/settingsschema.h"
@@ -1077,6 +1078,56 @@ private Q_SLOTS:
     }
 
     // =========================================================================
+    // Host keys: PlasmaZones' own settings, through the host extension
+    // =========================================================================
+
+    /// HostSettings announces its keys however they change: its setter (once,
+    /// and not again for the same value), a discard back to the baseline, and
+    /// a reload that finds another process's write. Settings refuses a key the
+    /// extension does not declare.
+    void hostSettings_announceEveryChangePath()
+    {
+        IsolatedConfigGuard guard;
+        Settings settings;
+        HostSettings host(&settings);
+        QSignalSpy consentSpy(&host, &HostSettings::workspacesManageKWinPerOutputChanged);
+        QSignalSpy rebindSpy(&host, &HostSettings::workspacesRebindKWinShortcutsChanged);
+        QSignalSpy changedSpy(&settings, &Settings::settingsChanged);
+        QVERIFY(!host.workspacesManageKWinPerOutput());
+        QVERIFY(host.workspacesRebindKWinShortcuts());
+
+        host.setWorkspacesManageKWinPerOutput(true);
+        QVERIFY(host.workspacesManageKWinPerOutput());
+        QCOMPARE(consentSpy.count(), 1);
+        QCOMPARE(changedSpy.count(), 1);
+        host.setWorkspacesManageKWinPerOutput(true);
+        QCOMPARE(consentSpy.count(), 1);
+        QCOMPARE(changedSpy.count(), 1);
+        QCOMPARE(rebindSpy.count(), 0);
+
+        // Not yet saved, so a discard reverts it to the default on disk.
+        settings.discardKeys({{ConfigDefaults::workspacesBehaviorGroup(), HostSettings::manageKWinPerOutputKey()}});
+        QVERIFY(!host.workspacesManageKWinPerOutput());
+        QCOMPARE(consentSpy.count(), 2);
+        QCOMPARE(changedSpy.count(), 2);
+
+        {
+            Settings other;
+            HostSettings otherHost(&other);
+            otherHost.setWorkspacesRebindKWinShortcuts(false);
+            QVERIFY(other.save());
+        }
+        settings.load();
+        QVERIFY(!host.workspacesRebindKWinShortcuts());
+        QCOMPARE(rebindSpy.count(), 1);
+        QCOMPARE(consentSpy.count(), 2);
+        QCOMPARE(changedSpy.count(), 3);
+
+        QVERIFY(!settings.setHostValue(ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::enabledKey(), true));
+        QVERIFY(!settings.workspacesEnabled());
+    }
+
+    // =========================================================================
     // Settings: machine-scoped keys
     // =========================================================================
 
@@ -1084,31 +1135,31 @@ private Q_SLOTS:
     {
         QVERIFY(Settings::isMachineScopedKey(ConfigDefaults::renderingGroup(), ConfigDefaults::gpuKey()));
         QVERIFY(Settings::isMachineScopedKey(ConfigDefaults::workspacesBehaviorGroup(),
-                                             ConfigDefaults::manageKWinPerOutputKey()));
+                                             HostSettings::manageKWinPerOutputKey()));
         // The rebind toggle is a preference and rides profiles.
         QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::workspacesBehaviorGroup(),
-                                              ConfigDefaults::rebindKWinDesktopShortcutsKey()));
+                                              HostSettings::rebindKWinDesktopShortcutsKey()));
         QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::enabledKey()));
         QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::renderingGroup(), ConfigDefaults::backendKey()));
         // The predicate is per group: the same key name elsewhere is not it.
         QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::workspacesNamedGroup(),
-                                              ConfigDefaults::manageKWinPerOutputKey()));
+                                              HostSettings::manageKWinPerOutputKey()));
 
         QJsonObject blob{
             {ConfigDefaults::renderingGroup(),
              QJsonObject{{ConfigDefaults::gpuKey(), QStringLiteral("10de:1e84")},
                          {ConfigDefaults::backendKey(), QStringLiteral("vulkan")}}},
             {ConfigDefaults::workspacesBehaviorGroup(),
-             QJsonObject{{ConfigDefaults::manageKWinPerOutputKey(), true},
-                         {ConfigDefaults::rebindKWinDesktopShortcutsKey(), false}}},
+             QJsonObject{{HostSettings::manageKWinPerOutputKey(), true},
+                         {HostSettings::rebindKWinDesktopShortcutsKey(), false}}},
         };
         Settings::stripMachineScopedKeys(blob);
         const QJsonObject rendering = blob.value(ConfigDefaults::renderingGroup()).toObject();
         const QJsonObject workspaces = blob.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
         QVERIFY(!rendering.contains(ConfigDefaults::gpuKey()));
         QVERIFY(rendering.contains(ConfigDefaults::backendKey()));
-        QVERIFY(!workspaces.contains(ConfigDefaults::manageKWinPerOutputKey()));
-        QVERIFY(workspaces.contains(ConfigDefaults::rebindKWinDesktopShortcutsKey()));
+        QVERIFY(!workspaces.contains(HostSettings::manageKWinPerOutputKey()));
+        QVERIFY(workspaces.contains(HostSettings::rebindKWinDesktopShortcutsKey()));
     }
 };
 

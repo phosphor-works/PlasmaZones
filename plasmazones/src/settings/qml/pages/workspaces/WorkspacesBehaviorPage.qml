@@ -58,7 +58,7 @@ SettingsFlickable {
                 Kirigami.Action {
                     text: i18n("Turn On KWin Setting")
                     icon.name: "dialog-ok-apply"
-                    onTriggered: appSettings.workspacesManageKWinPerOutput = true
+                    onTriggered: hostSettings.workspacesManageKWinPerOutput = true
                 }
             ]
         }
@@ -104,9 +104,9 @@ SettingsFlickable {
 
                     SettingsSwitch {
                         accessibleName: i18n("Replace KWin desktop shortcuts")
-                        checked: appSettings.workspacesRebindKWinShortcuts
+                        checked: hostSettings.workspacesRebindKWinShortcuts
                         onToggled: function (newValue) {
-                            appSettings.workspacesRebindKWinShortcuts = newValue;
+                            hostSettings.workspacesRebindKWinShortcuts = newValue;
                         }
                     }
                 }

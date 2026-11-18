@@ -29,17 +29,9 @@ namespace PlasmaZones {
 P_STORE_GET(bool, workspacesEnabled, workspacesBehaviorGroup, enabledKey, bool)
 P_STORE_SET_BOOL(setWorkspacesEnabled, workspacesBehaviorGroup, enabledKey, workspacesEnabledChanged)
 
-P_STORE_GET(bool, workspacesManageKWinPerOutput, workspacesBehaviorGroup, manageKWinPerOutputKey, bool)
-P_STORE_SET_BOOL(setWorkspacesManageKWinPerOutput, workspacesBehaviorGroup, manageKWinPerOutputKey,
-                 workspacesManageKWinPerOutputChanged)
-
 P_STORE_GET(bool, workspacesSnapBackOsdHint, workspacesBehaviorGroup, snapBackOsdHintKey, bool)
 P_STORE_SET_BOOL(setWorkspacesSnapBackOsdHint, workspacesBehaviorGroup, snapBackOsdHintKey,
                  workspacesSnapBackOsdHintChanged)
-
-P_STORE_GET(bool, workspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebindKWinDesktopShortcutsKey, bool)
-P_STORE_SET_BOOL(setWorkspacesRebindKWinShortcuts, workspacesBehaviorGroup, rebindKWinDesktopShortcutsKey,
-                 workspacesRebindKWinShortcutsChanged)
 
 namespace {
 /// The id-less entry of @p before that each id first appearing in @p after

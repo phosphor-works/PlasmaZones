@@ -205,23 +205,18 @@ QString canonicalWorkspaceEntryId(const QVariant& raw)
 void appendWorkspacesSchema(PhosphorConfig::Schema& schema)
 {
     using CD = ConfigDefaults;
-    // Dynamic per-monitor workspaces: the master gate, the consent latch for
-    // KWin's per-output key, and the behaviour toggles.
+    // Dynamic per-monitor workspaces: the master gate and the behaviour
+    // toggles. The host's extension appends its own choices about the
+    // compositor to this group (under PlasmaZones, KWin's per-output consent
+    // and the stock-shortcut takeover).
     schema.groups[CD::workspacesBehaviorGroup()] = {
         {CD::enabledKey(), CD::workspacesEnabled(), QMetaType::Bool,
          QStringLiteral("Gives every monitor its own list of workspaces instead of one global set shared by all "
                         "screens. Requires KWin's per-output virtual desktops.")},
-        {CD::manageKWinPerOutputKey(), CD::workspacesManageKWinPerOutput(), QMetaType::Bool,
-         QStringLiteral("Records that the user consented to PlasmaZones writing KWin's PerOutputVirtualDesktops key. "
-                        "The key is never written without this, and never reverted when the feature is disabled.")},
         {CD::snapBackOsdHintKey(), CD::workspacesSnapBackOsdHint(), QMetaType::Bool,
          QStringLiteral("Shows an OSD hint when a monitor switched to another monitor's workspace, for example "
                         "through the Pager or the Overview, snaps back to its own. Also shows one when a window "
                         "lands on a workspace that is being removed and is moved to the current one.")},
-        {CD::rebindKWinDesktopShortcutsKey(), CD::workspacesRebindKWinShortcuts(), QMetaType::Bool,
-         QStringLiteral("Takes over KWin's stock Switch One Desktop and Walk Through Desktops shortcuts while the "
-                        "feature is on, since they walk the whole shared desktop pool rather than one monitor's "
-                        "list. Restored on disable.")},
     };
     schema.groups[CD::workspacesNamedGroup()] = {
         {CD::entriesKey(), CD::workspacesNamedEntries(), QMetaType::QVariantList,

@@ -22,6 +22,7 @@
 
 #include <PhosphorControl/SearchController.h>
 
+#include "common/hostsettings.h"
 #include "core/types/constants.h"
 #include "runtime/rendering/zoneshaderitem.h"
 #include <PhosphorProtocol/ServiceConstants.h>
@@ -96,7 +97,7 @@ bool activateRunningInstance(const QString& address)
 int main(int argc, char* argv[])
 {
     // Before anything reads a config or data path.
-    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+    PlasmaZones::initPlasmaZonesHost();
 
     // No MangoHud opt-out here, unlike plasmazonesd. MangoHud attaches as an
     // implicit Vulkan layer, and this app renders through OpenGL unless a
@@ -334,6 +335,7 @@ int main(int argc, char* argv[])
 
     engine.rootContext()->setContextProperty(QStringLiteral("settingsController"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), controller.settings());
+    engine.rootContext()->setContextProperty(QStringLiteral("hostSettings"), controller.hostSettings());
     engine.rootContext()->setContextProperty(QStringLiteral("searchController"), searchController.get());
 
     if (!requestedAddress.isEmpty()) {

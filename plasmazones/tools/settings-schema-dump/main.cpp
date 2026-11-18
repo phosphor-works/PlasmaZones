@@ -27,6 +27,7 @@
 // range published as fact is worse than no range.
 
 #include "config/settingsschema.h"
+#include "common/hostsettings.h"
 #include "core/types/constants.h"
 
 #include <PhosphorConfig/Schema.h>
@@ -171,7 +172,7 @@ QJsonObject dumpKey(const PhosphorConfig::KeyDef& def)
 int main(int argc, char** argv)
 {
     // Before anything reads a config or data path.
-    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+    PlasmaZones::initPlasmaZonesHost();
 
     QCoreApplication app(argc, argv);
 

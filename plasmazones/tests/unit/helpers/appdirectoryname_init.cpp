@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Every unit test runs as a PlasmaZones executable would: with the app
-// directory name set before main, where the executables set it at the top of
-// theirs. tests/unit/CMakeLists.txt adds this source to every test that links
+// Every unit test runs as a PlasmaZones executable would: initialized as a
+// PlasmaZones host (its app directory name and its settings extension) before
+// main, where the executables do it at the top of theirs.
+// tests/unit/CMakeLists.txt adds this source to every test that links
 // plasmazones_core.
 
-#include "core/platform/appdirectoryname.h"
-#include "core/types/constants.h"
+#include "common/hostsettings.h"
 
 namespace {
-const bool s_appDirectoryNameSet = [] {
-    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+const bool s_hostInitialized = [] {
+    PlasmaZones::initPlasmaZonesHost();
     return true;
 }();
 } // namespace

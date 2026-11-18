@@ -25,6 +25,7 @@ class DBusScreenAdaptor;
 namespace PlasmaZones {
 
 class EngineRuntime;
+class HostSettings;
 class KWinWorkspaceHost;
 class PlasmaSystemOsd;
 class AutotileAdaptor;
@@ -112,6 +113,9 @@ private:
 
     // Declared first so it is destroyed last: everything below borrows it.
     std::unique_ptr<EngineRuntime> m_runtime;
+
+    // PlasmaZones' own settings, stored through the runtime's Settings.
+    std::unique_ptr<HostSettings> m_hostSettings;
 
     // The host implementations the runtime reads through IWorkspaceHost and
     // ISystemOsd. Destroyed before the runtime, which stop() has already

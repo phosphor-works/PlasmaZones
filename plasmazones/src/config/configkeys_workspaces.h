@@ -73,13 +73,8 @@ public:
     // Config Keys — Workspaces.Behavior
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // Consent latch for writing KWin's PerOutputVirtualDesktops kwinrc key on
-    // the user's behalf (dynamic workspaces enable flow).
-    P_CONFIG_KEY(manageKWinPerOutputKey, "ManageKWinPerOutput")
     // Owner-wins snap-back OSD hint toggle.
     P_CONFIG_KEY(snapBackOsdHintKey, "SnapBackOsdHint")
-    // Take over KWin's stock desktop-switch chords while the feature is on.
-    P_CONFIG_KEY(rebindKWinDesktopShortcutsKey, "RebindKWinDesktopShortcuts")
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Workspaces.Named

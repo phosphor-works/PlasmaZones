@@ -5,6 +5,7 @@
 #include "EditorLaunchController.h"
 #include "core/resolve/animationbootstrap.h"
 #include "config/configdefaults.h"
+#include "common/hostsettings.h"
 #include "core/types/constants.h"
 #include "config/configmigration.h"
 #include "config/settings.h"
@@ -61,7 +62,7 @@ bool activateRunningInstance(const QString& screenId, const QString& layoutId, b
 int main(int argc, char* argv[])
 {
     // Before anything reads a config or data path.
-    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+    PlasmaZones::initPlasmaZonesHost();
 
     // Ensure D-Bus session bus is reachable when launched from CLI (e.g. IDE terminal)
     // where DBUS_SESSION_BUS_ADDRESS may be unset. Use systemd default path.

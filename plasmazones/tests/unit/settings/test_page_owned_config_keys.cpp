@@ -36,6 +36,7 @@
 
 #include <PhosphorConfig/Schema.h>
 
+#include "common/hostsettings.h"
 #include "config/configdefaults.h"
 #include "config/settings.h"
 #include "config/settingsschema.h"
@@ -365,14 +366,14 @@ private Q_SLOTS:
 #ifdef USE_KDE_FRAMEWORKS
         QCOMPARE(exempt.size(), 1);
         const QString consent =
-            qualify(ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::manageKWinPerOutputKey());
+            qualify(ConfigDefaults::workspacesBehaviorGroup(), HostSettings::manageKWinPerOutputKey());
         QCOMPARE(qualify(exempt.first().first, exempt.first().second), consent);
         QVERIFY2(owned.contains(consent), qPrintable(consent));
         // Owned by the page whose Reset it is exempt from.
         const Settings::ConfigKeyList behaviorKeys =
             SettingsController::pageOwnedConfigKeys().value(QStringLiteral("workspaces-behavior"));
         QVERIFY(behaviorKeys.contains(
-            Settings::ConfigKey{ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::manageKWinPerOutputKey()}));
+            Settings::ConfigKey{ConfigDefaults::workspacesBehaviorGroup(), HostSettings::manageKWinPerOutputKey()}));
 #else
         Q_UNUSED(owned)
         QVERIFY(exempt.isEmpty());

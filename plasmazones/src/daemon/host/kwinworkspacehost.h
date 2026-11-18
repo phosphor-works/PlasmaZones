@@ -7,6 +7,7 @@
 
 namespace PlasmaZones {
 
+class HostSettings;
 class Settings;
 class ShortcutManager;
 
@@ -18,9 +19,8 @@ class ShortcutManager;
  * (kwin-shortcut-backup.ini) before clearing it through KGlobalAccel's
  * foreign-rebind pass-through, and the restore consumes that backup, so a
  * takeover persisted by an earlier session is always undone. The user's
- * consent and takeover choice are PlasmaZones settings
- * (workspacesManageKWinPerOutput, workspacesRebindKWinShortcuts); the daemon
- * reports their changes to the runtime. A shortcut
+ * consent and takeover choice are PlasmaZones' own settings (HostSettings);
+ * the daemon reports their changes to the runtime. A shortcut
  * backend that cannot rebind KWin's shortcuts (the portal) takes nothing.
  * Dynamic workspaces need KDE Frameworks to read and write kwinrc the way
  * KWin does, so a build without them does not support the feature.
@@ -29,9 +29,11 @@ class KWinWorkspaceHost : public IWorkspaceHost
 {
 public:
     /// @param shortcutManager The daemon's; not owned, outlives this host.
-    /// @param settings Where the user's consent and takeover choice live; not
-    ///        owned, outlives this host.
-    KWinWorkspaceHost(ShortcutManager* shortcutManager, Settings* settings);
+    /// @param settings Saved once the consent is spent; not owned, outlives
+    ///        this host.
+    /// @param hostSettings The user's consent and takeover choice; not owned,
+    ///        outlives this host.
+    KWinWorkspaceHost(ShortcutManager* shortcutManager, Settings* settings, HostSettings* hostSettings);
 
     bool supportsDynamicWorkspaces() const override;
     bool perOutputDesktopsConfigured() const override;
@@ -45,6 +47,7 @@ public:
 private:
     ShortcutManager* m_shortcutManager;
     Settings* m_settings;
+    HostSettings* m_hostSettings;
 };
 
 } // namespace PlasmaZones
