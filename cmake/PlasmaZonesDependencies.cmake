@@ -3,10 +3,8 @@
 #
 # What PlasmaZones builds from that is not in this repository, each pinned to
 # one archive by version, URL and SHA-256: the phosphor-libs commit it builds
-# against, the suite's branding release, the surface decoration packs commit,
-# and, for the shell tier only
-# (BUILD_PHOSPHOR_SHELL), the phosphor-shell-libs commit. This file is the only place these
-# pins live. The phosphor-libs tree pins its own third-party sources (Luau,
+# against, the suite's branding release and the surface decoration packs
+# commit. This file is the only place these pins live. The phosphor-libs tree pins its own third-party sources (Luau,
 # valijson) in its cmake/PhosphorDependencies.cmake, at the commit pinned here.
 # The packaging recipes repeat the URL and hash of every archive they fetch,
 # both these and the library tree's, and scripts/check-conventions.py (the
@@ -50,13 +48,9 @@
 include_guard(GLOBAL)
 
 # ─── Pins ────────────────────────────────────────────────────────────────────
-# PLASMAZONES_DEPS lists the ones every build needs, for the fetch script and
-# for the dep-pins rule. PLASMAZONES_SHELL_DEPS lists the ones only the shell
-# tier needs. No packaging recipe builds the shell, so those are neither in the
-# recipes nor fetched by the script mode, and an offline build of the shell
-# fetches them into its PHOSPHOR_DEPS_ARCHIVES directory by hand.
+# PLASMAZONES_DEPS lists them all, for the fetch script and for the dep-pins
+# rule.
 set(PLASMAZONES_DEPS phosphor-libs branding phosphor-surface-packs)
-set(PLASMAZONES_SHELL_DEPS phosphor-shell-libs)
 
 # The phosphor-libs commit PlasmaZones builds against (LGPL-2.1-or-later,
 # phosphor-works/phosphor-libs): its placement engines, rendering, layer-shell
@@ -65,16 +59,6 @@ set(PLASMAZONES_DEP_phosphor-libs_VERSION "793344a136af82d067e4a8b0e5abe0d57404f
 set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/793344a136af82d067e4a8b0e5abe0d57404f74a.tar.gz")
 set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-793344a136af82d067e4a8b0e5abe0d57404f74a.tar.gz")
 set(PLASMAZONES_DEP_phosphor-libs_SHA256 "a35b8fbdec56b8ed17368d5d4df149c9cd473f7a974aa815e7db78a0c19281fd")
-
-# The phosphor-shell-libs commit the shell tier builds against
-# (LGPL-2.1-or-later, phosphor-works/phosphor-shell-libs): the theme, popout and
-# Phosphor.* surface libraries and the system service libraries. Added after
-# phosphor-libs, so this file's phosphor-libs pin is the one in use and that
-# tree's own pin is never fetched. A commit, so VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-shell-libs_VERSION "18386019f57cd9d225c1bfe5d3bd4668cba07ddb")
-set(PLASMAZONES_DEP_phosphor-shell-libs_URL "https://github.com/phosphor-works/phosphor-shell-libs/archive/18386019f57cd9d225c1bfe5d3bd4668cba07ddb.tar.gz")
-set(PLASMAZONES_DEP_phosphor-shell-libs_FILE "phosphor-shell-libs-18386019f57cd9d225c1bfe5d3bd4668cba07ddb.tar.gz")
-set(PLASMAZONES_DEP_phosphor-shell-libs_SHA256 "4f93d39a3d793787007c9cb21ca7b5803837d395eb64e194b84a3ad3db5aab5e")
 
 # The suite's branding release (CC-BY-SA-4.0, phosphor-works/branding): the app
 # icons, installed from it with its cmake/PhosphorBranding.cmake. No app keeps
@@ -232,7 +216,7 @@ endif()
 # <name>_SOURCE_DIR in the caller's scope to its unpacked tree. Only fetches the
 # source. What to build from it is the caller's business.
 function(plasmazones_fetch_dependency name)
-    if(NOT name IN_LIST PLASMAZONES_DEPS AND NOT name IN_LIST PLASMAZONES_SHELL_DEPS)
+    if(NOT name IN_LIST PLASMAZONES_DEPS)
         message(FATAL_ERROR "plasmazones_fetch_dependency: '${name}' is not pinned in ${CMAKE_CURRENT_FUNCTION_LIST_FILE}")
     endif()
     set(_version "${PLASMAZONES_DEP_${name}_VERSION}")
@@ -299,36 +283,6 @@ macro(plasmazones_add_phosphor_libs)
     # The library tree's helper modules (PhosphorTestIsolation, PhosphorTestPch),
     # reachable by name from here on.
     list(APPEND CMAKE_MODULE_PATH "${PHOSPHOR_LIBS_CMAKE_DIR}")
-endmacro()
-
-# plasmazones_add_phosphor_shell_libs()
-#
-# Adds the phosphor-shell-libs tree as a subproject for the shell tier, the way
-# plasmazones_add_phosphor_libs() adds phosphor-libs, and after it: that tree
-# then finds phosphor-libs already added and uses it. Leaves
-# phosphor-shell-libs_SOURCE_DIR and phosphor-shell-libs_BINARY_DIR set in the
-# caller's scope. -DCPM_phosphor-shell-libs_SOURCE=<dir> builds a local
-# checkout, and -DPHOSPHOR_SHELL_LIBS_GIT_REF=<ref> a branch or commit.
-set(PHOSPHOR_SHELL_LIBS_GIT_REF "" CACHE STRING
-    "Build phosphor-shell-libs from this git branch, tag or commit instead of the pinned archive. Empty: the pin")
-macro(plasmazones_add_phosphor_shell_libs)
-    if(NOT PHOSPHOR_LIBS_CMAKE_DIR OR NOT TARGET PhosphorIpc)
-        message(FATAL_ERROR "plasmazones_add_phosphor_shell_libs() runs after plasmazones_add_phosphor_libs()")
-    endif()
-    if(PHOSPHOR_DEPS_ARCHIVES)
-        plasmazones_fetch_dependency(phosphor-shell-libs)
-        set(phosphor-shell-libs_BINARY_DIR "${CMAKE_BINARY_DIR}/_deps/phosphor-shell-libs-build")
-        add_subdirectory("${phosphor-shell-libs_SOURCE_DIR}" "${phosphor-shell-libs_BINARY_DIR}")
-    elseif(PHOSPHOR_SHELL_LIBS_GIT_REF)
-        CPMAddPackage(NAME phosphor-shell-libs
-                      GIT_REPOSITORY "https://github.com/phosphor-works/phosphor-shell-libs.git"
-                      GIT_TAG "${PHOSPHOR_SHELL_LIBS_GIT_REF}"
-                      GIT_SHALLOW NO)
-    else()
-        CPMAddPackage(NAME phosphor-shell-libs
-                      URL "${PLASMAZONES_DEP_phosphor-shell-libs_URL}"
-                      URL_HASH SHA256=${PLASMAZONES_DEP_phosphor-shell-libs_SHA256})
-    endif()
 endmacro()
 
 # phosphor_put_glslang_on_test_path(<test>...)

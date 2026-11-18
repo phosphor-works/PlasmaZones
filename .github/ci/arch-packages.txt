@@ -9,10 +9,6 @@
 #
 # One package per line; `#` starts a comment. The draft-PKGBUILD job does not
 # read this: makepkg resolves the real dependencies from packaging/.
-#
-# The shell tier (BUILD_PHOSPHOR_SHELL) is not built in CI, so its
-# configure-time requirements (libpipewire, polkit-qt6, pam, ddcutil) are not
-# here.
 
 # Toolchain
 base-devel

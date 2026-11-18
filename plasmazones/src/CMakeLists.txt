@@ -268,20 +268,6 @@ set(plasmazones_core_SRCS
 # Create core library
 add_library(plasmazones_core SHARED ${plasmazones_core_SRCS})
 
-
-# Shell appearance is an application adapter, never a dependency of core Settings.
-if(BUILD_PHOSPHOR_SHELL)
-    add_library(plasmazones_shellappearance STATIC
-        common/shelldecorationseeds.h
-        common/shelldecorationseeds.cpp
-    )
-    target_compile_definitions(plasmazones_shellappearance PUBLIC PHOSPHOR_BUILD_SHELL=1)
-    target_link_libraries(plasmazones_shellappearance
-        PUBLIC plasmazones_core PhosphorSurface::PhosphorSurface
-        PRIVATE PhosphorTheme::PhosphorTheme
-    )
-endif()
-
 # Generate export header
 generate_export_header(plasmazones_core
     EXPORT_FILE_NAME plasmazones_export.h
@@ -683,9 +669,6 @@ set(plasmazones_daemon_SRCS
 qt_add_resources(plasmazones_daemon_SRCS daemon/resources.qrc)
 
 add_executable(plasmazonesd ${plasmazones_daemon_SRCS})
-if(BUILD_PHOSPHOR_SHELL)
-    target_link_libraries(plasmazonesd PRIVATE plasmazones_shellappearance)
-endif()
 
 target_link_libraries(plasmazonesd
     PRIVATE
@@ -708,9 +691,9 @@ target_link_libraries(plasmazonesd
         # Named directly, not left to plasmazones_core's PUBLIC edge: daemon TUs
         # include <PhosphorSurface/...> and daemon/overlayservice/decoration.cpp
         # calls its exported chain-compose helpers, so a future demotion of that
-        # edge to PRIVATE would break them. The other chain hosts (kwin-effect,
-        # Lambent's chrome, and the settings app's decoration preview) all name it
-        # explicitly already.
+        # edge to PRIVATE would break them. The other chain hosts (kwin-effect
+        # and the settings app's decoration preview) both name it explicitly
+        # already.
         PhosphorSurface::PhosphorSurface  # SurfaceChainCompose / registry / DecorationSupportedPaths
         # Named directly for the same reason: daemon/main.cpp includes
         # <PhosphorConfig/HostDirectory.h> and calls HostDirectory::writeRecord.

@@ -548,15 +548,6 @@ add_executable(test_settings_decoration_tree config/settings/test_settings_decor
 target_link_libraries(test_settings_decoration_tree PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core)
 add_test(NAME test_settings_decoration_tree COMMAND test_settings_decoration_tree)
 
-# The shell appearance adapter's runtime decoration seeds. Built only with the
-# shell tier, which is the only configuration that declares the adapter.
-if(TARGET plasmazones_shellappearance)
-    add_executable(test_shell_decoration_seeds config/settings/test_shell_decoration_seeds.cpp)
-    target_link_libraries(test_shell_decoration_seeds PRIVATE
-        Qt6::Test Qt6::Core Qt6::Gui plasmazones_shellappearance PhosphorTheme::PhosphorTheme)
-    add_test(NAME test_shell_decoration_seeds COMMAND test_shell_decoration_seeds)
-endif()
-
 # Companion test executable: the Decorations.Performance/SuppressWhileFullscreen
 # persistence chain — absent-key default (the key is default-true, so a reader
 # that skips the fallback inverts it rather than disabling it), change-gated

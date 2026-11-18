@@ -16,7 +16,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSet>
-#include <QScopedValueRollback>
 
 namespace PlasmaZones {
 
@@ -393,9 +392,8 @@ void Settings::setMotionProfileTreeJson(const QString& json)
 // mirroring how the animation shaderProfileTree persists under
 // Animations/ShaderProfileTree. The STORE holds only user edits (schema
 // default: the empty tree); the built-in card chrome for the OSD and the
-// PopupFrame popups, plus application-provided appearance defaults, are
-// overlaid as a lowest-precedence seed layer on every read — the same model as the
-// animation seeds (PhosphorProfileRegistry's low-precedence owner tag), so
+// PopupFrame popups is overlaid as a lowest-precedence seed layer on every
+// read, the same model as the animation seeds (PhosphorProfileRegistry's low-precedence owner tag), so
 // shipped default improvements reach users who never customized those
 // surfaces, and a user config that predates (or was written without) the
 // defaults still renders them. A user edit at a seeded path becomes a real
@@ -405,19 +403,6 @@ void Settings::setMotionProfileTreeJson(const QString& json)
 PhosphorSurfaceShaders::DecorationProfileTree Settings::decorationSeedTree() const
 {
     return m_decorationSeeds;
-}
-
-void Settings::setDecorationSeedTree(const PhosphorSurfaceShaders::DecorationProfileTree& seeds)
-{
-    const auto supported = PhosphorSurfaceShaders::DecorationProfileTree::fromJson(seeds.toJson());
-    if (m_decorationSeeds == supported)
-        return;
-    m_decorationSeeds = supported;
-    // Both live and committed views resolve against these defaults. Notify
-    // renderers without treating the external appearance preview as an edit.
-    const QScopedValueRollback<bool> announcing(m_announcingDecorationSeedChange, true);
-    Q_EMIT decorationProfileTreeChanged();
-    Q_EMIT settingsChanged();
 }
 
 PhosphorSurfaceShaders::DecorationProfileTree Settings::decorationProfileTree() const

@@ -39,8 +39,7 @@ scripts/nested-kwin/run-nested.sh [output-count] [width height] [scale]
   1600x900 when no size is given.
 - `PZ_NESTED_XWAYLAND=1` for X11 test clients.
 - `PZ_NESTED_BUILD` selects a configure dir other than `build/`. `build/` is the
-  `debug` preset, which turns the shell tier ON, so it is fine for shell work;
-  reach for `build-nounity` when you also want the non-unity gate.
+  `debug` preset; reach for `build-nounity` when you also want the non-unity gate.
 - `PZ_NESTED_KEEP_STATE=1` keeps the previous run's XDG homes instead of
   wiping them, including the nested `kwinrc` that carries the desktop count.
   The only way to probe session restore: `daemon.sh` restarts the daemon but

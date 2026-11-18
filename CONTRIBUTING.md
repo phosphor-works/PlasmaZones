@@ -8,7 +8,7 @@ Clone the repo and build it locally first. The README has build instructions, bu
 
 ```bash
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_PHOSPHOR_SHELL=ON
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
 cmake --build . -j$(nproc)
 ```
 

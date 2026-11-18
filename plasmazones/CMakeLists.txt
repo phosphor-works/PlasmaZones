@@ -3,7 +3,7 @@
 #
 # PlasmaZones: the daemon, layout editor, settings app, KCM, KWin effect,
 # developer tools, bundled data assets and the unit tests. Builds on the
-# phosphor tier; nothing here links a shell-tier library.
+# phosphor-libs tree.
 
 # The surface decoration packs come from their own repository, at the commit
 # cmake/PlasmaZonesDependencies.cmake pins. Fetched before any target is

@@ -170,7 +170,7 @@ add_compile_definitions(PLASMAZONES_SHADERS_ENABLED)
 # the exact line, which no pattern-matching linter can do as precisely.
 #
 # Verified clean before enabling: every TU in the compile database (with
-# BUILD_PHOSPHOR_SHELL=ON and BUILD_TOOLS=ON) was recompiled with the define
+# BUILD_TOOLS=ON) was recompiled with the define
 # and none reported a conversion error, so this fixed no existing code and can
 # only catch new violations.
 add_compile_definitions(QT_NO_CAST_FROM_ASCII)
@@ -190,39 +190,6 @@ add_compile_definitions(QT_NO_CAST_FROM_ASCII)
 # PlasmaActivities itself (libs/phosphor-workspaces/CMakeLists.txt in
 # phosphor-libs) and links it in either mode when it is installed.
 option(USE_KDE_FRAMEWORKS "Build with KDE Frameworks integration" ON)
-
-# Opt-in build of PlasmaZones' integration with Lambent, the Phosphor desktop
-# shell (phosphor-works/Lambent): the shell appearance adapter, the shell
-# decoration plugin and the shell decoration settings pages. They link
-# phosphor-shell-libs, at the commit cmake/PlasmaZonesDependencies.cmake pins.
-# Default OFF so packaging and downstream installs of PlasmaZones don't pick it
-# up before the shell ships. Enable explicitly for shell work:
-#   cmake -DBUILD_PHOSPHOR_SHELL=ON
-option(BUILD_PHOSPHOR_SHELL "Build the integration with the Lambent shell (work in progress)" OFF)
-
-# The shell tier is exempt from the portable Qt-only invariant: the bar and
-# power modules hard-require KF6 Kirigami (icon resolution through
-# Kirigami.Icon), so a Qt-only shell build has nothing to draw icons with.
-# Fail here with the reason rather than letting the nested
-# find_package(KF6Kirigami REQUIRED) raise a bare not-found later.
-if(BUILD_PHOSPHOR_SHELL AND NOT USE_KDE_FRAMEWORKS)
-    message(FATAL_ERROR
-        "BUILD_PHOSPHOR_SHELL requires USE_KDE_FRAMEWORKS=ON: the shell tier "
-        "(phosphor-shell-libs' bar, power, control-center, launcher and lock libraries) depends on KF6 "
-        "Kirigami for icon rendering and has no Qt-only fallback.")
-endif()
-
-# App-tier compile-time gate for the shell. The Phosphor shell's own surfaces
-# (the `shell.phosphor.*` decoration subtree: bar, popouts, OSD bands, toasts,
-# picker, lock) only exist when the shell is built, so the seeds in
-# ConfigDefaults, the settings cards and their breadcrumb labels compile out
-# with it. Defined at directory scope here, before any add_subdirectory, so
-# every TU that includes the inline ConfigDefaults headers sees the same
-# value (a per-target definition would split the ODR across core / daemon /
-# settings / tests).
-if(BUILD_PHOSPHOR_SHELL)
-    add_compile_definitions(PLASMAZONES_HAVE_PHOSPHOR_SHELL)
-endif()
 
 if(USE_KDE_FRAMEWORKS)
     add_compile_definitions(USE_KDE_FRAMEWORKS)
@@ -355,13 +322,8 @@ include_directories("${CMAKE_BINARY_DIR}/generated")
 # ═══════════════════════════════════════════════════════════════════════════════
 # The tree is one product tier, plasmazones/: the PlasmaZones daemon, editor,
 # settings, KCM, KWin effect, bundled data and tests. It builds on
-# phosphor-libs, added above, and with BUILD_PHOSPHOR_SHELL also on
-# phosphor-shell-libs, added here. The shell itself is the Lambent repository.
-# The engine QML firewall runs inside phosphor-libs, next to the engines it
-# guards.
-if(BUILD_PHOSPHOR_SHELL)
-    plasmazones_add_phosphor_shell_libs()
-endif()
+# phosphor-libs, added above. The engine QML firewall runs inside
+# phosphor-libs, next to the engines it guards.
 
 add_subdirectory(plasmazones)
 
