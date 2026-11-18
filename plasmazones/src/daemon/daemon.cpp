@@ -37,6 +37,7 @@
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 #include <PhosphorScreens/PlasmaPanelSource.h>
 #include <PhosphorShortcuts/Factory.h>
+#include <PhosphorShortcuts/IBackend.h>
 #include <PhosphorWorkspaces/Plasma/Backends.h>
 
 #include <QDBusConnection>
