@@ -4,6 +4,7 @@
 #include "kwinworkspacehost.h"
 
 #include "common/kwinperoutputdesktops.h"
+#include "config/settings.h"
 #include "core/platform/logging.h"
 #include "runtime/controllers/shortcutmanager.h"
 
@@ -48,8 +49,9 @@ const QStringList& kwinDesktopActions()
 }
 } // namespace
 
-KWinWorkspaceHost::KWinWorkspaceHost(ShortcutManager* shortcutManager)
+KWinWorkspaceHost::KWinWorkspaceHost(ShortcutManager* shortcutManager, Settings* settings)
     : m_shortcutManager(shortcutManager)
+    , m_settings(settings)
 {
 }
 
@@ -65,6 +67,24 @@ bool KWinWorkspaceHost::supportsDynamicWorkspaces() const
 bool KWinWorkspaceHost::perOutputDesktopsConfigured() const
 {
     return kwinPerOutputVirtualDesktopsEnabled();
+}
+
+bool KWinWorkspaceHost::perOutputDesktopsConsented() const
+{
+    return m_settings && m_settings->workspacesManageKWinPerOutput();
+}
+
+void KWinWorkspaceHost::perOutputDesktopsConsentUsed()
+{
+    if (m_settings) {
+        m_settings->setWorkspacesManageKWinPerOutput(false);
+        m_settings->save();
+    }
+}
+
+bool KWinWorkspaceHost::stockDesktopShortcutsTakeoverWanted() const
+{
+    return m_settings && m_settings->workspacesRebindKWinShortcuts();
 }
 
 bool KWinWorkspaceHost::enablePerOutputDesktops()

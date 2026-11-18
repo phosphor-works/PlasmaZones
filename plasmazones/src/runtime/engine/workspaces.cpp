@@ -133,27 +133,10 @@ void EngineRuntime::initializeWorkspaces()
     }
     // Enabling the feature (or granting consent) at runtime re-enters this
     // gate without a daemon restart.
+    // The host's consent arrives through workspaceHostPreferencesChanged().
     if (!m_workspaceRearmConnected) {
         m_workspaceRearmConnected = true;
-        const auto rearm = [this]() {
-            // These connections outlive stop() (they hang off m_settings, not
-            // m_workspaceWiring, so the runtime-disable teardown cannot reach
-            // them and must not: they are what re-enables the feature). A
-            // settings save on a STOPPED daemon would otherwise re-run the
-            // whole bring-up on torn-down dependencies.
-            if (!m_running || m_shuttingDown) {
-                return;
-            }
-            const bool wantOn = m_settings->workspacesEnabled();
-            if (wantOn && !m_workspaceController) {
-                initializeWorkspaces();
-            } else if (!wantOn && m_workspaceController) {
-                teardownWorkspaces();
-                qCInfo(lcDaemon) << "dynamic workspaces disabled at runtime";
-            }
-        };
-        connect(m_settings.get(), &Settings::workspacesEnabledChanged, this, rearm);
-        connect(m_settings.get(), &Settings::workspacesManageKWinPerOutputChanged, this, rearm);
+        connect(m_settings.get(), &Settings::workspacesEnabledChanged, this, &EngineRuntime::rearmWorkspaces);
     }
     // The compositor's own answer is the authoritative half of the gate. The
     // effect reports the running mode at bring-up and on every change: on
@@ -191,7 +174,7 @@ void EngineRuntime::initializeWorkspaces()
     // settings page offers the consent again) rather than writing it back.
     bool wroteKWinConfig = false;
     if (!m_workspaceHost->perOutputDesktopsConfigured()) {
-        if (!m_settings->workspacesManageKWinPerOutput()) {
+        if (!m_workspaceHost->perOutputDesktopsConsented()) {
             qCWarning(lcDaemon) << "dynamic workspaces enabled but KWin per-output virtual desktops is off and no "
                                    "consent to manage it; feature stays dormant";
             parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
@@ -587,15 +570,9 @@ void EngineRuntime::initializeWorkspaces()
     // up and clears it); they are restored on toggle-off and on every stop.
     // If the host cannot take them (the portal backend), nothing is stolen
     // and snap-back-with-hint stays the story.
-    const auto applyStockRebind = [this]() {
-        if (m_settings->workspacesRebindKWinShortcuts()) {
-            m_workspaceHost->takeOverStockDesktopShortcuts();
-        } else {
-            m_workspaceHost->restoreStockDesktopShortcuts();
-        }
-    };
-    applyStockRebind();
-    connect(m_settings.get(), &Settings::workspacesRebindKWinShortcutsChanged, wiring, applyStockRebind);
+    // A later change of the preference arrives through
+    // workspaceHostPreferencesChanged().
+    applyStockDesktopShortcutTakeover();
 
     // RouteToWorkspace rule resolver: the rules pipeline calls this on the
     // open path (rules_placement.cpp). > 0 is the REALIZED desktop the move
@@ -694,11 +671,60 @@ void EngineRuntime::initializeWorkspaces()
     qCInfo(lcDaemon) << "dynamic workspaces active";
 
     // The consent was used: the next time per-output desktops are off, the
-    // user is asked again instead of the flag being written back. Last, so
-    // the settings signal this raises finds the controller already up.
+    // user is asked again instead of the consent standing. Last, so a host
+    // that reports the change back finds the controller already up.
     if (wroteKWinConfig) {
-        m_settings->setWorkspacesManageKWinPerOutput(false);
-        m_settings->save();
+        m_workspaceHost->perOutputDesktopsConsentUsed();
+    }
+}
+
+void EngineRuntime::rearmWorkspaces()
+{
+    // The workspacesEnabled connection outlives stop() (it hangs off
+    // m_settings, not m_workspaceWiring, so the runtime-disable teardown
+    // cannot reach it and must not: it is what re-enables the feature), and a
+    // host may report a preference at any time. Either on a STOPPED runtime
+    // would otherwise re-run the whole bring-up on torn-down dependencies.
+    if (!m_running || m_shuttingDown || !m_settings) {
+        return;
+    }
+    const bool wantOn = m_settings->workspacesEnabled();
+    if (wantOn && !m_workspaceController) {
+        initializeWorkspaces();
+    } else if (!wantOn && m_workspaceController) {
+        teardownWorkspaces();
+        qCInfo(lcDaemon) << "dynamic workspaces disabled at runtime";
+    }
+}
+
+void EngineRuntime::applyStockDesktopShortcutTakeover()
+{
+    if (!m_workspaceController || !m_workspaceHost) {
+        return;
+    }
+    if (m_workspaceHost->stockDesktopShortcutsTakeoverWanted()) {
+        m_workspaceHost->takeOverStockDesktopShortcuts();
+    } else {
+        m_workspaceHost->restoreStockDesktopShortcuts();
+    }
+}
+
+void EngineRuntime::setWorkspaceHost(IWorkspaceHost* host)
+{
+    m_workspaceHost = host;
+    // The shortcut manager parks the workspace focus pair while the stock
+    // chords stay the compositor's, which is the host's preference.
+    if (m_shortcutManager) {
+        m_shortcutManager->setWorkspaceHost(host);
+    }
+}
+
+void EngineRuntime::workspaceHostPreferencesChanged()
+{
+    rearmWorkspaces();
+    applyStockDesktopShortcutTakeover();
+    if (m_shortcutManager) {
+        m_shortcutManager->updateShortcuts();
     }
 }
 

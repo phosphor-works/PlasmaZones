@@ -111,7 +111,7 @@ private Q_SLOTS:
         m_manager = std::make_unique<ShortcutManager>(m_settings.get());
         m_manager->setBackendForTesting(std::make_unique<ForeignBackend>(&m_kwin, &m_readable));
         m_manager->registerShortcuts();
-        m_host = std::make_unique<KWinWorkspaceHost>(m_manager.get());
+        m_host = std::make_unique<KWinWorkspaceHost>(m_manager.get(), m_settings.get());
     }
 
     void cleanup()

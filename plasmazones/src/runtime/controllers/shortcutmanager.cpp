@@ -9,6 +9,7 @@
 #include "config/settings.h"
 #include "core/platform/logging.h"
 #include "runtime/common/runtimei18n.h"
+#include "runtime/host/iworkspacehost.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorShortcuts/Factory.h>
@@ -458,7 +459,8 @@ bool ShortcutManager::entryActive(const Entry& e, const QKeySequence& seq) const
     // registered first, which is KWin's. The focus pair would hold a grab
     // that never fires while the sheet advertised it, so it parks until the
     // user moves it to a chord of its own or turns the takeover on.
-    if (e.sharesKWinStockChord && seq == e.defaultSeq && m_settings && !m_settings->workspacesRebindKWinShortcuts()) {
+    if (e.sharesKWinStockChord && seq == e.defaultSeq && m_workspaceHost
+        && !m_workspaceHost->stockDesktopShortcutsTakeoverWanted()) {
         return false;
     }
     return true;

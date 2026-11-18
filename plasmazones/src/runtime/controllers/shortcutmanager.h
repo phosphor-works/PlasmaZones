@@ -23,6 +23,7 @@ class Registry;
 
 namespace PlasmaZones {
 
+class IWorkspaceHost;
 class Settings;
 
 /**
@@ -91,6 +92,18 @@ public:
     bool workspaceFamilyActive() const
     {
         return m_workspaceFamilyActive;
+    }
+
+    /**
+     * The workspace host, asked whether the compositor's stock desktop-switch
+     * chords are taken over (IWorkspaceHost::stockDesktopShortcutsTakeoverWanted).
+     * While they are not, the workspace focus pair parks on its stock chord.
+     * Not owned; null takes the chords as taken over. A change of the host's
+     * answer reaches the grabs on the next updateShortcuts().
+     */
+    void setWorkspaceHost(IWorkspaceHost* host)
+    {
+        m_workspaceHost = host;
     }
 
 public:
@@ -497,6 +510,7 @@ private:
     bool m_registrationInProgress = false;
     bool m_settingsDirty = false;
     bool m_workspaceFamilyActive = false;
+    IWorkspaceHost* m_workspaceHost = nullptr;
     // Set when an adhoc bind/unbind touched a catalogued id, consumed by
     // publishAdhocCatalogChange() after the flush that carried it.
     bool m_adhocCatalogDirty = false;
