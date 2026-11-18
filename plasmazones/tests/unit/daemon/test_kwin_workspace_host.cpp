@@ -13,6 +13,7 @@
 #include "runtime/controllers/shortcutmanager.h"
 #include "daemon/host/kwinworkspacehost.h"
 
+#include "common/hostsettings.h"
 #include "config/settings.h"
 #include "helpers/IsolatedConfigGuard.h"
 
@@ -111,12 +112,14 @@ private Q_SLOTS:
         m_manager = std::make_unique<ShortcutManager>(m_settings.get());
         m_manager->setBackendForTesting(std::make_unique<ForeignBackend>(&m_kwin, &m_readable));
         m_manager->registerShortcuts();
-        m_host = std::make_unique<KWinWorkspaceHost>(m_manager.get(), m_settings.get());
+        m_hostSettings = std::make_unique<HostSettings>(m_settings.get());
+        m_host = std::make_unique<KWinWorkspaceHost>(m_manager.get(), m_settings.get(), m_hostSettings.get());
     }
 
     void cleanup()
     {
         m_host.reset();
+        m_hostSettings.reset();
         m_manager.reset();
         m_settings.reset();
         qunsetenv("XDG_STATE_HOME");
@@ -182,6 +185,7 @@ private:
     QHash<QString, QList<QKeySequence>> m_kwin;
     bool m_readable = true;
     std::unique_ptr<Settings> m_settings;
+    std::unique_ptr<HostSettings> m_hostSettings;
     std::unique_ptr<ShortcutManager> m_manager;
     std::unique_ptr<KWinWorkspaceHost> m_host;
 };
