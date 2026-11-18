@@ -128,7 +128,7 @@ default and clamps the value itself (`theater.luau`: `pluau.clamp(ctx.custom and
 ## Documents and tests
 
 - `pluau.d.luau` comments, `../phosphor-libs/libs/phosphor-tiles/README.md` for structural changes, `CHANGELOG.md`, and
-  the authoring guide in the sibling repo `../phosphor-works.github.io/src/pages/guides/tiling.astro` (its own commit).
+  the authoring guide in the sibling repo `../website/src/pages/guides/tiling.astro` (its own commit).
 - Tests under `plasmazones/tests/unit/`: `scripting/test_luau_tile_algorithm.cpp` (metadata parsing, clamps,
   dropped and malformed values, hooks, custom params), `scripting/test_pluau_helpers.cpp`, `scripting/test_luau_parity.cpp`,
   `autotile/algorithms/test_algorithm_registry.cpp` and `test_scripted_algorithm_loader.cpp`,
