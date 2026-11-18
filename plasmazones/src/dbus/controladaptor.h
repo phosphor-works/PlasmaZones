@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <QDBusAbstractAdaptor>
 #include <QDBusMessage>
@@ -37,7 +37,7 @@ class ScreenModeRouter;
  * generateSupportReport, which answers with a delayed reply and folds in the
  * compositor bridge's registration, and quit.
  */
-class PLASMAZONES_EXPORT ControlAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT ControlAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Control")

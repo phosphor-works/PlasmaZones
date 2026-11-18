@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/AutotileMarshalling.h>
 #include <PhosphorProtocol/WindowMarshalling.h>
@@ -30,7 +30,7 @@ class TilingService;
  *
  * Its compositor-only window reports admit only the registered bridge (DbusHelpers::admitCompositorReport, #1155).
  */
-class PLASMAZONES_EXPORT TilingAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT TilingAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Tiling")

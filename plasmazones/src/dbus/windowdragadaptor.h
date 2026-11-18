@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/DragMarshalling.h>
 #include <PhosphorProtocol/ZoneMarshalling.h>
@@ -35,7 +35,7 @@ class DragResolver;
  * Exported through its parent, which carries the QDBusContext the admission
  * check reads.
  */
-class PLASMAZONES_EXPORT WindowDragAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT WindowDragAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.WindowDrag")

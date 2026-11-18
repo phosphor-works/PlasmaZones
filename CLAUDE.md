@@ -66,7 +66,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 - Only emit signals when value actually changes
 - Parent-based ownership for QObjects; `std::unique_ptr`/`QPointer` otherwise; never manual delete
 - Forward declare in headers; group includes: own header → project → KDE → Qt
-- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering` and `plasmazones_shaderpreview` each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT`. Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
+- `PLASMAZONES_EXPORT` on public API classes in `plasmazones/src/**`, where `plasmazones_rendering`, `plasmazones_shaderpreview` and `plasmazones_dbus` (the adaptors in `src/dbus`) each carry their own. A phosphor library uses its OWN `PHOSPHOR<LIB>_EXPORT`. Writing `PLASMAZONES_EXPORT` into a phosphor lib header names an undefined macro.
 - Input validation at system boundaries
 
 ### Qt6 String Literals (CRITICAL)
@@ -314,7 +314,7 @@ plasmazones/             — PlasmaZones
   src/editor/            — Layout editor (zone layouts + scrolling templates)
   src/settings/          — Standalone settings app
   src/ui/                — Shared QML controls (OSD, picker and selector content)
-  src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services)
+  src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services), its own plasmazones_dbus library
   src/config/            — Configuration backends
   src/common/            — Cross-target helpers
   src/shared/            — Code shared between daemon and apps

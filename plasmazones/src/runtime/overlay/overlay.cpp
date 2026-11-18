@@ -410,12 +410,12 @@ void OverlayService::initializeOverlay(QScreen* cursorScreen, const QPoint& curs
         resetModalSingletonsForDestroyedId(deadKey);
     }
 
-    // Count how many overlay windows actually have a live shell surface.
-    // If zero, the transport (phosphorwayland) is unavailable and we must
-    // not mark ourselves visible - the caller (e.g. prepareHandlerContext)
-    // will retry on the next drag tick, and handleScreenAdded will also
-    // attempt recreation on screen reconnection.
-    int liveOverlayCount = 0;
+    // The transport may have brought up no surface at all (no layer shell on
+    // this session). Nothing is on screen then, so the service does not report
+    // itself visible. The next drag tick asks for the overlay again
+    // (prepareHandlerContext), and a screen that reconnects recreates its
+    // surface (handleScreenAdded).
+    bool anySurfaceUp = false;
     // std::as_const, because a range-for over a non-const QHash takes the MUTABLE begin() and
     // detaches. It costs nothing today (this map's refcount is always 1, so the detach finds
     // nothing to copy) but the spelling is what stops that being load-bearing.
@@ -430,22 +430,19 @@ void OverlayService::initializeOverlay(QScreen* cursorScreen, const QPoint& curs
     // read-only with respect to the map and inert either way under the refcount-1 invariant.
     for (const auto& state : std::as_const(m_screenStates)) {
         if (state.overlayPhysScreen && state.shell && state.shell->shellWindow()) {
-            ++liveOverlayCount;
+            anySurfaceUp = true;
+            break;
         }
     }
-
-    if (liveOverlayCount == 0) {
-        qCWarning(lcOverlay) << "initializeOverlay: no overlay windows created: "
-                                "phosphorwayland transport unavailable "
-                                "(overlays disabled on this screen)";
-        m_visible = false;
+    m_visible = anySurfaceUp;
+    if (!anySurfaceUp) {
+        qCWarning(lcOverlay) << "initializeOverlay: the layer-shell transport brought up no overlay surface; the "
+                                "overlay stays hidden";
         if (wasVisible) {
             Q_EMIT visibilityChanged(false);
         }
         return;
     }
-
-    m_visible = true;
     m_overlayIdled = false; // a fresh show is displaying content
 
     // Spin up the audio-visualizer capture now that the overlay is displaying
@@ -957,16 +954,15 @@ void OverlayService::dismissOverlayWindow(const QString& screenId)
 {
     auto it = m_screenStates.find(screenId);
     if (it == m_screenStates.end()) {
-        qCDebug(lcOverlay) << "dismissOverlayWindow: no state for" << screenId;
+        qCDebug(lcOverlay) << "dismissOverlayWindow:" << screenId << "has no overlay state";
         return;
     }
     auto* slot = it->mainOverlaySlot();
     if (!slot) {
         qCDebug(lcOverlay) << "dismissOverlayWindow: no slot for" << screenId << "(shell creation may have failed)";
-        // Clean up partial state even when slot is null - the shell
-        // surface may never have been created (transport unavailable),
-        // but we still need to clear the sentinels so a later recreate
-        // doesn't think a stale entry is live.
+        // A screen whose surface never came up (no layer-shell transport)
+        // still carries its connection and screen pointer. Clear them, or a
+        // later recreate takes this entry for a live one.
         QObject::disconnect(it->overlayGeomConnection);
         it->overlayGeomConnection = {};
         it->overlayPhysScreen = nullptr;
@@ -1032,7 +1028,7 @@ void OverlayService::dismissOverlayWindow(const QString& screenId)
 
 void OverlayService::destroyOverlayWindow(const QString& screenId)
 {
-    qCDebug(lcOverlay) << "destroyOverlayWindow:" << screenId;
+    qCDebug(lcOverlay) << "destroyOverlayWindow for" << screenId;
     auto it = m_screenStates.find(screenId);
     if (it == m_screenStates.end()) {
         return;

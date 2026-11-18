@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/ZoneMarshalling.h>
 
@@ -24,7 +24,7 @@ class ZoneQueryService;
  * ZoneQueryService method of the same name. Nothing here is compositor-only,
  * so the binding only forwards and relays zoneDetected.
  */
-class PLASMAZONES_EXPORT ZoneDetectionAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT ZoneDetectionAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.ZoneDetection")

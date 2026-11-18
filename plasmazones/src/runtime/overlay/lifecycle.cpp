@@ -139,8 +139,8 @@ void OverlayService::showAtPosition(int cursorX, int cursorY)
         // so Phase 3 creates the window. Without this, applyIdleStateForCursor
         // finds nothing to flip and the overlay never becomes visible until
         // the next hide()/show() cycle.
-        auto cursorIt = m_screenStates.find(cursorEffectiveId);
-        const bool cursorVsHasWindow = cursorIt != m_screenStates.end() && cursorIt->overlayPhysScreen != nullptr;
+        const auto cursorState = m_screenStates.find(cursorEffectiveId);
+        const bool cursorVsHasWindow = cursorState != m_screenStates.end() && cursorState->overlayPhysScreen != nullptr;
         // Fast path is only correct when applyIdleStateForCursor can
         // salvage the slot. applyIdleStateForCursor only flips the
         // `_idled` QML property; it doesn't run beginShow / reset
@@ -155,14 +155,15 @@ void OverlayService::showAtPosition(int cursorX, int cursorY)
         // asks "should the shell wl_surface be mapped at all" using
         // raw slot Item visibility). Both checks are intentional; do
         // not merge them.
-        QQuickItem* cursorMainOverlay = cursorVsHasWindow ? cursorIt->mainOverlaySlot() : nullptr;
+        QQuickItem* cursorMainOverlay = cursorVsHasWindow ? cursorState->mainOverlaySlot() : nullptr;
         const bool cursorSlotVisible = cursorMainOverlay != nullptr && !qFuzzyIsNull(cursorMainOverlay->opacity());
         // The m_excludedScreens clause only does real work when
         // showOnAllMonitors is true: with it false, every excluded (active
         // autotile) screen is already intercepted above by the
         // isSnappingContextInactive early return, whose autotile leg covers
         // the same set.
-        if ((cursorVsHasWindow && cursorSlotVisible) || m_excludedScreens.contains(cursorEffectiveId)) {
+        const bool cursorSlotSalvageable = cursorVsHasWindow && cursorSlotVisible;
+        if (cursorSlotSalvageable || m_excludedScreens.contains(cursorEffectiveId)) {
             m_currentOverlayScreenId = showOnAllMonitors ? QString() : cursorEffectiveId;
             if (m_overlayIdled) {
                 // A trigger-show arriving while warm-idled (a mid-drag trigger

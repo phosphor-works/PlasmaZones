@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 #include <PhosphorProtocol/ZoneMarshalling.h>
 #include <QDBusAbstractAdaptor>
 #include <QDBusUnixFileDescriptor>
@@ -36,7 +36,7 @@ class OverlayControlService;
  * the context of the object this adaptor is exported through
  * (DbusHelpers::busContext), since Qt never sets one on the adaptor itself.
  */
-class PLASMAZONES_EXPORT OverlayAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT OverlayAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Overlay")
