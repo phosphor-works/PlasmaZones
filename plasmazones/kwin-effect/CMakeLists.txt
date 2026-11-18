@@ -40,7 +40,6 @@ set(QT_DEFAULT_MAJOR_VERSION 6)
 
 # Find KWin for effect development
 find_package(KWin 6.7 REQUIRED)
-find_package(KDecoration3 6.7 REQUIRED)
 
 # KColorScheme: the compositor-drawn scrolling tab pills resolve their
 # theme colours (the negative/urgent red in particular) from the active KDE
@@ -289,7 +288,6 @@ set_source_files_properties(pointer/pointerdecorationpaint.cpp PROPERTIES SKIP_U
 # Link required libraries
 target_link_libraries(kwin_effect_plasmazones PRIVATE
     KWin::kwin
-    KDecoration3::KDecoration
     Qt6::Core
     Qt6::Gui
     Qt6::DBus
