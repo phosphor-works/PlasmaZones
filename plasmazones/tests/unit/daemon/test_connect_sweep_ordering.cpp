@@ -53,8 +53,8 @@ namespace {
 const QStringList& scannedFiles()
 {
     static const QStringList files = {
-        QStringLiteral("/src/daemon/daemon/init_engines.cpp"),
-        QStringLiteral("/src/daemon/daemon/init_adaptors.cpp"),
+        QStringLiteral("/src/daemon/engineruntime/init_engines.cpp"),
+        QStringLiteral("/src/daemon/engineruntime/init_adaptors.cpp"),
     };
     return files;
 }

@@ -239,7 +239,7 @@ private Q_SLOTS:
     // view is the tiling opt-out ("autotile:none") leaves its zone and lands
     // not floating: snap's receive takes it as a free window there (user
     // decision autotile_none_float_owner). The snap context resolver answers
-    // as Daemon::routedModeForContext does. Mutation: drop the context test in
+    // as EngineRuntime::routedModeForContext does. Mutation: drop the context test in
     // SnapEngine::handoffReceive and the window floats on DP-2.
     void plainDropOnTheOptOutLandsNotFloating()
     {

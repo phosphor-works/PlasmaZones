@@ -623,7 +623,7 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // and that report goes out.) The mark still goes on,
     // since a batch built for the removed desktop's context must not untile
     // the successor's tiles, and the announce that settles it is the daemon's
-    // renumber re-announce (Daemon::onDesktopsRenumbered). KWin's
+    // renumber re-announce (EngineRuntime::onDesktopsRenumbered). KWin's
     // placeholder output, which stands in while no real output is connected,
     // has no screen the daemon knows and is neither reported nor marked (F870).
     connect(KWin::effects, &KWin::EffectsHandler::desktopChanged, this,

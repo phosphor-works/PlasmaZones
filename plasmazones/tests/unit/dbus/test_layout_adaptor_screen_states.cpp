@@ -97,7 +97,7 @@ private Q_SLOTS:
     }
 
     // No provider wired (an adaptor the daemon has not wired yet, or one
-    // whose provider Daemon::stop() cleared): the key is never written.
+    // whose provider EngineRuntime::stop() cleared): the key is never written.
     void testTiledWindowCount_absentWithoutAProvider()
     {
         QVERIFY(!stateFor(QStringLiteral("DP-1")).contains(QLatin1String("tiledWindowCount")));
@@ -132,7 +132,7 @@ private Q_SLOTS:
         QCOMPARE(spy.count(), 2);
     }
 
-    // A check queued and then cancelled (Daemon::stop) never runs, so a
+    // A check queued and then cancelled (EngineRuntime::stop) never runs, so a
     // change it would have seen is not announced after the teardown, and a
     // check queued afterwards still runs.
     void testScreenStatesChanged_cancelDropsTheQueuedCheck()

@@ -811,7 +811,7 @@ private Q_SLOTS:
     }
 
     // -------------------------------------------------------------------------
-    // Empty-pipeline safety: Daemon::stop() calls clearEngine(), which empties
+    // Empty-pipeline safety: EngineRuntime::stop() calls clearEngine(), which empties
     // the lifecycle-engine list. A flush firing afterward must not dereference
     // anything.
     //

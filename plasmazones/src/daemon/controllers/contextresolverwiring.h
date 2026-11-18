@@ -32,7 +32,7 @@ class ScreenModeRouter;
  * still routing every public call through the project's existing service
  * objects. Daemon owns one instance of each + one `ContextResolver`
  * constructed over them; D-Bus adaptors and the overlay service borrow
- * the resolver via `Daemon::contextResolver()`.
+ * the resolver via `EngineRuntime::contextResolver()`.
  *
  * Lifetime: each adapter holds raw non-owning pointers to its backing
  * services. Construct after the services exist, destroy before they
@@ -44,7 +44,7 @@ class ScreenModeRouter;
  * @brief `IWorkspaceState` impl over the daemon's VirtualDesktopManager +
  *        ActivityManager.
  *
- * Defaults match `Daemon::currentDesktop()` / `currentActivity()` exactly
+ * Defaults match `EngineRuntime::currentDesktop()` / `currentActivity()` exactly
  * (returns `0` and the empty string respectively when either manager is
  * null), so swapping a consumer from the direct daemon getters to the
  * adapter is observationally identical.

@@ -1,357 +1,305 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "daemon.h"
+// plasmazonesd's side of the engine runtime: the bus name and object, the
+// bindings of the runtime's services, the KWin plugin's protocol endpoints and
+// the host implementations. The bridge watchdog is in bridgewatchdog.cpp and
+// the plasma-workspace.target probe in plasmaworkspace.cpp.
+
+#include "daemon/daemon.h"
+
+#include "daemon/engineruntime.h"
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
-#ifdef PHOSPHOR_BUILD_SHELL
-#include "common/shelldecorationseeds.h"
-#endif
+#include "daemon/overlayservice.h"
 
-#include <QGuiApplication>
-#include <QStandardPaths>
-#include <QDBusConnection>
-#include <QFile>
-
-#include <PhosphorServiceIdle/IdleService.h>
-
-#include <PhosphorAnimation/CurveLoader.h>
-#include <PhosphorAnimation/CurveRegistry.h>
-#include <PhosphorAnimation/PhosphorProfileRegistry.h>
-#include <PhosphorAnimation/Profile.h>
-#include <PhosphorAnimation/ProfilePaths.h>
-#include <PhosphorAnimation/PhosphorCurve.h>
-#include <PhosphorAnimation/QtQuickClockManager.h>
-
-// The header holds m_presetStore as a unique_ptr over a forward declaration, so the
-// complete type has to be here, where ~Daemon instantiates its deleter. The unity
-// build hid this behind a neighbour's include; the non-unity build is where it shows.
-#include <PhosphorShaders/ShaderPresetStore.h>
-
-#include <PhosphorAnimation/AnimationShaderRegistry.h>
-#include <PhosphorSurface/SurfaceShaderRegistry.h>
-
-#include "overlayservice.h"
-#include "controllers/unifiedlayoutcontroller.h"
-#include "controllers/shortcutmanager.h"
-#include "controllers/workspacecontroller.h"
-#include "rendering/zoneentryscaffold.h"
-#include "rendering/zoneshadernoderhi.h"
-#include <PhosphorIdentity/VirtualScreenId.h>
-#include <PhosphorIdentity/WindowId.h>
-#include <PhosphorZones/LayoutRegistry.h>
-#include <PhosphorZones/ScrollingTemplateStore.h>
-#include "config/configbackends.h"
-#include <PhosphorTiles/AlgorithmRegistry.h>
-#include <PhosphorTiles/AutotileConstants.h>
-#include <PhosphorTiles/AutotileLayoutSourceFactory.h>
-#include <PhosphorTiles/ITileAlgorithmRegistry.h>
-#include <PhosphorZones/IZoneLayoutRegistry.h>
-#include <PhosphorZones/ZoneDefaults.h> // zone-overlay border bounds, static_asserted below
-#include <PhosphorZones/ZonesLayoutSource.h>
-#include <PhosphorZones/LayoutComputeService.h>
-#include <PhosphorZones/ZoneDetector.h>
-#include <PhosphorEngine/WindowRegistry.h>
-#include <PhosphorWorkspaces/VirtualDesktopManager.h>
-#include <PhosphorWorkspaces/ActivityManager.h>
-#include "core/types/constants.h"
-#include "core/resolve/crosssurfaceresolver.h"
-#include "core/utils/geometryutils.h"
-#include <PhosphorProtocol/ServiceConstants.h>
-#include "core/platform/logging.h"
-#include "core/resolve/animationbootstrap.h"
-#include "core/resolve/screenmoderouter.h"
-#include "controllers/contextresolverwiring.h"
-
-#include <PhosphorContext/ContextResolver.h>
-#include "core/utils/utils.h"
-#include "phosphor_i18n.h"
-#include "config/configdefaults.h"
-#include "config/settingsconfigstore.h"
-#include <PhosphorScreens/DBusScreenAdaptor.h>
-#include <PhosphorScreens/Swapper.h>
-#include <PhosphorScreens/PlasmaPanelSource.h>
-#include "core/interfaces/shaderregistry.h"
-#include "config/settings.h"
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/settingsservice/settingsservice.h"
-#include "dbus/overlayadaptor.h"
-#include "dbus/zonedetectionadaptor.h"
-#include "runtime/windowtracker/windowtracker.h"
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/services/snapservice/snapservice.h"
-#include "dbus/shaderadaptor.h"
+#include "dbus/autotileadaptor.h"
 #include "dbus/compositorbridgeadaptor.h"
 #include "dbus/controladaptor.h"
+#include "dbus/dbushelpers.h"
+#include "dbus/layoutadaptor.h"
+#include "dbus/overlayadaptor.h"
 #include "dbus/ruleadaptor.h"
-#include <PhosphorRules/ActionParams.h> // MaxGap, static_asserted below
-#include <PhosphorRules/ExclusionRules.h>
-#include <PhosphorRules/RuleAction.h>
-#include <PhosphorRules/Rule.h>
-#include <PhosphorRules/RuleStore.h>
-#include <PhosphorRules/RuleStoreWatcher.h>
+#include "dbus/scrollingadaptor.h"
+#include "dbus/settingsadaptor.h"
+#include "dbus/shaderadaptor.h"
+#include "dbus/snapadaptor.h"
+#include "dbus/tilingadaptor.h"
+#include "dbus/windowdragadaptor.h"
+#include "dbus/windowtrackingadaptor.h"
+#include "dbus/zonedetectionadaptor.h"
 
-#include "controllers/enginefactory.h"
-#include <PhosphorTileEngine/AutotileEngine.h>
-#include <PhosphorTiles/ScriptedAlgorithmLoader.h>
-#include <PhosphorTiles/TilingAlgorithm.h>
-#include <PhosphorSnapEngine/SnapEngine.h>
-#include <PhosphorSnapEngine/SnapState.h>
-#include <PhosphorScreens/ScreenIdentity.h>
-#include "common/screenidresolver.h"
-#include "common/layoutbundlebuilder.h"
+#include "config/settingsconfigstore.h"
+#include "core/platform/logging.h"
+
+#include <PhosphorProtocol/ServiceConstants.h>
+#include <PhosphorScreens/DBusScreenAdaptor.h>
+
+#include <QDBusConnection>
+#include <QDBusError>
+#include <QGuiApplication>
 
 namespace PlasmaZones {
 
-// Snapping and autotile share one unified gap model: a single innerGap (the
-// gap between two adjacent regions — each zone's interior edge insets by
-// innerGap/2 so two neighbours leave an innerGap gap, see
-// GeometryUtils::applyGapsToZoneGeometry) and a single outerGap (insets the
-// content area from the screen edge per side), with one default for each.
-// A context gap-override rule must therefore clamp to the same range in both
-// modes; these assertions fail the build if the two ranges ever drift apart.
-static_assert(Defaults::MaxGap == PhosphorTiles::AutotileDefaults::MaxGap,
-              "Snapping and autotile gap clamp ceilings must match — they are the same gap quantity");
-static_assert(Defaults::InnerGap == PhosphorTiles::AutotileDefaults::DefaultInnerGap,
-              "Snapping and autotile inner-gap defaults must match — they are the same gap quantity");
-static_assert(Defaults::OuterGap == PhosphorTiles::AutotileDefaults::DefaultOuterGap,
-              "Snapping and autotile outer-gap defaults must match — they are the same gap quantity");
-// The rule layer validates a gap payload against its own copy of the ceiling
-// and publishes that same number as the rule editor's spin-box max. If it
-// drifted above the value the engines clamp to, the editor would offer gaps
-// that silently collapse to MaxGap on consumption.
-static_assert(static_cast<int>(PhosphorRules::MaxGap) == Defaults::MaxGap,
-              "Rule gap ceiling and the placement gap ceiling must match");
-// The zone-overlay border bounds are hand-mirrored on the rules side, which
-// cannot include PhosphorZones. The daemon sees both, and the drift is silent:
-// the rule validator would accept a width the zones-layer consumer then clamps
-// away. Values, not symbols, because kMaxOverlayBorderWidth is private to
-// phosphor-rules; the descriptor is the public surface that carries them.
-static_assert(::PhosphorZones::ZoneDefaults::BorderWidthMax == 10
-                  && ::PhosphorZones::ZoneDefaults::BorderRadiusMax == 50,
-              "Zone-overlay border bounds moved — update kMaxOverlayBorderWidth / kMaxOverlayBorderRadius "
-              "in phosphor-libs' libs/phosphor-rules/src/ruleaction_builtins_p.h to match");
-
-namespace {
-
-// Debounce interval (ms): coalesce rapid geometry changes (multi-screen, panel editor) into one update.
-// Conceptually distinct from DELAYED_PANEL_REQUERY_MS in autotile.cpp (which schedules a
-// follow-up panel geometry requery after the debounced update completes).
-constexpr int GEOMETRY_UPDATE_DEBOUNCE_MS = 400;
-} // anonymous namespace
-
 Daemon::Daemon(QObject* parent)
     : QObject(parent)
-    // Don't pass 'this' as parent for unique_ptr-managed objects.
-    // unique_ptr owns lifetime; a Qt parent would double-free.
-    , m_configBackend(createDefaultConfigBackend())
-    // Unified Rule store — loads rules.json (written by the v3→v4
-    // migration). The daemon is the primary writer and the RuleAdaptor exposes
-    // it, but the file is also written out-of-process (settings app, config
-    // import, hand edits), so a watcher below keeps the store current.
-    // Declared/constructed before m_layoutManager so the registry can borrow it.
-    , m_ruleStore(std::make_unique<PhosphorRules::RuleStore>(ConfigDefaults::rulesFilePath()))
-    , m_ruleStoreWatcher(std::make_unique<PhosphorRules::RuleStoreWatcher>(*m_ruleStore))
-    , m_layoutManager(
-          std::make_unique<PhosphorZones::LayoutRegistry>(m_ruleStore.get(), ConfigDefaults::layoutsSubdir()))
-    , m_layoutComputeService(std::make_unique<PhosphorZones::LayoutComputeService>(nullptr))
-    // m_curveRegistry / m_profileRegistry are default-constructed (no
-    // init-list entries) — daemon.h declares them between m_layoutComputeService
-    // and m_clockManager, so the in-class default initialisation runs before
-    // any consumer below references them. m_clockManager owns its
-    // QtQuickClockManager via unique_ptr; the manager itself is published
-    // as the QML-side default in setupAnimationProfiles() below alongside
-    // the profile registry.
-    , m_clockManager(std::make_unique<PhosphorAnimation::QtQuickClockManager>())
-    // Pass &m_curveRegistry into Settings so its initial load() resolves
-    // Profile blobs through the daemon-owned registry. Requires
-    // m_curveRegistry to be declared BEFORE m_settings in daemon.h —
-    // see the DECLARATION ORDER INVARIANT comment there.
-    //
-    // Pass m_ruleStore.get() so Settings shares the daemon's single
-    // canonical store rather than constructing a second one over the same
-    // file. Two stores pointed at rules.json race on disk: each
-    // mutator rebuilds its `kept` list from its own stale in-memory
-    // snapshot, so the second writer silently drops rules the first writer
-    // added. Mirrors the existing LayoutRegistry-via-borrowed-pointer
-    // pattern above. Standalone settings / editor processes that have no
-    // daemon-owned store pass nullptr and Settings falls back to owning
-    // its own.
-    // m_zoneDetector before m_settings: see the declaration-order note in
-    // daemon.h — reverse-order destruction must outlive the m_settings->this
-    // adjacentThresholdChanged lambda that derefs it.
-    , m_zoneDetector(std::make_unique<PhosphorZones::ZoneDetector>(nullptr))
-    , m_settings(std::make_unique<Settings>(m_configBackend.get(), &m_curveRegistry, m_ruleStore.get(), nullptr))
-    , m_windowRegistry(std::make_unique<PhosphorEngine::WindowRegistry>(nullptr))
-    , m_panelSource(std::make_unique<PhosphorScreens::PlasmaPanelSource>())
-    , m_virtualScreenStore(std::make_unique<SettingsConfigStore>(m_settings.get()))
-    , m_screenManager(std::make_unique<PhosphorScreens::ScreenManager>(
-          PhosphorScreens::ScreenManager::Config{
-              .panelSource = m_panelSource.get(),
-              .configStore = m_virtualScreenStore.get(),
-              .useGeometrySensors = true,
-              // Align the lib's cap with the daemon's source-of-truth (Settings
-              // uses ConfigDefaults::maxVirtualScreensPerPhysical() when
-              // validating writes). A lower cap here would silently reject
-              // configs Settings accepted, leaving Settings ↔ PhosphorScreens::ScreenManager
-              // divergent.
-              .maxVirtualScreensPerPhysical = ConfigDefaults::maxVirtualScreensPerPhysical(),
-          },
-          nullptr))
-    , m_shaderRegistry(std::make_unique<ShaderRegistry>(nullptr))
-    , m_overlayService(
-          std::make_unique<OverlayService>(m_screenManager.get(), m_shaderRegistry.get(), &m_profileRegistry, nullptr))
-    , m_virtualDesktopManager(std::make_unique<PhosphorWorkspaces::VirtualDesktopManager>(nullptr))
-    , m_activityManager(std::make_unique<PhosphorWorkspaces::ActivityManager>(nullptr))
-    , m_shortcutManager(std::make_unique<ShortcutManager>(m_settings.get(), nullptr))
-    , m_kwinWorkspaceHost(std::make_unique<KWinWorkspaceHost>(m_shortcutManager.get()))
-    , m_workspaceHost(m_kwinWorkspaceHost.get())
-    , m_plasmaSystemOsd(std::make_unique<PlasmaSystemOsd>())
-    , m_systemOsd(m_plasmaSystemOsd.get())
+    , m_runtime(std::make_unique<EngineRuntime>())
+    , m_workspaceHost(std::make_unique<KWinWorkspaceHost>(m_runtime->shortcutManager()))
+    , m_systemOsd(std::make_unique<PlasmaSystemOsd>())
 {
-    // Install the layout screen-id resolver before any Daemon-owned machinery
-    // starts loading layouts. First-call ensures the once-only install runs
-    // exactly once across all Daemon constructions in the process; subsequent
-    // Daemons share the already-installed resolver. Moved out of the
-    // `QObject((ensureScreenIdResolver(), parent))` comma-operator trick
-    // because that idiom reads as an accidental typo.
-    ensureScreenIdResolver();
-#ifdef PHOSPHOR_BUILD_SHELL
-    installShellDecorationSeeds(*m_settings);
-#endif
+    m_runtime->setWorkspaceHost(m_workspaceHost.get());
+    m_runtime->setSystemOsd(m_systemOsd.get());
 
-    // Start watching rules.json now that the store has loaded in its
-    // constructor: start() runs one immediate synchronous reload (an
-    // idempotent no-op against what the store already holds). From here on an
-    // out-of-process edit reaches the store through the same rulesChanged path
-    // a D-Bus reloadRules takes, so the rule engines, exclusion slice and
-    // reconcile passes all follow it.
-    m_ruleStoreWatcher->start();
+    // Direct: the runtime's stop() emits this mid-teardown and relies on the
+    // withdrawal having happened by the time the emit returns.
+    connect(m_runtime.get(), &EngineRuntime::servicesClosing, this, &Daemon::withdrawFromBus, Qt::DirectConnection);
 
-    // Configure geometry update debounce timer
-    // This prevents cascading recalculations when multiple geometry changes occur rapidly.
-    // Use a longer debounce so KDE panel edit mode exit and other transient
-    // changes settle before we recalculate zones and overlay.
-    m_geometryUpdateTimer.setSingleShot(true);
-    m_geometryUpdateTimer.setInterval(GEOMETRY_UPDATE_DEBOUNCE_MS);
-    connect(&m_geometryUpdateTimer, &QTimer::timeout, this, &Daemon::processPendingGeometryUpdates);
-
-    // Wire PhosphorZones::ZoneDetector's adjacency threshold to the settings value. The
-    // detector no longer holds an ISettings pointer (it takes just the int)
-    // so we mirror the setting here and re-push on change.
-    m_zoneDetector->setAdjacentThreshold(m_settings->adjacentThreshold());
-    connect(m_settings.get(), &ISettings::adjacentThresholdChanged, this, [this]() {
-        m_zoneDetector->setAdjacentThreshold(m_settings->adjacentThreshold());
-    });
-
-    // Construct the daemon-owned tile-algorithm registry up front so the
-    // layout-source bundle below can bind its autotile source to it. The
-    // registry was previously a process-global singleton; per-daemon
-    // ownership lets every composition root inject its own instance instead
-    // of reaching for a global. The bundled algorithms ship as Luau
-    // scripts and are loaded (with user scripts) by ScriptedAlgorithmLoader
-    // during init().
-    // Pass nullptr as Qt parent: the unique_ptr owns lifetime and the
-    // rest of this ctor follows that convention (see comment above on
-    // m_layoutManager et al.).
-    m_algorithmRegistry = std::make_unique<PhosphorTiles::AlgorithmRegistry>(nullptr);
-
-    // Build the layout sources here (rather than later in init()) because they
-    // are thin wrappers — no I/O, no signal hookup — and consumers can ask for
-    // layoutSource() any time after Daemon is constructed.  Population happens
-    // lazily on first availableLayouts() call: the layout manager has loaded
-    // from disk by then, and the algorithm registry is populated by
-    // ScriptedAlgorithmLoader during init().
-    //
-    // Auto-discovery pattern: every provider library that links into
-    // this process registers a builder in its static-init block. The
-    // daemon just publishes the registries it owns into the
-    // FactoryContext and calls buildFromRegistered (both steps are
-    // wrapped in buildStandardLayoutSourceBundle — shared with editor
-    // + settings so service additions touch one helper rather than
-    // three near-identical blocks). Adding a new engine library is
-    // purely a library-side change — the scrolling engine landed this
-    // way — and daemon source only edits if the new engine demands a
-    // service the daemon doesn't already publish here. ZonesLayoutSource and
-    // AutotileLayoutSource both self-wire to their registry's
-    // ILayoutSourceRegistry::contentsChanged signal, so no manual
-    // bridging is required after build.
-    // The native scrolling-template store is created here (before the
-    // bundle build so the template provider registers) and injected into
-    // the registry in initServices.
-    m_scrollingTemplateStore =
-        std::make_unique<PhosphorZones::ScrollingTemplateStore>(ConfigDefaults::scrollingTemplatesSubdir());
-    m_scrollingTemplateStore->loadTemplates();
-    buildStandardLayoutSourceBundle(m_layoutSources, m_layoutManager.get(), m_algorithmRegistry.get(),
-                                    m_scrollingTemplateStore.get());
-    // Cache the bundle's autotile source once so the three wiring sites that
-    // need it (LayoutService, OverlayService, UnifiedLayoutController) don't
-    // each re-call source(QStringLiteral("autotile"))
-    // (one literal typo away from silently breaking preview-cache reuse).
-    m_autotileLayoutSource = m_layoutSources.source(PhosphorTiles::autotileLayoutSourceName());
-
-    // Wire Settings::animationProfile into PhosphorProfileRegistry so
-    // QML `PhosphorMotionAnimation { profile: … }` resolves to the
-    // user's active animation settings and live-updates on edit.
-    // Also populates the registry from user-authored JSON files under
-    // the `plasmazones/` XDG namespace (consumer-agnostic loader
-    // delegates directory walking to phosphor-fsloader).
-    //
-    // setupAnimationProfiles() also wires the daemon-owned
-    // CurveRegistry into PhosphorCurve's QML static helper. Publication
-    // of the static registry pointer is deferred into that function so
-    // every QML observer sees the curves-loaded and profiles-loaded
-    // states land together, rather than the static going live against
-    // an empty registry for the brief window before loaders run.
-    setupAnimationProfiles();
+    m_bridgeWatchdogTimer.setSingleShot(true);
+    connect(&m_bridgeWatchdogTimer, &QTimer::timeout, this, &Daemon::warnCompositorBridgeMissing);
 }
 
 Daemon::~Daemon()
 {
     stop();
+    // The bindings are Qt children, which ~QObject destroys only after every
+    // member, the runtime included, is gone. Delete them while what they
+    // borrow is still alive.
+    deleteBindings();
+    // The runtime stops in its own destructor too; release its borrows of the
+    // hosts first, which are destroyed before it.
+    m_runtime->setWorkspaceHost(nullptr);
+    m_runtime->setSystemOsd(nullptr);
 }
 
 bool Daemon::init()
 {
-    // Settings constructor already calls load(); avoid duplicate load
-
-    // init() decomposes into ordered phase methods (definitions split across
-    // daemon/shader_warmup.cpp, daemon/animation_profiles.cpp,
-    // daemon/init_services.cpp, daemon/init_adaptors.cpp,
-    // daemon/init_engines.cpp, daemon/init_dbus_service.cpp). The call order
-    // below is byte-order faithful to the former monolithic init() and MUST NOT
-    // be reordered — later phases borrow members the earlier phases construct
-    // and wire.
-    // Both shader registries live here rather than in the ctor because stop()
-    // resets them: a stop() -> init() -> start() cycle would otherwise leave
-    // them null for the rest of the process, with the overlay service's
-    // borrows permanently null and every warm bake silently skipped. They must
-    // precede setupShaderWarmBakes(), which borrows both.
-    setupAnimationShaderEffects();
-    setupSurfaceShaderEffects();
-    // After both, because it seeds pack-declared presets from what those
-    // registries have already discovered rather than waiting on a reload.
-    setupShaderPresets();
-    setupShaderWarmBakes();
-    // MUST stay after setupShaderPresets(): this phase hands the settings
-    // object to the overlay service, whose setSettings() is what first applies
-    // the animation shader tree, resolving each profile through the preset
-    // registry. The ctor-time pass runs with that registry null and an empty
-    // tree, so this call is the only one that lands a preset-carrying assignment
-    // at startup. Swap the two and animation presets silently do not apply until
-    // the user's first tree edit.
-    initLayoutAndSettingsWiring();
-    initCoreAdaptors();
-    initEnginesAndWiring();
+    // The runtime deletes and rebuilds its services on every init(), so the
+    // previous cycle's bindings go first: they forward to those services.
+    deleteBindings();
+    if (!m_runtime->init()) {
+        return false;
+    }
+    createBindings();
     return registerDBusService();
 }
 
-void Daemon::showSystemOsd(const QString& iconName, const QString& text)
+void Daemon::start()
 {
-    if (m_systemOsd) {
-        m_systemOsd->showText(iconName, text);
+    m_shuttingDown = false;
+    // Connected once, so a stop() -> start() cycle does not stack it.
+    if (qGuiApp && !m_aboutToQuitConnected) {
+        connect(qGuiApp, &QGuiApplication::aboutToQuit, this, [this]() {
+            m_shuttingDown = true;
+        });
+        m_aboutToQuitConnected = true;
     }
+
+    // Detect phantom plasma-restore sessions via systemd's user bus. See
+    // queryPlasmaWorkspaceState() for the full rationale.
+    queryPlasmaWorkspaceState();
+
+    m_runtime->start();
+
+    // Arm the compositor-bridge registration watchdog. See
+    // BridgeWatchdogTimeoutMs for the grace-period rationale. Skip if the
+    // effect already registered during init().
+    if (m_compositorBridge && !m_compositorBridge->isBridgeRegistered()) {
+        m_bridgeWatchdogTimer.start(BridgeWatchdogTimeoutMs);
+    }
+}
+
+void Daemon::stop()
+{
+    m_shuttingDown = true;
+    // A late watchdog fire is harmless (it returns on m_shuttingDown), but
+    // every other piece of this teardown severs explicitly rather than
+    // relying on an invariant.
+    m_bridgeWatchdogTimer.stop();
+    releasePlasmaWorkspaceSubscription();
+    // The runtime releases the shortcut grabs and the dynamic workspaces, then
+    // emits servicesClosing (withdrawFromBus) before it detaches anything.
+    m_runtime->stop();
+}
+
+void Daemon::withdrawFromBus()
+{
+    // Release the bus name only now. The runtime's stop() has released the
+    // shortcut grabs and torn the dynamic workspaces down before emitting,
+    // and both must reach kglobalacceld and KWin ahead of anything a
+    // --replace or bus-activated successor sends once it owns the name (see
+    // EngineRuntime::stop()). And no late call may land in the teardown the
+    // runtime runs after this.
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    bus.unregisterObject(QString(PhosphorProtocol::Service::ObjectPath));
+    bus.unregisterService(QString(PhosphorProtocol::Service::Name));
+
+    // The support report's sources are the runtime's engines and managers,
+    // which its stop() resets next.
+    if (m_controlAdaptor) {
+        m_controlAdaptor->detach();
+    }
+    // A `this`-capturing hook into a binding the runtime outlives.
+    if (m_windowTrackingAdaptor) {
+        m_windowTrackingAdaptor->setBridgeCallerCheck({});
+    }
+}
+
+void Daemon::deleteBindings()
+{
+    // Not deleteLater(): init() runs before exec(), so no queued D-Bus
+    // dispatch can land mid-delete, and a deleteLater() would not be processed
+    // before the new set registers over the same interfaces on the same
+    // object, which Qt refuses for a second adaptor of one interface.
+    // Borrowers before borrowed: the control binding borrows the bridge.
+    delete m_controlAdaptor;
+    m_controlAdaptor = nullptr;
+    delete m_scrollingAdaptor;
+    m_scrollingAdaptor = nullptr;
+    delete m_autotileAdaptor;
+    m_autotileAdaptor = nullptr;
+    delete m_tilingAdaptor;
+    m_tilingAdaptor = nullptr;
+    delete m_snapAdaptor;
+    m_snapAdaptor = nullptr;
+    delete m_windowDragAdaptor;
+    m_windowDragAdaptor = nullptr;
+    delete m_screenAdaptor;
+    m_screenAdaptor = nullptr;
+    delete m_windowTrackingAdaptor;
+    m_windowTrackingAdaptor = nullptr;
+    delete m_zoneDetectionAdaptor;
+    m_zoneDetectionAdaptor = nullptr;
+    delete m_overlayAdaptor;
+    m_overlayAdaptor = nullptr;
+    delete m_compositorBridge;
+    m_compositorBridge = nullptr;
+    delete m_ruleAdaptor;
+    m_ruleAdaptor = nullptr;
+    delete m_shaderAdaptor;
+    m_shaderAdaptor = nullptr;
+    delete m_settingsAdaptor;
+    m_settingsAdaptor = nullptr;
+    delete m_layoutAdaptor;
+    m_layoutAdaptor = nullptr;
+}
+
+void Daemon::createBindings()
+{
+    EngineRuntime* const rt = m_runtime.get();
+
+    m_layoutAdaptor = new LayoutAdaptor(rt->layoutService(), this);
+    m_settingsAdaptor = new SettingsAdaptor(rt->settingsService(), this);
+    m_shaderAdaptor = new ShaderAdaptor(rt->shaderService(), this);
+    m_ruleAdaptor = new RuleAdaptor(rt->ruleService(), this);
+
+    // Compositor bridge: the compositor-agnostic window control protocol.
+    // Held as a member so the support report and the registration watchdog
+    // can query its state.
+    m_compositorBridge = new CompositorBridgeAdaptor(this);
+    connect(m_compositorBridge, &CompositorBridgeAdaptor::bridgeRegistered, this,
+            [this](const QString& compositorName, const QString&, const QStringList&) {
+                m_bridgeWatchdogTimer.stop();
+                m_runtime->compositorConnected(compositorName);
+            });
+
+    // Also carries the KWin effect's thumbnail ingest.
+    //
+    // overlayVisibilityChanged is OUTBOUND ONLY: the binding relays
+    // OverlayService::visibilityChanged onto the bus for clients. Nothing here
+    // subscribes to it. Something once did, routing the signal straight back
+    // into showOverlay/hideOverlay, so every internal show or hide re-entered
+    // the service that had just emitted it: an unguarded feedback cycle.
+    // Inbound overlay control comes from the binding's own D-Bus methods.
+    m_overlayAdaptor = new OverlayAdaptor(rt->overlayControlService(), rt->overlayService(), this);
+    // A bridge registers only from the compositor's own process, the one the
+    // thumbnail entries are held to, so no other peer can take the
+    // registration first and keep KWin out (#1155). Both are children of
+    // this daemon and go together.
+    m_compositorBridge->setCompositorIdentityCheck([overlay = m_overlayAdaptor](const QString& busName) {
+        return overlay->isCompositorPeer(busName);
+    });
+
+    m_zoneDetectionAdaptor = new ZoneDetectionAdaptor(rt->zoneQueryService(), this);
+
+    m_windowTrackingAdaptor = new WindowTrackingAdaptor(rt->windowTracker(), this);
+    // The compositor bridge's screen-form floats act on the window where it
+    // is; any other bus caller's are gated as the screenless verb is (F1108).
+    m_windowTrackingAdaptor->setBridgeCallerCheck([adaptor = m_windowTrackingAdaptor](const QString& busName) {
+        return DbusHelpers::isBridgeCaller(adaptor, busName);
+    });
+
+    // DBusScreenAdaptor::setVirtualScreenConfig writes to Settings (the source
+    // of truth) through the runtime's single SettingsConfigStore, shared with
+    // its screen manager and virtual-screen swapper. One store per process,
+    // one change-signal channel, no parallel Settings observer.
+    m_screenAdaptor = new PhosphorScreens::DBusScreenAdaptor(rt->screenManager(), rt->virtualScreenStore(), this);
+    // Its compositor reports answer to the registered bridge through the same
+    // gate as the daemon's own compositor-only slots (#1155).
+    m_screenAdaptor->setCompositorReportGate([adaptor = m_screenAdaptor](QLatin1StringView member) {
+        return DbusHelpers::admitCompositorReport(adaptor, member);
+    });
+
+    m_windowDragAdaptor = new WindowDragAdaptor(rt->dragResolver(), this);
+    m_snapAdaptor = new SnapAdaptor(rt->snapService(), this);
+    m_tilingAdaptor = new TilingAdaptor(rt->tilingService(), this);
+    m_autotileAdaptor = new AutotileAdaptor(rt->autotileService(), this);
+    m_scrollingAdaptor = new ScrollingAdaptor(rt->scrollingService(), this);
+
+    m_controlAdaptor =
+        new ControlAdaptor(rt->controlService(), rt->layoutManager(), rt->autotileEngine(), rt->screenManager(),
+                           m_compositorBridge, rt->scrollEngine(), rt->screenModeRouter(), this);
+}
+
+bool Daemon::registerDBusService()
+{
+    auto bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected()) {
+        qCCritical(lcDaemon) << "Session D-Bus: cannot connect, daemon cannot function";
+        return false;
+    }
+
+    // Claim the well-known name. In this process the claim has ALREADY been made:
+    // main() registers the name as its single-instance gate, before constructing
+    // the Daemon, because that is the only place a duplicate start can exit 0
+    // cheaply (exiting non-zero there would put systemd's Restart=on-failure into
+    // a loop on every duplicate autostart). registerService on a name the same
+    // connection already owns returns true, so this call is the confirmation step,
+    // not a second claim.
+    //
+    // It is kept rather than assumed because init() must not register its object
+    // against a name this process does not hold, and because withdrawFromBus()
+    // releases the name, so any future re-init needs the claim to happen here.
+    //
+    // There is deliberately no retry loop. An earlier version backed off over
+    // 300 ms and classified ServiceUnknown/NoReply as transient, but none of that
+    // is reachable: main() has already completed a successful round trip to the
+    // bus, so by the time init() runs the bus is up and the name is ours. A false
+    // here means the ordering above changed, which is a programming error and
+    // wants a clear message, not a sleep.
+    if (!bus.registerService(QString(PhosphorProtocol::Service::Name))) {
+        const QDBusError error = bus.lastError();
+        if (error.type() == QDBusError::NoError) {
+            qCCritical(lcDaemon) << "Failed to register D-Bus service=" << PhosphorProtocol::Service::Name
+                                 << "— the name is owned by another connection. main() claims it before"
+                                 << "constructing the Daemon, so reaching this means that gate was bypassed.";
+        } else {
+            qCCritical(lcDaemon) << "Failed to register D-Bus service=" << PhosphorProtocol::Service::Name
+                                 << "error=" << error.message() << "type=" << error.type();
+        }
+        return false;
+    }
+
+    if (!bus.registerObject(QString(PhosphorProtocol::Service::ObjectPath), this)) {
+        const QDBusError error = bus.lastError();
+        qCCritical(lcDaemon) << "Failed to register D-Bus object=" << PhosphorProtocol::Service::ObjectPath
+                             << "error=" << error.message();
+        bus.unregisterService(QString(PhosphorProtocol::Service::Name));
+        return false;
+    }
+
+    qCInfo(lcDaemon) << "D-Bus service registered service=" << PhosphorProtocol::Service::Name
+                     << "path=" << PhosphorProtocol::Service::ObjectPath;
+    return true;
 }
 
 } // namespace PlasmaZones

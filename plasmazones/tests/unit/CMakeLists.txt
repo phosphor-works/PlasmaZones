@@ -850,13 +850,13 @@ target_link_libraries(test_snap_assist_thumbnail_provider
     PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Quick PhosphorProtocol::PhosphorProtocol)
 add_test(NAME test_snap_assist_thumbnail_provider COMMAND test_snap_assist_thumbnail_provider)
 
-# Autotile seed-order filter (Daemon::seedAutotileOrderForScreen's admission
+# Autotile seed-order filter (EngineRuntime::seedAutotileOrderForScreen's admission
 # predicate): minimized placeholders kept, live/durable floats dropped.
 # Compiles the daemon source directly because the filter lives in the
 # plasmazonesd executable, not plasmazones_core.
 add_executable(test_autotile_seed_filter
     daemon/test_autotile_seed_filter.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/daemon/seedorderfilter.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/seedorderfilter.cpp
 )
 target_link_libraries(test_autotile_seed_filter PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
 add_test(NAME test_autotile_seed_filter COMMAND test_autotile_seed_filter)
@@ -866,7 +866,7 @@ add_test(NAME test_autotile_seed_filter COMMAND test_autotile_seed_filter)
 # slot id share. Compiles the daemon source directly, like the seed filter.
 add_executable(test_engine_routing
     daemon/test_engine_routing.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/daemon/enginerouting.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/enginerouting.cpp
 )
 target_link_libraries(test_engine_routing PRIVATE Qt6::Test Qt6::Core plasmazones_core)
 add_test(NAME test_engine_routing COMMAND test_engine_routing)
@@ -880,7 +880,7 @@ add_test(NAME test_engine_routing COMMAND test_engine_routing)
 # ScreenManager's pending and accepted reports.
 add_executable(test_screen_reshape_tracker
     daemon/test_screen_reshape_tracker.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/daemon/screenreshapetracker.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/screenreshapetracker.cpp
 )
 target_link_libraries(test_screen_reshape_tracker PRIVATE pz_test_fake_screens Qt6::Test Qt6::Core Qt6::Gui plasmazones_core)
 add_test(NAME test_screen_reshape_tracker COMMAND test_screen_reshape_tracker)
@@ -891,7 +891,7 @@ add_test(NAME test_screen_reshape_tracker COMMAND test_screen_reshape_tracker)
 # the reshape tracker.
 add_executable(test_snap_gap_tracker
     daemon/test_snap_gap_tracker.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/daemon/snapgaptracker.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/snapgaptracker.cpp
 )
 target_link_libraries(test_snap_gap_tracker PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_snap_gap_tracker COMMAND test_snap_gap_tracker)

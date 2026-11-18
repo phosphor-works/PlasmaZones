@@ -1132,7 +1132,7 @@ void TilingService::clearEngine()
     // restart's first re-read starts the gate from a blank memory.
     m_lastTileBatchPerScreen.clear();
     m_lastFocusedBroadcast.clear();
-    // The WTA borrow is NOT cleared here — Daemon::stop's teardown block is
+    // The WTA borrow is NOT cleared here — EngineRuntime::stop's teardown block is
     // its canonical clear (setWindowTrackingAdaptor(nullptr)), and every
     // deref in this file null-checks.
     // m_pendingOpensListenerInstalled is left alone, and it does not matter

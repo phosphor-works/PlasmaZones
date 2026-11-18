@@ -543,7 +543,7 @@ private Q_SLOTS:
             m_wta->setContextModeResolver({});
             m_snapEngine->setContextModeResolver({});
         });
-        // As Daemon::runningModeForContext answers: no engine runs on the
+        // As EngineRuntime::runningModeForContext answers: no engine runs on the
         // opt-out, so it snaps, and every other context here snaps too.
         m_wta->setContextModeResolver([](const QString&, int, const QString&) {
             return PhosphorZones::AssignmentEntry::Snapping;
@@ -769,7 +769,7 @@ private:
     }
 
     /// Give desktop @p desktop of B the tiling opt-out ("autotile:none"), and
-    /// route snap's context modes as Daemon::routedModeForContext does: the
+    /// route snap's context modes as EngineRuntime::routedModeForContext does: the
     /// opt-out answers Autotile, any other context here snaps. The caller
     /// clears snap's resolver, with a guard armed before the call.
     void optOutOnB(int desktop)

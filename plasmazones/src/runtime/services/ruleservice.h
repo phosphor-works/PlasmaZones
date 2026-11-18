@@ -43,7 +43,7 @@ public:
     ~RuleService() override = default;
 
     /// Null the borrowed store pointer and sever the rulesChanged wiring.
-    /// Called from Daemon::stop() before the owning unique_ptr destroys the
+    /// Called from EngineRuntime::stop() before the owning unique_ptr destroys the
     /// store, so a late D-Bus call degrades to a null-safe no-op.
     void detach();
 

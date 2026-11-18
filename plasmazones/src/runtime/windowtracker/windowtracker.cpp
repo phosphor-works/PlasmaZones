@@ -300,7 +300,7 @@ WindowTracker::WindowTracker(PhosphorZones::LayoutRegistry* layoutManager, Phosp
     // Load persisted window tracking state from previous session
     loadState();
 
-    // Exclude-pattern pruning is driven from Daemon::init: its priming call
+    // Exclude-pattern pruning is driven from EngineRuntime::init: its priming call
     // and its rulesChanged refilter (see WTA::pruneExcludedPlacements).
 
     // If we have placement records but missed activeLayoutChanged (layout was set before we

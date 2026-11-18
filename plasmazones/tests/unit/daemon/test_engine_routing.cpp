@@ -8,7 +8,7 @@
 #include <QObject>
 #include <QTest>
 
-#include "daemon/daemon/enginerouting.h"
+#include "daemon/engineruntime/enginerouting.h"
 #include <PhosphorEngine/WindowPlacement.h>
 
 using namespace PlasmaZones;

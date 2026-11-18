@@ -953,7 +953,7 @@ private Q_SLOTS:
     // Regression: under the per-engine float model the owning engine flips its
     // float bit BEFORE the daemon's sync slot reaches WTA::syncWindowFloating
     // (e.g. AutotileEngine::performToggleFloat toggles then emits
-    // windowFloatingChanged → Daemon::syncAutotileFloatState → here). A re-query
+    // windowFloatingChanged → EngineRuntime::syncAutotileFloatState → here). A re-query
     // of the service therefore already reports floating==true, so the old
     // broadcast gate (which compared against m_service->isWindowFloating())
     // suppressed EVERY autotile float broadcast — leaving the effect's float

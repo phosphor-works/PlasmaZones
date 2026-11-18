@@ -286,7 +286,7 @@ void SnapService::resnapForVirtualScreenReconfigure(const QString& physicalScree
     // continuation — no user-initiated snap happened here, windows are just
     // following their VS's new geometry after a swap/rotate/split edit.
     // Sequenced like the zone restores the same reconfigure flushes first
-    // (Daemon::flushPendingSnapZoneRestores), so this newer batch lands after
+    // (EngineRuntime::flushPendingSnapZoneRestores), so this newer batch lands after
     // them and not ahead.
     commitBatch(entries, QStringLiteral("vs_reconfigure"));
 }

@@ -188,7 +188,7 @@ public:
     /// surface consults (the focus, pan and sizing verbs, not the window-keyed
     /// reconciliation calls or the reads): true when @p screenId's CURRENT
     /// scrolling context is disabled. The keyboard verbs already pass through
-    /// this gate in the daemon (Daemon::isFocusedContextGatedForMode); the
+    /// this gate in the daemon (EngineRuntime::isFocusedContextGatedForMode); the
     /// wheel, the placement map and the absolute setters arrive on the bus
     /// instead and would otherwise pan and resize a context the user turned
     /// off. A provider rather than the resolver type so this library never

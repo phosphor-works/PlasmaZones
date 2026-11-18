@@ -28,7 +28,7 @@ private Q_SLOTS:
     // per-revision sort index + match cache invalidate automatically.
     //
     // These tests pin the contract the daemon's `refilterExcludeRules`
-    // lambda + `Daemon::stop()` `setExcludeRuleSet(nullptr)` teardown
+    // lambda + `EngineRuntime::stop()` `setExcludeRuleSet(nullptr)` teardown
     // rely on:
     //   - nullptr borrow ⇒ isAppIdExcluded == false (early-init fast path)
     //   - empty set      ⇒ isAppIdExcluded == false (no-exclusions fast path)

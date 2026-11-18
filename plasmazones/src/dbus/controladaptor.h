@@ -52,8 +52,8 @@ public:
                    const ScreenModeRouter* modeRouter, QObject* parent);
     ~ControlAdaptor() override;
 
-    /// Null the support report's borrowed sources. Called from Daemon::stop()
-    /// before the unique_ptr members that own them are destroyed; a report
+    /// Null the support report's borrowed sources. Called from Daemon::withdrawFromBus()
+    /// before the runtime's stop() destroys the unique_ptr members that own them; a report
     /// requested after it fails with Shutdown.
     void detach();
 

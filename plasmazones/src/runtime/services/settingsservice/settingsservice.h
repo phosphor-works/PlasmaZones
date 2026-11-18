@@ -62,7 +62,7 @@ public:
 
     /// Null the borrowed ISettings and profile-registry pointers, sever their
     /// signal wiring, and flush any pending debounced save. Called from
-    /// Daemon::stop() before the owning unique_ptr members destroy the
+    /// EngineRuntime::stop() before the owning unique_ptr members destroy the
     /// backing objects — after detach() the adaptor's D-Bus slots hit the
     /// null-guard paths instead of dereferencing a dangling pointer, and
     /// the destructor is a no-op for the save-on-teardown branch.

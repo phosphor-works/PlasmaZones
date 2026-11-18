@@ -133,7 +133,7 @@ public:
 
     /**
      * @brief Set the zone adjacency resolver for daemon-driven navigation (getAdjacentZone, getFirstZoneInDirection)
-     * @param resolver Not owned; Daemon::stop() clears it.
+     * @param resolver Not owned; EngineRuntime::stop() clears it.
      *        Must be set before setEngines, which hands it to the snap engine.
      */
     void setZoneAdjacencyResolver(PhosphorSnapEngine::IZoneAdjacencyResolver* resolver);
@@ -178,7 +178,7 @@ public:
      * windowSnapStateChanged and windowFloatingClearedForSnap.
      *
      * @param snapEngine PlacementEngineBase for snap mode (not owned; a QPointer,
-     *        and Daemon::stop() rewires all three to null)
+     *        and EngineRuntime::stop() rewires all three to null)
      * @param autotileEngine PlacementEngineBase for autotile mode (likewise)
      * @param scrollEngine PlacementEngineBase for scrolling mode (likewise;
      *        explicit at every call site — no default, so a production
@@ -250,7 +250,7 @@ public:
      * Read by resolveSnapModeScreensForResnap, which keeps a resnap off the
      * screens snapping does not run on.
      *
-     * @param router Not owned; Daemon::stop() clears it before freeing it
+     * @param router Not owned; EngineRuntime::stop() clears it before freeing it
      */
     void setScreenModeRouter(ScreenModeRouter* router);
 
@@ -822,7 +822,7 @@ public:
      * @brief Flush window tracking state to disk on daemon shutdown
      *
      * Stops the debounced save timer and immediately persists state.
-     * Call this from Daemon::stop() so snapped windows are saved before exit.
+     * Call this from EngineRuntime::stop() so snapped windows are saved before exit.
      */
     void saveStateOnShutdown();
 
@@ -920,7 +920,7 @@ public:
     /// Told (windowId, keepScreenId) at the end of every releaseLeftScreens, for the daemon's own per-screen memory.
     void setWindowLeftScreenHook(std::function<void(const QString&, const QString&)> hook);
     /// The mode a (screen, desktop, activity) context runs, hidden or not, the feature switches and the disabled gate
-    /// included (Daemon::runningModeForContext). Unset, the configured mode answers (F1122).
+    /// included (EngineRuntime::runningModeForContext). Unset, the configured mode answers (F1122).
     void setContextModeResolver(
         std::function<PhosphorZones::AssignmentEntry::Mode(const QString&, int, const QString&)> resolver);
     /// An evacuee that could not be adopted floating when its output went away, arriving on the output it
@@ -1324,10 +1324,10 @@ public:
      * in-process.
      *
      * Called from two daemon-side sites:
-     *   1. Daemon::init's init-prologue priming call — runs once, synchronously,
+     *   1. EngineRuntime::init's init-prologue priming call — runs once, synchronously,
      *      before the `rulesChanged` subscription connects, pruning what loadState
      *      just deserialized into the store.
-     *   2. Daemon::init's `refilterExcludeRules` lambda, fired on every
+     *   2. EngineRuntime::init's `refilterExcludeRules` lambda, fired on every
      *      `RuleStore::rulesChanged` whose post-filter placement-exclusion
      *      slice (Exclude ∪ ExcludePlacement) differs
      *      from the cached one (equality-guarded). Drives live rule edits into the prune.

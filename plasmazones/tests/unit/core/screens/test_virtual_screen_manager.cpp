@@ -394,7 +394,7 @@ private Q_SLOTS:
     }
 
     /// Regression test for the daemon's initial-sync ordering at boot:
-    /// `Daemon::connectScreenSignals` calls `refreshVirtualConfigs` BEFORE
+    /// `EngineRuntime::connectScreenSignals` calls `refreshVirtualConfigs` BEFORE
     /// connecting `onVirtualScreensReconfigured` to `virtualScreensChanged`.
     /// The intent is that the boot-time refresh populates the cache silently
     /// — without triggering the migration / autotile / resnap fan-out, which

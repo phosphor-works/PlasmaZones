@@ -105,7 +105,7 @@ SettingsService::~SettingsService()
     // ~QObject destroys us (the owning unique_ptr has already run).
     if (m_settings && m_saveTimer->isActive()) {
         m_saveTimer->stop();
-        // Blocked for the reason Daemon::stop gives: what save() might adopt
+        // Blocked for the reason EngineRuntime::stop gives: what save() might adopt
         // and announce has no consumer left at teardown.
         const QSignalBlocker blocker(m_settings);
         m_settings->save();
@@ -115,7 +115,7 @@ SettingsService::~SettingsService()
 
 void SettingsService::detach()
 {
-    // Flush once here — Daemon::stop() also calls m_settings->save()
+    // Flush once here — EngineRuntime::stop() also calls m_settings->save()
     // explicitly, so the pending-write isn't really at risk, but keeping
     // the flush makes detach() safe to call from any shutdown path, not
     // just the daemon's happy-path. m_saveTimer is constructed in the
@@ -123,7 +123,7 @@ void SettingsService::detach()
     // it here (the dtor uses the same pattern).
     if (m_settings && m_saveTimer->isActive()) {
         m_saveTimer->stop();
-        // Blocked as in Daemon::stop: the daemon is tearing down (this runs
+        // Blocked as in EngineRuntime::stop: the daemon is tearing down (this runs
         // once the bus surface is gone), and nothing will act on a change the
         // save adopts.
         const QSignalBlocker blocker(m_settings);

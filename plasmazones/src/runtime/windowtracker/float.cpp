@@ -384,7 +384,7 @@ void WindowTracker::syncWindowFloating(const QString& windowId, bool floating)
     // on a re-query of the service's float state. Under the per-engine float
     // model the owning engine flips its float bit BEFORE the daemon's sync slot
     // reaches this writer (e.g. AutotileEngine::performToggleFloat toggles then
-    // emits windowFloatingChanged, which Daemon::syncAutotileFloatState relays
+    // emits windowFloatingChanged, which EngineRuntime::syncAutotileFloatState relays
     // here), so m_service->isWindowFloating() already reports the post-transition
     // value — the old `floating == wasFloating` gate then suppressed every
     // autotile float broadcast, leaving subscribers (the effect's float cache,
@@ -448,7 +448,7 @@ bool WindowTracker::applyGeometryForFloat(const QString& windowId, const QString
     // CALLER CONTRACT: callers must guarantee a non-minimized window. Unlike
     // the snap engine's applyFloatGeometryUnlessMinimized twin, this method
     // has no minimize guard — it is not exposed on D-Bus, and its callers
-    // (Daemon::syncAutotileFloatState and the scroll engine's active float arm
+    // (EngineRuntime::syncAutotileFloatState and the scroll engine's active float arm
     // in init_engines.cpp) are user float paths whose passive twins skip it.
     auto geo = m_service->validatedUnmanagedGeometry(windowId, screenId);
     if (geo) {

@@ -111,7 +111,7 @@ private Q_SLOTS:
         daemonStore->load();
 
         // Settings shares the daemon's store via the borrow ctor. Mirrors
-        // Daemon::Daemon line passing m_ruleStore.get() — when this
+        // EngineRuntime::EngineRuntime line passing m_ruleStore.get() — when this
         // pointer is non-null Settings does NOT mint a second store.
         Settings settings(backend.get(), /*curveRegistry=*/nullptr, daemonStore.get(), nullptr);
 

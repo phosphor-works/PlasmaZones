@@ -123,7 +123,7 @@ public:
     void scheduleScreenStatesCheck();
 
     /// Drop a comparison @ref scheduleScreenStatesCheck queued and has not
-    /// run yet. Daemon::stop calls it, so no signal goes out after the
+    /// run yet. EngineRuntime::stop calls it, so no signal goes out after the
     /// daemon's teardown has begun. Not a bus slot.
     void cancelScreenStatesCheck();
 
@@ -563,7 +563,7 @@ public:
      *
      * Sharing the buffer was a real defect, not a tidiness question. Every
      * assignment write emits RuleStore::rulesChanged synchronously, which drives
-     * Daemon::reconcileActiveAssignments, so an N-entry save ran the apply pass
+     * EngineRuntime::reconcileActiveAssignments, so an N-entry save ran the apply pass
      * N times mid-batch and drained the client's buffer each time. The client's
      * closing call then saw an empty set — which downstream means EVERY screen —
      * and resnapped and OSD'd all of them instead of the ones it edited.
@@ -817,7 +817,7 @@ private:
     QPointer<PhosphorZones::Layout> m_pendingActiveLayout;
 
     // Resolved active layout id per effective screen, pushed by the daemon via
-    // publishActiveAssignments. Mirrors Daemon::m_activeAssignmentByScreen — the
+    // publishActiveAssignments. Mirrors EngineRuntime::m_activeAssignmentByScreen — the
     // daemon is the authority, this is the bus-facing copy that backs
     // getActiveLayoutsForScreens.
     QHash<QString, QString> m_activeAssignmentByScreen;
