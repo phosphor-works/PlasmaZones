@@ -42,7 +42,7 @@ PZCommon.ShaderParamsEditor {
     ///
     /// `action.params` holds only the DELTAS, and the compositor resolves
     /// preset ⊕ params for both shader actions (see the rule route in
-    /// daemon/overlayservice/shader.cpp). Feeding the deltas straight to the
+    /// runtime/overlay/shader.cpp). Feeding the deltas straight to the
     /// sliders showed the pack's plain defaults for every parameter the
     /// preset supplies, so picking a preset in a rule row looked inert —
     /// exactly the bug the assignment hosts have `_effectiveValues` for.

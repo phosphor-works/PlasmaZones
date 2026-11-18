@@ -20,7 +20,7 @@
 
 // The functions under test. overlay_helpers.h is the overlayservice header with
 // no config / registry dependency, precisely so test TUs can include it.
-#include "daemon/overlayservice/overlay_helpers.h"
+#include "runtime/overlay/overlay_helpers.h"
 
 Q_IMPORT_PLUGIN(org_plasmazones_commonPlugin)
 

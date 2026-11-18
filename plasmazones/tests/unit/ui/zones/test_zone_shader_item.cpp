@@ -11,8 +11,8 @@
 #include <QUrl>
 #include <QtNumeric>
 
-#include "daemon/rendering/zoneshaderitem.h"
-#include "daemon/rendering/zonelabeltexturebuilder.h"
+#include "runtime/rendering/zoneshaderitem.h"
+#include "runtime/rendering/zonelabeltexturebuilder.h"
 #include <PhosphorRendering/ZoneShaderCommon.h>
 #include <PhosphorShaders/CustomParamsKey.h>
 #include <PhosphorRendering/ZoneLabelTexture.h>

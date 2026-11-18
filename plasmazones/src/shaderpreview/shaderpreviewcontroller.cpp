@@ -7,7 +7,7 @@
 #include <QQuickWindow>
 
 #include "config/configdefaults.h" // borderRadiusMax, so the preview clamps where the daemon clamps
-#include "daemon/rendering/zonelabeltexturebuilder.h"
+#include "runtime/rendering/zonelabeltexturebuilder.h"
 
 #include <PhosphorAudio/CavaSpectrumProvider.h>
 #include <PhosphorShaders/PixelUnits.h>

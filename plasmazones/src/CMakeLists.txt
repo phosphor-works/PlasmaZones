@@ -439,15 +439,15 @@ install(TARGETS plasmazones_core
 # Rendering Library (ZoneShaderItem, shared between the daemon and the settings app)
 # ═══════════════════════════════════════════════════════════════════════════════
 set(plasmazones_rendering_SRCS
-    daemon/rendering/zoneentryscaffold.h
-    daemon/rendering/zoneentryscaffold.cpp
-    daemon/rendering/zoneshadernoderhi.h
-    daemon/rendering/zoneshadernoderhi.cpp
-    daemon/rendering/zoneshaderitem.h
-    daemon/rendering/zoneshaderitem.cpp
-    daemon/rendering/zoneshaderitem/setters.cpp
-    daemon/rendering/zonelabeltexturebuilder.h
-    daemon/rendering/zonelabeltexturebuilder.cpp
+    runtime/rendering/zoneentryscaffold.h
+    runtime/rendering/zoneentryscaffold.cpp
+    runtime/rendering/zoneshadernoderhi.h
+    runtime/rendering/zoneshadernoderhi.cpp
+    runtime/rendering/zoneshaderitem.h
+    runtime/rendering/zoneshaderitem.cpp
+    runtime/rendering/zoneshaderitem/setters.cpp
+    runtime/rendering/zonelabeltexturebuilder.h
+    runtime/rendering/zonelabeltexturebuilder.cpp
 )
 
 add_library(plasmazones_rendering SHARED ${plasmazones_rendering_SRCS})
@@ -553,115 +553,115 @@ install(TARGETS plasmazones_shaderpreview
 # Daemon executable
 set(plasmazones_daemon_SRCS
     daemon/main.cpp
-    daemon/rendering/vulkansupport.cpp
-    daemon/rendering/vulkansupport.h
+    runtime/rendering/vulkansupport.cpp
+    runtime/rendering/vulkansupport.h
     daemon/daemon.cpp
     daemon/daemon.h
     daemon/bridgewatchdog.cpp
     daemon/plasmaworkspace.cpp
-    daemon/engineruntime.cpp
-    daemon/controllers/enginefactory.cpp
-    daemon/controllers/shortcutmanager_adhoc.cpp
-    daemon/controllers/shortcutmanager_catalog.cpp
-    daemon/controllers/shortcutmanager_ids.h
-    daemon/controllers/shortcutmanager_table.cpp
-    daemon/controllers/shortcutmanager_table.h
-    daemon/engineruntime/start.cpp
-    daemon/engineruntime/desktop_renumber.cpp
-    daemon/engineruntime/evacuees.cpp
-    daemon/engineruntime/shortcuts_wiring.cpp
-    daemon/engineruntime/autotile_init.cpp
-    daemon/engineruntime/scrolling_init.cpp
-    daemon/engineruntime/scrolling.cpp
-    daemon/engineruntime/workspaces.cpp
-    daemon/engineruntime/signals.cpp
-    daemon/engineruntime/shader_warmup.cpp
-    daemon/engineruntime/animation_profiles.cpp
-    daemon/engineruntime/init_services.cpp
-    daemon/engineruntime/init_adaptors.cpp
-    daemon/engineruntime/init_engines.cpp
-    daemon/engineruntime/init_assignment_apply.cpp
-    daemon/engineruntime/init_service_wiring.cpp
-    daemon/engineruntime/lifecycle.cpp
-    daemon/engineruntime/idle.cpp
-    daemon/engineruntime/navigation.cpp
-    daemon/engineruntime/autotile.cpp
-    daemon/engineruntime/engine_release.cpp
-    daemon/engineruntime/seedorderfilter.cpp
-    daemon/engineruntime/seedorderfilter.h
-    daemon/engineruntime/enginerouting.cpp
-    daemon/engineruntime/enginerouting.h
-    daemon/engineruntime/screenreshapetracker.cpp
-    daemon/engineruntime/screenreshapetracker.h
-    daemon/engineruntime/snapgaptracker.cpp
-    daemon/engineruntime/snapgaptracker.h
-    daemon/engineruntime/osd.cpp
-    daemon/engineruntime/cheatsheet.cpp
-    daemon/engineruntime/stripzones.h
-    daemon/engineruntime.h
-    daemon/engineruntime_fwd.h
-    daemon/engineruntime/helpers.h
-    daemon/engineruntime/macros.h
+    runtime/engine/engineruntime.cpp
+    runtime/controllers/enginefactory.cpp
+    runtime/controllers/shortcutmanager_adhoc.cpp
+    runtime/controllers/shortcutmanager_catalog.cpp
+    runtime/controllers/shortcutmanager_ids.h
+    runtime/controllers/shortcutmanager_table.cpp
+    runtime/controllers/shortcutmanager_table.h
+    runtime/engine/start.cpp
+    runtime/engine/desktop_renumber.cpp
+    runtime/engine/evacuees.cpp
+    runtime/engine/shortcuts_wiring.cpp
+    runtime/engine/autotile_init.cpp
+    runtime/engine/scrolling_init.cpp
+    runtime/engine/scrolling.cpp
+    runtime/engine/workspaces.cpp
+    runtime/engine/signals.cpp
+    runtime/engine/shader_warmup.cpp
+    runtime/engine/animation_profiles.cpp
+    runtime/engine/init_services.cpp
+    runtime/engine/init_adaptors.cpp
+    runtime/engine/init_engines.cpp
+    runtime/engine/init_assignment_apply.cpp
+    runtime/engine/init_service_wiring.cpp
+    runtime/engine/lifecycle.cpp
+    runtime/engine/idle.cpp
+    runtime/engine/navigation.cpp
+    runtime/engine/autotile.cpp
+    runtime/engine/engine_release.cpp
+    runtime/engine/seedorderfilter.cpp
+    runtime/engine/seedorderfilter.h
+    runtime/engine/enginerouting.cpp
+    runtime/engine/enginerouting.h
+    runtime/engine/screenreshapetracker.cpp
+    runtime/engine/screenreshapetracker.h
+    runtime/engine/snapgaptracker.cpp
+    runtime/engine/snapgaptracker.h
+    runtime/engine/osd.cpp
+    runtime/engine/cheatsheet.cpp
+    runtime/engine/stripzones.h
+    runtime/engine/engineruntime.h
+    runtime/engine/engineruntime_fwd.h
+    runtime/engine/helpers.h
+    runtime/engine/macros.h
     # Concrete daemon-side adapters bridging the existing services
     # (VirtualDesktopManager + ActivityManager + ScreenModeRouter + ISettings)
     # to the LGPL PhosphorContext::IContextResolver triple. Owned by Daemon
-    # alongside m_contextResolver — see the wiring in daemon/engineruntime.h.
-    daemon/controllers/contextresolverwiring.h
-    daemon/controllers/contextresolverwiring.cpp
-    daemon/overlayservice.cpp
-    daemon/overlayservice/animation_config.cpp
-    daemon/overlayservice/decoration.cpp
-    daemon/overlayservice/lifecycle.cpp
-    daemon/overlayservice/settings.cpp
-    daemon/overlayservice/overlay.cpp
-    daemon/overlayservice/overlay_data.cpp
-    daemon/overlayservice/osd.cpp
-    daemon/overlayservice/priming.cpp
-    daemon/overlayservice/rekey.cpp
-    daemon/overlayservice/cheatsheet.cpp
-    daemon/overlayservice/scrolldropindicator.cpp
-    daemon/overlayservice/screens.cpp
-    daemon/overlayservice/selector.cpp
-    daemon/overlayservice/selector_strip.cpp
-    daemon/overlayservice/shellhost_bridge.cpp
-    daemon/overlayservice/selector_update.cpp
-    daemon/overlayservice/shader.cpp
-    daemon/overlayservice/snapassist.cpp
-    daemon/overlayservice.h
-    daemon/overlayservice_types.h
-    daemon/overlayservice/internal.h
-    daemon/rendering/snapassistthumbnailprovider.cpp
-    daemon/rendering/snapassistthumbnailprovider.h
+    # alongside m_contextResolver — see the wiring in runtime/engine/engineruntime.h.
+    runtime/controllers/contextresolverwiring.h
+    runtime/controllers/contextresolverwiring.cpp
+    runtime/overlay/overlayservice.cpp
+    runtime/overlay/animation_config.cpp
+    runtime/overlay/decoration.cpp
+    runtime/overlay/lifecycle.cpp
+    runtime/overlay/settings.cpp
+    runtime/overlay/overlay.cpp
+    runtime/overlay/overlay_data.cpp
+    runtime/overlay/osd.cpp
+    runtime/overlay/priming.cpp
+    runtime/overlay/rekey.cpp
+    runtime/overlay/cheatsheet.cpp
+    runtime/overlay/scrolldropindicator.cpp
+    runtime/overlay/screens.cpp
+    runtime/overlay/selector.cpp
+    runtime/overlay/selector_strip.cpp
+    runtime/overlay/shellhost_bridge.cpp
+    runtime/overlay/selector_update.cpp
+    runtime/overlay/shader.cpp
+    runtime/overlay/snapassist.cpp
+    runtime/overlay/overlayservice.h
+    runtime/overlay/overlayservice_types.h
+    runtime/overlay/internal.h
+    runtime/rendering/snapassistthumbnailprovider.cpp
+    runtime/rendering/snapassistthumbnailprovider.h
     # Handle-normalisation + image:// URL composition shared by both thumbnail
     # providers (pixel and dma-buf) so their key/URL discipline cannot drift.
-    daemon/rendering/thumbnailurlutil.h
+    runtime/rendering/thumbnailurlutil.h
     # Zero-copy GPU thumbnail path (PLASMAZONES_DMABUF_THUMBNAILS): imports
     # dma-bufs handed from the kwin-effect as Vulkan-backed QSGTextures.
-    daemon/rendering/dmabuftextureprovider.cpp
-    daemon/rendering/dmabuftextureprovider.h
-    daemon/rendering/dmabuffencewaiter.cpp
-    daemon/rendering/dmabuffencewaiter.h
+    runtime/rendering/dmabuftextureprovider.cpp
+    runtime/rendering/dmabuftextureprovider.h
+    runtime/rendering/dmabuffencewaiter.cpp
+    runtime/rendering/dmabuffencewaiter.h
     # OpenGL-RHI fallback import (EGL dma-buf -> GL texture). Isolated TU so its
     # epoxy GL/EGL headers don't mix with the Vulkan + Qt RHI headers.
-    daemon/rendering/dmabufglimport.cpp
-    daemon/rendering/dmabufglimport.h
-    daemon/controllers/shortcutmanager.cpp
-    daemon/controllers/shortcutmanager.h
-    daemon/controllers/shellcheatsheetbridge.cpp
-    daemon/controllers/shellcheatsheetbridge.h
-    daemon/controllers/zoneselectorcontroller.cpp
-    daemon/controllers/zoneselectorcontroller.h
+    runtime/rendering/dmabufglimport.cpp
+    runtime/rendering/dmabufglimport.h
+    runtime/controllers/shortcutmanager.cpp
+    runtime/controllers/shortcutmanager.h
+    runtime/controllers/shellcheatsheetbridge.cpp
+    runtime/controllers/shellcheatsheetbridge.h
+    runtime/controllers/zoneselectorcontroller.cpp
+    runtime/controllers/zoneselectorcontroller.h
     # Mode tracking and smart toggle (Unified Layout Model)
-    daemon/controllers/unifiedlayoutcontroller.cpp
-    daemon/controllers/unifiedlayoutcontroller.h
+    runtime/controllers/unifiedlayoutcontroller.cpp
+    runtime/controllers/unifiedlayoutcontroller.h
     # Dynamic per-monitor workspaces
     daemon/host/kwinworkspacehost.cpp
     daemon/host/kwinworkspacehost.h
     daemon/host/plasmasystemosd.cpp
     daemon/host/plasmasystemosd.h
-    daemon/controllers/workspacecontroller.cpp
-    daemon/controllers/workspacecontroller_verbs.cpp
-    daemon/controllers/workspacecontroller.h
+    runtime/controllers/workspacecontroller.cpp
+    runtime/controllers/workspacecontroller_verbs.cpp
+    runtime/controllers/workspacecontroller.h
     # Shader rendering: ZoneShaderItem from plasmazones_rendering
 )
 
@@ -689,7 +689,7 @@ target_link_libraries(plasmazonesd
         PhosphorAudio::PhosphorAudio  # audio spectrum provider (CAVA)
         PhosphorSurfaces::PhosphorSurfaces  # managed surface lifecycle (engine, keep-alive)
         # Named directly, not left to plasmazones_core's PUBLIC edge: daemon TUs
-        # include <PhosphorSurface/...> and daemon/overlayservice/decoration.cpp
+        # include <PhosphorSurface/...> and runtime/overlay/decoration.cpp
         # calls its exported chain-compose helpers, so a future demotion of that
         # edge to PRIVATE would break them. The other chain hosts (kwin-effect
         # and the settings app's decoration preview) both name it explicitly
@@ -704,7 +704,7 @@ target_link_libraries(plasmazonesd
         # The daemon owns a `ContextResolver` over three local adapters
         # (DaemonWorkspaceStateAdapter / DaemonScreenModeAdapter /
         # DaemonSettingsGateAdapter in
-        # daemon/controllers/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
+        # runtime/controllers/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
         # + OverlayService borrow it via `EngineRuntime::contextResolver()`.
         PhosphorContextResolver::PhosphorContextResolver
         # Daemon is headless: runs under QGuiApplication. No Qt6::Widgets
@@ -731,7 +731,7 @@ find_package(Vulkan REQUIRED)
 target_link_libraries(plasmazonesd PRIVATE Vulkan::Vulkan)
 
 # libepoxy: EGL/GL entry points for the OpenGL-RHI dma-buf import fallback
-# (daemon/rendering/dmabufglimport.cpp). Only that TU includes epoxy headers.
+# (runtime/rendering/dmabufglimport.cpp). Only that TU includes epoxy headers.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(Epoxy REQUIRED IMPORTED_TARGET epoxy)
 target_link_libraries(plasmazonesd PRIVATE PkgConfig::Epoxy)
@@ -740,7 +740,7 @@ target_link_libraries(plasmazonesd PRIVATE PkgConfig::Epoxy)
 # first GL include and refuses to coexist with GL/gl.h, which jumbo-grouping
 # with the Vulkan + Qt RHI sources would pull in. Standalone TU keeps its
 # EGL/GL headers fully isolated.
-set_source_files_properties(daemon/rendering/dmabufglimport.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties(runtime/rendering/dmabufglimport.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 
 install(TARGETS plasmazonesd DESTINATION ${KDE_INSTALL_BINDIR})
 

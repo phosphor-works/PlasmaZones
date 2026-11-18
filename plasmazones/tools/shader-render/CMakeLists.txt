@@ -77,7 +77,7 @@ target_link_libraries(plasmazones-shader-render PRIVATE
 # ZoneUniformExtension no longer needs this path; it comes from the
 # linked PhosphorRendering target.
 target_include_directories(plasmazones-shader-render PRIVATE
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/rendering
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/rendering
 )
 
 # The data tree of the checkout this binary was built from. The tool probes the

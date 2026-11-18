@@ -5,7 +5,7 @@
 
 #include "packvalidatorcommon.h"
 
-#include "daemon/rendering/zoneentryscaffold.h"
+#include "runtime/rendering/zoneentryscaffold.h"
 
 #include <PhosphorFsLoader/PackPathGuard.h>
 

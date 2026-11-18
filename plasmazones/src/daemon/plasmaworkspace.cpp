@@ -9,7 +9,7 @@
 #include "daemon/daemon.h"
 
 #include "core/platform/logging.h"
-#include "daemon/engineruntime.h"
+#include "runtime/engine/engineruntime.h"
 
 #include <QDBusConnection>
 #include <QDBusMessage>

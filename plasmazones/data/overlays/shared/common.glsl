@@ -68,7 +68,7 @@ struct ZoneCtx {
     vec2  fragCoord;     // screen-space pixel (the vFragCoord the loop passes in)
     vec4  rect;          // zoneRects[i]
     // rgb is PREMULTIPLIED by the zone's activeOpacity, which .a also carries
-    // (src/daemon/overlayservice/overlay_data.cpp writes redF() * alpha). Use
+    // (src/runtime/overlay/overlay_data.cpp writes redF() * alpha). Use
     // zoneFillHue() to recover the colour the user actually picked, or the tint
     // dims as they raise transparency, which is backwards.
     vec4  fillColor;     // zoneFillColors[i]

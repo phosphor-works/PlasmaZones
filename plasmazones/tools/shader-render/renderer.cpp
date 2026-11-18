@@ -294,7 +294,7 @@ void seedShaderEffect(PhosphorRendering::ShaderEffect& effect, const ShaderMetad
 QStringList shaderIncludePaths()
 {
     // Mirrors PlasmaZones::expandShaderIncludePaths() in
-    // plasmazones/src/daemon/rendering/zoneshadernoderhi.h (cited by symbol, not by line —
+    // plasmazones/src/runtime/rendering/zoneshadernoderhi.h (cited by symbol, not by line —
     // the previous file:line citation had rotted onto unrelated code):
     // for each shader root, push <root>/shared FIRST then <root>. The /shared
     // entry is where common.glsl / audio.glsl / zone.vert live in the source
@@ -385,7 +385,7 @@ QStringList shaderIncludePaths()
 // every zone fragment shader fails to link with `vFragCoord not declared as
 // input from previous stage`, and every preview comes out as the clear colour.
 // Replicates PlasmaZones::resolveZoneVertexPath() in
-// plasmazones/src/daemon/rendering/zoneshadernoderhi.h.
+// plasmazones/src/runtime/rendering/zoneshadernoderhi.h.
 QString resolveZoneVertexShader(const QString& metadataVertexPath, const QStringList& includePaths)
 {
     if (!metadataVertexPath.isEmpty()) {

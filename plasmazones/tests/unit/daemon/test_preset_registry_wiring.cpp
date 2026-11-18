@@ -117,8 +117,8 @@ class TestPresetRegistryWiring : public QObject
 private Q_SLOTS:
     void setPresetRegistryAppliesAtSetTime()
     {
-        const QString source = read(QStringLiteral(P_SOURCE_DIR "/src/daemon/overlayservice/shader.cpp"));
-        QVERIFY2(!source.isEmpty(), "cannot read src/daemon/overlayservice/shader.cpp");
+        const QString source = read(QStringLiteral(P_SOURCE_DIR "/src/runtime/overlay/shader.cpp"));
+        QVERIFY2(!source.isEmpty(), "cannot read src/runtime/overlay/shader.cpp");
 
         const QString body = functionBody(source, QStringLiteral("void OverlayService::setPresetRegistry("));
         QVERIFY2(!body.isEmpty(), "setPresetRegistry not found — renamed or moved, and this guard needs updating");
@@ -155,8 +155,8 @@ private Q_SLOTS:
         // The teardown half of the same function: the borrow is replaced on every
         // re-init, so the previous registry's connection has to go or the handler
         // stacks a second copy and fires twice per change.
-        const QString source = read(QStringLiteral(P_SOURCE_DIR "/src/daemon/overlayservice/shader.cpp"));
-        QVERIFY2(!source.isEmpty(), "cannot read src/daemon/overlayservice/shader.cpp");
+        const QString source = read(QStringLiteral(P_SOURCE_DIR "/src/runtime/overlay/shader.cpp"));
+        QVERIFY2(!source.isEmpty(), "cannot read src/runtime/overlay/shader.cpp");
         const QString body = functionBody(source, QStringLiteral("void OverlayService::setPresetRegistry("));
         QVERIFY2(!body.isEmpty(), "setPresetRegistry not found");
         // The HELD HANDLE by name, not any `disconnect(`: the blanket form this function

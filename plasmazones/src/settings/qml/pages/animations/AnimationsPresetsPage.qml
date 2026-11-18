@@ -77,7 +77,7 @@ SettingsFlickable {
 
     function applyAsDefault(curveStr, duration) {
         // Global path is settings-driven (kSettingsDrivenProfilePaths in
-        // src/daemon/engineruntime/animation_profiles.cpp). Writing through the existing
+        // src/runtime/engine/animation_profiles.cpp). Writing through the existing
         // animationEasingCurve Q_PROPERTY lets the daemon's
         // publishActiveAnimationProfile pick it up via the same wire
         // every other Global edit uses.

@@ -8,10 +8,10 @@
 
 #include "daemon/daemon.h"
 
-#include "daemon/engineruntime.h"
+#include "runtime/engine/engineruntime.h"
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
-#include "daemon/overlayservice.h"
+#include "runtime/overlay/overlayservice.h"
 
 #include "dbus/autotileadaptor.h"
 #include "dbus/compositorbridgeadaptor.h"

@@ -9,9 +9,9 @@
 #include "core/platform/logging.h"
 #include "core/utils/translationloader.h"
 #include "phosphor_i18n.h"
-#include "rendering/zoneshaderitem.h"
+#include "runtime/rendering/zoneshaderitem.h"
 #include "version.h"
-#include "rendering/vulkansupport.h"
+#include "runtime/rendering/vulkansupport.h"
 #include "replaceincumbent.h"
 #include "waylandsessioncheck.h"
 
@@ -110,7 +110,7 @@ DaemonOptions configureParser(QCommandLineParser& parser)
 // QQuickWindows on layer-shell surfaces), which says nothing about the editor
 // or the settings app, so a child must not inherit the change. Every variable
 // main() touches before QGuiApplication belongs in this table, except the
-// GPU-preference ones, which rendering/vulkansupport.cpp tracks itself.
+// GPU-preference ones, which runtime/rendering/vulkansupport.cpp tracks itself.
 constexpr const char* kDaemonPrivateEnvVars[] = {
     "MANGOHUD",
     "DISABLE_MANGOHUD",

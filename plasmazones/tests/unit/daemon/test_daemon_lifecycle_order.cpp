@@ -93,8 +93,8 @@ class TestDaemonLifecycleOrder : public QObject
 private Q_SLOTS:
     void stopReleasesShortcutsBeforeTheServicesClose()
     {
-        const QString source = readSource(QStringLiteral("/src/daemon/engineruntime/lifecycle.cpp"));
-        QVERIFY2(!source.isEmpty(), "could not read daemon/engineruntime/lifecycle.cpp");
+        const QString source = readSource(QStringLiteral("/src/runtime/engine/lifecycle.cpp"));
+        QVERIFY2(!source.isEmpty(), "could not read runtime/engine/lifecycle.cpp");
         const QString stop = functionBody(source, QStringLiteral("void EngineRuntime::stop()"));
         QVERIFY2(!stop.isEmpty(), "EngineRuntime::stop() not found in lifecycle.cpp");
 
@@ -114,8 +114,8 @@ private Q_SLOTS:
 
     void stopTearsWorkspacesDownBeforeTheShortcutsAndTheServicesClose()
     {
-        const QString source = readSource(QStringLiteral("/src/daemon/engineruntime/lifecycle.cpp"));
-        QVERIFY2(!source.isEmpty(), "could not read daemon/engineruntime/lifecycle.cpp");
+        const QString source = readSource(QStringLiteral("/src/runtime/engine/lifecycle.cpp"));
+        QVERIFY2(!source.isEmpty(), "could not read runtime/engine/lifecycle.cpp");
         const QString stop = functionBody(source, QStringLiteral("void EngineRuntime::stop()"));
         QVERIFY2(!stop.isEmpty(), "EngineRuntime::stop() not found in lifecycle.cpp");
 

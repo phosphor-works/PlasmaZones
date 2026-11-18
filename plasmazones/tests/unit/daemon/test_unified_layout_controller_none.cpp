@@ -45,7 +45,7 @@
 
 #include "config/settings.h"
 #include "core/utils/unifiedlayoutlist.h"
-#include "daemon/controllers/unifiedlayoutcontroller.h"
+#include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 

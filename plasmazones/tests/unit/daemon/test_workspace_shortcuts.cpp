@@ -15,8 +15,8 @@
 //   - the named-workspace chords: adhoc ids the collision guard must not
 //     refuse, listed on the sheet under Workspaces while bound.
 
-#include "daemon/controllers/shortcutmanager.h"
-#include "daemon/controllers/shortcutmanager_ids.h"
+#include "runtime/controllers/shortcutmanager.h"
+#include "runtime/controllers/shortcutmanager_ids.h"
 
 #include "config/configdefaults.h"
 #include "config/settings.h"

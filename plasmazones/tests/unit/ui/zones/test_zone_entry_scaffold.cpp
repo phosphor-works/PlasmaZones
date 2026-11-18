@@ -10,7 +10,7 @@
 // live bake layer applies (ZoneShaderItem::updatePaintNode → setEntryScaffold).
 // Also pins that a traditional main() pack is passed through untouched.
 
-#include "daemon/rendering/zoneentryscaffold.h"
+#include "runtime/rendering/zoneentryscaffold.h"
 
 #include <PhosphorRendering/ShaderCompiler.h>
 #include <PhosphorShaders/ShaderIncludeResolver.h>

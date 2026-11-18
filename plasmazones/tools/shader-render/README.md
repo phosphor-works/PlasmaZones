@@ -182,7 +182,7 @@ Known gaps to verify on first run:
 ## Tech debt
 
 `plasmazones/tools/shader-render/CMakeLists.txt` still adds
-`plasmazones/src/daemon/rendering/` to the include path, now only for
+`plasmazones/src/runtime/rendering/` to the include path, now only for
 `zoneentryscaffold.h`. The tool needs the daemon's entry-point
 scaffold so a pack that defines `pZone` or `pImage` is assembled
 the same way the daemon assembles it. Get that wrong and the

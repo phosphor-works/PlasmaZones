@@ -831,7 +831,7 @@ add_test(NAME test_overlay_scope_prefixes COMMAND test_overlay_scope_prefixes)
 # plasmazones_core.
 add_executable(test_snap_assist_thumbnail_provider
     daemon/test_snap_assist_thumbnail_provider.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/rendering/snapassistthumbnailprovider.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/rendering/snapassistthumbnailprovider.cpp
 )
 # PhosphorProtocol pulls in ServiceConstants.h's
 # SnapAssistThumbnailCacheCapacity that the provider's CacheCapacity now
@@ -847,7 +847,7 @@ add_test(NAME test_snap_assist_thumbnail_provider COMMAND test_snap_assist_thumb
 # plasmazonesd executable, not plasmazones_core.
 add_executable(test_autotile_seed_filter
     daemon/test_autotile_seed_filter.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/seedorderfilter.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/seedorderfilter.cpp
 )
 target_link_libraries(test_autotile_seed_filter PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
 add_test(NAME test_autotile_seed_filter COMMAND test_autotile_seed_filter)
@@ -857,7 +857,7 @@ add_test(NAME test_autotile_seed_filter COMMAND test_autotile_seed_filter)
 # slot id share. Compiles the daemon source directly, like the seed filter.
 add_executable(test_engine_routing
     daemon/test_engine_routing.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/enginerouting.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/enginerouting.cpp
 )
 target_link_libraries(test_engine_routing PRIVATE Qt6::Test Qt6::Core plasmazones_core)
 add_test(NAME test_engine_routing COMMAND test_engine_routing)
@@ -871,7 +871,7 @@ add_test(NAME test_engine_routing COMMAND test_engine_routing)
 # ScreenManager's pending and accepted reports.
 add_executable(test_screen_reshape_tracker
     daemon/test_screen_reshape_tracker.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/screenreshapetracker.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/screenreshapetracker.cpp
 )
 target_link_libraries(test_screen_reshape_tracker PRIVATE pz_test_fake_screens Qt6::Test Qt6::Core Qt6::Gui plasmazones_core)
 add_test(NAME test_screen_reshape_tracker COMMAND test_screen_reshape_tracker)
@@ -882,7 +882,7 @@ add_test(NAME test_screen_reshape_tracker COMMAND test_screen_reshape_tracker)
 # the reshape tracker.
 add_executable(test_snap_gap_tracker
     daemon/test_snap_gap_tracker.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/engineruntime/snapgaptracker.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/snapgaptracker.cpp
 )
 target_link_libraries(test_snap_gap_tracker PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_snap_gap_tracker COMMAND test_snap_gap_tracker)
@@ -892,14 +892,14 @@ add_test(NAME test_snap_gap_tracker COMMAND test_snap_gap_tracker)
 # a library of its own: the teardown suite does not need it, and an OBJECT
 # library puts every object it holds into each test that links it.
 add_library(pz_test_shortcut_manager OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/shortcutmanager.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/shortcutmanager_adhoc.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/shortcutmanager_table.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager_adhoc.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager_table.cpp
 )
 target_link_libraries(pz_test_shortcut_manager
     PUBLIC Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
 add_library(pz_test_shortcut_catalog OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/shortcutmanager_catalog.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager_catalog.cpp
 )
 target_link_libraries(pz_test_shortcut_catalog
     PUBLIC Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
@@ -917,7 +917,7 @@ add_test(NAME test_cheatsheet_compression COMMAND test_cheatsheet_compression)
 
 qt_add_executable(test_shell_cheatsheet_bridge
     daemon/test_shell_cheatsheet_bridge.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/shellcheatsheetbridge.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shellcheatsheetbridge.cpp
 )
 target_link_libraries(test_shell_cheatsheet_bridge PRIVATE Qt6::Test Qt6::Core Qt6::Network)
 add_test(NAME test_shell_cheatsheet_bridge COMMAND test_shell_cheatsheet_bridge)
@@ -938,7 +938,7 @@ add_test(NAME test_scrolling_shortcut_parity COMMAND test_scrolling_shortcut_par
 # plasmazones_core, so the two suites below link its source from this OBJECT
 # library rather than each compiling it.
 add_library(pz_test_unified_layout_controller OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/unifiedlayoutcontroller.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/unifiedlayoutcontroller.cpp
 )
 target_link_libraries(pz_test_unified_layout_controller PUBLIC Qt6::Core Qt6::Gui plasmazones_core)
 
@@ -3478,9 +3478,9 @@ add_test(NAME test_scroll_tab_layout COMMAND test_scroll_tab_layout)
 if(USE_KDE_FRAMEWORKS)
     add_executable(test_workspace_controller
         daemon/test_workspace_controller.cpp
-        ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/workspacecontroller.cpp
-        ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/workspacecontroller_verbs.cpp
-        ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/controllers/workspacecontroller.h)
+        ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/workspacecontroller.cpp
+        ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/workspacecontroller_verbs.cpp
+        ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/workspacecontroller.h)
     target_link_libraries(test_workspace_controller PRIVATE pz_test_fake_screens Qt6::Test Qt6::Core Qt6::Gui
         plasmazones_core PhosphorWorkspaces::PhosphorWorkspaces PhosphorEngine::PhosphorEngine
         PhosphorScreens::PhosphorScreens PhosphorProtocol::PhosphorProtocol PhosphorShortcuts::PhosphorShortcuts)

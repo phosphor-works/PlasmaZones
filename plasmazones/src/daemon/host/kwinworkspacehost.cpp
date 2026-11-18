@@ -5,7 +5,7 @@
 
 #include "common/kwinperoutputdesktops.h"
 #include "core/platform/logging.h"
-#include "daemon/controllers/shortcutmanager.h"
+#include "runtime/controllers/shortcutmanager.h"
 
 #include <QDBusConnection>
 #include <QDBusMessage>

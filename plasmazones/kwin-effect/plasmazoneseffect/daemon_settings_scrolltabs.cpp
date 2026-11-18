@@ -29,7 +29,7 @@ void PlasmaZonesEffect::loadScrollTabIndicatorSettings()
     // Scrolling.TabIndicator. These are the GLOBAL keys, pulled over the
     // settings channel below; per-screen rule overrides for the same keys
     // arrive separately, pushed by the daemon through
-    // TilingAdaptor::setScrollTabPaintOverrides (src/daemon/engineruntime/scrolling.cpp).
+    // TilingAdaptor::setScrollTabPaintOverrides (src/runtime/engine/scrolling.cpp).
     // Neither reaches the QML overlay, which has no tab surface at all. The
     // geometry half never comes here either: it reaches the engine through
     // IScrollSettings and is already baked into the committed column rects the

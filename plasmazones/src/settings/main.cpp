@@ -23,7 +23,7 @@
 #include <PhosphorControl/SearchController.h>
 
 #include "core/types/constants.h"
-#include "daemon/rendering/zoneshaderitem.h"
+#include "runtime/rendering/zoneshaderitem.h"
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorSurface/SurfacePackLocation.h>
 

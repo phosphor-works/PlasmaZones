@@ -9,7 +9,7 @@
 
 #include <QtPlugin>
 
-#include "daemon/rendering/zoneshaderitem.h"
+#include "runtime/rendering/zoneshaderitem.h"
 
 Q_IMPORT_PLUGIN(org_plasmazones_commonPlugin)
 

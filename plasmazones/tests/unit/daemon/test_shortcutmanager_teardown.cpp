@@ -30,8 +30,8 @@
 // come back when the family is switched on. A backend that cannot release a
 // grab per id (Portal) must never register the parked ids at all.
 
-#include "daemon/controllers/shortcutmanager.h"
-#include "daemon/controllers/shortcutmanager_ids.h"
+#include "runtime/controllers/shortcutmanager.h"
+#include "runtime/controllers/shortcutmanager_ids.h"
 
 #include "config/settings.h"
 #include "helpers/IsolatedConfigGuard.h"

@@ -31,7 +31,7 @@ namespace PlasmaZones {
 
 /// Dynamic QCoreApplication property carrying the GPU-preference environment
 /// variable names this process exported (a QStringList; see
-/// daemon/rendering/vulkansupport.h). Spawn sites remove these names from a
+/// runtime/rendering/vulkansupport.h). Spawn sites remove these names from a
 /// child's environment so an inherited export cannot trip the child's
 /// pre-set-value guards and freeze it on this process's stale GPU pin. The
 /// constant lives here (not in vulkansupport.h) so plasmazones_core spawn

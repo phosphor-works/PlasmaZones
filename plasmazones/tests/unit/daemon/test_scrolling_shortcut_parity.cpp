@@ -33,8 +33,8 @@
 // already pins every *Shortcut property against the D-Bus getter registry.
 // Asserting the registry again here would copy that canary, not extend it.
 
-#include "daemon/controllers/shortcutmanager.h"
-#include "daemon/controllers/shortcutmanager_ids.h"
+#include "runtime/controllers/shortcutmanager.h"
+#include "runtime/controllers/shortcutmanager_ids.h"
 
 #include "config/configdefaults.h"
 #include "config/settings.h"

@@ -5,7 +5,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Overlay (zone) and surface (decoration) pack contracts
 
-Source of truth: `plasmazones/data/overlays/shared/common.glsl`, `plasmazones/src/daemon/rendering/zoneentryscaffold.cpp`,
+Source of truth: `plasmazones/data/overlays/shared/common.glsl`, `plasmazones/src/runtime/rendering/zoneentryscaffold.cpp`,
 `../phosphor-libs/data/schemas/shader-metadata.schema.json`; `../phosphor-surface-packs/packs/shared/surface_uniforms.glsl`,
 `../phosphor-surface-packs/packs/shared/surface_lib.glsl`, `../phosphor-libs/libs/phosphor-surface/include/PhosphorSurface/SurfaceShaderEffect.h`,
 `../phosphor-libs/data/schemas/surface-metadata.schema.json`. Read the two shared headers before writing.
