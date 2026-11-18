@@ -19,14 +19,6 @@
 
 namespace PlasmaZones {
 
-/// Append @p path if it is a non-empty, existing directory not already listed.
-inline void appendUniquePath(QStringList& paths, const QString& path)
-{
-    if (!path.isEmpty() && QDir(path).exists() && !paths.contains(path)) {
-        paths.append(path);
-    }
-}
-
 /// The trusted PlasmaZones overlay roots, in QStandardPaths priority order
 /// (user first). NOT the same order as ShaderRegistry::searchPaths(), which is
 /// this list reversed.
@@ -47,18 +39,23 @@ inline QStringList trustedShaderRoots()
 /// this walk by hand.
 inline QStringList expandShaderIncludePaths(const QStringList& inputPaths = {})
 {
-    QStringList expanded;
-    for (const QString& root : trustedShaderRoots()) {
-        appendUniquePath(expanded, root + QStringLiteral("/shared"));
-        appendUniquePath(expanded, root);
-    }
-    // Preserve caller-provided include paths, but do not infer arbitrary parent
-    // directories from them.
+    // The bases: the trusted roots, then each caller path as a directory (a
+    // file stands for the directory holding it). Nothing above a caller's
+    // path is ever searched.
+    QStringList bases = trustedShaderRoots();
     for (const QString& path : inputPaths) {
-        const QFileInfo info(path);
-        const QString dir = info.isFile() ? info.absolutePath() : info.absoluteFilePath();
-        appendUniquePath(expanded, dir + QStringLiteral("/shared"));
-        appendUniquePath(expanded, dir);
+        const QFileInfo given(path);
+        bases.append(given.isFile() ? given.absolutePath() : given.absoluteFilePath());
+    }
+    // Each base offers its shared/ subdirectory ahead of itself; a directory
+    // is kept once, at its first offer, and only if it exists.
+    QStringList expanded;
+    for (const QString& base : std::as_const(bases)) {
+        for (const QString& dir : {QString(base + QStringLiteral("/shared")), base}) {
+            if (!dir.isEmpty() && !expanded.contains(dir) && QDir(dir).exists()) {
+                expanded.append(dir);
+            }
+        }
     }
     return expanded;
 }

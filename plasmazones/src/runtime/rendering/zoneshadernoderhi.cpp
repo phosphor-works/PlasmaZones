@@ -5,11 +5,6 @@
 
 #include <PhosphorRendering/ShaderCompiler.h>
 
-#include <QDir>
-#include <QFileInfo>
-#include <QFile>
-#include <QStandardPaths>
-
 namespace PlasmaZones {
 
 PhosphorRendering::WarmShaderBakeResult
@@ -23,9 +18,10 @@ warmShaderBakeCacheForPaths(const QString& vertexPath, const QString& fragmentPa
         return result;
     }
 
-    const QStringList expandedPaths = expandShaderIncludePaths(includePaths);
-
-    return PhosphorRendering::warmShaderBakeCacheForPaths(vertexPath, fragmentPath, expandedPaths, paramPreamble,
+    // The bake resolves #include against the bundled shared/ directories too,
+    // as the live render node does.
+    return PhosphorRendering::warmShaderBakeCacheForPaths(vertexPath, fragmentPath,
+                                                          expandShaderIncludePaths(includePaths), paramPreamble,
                                                           entryPrologue, entryCandidates);
 }
 

@@ -76,21 +76,20 @@ void OverlayService::assertWindowOnScreen(QWindow* window, QScreen* screen, cons
 
 void OverlayService::handleScreenAdded(QScreen* screen)
 {
-    if (!screen) {
+    if (screen == nullptr) {
         return;
     }
 
-    // Always attempt to recreate overlay windows for reconnected screens,
-    // even when m_visible is false. This handles monitor power-cycle recovery:
-    // screenRemoved clears the ShellHost creation-failure sentinels
-    // (m_shellHost->clearFailure() per prefix-matched id), so when the
-    // screen comes back we must retry shell creation. If m_visible is true the
-    // existing path also shows the overlay; if false we just ensure the
-    // windows exist so the next showAtPosition call finds them ready.
-    const bool wasVisible = m_visible;
-    if (!wasVisible) {
-        m_visible = true; // transient - reset at the end of this function when the daemon was at rest
-    }
+    // A screen that comes back (a monitor powered off and on, for one) gets its
+    // overlay surfaces built again whether or not the overlay is showing.
+    // screenRemoved cleared the ShellHost's creation failures for its ids
+    // (clearFailure per prefix-matched id), so building them here is the
+    // retry. With the overlay showing they show as usual; at rest they are
+    // only made ready for the next showAtPosition. The create path builds
+    // only while m_visible is set, so it is set for this call and put back
+    // at the end.
+    const bool atRest = !m_visible;
+    m_visible = true;
 
     const QString physScreenId = PhosphorScreens::ScreenIdentity::identifierFor(screen);
 
@@ -147,7 +146,7 @@ void OverlayService::handleScreenAdded(QScreen* screen)
     // isOverlayDisplaying() reports a resting daemon as displaying and a
     // later settings-driven syncCavaState spins up the CAVA capture on a
     // blanked overlay.
-    if (!wasVisible) {
+    if (atRest) {
         m_visible = false;
     }
 }
