@@ -235,7 +235,7 @@ void OverlayService::wirePassiveShellSlots(const QString& screenId, PhosphorOver
 void OverlayService::warmUpNotifications()
 {
     const QStringList effectiveIds = (m_screenManager ? m_screenManager->effectiveScreenIds() : QStringList());
-    int createdCount = 0;
+    qsizetype warmed = 0;
     for (const QString& sid : effectiveIds) {
         // effectiveIds is empty unless m_screenManager is non-null, so the
         // loop body only runs when it is.
@@ -243,12 +243,12 @@ void OverlayService::warmUpNotifications()
         if (physScreen) {
             auto* state = ensurePassiveShellFor(sid, physScreen);
             if (state && state->shell && state->shell->shellSurface()) {
-                ++createdCount;
+                ++warmed;
             }
         }
     }
     m_notificationsWarmed = true;
-    qCInfo(lcOverlay) << "Pre-warmed passive overlay shell windows for" << createdCount << "of" << effectiveIds.size()
+    qCInfo(lcOverlay) << "Pre-warmed passive overlay shell windows for" << warmed << "of" << effectiveIds.size()
                       << "effective screens";
     ensureOsdScreenAddedConnected();
 }
