@@ -167,10 +167,11 @@ public:
     // so a host binds them after init() and drops its bindings before the next.
 
     /// The host's dynamic-workspaces policy. Not owned; null keeps the feature off.
-    void setWorkspaceHost(IWorkspaceHost* host)
-    {
-        m_workspaceHost = host;
-    }
+    void setWorkspaceHost(IWorkspaceHost* host);
+    /// The workspace host's consent or takeover preference changed. The feature
+    /// starts if the consent lets it, and a running one takes the stock
+    /// shortcuts over or gives them back.
+    void workspaceHostPreferencesChanged();
     /// The desktop's own text OSD. Not owned; null shows none.
     void setSystemOsd(ISystemOsd* osd)
     {
@@ -716,15 +717,22 @@ private:
     void captureScrollingOrders(const QSet<QString>& scrollingScreens);
     void initializeUnifiedController();
     /// Construct + wire the dynamic-workspaces controller. Called from start()
-    /// and re-entered by the settings rearm (workspacesEnabled or
-    /// workspacesManageKWinPerOutput changed on a running daemon). Its first
-    /// call connects that rearm whatever the gate says. It builds the
-    /// controller only when the workspacesEnabled setting is on and KWin's
-    /// per-output virtual desktops are on, or are off with consent to manage
-    /// them (workspacesManageKWinPerOutput), in which case it turns them on in
-    /// kwinrc first. Otherwise, or with a controller already up, it builds
-    /// nothing and the daemon behaves as without the feature.
+    /// and re-entered by rearmWorkspaces(). Its first call connects the
+    /// workspacesEnabled rearm whatever the gate says. It builds the
+    /// controller only when the workspacesEnabled setting is on and the
+    /// compositor's per-output desktops are on, or are off with the host's
+    /// consent to turn them on (IWorkspaceHost::perOutputDesktopsConsented),
+    /// in which case the host turns them on first. Otherwise, or with a
+    /// controller already up, it builds nothing and the daemon behaves as
+    /// without the feature.
     void initializeWorkspaces();
+    /// Start or stop the feature to match the workspacesEnabled setting and
+    /// the host's consent, on a running runtime only.
+    void rearmWorkspaces();
+    /// Hand the compositor's stock desktop-switch shortcuts to the feature or
+    /// back, as the host's takeover preference says. Only while a controller
+    /// runs: a stopped or dormant feature gives them back on its own.
+    void applyStockDesktopShortcutTakeover();
     /// Teardown for initializeWorkspaces. Called from stop() (a started daemon
     /// only) and from the settings rearm when the feature is switched off at
     /// runtime. With a controller up it severs the wiring, drops the adhoc

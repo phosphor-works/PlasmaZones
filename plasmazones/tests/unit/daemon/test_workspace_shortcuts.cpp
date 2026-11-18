@@ -17,6 +17,7 @@
 
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/shortcutmanager_ids.h"
+#include "runtime/host/iworkspacehost.h"
 
 #include "config/configdefaults.h"
 #include "config/settings.h"
@@ -177,6 +178,43 @@ QSet<QString> workspaceRowIds(const QVariantList& rows)
     return out;
 }
 
+/// A workspace host whose stock-shortcut takeover preference the test sets.
+class TakeoverHost : public PlasmaZones::IWorkspaceHost
+{
+public:
+    bool takeoverWanted = true;
+
+    bool supportsDynamicWorkspaces() const override
+    {
+        return true;
+    }
+    bool perOutputDesktopsConfigured() const override
+    {
+        return true;
+    }
+    bool perOutputDesktopsConsented() const override
+    {
+        return false;
+    }
+    bool enablePerOutputDesktops() override
+    {
+        return false;
+    }
+    void perOutputDesktopsConsentUsed() override
+    {
+    }
+    bool stockDesktopShortcutsTakeoverWanted() const override
+    {
+        return takeoverWanted;
+    }
+    void takeOverStockDesktopShortcuts() override
+    {
+    }
+    void restoreStockDesktopShortcuts() override
+    {
+    }
+};
+
 } // namespace
 
 class TestWorkspaceShortcuts : public QObject
@@ -306,8 +344,9 @@ private Q_SLOTS:
         QStringList unregisters;
         QStringList suspends;
         Settings settings;
-        QVERIFY(settings.workspacesRebindKWinShortcuts());
+        TakeoverHost host;
         ShortcutManager manager(&settings);
+        manager.setWorkspaceHost(&host);
         manager.setBackendForTesting(std::make_unique<RecordingBackend>(&registers, &unregisters, &suspends));
         manager.registerShortcuts();
         manager.setWorkspaceFamilyActive(true);
@@ -318,7 +357,8 @@ private Q_SLOTS:
 
         suspends.clear();
         registers.clear();
-        settings.setWorkspacesRebindKWinShortcuts(false);
+        host.takeoverWanted = false;
+        manager.updateShortcuts();
         QCOMPARE(toSet(suspends), (QSet<QString>{focusUp, focusDown}));
         QVERIFY(rowById(manager.cheatsheetModel(), focusUp).isEmpty());
         QVERIFY(rowById(manager.cheatsheetModel(), focusDown).isEmpty());
@@ -336,7 +376,8 @@ private Q_SLOTS:
         QVERIFY(rowById(manager.cheatsheetModel(), focusDown).isEmpty());
 
         registers.clear();
-        settings.setWorkspacesRebindKWinShortcuts(true);
+        host.takeoverWanted = true;
+        manager.updateShortcuts();
         QCOMPARE(registers, QStringList{focusDown});
         QVERIFY(!rowById(manager.cheatsheetModel(), focusDown).isEmpty());
         QVERIFY(unregisters.isEmpty());
