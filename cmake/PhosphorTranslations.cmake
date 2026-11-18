@@ -57,15 +57,17 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
     # natively, the same way the qsTr glob below serves its QML.
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-control/src/*.cpp"
 )
-# The engine runtime's C++ is NOT in PlasmaZones' catalog: it translates under
-# its own context (RuntimeI18n, runtime/common/runtimei18n.h) into its own
-# catalog, phosphor-engine-runtime_<lang>.ts, which goes with it into
-# phosphor-libs. Its QML still resolves through PlasmaZones' QML context and
-# stays in the glob below until the overlay's QML moves with it.
+# The engine runtime is NOT in PlasmaZones' catalog. Its C++ translates under
+# its own context (RuntimeI18n, runtime/common/runtimei18n.h), and its overlay
+# QML (src/ui, loaded only by the runtime's overlay engine) through qsTr(), each
+# file's name its context, into its own catalog,
+# phosphor-engine-runtime_<lang>.ts, which goes with it into phosphor-libs.
+# lupdate reads qsTr() natively, so the overlay QML needs no stub step.
 list(FILTER PLASMAZONES_I18N_SOURCES EXCLUDE REGEX "/plasmazones/src/runtime/")
 file(GLOB_RECURSE PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.cpp"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.h"
+    "${CMAKE_SOURCE_DIR}/plasmazones/src/ui/*.qml"
 )
 file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/src/*.qml"
@@ -77,6 +79,8 @@ file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
     # whole file exists to prevent.
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-control/qml/*.qml"
 )
+# The overlay QML is the runtime's (above), and calls qsTr() rather than i18n().
+list(FILTER PLASMAZONES_I18N_QML EXCLUDE REGEX "/plasmazones/src/ui/")
 
 # phosphor-control's QML is ALSO handed to lupdate raw, below. Its chrome
 # (the apply/discard footer, sidebar, breadcrumbs, page-loading placeholder)
@@ -128,12 +132,13 @@ file(GLOB _all_ts_files CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/plasmazones/trans
 set(TRANSLATION_TS_FILES ${_all_ts_files})
 list(FILTER TRANSLATION_TS_FILES EXCLUDE REGEX "plasmazones_en\\.ts$")
 
-# The engine runtime's catalog, same layout: phosphor-engine-runtime_<lang>.ts,
-# its _en template excluded from compilation.
+# The engine runtime's catalog, same layout: phosphor-engine-runtime_<lang>.ts.
+# Unlike PlasmaZones' catalog the English one is compiled too: it holds the
+# English plural forms of the overlay's qsTr() calls that pass a count, which
+# the source text alone cannot give.
 file(GLOB _runtime_ts_files CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/translations/phosphor-engine-runtime_*.ts")
 set(RUNTIME_TRANSLATION_TS_FILES ${_runtime_ts_files})
-list(FILTER RUNTIME_TRANSLATION_TS_FILES EXCLUDE REGEX "phosphor-engine-runtime_en\\.ts$")
 
 # --- update-ts target ---
 # PhosphorI18n::tr() uses Q_DECLARE_TR_FUNCTIONS(plasmazones), so lupdate

@@ -84,7 +84,7 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                text: i18n("PlasmaZones Overlay Active\n(No zones defined)")
+                text: qsTr("PlasmaZones Overlay Active\n(No zones defined)")
                 color: Kirigami.Theme.disabledTextColor
                 font.pixelSize: Kirigami.Theme.defaultFont.pixelSize * 1.5
                 horizontalAlignment: Text.AlignHCenter

@@ -344,7 +344,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         onClicked: root._requestDismiss()
-        Accessible.name: i18n("Dismiss layout picker")
+        Accessible.name: qsTr("Dismiss layout picker")
         Accessible.role: Accessible.Button
         Accessible.onPressAction: root._requestDismiss()
     }
@@ -401,7 +401,7 @@ Item {
             anchors.top: parent.top
             anchors.topMargin: metrics.paddingSide
             anchors.horizontalCenter: parent.horizontalCenter
-            text: i18n("Choose Layout")
+            text: qsTr("Choose Layout")
             color: root.textColor
         }
 
@@ -527,7 +527,7 @@ Item {
             // buttons whose inner one had no action behind it. Gated on the
             // lock alone, like the press action and cursor: the ACTIVE card
             // has no overlay but is just as inert while locked.
-            Accessible.description: root.locked ? i18nc("@info:whatsthis layout picker lock overlay", "Layout is locked. Unlock the current layout before switching to another one.") : ""
+            Accessible.description: root.locked ? qsTr("Layout is locked. Unlock the current layout before switching to another one.", "@info:whatsthis layout picker lock overlay") : ""
             Accessible.focusable: true
             Accessible.selected: layoutCard.isSelected
             // The cards are this surface's primary control and assistive tech

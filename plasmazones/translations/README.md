@@ -8,11 +8,14 @@ There are two catalogs. `plasmazones_<lang>.ts` is the application's.
 `phosphor-engine-runtime_<lang>.ts` is the engine runtime's
 (`plasmazones/src/runtime/`): its C++ calls `RuntimeI18n::tr()` and its
 shortcut names are marked `QT_TRANSLATE_NOOP("PhosphorEngineRuntime", ...)`,
-all under the `PhosphorEngineRuntime` context. It installs to
+under the `PhosphorEngineRuntime` context. It installs to
 `share/phosphor-engine-runtime/translations`, the daemon loads it with
 `loadRuntimeTranslations()`, and it goes with the runtime into phosphor-libs.
-The runtime's QML still translates through the application's catalog until
-the overlay QML moves too. `update-ts` refreshes both.
+The overlay QML (`plasmazones/src/ui`, which only the runtime's overlay engine
+loads) is in it too: it calls `qsTr()`, so each file's name is its context and
+lupdate reads it directly. Its English catalog is compiled, unlike the
+application's, because it holds the English plural forms of the `qsTr()` calls
+that pass a count. `update-ts` refreshes both catalogs.
 
 ## File layout
 

@@ -90,14 +90,14 @@ Item {
     /// reason tokens across actions, so the shared strings are defined once
     /// at the top and each action branch overrides only what differs.
     function failureMessage(): string {
-        const noWindowText = i18n("No window is focused");
-        const noLayoutText = i18n("No zone layout on this screen");
-        const unavailableText = i18n("Zone navigation is unavailable");
+        const noWindowText = qsTr("No window is focused");
+        const noLayoutText = qsTr("No zone layout on this screen");
+        const unavailableText = qsTr("Zone navigation is unavailable");
         const isInternalReason = reason === "engine_unavailable" || reason === "invalid_direction" || reason === "geometry_error" || reason === "no_zone_detection";
         if (reason === "excluded") {
             // Shared by move/swap/push/snap/span: the focused window
             // is excluded by a rule or below the minimum size.
-            return i18n("This window is excluded from snapping");
+            return qsTr("This window is excluded from snapping");
         }
         if (action === "move" || action === "focus" || action === "span") {
             // Layout-level failures are not a direction problem: telling
@@ -113,33 +113,33 @@ Item {
                 return noWindowText;
 
             if (reason === "not_snapped")
-                return i18n("Window is not in a zone");
+                return qsTr("Window is not in a zone");
 
             // Autotile emits not_tiled for a focused-but-floating
             // window; only "move" reaches here (swap has its own branch).
             if (reason === "not_tiled")
-                return i18n("Window is floating");
+                return qsTr("Window is floating");
 
             if (reason === "no_window_in_zone" || reason === "no_neighbor")
-                return i18n("No window in that direction");
+                return qsTr("No window in that direction");
 
             // The scroll engine's universal "the strip has nothing there"
             // refusal: pressing move/focus at the strip's edge is the
             // ordinary single-monitor case, and the zone fallthrough below
             // would name zones a scrolling screen does not have.
             if (reason === "no_target")
-                return i18n("No window in that direction");
+                return qsTr("No window in that direction");
 
             if (reason === "swap_failed")
-                return i18n("Could not move the window");
+                return qsTr("Could not move the window");
 
             if (action === "span" && reason === "not_supported")
-                return i18n("Spanning is not available in this mode");
+                return qsTr("Spanning is not available in this mode");
 
             if (isInternalReason)
                 return unavailableText;
 
-            return i18n("No zone in that direction");
+            return qsTr("No zone in that direction");
         } else if (action === "push") {
             if (reason === "no_window")
                 return noWindowText;
@@ -148,12 +148,12 @@ Item {
             // zone fallthrough below would wrongly promise an empty zone
             // exists in modes that have no zones.
             if (reason === "not_supported")
-                return i18n("Pushing to an empty zone is not available in this mode");
+                return qsTr("Pushing to an empty zone is not available in this mode");
 
             if (isInternalReason)
                 return unavailableText;
 
-            return i18n("No empty zone available");
+            return qsTr("No empty zone available");
         } else if (action === "snap") {
             if (reason === "no_window" || reason === "no_focus" || reason === "no_windows")
                 return noWindowText;
@@ -162,20 +162,20 @@ Item {
                 return noLayoutText;
 
             if (reason === "invalid_zone_number" || reason === "zone_not_found")
-                return i18n("No zone with that number");
+                return qsTr("No zone with that number");
 
             if (reason === "already_at_position")
-                return i18n("Window is already in that position");
+                return qsTr("Window is already in that position");
 
             // Autotile: the focused window is a float, so a tiled-position
             // digit has nothing to reorder (same phrasing as the swap arm).
             if (reason === "not_tiled")
-                return i18n("Window is floating");
+                return qsTr("Window is floating");
 
             // Scrolling: the digit named a strip position that does not
             // exist right now.
             if (reason === "no_target")
-                return i18n("No window in that position");
+                return qsTr("No window in that position");
 
             return unavailableText;
         } else if (action === "float") {
@@ -186,7 +186,7 @@ Item {
                 return noWindowText;
 
             if (reason === "no_pre_float_zone")
-                return i18n("No zone to return to");
+                return qsTr("No zone to return to");
 
             // The floating/tiling focus switch (all three engines) and
             // scrolling's explicit float verb: the layer asked for has no
@@ -198,21 +198,21 @@ Item {
             // token would be the exact fix, at the cost of a producer
             // vocabulary split).
             if (reason === "no_target")
-                return i18n("No window to switch to");
+                return qsTr("No window to switch to");
 
             // Also absorbs three named producer tokens the copy reads
             // correctly for: not_managed (snap + scroll engines' untracked
             // window), no_focused_screen and no_screen (autotile facade).
-            return i18n("Floating is unavailable");
+            return qsTr("Floating is unavailable");
         } else if (action === "cycle") {
             if (reason === "single_window")
-                return i18n("No other window in this zone");
+                return qsTr("No other window in this zone");
 
             if (reason === "no_neighbor" || reason === "no_target")
-                return i18n("No other window");
+                return qsTr("No other window");
 
             if (reason === "not_snapped")
-                return i18n("Window is not in a zone");
+                return qsTr("Window is not in a zone");
 
             if (isInternalReason)
                 return unavailableText;
@@ -225,12 +225,12 @@ Item {
             if (isInternalReason)
                 return unavailableText;
 
-            return i18n("Nothing to restore");
+            return qsTr("Nothing to restore");
         } else if (action === "resnap") {
             if (reason === "no_active_layout")
                 return noLayoutText;
 
-            return i18n("No windows to rearrange");
+            return qsTr("No windows to rearrange");
         } else if (action === "master_ratio" || action === "master_count") {
             // The producer deliberately reports success=false at the
             // clamp bound while still carrying the clamped value in the
@@ -238,7 +238,7 @@ Item {
             // instead of a generic failure.
             const boundParts = reason.split(":");
             if (boundParts.length >= 2)
-                return action === "master_ratio" ? i18n("Master ratio at limit (%1%)", boundParts[1]) : i18n("Master count at limit (%1)", boundParts[1]);
+                return action === "master_ratio" ? qsTr("Master ratio at limit (%1%)").arg(boundParts[1]) : qsTr("Master count at limit (%1)").arg(boundParts[1]);
 
             return noWindowText;
         } else if (action === "rotate") {
@@ -248,34 +248,34 @@ Item {
             if (isInternalReason)
                 return unavailableText;
 
-            return i18n("Nothing to rotate");
+            return qsTr("Nothing to rotate");
         } else if (action === "swap") {
             if (reason === "no_window" || reason === "no_focus" || reason === "no_windows")
                 return noWindowText;
 
             if (reason === "not_snapped")
-                return i18n("Window is not in a zone");
+                return qsTr("Window is not in a zone");
 
             if (reason === "not_tiled")
-                return i18n("Window is floating");
+                return qsTr("Window is floating");
 
             if (reason === "swap_failed")
-                return i18n("Could not swap windows");
+                return qsTr("Could not swap windows");
 
             if (reason === "no_neighbor")
-                return i18n("No window in that direction");
+                return qsTr("No window in that direction");
 
             if (reason === "no_adjacent_zone")
-                return i18n("No zone in that direction");
+                return qsTr("No zone in that direction");
 
             if (isInternalReason)
                 return unavailableText;
 
-            return i18n("Nothing to swap");
+            return qsTr("Nothing to swap");
         } else if (action === "snap_assist") {
             // Sole live reason is window_not_found: the picked window
             // vanished before placement.
-            return i18n("That window is no longer available");
+            return qsTr("That window is no longer available");
         } else if (action === "snap_all") {
             // Mode-neutral on purpose: BOTH producers reach this arm — the
             // scrolling strip emits navigationFeedback directly, and snap's
@@ -284,22 +284,22 @@ Item {
             // not told the mode. Same resolution as the shortcut's neutral
             // "Arrange All Windows" label in the catalog.
             if (reason === "no_unsnapped_windows")
-                return i18n("All windows are already arranged");
+                return qsTr("All windows are already arranged");
 
-            return i18n("Could not arrange the windows");
+            return qsTr("Could not arrange the windows");
         } else if (action === "swap_vs") {
             if (reason === "no_subdivision" || reason === "not_virtual")
-                return i18n("No virtual screen split on this monitor");
+                return qsTr("No virtual screen split on this monitor");
 
             if (reason === "unknown_vs")
-                return i18n("Virtual screen no longer exists");
+                return qsTr("Virtual screen no longer exists");
 
             // Internal write/validation errors are not a topology fact;
             // only no_sibling means there is genuinely no neighbour.
             if (reason === "swap_failed" || reason === "settings_rejected" || reason === "no_config_store" || reason === "invalid_direction")
-                return i18n("Virtual screen swap failed");
+                return qsTr("Virtual screen swap failed");
 
-            return i18n("No adjacent virtual screen");
+            return qsTr("No adjacent virtual screen");
         } else if (action === "rotate_vs") {
             // Mirror swap_vs: both "not_virtual" (caller passed a
             // non-physical id) and "no_subdivision" (monitor has <2 VSs,
@@ -307,13 +307,13 @@ Item {
             // facing reason. Divergence here produced confusing copy
             // when rotating on an unsplit monitor vs swapping on one.
             if (reason === "not_virtual" || reason === "no_subdivision")
-                return i18n("No virtual screen split on this monitor");
+                return qsTr("No virtual screen split on this monitor");
 
             // Same internal-error split as swap_vs above.
             if (reason === "swap_failed" || reason === "settings_rejected" || reason === "no_config_store" || reason === "invalid_direction")
-                return i18n("Virtual screen rotation failed");
+                return qsTr("Virtual screen rotation failed");
 
-            return i18n("No virtual screens to rotate");
+            return qsTr("No virtual screens to rotate");
         } else if (action === "layout") {
             // Daemon-level gate: a layout-selection shortcut (picker, cycle,
             // quick slot, layout lock) fired on a screen whose engine has no
@@ -324,7 +324,7 @@ Item {
             // fallthrough keeps any future reason from rendering the generic
             // "Failed".
             if (reason === "no_templates")
-                return i18n("No column templates available");
+                return qsTr("No column templates available");
 
             // A quick slot whose bound layout the picker no longer offers on
             // this screen (hidden from the selector, excluded by an
@@ -332,28 +332,28 @@ Item {
             // longer installed). Distinct from the capability cases above:
             // the mode is fine, the binding is not.
             if (reason === "slot_unavailable")
-                return i18n("That layout is not available on this screen");
+                return qsTr("That layout is not available on this screen");
 
-            return i18n("Layouts are not available in this mode");
+            return qsTr("Layouts are not available in this mode");
         } else if (action === "resize") {
             // Scrolling width AND height verbs share this token, so the
             // copy names neither a column nor a window. no_target for the
             // preset cycle means the vocabulary offers no other value (a
             // single-entry template list is refused by design, not broken).
             if (reason === "no_target")
-                return i18n("Already at that size");
+                return qsTr("Already at that size");
 
             if (reason === "no_window" || reason === "no_windows" || reason === "no_focus")
                 return noWindowText;
 
-            return i18n("Resizing is unavailable");
+            return qsTr("Resizing is unavailable");
         } else if (action === "tabbed") {
             // no_target: the producer's changed=false leg (toggleActiveColumnTabbed
             // refuses only when no column is focused), same as the fullscreen twin.
             if (reason === "no_window" || reason === "no_windows" || reason === "no_focus" || reason === "no_target")
                 return noWindowText;
 
-            return i18n("Tabbing is unavailable");
+            return qsTr("Tabbing is unavailable");
         } else if (action === "fullscreen") {
             // no_target is NOT the same answer as an empty strip here. The
             // producer sends it only when the float layer holds focus, which
@@ -363,7 +363,7 @@ Item {
             // carries the floating window's id rather than a display name, so
             // the message names the state instead of the window.
             if (reason === "no_target")
-                return i18n("The focused window is floating, so it has no column to fill");
+                return qsTr("The focused window is floating, so it has no column to fill");
 
             if (reason === "no_window" || reason === "no_windows" || reason === "no_focus")
                 return noWindowText;
@@ -371,12 +371,12 @@ Item {
             // Unreachable today (the producer emits only the reasons above);
             // kept as the arm's fallthrough against a future producer reason,
             // mirroring the "Tabbing is unavailable" arm's shape.
-            return i18n("Windowed fullscreen is unavailable");
+            return qsTr("Windowed fullscreen is unavailable");
         } else if (action === "consume" || action === "expel") {
             if (reason === "no_window" || reason === "no_windows" || reason === "no_focus")
                 return noWindowText;
 
-            return i18n("No window to move between columns");
+            return qsTr("No window to move between columns");
         } else if (action === "center") {
             if (reason === "no_window" || reason === "no_windows" || reason === "no_focus")
                 return noWindowText;
@@ -384,7 +384,7 @@ Item {
             // Both centering verbs (single column and the visible group)
             // collapse onto one no_target token at the producer, so the
             // copy stays count-neutral.
-            return i18n("Already centered");
+            return qsTr("Already centered");
         } else if (action === "scroll") {
             if (reason === "no_window" || reason === "no_windows" || reason === "no_focus")
                 return noWindowText;
@@ -392,10 +392,10 @@ Item {
             // A step too small to reach a pixel (a 1% step on a tiny work
             // area) is its own refusal, not the strip's end.
             if (reason === "no_movement")
-                return i18n("The scroll step is too small to move the view");
+                return qsTr("The scroll step is too small to move the view");
 
             // The pan is pinned at the strip's end in the pressed direction.
-            return i18n("Already at the end of the strip");
+            return qsTr("Already at the end of the strip");
         } else if (action === "retile") {
             // The scrolling arm of Retile reports through the engine's
             // shared verb feedback, so it can refuse like any other strip
@@ -405,9 +405,9 @@ Item {
                 return noWindowText;
 
             if (reason === "no_target")
-                return i18n("Columns are already at their default sizes");
+                return qsTr("Columns are already at their default sizes");
 
-            return i18n("Could not refresh the layout");
+            return qsTr("Could not refresh the layout");
         } else if (action === "focus_master") {
             // Unreachable today (the sole producer emits only no_windows);
             // kept as the arm's routing for a future internal token,
@@ -415,10 +415,10 @@ Item {
             if (isInternalReason)
                 return unavailableText;
 
-            return i18n("No windows to focus");
+            return qsTr("No windows to focus");
         } else if (action === "swap_master") {
             if (reason === "already_master")
-                return i18n("Already in master position");
+                return qsTr("Already in master position");
 
             if (reason === "no_focus")
                 return noWindowText;
@@ -426,11 +426,11 @@ Item {
             // The focused window is a float; promoting it to master would
             // reorder nothing on screen (same phrasing as the swap arm).
             if (reason === "not_tiled")
-                return i18n("Window is floating");
+                return qsTr("Window is floating");
 
-            return i18n("Nothing to swap");
+            return qsTr("Nothing to swap");
         } else
-            return i18n("Failed");
+            return qsTr("Failed");
     }
 
     /// Success copy for the current action, including the zone numbers and
@@ -448,62 +448,62 @@ Item {
         if (action === "rotate") {
             const arrow = rotationArrow(reason);
             if (windowCount > 1)
-                return glyphed(arrow, i18np("Rotated %n window", "Rotated %n windows", windowCount));
+                return glyphed(arrow, qsTr("Rotated %n window", "", windowCount));
             else
-                return glyphed(arrow, i18n("Rotated"));
+                return glyphed(arrow, qsTr("Rotated"));
         } else if (action === "move") {
             const moveArrow = directionArrow(reason);
             if (targetZoneNumber > 0)
-                return glyphed(moveArrow, i18n("Zone %1", targetZoneNumber));
+                return glyphed(moveArrow, qsTr("Zone %1").arg(targetZoneNumber));
 
-            return glyphed(moveArrow, i18n("Moved"));
+            return glyphed(moveArrow, qsTr("Moved"));
         } else if (action === "span") {
             // reason format: "grow:right", "shrink:left", or "snap:right"
             // (the last one when span snapped a previously unsnapped window)
             const spanArrow = directionArrow(reason);
             if (reason.indexOf("grow") === 0) {
                 if (targetZoneNumber > 0)
-                    return glyphed(spanArrow, i18n("Extended into Zone %1", targetZoneNumber));
+                    return glyphed(spanArrow, qsTr("Extended into Zone %1").arg(targetZoneNumber));
 
-                return glyphed(spanArrow, i18n("Span extended"));
+                return glyphed(spanArrow, qsTr("Span extended"));
             }
             if (reason.indexOf("snap") === 0) {
                 if (targetZoneNumber > 0)
-                    return glyphed(spanArrow, i18n("Snapped into Zone %1", targetZoneNumber));
+                    return glyphed(spanArrow, qsTr("Snapped into Zone %1").arg(targetZoneNumber));
 
-                return glyphed(spanArrow, i18nc("@info:status the window was snapped into a zone", "Snapped"));
+                return glyphed(spanArrow, qsTr("Snapped", "@info:status the window was snapped into a zone"));
             }
-            return glyphed(spanArrow, i18n("Span reduced"));
+            return glyphed(spanArrow, qsTr("Span reduced"));
         } else if (action === "focus") {
             // A directional press whose focus was not in the tiled set enters
             // at the master rather than travelling, and says so.
             if (reason === "master")
-                return i18n("Focus on the master window");
+                return qsTr("Focus on the master window");
 
             // An absolute tab ordinal, so there is no direction to draw. It
             // needs its own arm because directionArrow() defaults to a right
             // arrow, which would point somewhere the focus did not go.
             if (reason === "tab")
-                return i18nc("@info:status focus moved to a numbered tab", "Focus on the tab");
+                return qsTr("Focus on the tab", "@info:status focus moved to a numbered tab");
 
             const focusArrow = directionArrow(reason);
             if (targetZoneNumber > 0)
-                return glyphed(focusArrow, i18n("Focus on Zone %1", targetZoneNumber));
+                return glyphed(focusArrow, qsTr("Focus on Zone %1").arg(targetZoneNumber));
 
-            return glyphed(focusArrow, i18nc("@info:status focus moved in the pressed direction", "Focus"));
+            return glyphed(focusArrow, qsTr("Focus", "@info:status focus moved in the pressed direction"));
         } else if (action === "swap") {
             const swapArrow = directionArrow(reason);
             if (sourceZoneNumber > 0 && targetZoneNumber > 0)
-                return glyphed(swapArrow, i18n("Zone %1 ↔ Zone %2", sourceZoneNumber, targetZoneNumber));
+                return glyphed(swapArrow, qsTr("Zone %1 ↔ Zone %2").arg(sourceZoneNumber).arg(targetZoneNumber));
 
-            return glyphed(swapArrow, i18n("Swapped"));
+            return glyphed(swapArrow, qsTr("Swapped"));
         } else if (action === "push") {
             if (targetZoneNumber > 0)
-                return glyphed("→", i18n("Zone %1", targetZoneNumber));
+                return glyphed("→", qsTr("Zone %1").arg(targetZoneNumber));
 
-            return i18n("Window pushed");
+            return qsTr("Window pushed");
         } else if (action === "restore") {
-            return i18nc("@info:status the window's previous position was restored", "Restored");
+            return qsTr("Restored", "@info:status the window's previous position was restored");
         } else if (action === "float") {
             // Show different message based on float state from reason field.
             // The "tiled" arm and the "Floating" fallthrough at the bottom
@@ -514,46 +514,46 @@ Item {
             // token split (the same tradeoff the no_target comment above
             // weighs and declines).
             if (reason === "tiled")
-                return i18nc("@info:status the window is now tiled (adjective, not a verb)", "Tiled");
+                return qsTr("Tiled", "@info:status the window is now tiled (adjective, not a verb)");
 
             if (reason === "unfloated")
-                return i18nc("@info:status the window was snapped into a zone", "Snapped");
+                return qsTr("Snapped", "@info:status the window was snapped into a zone");
 
             // The snap engine's floating/snapped focus switch: focus moved
             // to the zone layer, which snap users know as "snapped", not
             // "tiled".
             if (reason === "snapped")
-                return i18nc("@info:status the snapped layer took focus", "Snapped");
+                return qsTr("Snapped", "@info:status the snapped layer took focus");
 
             // Autotile auto-floats windows that overflow the layout; the
             // generic copy would read as a deliberate float of the focused
             // window.
             if (reason === "overflow")
-                return i18n("Extra windows moved out of the layout");
+                return qsTr("Extra windows moved out of the layout");
 
-            return i18nc("@info:status the window is now floating (adjective, not a verb)", "Floating");
+            return qsTr("Floating", "@info:status the window is now floating (adjective, not a verb)");
         } else if (action === "snap") {
             if (targetZoneNumber > 0)
-                return i18n("Snapped into Zone %1", targetZoneNumber);
+                return qsTr("Snapped into Zone %1").arg(targetZoneNumber);
 
-            return i18nc("@info:status the window was snapped into a zone", "Snapped");
+            return qsTr("Snapped", "@info:status the window was snapped into a zone");
         } else if (action === "cycle") {
-            return i18n("Next window");
+            return qsTr("Next window");
         } else if (action === "focus_master") {
-            return i18n("Focused the master window");
+            return qsTr("Focused the master window");
         } else if (action === "swap_master") {
-            return i18n("Swapped with master window");
+            return qsTr("Swapped with master window");
         } else if (action === "master_ratio") {
             // reason format: "increased:65" or "decreased:60"
             const parts = reason.split(":");
             const pct = parts.length >= 2 ? parts[1] : "";
-            return pct ? i18n("Master ratio → %1%", pct) : i18n("Master ratio changed");
+            return pct ? qsTr("Master ratio → %1%").arg(pct) : qsTr("Master ratio changed");
         } else if (action === "master_count") {
             const parts = reason.split(":");
             const count = parts.length >= 2 ? parts[1] : "";
-            return count ? i18n("Master count → %1", count) : i18n("Master count changed");
+            return count ? qsTr("Master count → %1").arg(count) : qsTr("Master count changed");
         } else if (action === "retile") {
-            return i18n("Layout refreshed");
+            return qsTr("Layout refreshed");
         } else if (action === "resize") {
             // "equalize" and "equalize_heights" are the two group sizing
             // verbs' reasons: each rewrote a whole group, so the
@@ -562,47 +562,47 @@ Item {
             // reading the other's token announces the wrong thing. The bare
             // reason is every other width and height verb.
             if (reason === "equalize")
-                return i18n("Column widths equalized");
+                return qsTr("Column widths equalized");
 
             if (reason === "equalize_heights")
-                return i18n("Window heights equalized");
+                return qsTr("Window heights equalized");
 
-            return i18nc("@info:status the window was resized", "Resized");
+            return qsTr("Resized", "@info:status the window was resized");
         } else if (action === "tabbed") {
-            return i18n("Tabbed display toggled");
+            return qsTr("Tabbed display toggled");
         } else if (action === "fullscreen") {
             // The producer reads the resulting state back off the strip and
             // sends it as the reason, so the OSD can say which way the
             // toggle went (an empty reason would only support a generic
             // "toggled").
             if (reason === "off")
-                return i18n("Windowed fullscreen off");
+                return qsTr("Windowed fullscreen off");
 
-            return i18n("Windowed fullscreen on");
+            return qsTr("Windowed fullscreen on");
         } else if (action === "consume") {
-            return i18n("Window moved between columns");
+            return qsTr("Window moved between columns");
         } else if (action === "expel") {
-            return i18n("Window expelled into its own column");
+            return qsTr("Window expelled into its own column");
         } else if (action === "center") {
             // "span" is centerVisibleColumns' whole-group variant; the bare
             // reason is centerColumn.
             if (reason === "span")
-                return i18n("Visible columns centered");
+                return qsTr("Visible columns centered");
 
-            return i18n("Column centered");
+            return qsTr("Column centered");
         } else if (action === "scroll") {
             // The reason is the travel direction, same as the focus arm, so
             // the arrow points the way the view moved.
             const scrollArrow = directionArrow(reason);
-            return glyphed(scrollArrow, i18nc("@info:status the strip view was scrolled without moving focus", "Scrolled"));
+            return glyphed(scrollArrow, qsTr("Scrolled", "@info:status the strip view was scrolled without moving focus"));
         } else if (action === "swap_vs") {
             const vsSwapArrow = directionArrow(reason);
-            return glyphed(vsSwapArrow, i18n("Virtual screens swapped"));
+            return glyphed(vsSwapArrow, qsTr("Virtual screens swapped"));
         } else if (action === "rotate_vs") {
             const vsRotateArrow = rotationArrow(reason);
-            return glyphed(vsRotateArrow, i18n("Virtual screens rotated"));
+            return glyphed(vsRotateArrow, qsTr("Virtual screens rotated"));
         } else {
-            return i18n("Action completed");
+            return qsTr("Action completed");
         }
     }
 
@@ -659,7 +659,7 @@ Item {
     /// control the order and RTL locales mirror it. One call site for the
     /// context string, so it cannot fork into near-duplicate msgids.
     function glyphed(glyph: string, text: string): string {
-        return i18nc("@info:status glyph, then the message it labels", "%1 %2", glyph, text);
+        return qsTr("%1 %2", "@info:status glyph, then the message it labels").arg(glyph).arg(text);
     }
 
     /// Rotation direction glyph. Separate from directionArrow, which maps the
@@ -696,7 +696,7 @@ Item {
     // parent that carries the content, so it needs the role too.
     Accessible.role: Accessible.StaticText
     Accessible.name: root.messageText
-    Accessible.description: i18n("Brief feedback for keyboard window and layout actions")
+    Accessible.description: qsTr("Brief feedback for keyboard window and layout actions")
 
     // Auto-dismiss timer + idempotency latch. See OsdDismissable.qml for
     // why the latch is needed (timer-fire and click both race to dismiss).
@@ -799,7 +799,7 @@ Item {
         anchors.fill: container
         onClicked: dismiss.fire()
         Accessible.role: Accessible.Button
-        Accessible.name: i18n("Dismiss notification")
+        Accessible.name: qsTr("Dismiss notification")
         // Without a press action an assistive client can see the button but
         // not activate it — same call the click handler makes, same wiring
         // as every sibling dismiss surface (picker, cheatsheet, snap assist).
