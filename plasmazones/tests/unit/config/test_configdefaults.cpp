@@ -281,24 +281,28 @@ private Q_SLOTS:
     {
         QCOMPARE(appDirectoryName(), QString(AppDirectoryName));
         setAppDirectoryName(QStringLiteral("enginehost"));
-        const QString config = QLatin1Char('/') + QStringLiteral("enginehost") + QLatin1Char('/');
-        for (const QString& path :
-             {ConfigDefaults::configFilePath(), ConfigDefaults::sessionFilePath(), ConfigDefaults::rulesFilePath(),
-              ConfigDefaults::quickLayoutsFilePath(), ConfigDefaults::layoutSettingsFilePath(),
-              ConfigDefaults::profilesDir() + QLatin1Char('/'), ConfigDefaults::layoutsDirPath()}) {
+        const QString config = QStringLiteral("/enginehost/");
+        const QStringList paths{
+            ConfigDefaults::configFilePath(),         ConfigDefaults::sessionFilePath(),
+            ConfigDefaults::rulesFilePath(),          ConfigDefaults::quickLayoutsFilePath(),
+            ConfigDefaults::layoutSettingsFilePath(), ConfigDefaults::profilesDir() + QLatin1Char('/'),
+            ConfigDefaults::layoutsDirPath()};
+        for (const QString& path : paths) {
             QVERIFY2(path.contains(config), qPrintable(path));
             QVERIFY2(!path.contains(QStringLiteral("plasmazones")), qPrintable(path));
         }
         QVERIFY(ConfigDefaults::legacyConfigFilePath().endsWith(QStringLiteral("/enginehostrc")));
-        for (const QString& subdir :
-             {ConfigKeys::layoutsSubdir(), ConfigKeys::animationsSubdir(), ConfigKeys::overlaysSubdir(),
-              ConfigKeys::profilesSubdir(), ConfigKeys::pointerSubdir(), ConfigKeys::curvesSubdir(),
-              ConfigKeys::shaderPresetsSubdir(), ConfigKeys::scrollingTemplatesSubdir(), scriptedAlgorithmSubdir()}) {
+        const QStringList dataSubdirs{ConfigKeys::layoutsSubdir(),       ConfigKeys::animationsSubdir(),
+                                      ConfigKeys::overlaysSubdir(),      ConfigKeys::profilesSubdir(),
+                                      ConfigKeys::pointerSubdir(),       ConfigKeys::curvesSubdir(),
+                                      ConfigKeys::shaderPresetsSubdir(), ConfigKeys::scrollingTemplatesSubdir(),
+                                      scriptedAlgorithmSubdir()};
+        for (const QString& subdir : dataSubdirs) {
             QVERIFY2(subdir.startsWith(QStringLiteral("enginehost/")), qPrintable(subdir));
         }
-        for (const QString& subdir :
-             {ConfigDefaults::userMotionSetsSubdir(), ConfigDefaults::userDecorationSetsSubdir(),
-              ConfigDefaults::userOverlaySetsSubdir()}) {
+        const QStringList setSubdirs{ConfigDefaults::userMotionSetsSubdir(), ConfigDefaults::userDecorationSetsSubdir(),
+                                     ConfigDefaults::userOverlaySetsSubdir()};
+        for (const QString& subdir : setSubdirs) {
             QVERIFY2(subdir.startsWith(QStringLiteral("/enginehost/")), qPrintable(subdir));
         }
         setAppDirectoryName(AppDirectoryName);
