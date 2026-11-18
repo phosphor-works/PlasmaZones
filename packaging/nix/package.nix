@@ -262,10 +262,6 @@ stdenv.mkDerivation (finalAttrs: {
     # Disable developer tools (shader-render CLI, etc.) — not needed in packages.
     "-DBUILD_TOOLS=OFF"
 
-    # The Lambent integration (shell appearance, shell decoration), not
-    # packaged until the shell ships.
-    "-DBUILD_PHOSPHOR_SHELL=OFF"
-
     # LTO (Link-Time Optimization): opt-in, default OFF (see `enableLTO` above).
     # In Nix the toolchain is consistent so LTO is safe, but it is expensive for
     # the host-pkgs rebuild that every module/overlay consumer performs.

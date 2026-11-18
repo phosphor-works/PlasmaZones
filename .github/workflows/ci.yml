@@ -217,8 +217,7 @@ jobs:
             echo "save=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # ─── The Arch builds, one per USE_KDE_FRAMEWORKS mode. The shell tier
-  # (BUILD_PHOSPHOR_SHELL) is not built in CI.
+  # ─── The Arch builds, one per USE_KDE_FRAMEWORKS mode.
   #
   # Every Arch job runs in the CI image `changes` picked, so it installs
   # nothing: .github/ci/arch-packages.txt is the one package list, and
@@ -331,7 +330,6 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/usr \
             -DUSE_KDE_FRAMEWORKS=${{ matrix.kde }} \
-            -DBUILD_PHOSPHOR_SHELL=OFF \
             -DBUILD_TESTING=ON \
             -DBUILD_TOOLS=ON \
             -DENABLE_LTO=OFF \
@@ -413,9 +411,7 @@ jobs:
   # release` as first-class entry points.
   #
   # Configure only, no build: this gate is about the tier graph existing, and
-  # the `build` job above already compiles the tree. The presets turn the
-  # shell tier on, which CI does not build, so this configures with it off and
-  # checks the two tiers that leaves.
+  # the `build` job above already compiles the tree.
   presets:
     name: Presets and tier graph
     needs: changes
@@ -435,7 +431,7 @@ jobs:
         run: bash .github/ci/sync-packages.sh
 
       - name: Configure from the debug preset
-        run: cmake --preset debug -DBUILD_PHOSPHOR_SHELL=OFF
+        run: cmake --preset debug
 
       - name: Every tier declares its aggregate target
         run: |

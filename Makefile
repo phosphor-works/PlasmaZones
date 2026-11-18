@@ -40,20 +40,17 @@ all: build
 
 # Configure the build.
 #
-# -G Ninja and the three ON flags are not optional here, they are what keeps this
+# -G Ninja and the two ON flags are not optional here, they are what keeps this
 # target compatible with CMakePresets.json. The `debug` preset also binaries
-# into build/, with Ninja and BUILD_TESTING/BUILD_PHOSPHOR_SHELL/BUILD_TOOLS all
-# ON. Configuring the same directory without them gives it the platform default
+# into build/, with Ninja and BUILD_TESTING/BUILD_TOOLS both ON. Configuring the same directory without them gives it the platform default
 # generator, and CMake then refuses every later `cmake --preset debug` (and so
 # every moon task) with "does not match the generator used previously" until
-# someone deletes build/. It also produced a tree with no shell tier, so
-# `make test` ran a suite that silently omitted it.
+# someone deletes build/.
 configure:
 	@echo "$(BLUE)>>> Configuring $(BUILD_TYPE) build...$(NC)"
 	@cmake -B $(BUILD_DIR) -S . -G Ninja \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DBUILD_TESTING=ON \
-		-DBUILD_PHOSPHOR_SHELL=ON \
 		-DBUILD_TOOLS=ON \
 		$(CMAKE_FLAGS)
 	@echo "$(GREEN)>>> Configuration complete$(NC)"

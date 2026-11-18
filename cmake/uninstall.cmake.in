@@ -166,26 +166,6 @@ set(PZ_SHARED_LIB_NAMES
     "libPhosphorWayland"
     "libPhosphorWorkspaces"
     "libPhosphorZones"
-    # BUILD_PHOSPHOR_SHELL=ON artifacts. A name that was never installed
-    # globs to nothing, so listing them unconditionally is safe — the whole
-    # point of the by-name design.
-    "libPhosphorTheme"
-    "libPhosphorPopout"
-    "libPhosphorShell"
-    "libPhosphorShellLauncher"
-    "libPhosphorServiceIconTheme"
-    "libPhosphorServiceSni"
-    "libPhosphorServiceUPower"
-    "libPhosphorServiceMpris"
-    "libPhosphorServicePipeWire"
-    "libPhosphorServiceNetwork"
-    "libPhosphorServiceBluetooth"
-    "libPhosphorServiceBrightness"
-    "libPhosphorServiceNotifications"
-    "libPhosphorServicePolkit"
-    "libPhosphorServiceClipboard"
-    "libPhosphorServiceLock"
-    "libPhosphorServiceSession"
 )
 file(GLOB CORE_LIBS "$ENV{DESTDIR}@KDE_INSTALL_FULL_LIBDIR@/libplasmazones_*.so*")
 foreach(name ${PZ_SHARED_LIB_NAMES})

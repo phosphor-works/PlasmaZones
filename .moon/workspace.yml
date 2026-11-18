@@ -3,8 +3,8 @@
 #
 # moon workspace: one project per product tier, plus the repo root for the
 # checks that span tiers. The libraries the tiers build on are not projects
-# here: they are the phosphor-libs and phosphor-shell-libs repositories, built
-# from the commits cmake/PlasmaZonesDependencies.cmake pins. CMake stays the build system inside each tier;
+# here: they are the phosphor-libs repository, built from the commit
+# cmake/PlasmaZonesDependencies.cmake pins. CMake stays the build system inside each tier;
 # moon orders the tiers and runs only the affected ones. It does NOT cache
 # the build and test results: those tasks set `cache: false` because the
 # tiers share one build directory (see .moon/tasks/cmake.yml), and
@@ -22,9 +22,9 @@ vcs:
   provider: 'github'
 
 constraints:
-  # moon refuses an application depending on an application. With the shell
-  # in the Lambent repository, plasmazones is the only application here, and
-  # the constraint stays on so a second one cannot quietly depend on it.
+  # moon refuses an application depending on an application. plasmazones is
+  # the only application here, and the constraint stays on so a second one
+  # cannot quietly depend on it.
   enforceLayerRelationships: true
 
 hasher:

@@ -91,7 +91,7 @@ ctest --test-dir build -j6 --output-on-failure -R 'shader_validate|_shader_|_pac
   section 0 says. `check-conventions.py` skips paths outside the repo, so run that file's gate 4 greps by hand there.
 - `SHARED_PARAM_TEXT` in `scripts/conventions_shared_text.py` lists params resolved once per chain (`roundBottomCorners`
   on surface packs). Copy that description verbatim. A new chain-resolved param joins the table.
-- The regex selects 40 tests. `test_strip_pack_contract` needs `BUILD_KWIN_EFFECT`, `test_shell_chrome` `BUILD_PHOSPHOR_SHELL`.
+- `test_strip_pack_contract`, which the regex selects, needs `BUILD_KWIN_EFFECT`.
 
 ## Preview
 

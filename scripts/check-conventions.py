@@ -304,8 +304,7 @@ def expected_license(path: str) -> str | None:
         return None
     # The app tier, plasmazones (daemon, editor, settings, KCM, KWin effect,
     # tools, tests), plus the repo-level scripts. The LGPL libraries live in
-    # the phosphor-libs and phosphor-shell-libs repositories and the shell in
-    # Lambent, which check their own headers.
+    # the phosphor-libs repository, which checks its own headers.
     if path.startswith(("plasmazones/", "scripts/")):
         return GPL3
     return None
