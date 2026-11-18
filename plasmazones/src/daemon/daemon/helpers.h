@@ -20,10 +20,6 @@
 #include <PhosphorContext/DisabledReason.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 
-#include <QDBusConnection>
-#include <QDBusMessage>
-#include <QDBusPendingCall>
-
 #include <optional>
 
 namespace PlasmaZones {
@@ -82,23 +78,6 @@ inline void reconcileMembershipsForScreens(TilingService* adaptor, const QString
     for (const QString& screenId : screenIds) {
         adaptor->reconcileDesktopMemberships(screenId);
     }
-}
-
-/// Ask plasmashell to show its own text OSD.
-///
-/// Lives here rather than in osd.cpp because cheatsheet.cpp calls it too. It
-/// was a static in osd.cpp's anonymous namespace, which only linked because a
-/// UNITY build puts both TUs in one blob; a non-unity configure (a packager
-/// build, or -DCMAKE_UNITY_BUILD=OFF) failed to resolve it. Inline here for the
-/// same reason the rest of this header is: one definition that works in both
-/// build modes.
-inline void showKdeTextOsd(const QString& icon, const QString& text)
-{
-    QDBusMessage msg =
-        QDBusMessage::createMethodCall(QStringLiteral("org.kde.plasmashell"), QStringLiteral("/org/kde/osdService"),
-                                       QStringLiteral("org.kde.osdService"), QStringLiteral("showText"));
-    msg << icon << text;
-    QDBusConnection::sessionBus().asyncCall(msg);
 }
 
 inline DisabledReason toDaemonDisabledReason(PhosphorContext::DisabledReason reason)

@@ -1006,6 +1006,17 @@ target_link_libraries(test_workspace_shortcuts
     PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
 add_test(NAME test_workspace_shortcuts COMMAND test_workspace_shortcuts)
 
+# KWinWorkspaceHost's takeover of KWin's stock desktop-switch chords: backup,
+# clear, restore, a hand re-bind kept, and a backend that cannot read them.
+add_executable(test_kwin_workspace_host
+    daemon/test_kwin_workspace_host.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/host/kwinworkspacehost.cpp
+)
+target_link_libraries(test_kwin_workspace_host PRIVATE pz_test_shortcut_manager)
+target_link_libraries(test_kwin_workspace_host
+    PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::DBus plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
+add_test(NAME test_kwin_workspace_host COMMAND test_kwin_workspace_host)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # core/ - Layout Tests (core, zones)
 # ═══════════════════════════════════════════════════════════════════════════════

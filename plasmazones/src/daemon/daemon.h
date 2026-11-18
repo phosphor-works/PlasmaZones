@@ -1364,6 +1364,16 @@ private:
     std::unique_ptr<PhosphorWorkspaces::VirtualDesktopManager> m_virtualDesktopManager;
     std::unique_ptr<PhosphorWorkspaces::ActivityManager> m_activityManager;
     std::unique_ptr<ShortcutManager> m_shortcutManager;
+
+    // What the engine needs from the desktop it runs on, behind host
+    // interfaces (runtime/host/). The concrete KWin and Plasma ones are owned
+    // here; the engine code reads only the interface pointers.
+    std::unique_ptr<KWinWorkspaceHost> m_kwinWorkspaceHost;
+    IWorkspaceHost* m_workspaceHost = nullptr;
+    std::unique_ptr<PlasmaSystemOsd> m_plasmaSystemOsd;
+    ISystemOsd* m_systemOsd = nullptr;
+    /// The desktop's own text OSD (ISystemOsd), when the host has one.
+    void showSystemOsd(const QString& iconName, const QString& text);
     ShellCheatsheetBridge* m_shellCheatsheetBridge = nullptr;
 
     // Domain-specific D-Bus adaptors

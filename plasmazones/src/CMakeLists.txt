@@ -667,6 +667,10 @@ set(plasmazones_daemon_SRCS
     daemon/controllers/unifiedlayoutcontroller.cpp
     daemon/controllers/unifiedlayoutcontroller.h
     # Dynamic per-monitor workspaces
+    daemon/host/kwinworkspacehost.cpp
+    daemon/host/kwinworkspacehost.h
+    daemon/host/plasmasystemosd.cpp
+    daemon/host/plasmasystemosd.h
     daemon/controllers/workspacecontroller.cpp
     daemon/controllers/workspacecontroller_verbs.cpp
     daemon/controllers/workspacecontroller.h

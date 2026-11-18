@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "daemon.h"
+#include "daemon/host/kwinworkspacehost.h"
+#include "daemon/host/plasmasystemosd.h"
 #ifdef PHOSPHOR_BUILD_SHELL
 #include "common/shelldecorationseeds.h"
 #endif
@@ -203,6 +205,10 @@ Daemon::Daemon(QObject* parent)
     , m_virtualDesktopManager(std::make_unique<PhosphorWorkspaces::VirtualDesktopManager>(nullptr))
     , m_activityManager(std::make_unique<PhosphorWorkspaces::ActivityManager>(nullptr))
     , m_shortcutManager(std::make_unique<ShortcutManager>(m_settings.get(), nullptr))
+    , m_kwinWorkspaceHost(std::make_unique<KWinWorkspaceHost>(m_shortcutManager.get()))
+    , m_workspaceHost(m_kwinWorkspaceHost.get())
+    , m_plasmaSystemOsd(std::make_unique<PlasmaSystemOsd>())
+    , m_systemOsd(m_plasmaSystemOsd.get())
 {
     // Install the layout screen-id resolver before any Daemon-owned machinery
     // starts loading layouts. First-call ensures the once-only install runs
@@ -339,6 +345,13 @@ bool Daemon::init()
     initCoreAdaptors();
     initEnginesAndWiring();
     return registerDBusService();
+}
+
+void Daemon::showSystemOsd(const QString& iconName, const QString& text)
+{
+    if (m_systemOsd) {
+        m_systemOsd->showText(iconName, text);
+    }
 }
 
 } // namespace PlasmaZones
