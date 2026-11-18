@@ -92,7 +92,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 
 ## Architecture
 - Service-oriented with DI via constructor (the editor's `ILayoutService`, `ZoneManager`, `SnappingService` are the reference shape)
-- Placement runs in the daemon behind the three engines above; the KWin effect draws overlays, decorations, and tab indicators
+- Placement runs in the engine runtime (`plasmazones/src/runtime/`) behind the three engines above, hosted by the daemon; the KWin effect draws overlays, decorations, and tab indicators
 - Business logic in C++, UI in QML; controllers bridge via `Q_PROPERTY`
 - Zone IDs everywhere, never indices
 - JSON persistence in `~/.local/share/plasmazones/layouts/` with relative geometry (0.0–1.0)
@@ -131,7 +131,7 @@ Use the `pz-add-setting` skill, which carries the full worked example. Summary:
 3. `plasmazones/src/config/settingsschema*.cpp` — register the `{key, default, QMetaType, description, coercion}` KeyDef in its group. **The store takes its default, type and clamping from the schema, not from the getter.** Skip this and the setting silently reads back as the type-default. The description field is user-facing prose and is held to the plain-prose rules below.
 4. `plasmazones/src/core/interfaces/isettings.h` — signal in ISettings.
 5. `plasmazones/src/config/settings.h` — Q_PROPERTY + getter + setter declarations (`override`). **No member variable.**
-6. The matching `plasmazones/src/config/settings/*.cpp` — store-backed getter (`m_store->read<T>(group, key)`) and setter. There is **no** load/save/reset arm to write; persistence goes through the store. Setters live in that directory split by concern (`setters.cpp`, `shortcuts.cpp`, `storescalars.cpp`, `scrolling.cpp`, `triggers.cpp`, `perscreen.cpp`, `disable.cpp`, `uienums.cpp`, and so on), NOT in `plasmazones/src/config/settings.cpp`. Note three different files in the tree are named `settings.cpp` (`plasmazones/src/config/`, `plasmazones/src/daemon/overlayservice/`, `plasmazones/src/editor/controller/`), so always use the full path.
+6. The matching `plasmazones/src/config/settings/*.cpp` — store-backed getter (`m_store->read<T>(group, key)`) and setter. There is **no** load/save/reset arm to write; persistence goes through the store. Setters live in that directory split by concern (`setters.cpp`, `shortcuts.cpp`, `storescalars.cpp`, `scrolling.cpp`, `triggers.cpp`, `perscreen.cpp`, `disable.cpp`, `uienums.cpp`, and so on), NOT in `plasmazones/src/config/settings.cpp`. Note three different files in the tree are named `settings.cpp` (`plasmazones/src/config/`, `plasmazones/src/runtime/overlay/`, `plasmazones/src/editor/controller/`), so always use the full path.
 
 An unclamped setter compares, early-returns, writes, then emits. A **clamped** setter must write first and compare after, because the schema's coercion runs on the write and the stored value may differ from the value passed in.
 
@@ -316,11 +316,12 @@ The tree is one product tier plus repo-level support directories. The tier has i
 ```
 plasmazones/             — PlasmaZones
   src/core/              — Domain models (Zone, Layout, ScreenManager)
-  src/daemon/            — Background service; hosts the three placement engines
+  src/runtime/           — Engine runtime: the three placement engines' host, services, overlays (no bus, KWin or Wayland client; runtime-firewall rule)
+  src/daemon/            — plasmazonesd: the runtime bound to the session bus beside KWin and Plasma
   src/editor/            — Layout editor (zone layouts + scrolling templates)
   src/settings/          — Standalone settings app
   src/ui/                — Shared QML controls (OSD, picker and selector content)
-  src/dbus/              — D-Bus adaptors
+  src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services)
   src/config/            — Configuration backends
   src/common/            — Cross-target helpers
   src/shared/            — Code shared between daemon and apps

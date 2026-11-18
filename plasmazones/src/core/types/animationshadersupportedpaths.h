@@ -15,7 +15,7 @@ namespace PlasmaZones {
 /// Leaf event paths the daemon's overlay service AND the KWin effect
 /// actually resolve a shader effect for, by one of three mechanisms:
 /// a @c resolveShaderLeg(tree, ...) call inside one of
-/// the @c build*Config factories in @c src/daemon/overlayservice/animation_config.cpp
+/// the @c build*Config factories in @c src/runtime/overlay/animation_config.cpp
 /// (@c buildOsdConfig / @c buildLayoutPickerConfig /
 /// @c buildZoneSelectorConfig / @c buildSnapAssistConfig /
 /// @c buildCheatsheetConfig; a

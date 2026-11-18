@@ -10,7 +10,7 @@
  *        takes nothing and keeps the backup for a pass that can.
  */
 
-#include "daemon/controllers/shortcutmanager.h"
+#include "runtime/controllers/shortcutmanager.h"
 #include "daemon/host/kwinworkspacehost.h"
 
 #include "config/settings.h"

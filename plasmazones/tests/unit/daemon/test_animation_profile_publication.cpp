@@ -12,7 +12,7 @@
  * `m_profileLoader` / `Settings` plumbing and exercise the contract.
  *
  * Three load-bearing invariants under test (all from `setupAnimationProfiles`
- * in src/daemon/engineruntime.cpp):
+ * in src/runtime/engine/engineruntime.cpp):
  *
  *  1. **Loader picks up a JSON file → registry has the user profile at
  *     the loader's tag.** A profile dropped under the user dir before
@@ -59,7 +59,7 @@ using PlasmaZones::TestHelpers::IsolatedConfigGuard;
 namespace {
 
 /// Owner tag string mirroring `kPlasmaZonesUserProfilesOwnerTag` in
-/// src/daemon/engineruntime.cpp. Duplicated rather than included because the
+/// src/runtime/engine/engineruntime.cpp. Duplicated rather than included because the
 /// daemon's `kPlasmaZonesUserProfilesOwnerTag` is a file-scope static
 /// — copying it here keeps the test free of daemon-internal headers.
 /// A future rename in the daemon would not break this test (the value

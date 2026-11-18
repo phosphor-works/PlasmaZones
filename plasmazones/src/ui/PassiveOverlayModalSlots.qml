@@ -181,7 +181,7 @@ Item {
         property bool fontUnderline: false
         property bool fontStrikeout: false
         // No labelFontColor here: picker previews deliberately don't wire label color, consistent with every
-        // other slot. Only the main overlay slot declares it (see overlayservice/internal.h).
+        // other slot. Only the main overlay slot declares it (see runtime/overlay/internal.h).
         // OSD-style content lifecycle gate. C++ toggles false→true around
         // each show so LayoutPickerContent is re-instantiated.
         property bool loaded: false

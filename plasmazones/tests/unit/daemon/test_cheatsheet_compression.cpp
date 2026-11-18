@@ -7,7 +7,7 @@
 // other deviation (alternate binding, prefix mismatch, some members
 // unassigned, off-pattern final token) falls back to the individual rows.
 
-#include "daemon/controllers/shortcutmanager.h"
+#include "runtime/controllers/shortcutmanager.h"
 
 #include <QtTest/QtTest>
 

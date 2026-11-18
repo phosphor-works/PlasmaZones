@@ -28,7 +28,7 @@
 #include <functional>
 
 #include "common/daemonscreenscale.h"
-#include "daemon/engineruntime/screenreshapetracker.h"
+#include "runtime/engine/screenreshapetracker.h"
 
 using namespace PlasmaZones;
 using Action = ScreenReshapeTracker::ReportAction;

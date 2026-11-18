@@ -104,7 +104,7 @@ Never `plasmazones/src/config/settings.cpp`. Pick the file matching the concern 
 `profiletrees.cpp`, `animationprofile.cpp`, `systemcolors.cpp`.
 
 Note there are three files named `settings.cpp` in the tree (`plasmazones/src/config/`,
-`plasmazones/src/daemon/overlayservice/`, `plasmazones/src/editor/controller/`). Always use full paths.
+`plasmazones/src/runtime/overlay/`, `plasmazones/src/editor/controller/`). Always use full paths.
 
 **Unclamped setting** — compare, early-return, write, emit:
 

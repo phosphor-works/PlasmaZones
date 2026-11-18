@@ -59,7 +59,7 @@ pinned by `static_assert` on size and offsets:
 
 | family | GLSL (`plasmazones/data/`) | C++ mirror (`../phosphor-libs/libs/`) |
 |---|---|---|
-| overlay | `overlays/shared/common.glsl` | `phosphor-rendering/include/PhosphorRendering/ZoneShaderCommon.h`, `ZoneUniformExtension.h`; scaffold `plasmazones/src/daemon/rendering/zoneentryscaffold.cpp` |
+| overlay | `overlays/shared/common.glsl` | `phosphor-rendering/include/PhosphorRendering/ZoneShaderCommon.h`, `ZoneUniformExtension.h`; scaffold `plasmazones/src/runtime/rendering/zoneentryscaffold.cpp` |
 | animation | `animations/shared/animation_uniforms.glsl` | `phosphor-animation/include/PhosphorAnimation/AnimationUniformExtension.h`, `AnimationShaderContract.h`, `src/contract_pins.cpp` |
 | surface | `../phosphor-surface-packs/packs/shared/surface_uniforms.glsl` | `phosphor-surface/include/PhosphorSurface/SurfaceShaderUniforms.h`, `SurfaceShaderContract.h`, `src/surface_contract_pins.cpp`, `src/surfaceuniformprofile.cpp` |
 | pointer | `pointer/shared/pointer_uniforms.glsl` | `phosphor-pointer/include/PhosphorPointer/PointerShaderUniforms.h`, `PointerShaderContract.h`, `src/pointer_contract_pins.cpp`, `src/pointeruniformextension.cpp` |
