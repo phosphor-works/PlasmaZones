@@ -73,6 +73,10 @@ public:
         /// The desktop's activities: Plasma's for plasmazonesd. Null means
         /// none.
         std::unique_ptr<PhosphorWorkspaces::IActivityBackend> activities;
+        /// Builds the global-shortcut backend, afresh on every registration
+        /// (ShortcutManager::setBackendFactory). Null lets PhosphorShortcuts
+        /// pick one for the session it runs in.
+        ShortcutManager::BackendFactory shortcutBackends;
     };
 
     explicit EngineRuntime(Platform platform, QObject* parent = nullptr);

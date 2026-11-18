@@ -237,6 +237,14 @@ public:
     static QVector<QVariantMap> compressCheatsheetFamilies(QVector<QVariantMap> rows,
                                                            const QVector<CheatsheetFamily>& families);
 
+    /// Builds the platform backend each registerShortcuts() starts from. A
+    /// fresh one every time: unregisterShortcuts() drops it, so a portal
+    /// session starts over. Unset, PhosphorShortcuts picks one for the session
+    /// it runs in (createBackend(Auto)). A factory that returns none leaves the
+    /// shortcuts unregistered. Set before registerShortcuts().
+    using BackendFactory = std::function<std::unique_ptr<PhosphorShortcuts::IBackend>()>;
+    void setBackendFactory(BackendFactory factory);
+
     /**
      * Test-only backend injection. Must be called before registerShortcuts()
      * (which otherwise creates the real platform backend lazily); a call
@@ -479,6 +487,7 @@ private:
 
     Settings* m_settings = nullptr;
 
+    BackendFactory m_backendFactory;
     std::unique_ptr<PhosphorShortcuts::IBackend> m_backend;
     std::unique_ptr<PhosphorShortcuts::Registry> m_registry;
 

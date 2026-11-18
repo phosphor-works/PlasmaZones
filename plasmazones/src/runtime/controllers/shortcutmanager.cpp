@@ -186,7 +186,13 @@ void ShortcutManager::registerShortcuts()
     // owns lifetime — DON'T also pass `this` as Qt parent, or the
     // backend/registry end up with two owners.
     if (!m_backend) {
-        m_backend = PhosphorShortcuts::createBackend(PhosphorShortcuts::BackendHint::Auto, nullptr);
+        m_backend = m_backendFactory ? m_backendFactory()
+                                     : PhosphorShortcuts::createBackend(PhosphorShortcuts::BackendHint::Auto, nullptr);
+        if (!m_backend) {
+            qCWarning(lcShortcuts) << "registerShortcuts(): the host's shortcut backend factory gave none; no global "
+                                      "shortcuts this session";
+            return;
+        }
     }
     if (!m_registry) {
         m_registry = std::make_unique<PhosphorShortcuts::Registry>(m_backend.get(), nullptr);
@@ -358,6 +364,11 @@ bool ShortcutManager::applyShortcutUpdates(bool deferFlush)
     // Deferred: the CALLER owns both the flush and the post-flush emit —
     // emitting here would publish the pre-flush backend read-back.
     return true;
+}
+
+void ShortcutManager::setBackendFactory(BackendFactory factory)
+{
+    m_backendFactory = std::move(factory);
 }
 
 void ShortcutManager::setBackendForTesting(std::unique_ptr<PhosphorShortcuts::IBackend> backend)

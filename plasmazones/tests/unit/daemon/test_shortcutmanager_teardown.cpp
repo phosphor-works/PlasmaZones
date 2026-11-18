@@ -283,6 +283,48 @@ private Q_SLOTS:
         manager.unregisterAdhocShortcut(id);
         QCOMPARE(unregisters, QStringList{id});
     }
+
+    // The host's backend factory builds the backend each registration starts
+    // from, a fresh one after every teardown.
+    void hostFactoryBuildsEachRegistrationsBackend()
+    {
+        QStringList registers;
+        QStringList unregisters;
+        QStringList suspends;
+        int built = 0;
+        Settings settings;
+        ShortcutManager manager(&settings);
+        manager.setBackendFactory([&]() {
+            ++built;
+            return std::make_unique<RecordingBackend>(&registers, &unregisters, &suspends);
+        });
+
+        manager.registerShortcuts();
+        QCOMPARE(built, 1);
+        QVERIFY2(!registers.isEmpty(), "expected the catalog to reach the factory's backend");
+
+        manager.unregisterShortcuts();
+        registers.clear();
+        manager.registerShortcuts();
+        QCOMPARE(built, 2);
+        QVERIFY(!registers.isEmpty());
+    }
+
+    // A factory that gives no backend leaves the shortcuts unregistered, and
+    // the ad-hoc grabs and the teardown cope with that.
+    void factoryWithoutABackendLeavesShortcutsUnregistered()
+    {
+        Settings settings;
+        ShortcutManager manager(&settings);
+        manager.setBackendFactory([]() {
+            return std::unique_ptr<PhosphorShortcuts::IBackend>();
+        });
+        manager.registerShortcuts();
+        manager.registerAdhocShortcut(QStringLiteral("pz.test.adhoc.escape"), QKeySequence(QStringLiteral("Escape")),
+                                      QStringLiteral("Test grab"), [] { });
+        manager.unregisterAdhocShortcut(QStringLiteral("pz.test.adhoc.escape"));
+        manager.unregisterShortcuts();
+    }
 };
 
 QTEST_MAIN(TestShortcutManagerTeardown)
