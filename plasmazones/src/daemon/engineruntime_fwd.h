@@ -8,10 +8,6 @@
 // here is consumed by daemon.h as a pointer/reference member or a signature
 // type.
 
-namespace PhosphorScreens {
-class PlasmaPanelSource;
-}
-
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorAnimation/QtQuickClockManager.h>

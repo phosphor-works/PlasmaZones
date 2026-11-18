@@ -32,15 +32,9 @@
 #include <QVector>
 #include <atomic>
 
-#include <PhosphorWayland/LayerSurface.h>
 #include <PhosphorZones/ZoneJsonKeys.h>
 #include "qml_property_names.h"
 #include "core/types/enums.h"
-
-namespace PlasmaZones {
-using PhosphorWayland::LayerSurface;
-namespace LayerSurfaceProps = PhosphorWayland::LayerSurfaceProps;
-} // namespace PlasmaZones
 
 namespace PlasmaZones {
 
@@ -167,36 +161,6 @@ inline void ensureShaderTimerStarted(QElapsedTimer& timer, QMutex& mutex, std::a
         timer.start();
         lastFrame.store(0);
         frameCount.store(0);
-    }
-}
-
-// Convert ZoneSelectorPosition to layer surface anchors
-inline LayerSurface::Anchors getAnchorsForPosition(ZoneSelectorPosition pos)
-{
-    switch (pos) {
-    case ZoneSelectorPosition::TopLeft:
-        return LayerSurface::Anchors(LayerSurface::AnchorTop | LayerSurface::AnchorLeft);
-    case ZoneSelectorPosition::Top:
-        return LayerSurface::Anchors(LayerSurface::AnchorTop | LayerSurface::AnchorLeft | LayerSurface::AnchorRight);
-    case ZoneSelectorPosition::TopRight:
-        return LayerSurface::Anchors(LayerSurface::AnchorTop | LayerSurface::AnchorRight);
-    case ZoneSelectorPosition::Left:
-        return LayerSurface::Anchors(LayerSurface::AnchorLeft | LayerSurface::AnchorTop | LayerSurface::AnchorBottom);
-    case ZoneSelectorPosition::Center:
-        // Anchor to all edges so the window fills the screen; the QML "center" state
-        // positions the container in the middle of the full-screen transparent window.
-        return LayerSurface::AnchorAll;
-    case ZoneSelectorPosition::Right:
-        return LayerSurface::Anchors(LayerSurface::AnchorRight | LayerSurface::AnchorTop | LayerSurface::AnchorBottom);
-    case ZoneSelectorPosition::BottomLeft:
-        return LayerSurface::Anchors(LayerSurface::AnchorBottom | LayerSurface::AnchorLeft);
-    case ZoneSelectorPosition::Bottom:
-        return LayerSurface::Anchors(LayerSurface::AnchorBottom | LayerSurface::AnchorLeft | LayerSurface::AnchorRight);
-    case ZoneSelectorPosition::BottomRight:
-        return LayerSurface::Anchors(LayerSurface::AnchorBottom | LayerSurface::AnchorRight);
-    default:
-        // Default to top anchors
-        return LayerSurface::Anchors(LayerSurface::AnchorTop | LayerSurface::AnchorLeft | LayerSurface::AnchorRight);
     }
 }
 

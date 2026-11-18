@@ -27,6 +27,8 @@
 #include "controllers/shortcutmanager.h"
 #include <PhosphorLayoutApi/LayoutSourceBundle.h>
 #include "core/types/types.h"
+#include <PhosphorLayer/ILayerShellTransport.h>
+#include <PhosphorScreens/IPanelSource.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/Swapper.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
@@ -52,7 +54,20 @@ class EngineRuntime : public QObject
     Q_OBJECT
 
 public:
-    explicit EngineRuntime(QObject* parent = nullptr);
+    /// What the runtime draws and measures through, from the host. Handed
+    /// over at construction because the screen manager and the overlay
+    /// service are built there and hold them for the runtime's life.
+    struct Platform
+    {
+        /// How overlay surfaces reach the screen: wlr-layer-shell for
+        /// plasmazonesd. Required.
+        std::unique_ptr<PhosphorLayer::ILayerShellTransport> layerShell;
+        /// Where the desktop's panels are, so available geometry leaves them
+        /// clear. Null means the host has no panels.
+        std::unique_ptr<PhosphorScreens::IPanelSource> panels;
+    };
+
+    explicit EngineRuntime(Platform platform, QObject* parent = nullptr);
     ~EngineRuntime() override;
 
     // No singleton - use dependency injection instead
@@ -155,6 +170,9 @@ public:
     {
         m_sessionPresentable = presentable;
     }
+    /// The system is about to sleep (@p goingToSleep) or has resumed. The
+    /// overlay's shader clock restarts on resume.
+    void prepareForSleep(bool goingToSleep);
     /// The compositor bridge (re)registered: any drag state held from the
     /// previous bridge is stale, and the session-idle state is pushed again,
     /// since a new bridge starts from its own defaults.
@@ -1374,9 +1392,10 @@ private:
     // Populated by the kwin-effect bridge. Consumers query appIdFor() etc.
     // instead of parsing composite windowId strings.
     std::unique_ptr<PhosphorEngine::WindowRegistry> m_windowRegistry;
-    /// Plasma D-Bus panel-offset source. Declared before m_screenManager
-    /// because the manager holds a non-owning IPanelSource* into it.
-    std::unique_ptr<PhosphorScreens::PlasmaPanelSource> m_panelSource;
+    /// The host's panel-offset source (Platform::panels). Declared before
+    /// m_screenManager because the manager holds a non-owning IPanelSource*
+    /// into it.
+    std::unique_ptr<PhosphorScreens::IPanelSource> m_panelSource;
     /// Settings-backed IConfigStore for VS topology. Shared by
     /// m_screenManager (Config::configStore) and m_virtualScreenSwapper
     /// (constructor arg). Declared before both so destruction order

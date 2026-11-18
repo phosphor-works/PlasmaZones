@@ -136,10 +136,19 @@ public:
     ///                 SurfaceAnimator that drives every overlay show/hide. Composition
     ///                 roots (the daemon) own a single PhosphorProfileRegistry and hand
     ///                 it through here; the singleton accessor is gone.
+    /// @param transport How the overlay surfaces reach the screen, from the host:
+    ///                  wlr-layer-shell for plasmazonesd. Required; owned from here on.
     /// @param parent Qt parent.
     explicit OverlayService(PhosphorScreens::ScreenManager* screenManager, ShaderRegistry* shaderRegistry,
-                            PhosphorAnimation::PhosphorProfileRegistry* profileRegistry, QObject* parent = nullptr);
+                            PhosphorAnimation::PhosphorProfileRegistry* profileRegistry,
+                            std::unique_ptr<PhosphorLayer::ILayerShellTransport> transport, QObject* parent = nullptr);
     ~OverlayService() override;
+
+    /// The system is about to sleep (@p goingToSleep) or has resumed. On resume
+    /// the shader clock restarts, so the first frame after a suspend does not
+    /// see the whole suspend as its delta. The host reports this (plasmazonesd
+    /// from logind's PrepareForSleep).
+    void prepareForSleep(bool goingToSleep);
 
     // IOverlayService interface
     bool isVisible() const override;
@@ -1263,12 +1272,6 @@ private:
 
     // Keep-alive is managed by m_surfaceManager (PhosphorSurfaces::SurfaceManager).
 
-    // Remembered so ~OverlayService can disconnect the D-Bus PrepareForSleep
-    // subscription explicitly rather than relying on QDBusConnection's
-    // internal receiver-destroyed detection (which works, but leaves a dead
-    // entry in the connection's slot table for the rest of the session).
-    bool m_prepareForSleepConnected = false;
-
     // Deduplicate navigation feedback (prevent duplicate OSDs from Qt signal + D-Bus signal)
     QString m_lastNavigationActionKey; // "action:reason" composite key
     QString m_lastNavigationScreenId;
@@ -1647,10 +1650,6 @@ private:
      * Extracts ~100 lines of duplicate code from both methods.
      */
     void initializeOverlay(QScreen* cursorScreen, const QPoint& cursorPos = QPoint(-1, -1));
-
-private Q_SLOTS:
-    // System sleep/resume handler (connected to logind PrepareForSleep signal)
-    void onPrepareForSleep(bool goingToSleep);
 
 private:
     // Shader timing (shared across all monitors for synchronized effects)

@@ -6,7 +6,8 @@
 // bus beside KWin and Plasma: the D-Bus bindings of the runtime's services,
 // the bus name and object, the KWin plugin's protocol endpoints (the
 // compositor bridge and the screen reports), the KWin and Plasma host
-// implementations, the bridge watchdog and the plasma-workspace gate.
+// implementations, the runtime's platform (wlr-layer-shell, Plasma's panels),
+// logind's sleep notice, the bridge watchdog and the plasma-workspace gate.
 
 #pragma once
 
@@ -90,6 +91,8 @@ private:
     void releasePlasmaWorkspaceSubscription();
 
 private Q_SLOTS:
+    /// logind's PrepareForSleep, passed to the runtime.
+    void onPrepareForSleep(bool goingToSleep);
     void onPlasmaWorkspaceTargetPropertiesChanged(const QString& interfaceName, const QVariantMap& changedProperties,
                                                   const QStringList& invalidatedProperties);
 
@@ -157,6 +160,12 @@ private:
     bool m_plasmaWorkspaceActive = true;
     /// D-Bus object path for `plasma-workspace.target`, resolved by GetUnit.
     QString m_plasmaWorkspaceTargetPath;
+
+    /// Remembered so ~Daemon can disconnect the logind PrepareForSleep
+    /// subscription explicitly rather than relying on QDBusConnection's
+    /// internal receiver-destroyed detection (which works, but leaves a dead
+    /// entry in the connection's slot table for the rest of the session).
+    bool m_prepareForSleepConnected = false;
 
     /// Set by stop() and at aboutToQuit; the watchdog and the systemd replies
     /// stay silent once it is.

@@ -68,21 +68,15 @@
 #include "config/settingsconfigstore.h"
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 #include <PhosphorScreens/Swapper.h>
-#include <PhosphorScreens/PlasmaPanelSource.h>
+#include <PhosphorScreens/NoOpPanelSource.h>
 #include "core/interfaces/shaderregistry.h"
 #include "config/settings.h"
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
-#include "dbus/overlayadaptor.h"
-#include "dbus/zonedetectionadaptor.h"
 #include "runtime/windowtracker/windowtracker.h"
 #include "runtime/dragresolver/dragresolver.h"
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/services/snapservice/snapservice.h"
-#include "dbus/shaderadaptor.h"
-#include "dbus/compositorbridgeadaptor.h"
-#include "dbus/controladaptor.h"
-#include "dbus/ruleadaptor.h"
 #include <PhosphorRules/ActionParams.h> // MaxGap, static_asserted below
 #include <PhosphorRules/ExclusionRules.h>
 #include <PhosphorRules/RuleAction.h>
@@ -139,7 +133,7 @@ namespace {
 constexpr int GEOMETRY_UPDATE_DEBOUNCE_MS = 400;
 } // anonymous namespace
 
-EngineRuntime::EngineRuntime(QObject* parent)
+EngineRuntime::EngineRuntime(Platform platform, QObject* parent)
     : QObject(parent)
     // Don't pass 'this' as parent for unique_ptr-managed objects.
     // unique_ptr owns lifetime; a Qt parent would double-free.
@@ -182,7 +176,7 @@ EngineRuntime::EngineRuntime(QObject* parent)
     , m_zoneDetector(std::make_unique<PhosphorZones::ZoneDetector>(nullptr))
     , m_settings(std::make_unique<Settings>(m_configBackend.get(), &m_curveRegistry, m_ruleStore.get(), nullptr))
     , m_windowRegistry(std::make_unique<PhosphorEngine::WindowRegistry>(nullptr))
-    , m_panelSource(std::make_unique<PhosphorScreens::PlasmaPanelSource>())
+    , m_panelSource(platform.panels ? std::move(platform.panels) : std::make_unique<PhosphorScreens::NoOpPanelSource>())
     , m_virtualScreenStore(std::make_unique<SettingsConfigStore>(m_settings.get()))
     , m_screenManager(std::make_unique<PhosphorScreens::ScreenManager>(
           PhosphorScreens::ScreenManager::Config{
@@ -198,8 +192,8 @@ EngineRuntime::EngineRuntime(QObject* parent)
           },
           nullptr))
     , m_shaderRegistry(std::make_unique<ShaderRegistry>(nullptr))
-    , m_overlayService(
-          std::make_unique<OverlayService>(m_screenManager.get(), m_shaderRegistry.get(), &m_profileRegistry, nullptr))
+    , m_overlayService(std::make_unique<OverlayService>(m_screenManager.get(), m_shaderRegistry.get(),
+                                                        &m_profileRegistry, std::move(platform.layerShell), nullptr))
     , m_virtualDesktopManager(std::make_unique<PhosphorWorkspaces::VirtualDesktopManager>(nullptr))
     , m_activityManager(std::make_unique<PhosphorWorkspaces::ActivityManager>(nullptr))
     , m_shortcutManager(std::make_unique<ShortcutManager>(m_settings.get(), nullptr))
@@ -340,6 +334,13 @@ bool EngineRuntime::init()
     initEnginesAndWiring();
     initServiceWiring();
     return true;
+}
+
+void EngineRuntime::prepareForSleep(bool goingToSleep)
+{
+    if (m_overlayService) {
+        m_overlayService->prepareForSleep(goingToSleep);
+    }
 }
 
 void EngineRuntime::showSystemOsd(const QString& iconName, const QString& text)

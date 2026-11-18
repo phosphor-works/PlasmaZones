@@ -26,7 +26,6 @@
 
 #include <QCoreApplication>
 #include <QCursor>
-#include <QDBusConnection>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QByteArrayList>
@@ -48,12 +47,12 @@
 #include <PhosphorAnimation/SurfaceAnimator.h>
 #include <PhosphorAnimation/ShaderProfile.h>
 #include <PhosphorAnimation/ShaderProfileTree.h>
+#include <PhosphorLayer/ILayerShellTransport.h>
 #include <PhosphorLayer/Role.h>
 #include <PhosphorLayer/Surface.h>
 #include <PhosphorLayer/SurfaceConfig.h>
 #include <PhosphorLayer/SurfaceFactory.h>
 #include <PhosphorLayer/defaults/DefaultScreenProvider.h>
-#include <PhosphorLayer/defaults/PhosphorWaylandTransport.h>
 #include <QQuickItem>
 #include "overlayservice/phosphor_roles.h"
 #include "overlayservice/phosphor_slot_keys.h"
@@ -125,11 +124,13 @@ QQuickItem* OverlayService::PerScreenOverlayState::scrollDropIndicatorSlot() con
 // primeSurfaceRenderPipeline + cancelSurfacePrime live in overlayservice/priming.cpp.
 
 OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, ShaderRegistry* shaderRegistry,
-                               PhosphorAnimation::PhosphorProfileRegistry* profileRegistry, QObject* parent)
+                               PhosphorAnimation::PhosphorProfileRegistry* profileRegistry,
+                               std::unique_ptr<PhosphorLayer::ILayerShellTransport> transport, QObject* parent)
     : IOverlayService(parent)
     , m_screenProvider(std::make_unique<PhosphorLayer::DefaultScreenProvider>())
-    , m_transport(std::make_unique<PhosphorLayer::PhosphorWaylandTransport>())
+    , m_transport(std::move(transport))
 {
+    Q_ASSERT_X(m_transport, "OverlayService", "the host must supply a layer-shell transport");
     m_screenManager = screenManager;
     m_shaderRegistry = shaderRegistry;
 
@@ -335,19 +336,6 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
                 &OverlayService::onVirtualScreensChanged);
     }
 
-    // Connect to system sleep/resume via logind to restart shader timer after wake.
-    // This prevents large iTimeDelta jumps when system resumes from sleep.
-    // Track the connect result so the dtor can disconnect cleanly rather than
-    // leaving a dead entry in QDBusConnection's slot table until the session ends.
-    m_prepareForSleepConnected = QDBusConnection::systemBus().connect(
-        QStringLiteral("org.freedesktop.login1"), QStringLiteral("/org/freedesktop/login1"),
-        QStringLiteral("org.freedesktop.login1.Manager"), QStringLiteral("PrepareForSleep"), this,
-        SLOT(onPrepareForSleep(bool)));
-    if (!m_prepareForSleepConnected) {
-        qCDebug(lcOverlay) << "PrepareForSleep D-Bus signal subscription failed (logind not available?):"
-                           << "shader-timer restart on resume will not run";
-    }
-
     m_audioProvider = std::make_unique<PhosphorAudio::CavaSpectrumProvider>();
     connect(m_audioProvider.get(), &PhosphorAudio::IAudioSpectrumProvider::spectrumUpdated, this,
             &OverlayService::onAudioSpectrumUpdated);
@@ -383,14 +371,6 @@ OverlayService::~OverlayService()
     if (m_idleQuiesceTimer) {
         m_idleQuiesceTimer->stop();
         m_idleQuiesceTimer->disconnect();
-    }
-
-    if (m_prepareForSleepConnected) {
-        QDBusConnection::systemBus().disconnect(QStringLiteral("org.freedesktop.login1"),
-                                                QStringLiteral("/org/freedesktop/login1"),
-                                                QStringLiteral("org.freedesktop.login1.Manager"),
-                                                QStringLiteral("PrepareForSleep"), this, SLOT(onPrepareForSleep(bool)));
-        m_prepareForSleepConnected = false;
     }
 
     // Clean up all window types before engine is destroyed. The Surface owns
@@ -1222,7 +1202,7 @@ int OverlayService::visibleLayoutCount(const QString& screenId) const
     return entries.size();
 }
 
-void OverlayService::onPrepareForSleep(bool goingToSleep)
+void OverlayService::prepareForSleep(bool goingToSleep)
 {
     if (goingToSleep) {
         // System going to sleep - nothing to do

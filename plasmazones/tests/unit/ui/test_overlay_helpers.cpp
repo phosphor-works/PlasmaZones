@@ -20,7 +20,6 @@ using namespace PlasmaZones;
  * - patchZonesWithHighlight: single/multi highlight, empty ids, null window
  * - writeQmlProperty: valid property, null object safety
  * - ensureShaderTimerStarted: idempotency
- * - getAnchorsForPosition: all positions
  *
  * These are the real inline definitions from overlay_helpers.h, included above.
  * Nothing is replicated here and nothing has to be kept in sync — an earlier
@@ -196,112 +195,14 @@ private Q_SLOTS:
         QCOMPARE(lastFrame.load(), qint64(100));
         QCOMPARE(frameCount.load(), 50);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // P1: getAnchorsForPosition
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    void testGetAnchorsForPosition_topLeft()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::TopLeft);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop), "TopLeft must have AnchorTop");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft), "TopLeft must have AnchorLeft");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorBottom), "TopLeft must not have AnchorBottom");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight), "TopLeft must not have AnchorRight");
-    }
-
-    void testGetAnchorsForPosition_top()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::Top);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop), "Top must have AnchorTop");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft),
-                 "Top must have AnchorLeft (horizontal stretch)");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight),
-                 "Top must have AnchorRight (horizontal stretch)");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorBottom), "Top must not have AnchorBottom");
-    }
-
-    void testGetAnchorsForPosition_topRight()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::TopRight);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop), "TopRight must have AnchorTop");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight), "TopRight must have AnchorRight");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft), "TopRight must not have AnchorLeft");
-    }
-
-    void testGetAnchorsForPosition_left()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::Left);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft), "Left must have AnchorLeft");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop),
-                 "Left must have AnchorTop (vertical stretch)");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorBottom),
-                 "Left must have AnchorBottom (vertical stretch)");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight), "Left must not have AnchorRight");
-    }
-
-    void testGetAnchorsForPosition_right()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::Right);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight), "Right must have AnchorRight");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop),
-                 "Right must have AnchorTop (vertical stretch)");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorBottom),
-                 "Right must have AnchorBottom (vertical stretch)");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft), "Right must not have AnchorLeft");
-    }
-
-    void testGetAnchorsForPosition_bottomLeft()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::BottomLeft);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorBottom), "BottomLeft must have AnchorBottom");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft), "BottomLeft must have AnchorLeft");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop), "BottomLeft must not have AnchorTop");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight), "BottomLeft must not have AnchorRight");
-    }
-
-    void testGetAnchorsForPosition_bottom()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::Bottom);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorBottom), "Bottom must have AnchorBottom");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft),
-                 "Bottom must have AnchorLeft (horizontal stretch)");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight),
-                 "Bottom must have AnchorRight (horizontal stretch)");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop), "Bottom must not have AnchorTop");
-    }
-
-    void testGetAnchorsForPosition_bottomRight()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::BottomRight);
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorBottom), "BottomRight must have AnchorBottom");
-        QVERIFY2(anchors.testFlag(PhosphorWayland::LayerSurface::AnchorRight), "BottomRight must have AnchorRight");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorLeft), "BottomRight must not have AnchorLeft");
-        QVERIFY2(!anchors.testFlag(PhosphorWayland::LayerSurface::AnchorTop), "BottomRight must not have AnchorTop");
-    }
-
-    void testGetAnchorsForPosition_center()
-    {
-        auto anchors = getAnchorsForPosition(ZoneSelectorPosition::Center);
-        QCOMPARE(anchors, PhosphorWayland::LayerSurface::AnchorAll);
-    }
-
-    void testGetAnchorsForPosition_defaultFallback()
-    {
-        // Invalid enum value should fall through to default (Top anchors)
-        auto def = getAnchorsForPosition(static_cast<ZoneSelectorPosition>(99));
-        QVERIFY(def.testFlag(PhosphorWayland::LayerSurface::AnchorTop));
-        QVERIFY(def.testFlag(PhosphorWayland::LayerSurface::AnchorLeft));
-        QVERIFY(def.testFlag(PhosphorWayland::LayerSurface::AnchorRight));
-    }
 };
 
 // Custom main, and VESTIGIAL: QTEST_MAIN would do the same thing here. This target
 // links Qt6::Quick, so QT_GUI_LIB is defined and QTEST_MAIN_SETUP already expands to
 // QGuiApplication, which is the only application type the QQuickWindow below needs.
 // QTEST_MAIN would additionally set AA_Use96Dpi, and nothing here depends on the DPI:
-// these tests cover QVariantMap key logic, a QObject dynamic property, a QElapsedTimer
-// and an enum switch, and the window is never shown, never sized and never measured.
+// these tests cover QVariantMap key logic, a QObject dynamic property and a
+// QElapsedTimer, and the window is never shown, never sized and never measured.
 // Two earlier versions of this comment each gave a different wrong reason for keeping
 // the custom main. It is kept only because replacing it buys nothing.
 int main(int argc, char* argv[])
