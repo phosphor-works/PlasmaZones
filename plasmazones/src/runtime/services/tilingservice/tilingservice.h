@@ -919,7 +919,7 @@ public:
     /**
      * @brief Clear the engine list during shutdown
      *
-     * Called by Daemon::stop() before the engines' unique_ptrs are reset,
+     * Called by EngineRuntime::stop() before the engines' unique_ptrs are reset,
      * so that any late D-Bus calls (arriving between engine destruction and
      * adaptor destruction) hit ensurePipeline()'s empty check instead of a
      * dangling pointer.

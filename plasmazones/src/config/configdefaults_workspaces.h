@@ -19,7 +19,7 @@ public:
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// Master opt-in for dynamic per-monitor workspaces. Off, the daemon
-    /// never constructs a WorkspaceController (Daemon::initializeWorkspaces
+    /// never constructs a WorkspaceController (EngineRuntime::initializeWorkspaces
     /// returns before it). ShortcutManager still registers the workspace
     /// verbs but keeps them parked, holding no grab and absent from the
     /// cheatsheet, until the daemon calls setWorkspaceFamilyActive(true) once
@@ -73,7 +73,7 @@ public:
     // The focus pair deliberately takes over KWin's stock "Switch One Desktop
     // Down/Up" chords (user decision, 2026-08-26). That takeover is real: the
     // daemon's stock-rebind pass (the kwinDesktopActions() list in
-    // plasmazones/src/daemon/daemon/workspaces.cpp) backs up and clears
+    // plasmazones/src/daemon/host/kwinworkspacehost.cpp) backs up and clears
     // exactly the "Switch One Desktop *" / "Walk Through Desktops" actions
     // while the feature and the rebind toggle are both on, and restores them
     // on disable.

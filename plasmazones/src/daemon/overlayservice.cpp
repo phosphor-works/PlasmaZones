@@ -678,7 +678,7 @@ void OverlayService::setContextResolver(PhosphorContext::IContextResolver* resol
 
 bool OverlayService::isSnappingContextDisabled(const QString& screenId) const
 {
-    // Fail CLOSED on a null resolver, mirroring Daemon::isFocusedContextGated:
+    // Fail CLOSED on a null resolver, mirroring EngineRuntime::isFocusedContextGated:
     // the resolver is only null before wiring or during teardown, and showing
     // overlay UI in either window is worse than briefly suppressing it.
     if (!m_contextResolver) {

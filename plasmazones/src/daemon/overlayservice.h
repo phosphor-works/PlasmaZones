@@ -154,7 +154,7 @@ public:
     /// Borrowed Daemon-owned surface-shader registry, used to resolve the OSD's
     /// decoration pack (Stage d). Same lifetime contract as the animation
     /// registry: the registry is declared AFTER m_overlayService in daemon.h, so
-    /// Daemon::stop() nulls this borrow (setSurfaceShaderRegistry(nullptr))
+    /// EngineRuntime::stop() nulls this borrow (setSurfaceShaderRegistry(nullptr))
     /// BEFORE resetting the registry — the explicit teardown, not declaration
     /// order, is what prevents a dangling pointer during shutdown.
     void setSurfaceShaderRegistry(PhosphorSurfaceShaders::SurfaceShaderRegistry* registry);
@@ -661,7 +661,7 @@ public:
 
     /// Drop every screen's drop-indicator paint overrides, for the daemon's
     /// stop(). This service OUTLIVES stop(), and the ordinary
-    /// departing-screen clear (Daemon::updateScrollingScreens' difference
+    /// departing-screen clear (EngineRuntime::updateScrollingScreens' difference
     /// loop) can never run again once the engine's active set is empty — so
     /// without this a stop()/start() cycle comes up holding a dead session's
     /// rule-resolved colours.
@@ -952,17 +952,17 @@ private:
     std::unique_ptr<PhosphorLayer::ILayerShellTransport> m_transport;
     /// Raw pointer to Daemon-owned registry. m_animationShaderRegistry is
     /// declared AFTER m_overlayService in daemon.h; the pointer stays valid
-    /// because Daemon::stop() nulls this borrow (setAnimationShaderRegistry
+    /// because EngineRuntime::stop() nulls this borrow (setAnimationShaderRegistry
     /// (nullptr)) before resetting the registry — explicit teardown, not
     /// declaration order, prevents dangling access during shutdown.
     PhosphorAnimationShaders::AnimationShaderRegistry* m_animShaderRegistry = nullptr;
 
     /// Borrowed Daemon-owned surface-shader registry (Stage d). Resolves the
     /// "osd" decoration pack's fragment shader + translated params for the OSD
-    /// slot. Same teardown contract as m_animShaderRegistry: Daemon::stop()
+    /// slot. Same teardown contract as m_animShaderRegistry: EngineRuntime::stop()
     /// nulls this borrow before the registry is reset.
     PhosphorSurfaceShaders::SurfaceShaderRegistry* m_surfaceShaderRegistry = nullptr;
-    /// Borrowed; may be null. Daemon::stop() nulls it before the owning store is
+    /// Borrowed; may be null. EngineRuntime::stop() nulls it before the owning store is
     /// reset, the clear-before-teardown contract the two siblings above state.
     PhosphorShaders::ShaderPresetRegistry* m_presetRegistry = nullptr;
 

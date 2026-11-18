@@ -363,7 +363,7 @@ private Q_SLOTS:
         QCOMPARE(colorSpy.count(), 4);
 
         // clearEngine drops the strip cache but NOT the WTA borrow: the
-        // pass-through still resolves afterwards (Daemon::stop's
+        // pass-through still resolves afterwards (EngineRuntime::stop's
         // setWindowTrackingAdaptor(nullptr) is that borrow's canonical clear).
         adaptor.clearEngine();
         QCOMPARE(adaptor.scrollTabColors(windowId), colors);

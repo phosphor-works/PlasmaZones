@@ -444,7 +444,7 @@ void TilingService::reannounceAfterRenumber(const PhosphorEngine::DesktopRemap& 
             // did arrive first, the daemon cannot tell. No message the
             // effect sends is ordered after its handling of an announce, and
             // every per-output report is answered with a switch announce
-            // (Daemon::start's screenDesktopChanged handler), so nearly every
+            // (EngineRuntime::start's screenDesktopChanged handler), so nearly every
             // last announce is one. Re-sent whenever a stamped desktop moved,
             // then, at a known cost: when the effect had taken the announce,
             // the re-send has no switch behind it and voids every output's

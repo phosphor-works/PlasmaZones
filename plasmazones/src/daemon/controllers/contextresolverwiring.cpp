@@ -26,7 +26,7 @@ DaemonWorkspaceStateAdapter::DaemonWorkspaceStateAdapter(
 
 int DaemonWorkspaceStateAdapter::currentVirtualDesktop() const
 {
-    // Mirror Daemon::currentDesktop() — return 0 when no VDM is wired so
+    // Mirror EngineRuntime::currentDesktop() — return 0 when no VDM is wired so
     // adapter-routed gates report the same value as the historical inline
     // pattern. 0 in PZ's taxonomy is "pinned across all desktops" and is
     // skipped by isDesktopDisabled (see contextDisabledReason in

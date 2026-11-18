@@ -27,7 +27,7 @@ Restart=on-failure
 RestartSec=5
 # Qt's qFatal (e.g. wayland QPA losing wl_display at logout) is
 # "unrecoverable, do not retry". See queryPlasmaWorkspaceState()
-# in daemon/plasma_workspace.cpp for the phantom-session analysis.
+# in daemon/plasmaworkspace.cpp for the phantom-session analysis.
 RestartPreventExitStatus=SIGABRT 69
 Slice=session.slice
 Environment=QT_PLUGIN_PATH=@KDE_INSTALL_FULL_LIBDIR@/qt6/plugins

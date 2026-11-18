@@ -12,16 +12,19 @@
  * is brittle against renaming the calls it looks for, and fails loudly when
  * one of them is not found rather than passing on a missing match.
  *
- *  - Daemon::stop() releases the shortcut grabs before the bus name.
+ *  - Shutdown releases the shortcut grabs before the bus name.
  *    KGlobalAccel keys a shortcut by component and action name alone, so the
  *    setInactive and unregister calls the release sends would ungrab the keys
  *    of a --replace or bus-activated successor that registered first, and a
- *    successor can register as soon as the name is free.
- *  - Daemon::stop() tears dynamic workspaces down before both. The teardown
- *    unregisters the named-workspace chords and gives KWin back its desktop
- *    chords, which needs the shortcut Registry still alive, and a restore sent
- *    after the bus name is free could hand the chords back to KWin underneath
- *    a successor that already took them.
+ *    successor can register as soon as the name is free. The release is in
+ *    EngineRuntime::stop(), the name is plasmazonesd's: the runtime emits
+ *    servicesClosing() after the release, and Daemon releases the name in
+ *    the handler (withdrawFromBus), directly connected, and nowhere else.
+ *  - EngineRuntime::stop() tears dynamic workspaces down before both. The
+ *    teardown unregisters the named-workspace chords and gives KWin back its
+ *    desktop chords, which needs the shortcut Registry still alive, and a
+ *    restore sent after the bus name is free could hand the chords back to
+ *    KWin underneath a successor that already took them.
  *  - main() reads the rendering backend only after
  *    ConfigMigration::ensureJsonConfig(), and before the Daemon builds the
  *    first QQuickWindow. A v1 config.json holds the backend under a key the
@@ -88,42 +91,77 @@ class TestDaemonLifecycleOrder : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
-    void stopReleasesShortcutsBeforeTheBusName()
+    void stopReleasesShortcutsBeforeTheServicesClose()
     {
-        const QString source = readSource(QStringLiteral("/src/daemon/daemon/lifecycle.cpp"));
-        QVERIFY2(!source.isEmpty(), "could not read daemon/daemon/lifecycle.cpp");
-        const QString stop = functionBody(source, QStringLiteral("void Daemon::stop()"));
-        QVERIFY2(!stop.isEmpty(), "Daemon::stop() not found in lifecycle.cpp");
+        const QString source = readSource(QStringLiteral("/src/daemon/engineruntime/lifecycle.cpp"));
+        QVERIFY2(!source.isEmpty(), "could not read daemon/engineruntime/lifecycle.cpp");
+        const QString stop = functionBody(source, QStringLiteral("void EngineRuntime::stop()"));
+        QVERIFY2(!stop.isEmpty(), "EngineRuntime::stop() not found in lifecycle.cpp");
 
         const QString release = QStringLiteral("m_shortcutManager->unregisterShortcuts()");
+        const QString closing = QStringLiteral("Q_EMIT servicesClosing()");
         const qsizetype releaseAt = stop.indexOf(release);
-        const qsizetype nameAt = stop.indexOf(QStringLiteral("unregisterService("));
-        QVERIFY2(releaseAt >= 0, "Daemon::stop() no longer calls m_shortcutManager->unregisterShortcuts()");
-        QVERIFY2(nameAt >= 0, "Daemon::stop() no longer calls unregisterService(");
-        QVERIFY2(releaseAt < nameAt, "Daemon::stop() must release the shortcut grabs before it releases the bus name");
+        const qsizetype closingAt = stop.indexOf(closing);
+        QVERIFY2(releaseAt >= 0, "EngineRuntime::stop() no longer calls m_shortcutManager->unregisterShortcuts()");
+        QVERIFY2(closingAt >= 0, "EngineRuntime::stop() no longer emits servicesClosing()");
+        QVERIFY2(releaseAt < closingAt,
+                 "EngineRuntime::stop() must release the shortcut grabs before the host releases the bus name");
         QVERIFY2(stop.indexOf(release, releaseAt + 1) < 0,
-                 "Daemon::stop() releases the shortcuts twice; a second release after the bus name reopens the race");
+                 "EngineRuntime::stop() releases the shortcuts twice; a second release after the bus name reopens "
+                 "the race");
+        QVERIFY2(stop.indexOf(closing, closingAt + 1) < 0, "EngineRuntime::stop() emits servicesClosing() twice");
     }
 
-    void stopTearsWorkspacesDownBeforeTheShortcutsAndTheBusName()
+    void stopTearsWorkspacesDownBeforeTheShortcutsAndTheServicesClose()
     {
-        const QString source = readSource(QStringLiteral("/src/daemon/daemon/lifecycle.cpp"));
-        QVERIFY2(!source.isEmpty(), "could not read daemon/daemon/lifecycle.cpp");
-        const QString stop = functionBody(source, QStringLiteral("void Daemon::stop()"));
-        QVERIFY2(!stop.isEmpty(), "Daemon::stop() not found in lifecycle.cpp");
+        const QString source = readSource(QStringLiteral("/src/daemon/engineruntime/lifecycle.cpp"));
+        QVERIFY2(!source.isEmpty(), "could not read daemon/engineruntime/lifecycle.cpp");
+        const QString stop = functionBody(source, QStringLiteral("void EngineRuntime::stop()"));
+        QVERIFY2(!stop.isEmpty(), "EngineRuntime::stop() not found in lifecycle.cpp");
 
         const QString teardown = QStringLiteral("teardownWorkspaces()");
         const qsizetype teardownAt = stop.indexOf(teardown);
         const qsizetype releaseAt = stop.indexOf(QStringLiteral("m_shortcutManager->unregisterShortcuts()"));
-        const qsizetype nameAt = stop.indexOf(QStringLiteral("unregisterService("));
-        QVERIFY2(teardownAt >= 0, "Daemon::stop() no longer calls teardownWorkspaces()");
-        QVERIFY2(releaseAt >= 0, "Daemon::stop() no longer calls m_shortcutManager->unregisterShortcuts()");
-        QVERIFY2(nameAt >= 0, "Daemon::stop() no longer calls unregisterService(");
+        const qsizetype closingAt = stop.indexOf(QStringLiteral("Q_EMIT servicesClosing()"));
+        QVERIFY2(teardownAt >= 0, "EngineRuntime::stop() no longer calls teardownWorkspaces()");
+        QVERIFY2(releaseAt >= 0, "EngineRuntime::stop() no longer calls m_shortcutManager->unregisterShortcuts()");
+        QVERIFY2(closingAt >= 0, "EngineRuntime::stop() no longer emits servicesClosing()");
         QVERIFY2(teardownAt < releaseAt,
-                 "Daemon::stop() must tear workspaces down while the shortcut Registry is still alive");
-        QVERIFY2(teardownAt < nameAt, "Daemon::stop() must tear workspaces down before it releases the bus name");
+                 "EngineRuntime::stop() must tear workspaces down while the shortcut Registry is still alive");
+        QVERIFY2(teardownAt < closingAt,
+                 "EngineRuntime::stop() must tear workspaces down before the host releases the bus name");
         QVERIFY2(stop.indexOf(teardown, teardownAt + 1) < 0,
-                 "Daemon::stop() tears workspaces down twice; a second teardown after the release finds no Registry");
+                 "EngineRuntime::stop() tears workspaces down twice; a second teardown after the release finds no "
+                 "Registry");
+    }
+
+    void daemonReleasesTheBusNameOnlyWhenTheServicesClose()
+    {
+        const QString source = readSource(QStringLiteral("/src/daemon/daemon.cpp"));
+        QVERIFY2(!source.isEmpty(), "could not read daemon/daemon.cpp");
+
+        const QString withdraw = functionBody(source, QStringLiteral("void Daemon::withdrawFromBus()"));
+        QVERIFY2(!withdraw.isEmpty(), "Daemon::withdrawFromBus() not found in daemon.cpp");
+        QVERIFY2(withdraw.contains(QStringLiteral("unregisterService(")),
+                 "Daemon::withdrawFromBus() no longer releases the bus name");
+
+        // Released anywhere else, the name could go before the runtime's
+        // shortcut release. Only withdrawFromBus and registerDBusService's own
+        // failure path may name it.
+        const QString stop = functionBody(source, QStringLiteral("void Daemon::stop()"));
+        QVERIFY2(!stop.isEmpty(), "Daemon::stop() not found in daemon.cpp");
+        QVERIFY2(!stop.contains(QStringLiteral("unregisterService(")),
+                 "Daemon::stop() must leave the bus name to withdrawFromBus, which runs after the shortcut release");
+        QVERIFY2(source.count(QStringLiteral("unregisterService(")) == 2,
+                 "daemon.cpp releases the bus name somewhere other than withdrawFromBus and the failed "
+                 "registration");
+
+        // Queued, the handler would run after stop() returned, and the name
+        // would outlive the teardown it is supposed to precede.
+        static const QRegularExpression wiring(QStringLiteral(
+            R"(connect\(\s*m_runtime\.get\(\),\s*&EngineRuntime::servicesClosing,\s*this,\s*&Daemon::withdrawFromBus,\s*Qt::DirectConnection\s*\))"));
+        QVERIFY2(wiring.match(source).hasMatch(),
+                 "Daemon no longer connects servicesClosing to withdrawFromBus with Qt::DirectConnection");
     }
 
     void mainReadsTheBackendAfterTheMigration()

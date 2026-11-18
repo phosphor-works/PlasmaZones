@@ -30,7 +30,7 @@ namespace PlasmaZones {
  * held by the daemon and passed by reference/pointer to consumers.
  *
  * Lifetime: the router holds raw IPlacementEngine pointers. The daemon
- * must reset the router BEFORE destroying the engines (see Daemon::stop).
+ * must reset the router BEFORE destroying the engines (see EngineRuntime::stop).
  */
 class PLASMAZONES_EXPORT ScreenModeRouter
 {

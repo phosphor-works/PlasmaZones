@@ -130,7 +130,7 @@ bool SettingsController::scrollingStripVerticalForScreen(const QString& screenNa
     // config spelling (id and connector, any /vs:N suffix preserved) through
     // perScreenKeyVariants, so a spellings loop here re-asked the same two.
     // The virtual→physical retry mirrors the daemon's seed
-    // (Daemon::updateScrollingScreens) byte for byte: a virtual sub-screen
+    // (EngineRuntime::updateScrollingScreens) byte for byte: a virtual sub-screen
     // with NO map of its own inherits its physical parent's wholesale.
     QVariantMap overrides = m_settings.getPerScreenScrollingSettings(screenName);
     if (overrides.isEmpty() && PhosphorIdentity::VirtualScreenId::isVirtual(screenName)) {

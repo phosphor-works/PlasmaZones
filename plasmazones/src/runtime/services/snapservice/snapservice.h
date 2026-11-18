@@ -82,7 +82,7 @@ public:
      * @brief Clear the engine pointer during shutdown
      *
      * Drops the signal relays its constructor made and every borrow.
-     * Called by Daemon::stop() before the SnapEngine unique_ptr is reset.
+     * Called by EngineRuntime::stop() before the SnapEngine unique_ptr is reset.
      */
     void clearEngine();
 
@@ -95,10 +95,10 @@ public:
     /**
      * @brief Set the frozen-snapshot resolver used by snaprestore's disable
      *        gate. Set right after construction by
-     *        Daemon::initEnginesAndWiring (the resolver already exists then);
+     *        EngineRuntime::initEnginesAndWiring (the resolver already exists then);
      *        a setter so stop() and clearEngine() can null it.
      *
-     * @param resolver IContextResolver instance (not owned; Daemon::stop() clears it after clearEngine())
+     * @param resolver IContextResolver instance (not owned; EngineRuntime::stop() clears it after clearEngine())
      */
     void setContextResolver(PhosphorContext::IContextResolver* resolver)
     {

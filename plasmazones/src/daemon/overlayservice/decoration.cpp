@@ -59,7 +59,7 @@ void OverlayService::setSurfaceShaderRegistry(PhosphorSurfaceShaders::SurfaceSha
         return;
     }
     // Disconnect from the outgoing registry before the borrow is overwritten,
-    // or a re-set would leave a second connection behind. Daemon::stop() nulls
+    // or a re-set would leave a second connection behind. EngineRuntime::stop() nulls
     // this borrow before resetting the registry, so the old pointer is still
     // alive here. The signal is named rather than left as a blanket
     // disconnect(sender, nullptr, this, nullptr), which is a readability choice and

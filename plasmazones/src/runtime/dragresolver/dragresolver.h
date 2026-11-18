@@ -134,7 +134,7 @@ public:
      * shortcuts.
      *
      * Passing nullptr detaches the adaptor from the registrar; any subsequent
-     * (un)register call becomes a no-op. Daemon::stop() uses this to prevent
+     * (un)register call becomes a no-op. EngineRuntime::stop() uses this to prevent
      * late callbacks from touching a destroyed ShortcutManager during
      * shutdown (member destruction order: unique_ptr members destruct before
      * ~QObject runs, so ShortcutManager dies before this adaptor does).
@@ -333,8 +333,8 @@ public Q_SLOTS:
      * DragResolver must keep forwarding it as a slot: dropping it there
      * would silently remove it from the wire and the effect's fire-and-forget
      * `sendOneWay` call would no-op without any error. The daemon also calls
-     * it in-process from `Daemon::init` via the `bridgeRegistered` signal, but
-     * that only covers re-registration, not the effect's explicit
+     * it in-process from `EngineRuntime::compositorConnected`, but that only
+     * covers re-registration, not the effect's explicit
      * shutdown-time clear.
      */
     void clearForCompositorReconnect();

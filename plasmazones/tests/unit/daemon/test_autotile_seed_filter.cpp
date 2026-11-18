@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Pins the autotile seed-order filter (Daemon::seedAutotileOrderForScreen's
+// Pins the autotile seed-order filter (EngineRuntime::seedAutotileOrderForScreen's
 // admission predicate, extracted as filterEngineSeedOrder): float is per
 // engine, so non-minimized windows always pass (a source-mode float must not
 // make the window untileable in the target engine); minimized windows stay as
@@ -12,7 +12,7 @@
 #include <QObject>
 #include <QTest>
 
-#include "daemon/daemon/seedorderfilter.h"
+#include "daemon/engineruntime/seedorderfilter.h"
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/StubPlacementEngine.h"

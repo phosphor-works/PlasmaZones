@@ -426,7 +426,7 @@ bool SnapService::snapPermittedForContext(const QString& windowId, const QString
     }
 
     // Disabled-context gate. The interactive drag path (DragResolver)
-    // and autotile (Daemon::updateEngineScreens) already refuse to place
+    // and autotile (EngineRuntime::updateEngineScreens) already refuse to place
     // windows on a monitor / desktop / activity the user marked disabled.
     // The auto-snap-on-open restore path did not, so windows still snapped on
     // a disabled context (discussion #461). Gating here covers all restore

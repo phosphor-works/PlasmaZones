@@ -132,7 +132,7 @@ void PlasmaZonesEffect::connectDaemonSubscriptions()
         });
     }
 
-    // Connect to daemon's daemonReady signal — emitted at the end of Daemon::start()
+    // Connect to daemon's daemonReady signal — emitted at the end of EngineRuntime::start()
     // after all initialization is complete and the daemon can process D-Bus messages.
     // This is the safe point to set m_daemonGate.serviceRegistered and create QDBusInterfaces.
     // Logged on failure like the sibling subscriptions above: this is the
@@ -427,7 +427,7 @@ void PlasmaZonesEffect::connectDaemonSubscriptions()
         // The daemon registers its D-Bus service name in init(), BEFORE start()
         // runs heavy initialization and BEFORE the event loop begins. Keep the
         // flag false until the daemon's own daemonReady signal fires (end of
-        // Daemon::start()), confirming it can handle D-Bus requests.
+        // EngineRuntime::start()), confirming it can handle D-Bus requests.
 
         // Defensive reconnect of daemonReady. Subscriptions against a
         // WELL-KNOWN name survive daemon restarts (the bus re-resolves the

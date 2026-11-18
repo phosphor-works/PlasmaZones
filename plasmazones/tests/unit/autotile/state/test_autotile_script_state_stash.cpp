@@ -206,7 +206,7 @@ private Q_SLOTS:
 
         engine.setAutotileScreens({});
         // The daemon re-derives per-screen config from the persisted settings and
-        // does so BEFORE re-activating screens (see Daemon::updateEngineScreens).
+        // does so BEFORE re-activating screens (see EngineRuntime::updateEngineScreens).
         engine.applyPerScreenConfig(screen, algorithmOverride(QStringLiteral("bsp")));
         engine.setAutotileScreens({screen});
 
@@ -214,7 +214,7 @@ private Q_SLOTS:
     }
 
     /// The state can be created BEFORE the per-screen override is reinstated.
-    /// Daemon::updateEngineScreens seeds window order for every added screen
+    /// EngineRuntime::updateEngineScreens seeds window order for every added screen
     /// (autotile.cpp, "Must happen before setActiveScreens()") and that seeding
     /// creates the TilingState, all before the applyPerScreenConfig loop. At that
     /// instant the resolver has no override for the screen, so its effective

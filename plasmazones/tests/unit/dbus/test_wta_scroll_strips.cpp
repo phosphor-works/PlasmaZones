@@ -152,7 +152,7 @@ private Q_SLOTS:
         QVERIFY(m_wta->loadedScrollStripState().isEmpty());
     }
 
-    // The real shutdown sequence: Daemon::stop() detaches the provider and
+    // The real shutdown sequence: EngineRuntime::stop() detaches the provider and
     // THEN calls saveStateOnShutdown. An absent provider must leave the
     // stored strips alone — treating it as an empty blob deleted the user's
     // strip structure on every clean logout.

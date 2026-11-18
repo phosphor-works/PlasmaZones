@@ -204,7 +204,7 @@ inline std::optional<int> ownDesktopOn(const std::optional<::PhosphorEngine::Win
 /// Whether @p desktop (0: the one @p screenId shows) on @p screenId in @p activity is the tiling opt-out
 /// ("autotile:none"): Autotile mode with no algorithm, so nothing tiles there and no engine owns a float (user
 /// decision autotile_none_float_owner). Read from the same cascade entry as ScreenModeRouter::modeFor's opt-out arm
-/// and Daemon::runningModeForContext's routerOptOut (float.cpp).
+/// and EngineRuntime::runningModeForContext's routerOptOut (float.cpp).
 PLASMAZONES_EXPORT bool isOptOutContext(const WindowTracker& adaptor, const QString& screenId, int desktop,
                                         const QString& activity);
 
@@ -224,7 +224,7 @@ PLASMAZONES_EXPORT void dropOptOutFloats(WindowTracker* adaptor);
 /// Of @p screens, the ones whose context in view just became the tiling opt-out release the windows snap holds in
 /// zones there, in place: subscribers hear each "unsnapped" and nothing moves. Snap keeps the zones as frozen memory,
 /// as it does for a context that went to a tiling engine, and the resnap of the flip back to snapping re-applies them.
-/// The daemon passes every screen whose active assignment changed (Daemon::diffActiveAssignments).
+/// The daemon passes every screen whose active assignment changed (EngineRuntime::diffActiveAssignments).
 PLASMAZONES_EXPORT void releaseOptOutZones(WindowTracker* adaptor, const QSet<QString>& screens);
 
 /// A window a scrolling strip let go of on the tiling opt-out, where nothing places it: back at @p freeGeometry,

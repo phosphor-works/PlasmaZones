@@ -59,7 +59,7 @@ class Settings;
  *                                                algorithmRegistry, autotileEngine, parent);
  * controller->applyLayoutById(layoutId);
  * controller->cycleNext();
- * connect(controller, &UnifiedLayoutController::layoutApplied, this, &Daemon::showLayoutOsd);
+ * connect(controller, &UnifiedLayoutController::layoutApplied, this, &EngineRuntime::showLayoutOsd);
  * @endcode
  *
  * @note Thread Safety: All methods should be called from the main thread.
@@ -242,7 +242,7 @@ public:
      * @p includeScrollingTemplates is the third, exclusive arm: a Templates
      * screen (scrolling) browses native template cards, so the caller passes
      * it true together with both other flags false. It is not a union member
-     * with the other two — the daemon-side filter (Daemon::
+     * with the other two — the daemon-side filter (EngineRuntime::
      * updateLayoutFilterForScreen) forces manual and autotile off whenever
      * this is set, so cycling and the quick slots see templates alone.
      */

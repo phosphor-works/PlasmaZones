@@ -570,54 +570,56 @@ set(plasmazones_daemon_SRCS
     daemon/rendering/vulkansupport.cpp
     daemon/rendering/vulkansupport.h
     daemon/daemon.cpp
+    daemon/daemon.h
+    daemon/bridgewatchdog.cpp
+    daemon/plasmaworkspace.cpp
+    daemon/engineruntime.cpp
     daemon/controllers/enginefactory.cpp
     daemon/controllers/shortcutmanager_adhoc.cpp
     daemon/controllers/shortcutmanager_catalog.cpp
     daemon/controllers/shortcutmanager_ids.h
     daemon/controllers/shortcutmanager_table.cpp
     daemon/controllers/shortcutmanager_table.h
-    daemon/daemon/start.cpp
-    daemon/daemon/desktop_renumber.cpp
-    daemon/daemon/evacuees.cpp
-    daemon/daemon/shortcuts_wiring.cpp
-    daemon/daemon/autotile_init.cpp
-    daemon/daemon/scrolling_init.cpp
-    daemon/daemon/scrolling.cpp
-    daemon/daemon/workspaces.cpp
-    daemon/daemon/signals.cpp
-    daemon/daemon/shader_warmup.cpp
-    daemon/daemon/animation_profiles.cpp
-    daemon/daemon/init_services.cpp
-    daemon/daemon/init_adaptors.cpp
-    daemon/daemon/init_engines.cpp
-    daemon/daemon/init_assignment_apply.cpp
-    daemon/daemon/init_dbus_service.cpp
-    daemon/daemon/lifecycle.cpp
-    daemon/daemon/bridge_watchdog.cpp
-    daemon/daemon/plasma_workspace.cpp
-    daemon/daemon/idle.cpp
-    daemon/daemon/navigation.cpp
-    daemon/daemon/autotile.cpp
-    daemon/daemon/engine_release.cpp
-    daemon/daemon/seedorderfilter.cpp
-    daemon/daemon/seedorderfilter.h
-    daemon/daemon/enginerouting.cpp
-    daemon/daemon/enginerouting.h
-    daemon/daemon/screenreshapetracker.cpp
-    daemon/daemon/screenreshapetracker.h
-    daemon/daemon/snapgaptracker.cpp
-    daemon/daemon/snapgaptracker.h
-    daemon/daemon/osd.cpp
-    daemon/daemon/cheatsheet.cpp
-    daemon/daemon/stripzones.h
-    daemon/daemon.h
-    daemon/daemon_fwd.h
-    daemon/daemon/helpers.h
-    daemon/daemon/macros.h
+    daemon/engineruntime/start.cpp
+    daemon/engineruntime/desktop_renumber.cpp
+    daemon/engineruntime/evacuees.cpp
+    daemon/engineruntime/shortcuts_wiring.cpp
+    daemon/engineruntime/autotile_init.cpp
+    daemon/engineruntime/scrolling_init.cpp
+    daemon/engineruntime/scrolling.cpp
+    daemon/engineruntime/workspaces.cpp
+    daemon/engineruntime/signals.cpp
+    daemon/engineruntime/shader_warmup.cpp
+    daemon/engineruntime/animation_profiles.cpp
+    daemon/engineruntime/init_services.cpp
+    daemon/engineruntime/init_adaptors.cpp
+    daemon/engineruntime/init_engines.cpp
+    daemon/engineruntime/init_assignment_apply.cpp
+    daemon/engineruntime/init_service_wiring.cpp
+    daemon/engineruntime/lifecycle.cpp
+    daemon/engineruntime/idle.cpp
+    daemon/engineruntime/navigation.cpp
+    daemon/engineruntime/autotile.cpp
+    daemon/engineruntime/engine_release.cpp
+    daemon/engineruntime/seedorderfilter.cpp
+    daemon/engineruntime/seedorderfilter.h
+    daemon/engineruntime/enginerouting.cpp
+    daemon/engineruntime/enginerouting.h
+    daemon/engineruntime/screenreshapetracker.cpp
+    daemon/engineruntime/screenreshapetracker.h
+    daemon/engineruntime/snapgaptracker.cpp
+    daemon/engineruntime/snapgaptracker.h
+    daemon/engineruntime/osd.cpp
+    daemon/engineruntime/cheatsheet.cpp
+    daemon/engineruntime/stripzones.h
+    daemon/engineruntime.h
+    daemon/engineruntime_fwd.h
+    daemon/engineruntime/helpers.h
+    daemon/engineruntime/macros.h
     # Concrete daemon-side adapters bridging the existing services
     # (VirtualDesktopManager + ActivityManager + ScreenModeRouter + ISettings)
     # to the LGPL PhosphorContext::IContextResolver triple. Owned by Daemon
-    # alongside m_contextResolver — see the wiring in daemon/daemon.h.
+    # alongside m_contextResolver — see the wiring in daemon/engineruntime.h.
     daemon/controllers/contextresolverwiring.h
     daemon/controllers/contextresolverwiring.cpp
     daemon/overlayservice.cpp
@@ -720,7 +722,7 @@ target_link_libraries(plasmazonesd
         # (DaemonWorkspaceStateAdapter / DaemonScreenModeAdapter /
         # DaemonSettingsGateAdapter in
         # daemon/controllers/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
-        # + OverlayService borrow it via `Daemon::contextResolver()`.
+        # + OverlayService borrow it via `EngineRuntime::contextResolver()`.
         PhosphorContextResolver::PhosphorContextResolver
         # Daemon is headless: runs under QGuiApplication. No Qt6::Widgets
         # link: it was unused and pulled QtWidgets + xcb deps into a binary

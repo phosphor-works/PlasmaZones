@@ -422,7 +422,7 @@ void WindowTracker::loadState()
     //
     // CRITICAL: Use QSignalBlocker to suppress activeLayoutChanged during restore.
     // At this point in init, m_layoutManager->currentVirtualDesktop() is still the
-    // default (1) — the real desktop hasn't been set yet (done in Daemon::start()).
+    // default (1) — the real desktop hasn't been set yet (done in EngineRuntime::start()).
     // If activeLayoutChanged fires, onLayoutChanged() runs stale-assignment removal
     // using resolveLayoutForScreen() with the wrong desktop, which falls back to
     // defaultLayout() instead of the restored layout. PhosphorZones::Zone assignments from the

@@ -46,7 +46,7 @@ public:
                             PhosphorEngine::IPlacementEngine* autotileEngine, QObject* parent = nullptr);
     ~ControlService() override = default;
 
-    /// Null every borrowed pointer. Called from Daemon::stop() before the
+    /// Null every borrowed pointer. Called from EngineRuntime::stop() before the
     /// unique_ptr members that own these objects run their destructors
     /// (the adaptor is Qt-parented to the daemon, so ~QObject — which
     /// destroys us — would otherwise run AFTER those unique_ptrs, leaving

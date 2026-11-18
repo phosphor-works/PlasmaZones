@@ -471,7 +471,7 @@ SettingsController::SettingsController(QObject* parent)
     // `lastRecalcGeometry()` and ZonesLayoutSource populates
     // LayoutPreview::zones / referenceAspectRatio without needing a
     // second explicit call here. Daemon runs the same recalc in
-    // Daemon::init(); settings owns an in-process LayoutRegistry
+    // EngineRuntime::init(); settings owns an in-process LayoutRegistry
     // independent of the daemon and gets there via the signal path.
 
     // Load scripted algorithms so they appear in the algorithm dropdown.

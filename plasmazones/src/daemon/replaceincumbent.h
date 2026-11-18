@@ -35,7 +35,7 @@ inline QByteArray processName(const QString& pid)
 ///
 /// That happens when the incumbent let go of the name between the successor's
 /// failed registerService and its pid lookup: the incumbent is then in
-/// Daemon::stop(), still saving, and is exactly the process to wait for. The
+/// EngineRuntime::stop(), still saving, and is exactly the process to wait for. The
 /// record holds the pid of the last daemon to start, and main() writes the
 /// successor's own record only once the name is ours, so here it still
 /// belongs to an earlier start.

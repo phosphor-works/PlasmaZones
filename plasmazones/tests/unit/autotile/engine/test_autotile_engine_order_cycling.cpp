@@ -21,7 +21,7 @@ using namespace PhosphorTileEngine;
  * @brief Tests that window order is preserved across autotile screen removal
  *        and re-addition (the "cycling" path).
  *
- * Exercises the pattern used by Daemon::updateEngineScreens():
+ * Exercises the pattern used by EngineRuntime::updateEngineScreens():
  *   1. Capture tiledWindowOrder() for screens leaving autotile
  *   2. Remove screens via setAutotileScreens()
  *   3. Seed order via setInitialWindowOrder() for screens re-entering

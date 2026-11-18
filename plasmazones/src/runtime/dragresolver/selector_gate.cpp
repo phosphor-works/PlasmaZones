@@ -32,7 +32,7 @@ namespace PlasmaZones {
 bool DragResolver::scrollSelectorScreen(const QString& screenId) const
 {
     // Engine-direct twin of OverlayService::isStripSelectorScreen (which
-    // routes through Daemon::dragInsertSelectorForScreen and the screen-mode
+    // routes through EngineRuntime::dragInsertSelectorForScreen and the screen-mode
     // router). The two agree by construction: the router's modeFor is
     // live-set-first on the SAME isActiveOnScreen set consulted here, so the
     // trigger-edge sizing contract (config half here, card-count half via
