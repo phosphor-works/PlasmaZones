@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorControl/PageController.h>
 #include <QObject>
 #include <QString>

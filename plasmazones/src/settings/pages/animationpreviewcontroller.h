@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // The kwin-effect's wobble-lattice spring integrator, included by relative
 // path on purpose: this controller is compiled into the settings app AND
 // twelve animation test executables, and a quote-include resolves against

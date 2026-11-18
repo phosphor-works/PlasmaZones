@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorScreens/ScreenInfo.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <QList>

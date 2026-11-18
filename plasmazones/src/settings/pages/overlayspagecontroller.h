@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorControl/PageController.h>
 
 // Complete type, not a forward declaration: moc must see it to register the

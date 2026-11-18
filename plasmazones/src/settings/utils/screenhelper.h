@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorZones/AssignmentEntry.h>
 #include <QObject>
 #include <QTimer>
