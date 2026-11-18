@@ -228,7 +228,7 @@ private Q_SLOTS:
         // the daemon or the open editor. They are found by prefix, so an
         // Editor group added later is swept without editing this list.
         QStringList sweptGroups = {
-            ConfigDefaults::renderingGroup(),        ConfigDefaults::decorationsPerformanceGroup(),
+            HostSettings::renderingGroup(),          ConfigDefaults::decorationsPerformanceGroup(),
             ConfigDefaults::snappingBehaviorGroup(), ConfigDefaults::snappingBehaviorZoneSpanGroup(),
             ConfigDefaults::tilingBehaviorGroup(),
         };

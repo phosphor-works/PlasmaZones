@@ -603,6 +603,50 @@ private Q_SLOTS:
     // into a ProfileTree JSON blob: the Global profile becomes the tree
     // baseline, every other path an override. Round-tripped back through
     // ProfileTree so the assertion pins resolved durations, not wire shape.
+    // A host's own setting (registerHostSetting) reads, writes and describes
+    // itself like the engine's, and a batch that changes it announces
+    // hostValueChanged once afterwards: the setter's own emission is swallowed
+    // by the batch's signal blocker, as Settings::setHostValue's would be.
+    void testHostSetting_servedAndAnnouncedAfterBatch()
+    {
+        QObject parent;
+        auto* service = new SettingsService(m_settings, /*profileRegistry=*/nullptr, &parent);
+        auto* adaptor = new SettingsAdaptor(service, &parent);
+        QString stored = QStringLiteral("auto");
+        StubSettings* const settings = m_settings;
+        service->registerHostSetting(
+            QStringLiteral("hostBackend"), QStringLiteral("string"), QStringLiteral("HostGroup"),
+            QStringLiteral("Backend"),
+            [&stored]() {
+                return QVariant(stored);
+            },
+            [&stored, settings](const QVariant& value) {
+                if (value.toString() == QLatin1String("bogus")) {
+                    return false;
+                }
+                stored = value.toString();
+                Q_EMIT settings->hostValueChanged(QStringLiteral("HostGroup"), QStringLiteral("Backend"));
+                return true;
+            });
+
+        QVERIFY(adaptor->getSettingKeys().contains(QStringLiteral("hostBackend")));
+        QCOMPARE(adaptor->getSetting(QStringLiteral("hostBackend")).variant().toString(), QStringLiteral("auto"));
+        QVERIFY(adaptor->getSettingSchema(QStringLiteral("hostBackend")).contains(QLatin1String("string")));
+
+        QSignalSpy hostChanged(m_settings, &ISettings::hostValueChanged);
+        const QVariantMap batch{{QStringLiteral("hostBackend"), QStringLiteral("vulkan")},
+                                {QStringLiteral("innerGap"), 12}};
+        QVERIFY(adaptor->setSettings(batch));
+        QCOMPARE(stored, QStringLiteral("vulkan"));
+        QCOMPARE(hostChanged.count(), 1);
+        QCOMPARE(hostChanged.first().at(0).toString(), QStringLiteral("HostGroup"));
+        QCOMPARE(hostChanged.first().at(1).toString(), QStringLiteral("Backend"));
+
+        // The host's refusal is the call's.
+        QVERIFY(!service->setSetting(QStringLiteral("hostBackend"), QStringLiteral("bogus")));
+        QCOMPARE(stored, QStringLiteral("vulkan"));
+    }
+
     void testMotionProfileTree_getterSerializesBaselineAndOverrides()
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;

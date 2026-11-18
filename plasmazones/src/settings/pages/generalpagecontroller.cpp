@@ -3,7 +3,7 @@
 
 #include "generalpagecontroller.h"
 
-#include "core/interfaces/isettings.h"
+#include "common/hostsettings.h"
 #include "phosphor_i18n.h"
 #include "utils/gpudevicelist.h"
 
@@ -14,7 +14,7 @@
 
 namespace PlasmaZones {
 
-GeneralPageController::GeneralPageController(ISettings& settings, QObject* parent)
+GeneralPageController::GeneralPageController(HostSettings& settings, QObject* parent)
     : PhosphorControl::PageController(QStringLiteral("general"), parent)
     , m_settings(settings)
     , m_cavaAvailable(!QStandardPaths::findExecutable(QStringLiteral("cava")).isEmpty())
@@ -36,7 +36,7 @@ GeneralPageController::GeneralPageController(ISettings& settings, QObject* paren
     // Rebuild so the synthetic "Unavailable device" row tracks the CURRENT
     // value rather than the construction-time one — and disappears again once
     // the stored value names a present device.
-    connect(&settings, &ISettings::gpuDeviceChanged, this, &GeneralPageController::rebuildAvailableGpus);
+    connect(&settings, &HostSettings::gpuDeviceChanged, this, &GeneralPageController::rebuildAvailableGpus);
 }
 
 void GeneralPageController::rebuildAvailableGpus()
@@ -44,12 +44,12 @@ void GeneralPageController::rebuildAvailableGpus()
     QVariantList gpus;
     QVariantMap autoEntry;
     autoEntry.insert(QStringLiteral("text"), PhosphorI18n::tr("Automatic"));
-    autoEntry.insert(QStringLiteral("value"), ConfigDefaults::gpuDevice());
+    autoEntry.insert(QStringLiteral("value"), HostSettings::defaultGpuDevice());
     gpus.append(autoEntry);
     gpus.append(m_enumeratedGpus);
 
     // Keep a persisted selection displayable even when the device is gone.
-    // The QML combo binds storedValue to appSettings.gpuDevice verbatim, so
+    // The QML combo binds storedValue to hostSettings.gpuDevice verbatim, so
     // the synthetic row deliberately re-reads the same getter rather than
     // deriving (or normalizing) a value: the row can only be selected if it
     // byte-matches whatever the getter returns. Normalization is the schema

@@ -10,10 +10,7 @@
 #include <PhosphorLayoutApi/LayoutId.h>
 
 #include <QDir>
-#include <QFile>
-#include <QJsonDocument>
 #include <QJsonObject>
-#include <QRegularExpression>
 #include <QStandardPaths>
 
 #include "core/platform/appdirectoryname.h"
@@ -132,62 +129,6 @@ QString ConfigDefaults::legacyConfigFilePath()
 {
     // The single-file INI the v1 config lived in, beside the directory.
     return configDir() + QLatin1Char('/') + appDirectoryName() + QStringLiteral("rc");
-}
-
-ConfigDefaults::RenderingBootConfig ConfigDefaults::readRenderingConfigFromDisk()
-{
-    // Lightweight read — only needs the Rendering group, so avoid constructing
-    // a full backend (which parses the entire file and tracks group state), and
-    // parse the file once for both keys. The daemon calls it twice: for the
-    // GPU pin before QGuiApplication exists, and for the backend after the
-    // config migration.
-    //
-    // The backend is read only from the migrated JSON. When the file is
-    // absent, unparseable or does not carry the key, the backend is the
-    // default: config.json stores the default as an absent key, so "absent"
-    // is the ordinary case and must not consult any other source. The legacy
-    // INI is migration input only (ConfigMigration::ensureJsonConfig converts
-    // and renames it), and the daemon reads the backend after that migration
-    // has run. The GPU pin is read before the migration, which is safe because
-    // Rendering.Gpu postdates the v1 formats and no migration step moves it.
-    RenderingBootConfig out{renderingBackend(), gpuDevice()};
-    const QString jsonPath = configFilePath();
-    if (!QFile::exists(jsonPath)) {
-        return out;
-    }
-    QFile f(jsonPath);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return out;
-    }
-    QJsonParseError err;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
-    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-        return out;
-    }
-    const QJsonObject rendering = doc.object().value(renderingGroup()).toObject();
-    if (rendering.contains(backendKey())) {
-        out.backend = normalizeRenderingBackend(rendering.value(backendKey()).toString(renderingBackend()));
-    }
-    if (rendering.contains(gpuKey())) {
-        out.gpuDevice = normalizeGpuDevice(rendering.value(gpuKey()).toString(gpuDevice()));
-    }
-    return out;
-}
-
-QString ConfigDefaultsShaders::normalizeGpuDevice(const QString& raw)
-{
-    const QString normalized = raw.toLower().trimmed();
-    if (normalized.isEmpty() || normalized == gpuDevice()) {
-        return gpuDevice();
-    }
-    // Exactly four hex digits per field: sysfs prints PCI ids as 0x%04x and
-    // GpuDeviceList emits them 0x-stripped, so a shorter form never comes from
-    // a legitimate producer. anchoredPattern (\A...\z) keeps the anchoring
-    // independent of the trim above (PCRE '$' alone would still match before a
-    // trailing newline).
-    static const QRegularExpression pciPair(
-        QRegularExpression::anchoredPattern(QStringLiteral("[0-9a-f]{4}:[0-9a-f]{4}")));
-    return pciPair.match(normalized).hasMatch() ? normalized : gpuDevice();
 }
 
 PhosphorAnimation::CurveRegistry& ConfigDefaults::fallbackCurveRegistry()

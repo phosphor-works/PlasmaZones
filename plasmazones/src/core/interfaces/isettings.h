@@ -277,16 +277,6 @@ public:
     // sub-interfaces ISettings inherits from — see settings_interfaces.h.
     // Re-declaring them here would shadow the parent virtual.
 
-    // Rendering backend (pipeline-level, not specific to any sub-interface)
-    virtual QString renderingBackend() const = 0;
-    virtual void setRenderingBackend(const QString& backend) = 0;
-
-    // GPU the daemon renders on: "auto" or a "vendor:device" hex PCI pair.
-    // Applied at daemon/editor startup (before QGuiApplication), so like the
-    // backend it takes effect on restart.
-    virtual QString gpuDevice() const = 0;
-    virtual void setGpuDevice(const QString& gpu) = 0;
-
     // Window decoration appearance (tiled/snapped window border + title bar).
     // Mode-neutral, distinct from the ZONE OVERLAY border settings
     // (borderWidth/borderRadius/borderColor on IZoneVisualizationSettings) —
@@ -897,9 +887,11 @@ Q_SIGNALS:
     void perScreenAutotileSettingsChanged();
     void perScreenSnappingSettingsChanged();
     void perScreenScrollingSettingsChanged();
-    // Rendering
-    void renderingBackendChanged();
-    void gpuDeviceChanged();
+    /// A key the host's settings extension declares changed
+    /// (HostSettingsExtension): by a write, a reload that found a different
+    /// value on disk, a discard or a reset. The host's own settings object turns
+    /// it into its NOTIFY signals.
+    void hostValueChanged(const QString& group, const QString& key);
     // Window decoration appearance (border + title bar)
     void showWindowBorderChanged();
     void windowBorderScopeChanged();

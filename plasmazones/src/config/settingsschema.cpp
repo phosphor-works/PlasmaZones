@@ -84,7 +84,6 @@ PhosphorConfig::Schema buildSettingsSchema()
     appendAppearanceSchema(s);
     appendOrderingSchema(s);
     appendAnimationsSchema(s);
-    appendRenderingSchema(s);
     appendPerformanceSchema(s);
     appendZoneGeometrySchema(s);
     appendShortcutsSchema(s);
@@ -492,34 +491,6 @@ void appendAnimationsSchema(PhosphorConfig::Schema& schema)
          QStringLiteral("Per-context overrides of animation timing: each context's easing curve and duration. "
                         "The animations page writes this, so it is not meant to be edited by hand."),
          sanitizeMotionProfileTree},
-    };
-}
-
-// ─── Rendering ──────────────────────────────────────────────────────────────
-// Two keys: the graphics API backend token and the GPU device pin. Each has
-// its own coercing validator (normalizeRenderingBackend / normalizeGpuDevice)
-// so hand-edited configs can't persist garbage.
-
-void appendRenderingSchema(PhosphorConfig::Schema& schema)
-{
-    using CD = ConfigDefaults;
-    schema.groups[CD::renderingGroup()] = {
-        {CD::backendKey(), CD::renderingBackend(), QMetaType::QString,
-         QStringLiteral("Graphics API used for overlay rendering."),
-         [](const QVariant& v) {
-             return QVariant(CD::normalizeRenderingBackend(v.toString()));
-         },
-         tokenChoices(CD::renderingBackendOptions())},
-        // Gpu is a free string, not a token enum: the legal values are the
-        // machine's GPUs ("auto" or a "vendor:device" hex PCI pair), so there
-        // are no declared choices — the picker enumerates DRM render nodes at
-        // runtime. The validator still coerces malformed strings to "auto".
-        {CD::gpuKey(), CD::gpuDevice(), QMetaType::QString,
-         QStringLiteral("GPU that draws the zone overlays and on-screen displays. Automatic lets the graphics driver "
-                        "decide. KWin composites window contents, so those are unaffected."),
-         [](const QVariant& v) {
-             return QVariant(CD::normalizeGpuDevice(v.toString()));
-         }},
     };
 }
 

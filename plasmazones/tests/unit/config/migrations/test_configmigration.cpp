@@ -11,6 +11,7 @@
 #include <QStringList>
 #include <QTextStream>
 
+#include "common/hostsettings.h"
 #include "config/configmigration.h"
 #include "config/configdefaults.h"
 #include "config/configbackends.h"
@@ -405,11 +406,11 @@ private Q_SLOTS:
         f.write("{\"_version\":1,\"Rendering\":{\"RenderingBackend\":\"vulkan\"}}");
         f.close();
 
-        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, ConfigDefaults::renderingBackend());
+        QCOMPARE(HostSettings::readRenderingConfigFromDisk().backend, HostSettings::defaultRenderingBackend());
 
         QVERIFY(ConfigMigration::ensureJsonConfig());
 
-        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, QStringLiteral("vulkan"));
+        QCOMPARE(HostSettings::readRenderingConfigFromDisk().backend, QStringLiteral("vulkan"));
     }
 
     // config.json stores the default backend as an ABSENT key, so a config
@@ -425,7 +426,7 @@ private Q_SLOTS:
         QVERIFY(QFile::exists(ConfigDefaults::legacyConfigFilePath()));
 
         // Before any config.json exists: still the default.
-        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, ConfigDefaults::renderingBackend());
+        QCOMPARE(HostSettings::readRenderingConfigFromDisk().backend, HostSettings::defaultRenderingBackend());
 
         // A current-version config.json with no Rendering/Backend key.
         QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
@@ -435,8 +436,8 @@ private Q_SLOTS:
         f.close();
         QVERIFY(QFile::exists(ConfigDefaults::legacyConfigFilePath()));
 
-        QCOMPARE(ConfigDefaults::readRenderingConfigFromDisk().backend, ConfigDefaults::renderingBackend());
-        QVERIFY(ConfigDefaults::renderingBackend() != QLatin1String("vulkan"));
+        QCOMPARE(HostSettings::readRenderingConfigFromDisk().backend, HostSettings::defaultRenderingBackend());
+        QVERIFY(HostSettings::defaultRenderingBackend() != QLatin1String("vulkan"));
     }
 
     // v1 kept the zone-span chord as a single ZoneSpanModifier scalar beside

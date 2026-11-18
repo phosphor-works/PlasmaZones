@@ -13,7 +13,7 @@
 
 namespace PlasmaZones {
 
-class ISettings;
+class HostSettings;
 
 /// Q_PROPERTY surface for the "General" settings page.
 ///
@@ -104,7 +104,7 @@ public:
     /// must not be null. Taking it by reference makes the precondition a
     /// compile-time guarantee. ISettings (not the concrete Settings) per
     /// CLAUDE.md so unit tests can stub.
-    explicit GeneralPageController(ISettings& settings, QObject* parent = nullptr);
+    explicit GeneralPageController(HostSettings& settings, QObject* parent = nullptr);
 
     bool isDirty() const override
     {
@@ -265,11 +265,11 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     /// Rebuild the picker rows from the cached enumeration + the current
-    /// stored value. Connected to ISettings::gpuDeviceChanged.
+    /// stored value. Connected to HostSettings::gpuDeviceChanged.
     void rebuildAvailableGpus();
 
 private:
-    ISettings& m_settings;
+    HostSettings& m_settings;
 
     /// Backend / GPU values at controller construction (re-baselined on
     /// daemon restart). Survive page recreation so the "restart required"

@@ -790,10 +790,6 @@ public:
     Q_PROPERTY(QString scrollingMinimizeWindowHeightShortcut READ scrollingMinimizeWindowHeightShortcut WRITE
                    setScrollingMinimizeWindowHeightShortcut NOTIFY scrollingMinimizeWindowHeightShortcutChanged)
 
-    // Rendering
-    Q_PROPERTY(QString renderingBackend READ renderingBackend WRITE setRenderingBackend NOTIFY renderingBackendChanged)
-    Q_PROPERTY(QString gpuDevice READ gpuDevice WRITE setGpuDevice NOTIFY gpuDeviceChanged)
-
     // Shader Effects
     Q_PROPERTY(int shaderFrameRate READ shaderFrameRate WRITE setShaderFrameRate NOTIFY shaderFrameRateChanged)
     Q_PROPERTY(bool enableAudioVisualizer READ enableAudioVisualizer WRITE setEnableAudioVisualizer NOTIFY
@@ -2099,17 +2095,6 @@ public:
     /// @return true on success or when nothing to migrate.
     bool renameVirtualScreenConfig(const QString& oldPhysicalScreenId, const QString& newPhysicalScreenId);
 
-    // Rendering (ISettings)
-    // Rendering backend — PhosphorConfig::Store-backed; the schema's
-    // validator runs normalizeRenderingBackend on every read/write so
-    // unknown strings are coerced to a valid choice.
-    QString renderingBackend() const override;
-    void setRenderingBackend(const QString& backend) override;
-    // GPU pin ("auto" or "vendor:device" hex) — schema validator runs
-    // normalizeGpuDevice so malformed strings coerce to "auto".
-    QString gpuDevice() const override;
-    void setGpuDevice(const QString& gpu) override;
-
     // Shader Effects — backed by PhosphorConfig::Store (see settingsschema.cpp).
     // Getters read through the store (validator clamps FrameRate and BarCount
     // ranges uniformly); setters route the write through the store so the
@@ -2441,9 +2426,8 @@ public:
     // ── Settings-profiles support (settings app) ────────────────────────────
     /// Keys that belong to this machine rather than to a set of preferences,
     /// so no profile and no full-settings import may carry them from one
-    /// machine to another. Rendering.Gpu names hardware another machine
-    /// cannot satisfy, and the host's extension names its own
-    /// (HostSettingsExtension::isMachineScopedKey).
+    /// machine to another. The engine has none of its own: the host's
+    /// extension names its keys (HostSettingsExtension::isMachineScopedKey).
     /// The one predicate every capture, apply and import path consults.
     static bool isMachineScopedKey(const QString& group, const QString& key);
     /// Remove every isMachineScopedKey() key from a config blob shaped
@@ -2551,10 +2535,6 @@ Q_SIGNALS:
     /// per-field surface get re-triggered through the individual
     /// signals per the existing NOTIFY wiring.
     void animationProfileChanged();
-
-    /// A key the host's extension declares changed, by setHostValue() or by a
-    /// reload that found a different value on disk.
-    void hostValueChanged(const QString& group, const QString& key);
 
     /// Workspaces (dynamic per-monitor workspaces): one NOTIFY per key, the
     /// quick slots included. Declared here rather than on ISettings because

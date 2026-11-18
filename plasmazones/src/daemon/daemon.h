@@ -26,6 +26,7 @@ namespace PlasmaZones {
 
 class EngineRuntime;
 class HostSettings;
+class SettingsService;
 class KWinWorkspaceHost;
 class PlasmaSystemOsd;
 class AutotileAdaptor;
@@ -72,6 +73,10 @@ private:
     /// Bind the runtime's freshly built services. Drops the previous cycle's
     /// bindings first: the runtime deletes the services they forward to on
     /// every init().
+    /// PlasmaZones' own settings (HostSettings) that the settings registry
+    /// serves over the bus. The service is rebuilt on every init(), so this
+    /// runs with each createBindings().
+    void registerHostSettings(SettingsService* service);
     void createBindings();
     void deleteBindings();
     bool registerDBusService();

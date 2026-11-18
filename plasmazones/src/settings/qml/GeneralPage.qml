@@ -78,7 +78,7 @@ SettingsFlickable {
                         // Machine-dependent, so enumerated by the page
                         // controller instead of declared in the schema.
                         model: root.controller.availableGpus
-                        storedValue: appSettings.gpuDevice
+                        storedValue: hostSettings.gpuDevice
                         // Guard the write: `enabled` does not reach an
                         // already-open popup (it re-parents to the Overlay),
                         // so a daemon that starts while the popup is up could
@@ -90,7 +90,7 @@ SettingsFlickable {
                                 revertToStoredValue();
                                 return;
                             }
-                            appSettings.gpuDevice = currentValue;
+                            hostSettings.gpuDevice = currentValue;
                         }
                     }
                 }
@@ -108,7 +108,7 @@ SettingsFlickable {
                         textRole: "text"
                         valueRole: "value"
                         model: settingsController.valueOptions("Rendering", "Backend")
-                        storedValue: appSettings.renderingBackend
+                        storedValue: hostSettings.renderingBackend
                         // Same open-popup guard and display revert as the
                         // device combo above.
                         onActivated: {
@@ -116,7 +116,7 @@ SettingsFlickable {
                                 revertToStoredValue();
                                 return;
                             }
-                            appSettings.renderingBackend = currentValue;
+                            hostSettings.renderingBackend = currentValue;
                         }
                     }
                 }
@@ -130,7 +130,7 @@ SettingsFlickable {
                     Layout.rightMargin: Kirigami.Units.largeSpacing
                     type: Kirigami.MessageType.Information
                     text: settingsController.daemonRunning ? i18n("Stop the daemon to change rendering settings.") : i18n("Rendering changes take effect the next time the daemon starts.")
-                    visible: settingsController.daemonRunning || appSettings.renderingBackend !== root.controller.startupRenderingBackend || appSettings.gpuDevice !== root.controller.startupGpuDevice
+                    visible: settingsController.daemonRunning || hostSettings.renderingBackend !== root.controller.startupRenderingBackend || hostSettings.gpuDevice !== root.controller.startupGpuDevice
                 }
             }
         }
