@@ -11,6 +11,7 @@
 
 #include <QTest>
 
+#include "common/hostsettings.h"
 #include "config/configdefaults.h"
 #include "core/platform/appdirectoryname.h"
 #include "core/types/constants.h"
@@ -247,30 +248,30 @@ private Q_SLOTS:
      */
     void testNormalizeGpuDevice_contract()
     {
-        QCOMPARE(ConfigDefaults::gpuDevice(), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::defaultGpuDevice(), QStringLiteral("auto"));
         // Pass-through forms.
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("auto")), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("1002:73df")), QStringLiteral("1002:73df"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("auto")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("1002:73df")), QStringLiteral("1002:73df"));
         // Case and whitespace normalize rather than reject.
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral(" AUTO ")), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral(" 1002:73DF ")), QStringLiteral("1002:73df"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral(" AUTO ")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral(" 1002:73DF ")), QStringLiteral("1002:73df"));
         // Coerced to the default: empty, garbage, 0x prefixes, short fields
         // (sysfs always prints 0x%04x, so no legitimate producer emits them),
         // missing halves, and embedded whitespace.
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QString()), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("garbage")), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("0x1002:0x73df")), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("2:4")), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("1002:")), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral(":73df")), QStringLiteral("auto"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("1002:73df\n")), QStringLiteral("1002:73df"));
-        QCOMPARE(ConfigDefaults::normalizeGpuDevice(QStringLiteral("10 02:73df")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QString()), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("garbage")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("0x1002:0x73df")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("2:4")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("1002:")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral(":73df")), QStringLiteral("auto"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("1002:73df\n")), QStringLiteral("1002:73df"));
+        QCOMPARE(HostSettings::normalizeGpuDevice(QStringLiteral("10 02:73df")), QStringLiteral("auto"));
         // Idempotence over a representative sample.
         const QStringList samples{QStringLiteral("auto"), QStringLiteral("1002:73df"), QStringLiteral("garbage"),
                                   QString(), QStringLiteral(" 10DE:1E84 ")};
         for (const QString& s : samples) {
-            const QString once = ConfigDefaults::normalizeGpuDevice(s);
-            QCOMPARE(ConfigDefaults::normalizeGpuDevice(once), once);
+            const QString once = HostSettings::normalizeGpuDevice(s);
+            QCOMPARE(HostSettings::normalizeGpuDevice(once), once);
         }
     }
 

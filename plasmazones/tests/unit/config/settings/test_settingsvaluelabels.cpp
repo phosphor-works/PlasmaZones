@@ -26,6 +26,7 @@
 
 #include <PhosphorConfig/Schema.h>
 
+#include "common/hostsettings.h"
 #include "config/settingsschema.h"
 #include "config/configdefaults.h"
 #include "config/settingsvaluelabels.h"
@@ -388,7 +389,8 @@ private Q_SLOTS:
         QCOMPARE(SettingsValueLabels::displayText(CD::snappingZoneSelectorGroup(), CD::layoutModeKey(), 0),
                  QStringLiteral("Grid"));
         // A token-valued key resolves the same way.
-        QCOMPARE(SettingsValueLabels::displayText(CD::renderingGroup(), CD::backendKey(), QStringLiteral("opengl")),
+        QCOMPARE(SettingsValueLabels::displayText(HostSettings::renderingGroup(), HostSettings::backendKey(),
+                                                  QStringLiteral("opengl")),
                  QStringLiteral("OpenGL"));
     }
 

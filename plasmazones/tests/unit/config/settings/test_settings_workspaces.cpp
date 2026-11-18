@@ -1133,31 +1133,31 @@ private Q_SLOTS:
 
     void isMachineScopedKey_coversHardwareAndConsentOnly()
     {
-        QVERIFY(Settings::isMachineScopedKey(ConfigDefaults::renderingGroup(), ConfigDefaults::gpuKey()));
+        QVERIFY(Settings::isMachineScopedKey(HostSettings::renderingGroup(), HostSettings::gpuKey()));
         QVERIFY(Settings::isMachineScopedKey(ConfigDefaults::workspacesBehaviorGroup(),
                                              HostSettings::manageKWinPerOutputKey()));
         // The rebind toggle is a preference and rides profiles.
         QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::workspacesBehaviorGroup(),
                                               HostSettings::rebindKWinDesktopShortcutsKey()));
         QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::workspacesBehaviorGroup(), ConfigDefaults::enabledKey()));
-        QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::renderingGroup(), ConfigDefaults::backendKey()));
+        QVERIFY(!Settings::isMachineScopedKey(HostSettings::renderingGroup(), HostSettings::backendKey()));
         // The predicate is per group: the same key name elsewhere is not it.
         QVERIFY(!Settings::isMachineScopedKey(ConfigDefaults::workspacesNamedGroup(),
                                               HostSettings::manageKWinPerOutputKey()));
 
         QJsonObject blob{
-            {ConfigDefaults::renderingGroup(),
-             QJsonObject{{ConfigDefaults::gpuKey(), QStringLiteral("10de:1e84")},
-                         {ConfigDefaults::backendKey(), QStringLiteral("vulkan")}}},
+            {HostSettings::renderingGroup(),
+             QJsonObject{{HostSettings::gpuKey(), QStringLiteral("10de:1e84")},
+                         {HostSettings::backendKey(), QStringLiteral("vulkan")}}},
             {ConfigDefaults::workspacesBehaviorGroup(),
              QJsonObject{{HostSettings::manageKWinPerOutputKey(), true},
                          {HostSettings::rebindKWinDesktopShortcutsKey(), false}}},
         };
         Settings::stripMachineScopedKeys(blob);
-        const QJsonObject rendering = blob.value(ConfigDefaults::renderingGroup()).toObject();
+        const QJsonObject rendering = blob.value(HostSettings::renderingGroup()).toObject();
         const QJsonObject workspaces = blob.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
-        QVERIFY(!rendering.contains(ConfigDefaults::gpuKey()));
-        QVERIFY(rendering.contains(ConfigDefaults::backendKey()));
+        QVERIFY(!rendering.contains(HostSettings::gpuKey()));
+        QVERIFY(rendering.contains(HostSettings::backendKey()));
         QVERIFY(!workspaces.contains(HostSettings::manageKWinPerOutputKey()));
         QVERIFY(workspaces.contains(HostSettings::rebindKWinDesktopShortcutsKey()));
     }

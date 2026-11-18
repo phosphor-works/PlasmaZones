@@ -601,7 +601,7 @@ QJsonObject ConfigMigration::iniMapToJson(const QMap<QString, QVariant>& flatMap
 {
     QJsonObject root;
 
-    const QString renderingGroup = ConfigDefaults::renderingGroup();
+    const QString renderingGroup = ConfigKeys::Legacy::v1RenderingGroup();
     const QString generalGroup = ConfigDefaults::generalGroup();
     const QString renderingKey = ConfigKeys::Legacy::v1RenderingBackendKey();
     const QString PerScreenKeyStr = PerScreenPathResolver::perScreenKey();

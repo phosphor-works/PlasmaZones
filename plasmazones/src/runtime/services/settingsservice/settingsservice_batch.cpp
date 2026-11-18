@@ -147,6 +147,12 @@ bool SettingsService::setSettings(const QVariantMap& settings)
             continue;
         }
         anyChanged = true;
+        // A host's setting has no Settings property: its owner listens for
+        // hostValueChanged, which the blocker swallowed.
+        if (const auto host = m_hostSettingKeys.constFind(it.key()); host != m_hostSettingKeys.constEnd()) {
+            Q_EMIT m_settings->hostValueChanged(host->first, host->second);
+            continue;
+        }
         int propertyIndex = metaObject->indexOfProperty(it.key().toUtf8().constData());
         if (propertyIndex < 0) {
             // JSON-facade aliases: these registry keys are registered under the

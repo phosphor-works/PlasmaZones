@@ -339,6 +339,16 @@ QStringList SettingsService::getSettingKeys()
     return m_getters.keys();
 }
 
+void SettingsService::registerHostSetting(const QString& name, const QString& type, const QString& group,
+                                          const QString& key, std::function<QVariant()> get,
+                                          std::function<bool(const QVariant&)> set)
+{
+    m_getters.insert(name, std::move(get));
+    m_setters.insert(name, std::move(set));
+    m_schemas.insert(name, type);
+    m_hostSettingKeys.insert(name, {group, key});
+}
+
 QString SettingsService::getSettingSchema(const QString& key)
 {
     QJsonObject result;

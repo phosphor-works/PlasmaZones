@@ -14,6 +14,7 @@
 
 #include <PhosphorConfig/Schema.h>
 
+#include <QHash>
 #include <QList>
 #include <QString>
 #include <QVariant>
@@ -26,6 +27,14 @@ namespace PlasmaZones {
 /// appended to the schema (into its own groups or the engine's), and which
 /// keys describe only the machine they were set on. Under PlasmaZones these
 /// are the KWin-specific choices; another host brings its own or none.
+/// The words for one of the host's token-valued keys: token → label.
+struct HostEnumLabels
+{
+    QString group;
+    QString key;
+    QHash<QString, QString> labels;
+};
+
 struct HostSettingsExtension
 {
     /// Appends the host's KeyDefs. Runs after every engine group is in place,
@@ -34,6 +43,9 @@ struct HostSettingsExtension
     /// Whether (group, key) is one of the host's machine-scoped keys, which a
     /// settings profile or an export leaves out (Settings::isMachineScopedKey).
     bool (*isMachineScopedKey)(const QString& group, const QString& key) = nullptr;
+    /// The labels for the host's token-valued keys, which SettingsValueLabels
+    /// serves beside the engine's. Called once, after the translator is in.
+    QList<HostEnumLabels> (*enumLabels)() = nullptr;
 };
 
 /// Install the host's extension. Call once at startup, before the first
@@ -151,7 +163,6 @@ void appendOverlayShadersSchema(PhosphorConfig::Schema& schema);
 void appendAppearanceSchema(PhosphorConfig::Schema& schema);
 void appendOrderingSchema(PhosphorConfig::Schema& schema);
 void appendAnimationsSchema(PhosphorConfig::Schema& schema);
-void appendRenderingSchema(PhosphorConfig::Schema& schema);
 void appendPerformanceSchema(PhosphorConfig::Schema& schema);
 void appendZoneGeometrySchema(PhosphorConfig::Schema& schema);
 void appendShortcutsSchema(PhosphorConfig::Schema& schema);

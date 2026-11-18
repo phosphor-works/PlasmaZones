@@ -37,13 +37,9 @@ const QHash<QString, QHash<QString, QString>>& enumLabelTable()
     static const QHash<QString, QHash<QString, QString>> table = [] {
         QHash<QString, QHash<QString, QString>> t;
 
-        // ── Rendering / audio: token-valued keys ─────────────────────────────
-        t.insert(pairKey(CD::renderingGroup(), CD::backendKey()),
-                 {
-                     {QStringLiteral("auto"), PhosphorI18n::tr("Automatic")},
-                     {QStringLiteral("vulkan"), PhosphorI18n::tr("Vulkan")},
-                     {QStringLiteral("opengl"), PhosphorI18n::tr("OpenGL")},
-                 });
+        // ── Audio: token-valued keys ─────────────────────────────────────────
+        // (The host labels its own token keys: see the extension's enumLabels
+        // at the end.)
         t.insert(pairKey(CD::shadersAudioGroup(), CD::channelModeKey()),
                  {
                      {QStringLiteral("stereo"), PhosphorI18n::tr("Stereo")},
@@ -214,6 +210,11 @@ const QHash<QString, QHash<QString, QString>>& enumLabelTable()
                      {QStringLiteral("top"), PhosphorI18n::tr("Above the column")},
                      {QStringLiteral("bottom"), PhosphorI18n::tr("Below the column")},
                  });
+        if (const auto hostLabels = hostSettingsExtension().enumLabels) {
+            for (const HostEnumLabels& entry : hostLabels()) {
+                t.insert(pairKey(entry.group, entry.key), entry.labels);
+            }
+        }
         return t;
     }();
     return table;

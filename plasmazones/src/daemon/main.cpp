@@ -494,7 +494,7 @@ int main(int argc, char* argv[])
     // place. Applied on the Vulkan path too: it only steers the GL loader, and
     // covers the case where Vulkan falls back to OpenGL. The backend is NOT
     // read here: see the block after ensureJsonConfig().
-    const QString gpuDevice = PlasmaZones::ConfigDefaults::readRenderingConfigFromDisk().gpuDevice;
+    const QString gpuDevice = PlasmaZones::HostSettings::readRenderingConfigFromDisk().gpuDevice;
     PlasmaZones::applyOpenGlGpuPreference(gpuDevice);
 
     QGuiApplication app(argc, argv);
@@ -873,7 +873,7 @@ int main(int argc, char* argv[])
     // a reboot) leaves callers of org.phosphor_works.Placement waiting on
     // their reply timeout rather than finding no owner.
     {
-        const QString backend = PlasmaZones::ConfigDefaults::readRenderingConfigFromDisk().backend;
+        const QString backend = PlasmaZones::HostSettings::readRenderingConfigFromDisk().backend;
         const bool useVulkan = PlasmaZones::probeAndSetGraphicsApi(backend);
         if (!useVulkan && backend == QLatin1String("vulkan")) {
             // probeAndSetGraphicsApi answers false for a configured "vulkan"

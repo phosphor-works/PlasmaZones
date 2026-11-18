@@ -41,7 +41,7 @@ void exportGpuVar(const char* name, const QByteArray& value)
 
 /// Parse a "vendor:device" hex PCI pair. Returns false for "auto", the empty
 /// string, or anything malformed. Kept strict — exactly four hex digits per
-/// field — in lockstep with ConfigDefaults::normalizeGpuDevice's accepted
+/// field — in lockstep with the host's normalizeGpuDevice (PlasmaZones' HostSettings) accepted
 /// shape (this file deliberately takes no config-layer dependency, so the
 /// contract is duplicated here rather than called).
 bool parseGpuPciPair(const QString& gpuDevice, uint32_t& vendorId, uint32_t& deviceId)

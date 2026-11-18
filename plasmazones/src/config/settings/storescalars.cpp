@@ -271,17 +271,6 @@ P_STORE_GET(bool, decorationSuppressWhileFullscreen, decorationsPerformanceGroup
 P_STORE_SET_BOOL(setDecorationSuppressWhileFullscreen, decorationsPerformanceGroup, suppressWhileFullscreenKey,
                  decorationSuppressWhileFullscreenChanged)
 
-// ── Rendering (PhosphorConfig::Store-backed) ────────────────────────────────
-// Validator (normalizeRenderingBackend in the schema) coerces unknown values
-// to a known backend, so a hand-edited "Rendering.Backend = foobar" reads
-// back as the default on next load.
-
-P_STORE_GET(QString, renderingBackend, renderingGroup, backendKey, QString)
-P_STORE_SET_STRING(setRenderingBackend, renderingGroup, backendKey, renderingBackendChanged)
-
-P_STORE_GET(QString, gpuDevice, renderingGroup, gpuKey, QString)
-P_STORE_SET_STRING(setGpuDevice, renderingGroup, gpuKey, gpuDeviceChanged)
-
 // Shaders.Audio (ISettings) — the audio-spectrum analysis parameter set.
 // enableAudioVisualizer / audioSpectrumBarCount live with the other
 // handwritten shader accessors above; the rest are uniform store-backed

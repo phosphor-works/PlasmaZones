@@ -11,6 +11,7 @@
 #include "common/hostsettings.h"
 #include "config/settings.h"
 #include "runtime/engine/engineruntime.h"
+#include "runtime/services/settingsservice/settingsservice.h"
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
 #include "runtime/overlay/overlayservice.h"
@@ -242,12 +243,51 @@ void Daemon::deleteBindings()
     m_layoutAdaptor = nullptr;
 }
 
+void Daemon::registerHostSettings(SettingsService* service)
+{
+    HostSettings* const host = m_hostSettings.get();
+    // A malformed token is refused at the boundary rather than coerced: the
+    // schema's coercion would store the default and setSetting would report a
+    // write that never happened. The bus carries only {key, type}, no choices.
+    service->registerHostSetting(
+        QStringLiteral("renderingBackend"), QStringLiteral("string"), HostSettings::renderingGroup(),
+        HostSettings::backendKey(),
+        [host]() {
+            return QVariant(host->renderingBackend());
+        },
+        [host](const QVariant& value) {
+            const QString requested = value.toString().toLower().trimmed();
+            if (!HostSettings::renderingBackendOptions().contains(requested)) {
+                return false;
+            }
+            host->setRenderingBackend(requested);
+            return true;
+        });
+    // Only "auto" or a well-formed vendor:device pair, in any case or
+    // whitespace variation that normalizes to itself.
+    service->registerHostSetting(
+        QStringLiteral("gpuDevice"), QStringLiteral("string"), HostSettings::renderingGroup(), HostSettings::gpuKey(),
+        [host]() {
+            return QVariant(host->gpuDevice());
+        },
+        [host](const QVariant& value) {
+            const QString raw = value.toString();
+            const QString normalized = HostSettings::normalizeGpuDevice(raw);
+            if (normalized != raw.toLower().trimmed()) {
+                return false;
+            }
+            host->setGpuDevice(normalized);
+            return true;
+        });
+}
+
 void Daemon::createBindings()
 {
     EngineRuntime* const rt = m_runtime.get();
 
     m_layoutAdaptor = new LayoutAdaptor(rt->layoutService(), this);
     m_settingsAdaptor = new SettingsAdaptor(rt->settingsService(), this);
+    registerHostSettings(rt->settingsService());
     m_shaderAdaptor = new ShaderAdaptor(rt->shaderService(), this);
     m_ruleAdaptor = new RuleAdaptor(rt->ruleService(), this);
 

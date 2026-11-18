@@ -3,13 +3,21 @@
 
 #include "hostsettings.h"
 
+#include "phosphor_i18n.h"
+
 #include "config/configdefaults.h"
 #include "config/settings.h"
 #include "config/settingsschema.h"
+#include "config/settingsschemachoices.h"
 #include "core/platform/appdirectoryname.h"
 #include "core/types/constants.h"
 
 #include <PhosphorConfig/Schema.h>
+
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QRegularExpression>
 
 namespace PlasmaZones {
 
@@ -35,14 +43,50 @@ void appendHostSchema(PhosphorConfig::Schema& schema)
                         "feature is on, since they walk the whole shared desktop pool rather than one monitor's "
                         "list. Restored on disable.")},
     };
+    // Each key coerces on read and write, so a hand-edited config cannot
+    // persist a value startup would act on.
+    schema.groups[HostSettings::renderingGroup()] = {
+        {HostSettings::backendKey(), HostSettings::defaultRenderingBackend(), QMetaType::QString,
+         QStringLiteral("Graphics API used for overlay rendering."),
+         [](const QVariant& v) {
+             return QVariant(HostSettings::normalizeRenderingBackend(v.toString()));
+         },
+         tokenChoices(HostSettings::renderingBackendOptions())},
+        // A free string, not a token enum: the legal values are the machine's
+        // GPUs, so there are no declared choices (the picker enumerates DRM
+        // render nodes at runtime).
+        {HostSettings::gpuKey(), HostSettings::defaultGpuDevice(), QMetaType::QString,
+         QStringLiteral("GPU that draws the zone overlays and on-screen displays. Automatic lets the graphics driver "
+                        "decide. KWin composites window contents, so those are unaffected."),
+         [](const QVariant& v) {
+             return QVariant(HostSettings::normalizeGpuDevice(v.toString()));
+         }},
+    };
 }
 
-/// The consent this machine's user gave for PlasmaZones to write KWin's
-/// PerOutputVirtualDesktops key: an import from elsewhere must never grant
-/// it, and a profile switch must never silently withdraw it.
+/// The GPU pin names hardware another machine cannot satisfy. The consent
+/// this machine's user gave for PlasmaZones to write KWin's
+/// PerOutputVirtualDesktops key must never be granted by an import from
+/// elsewhere, nor silently withdrawn by a profile switch.
 bool isHostMachineScopedKey(const QString& group, const QString& key)
 {
+    if (group == HostSettings::renderingGroup()) {
+        return key == HostSettings::gpuKey();
+    }
     return group == ConfigDefaults::workspacesBehaviorGroup() && key == HostSettings::manageKWinPerOutputKey();
+}
+
+QList<HostEnumLabels> hostEnumLabels()
+{
+    return {
+        {HostSettings::renderingGroup(),
+         HostSettings::backendKey(),
+         {
+             {QStringLiteral("auto"), PhosphorI18n::tr("Automatic")},
+             {QStringLiteral("vulkan"), PhosphorI18n::tr("Vulkan")},
+             {QStringLiteral("opengl"), PhosphorI18n::tr("OpenGL")},
+         }},
+    };
 }
 
 } // namespace
@@ -50,7 +94,7 @@ bool isHostMachineScopedKey(const QString& group, const QString& key)
 void initPlasmaZonesHost()
 {
     setAppDirectoryName(AppDirectoryName);
-    setHostSettingsExtension({&appendHostSchema, &isHostMachineScopedKey});
+    setHostSettingsExtension({&appendHostSchema, &isHostMachineScopedKey, &hostEnumLabels});
 }
 
 HostSettings::HostSettings(Settings* settings, QObject* parent)
@@ -58,13 +102,18 @@ HostSettings::HostSettings(Settings* settings, QObject* parent)
     , m_settings(settings)
 {
     connect(m_settings, &Settings::hostValueChanged, this, [this](const QString& group, const QString& key) {
-        if (group != ConfigDefaults::workspacesBehaviorGroup()) {
-            return;
-        }
-        if (key == manageKWinPerOutputKey()) {
-            Q_EMIT workspacesManageKWinPerOutputChanged();
-        } else if (key == rebindKWinDesktopShortcutsKey()) {
-            Q_EMIT workspacesRebindKWinShortcutsChanged();
+        if (group == renderingGroup()) {
+            if (key == backendKey()) {
+                Q_EMIT renderingBackendChanged();
+            } else if (key == gpuKey()) {
+                Q_EMIT gpuDeviceChanged();
+            }
+        } else if (group == ConfigDefaults::workspacesBehaviorGroup()) {
+            if (key == manageKWinPerOutputKey()) {
+                Q_EMIT workspacesManageKWinPerOutputChanged();
+            } else if (key == rebindKWinDesktopShortcutsKey()) {
+                Q_EMIT workspacesRebindKWinShortcutsChanged();
+            }
         }
     });
 }
@@ -97,6 +146,107 @@ bool HostSettings::workspacesRebindKWinShortcuts() const
 void HostSettings::setWorkspacesRebindKWinShortcuts(bool takeOver)
 {
     m_settings->setHostValue(ConfigDefaults::workspacesBehaviorGroup(), rebindKWinDesktopShortcutsKey(), takeOver);
+}
+
+QString HostSettings::renderingBackend() const
+{
+    return m_settings->hostValue(renderingGroup(), backendKey()).toString();
+}
+
+void HostSettings::setRenderingBackend(const QString& backend)
+{
+    m_settings->setHostValue(renderingGroup(), backendKey(), backend);
+}
+
+QString HostSettings::gpuDevice() const
+{
+    return m_settings->hostValue(renderingGroup(), gpuKey()).toString();
+}
+
+void HostSettings::setGpuDevice(const QString& gpu)
+{
+    m_settings->setHostValue(renderingGroup(), gpuKey(), gpu);
+}
+
+QString HostSettings::renderingGroup()
+{
+    return QStringLiteral("Rendering");
+}
+
+QString HostSettings::backendKey()
+{
+    return QStringLiteral("Backend");
+}
+
+QString HostSettings::gpuKey()
+{
+    return QStringLiteral("Gpu");
+}
+
+QString HostSettings::defaultRenderingBackend()
+{
+    return QStringLiteral("auto");
+}
+
+const QStringList& HostSettings::renderingBackendOptions()
+{
+    static const QStringList options = {
+        QStringLiteral("auto"),
+        QStringLiteral("vulkan"),
+        QStringLiteral("opengl"),
+    };
+    return options;
+}
+
+QString HostSettings::normalizeRenderingBackend(const QString& raw)
+{
+    const QString normalized = raw.toLower().trimmed();
+    return renderingBackendOptions().contains(normalized) ? normalized : defaultRenderingBackend();
+}
+
+QString HostSettings::defaultGpuDevice()
+{
+    return QStringLiteral("auto");
+}
+
+QString HostSettings::normalizeGpuDevice(const QString& raw)
+{
+    const QString normalized = raw.toLower().trimmed();
+    if (normalized.isEmpty() || normalized == defaultGpuDevice()) {
+        return defaultGpuDevice();
+    }
+    // Exactly four hex digits per field: sysfs prints PCI ids as 0x%04x and
+    // GpuDeviceList emits them 0x-stripped, so a shorter form never comes from
+    // a legitimate producer. anchoredPattern (\A...\z) keeps the anchoring
+    // independent of the trim above (PCRE '$' alone would still match before a
+    // trailing newline).
+    static const QRegularExpression pciPair(
+        QRegularExpression::anchoredPattern(QStringLiteral("[0-9a-f]{4}:[0-9a-f]{4}")));
+    return pciPair.match(normalized).hasMatch() ? normalized : defaultGpuDevice();
+}
+
+HostSettings::RenderingBootConfig HostSettings::readRenderingConfigFromDisk()
+{
+    // Only the Rendering group is needed, so no backend is built (which would
+    // parse and track the whole file), and the file is parsed once for both.
+    RenderingBootConfig out{defaultRenderingBackend(), defaultGpuDevice()};
+    QFile file(ConfigDefaults::configFilePath());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return out;
+    }
+    QJsonParseError error;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
+    if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+        return out;
+    }
+    const QJsonObject rendering = doc.object().value(renderingGroup()).toObject();
+    if (rendering.contains(backendKey())) {
+        out.backend = normalizeRenderingBackend(rendering.value(backendKey()).toString(defaultRenderingBackend()));
+    }
+    if (rendering.contains(gpuKey())) {
+        out.gpuDevice = normalizeGpuDevice(rendering.value(gpuKey()).toString(defaultGpuDevice()));
+    }
+    return out;
 }
 
 } // namespace PlasmaZones

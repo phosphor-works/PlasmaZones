@@ -838,7 +838,7 @@ void Settings::reloadFromDisk(bool preserveLocalEdits, const AnnouncedState* bef
 // listed: purgeStaleKeys' second pass sweeps such husks on every save.
 QStringList Settings::managedGroupNames()
 {
-    return {
+    QStringList groups = {
         // "General" is deliberately ABSENT: it is the backend's root-group
         // CONTAINER (configbackends.cpp anchors setRootGroupName on it), the
         // reserved name groupList() never enumerates and purgeStaleKeys
@@ -851,7 +851,6 @@ QStringList Settings::managedGroupNames()
                                         // listed so reset() drops any partial-v3 migration husk left in this group
         ConfigDefaults::exclusionsGroup(), // "Exclusions"
         ConfigDefaults::performanceGroup(), // "Performance"
-        ConfigDefaults::renderingGroup(), // "Rendering"
         ConfigDefaults::shadersGroup(), // "Shaders"
         ConfigDefaults::shortcutsGroup(), // "Shortcuts" — covers Shortcuts.Global + Shortcuts.Tiling +
                                           // Shortcuts.Scrolling
@@ -870,6 +869,17 @@ QStringList Settings::managedGroupNames()
                                             // + WindowFiltering + Performance sub-groups
         ConfigDefaults::overlaysGroup(), // "Overlays" — per-layout zone-overlay shader tree (OverlayShaderTree blob)
     };
+    // The host's own groups (HostSettingsExtension), unless a group above
+    // already covers one as itself or its parent.
+    for (const auto& [group, key] : hostSchemaKeys()) {
+        const bool covered = std::any_of(groups.cbegin(), groups.cend(), [&group](const QString& listed) {
+            return group == listed || group.startsWith(listed + QLatin1Char('.'));
+        });
+        if (!covered) {
+            groups.append(group);
+        }
+    }
+    return groups;
 }
 
 void Settings::deletePerScreenGroups(PhosphorConfig::IBackend* backend)
@@ -1256,9 +1266,6 @@ bool Settings::exportTo(const QString& filePath)
 
 bool Settings::isMachineScopedKey(const QString& group, const QString& key)
 {
-    if (group == ConfigDefaults::renderingGroup() && key == ConfigDefaults::gpuKey()) {
-        return true;
-    }
     const auto hostScoped = hostSettingsExtension().isMachineScopedKey;
     return hostScoped && hostScoped(group, key);
 }

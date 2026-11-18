@@ -736,7 +736,7 @@ SettingsController::SettingsController(QObject* parent)
     // completion before any of this ctor body does. Declaration position has
     // nothing to do with it — m_localRuleStore is the first member, and says
     // so itself).
-    m_generalPage = new GeneralPageController(m_settings, this);
+    m_generalPage = new GeneralPageController(m_hostSettings, this);
 
     // Animation shader registry — settings-side mirror of the daemon's.
     // Both processes scan the same XDG dirs independently; FS watching

@@ -59,7 +59,7 @@ class StubSettings : public ISettings, public PhosphorEngine::ISnapSettings
 {
     // No Q_OBJECT — this stub defines no NEW signals/slots; ISettings's
     // meta-object is reused for the inherited signal emits (e.g.
-    // `renderingBackendChanged`, `settingsChanged`) that the setters trigger
+    // `settingsChanged`) that the setters trigger
     // directly.
 
 public:
@@ -2741,34 +2741,6 @@ public:
         }
     }
 
-    // Rendering (ISettings)
-    QString renderingBackend() const override
-    {
-        return m_renderingBackend;
-    }
-    void setRenderingBackend(const QString& backend) override
-    {
-        const QString value = ConfigDefaults::normalizeRenderingBackend(backend);
-        if (m_renderingBackend != value) {
-            m_renderingBackend = value;
-            Q_EMIT renderingBackendChanged();
-            Q_EMIT settingsChanged();
-        }
-    }
-    QString gpuDevice() const override
-    {
-        return m_gpuDevice;
-    }
-    void setGpuDevice(const QString& gpu) override
-    {
-        const QString value = ConfigDefaults::normalizeGpuDevice(gpu);
-        if (m_gpuDevice != value) {
-            m_gpuDevice = value;
-            Q_EMIT gpuDeviceChanged();
-            Q_EMIT settingsChanged();
-        }
-    }
-
     // Per-screen autotile config (used by WindowAppearanceController's
     // per-monitor gapValue/writeGap and the per-screen gap accessors). Stored in
     // short-key form, mirroring the real Settings normalization so a test can
@@ -3091,8 +3063,6 @@ private:
     }
     QString m_defaultLayoutId;
     bool m_suppressDefaultLayoutAssignment = ConfigDefaults::suppressDefaultLayoutAssignment();
-    QString m_renderingBackend = ConfigDefaults::renderingBackend();
-    QString m_gpuDevice = ConfigDefaults::gpuDevice();
     bool m_snapAssistFeatureEnabled = ConfigDefaults::snapAssistFeatureEnabled();
     bool m_snapAssistEnabled = ConfigDefaults::snapAssistEnabled();
     bool m_autoAssignAllLayouts = ConfigDefaults::autoAssignAllLayouts();

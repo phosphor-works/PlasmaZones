@@ -498,33 +498,6 @@ public:
     // Used only by the migration module (ConfigMigration::ensureJsonConfig).
     PLASMAZONES_EXPORT static QString legacyConfigFilePath();
 
-    /**
-     * One-shot read of the Rendering group from the config file on disk,
-     * parsing config.json once for both boot-time values.
-     *
-     * Backend: reads Rendering/Backend (the renderingGroup()/backendKey()
-     * accessors). When the JSON config is absent, unparseable, or doesn't
-     * carry the key (the stored form of the default), returns the default;
-     * the legacy INI is never consulted, since it is migration input only.
-     * Returns a normalized token ("auto", "vulkan", "opengl").
-     *
-     * GPU pin: reads Rendering/Gpu (the key postdates the v1 INI format).
-     * Returns "auto" or a normalized "vendor:device" hex pair.
-     *
-     * Safe to call before QCoreApplication exists (raw file access, no
-     * config backend construction). Only the daemon's main calls it. A v1
-     * config.json keeps its backend under Rendering/RenderingBackend, which
-     * this reads as "auto" until ensureJsonConfig() has moved it to
-     * Rendering/Backend, so read the backend after the migration. The GPU pin
-     * is in no migration and can be read before it.
-     */
-    struct RenderingBootConfig
-    {
-        QString backend;
-        QString gpuDevice;
-    };
-    PLASMAZONES_EXPORT static RenderingBootConfig readRenderingConfigFromDisk();
-
     // ═══════════════════════════════════════════════════════════════════════════
     // Autotile Settings
     // ═══════════════════════════════════════════════════════════════════════════

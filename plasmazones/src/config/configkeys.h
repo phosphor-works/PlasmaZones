@@ -69,7 +69,6 @@ public:
     P_CONFIG_GROUP(tilingGroup, "Tiling")
     P_CONFIG_GROUP(exclusionsGroup, "Exclusions")
     P_CONFIG_GROUP(performanceGroup, "Performance")
-    P_CONFIG_GROUP(renderingGroup, "Rendering")
     P_CONFIG_GROUP(shadersGroup, "Shaders")
     P_CONFIG_GROUP(shadersAudioGroup, "Shaders.Audio")
     P_CONFIG_GROUP(animationsGroup, "Animations")
@@ -258,13 +257,6 @@ public:
 
     P_CONFIG_KEY(triggerModifierField, "modifier")
     P_CONFIG_KEY(triggerMouseButtonField, "mouseButton")
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Config Keys — Rendering
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    P_CONFIG_KEY(backendKey, "Backend")
-    P_CONFIG_KEY(gpuKey, "Gpu")
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Config Keys — Snapping (top-level)
@@ -889,7 +881,7 @@ public:
         P_CONFIG_GROUP(v1GlobalShortcutsGroup, "GlobalShortcuts")
         P_CONFIG_GROUP(v1EditorGroup, "Editor") // = v2 editorGroup
         P_CONFIG_GROUP(v1OrderingGroup, "Ordering") // = v2 orderingGroup
-        P_CONFIG_GROUP(v1RenderingGroup, "Rendering") // = v2 renderingGroup
+        P_CONFIG_GROUP(v1RenderingGroup, "Rendering") // PlasmaZones' Rendering group (HostSettings)
         P_CONFIG_GROUP(v1ShadersGroup, "Shaders") // = v2 shadersGroup
         // v1 WindowTracking group — only read in the v1→v2 step where it's
         // moved out to session.json. The live runtime accessor

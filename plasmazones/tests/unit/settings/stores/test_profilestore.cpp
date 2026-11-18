@@ -288,7 +288,7 @@ private Q_SLOTS:
         const QString path =
             m_dir->path() + QLatin1Char('/') + QUuid(bracedId).toString(QUuid::WithoutBraces) + QStringLiteral(".json");
         const QJsonObject delta{
-            {ConfigDefaults::renderingGroup(), QJsonObject{{ConfigDefaults::gpuKey(), QStringLiteral("10de:1e84")}}},
+            {HostSettings::renderingGroup(), QJsonObject{{HostSettings::gpuKey(), QStringLiteral("10de:1e84")}}},
             {ConfigDefaults::workspacesBehaviorGroup(),
              QJsonObject{{HostSettings::manageKWinPerOutputKey(), true},
                          {HostSettings::rebindKWinDesktopShortcutsKey(), false}}},
@@ -319,7 +319,7 @@ private Q_SLOTS:
         QVERIFY2(!listed.contains(ConfigDefaults::workspacesBehaviorGroup() + QLatin1Char('/')
                                   + HostSettings::manageKWinPerOutputKey()),
                  qPrintable(listed.join(QLatin1String(", "))));
-        QVERIFY2(!listed.contains(ConfigDefaults::renderingGroup() + QLatin1Char('/') + ConfigDefaults::gpuKey()),
+        QVERIFY2(!listed.contains(HostSettings::renderingGroup() + QLatin1Char('/') + HostSettings::gpuKey()),
                  qPrintable(listed.join(QLatin1String(", "))));
 
         // The export carries the same record, so the same keys.
@@ -333,7 +333,7 @@ private Q_SLOTS:
             exportedConfig.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
         QVERIFY(exportedWorkspaces.contains(HostSettings::rebindKWinDesktopShortcutsKey()));
         QVERIFY(!exportedWorkspaces.contains(HostSettings::manageKWinPerOutputKey()));
-        QVERIFY(!exportedConfig.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
+        QVERIFY(!exportedConfig.value(HostSettings::renderingGroup()).toObject().contains(HostSettings::gpuKey()));
 
         // Activation applies the rebind toggle and leaves both machine-scoped
         // keys out of the staged blob, so the live values stay as they were.
@@ -341,7 +341,7 @@ private Q_SLOTS:
         const QJsonObject appliedWorkspaces = m_lastApplied.value(ConfigDefaults::workspacesBehaviorGroup()).toObject();
         QCOMPARE(appliedWorkspaces.value(HostSettings::rebindKWinDesktopShortcutsKey()).toBool(true), false);
         QVERIFY(!appliedWorkspaces.contains(HostSettings::manageKWinPerOutputKey()));
-        QVERIFY(!m_lastApplied.value(ConfigDefaults::renderingGroup()).toObject().contains(ConfigDefaults::gpuKey()));
+        QVERIFY(!m_lastApplied.value(HostSettings::renderingGroup()).toObject().contains(HostSettings::gpuKey()));
     }
 
     /// Three-level chain: each node stores its delta against its parent, and

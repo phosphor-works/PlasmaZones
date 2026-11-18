@@ -506,28 +506,9 @@ void SettingsService::initializeRegistry()
     REGISTER_BOOL_SETTING("labelFontItalic", labelFontItalic, setLabelFontItalic)
     REGISTER_BOOL_SETTING("labelFontUnderline", labelFontUnderline, setLabelFontUnderline)
     REGISTER_BOOL_SETTING("labelFontStrikeout", labelFontStrikeout, setLabelFontStrikeout)
-    REGISTER_VALIDATED_STRING_SETTING("renderingBackend", renderingBackend, setRenderingBackend,
-                                      ConfigDefaults::renderingBackendOptions().contains(requested.toLower().trimmed()))
-    // gpuDevice: custom validating setter. The schema validator COERCES a
-    // malformed value to "auto" (and the D-Bus schema surface exposes only
-    // {key, type} for EVERY key — no token choices cross the bus for any of
-    // them) — so a plain pass-through setter would report success for a
-    // write that was silently discarded. Reject at the boundary instead:
-    // only "auto" or a well-formed vendor:device pair (in any
-    // case/whitespace variation that normalizes to itself) is accepted.
-    m_getters[QStringLiteral("gpuDevice")] = [this]() {
-        return m_settings->gpuDevice();
-    };
-    m_setters[QStringLiteral("gpuDevice")] = [this](const QVariant& v) {
-        const QString raw = v.toString();
-        const QString normalized = ConfigDefaults::normalizeGpuDevice(raw);
-        if (normalized != raw.toLower().trimmed()) {
-            return false;
-        }
-        m_settings->setGpuDevice(normalized);
-        return true;
-    };
-    m_schemas[QStringLiteral("gpuDevice")] = QStringLiteral("string");
+    // The host's own settings (renderingBackend and gpuDevice under
+    // PlasmaZones) are not registered here: the host adds them with
+    // registerHostSetting().
     REGISTER_INT_SETTING("shaderFrameRate", shaderFrameRate, setShaderFrameRate)
     REGISTER_BOOL_SETTING("enableAudioVisualizer", enableAudioVisualizer, setEnableAudioVisualizer)
     REGISTER_INT_SETTING("audioSpectrumBarCount", audioSpectrumBarCount, setAudioSpectrumBarCount)
