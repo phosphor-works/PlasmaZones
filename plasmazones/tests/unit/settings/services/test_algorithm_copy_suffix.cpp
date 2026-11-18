@@ -134,7 +134,7 @@ private Q_SLOTS:
             }
         });
 
-        const QString algoDir = guard.dataPath() + QLatin1Char('/') + ScriptedAlgorithmSubdir;
+        const QString algoDir = guard.dataPath() + QLatin1Char('/') + scriptedAlgorithmSubdir();
         QVERIFY(QDir().mkpath(algoDir));
         {
             QFile source(algoDir + QStringLiteral("/srcalgo.luau"));
@@ -143,7 +143,7 @@ private Q_SLOTS:
         }
 
         PhosphorTiles::AlgorithmRegistry registry(nullptr);
-        PhosphorTiles::ScriptedAlgorithmLoader loader(QString(ScriptedAlgorithmSubdir), &registry);
+        PhosphorTiles::ScriptedAlgorithmLoader loader(scriptedAlgorithmSubdir(), &registry);
         loader.scanAndRegister(PhosphorFsLoader::LiveReload::Off);
         QVERIFY2(registry.algorithm(QStringLiteral("srcalgo")) != nullptr, "the fixture algorithm failed to register");
 
