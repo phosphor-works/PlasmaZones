@@ -343,6 +343,9 @@ KWinPresence waitForKWin(QDBusConnection& bus)
 
 int main(int argc, char* argv[])
 {
+    // Before anything reads a config or data path.
+    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+
     // --help and --version are answered HERE, before everything else, because
     // everything below assumes a live session: the Wayland guard exits cleanly
     // on a machine with no compositor, and the real parser is not reached until

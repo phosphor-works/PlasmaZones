@@ -9,6 +9,8 @@
 #include <QLatin1String>
 #include <QString>
 
+#include "core/platform/appdirectoryname.h"
+
 // Shared shapes (per-side gap struct + aspect-ratio classification) live in
 // libs/phosphor-layout-api so every layout/tile provider can consume them
 // without forcing them to depend on PlasmaZones internals.  Referenced
@@ -116,7 +118,10 @@ constexpr int MinimumZoneDisplaySizePx = 10; // Minimum zone size for display (c
  * Keeping this in one place prevents the three callers from drifting when
  * the subdirectory ever needs to change.
  */
-inline constexpr QLatin1String ScriptedAlgorithmSubdir{"plasmazones/algorithms"};
+inline QString scriptedAlgorithmSubdir()
+{
+    return appDirectoryName() + QStringLiteral("/algorithms");
+}
 
 /**
  * @brief PlasmaZones' id as a host of the placement API.
@@ -130,6 +135,15 @@ inline constexpr QLatin1String ScriptedAlgorithmSubdir{"plasmazones/algorithms"}
  * the shipped descriptor and compares it with this constant.
  */
 inline constexpr QLatin1String PlacementHostId{"plasmazones"};
+
+/**
+ * @brief PlasmaZones' directory under the XDG config and data roots.
+ *
+ * Every PlasmaZones executable hands it to setAppDirectoryName() at the top
+ * of main(), and the unit tests do the same before main
+ * (tests/unit/helpers/appdirectoryname_init.cpp).
+ */
+inline constexpr QLatin1String AppDirectoryName{"plasmazones"};
 
 /**
  * @brief Maximum length for user-visible layout and zone names.

@@ -94,6 +94,9 @@ bool activateRunningInstance(const QString& address)
 
 int main(int argc, char* argv[])
 {
+    // Before anything reads a config or data path.
+    PlasmaZones::setAppDirectoryName(PlasmaZones::AppDirectoryName);
+
     // No MangoHud opt-out here, unlike plasmazonesd. MangoHud attaches as an
     // implicit Vulkan layer, and this app renders through OpenGL unless a
     // Vulkan RHI is forced, so the layer never loads in the default case. An

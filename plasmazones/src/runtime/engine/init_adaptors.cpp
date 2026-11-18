@@ -224,8 +224,8 @@ void EngineRuntime::initCoreAdaptors()
     // Initialize scripted algorithm loader BEFORE engine construction so that
     // user-defined algorithms are registered in the daemon registry before
     // the engine resolves the configured algorithm ID.
-    m_scriptedAlgorithmLoader = std::make_unique<PhosphorTiles::ScriptedAlgorithmLoader>(
-        QString(ScriptedAlgorithmSubdir), m_algorithmRegistry.get());
+    m_scriptedAlgorithmLoader =
+        std::make_unique<PhosphorTiles::ScriptedAlgorithmLoader>(scriptedAlgorithmSubdir(), m_algorithmRegistry.get());
     // When scripted algorithms change (hot-reload), notify layout list consumers
     connect(m_scriptedAlgorithmLoader.get(), &PhosphorTiles::ScriptedAlgorithmLoader::algorithmsChanged, this,
             [this]() {

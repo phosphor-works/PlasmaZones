@@ -16,6 +16,8 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 
+#include "core/platform/appdirectoryname.h"
+
 namespace PlasmaZones {
 
 static QString configDir()
@@ -27,34 +29,40 @@ static QString configDir()
     return dir;
 }
 
+/// The application's own config directory (appDirectoryName()).
+static QString appConfigDir()
+{
+    return configDir() + QLatin1Char('/') + appDirectoryName();
+}
+
 QString ConfigDefaults::configFilePath()
 {
-    return configDir() + QStringLiteral("/plasmazones/config.json");
+    return appConfigDir() + QStringLiteral("/config.json");
 }
 
 QString ConfigDefaults::sessionFilePath()
 {
-    return configDir() + QStringLiteral("/plasmazones/session.json");
+    return appConfigDir() + QStringLiteral("/session.json");
 }
 
 QString ConfigDefaults::rulesFilePath()
 {
-    return configDir() + QStringLiteral("/plasmazones/rules.json");
+    return appConfigDir() + QStringLiteral("/rules.json");
 }
 
 QString ConfigDefaults::profilesDir()
 {
-    return configDir() + QStringLiteral("/plasmazones/profiles");
+    return appConfigDir() + QStringLiteral("/profiles");
 }
 
 QString ConfigDefaults::quickLayoutsFilePath()
 {
-    return configDir() + QStringLiteral("/plasmazones/quicklayouts.json");
+    return appConfigDir() + QStringLiteral("/quicklayouts.json");
 }
 
 QString ConfigDefaults::layoutSettingsFilePath()
 {
-    return configDir() + QStringLiteral("/plasmazones/layout-settings.json");
+    return appConfigDir() + QStringLiteral("/layout-settings.json");
 }
 
 QString ConfigDefaults::layoutsDirPath()
@@ -122,7 +130,8 @@ QJsonObject ConfigDefaults::defaultLayoutVisibilitySettings()
 
 QString ConfigDefaults::legacyConfigFilePath()
 {
-    return configDir() + QStringLiteral("/plasmazonesrc");
+    // The single-file INI the v1 config lived in, beside the directory.
+    return configDir() + QLatin1Char('/') + appDirectoryName() + QStringLiteral("rc");
 }
 
 ConfigDefaults::RenderingBootConfig ConfigDefaults::readRenderingConfigFromDisk()

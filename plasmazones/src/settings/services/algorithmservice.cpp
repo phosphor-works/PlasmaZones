@@ -74,7 +74,7 @@ QString copyNameSuffix()
 QString userAlgorithmsDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QLatin1Char('/')
-        + ScriptedAlgorithmSubdir + QLatin1Char('/');
+        + scriptedAlgorithmSubdir() + QLatin1Char('/');
 }
 
 /// True when @p name is a bare basename: the shape the loader registers and the
@@ -94,7 +94,7 @@ bool isBareBaseName(const QString& name)
 QSet<QString> existingAlgorithmBaseNames()
 {
     QSet<QString> names;
-    const QStringList dirs = QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, ScriptedAlgorithmSubdir,
+    const QStringList dirs = QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, scriptedAlgorithmSubdir(),
                                                        QStandardPaths::LocateDirectory);
     for (const QString& dirPath : dirs) {
         const QStringList entries = QDir(dirPath).entryList({QStringLiteral("*.luau")}, QDir::Files);
@@ -822,9 +822,9 @@ QString AlgorithmService::createNewAlgorithm(const QString& name, const QString&
         // shadows it here — the registry and the wizard's preview resolve
         // the same override, keeping what the user saw and what gets copied
         // consistent.
-        const QString templateFile =
-            QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                   ScriptedAlgorithmSubdir + QLatin1Char('/') + baseTemplate + QStringLiteral(".luau"));
+        const QString templateFile = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
+                                                            scriptedAlgorithmSubdir() + QLatin1Char('/') + baseTemplate
+                                                                + QStringLiteral(".luau"));
 
         if (templateFile.isEmpty()) {
             qCWarning(PlasmaZones::lcCore)
