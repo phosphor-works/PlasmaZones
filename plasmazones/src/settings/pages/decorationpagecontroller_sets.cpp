@@ -13,6 +13,7 @@
 // and every file operation.
 
 #include "decorationpagecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "core/interfaces/isettings.h"

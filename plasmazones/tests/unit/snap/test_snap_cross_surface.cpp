@@ -8,6 +8,7 @@
 // fakes (no daemon, no KWin, no real layouts).
 
 #include <QHash>
+#include "common/engineruntimenamespace.h"
 #include <QRect>
 #include <QTest>
 

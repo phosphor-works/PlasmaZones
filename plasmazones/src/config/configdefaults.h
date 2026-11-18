@@ -9,7 +9,7 @@ namespace PhosphorAnimation {
 class CurveRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Provides static access to default configuration values
@@ -1282,4 +1282,4 @@ static_assert(ConfigDefaults::scrollingZoneSelectorPreviewHeight() >= ConfigDefa
                   && ConfigDefaults::scrollingZoneSelectorPreviewHeight() <= ConfigDefaults::previewHeightMax(),
               "ConfigDefaults::scrollingZoneSelectorPreviewHeight() outside declared [min, max] range");
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

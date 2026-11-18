@@ -24,6 +24,7 @@
  */
 
 #include <PhosphorZones/ScrollingTemplate.h>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QUndoStack>
 #include <QtTest>

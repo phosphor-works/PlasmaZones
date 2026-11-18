@@ -24,7 +24,7 @@
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorEngine/EngineTypes.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// The largest width or height a loaded ScreenPixelSizes entry may carry: the
@@ -522,4 +522,4 @@ void WindowTracker::scheduleSaveState()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

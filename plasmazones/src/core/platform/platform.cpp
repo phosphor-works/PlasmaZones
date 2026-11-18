@@ -5,7 +5,7 @@
 #include <QGuiApplication>
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace Platform {
 
@@ -35,4 +35,4 @@ bool isWayland()
 
 } // namespace Platform
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

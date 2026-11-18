@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_export.h"
 
 class QCoreApplication;

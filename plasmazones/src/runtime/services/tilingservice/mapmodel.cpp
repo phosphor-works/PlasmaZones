@@ -19,7 +19,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// The replay's keys, spelled to match what relayTileRequestsJson PARSES
@@ -226,4 +226,4 @@ void TilingService::reconcileMapStateWithAnnounce(const QStringList& announced)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -22,6 +22,7 @@
  */
 
 #include <QJsonDocument>
+#include "common/engineruntimenamespace.h"
 #include <QJsonObject>
 #include <QMetaMethod>
 #include <QMetaProperty>

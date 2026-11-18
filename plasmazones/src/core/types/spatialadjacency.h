@@ -11,7 +11,7 @@
 #include <QRectF>
 #include <QString>
 
-namespace PlasmaZones::SpatialAdjacency {
+namespace PhosphorEngineRuntime::SpatialAdjacency {
 
 /**
  * Find the index of the rect in @p candidates that is most "adjacent" to
@@ -46,4 +46,4 @@ inline int findAdjacentRect(const QRectF& current, const QList<QRectF>& candidat
     return PhosphorGeometry::directionalNeighbor(current, candidates, *parsed);
 }
 
-} // namespace PlasmaZones::SpatialAdjacency
+} // namespace PhosphorEngineRuntime::SpatialAdjacency

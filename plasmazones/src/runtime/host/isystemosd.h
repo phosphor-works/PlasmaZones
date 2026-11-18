@@ -5,7 +5,7 @@
 
 class QString;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The desktop's own text OSD: a short notice with an icon, drawn by
@@ -23,4 +23,4 @@ public:
     virtual void showText(const QString& iconName, const QString& text) = 0;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

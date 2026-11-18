@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorControl/PageController.h>
 
 #include "settings/stores/profilestore.h"
@@ -10,9 +12,12 @@
 #include <QObject>
 #include <QString>
 
+namespace PhosphorEngineRuntime {
+class Settings;
+} // namespace PhosphorEngineRuntime
+
 namespace PlasmaZones {
 
-class Settings;
 class RuleController;
 
 /// Page controller for the "Profiles" settings page (id "profiles").

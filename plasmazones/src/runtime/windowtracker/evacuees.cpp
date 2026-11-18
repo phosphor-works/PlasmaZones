@@ -31,7 +31,7 @@
 
 #include <array>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using PhosphorProtocol::OutputSettleRow;
 using PhosphorProtocol::OutputSettleVerdict;
@@ -671,4 +671,4 @@ void WindowTracker::wireEvacueeTouches()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

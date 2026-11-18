@@ -18,11 +18,11 @@ class RuntimeI18n
     Q_DECLARE_TR_FUNCTIONS(PhosphorEngineRuntime)
 };
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Install the runtime's catalog for the current locale on @p app, from the
 /// installed share/phosphor-engine-runtime/translations or the build tree.
 /// Call after the QCoreApplication exists.
 PLASMAZONES_EXPORT void loadRuntimeTranslations(QCoreApplication* app);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

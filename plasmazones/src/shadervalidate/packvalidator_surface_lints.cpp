@@ -20,6 +20,7 @@
 // a seam inside the lint collector. See that file's header for the seam.
 
 #include "packvalidators_surface_lints.h"
+#include "common/engineruntimenamespace.h"
 
 #include "packvalidatorcommon.h"
 

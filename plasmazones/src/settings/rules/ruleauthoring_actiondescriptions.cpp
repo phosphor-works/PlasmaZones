@@ -16,6 +16,7 @@
 // picker side.
 
 #include "ruleauthoring.h"
+#include "common/engineruntimenamespace.h"
 
 #include "phosphor_i18n.h"
 

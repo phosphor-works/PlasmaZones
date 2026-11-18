@@ -9,7 +9,7 @@
 
 Q_LOGGING_CATEGORY(lcSettingsConfigStore, "plasmazones.settingsconfigstore")
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 SettingsConfigStore::SettingsConfigStore(Settings* settings, QObject* parent)
     : PhosphorScreens::IConfigStore(parent)
@@ -66,4 +66,4 @@ bool SettingsConfigStore::remove(const QString& physicalScreenId)
     return m_settings->setVirtualScreenConfig(physicalScreenId, PhosphorScreens::VirtualScreenConfig{});
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

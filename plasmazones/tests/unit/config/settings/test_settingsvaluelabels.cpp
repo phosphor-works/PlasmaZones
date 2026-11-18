@@ -19,6 +19,7 @@
  */
 
 #include <QDir>
+#include "common/engineruntimenamespace.h"
 #include <QDirIterator>
 #include <QRegularExpression>
 #include <QSet>

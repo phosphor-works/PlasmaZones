@@ -7,7 +7,7 @@
 
 #include <QtGlobal>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 ScreenModeRouter::ScreenModeRouter(PhosphorZones::LayoutRegistry* layoutManager,
                                    PhosphorEngine::IPlacementEngine* snapEngine,
@@ -171,4 +171,4 @@ ScreenModeRouter::Partitioned ScreenModeRouter::partitionByMode(const QStringLis
     return out;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

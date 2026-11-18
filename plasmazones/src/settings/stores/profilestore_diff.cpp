@@ -7,6 +7,7 @@
 // nothing here touches disk; it only walks records the store half loaded.
 
 #include "profilestore.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configkeys.h"
 #include "config/settingsvaluelabels.h"

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>

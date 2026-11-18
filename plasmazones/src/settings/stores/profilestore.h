@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "settings/utils/animationfileutils.h"
 
 #include <PhosphorRules/Rule.h>

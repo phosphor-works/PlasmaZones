@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 namespace PhosphorControl {
 class SearchController;
 }

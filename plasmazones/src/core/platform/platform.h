@@ -6,7 +6,7 @@
 #include "plasmazones_export.h"
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Platform detection and utilities
@@ -24,4 +24,4 @@ PLASMAZONES_EXPORT bool isWayland();
 
 } // namespace Platform
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

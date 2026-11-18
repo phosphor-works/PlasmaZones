@@ -28,7 +28,7 @@
 
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void WindowTracker::captureWindowPlacement(const QString& windowId, const QString& authoritativeScreen,
                                            bool fromStateChange)
@@ -991,4 +991,4 @@ void WindowTracker::relayWindowReleasedFromContext(const QString& windowId, cons
                                                                  QStringLiteral("unsnapped"), QStringList{}, false});
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

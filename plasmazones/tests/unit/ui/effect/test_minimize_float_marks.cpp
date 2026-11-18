@@ -7,6 +7,7 @@
 // test_pretile_decisions.
 
 #include <tilinghandler/minimizefloatmarks.h>
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 

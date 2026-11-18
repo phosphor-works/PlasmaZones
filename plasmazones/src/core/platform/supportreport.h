@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_export.h"
 #include <QLatin1String>
 #include <QRect>
@@ -21,9 +23,11 @@ namespace PhosphorEngine {
 class IPlacementEngine;
 }
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ScreenModeRouter;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief Generates a redacted support report for bug reports and discussions

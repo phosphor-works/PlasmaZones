@@ -39,7 +39,7 @@
 
 Q_DECLARE_LOGGING_CATEGORY(lcSnapAssistTrace)
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -1069,4 +1069,4 @@ void OverlayService::pickerConfirmSelection()
     QMetaObject::invokeMethod(slot, "confirmSelection");
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

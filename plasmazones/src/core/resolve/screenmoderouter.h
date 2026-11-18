@@ -14,7 +14,7 @@ namespace PhosphorZones {
 class LayoutRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Single source of truth for "which engine owns screen X".
@@ -82,4 +82,4 @@ private:
     PhosphorEngine::IPlacementEngine* m_scrollEngine;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

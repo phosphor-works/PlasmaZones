@@ -20,7 +20,7 @@
 #include <PhosphorZones/LayoutUtils.h>
 #include <PhosphorZones/Zone.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 std::optional<int> SnapService::landingDesktop(const QString& windowId, const QString& screenId,
                                                int pinnedDesktop) const
@@ -236,4 +236,4 @@ void SnapService::moveWindowToZoneNumberOnScreen(const QString& windowId, int zo
     moveWindowToZoneOnScreen(windowId, zone->id().toString(), screen);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -9,6 +9,7 @@
  */
 
 #include <QHash>
+#include "common/engineruntimenamespace.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>

@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QDBusContext>
 #include <QObject>
 #include <QString>
@@ -22,11 +24,14 @@ namespace PhosphorScreens {
 class DBusScreenAdaptor;
 }
 
+namespace PhosphorEngineRuntime {
+class EngineRuntime;
+class SettingsService;
+} // namespace PhosphorEngineRuntime
+
 namespace PlasmaZones {
 
-class EngineRuntime;
 class HostSettings;
-class SettingsService;
 class KWinWorkspaceHost;
 class PlasmaSystemOsd;
 class AutotileAdaptor;

@@ -26,6 +26,7 @@
  */
 
 #include <QColor>
+#include "common/engineruntimenamespace.h"
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>

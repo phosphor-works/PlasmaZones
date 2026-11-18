@@ -32,7 +32,7 @@ class WindowRegistry;
 struct WindowMetadata;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class WindowTracker;
 
@@ -965,4 +965,4 @@ public:
     void forgetFloatBroadcast(const QString& windowId);
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

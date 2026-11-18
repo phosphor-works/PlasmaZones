@@ -27,7 +27,7 @@
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorZones/Layout.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void OverlayService::show()
 {
@@ -390,4 +390,4 @@ void OverlayService::applyIdleStateForCursor(const QString& activeEffectiveId, b
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

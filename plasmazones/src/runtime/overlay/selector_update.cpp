@@ -17,7 +17,7 @@
 #include <QQuickItem>
 #include <QQmlEngine>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -396,4 +396,4 @@ void OverlayService::refreshContextLockState()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

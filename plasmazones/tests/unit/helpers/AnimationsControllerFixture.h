@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 /**
  * @file AnimationsControllerFixture.h
  * @brief Shared AnimationsPageController fixtures for the animations tests.

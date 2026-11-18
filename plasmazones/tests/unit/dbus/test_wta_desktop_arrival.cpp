@@ -17,6 +17,7 @@
  */
 
 #include "wta_convenience_fixture.h"
+#include "common/engineruntimenamespace.h"
 #include "helpers/ScreenDisablingResolver.h"
 
 #include <PhosphorRules/MatchExpression.h>

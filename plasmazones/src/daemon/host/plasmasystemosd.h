@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "runtime/host/isystemosd.h"
 
 namespace PlasmaZones {

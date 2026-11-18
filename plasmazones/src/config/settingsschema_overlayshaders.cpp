@@ -19,7 +19,7 @@
 #include <QStringList>
 #include <QUuid>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -141,4 +141,4 @@ void appendOverlayShadersSchema(PhosphorConfig::Schema& schema)
     };
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

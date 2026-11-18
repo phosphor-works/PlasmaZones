@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <optional>
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 #include <QTemporaryDir>

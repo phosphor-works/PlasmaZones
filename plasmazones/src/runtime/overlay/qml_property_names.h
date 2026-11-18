@@ -31,7 +31,7 @@
  * absence of one is a gap rather than a decision. The DecorationReloadGeneration
  * and BackdropTexture notes below record why those two are here.
  */
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace OverlayQmlPropertyNames {
 
 /// True when the overlay should be hidden during a drag-pause
@@ -116,4 +116,4 @@ inline constexpr QLatin1String DecorationOuterPadding{"decorationOuterPadding"};
 inline constexpr QLatin1String BackdropTexture{"backdropTexture"};
 
 } // namespace OverlayQmlPropertyNames
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

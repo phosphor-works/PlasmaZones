@@ -7,7 +7,7 @@
 
 #include <cstddef>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class Settings;
 class ShortcutManager;
@@ -40,4 +40,4 @@ const StaticEntry* staticEntries();
 std::size_t staticEntryCount();
 
 } // namespace ShortcutTable
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

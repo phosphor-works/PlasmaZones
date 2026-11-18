@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ZoneAutoFiller.h"
+#include "common/engineruntimenamespace.h"
 #include "ZoneManager.h"
 #include "core/types/constants.h"
 #include "core/platform/logging.h"

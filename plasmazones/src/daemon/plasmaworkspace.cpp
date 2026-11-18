@@ -7,6 +7,7 @@
 // drops the subscription.
 
 #include "daemon/daemon.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 #include "runtime/engine/engineruntime.h"

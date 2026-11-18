@@ -16,6 +16,7 @@
  */
 
 #include "config/configdefaults.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 #include <QSignalSpy>

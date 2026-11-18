@@ -16,7 +16,7 @@ namespace PhosphorWorkspaces {
 class VirtualDesktopManager;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Daemon-side ICrossSurfaceResolver over the screen-topology and
@@ -43,4 +43,4 @@ private:
     PhosphorWorkspaces::VirtualDesktopManager* m_virtualDesktopManager = nullptr;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

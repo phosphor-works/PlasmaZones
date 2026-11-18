@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QImage>
 #include <QObject>
 #include <QVariantList>
@@ -18,9 +20,11 @@ namespace PhosphorSurfaceShaders {
 class SurfaceShaderRegistry;
 }
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ISettings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief QML data source for the live DECORATION (surface-pack) preview.

@@ -16,6 +16,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>

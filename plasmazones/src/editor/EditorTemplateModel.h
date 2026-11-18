@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QJsonObject>
 #include <QObject>
 #include <QString>

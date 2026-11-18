@@ -42,7 +42,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 struct StripSelectorHit
 {
@@ -183,4 +183,4 @@ inline StripSelectorHit classifyStripSelectorPoint(const QVector<QRectF>& cardRe
     return hit;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

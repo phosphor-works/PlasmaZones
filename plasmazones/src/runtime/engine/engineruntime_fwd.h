@@ -70,7 +70,7 @@ class ZoneDetector;
 // to daemon header is the standard direction).
 #include <PhosphorZones/AssignmentEntry.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 enum class DisabledReason;
 struct SeedScope;
@@ -101,17 +101,17 @@ class DaemonScreenModeAdapter;
 class DaemonSettingsGateAdapter;
 class DaemonWorkspaceStateAdapter;
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
 
 namespace PhosphorContext {
 class ContextResolver;
 } // namespace PhosphorContext
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 class SettingsConfigStore;
 class SnapService;
 class ShaderRegistry;
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
 
 namespace PhosphorTiles {
 class AlgorithmRegistry;

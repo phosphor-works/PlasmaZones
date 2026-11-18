@@ -16,7 +16,7 @@ namespace PhosphorZones {
 class LayoutRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 
@@ -58,4 +58,4 @@ private:
     std::function<QString()> m_currentActivity;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

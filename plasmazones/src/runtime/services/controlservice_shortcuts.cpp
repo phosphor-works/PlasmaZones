@@ -18,7 +18,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void ControlService::setShortcutCatalogProvider(std::function<QVariantList()> provider)
 {
@@ -42,4 +42,4 @@ QString ControlService::getShortcutsJson()
     return QString::fromUtf8(QJsonDocument(rows).toJson(QJsonDocument::Compact));
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

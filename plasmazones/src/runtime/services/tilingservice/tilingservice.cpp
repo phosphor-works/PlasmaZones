@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 TilingService::TilingService(PhosphorScreens::ScreenManager* screenManager, QObject* parent)
     : QObject(parent)
@@ -1142,4 +1142,4 @@ void TilingService::clearEngine()
     // no duplicate-connection hazard to guard against here.
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

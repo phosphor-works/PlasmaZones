@@ -8,7 +8,7 @@
 #include <QJsonObject>
 #include <QLatin1String>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 struct PerScreenMapping
@@ -153,4 +153,4 @@ QStringList PerScreenPathResolver::enumerate(const QJsonObject& root) const
     return out;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

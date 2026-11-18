@@ -13,6 +13,7 @@
  */
 
 #include <QStringList>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 
 #include "plasmazoneseffect/windowcontexthold.h"

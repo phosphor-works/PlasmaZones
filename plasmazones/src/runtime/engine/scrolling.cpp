@@ -38,7 +38,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::captureScrollingOrders(const QSet<QString>& scrollingScreens)
 {
@@ -725,4 +725,4 @@ bool EngineRuntime::stripIsVerticalForScreen(const QString& screenId) const
     return scroll && scroll->stripAxisForScreen(screenId).isVertical();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

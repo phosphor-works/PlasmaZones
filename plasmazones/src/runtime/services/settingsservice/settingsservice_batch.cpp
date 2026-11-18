@@ -17,7 +17,7 @@
 #include <QMetaMethod>
 #include <QMetaProperty>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 QVariantMap SettingsService::getSettings(const QStringList& keys)
 {
@@ -258,4 +258,4 @@ bool SettingsService::setSettings(const QVariantMap& settings)
     return allOk;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

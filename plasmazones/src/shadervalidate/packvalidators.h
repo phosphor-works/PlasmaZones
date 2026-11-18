@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 class QString;
 class QTextStream;
 

@@ -34,7 +34,7 @@
 
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::handleAssignmentChangesApplied(const QStringList& changedScreenIdsList)
 {
@@ -339,4 +339,4 @@ void EngineRuntime::handleAssignmentChangesApplied(const QStringList& changedScr
     diffActiveAssignments();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

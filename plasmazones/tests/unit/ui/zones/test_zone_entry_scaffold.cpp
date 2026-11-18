@@ -11,6 +11,7 @@
 // Also pins that a traditional main() pack is passed through untouched.
 
 #include "runtime/rendering/zoneentryscaffold.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorRendering/ShaderCompiler.h>
 #include <PhosphorShaders/ShaderIncludeResolver.h>

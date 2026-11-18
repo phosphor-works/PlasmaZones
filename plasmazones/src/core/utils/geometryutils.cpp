@@ -17,14 +17,14 @@
 #include <PhosphorZones/ZoneDefaults.h>
 #include <QScreen>
 
-static_assert(PhosphorEngine::GeometryDefaults::InnerGap == PlasmaZones::Defaults::InnerGap,
+static_assert(PhosphorEngine::GeometryDefaults::InnerGap == PhosphorEngineRuntime::Defaults::InnerGap,
               "Library and daemon InnerGap defaults out of sync");
-static_assert(PhosphorEngine::GeometryDefaults::OuterGap == PlasmaZones::Defaults::OuterGap,
+static_assert(PhosphorEngine::GeometryDefaults::OuterGap == PhosphorEngineRuntime::Defaults::OuterGap,
               "Library and daemon OuterGap defaults out of sync");
-static_assert(PhosphorEngine::GeometryDefaults::MaxGap == PlasmaZones::Defaults::MaxGap,
+static_assert(PhosphorEngine::GeometryDefaults::MaxGap == PhosphorEngineRuntime::Defaults::MaxGap,
               "Library and daemon gap ceilings out of sync — both engines clamp resolved gaps to this");
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace GeometryUtils {
 
@@ -348,4 +348,4 @@ PhosphorProtocol::EmptyZoneList buildEmptyZoneList(PhosphorScreens::ScreenManage
 
 } // namespace GeometryUtils
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

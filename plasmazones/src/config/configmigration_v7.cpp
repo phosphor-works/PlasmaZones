@@ -13,7 +13,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── v6 → v7: the window-movement animation nodes are renamed, and the
 //    maximize node is retired ────────────────────────────────────────────────
@@ -131,4 +131,4 @@ void ConfigMigration::migrateV6ToV7(QJsonObject& root)
     root[ConfigKeys::versionKey()] = 7;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

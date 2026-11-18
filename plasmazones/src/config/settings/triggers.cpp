@@ -15,7 +15,7 @@
 
 #include <iterator> // std::size, in the quick-layout and snap-to-zone dispatch checks
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Activation + Behavior (PhosphorConfig::Store-backed) ────────────────────
 
@@ -518,4 +518,4 @@ void Settings::setScrollFocusTabShortcut(int index, const QString& shortcut)
     Q_EMIT(this->*signals[index])();
     Q_EMIT settingsChanged();
 }
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

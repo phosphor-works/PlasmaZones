@@ -36,7 +36,7 @@
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Stable id for the Escape cancel-overlay shortcut bound dynamically during
 // a drag. Matches the pre-library object name so kglobalshortcutsrc entries
@@ -1158,4 +1158,4 @@ void DragResolver::onSnapAssistDismissed()
     releaseCancelOverlayShortcutIfIdle();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

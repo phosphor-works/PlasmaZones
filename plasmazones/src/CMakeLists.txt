@@ -82,6 +82,7 @@ set(plasmazones_core_SRCS
     common/stripcardserialize.h
     common/screenidresolver.cpp
     common/screenidresolver.h
+    common/engineruntimenamespace.h
     common/hostsettings.cpp
     common/hostsettings.h
     common/kwinperoutputdesktops.cpp

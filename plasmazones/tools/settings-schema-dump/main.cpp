@@ -27,6 +27,7 @@
 // range published as fact is worse than no range.
 
 #include "config/settingsschema.h"
+#include "common/engineruntimenamespace.h"
 #include "common/hostsettings.h"
 #include "core/types/constants.h"
 

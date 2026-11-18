@@ -16,6 +16,7 @@
 //     refuse, listed on the sheet under Workspaces while bound.
 
 #include "runtime/controllers/shortcutmanager.h"
+#include "common/engineruntimenamespace.h"
 #include "runtime/controllers/shortcutmanager_ids.h"
 #include "runtime/host/iworkspacehost.h"
 

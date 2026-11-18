@@ -18,6 +18,7 @@
  */
 
 #include <QHash>
+#include "common/engineruntimenamespace.h"
 #include <QRect>
 #include <QSet>
 #include <QSignalSpy>

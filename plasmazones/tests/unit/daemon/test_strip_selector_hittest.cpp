@@ -8,6 +8,7 @@
 // exclusions, without a QML scene.
 
 #include "core/types/stripselectorhittest.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QtTest>
 

@@ -12,7 +12,7 @@ namespace PhosphorRules {
 class RuleStore;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The unified Rule store's service, behind org.phosphor_works.Placement.Rules
@@ -120,4 +120,4 @@ private:
     PhosphorRules::RuleStore* m_store;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

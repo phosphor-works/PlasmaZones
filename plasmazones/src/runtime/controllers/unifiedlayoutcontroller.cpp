@@ -18,7 +18,7 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ScrollingTemplateStore.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -662,4 +662,4 @@ int UnifiedLayoutController::findCurrentIndex() const
     return PhosphorZones::LayoutUtils::findLayoutIndex(list, m_currentLayoutId);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -41,6 +41,7 @@
  */
 
 #include <PhosphorProtocol/Registration.h>
+#include "common/engineruntimenamespace.h"
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 

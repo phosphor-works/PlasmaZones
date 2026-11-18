@@ -3,13 +3,17 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorControl/PageController.h>
 #include <QObject>
 #include <QVariantList>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ISettings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /// Q_PROPERTY surface for the "Tiling → Window" settings page (page id
 /// "tiling-behavior").

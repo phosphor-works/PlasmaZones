@@ -42,7 +42,7 @@
 // same removal was got wrong once in shader.cpp.
 #include <QScreen>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Shared helpers used by multiple overlayservice TUs.
@@ -419,4 +419,4 @@ inline void writeColorSettings(QObject* window, const IZoneVisualizationSettings
 // findQmlItemByName, collectQmlItemsByName, mapVisibleRectToItem
 // are defined in overlay_helpers.h (included above)
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

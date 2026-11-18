@@ -10,7 +10,7 @@
 // edge auto-scroll defaults, so both sides are compared rather than copied.
 #include <PhosphorScrollEngine/IScrollSettings.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Scrolling (PhosphorConfig::Store-backed) ────────────────────────────────
 // Scalars live in m_store under Scrolling; the schema validators own
@@ -862,4 +862,4 @@ P_STORE_GET(QString, scrollingMinimizeWindowHeightShortcut, shortcutsScrollingGr
 P_STORE_SET_STRING(setScrollingMinimizeWindowHeightShortcut, shortcutsScrollingGroup, minimizeWindowHeightKey,
                    scrollingMinimizeWindowHeightShortcutChanged)
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

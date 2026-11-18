@@ -18,7 +18,7 @@
 #include <QSet>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void LayoutService::stageOrApply(const QString& resolvedId)
 {
@@ -392,4 +392,4 @@ void LayoutService::flushPendingActiveLayout()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

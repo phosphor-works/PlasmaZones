@@ -11,6 +11,7 @@
 // "down" were the same index+1 operation).
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QTest>
 

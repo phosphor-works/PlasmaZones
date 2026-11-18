@@ -19,6 +19,7 @@
  */
 
 #include <PhosphorAnimation/CurveRegistry.h>
+#include "common/engineruntimenamespace.h"
 #include <PhosphorAnimation/Profile.h>
 #include <PhosphorAnimation/ProfileTree.h>
 

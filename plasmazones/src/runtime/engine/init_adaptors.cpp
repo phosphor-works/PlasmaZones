@@ -43,7 +43,7 @@
 #include "runtime/services/controlservice.h"
 #include "runtime/services/ruleservice.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::initCoreAdaptors()
 {
@@ -235,4 +235,4 @@ void EngineRuntime::initCoreAdaptors()
     m_scriptedAlgorithmLoader->scanAndRegister();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

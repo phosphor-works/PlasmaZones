@@ -43,7 +43,7 @@
 
 using PlacementEngineBase = PhosphorEngine::PlacementEngineBase;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::initializeUnifiedController()
 {
@@ -807,4 +807,4 @@ void EngineRuntime::syncAutotileBatchFloatState(const QStringList& windowIds, co
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

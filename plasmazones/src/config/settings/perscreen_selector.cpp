@@ -25,7 +25,7 @@
 #include <algorithm>
 #include <iterator>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using PerScreenDetail::applyPerScreenSetting;
 using PerScreenDetail::findPerScreenEntry;
@@ -400,4 +400,4 @@ void Settings::clearPerScreenScrollingZoneSelectorSizeSettings(const QString& sc
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -18,7 +18,7 @@ namespace PhosphorTileEngine {
 class AutotileEngine;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The autotile placement engine's service, behind
@@ -210,4 +210,4 @@ private:
     PhosphorTiles::ITileAlgorithmRegistry* m_algorithmRegistry = nullptr; ///< Borrowed; outlives adaptor
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

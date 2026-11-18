@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "core/platform/logging.h"
 #include "core/types/constants.h"
 

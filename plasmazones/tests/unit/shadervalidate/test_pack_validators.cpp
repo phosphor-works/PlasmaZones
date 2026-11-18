@@ -26,6 +26,7 @@
 // shared/ helpers linked in (REQUIRE_ANIMATION_FIXTURE).
 
 #include <QtTest>
+#include "common/engineruntimenamespace.h"
 
 #include <QDir>
 #include <QFile>

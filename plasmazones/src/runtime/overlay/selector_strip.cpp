@@ -19,7 +19,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 QVariantList OverlayService::buildStripList(const QString& screenId) const
 {
@@ -262,4 +262,4 @@ void OverlayService::updateStripSelectorHit(QQuickItem* slot, int localX, int lo
     writeQmlProperty(slot, QStringLiteral("selectedStripHalf"), qmlHalf);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "algorithmservice.h"
+#include "common/engineruntimenamespace.h"
 
 #include "algorithmscaffold.h"
 

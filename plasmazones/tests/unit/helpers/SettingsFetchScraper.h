@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 /**
  * @file SettingsFetchScraper.h
  * @brief Scrapes every setting key the KWin effect and the editor fetch over D-Bus, from

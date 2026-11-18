@@ -10,6 +10,7 @@
 // WithoutBraces axis, and these UUIDs keep their braces.)
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 
 #include "core/utils/unifiedlayoutlist.h"
 

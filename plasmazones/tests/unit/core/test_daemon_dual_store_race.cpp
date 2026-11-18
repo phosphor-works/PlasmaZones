@@ -26,6 +26,7 @@
  */
 
 #include <QDir>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 #include <QUuid>
 #include <memory>

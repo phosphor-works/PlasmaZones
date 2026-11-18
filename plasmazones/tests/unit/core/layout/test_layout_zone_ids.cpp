@@ -16,6 +16,7 @@
  */
 
 #include <QDir>
+#include "common/engineruntimenamespace.h"
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>

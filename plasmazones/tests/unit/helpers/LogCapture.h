@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QLatin1String>
 #include <QLoggingCategory>
 #include <QString>

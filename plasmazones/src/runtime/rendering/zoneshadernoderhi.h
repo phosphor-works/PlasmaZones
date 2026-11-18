@@ -17,7 +17,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// The trusted PlasmaZones overlay roots, in QStandardPaths priority order
 /// (user first). NOT the same order as ShaderRegistry::searchPaths(), which is
@@ -144,4 +144,4 @@ warmShaderBakeCacheForPaths(const QString& vertexPath, const QString& fragmentPa
                             const QString& entryPrologue = {},
                             const QList<PhosphorShaders::EntryCandidate>& entryCandidates = {});
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

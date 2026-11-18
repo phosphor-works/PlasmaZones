@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/NavigationMarshalling.h>
@@ -16,9 +18,11 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class SnapService;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief The D-Bus binding of SnapService: org.phosphor_works.Placement.Snap

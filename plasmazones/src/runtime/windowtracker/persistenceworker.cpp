@@ -8,7 +8,7 @@
 
 #include <QThread>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PersistenceIO — lives on the I/O thread
@@ -64,4 +64,4 @@ bool PersistenceWorker::writeSync(const QString& filePath, const QJsonObject& ro
     return PhosphorConfig::JsonBackend::writeJsonAtomically(filePath, root);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

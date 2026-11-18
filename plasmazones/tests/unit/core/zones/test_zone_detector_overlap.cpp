@@ -11,6 +11,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QRectF>
 #include <QPointF>
 #include <QVector>

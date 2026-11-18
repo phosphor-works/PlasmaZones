@@ -14,6 +14,7 @@
  */
 
 #include "wta_snap_nav_fixture.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QSignalSpy>
 

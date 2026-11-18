@@ -25,7 +25,7 @@
 #include <QStringList>
 #include <QUuid>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 // The two per-layout sidecar keys being relocated (the layout-file spellings
@@ -370,4 +370,4 @@ bool ConfigMigration::relocateOverlayShaderAssignments(const QString& jsonPath)
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

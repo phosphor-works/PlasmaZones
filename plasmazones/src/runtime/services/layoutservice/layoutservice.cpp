@@ -47,7 +47,7 @@
 static_assert(PhosphorZones::LayoutRegistry::QuickSlotCount == PhosphorProtocol::Service::QuickLayoutSlotCount,
               "LayoutRegistry::QuickSlotCount must equal PhosphorProtocol::Service::QuickLayoutSlotCount");
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -77,7 +77,7 @@ std::optional<PhosphorZones::AssignmentEntry::Mode> quickSlotMode(int mode)
 // (the editor's loadLayout parser, DBusLayoutService::loadLayout → getLayout)
 // reads the layout name under `name` and each zone's geometry nested under
 // `relativeGeometry`. Autotile "layouts" are synthesized on the fly from a
-// LayoutPreview, whose own wire shape (PlasmaZones::toJson) is the *flat*
+// LayoutPreview, whose own wire shape (PhosphorEngineRuntime::toJson) is the *flat*
 // preview schema consumed by the layout picker / OSD (getLayoutPreview*).
 // Returning that flat shape from getLayout left the editor parsing every zone
 // to a (0,0,0,0) rect — a blank canvas in preview mode. Project the preview
@@ -368,7 +368,7 @@ QStringList LayoutService::getLayoutList()
                                                      /*includeScrollingTemplates=*/true),
         m_autotileLayoutSource, /*autotilePreviewCanvas=*/{}, m_layoutManager->scrollingTemplateStore());
     for (const auto& entry : entries) {
-        QJsonObject json = PlasmaZones::toJson(entry);
+        QJsonObject json = PhosphorEngineRuntime::toJson(entry);
 
         // Enrich manual-layout entries with Layout-specific fields that
         // LayoutPreview doesn't carry (hasSystemOrigin, hiddenFromSelector,
@@ -1003,7 +1003,7 @@ QString LayoutService::getLayoutPreviewList()
     QJsonArray array;
     const auto previews = m_layoutSource->availableLayouts();
     for (const auto& preview : previews) {
-        array.append(PlasmaZones::toJson(preview));
+        array.append(PhosphorEngineRuntime::toJson(preview));
     }
     return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
 }
@@ -1018,7 +1018,7 @@ QString LayoutService::getLayoutPreview(const QString& id, int windowCount)
         // ILayoutSource contract: empty id signals "unknown to this source".
         return QStringLiteral("{}");
     }
-    return QString::fromUtf8(QJsonDocument(PlasmaZones::toJson(preview)).toJson(QJsonDocument::Compact));
+    return QString::fromUtf8(QJsonDocument(PhosphorEngineRuntime::toJson(preview)).toJson(QJsonDocument::Compact));
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

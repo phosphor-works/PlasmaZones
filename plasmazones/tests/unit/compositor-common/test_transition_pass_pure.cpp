@@ -9,6 +9,7 @@
 // carry the coverage alpha the pass relies on, so the table is pinned here.
 
 #include "transitions/transitionpasspure.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 

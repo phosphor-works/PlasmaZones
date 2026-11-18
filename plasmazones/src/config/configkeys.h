@@ -42,7 +42,7 @@
 #define P_PER_SCREEN_PREFIX_SCROLLING "ScrollingScreen"
 #define P_PER_SCREEN_PREFIX_SCROLLING_ZONE_SELECTOR "ScrollingZoneSelector"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Static config group names, key strings, and JSON field name accessors.
@@ -1169,7 +1169,7 @@ private:
     ConfigKeys() = delete;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
 
 #include "configkeymacro_undef.h"
 // P_PER_SCREEN_PREFIX_* deliberately NOT undef'd: perscreenresolver.cpp

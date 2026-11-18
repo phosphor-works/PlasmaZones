@@ -10,7 +10,7 @@
 #include <QList>
 #include <QRectF>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 CrossSurfaceResolver::CrossSurfaceResolver(PhosphorScreens::ScreenManager* screenManager,
                                            PhosphorWorkspaces::VirtualDesktopManager* virtualDesktopManager)
@@ -63,4 +63,4 @@ int CrossSurfaceResolver::neighborDesktopInDirection(int currentDesktop, const Q
                                                         m_virtualDesktopManager->desktopRows(), *dir);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

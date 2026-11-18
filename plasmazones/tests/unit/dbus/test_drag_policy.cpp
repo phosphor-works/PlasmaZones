@@ -35,6 +35,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QObject>

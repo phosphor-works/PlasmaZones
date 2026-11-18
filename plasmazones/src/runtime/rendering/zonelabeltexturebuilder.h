@@ -10,7 +10,7 @@
 #include <QSize>
 #include <QVariantList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Renders zone numbers into a sparse glyph-tile payload for the shader
@@ -61,4 +61,4 @@ public:
                                                      bool fontUnderline = false, bool fontStrikeout = false);
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

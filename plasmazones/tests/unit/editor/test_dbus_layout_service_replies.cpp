@@ -25,6 +25,7 @@
  */
 
 #include <memory>
+#include "common/engineruntimenamespace.h"
 
 #include <QCoreApplication>
 #include <QDBusAbstractAdaptor>

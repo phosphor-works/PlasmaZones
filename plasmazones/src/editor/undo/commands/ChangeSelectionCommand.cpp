@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ChangeSelectionCommand.h"
+#include "common/engineruntimenamespace.h"
 #include "CommandId.h"
 #include "../../EditorController.h"
 

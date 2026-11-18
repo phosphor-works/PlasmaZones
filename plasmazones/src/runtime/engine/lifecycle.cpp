@@ -66,7 +66,7 @@
 #include <QSet>
 #include <QThread>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::start()
 {
@@ -964,4 +964,4 @@ void EngineRuntime::stop()
     m_running = false;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

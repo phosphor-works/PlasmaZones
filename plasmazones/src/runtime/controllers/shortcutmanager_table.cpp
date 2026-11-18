@@ -18,7 +18,7 @@
 
 #include <iterator>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace ShortcutTable {
 
 namespace {
@@ -626,4 +626,4 @@ std::size_t staticEntryCount()
 }
 
 } // namespace ShortcutTable
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

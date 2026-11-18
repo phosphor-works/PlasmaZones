@@ -36,7 +36,7 @@
 
 #include <functional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using namespace RuleAdmission;
 
@@ -711,4 +711,4 @@ QVariantMap WindowTracker::scrollOpenRuleParams(const QString& windowId, const Q
     return out;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

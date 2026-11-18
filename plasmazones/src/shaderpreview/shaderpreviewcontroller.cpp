@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "shaderpreviewcontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QQuickItem>
 #include <QQuickWindow>

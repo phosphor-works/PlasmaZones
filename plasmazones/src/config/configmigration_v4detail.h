@@ -26,7 +26,7 @@
 #include <QString>
 #include <QUuid>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── Temporary `_v4*Stash` root keys ────────────────────────────────────────
 // The temporary root keys migrateV3ToV4 writes and finalizeV4Conversion
@@ -111,4 +111,4 @@ bool isRetiredSteamRuleShape(const PhosphorRules::Rule& rule);
 void appendAnimationExclusionRulesFromStash(QList<PhosphorRules::Rule>& rules, const QJsonObject& stash);
 void appendLayoutAppRulesAsSnapToZone(QList<PhosphorRules::Rule>& rules, const QString& layoutsDir);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

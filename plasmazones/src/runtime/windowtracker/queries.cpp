@@ -41,7 +41,7 @@
 #include <PhosphorScreens/ScreenIdentity.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 QRect WindowTracker::frameGeometry(const QString& windowId) const
 {
@@ -292,4 +292,4 @@ QRect WindowTracker::zoneGeometryRect(const QString& zoneId, const QString& scre
     return geo;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

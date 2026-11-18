@@ -20,6 +20,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorAnimation/ShaderProfile.h>
 #include <PhosphorAnimation/ShaderProfileTree.h>

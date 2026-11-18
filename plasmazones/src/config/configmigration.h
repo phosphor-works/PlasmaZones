@@ -14,7 +14,7 @@
 #include <QStringList>
 #include <QVariant>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Current config schema version. Written by JsonBackend::sync() (fresh
 /// installs, via the version stamp wired up in configbackends.cpp),
@@ -512,4 +512,4 @@ private:
     static QJsonValue convertValue(const QString& keyName, const QVariant& value);
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -42,6 +42,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 
 #include <limits>

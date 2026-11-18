@@ -5,7 +5,7 @@
 
 #include <QtGlobal>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 QString& storedName()
@@ -35,4 +35,4 @@ QString appDirectoryName()
     return name;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

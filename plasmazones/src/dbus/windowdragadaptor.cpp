@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "windowdragadaptor.h"
+#include "common/engineruntimenamespace.h"
 
 #include "dbushelpers.h"
 #include "runtime/dragresolver/dragresolver.h"

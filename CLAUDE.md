@@ -61,7 +61,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 - Signals: past tense (`layoutChanged`) — Slots: action verb (`saveLayout`)
 
 ### Core Rules
-- C++20, `namespace PlasmaZones`, `explicit` single-param constructors, `override` on virtuals
+- C++20, `namespace PlasmaZones`, `explicit` single-param constructors, `override` on virtuals. The engine runtime's trees (`plasmazones/src/runtime`, `core`, `config`, except the app-side files a later move leaves behind: `supportreport`, `translationloader`, `singleinstanceservice`, `modifierutils`, `dbusvariantutils`, `settingsvaluelabels`, `version.h`) are `namespace PhosphorEngineRuntime`, bound for phosphor-libs. PlasmaZones code sees them unqualified through `common/engineruntimenamespace.h`; forward-declare a runtime type in `namespace PhosphorEngineRuntime`, never in `PlasmaZones` (that declares a different, incomplete type)
 - `Q_OBJECT`, `Q_EMIT`, `Q_SIGNALS:`, `Q_SLOTS:`, `Q_PROPERTY` with READ/WRITE/NOTIFY
 - Only emit signals when value actually changes
 - Parent-based ownership for QObjects; `std::unique_ptr`/`QPointer` otherwise; never manual delete

@@ -24,6 +24,7 @@
 // Same class as settingscontroller.cpp, separate TU, no API change.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 

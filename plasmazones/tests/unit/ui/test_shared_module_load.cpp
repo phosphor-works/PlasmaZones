@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <QGuiApplication>
+#include "common/engineruntimenamespace.h"
 #include <QQmlComponent>
 #include <QCoreApplication>
 #include <QQmlEngine>

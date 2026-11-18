@@ -4,7 +4,7 @@
 #include "shaderservice.h"
 #include "core/interfaces/shaderregistry.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 ShaderService::ShaderService(ShaderRegistry* registry, QObject* parent)
     : QObject(parent)
@@ -77,4 +77,4 @@ void ShaderService::detach()
     m_registry = nullptr;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

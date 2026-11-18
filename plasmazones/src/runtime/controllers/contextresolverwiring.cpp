@@ -12,7 +12,7 @@
 #include <PhosphorWorkspaces/ActivityManager.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── DaemonWorkspaceStateAdapter ─────────────────────────────────────────
 
@@ -128,4 +128,4 @@ bool DaemonSettingsGateAdapter::isContextLocked(PhosphorZones::AssignmentEntry::
     return m_settings->isContextLocked(Utils::contextLockKey(static_cast<int>(mode), screenId), desktop, activity);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -15,6 +15,7 @@
  */
 
 #include "plasmazoneseffect/virtualscreengeometry.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorScreens/VirtualScreen.h>
 

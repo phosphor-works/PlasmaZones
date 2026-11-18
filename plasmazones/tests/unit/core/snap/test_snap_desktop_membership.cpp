@@ -25,6 +25,7 @@
  */
 
 #include "helpers/IsolatedConfigGuard.h"
+#include "common/engineruntimenamespace.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/StubSettings.h"
 #include "helpers/StubZoneDetector.h"

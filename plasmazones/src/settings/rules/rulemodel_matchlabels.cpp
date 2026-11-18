@@ -8,6 +8,7 @@
 // there is no shared private header.
 
 #include "rulemodel.h"
+#include "common/engineruntimenamespace.h"
 
 #include "ruleauthoring.h"
 

@@ -14,7 +14,7 @@
 #include <QScreen>
 #include <QStringList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace Utils {
 
 bool belongsToPhysicalScreen(const QString& storedScreenId, const QString& physicalScreenId)
@@ -68,4 +68,4 @@ qreal screenAspectRatio(PhosphorScreens::ScreenManager* mgr, const QString& scre
 }
 
 } // namespace Utils
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

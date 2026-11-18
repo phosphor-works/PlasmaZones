@@ -23,7 +23,7 @@
 #include <QTimer>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void DragResolver::dragStopped(const QString& windowId, int cursorX, int cursorY, int modifiers, int mouseButtons,
                                int& snapX, int& snapY, int& snapWidth, int& snapHeight, bool& shouldApplyGeometry,
@@ -728,4 +728,4 @@ void DragResolver::computeAndEmitSnapAssist()
     Q_EMIT snapAssistReady(windowId, screenId, emptyZones);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

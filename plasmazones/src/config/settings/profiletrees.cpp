@@ -17,7 +17,7 @@
 #include <QJsonObject>
 #include <QSet>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -780,4 +780,4 @@ void Settings::setOverlayShaderTreeJson(const QString& json)
     setOverlayShaderTree(OverlayShaderTree::fromJson(doc.object()));
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

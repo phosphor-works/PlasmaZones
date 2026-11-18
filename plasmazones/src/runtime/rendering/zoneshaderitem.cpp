@@ -30,7 +30,7 @@
 static_assert(PhosphorRendering::kMaxUserTextureSlots == 4,
               "ZoneShaderItem assumes ShaderEffect base sync covers 4 user-texture slots");
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // QVariantMap payload keys for zone snapshots passed from QML / overlay
 // glue down to parseZoneData. Distinct from PhosphorZones::ZoneJsonKeys
@@ -136,8 +136,9 @@ void ZoneShaderItem::setUniformExtension(std::shared_ptr<PhosphorShaders::IUnifo
     // Log loudly at the point of misuse instead of inheriting the base
     // class's silent-store behaviour.
     Q_UNUSED(extension);
-    qCWarning(PlasmaZones::lcOverlay) << "ZoneShaderItem::setUniformExtension: ignored: zone rendering owns its own"
-                                      << "IUniformExtension (ZoneUniformExtension) and cannot accept a replacement.";
+    qCWarning(PhosphorEngineRuntime::lcOverlay)
+        << "ZoneShaderItem::setUniformExtension: ignored: zone rendering owns its own"
+        << "IUniformExtension (ZoneUniformExtension) and cannot accept a replacement.";
 }
 
 // ============================================================================
@@ -242,7 +243,7 @@ void ZoneShaderItem::updateHoveredHighlightOnly()
 {
     // Precondition: m_zoneData must be populated by a prior setZones/parseZoneData call.
     if (m_zoneData.rects.size() != static_cast<qsizetype>(m_zones.size())) {
-        qCWarning(PlasmaZones::lcOverlay)
+        qCWarning(PhosphorEngineRuntime::lcOverlay)
             << "updateHoveredHighlightOnly: zone data out of sync (rects=" << m_zoneData.rects.size()
             << "zones=" << m_zones.size() << ") - setZones must be called first";
         return;
@@ -326,7 +327,8 @@ QSGNode* ZoneShaderItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* 
         // right node type for free.
         node = static_cast<PhosphorRendering::ZoneShaderNodeRhi*>(createShaderNode());
         freshNode = true;
-        qCDebug(PlasmaZones::lcOverlay) << "updatePaintNode: created NEW ZoneShaderNodeRhi (oldNode was null)";
+        qCDebug(PhosphorEngineRuntime::lcOverlay)
+            << "updatePaintNode: created NEW ZoneShaderNodeRhi (oldNode was null)";
     }
     // REGISTER the node with the base, on every frame rather than only the
     // fresh-node path: this override replaces the base updatePaintNode that
@@ -414,7 +416,7 @@ QSGNode* ZoneShaderItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* 
             // Empty when the pack declares no params, or for a pack not yet
             // migrated to p_ names — a no-op either way.
             node->setParamPreamble(paramPreamble());
-            qCDebug(PlasmaZones::lcOverlay)
+            qCDebug(PhosphorEngineRuntime::lcOverlay)
                 << "Shader include paths:" << shaderIncludePaths() << "vertPath:" << vertPath;
 
             node->setVertexShaderSource(QString());
@@ -433,19 +435,21 @@ QSGNode* ZoneShaderItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* 
             // shader's compile error as its reason.
             QString failureReason;
             if (fragPath.isEmpty()) {
-                qCWarning(PlasmaZones::lcOverlay) << "Shader URL resolved to no usable path:" << shaderSource();
+                qCWarning(PhosphorEngineRuntime::lcOverlay)
+                    << "Shader URL resolved to no usable path:" << shaderSource();
                 failureReason = QStringLiteral("Shader URL resolved to no usable path: ") + shaderSource().toString();
                 loaded = false;
             }
             if (loaded && !vertPath.isEmpty()) {
                 if (!node->loadVertexShader(vertPath)) {
-                    qCWarning(PlasmaZones::lcOverlay)
+                    qCWarning(PhosphorEngineRuntime::lcOverlay)
                         << "Failed to load vertex shader:" << vertPath << "error:" << node->shaderError();
                     loaded = false;
                 }
             } else if (loaded) {
-                qCWarning(PlasmaZones::lcOverlay) << "No vertex shader found for" << fragPath
-                                                  << "(expected zone.vert in the shader dir or a search path)";
+                qCWarning(PhosphorEngineRuntime::lcOverlay)
+                    << "No vertex shader found for" << fragPath
+                    << "(expected zone.vert in the shader dir or a search path)";
                 // Carries the journal line's parenthetical BYTE FOR BYTE, so a user comparing the
                 // on-screen text against the journal reads one sentence rather than two. The text
                 // is what matters here: it reaches the live overlay's own inline card
@@ -461,7 +465,7 @@ QSGNode* ZoneShaderItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* 
             // which reads no stage status. Both vertex arms above already warn.
             if (loaded) {
                 if (!node->loadFragmentShader(fragPath)) {
-                    qCWarning(PlasmaZones::lcOverlay)
+                    qCWarning(PhosphorEngineRuntime::lcOverlay)
                         << "Failed to load fragment shader:" << fragPath << "error:" << node->shaderError();
                     loaded = false;
                 }
@@ -554,7 +558,7 @@ QSGNode* ZoneShaderItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* 
     const qreal scale = effectiveResolutionScale();
     if (!m_zoneExtension->setScale(static_cast<float>(scale)) && !m_loggedBadScale) {
         m_loggedBadScale = true;
-        qCWarning(PlasmaZones::lcOverlay)
+        qCWarning(PhosphorEngineRuntime::lcOverlay)
             << "ZoneShaderItem: rejected out-of-contract zone scale" << scale
             << "- keeping the last good value. Corner radii and border widths will not track this screen.";
     }
@@ -583,7 +587,7 @@ QSGNode* ZoneShaderItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* 
             // that simply do not appear, so say so once.
             if (snapshot.zoneCount > PhosphorRendering::MaxZones && !m_loggedZoneOverflow) {
                 m_loggedZoneOverflow = true;
-                qCWarning(PlasmaZones::lcOverlay)
+                qCWarning(PhosphorEngineRuntime::lcOverlay)
                     << "ZoneShaderItem: layout has" << snapshot.zoneCount << "zones but the shader UBO holds"
                     << PhosphorRendering::MaxZones << "- the excess will not be rendered.";
             }
@@ -677,4 +681,4 @@ void ZoneShaderItem::componentComplete()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

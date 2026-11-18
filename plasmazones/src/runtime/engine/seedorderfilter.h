@@ -20,7 +20,7 @@ namespace PhosphorScreens {
 class ScreenManager;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// The context a seed is for, and where each window in the order is now. A
 /// saved order names every window that was in the context when it left the
@@ -90,4 +90,4 @@ void filterEngineSeedOrder(QStringList& order, PhosphorPlacement::WindowTracking
                            const PhosphorEngine::WindowRegistry* registry, const QString& targetEngineId,
                            const SeedScope& scope);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -40,7 +40,7 @@
 
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using namespace RuleAdmission;
 
@@ -859,4 +859,4 @@ QString WindowTracker::applyOpenRoutingForTiling(const QString& windowId, const 
     return target;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

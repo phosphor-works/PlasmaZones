@@ -5,7 +5,7 @@
 
 #include <PhosphorEngine/WindowPlacement.h>
 
-namespace PlasmaZones::EngineRouting {
+namespace PhosphorEngineRuntime::EngineRouting {
 
 Mode windowEngineMode(const Inputs& inputs, const QString& windowId, const QString& screenOverride)
 {
@@ -68,4 +68,4 @@ QStringList ownedFloatingWindows(QStringList candidates, const std::function<boo
     return candidates;
 }
 
-} // namespace PlasmaZones::EngineRouting
+} // namespace PhosphorEngineRuntime::EngineRouting

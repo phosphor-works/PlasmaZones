@@ -18,7 +18,7 @@
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void WindowTracker::holdScreenReport(const QString& key, const QString& screenId, std::function<void()> replay)
 {
@@ -246,4 +246,4 @@ void WindowTracker::forgetClosedFullscreenHold(const QString& windowId)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

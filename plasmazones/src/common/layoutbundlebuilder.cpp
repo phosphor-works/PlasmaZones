@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "layoutbundlebuilder.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorLayoutApi/LayoutSourceBundle.h>
 #include <PhosphorLayoutApi/LayoutSourceProviderRegistry.h>

@@ -20,6 +20,7 @@
  */
 
 #include <QJsonObject>
+#include "common/engineruntimenamespace.h"
 #include <QPoint>
 #include <QRect>
 #include <QRectF>

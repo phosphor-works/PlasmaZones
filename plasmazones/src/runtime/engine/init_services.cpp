@@ -69,7 +69,7 @@
 #include "runtime/windowtracker/windowtracker.h"
 #include "runtime/services/snapservice/snapservice.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::recalculateActiveLayout(PhosphorZones::Layout* layout)
 {
@@ -659,4 +659,4 @@ void EngineRuntime::initLayoutAndSettingsWiring()
         connect(m_settings.get(), &Settings::perScreenSnappingSettingsChanged, this, scheduleGapResnap));
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

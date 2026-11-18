@@ -17,7 +17,7 @@
 #include <limits>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 ZoneQueryService::ZoneQueryService(PhosphorZones::IZoneDetector* detector, PhosphorZones::LayoutRegistry* layoutManager,
                                    PhosphorScreens::ScreenManager* screenManager, ISettings* settings, QObject* parent)
@@ -490,4 +490,4 @@ QString ZoneQueryService::detectZoneWithModifiers(int x, int y)
     return QStringLiteral("%1;%2").arg(zoneId).arg(modifiers);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

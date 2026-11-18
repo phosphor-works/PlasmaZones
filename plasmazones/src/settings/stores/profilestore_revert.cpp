@@ -8,6 +8,7 @@
 // concern, the same way the diff surface is.
 
 #include "profilestore.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QJsonArray>
 #include <QJsonObject>

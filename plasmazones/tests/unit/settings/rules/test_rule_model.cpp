@@ -15,6 +15,7 @@
  */
 
 #include <QJsonArray>
+#include "common/engineruntimenamespace.h"
 #include <QLocale>
 #include <QScopeGuard>
 #include <QSignalSpy>

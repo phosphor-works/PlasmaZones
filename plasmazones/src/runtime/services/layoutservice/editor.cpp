@@ -31,7 +31,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Editor Launch Helper
@@ -533,4 +533,4 @@ bool LayoutService::openEditorForScrollingTemplate(const QString& templateId)
                         QStringLiteral("for scrolling template: %1").arg(templateId));
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

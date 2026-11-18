@@ -43,7 +43,7 @@
 #include <optional>
 #include <string_view>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── v4 → v5: per-mode appearance + gaps → unified config groups ─────────────
 //
@@ -482,4 +482,4 @@ void ConfigMigration::migrateV4ToV5(QJsonObject& root)
     root[ConfigKeys::versionKey()] = 5;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

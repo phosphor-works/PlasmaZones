@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "pointerdriver.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorPointer/PointerShaderRegistry.h>
 #include <PhosphorRendering/ShaderEffect.h>

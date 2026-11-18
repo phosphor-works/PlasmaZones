@@ -12,7 +12,7 @@
 
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ─── Disable-rule label helpers ─────────────────────────────────────────────
 // Shared between the live Settings disable-list writer
@@ -74,4 +74,4 @@ inline QString disableRuleName(PhosphorZones::AssignmentEntry::Mode mode, const 
     return disableRulePrefixFor(mode) + PhosphorRules::ContextRuleBridge::contextRuleName(screenId, desktop, activity);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

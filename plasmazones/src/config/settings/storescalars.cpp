@@ -6,7 +6,7 @@
 #include "config/configdefaults.h"
 #include "core/platform/logging.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using namespace settings_detail;
 
@@ -389,4 +389,4 @@ P_STORE_SET_DOUBLE(setWindowTintStrength, windowsAppearanceGroup, tintStrengthKe
 P_STORE_GET(QString, windowTintColor, windowsAppearanceGroup, tintColorKey, QString)
 P_STORE_SET_STRING(setWindowTintColor, windowsAppearanceGroup, tintColorKey, windowTintColorChanged)
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

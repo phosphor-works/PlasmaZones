@@ -41,7 +41,7 @@
 #include <optional>
 #include <string_view>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ─── PhosphorConfig schema synthesis ────────────────────────────────────────
 // A minimal schema with only the migration chain populated. PZ's migration
@@ -767,4 +767,4 @@ QJsonValue ConfigMigration::convertValue(const QString& keyName, const QVariant&
     return QJsonValue(s);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/DragMarshalling.h>
@@ -15,9 +17,11 @@
 
 class QDBusServiceWatcher;
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class DragResolver;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief The D-Bus binding of DragResolver: org.phosphor_works.Placement.WindowDrag

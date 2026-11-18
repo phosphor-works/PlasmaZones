@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "runtime/controllers/shellcheatsheetbridge.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QJsonDocument>
 #include <QJsonArray>

@@ -26,7 +26,7 @@
 
 Q_DECLARE_LOGGING_CATEGORY(lcWorkspaceCtl)
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// How long a move verb waits for its census arrival before the watchdog
@@ -607,4 +607,4 @@ void WorkspaceController::drainParkedNamedRoutes()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

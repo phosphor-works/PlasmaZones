@@ -27,6 +27,7 @@
  */
 
 #include <QDir>
+#include "common/engineruntimenamespace.h"
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>

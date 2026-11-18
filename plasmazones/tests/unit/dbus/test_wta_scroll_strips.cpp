@@ -22,6 +22,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <memory>

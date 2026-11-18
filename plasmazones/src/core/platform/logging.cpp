@@ -3,7 +3,7 @@
 
 #include "logging.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Core module categories
 Q_LOGGING_CATEGORY(lcCore, "plasmazones.core", QtInfoMsg)
@@ -44,4 +44,4 @@ Q_LOGGING_CATEGORY(lcConfig, "plasmazones.config", QtInfoMsg)
 // KCM module categories
 Q_LOGGING_CATEGORY(lcKcm, "plasmazones.kcm", QtInfoMsg)
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

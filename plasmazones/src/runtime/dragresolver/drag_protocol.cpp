@@ -23,7 +23,7 @@
 #include <QGuiApplication>
 #include <QTimer>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 PhosphorProtocol::DragPolicy DragResolver::computeDragPolicy(const ISettings* settings,
                                                              const PhosphorEngine::IPlacementEngine* autotileEngine,
@@ -1188,4 +1188,4 @@ void DragResolver::updateDragCursor(const QString& windowId, int cursorX, int cu
     dragMoved(windowId, cursorX, cursorY, modifiers, mouseButtons);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

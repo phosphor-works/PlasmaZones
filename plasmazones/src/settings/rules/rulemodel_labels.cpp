@@ -12,6 +12,7 @@
 // header.
 
 #include "rulemodel.h"
+#include "common/engineruntimenamespace.h"
 
 #include "ruleauthoring.h"
 

@@ -5,7 +5,7 @@
 
 #include "configdefaults_shaders.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 5: virtual-screen limit/name/region defaults and virtual-screen
 // swap/rotate shortcut defaults.
@@ -71,4 +71,4 @@ public:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

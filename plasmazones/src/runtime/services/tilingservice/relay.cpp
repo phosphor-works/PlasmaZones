@@ -25,7 +25,7 @@
 #include <limits>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void TilingService::relayTileRequestsJson(const QString& tileRequestsJson)
 {
@@ -482,4 +482,4 @@ void TilingService::relayEnabledChanged()
     Q_EMIT enabledChanged(now);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -15,7 +15,7 @@
 
 #include "core/platform/appdirectoryname.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 static QString configDir()
 {
@@ -151,4 +151,4 @@ QVariantMap ConfigDefaults::animationProfile(const PhosphorAnimation::CurveRegis
     return p.toJson().toVariantMap();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

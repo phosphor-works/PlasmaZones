@@ -32,6 +32,7 @@
  */
 
 #include <QGuiApplication>
+#include "common/engineruntimenamespace.h"
 #include <QSet>
 #include <QSignalSpy>
 #include <QString>

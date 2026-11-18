@@ -29,7 +29,7 @@ namespace PhosphorScreens {
 class ScreenManager;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ISettings;
 
@@ -221,4 +221,4 @@ using ::PhosphorGeometry::rectToJson;
 
 } // namespace GeometryUtils
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

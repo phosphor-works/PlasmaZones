@@ -8,6 +8,7 @@
 // unassigned, off-pattern final token) falls back to the individual rows.
 
 #include "runtime/controllers/shortcutmanager.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QtTest/QtTest>
 

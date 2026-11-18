@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // Canonical serialisation of a ScrollStripSnapshot to the QML wire shape
 // consumed by ZoneSelectorContent.qml's strip layer (the `stripColumns`
 // property). One shape, one producer — the strip-cards provider Daemon's

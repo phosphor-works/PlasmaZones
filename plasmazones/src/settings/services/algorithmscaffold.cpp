@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "algorithmscaffold.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorTiles/AutotileConstants.h>
 

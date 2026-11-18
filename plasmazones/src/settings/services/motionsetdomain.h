@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "settings/stores/shadersetstore.h"
 
 #include <QList>

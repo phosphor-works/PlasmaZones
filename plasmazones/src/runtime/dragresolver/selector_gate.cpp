@@ -27,7 +27,7 @@
 #include <PhosphorScreens/ScreenIdentity.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 bool DragResolver::scrollSelectorScreen(const QString& screenId) const
 {
@@ -388,4 +388,4 @@ bool DragResolver::isNearTriggerEdge(QScreen* screen, int cursorX, int cursorY, 
     return false;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

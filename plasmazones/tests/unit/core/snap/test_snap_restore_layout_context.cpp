@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "helpers/SnapEngineTestFixture.h"
+#include "common/engineruntimenamespace.h"
 
 /**
  * @brief A remembered zone is only put back when it belongs to the layout the

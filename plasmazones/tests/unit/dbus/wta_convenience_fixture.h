@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 /**
  * @file wta_convenience_fixture.h
  * @brief Shared fixture for the WindowTracker tests that need one

@@ -8,6 +8,7 @@
 // Declared in packvalidatorcommon.h, which says what each arm covers.
 
 #include "packvalidatorcommon.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorShaders/ShaderEntryPoint.h>
 #include <PhosphorShaders/ShaderIncludeResolver.h>

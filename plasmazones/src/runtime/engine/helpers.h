@@ -22,7 +22,7 @@
 
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Run one phase of the sticky-screen pin pass on the tiling-family engines.
 ///
@@ -254,4 +254,4 @@ inline QString navigationDirectionToString(NavigationDirection direction)
     return QString();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -23,7 +23,7 @@
 
 #include <functional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Helper: move a key from one JSON object to another, renaming it.
 inline void moveKey(const QJsonObject& src, const QString& srcKey, QJsonObject& dst, const QString& dstKey)
@@ -185,4 +185,4 @@ inline bool withRuleSet(const QString& jsonPath, const char* what,
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

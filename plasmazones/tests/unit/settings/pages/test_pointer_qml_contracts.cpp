@@ -20,6 +20,7 @@
  */
 
 #include "pages/pointerpreviewcontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QDir>
 #include <QDirIterator>

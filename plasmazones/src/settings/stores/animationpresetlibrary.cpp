@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "animationpresetlibrary.h"
+#include "common/engineruntimenamespace.h"
 #include "settings/utils/animationfileutils.h"
 
 #include "phosphor_i18n.h"

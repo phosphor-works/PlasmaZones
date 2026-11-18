@@ -30,7 +30,7 @@ namespace PhosphorWorkspaces {
 class VirtualDesktopManager;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Defined in shortcutmanager.h (an opaque declaration: scoped, int-based).
 enum class NavigationDirection;
@@ -462,4 +462,4 @@ private:
     QTimer m_stateSaveTimer;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

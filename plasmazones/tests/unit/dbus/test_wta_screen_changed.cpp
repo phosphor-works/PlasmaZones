@@ -32,6 +32,7 @@
  */
 
 #include "wta_convenience_fixture.h"
+#include "common/engineruntimenamespace.h"
 #include "helpers/StubPlacementEngine.h"
 #include "helpers/VirtualScreenTestHelpers.h"
 

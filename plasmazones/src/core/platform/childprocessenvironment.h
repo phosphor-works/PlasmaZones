@@ -13,7 +13,7 @@
 
 #include <initializer_list>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// The environment a process spawned from this one starts with: this
 /// process's own, with what it changed for itself undone. The names in
@@ -46,4 +46,4 @@ inline QProcessEnvironment childProcessEnvironment()
     return env;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -45,7 +45,7 @@ namespace PhosphorEngine {
 class IPlacementEngine;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class IOverlayService;
 
@@ -1195,4 +1195,4 @@ private Q_SLOTS:
     void onSnapAssistDismissed();
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

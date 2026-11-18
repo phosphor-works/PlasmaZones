@@ -25,6 +25,7 @@
  */
 
 #include <QScopedPointer>
+#include "common/engineruntimenamespace.h"
 #include <QTest>
 
 #include <PhosphorLayoutApi/LayoutId.h>

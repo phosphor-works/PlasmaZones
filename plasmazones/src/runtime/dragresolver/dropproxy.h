@@ -13,7 +13,7 @@
 #include <QVector>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// One drawn zone of a registered drop proxy: the miniature cell's rect and
 /// the real zone it stands for.
@@ -107,4 +107,4 @@ private:
     QHash<QString, DropProxy> m_proxies;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

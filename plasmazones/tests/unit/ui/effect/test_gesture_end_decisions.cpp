@@ -15,6 +15,7 @@
  */
 
 #include "plasmazoneseffect/gestureenddecisions.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 

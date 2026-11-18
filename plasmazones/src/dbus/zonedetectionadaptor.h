@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/ZoneMarshalling.h>
@@ -12,9 +14,11 @@
 #include <QString>
 #include <QStringList>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ZoneQueryService;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief The D-Bus binding of ZoneQueryService: org.phosphor_works.Placement.ZoneDetection

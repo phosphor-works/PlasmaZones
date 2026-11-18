@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "SettingsDbusQueries.h"
+#include "common/engineruntimenamespace.h"
 #include "core/utils/dbusvariantutils.h"
 #include "core/platform/logging.h"
 

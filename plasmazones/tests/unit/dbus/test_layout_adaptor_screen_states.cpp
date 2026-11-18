@@ -17,6 +17,7 @@
  */
 
 #include <QJsonArray>
+#include "common/engineruntimenamespace.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QCoreApplication>

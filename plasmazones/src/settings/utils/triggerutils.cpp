@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "triggerutils.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "core/types/enums.h"

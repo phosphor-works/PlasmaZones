@@ -11,7 +11,7 @@
 #include <functional>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The snapping gap-rule verdict each screen's snapped windows were laid
@@ -81,4 +81,4 @@ private:
     QHash<QString, Verdict> m_verdicts;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

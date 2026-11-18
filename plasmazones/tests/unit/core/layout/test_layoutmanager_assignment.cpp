@@ -30,6 +30,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 #include <QDir>
 #include <QSignalSpy>
 #include <QScopedPointer>

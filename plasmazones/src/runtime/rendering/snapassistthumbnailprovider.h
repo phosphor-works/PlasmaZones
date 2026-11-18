@@ -11,7 +11,7 @@
 #include <QQuickImageProvider>
 #include <QString>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief QML image provider + bounded LRU cache for Snap Assist window thumbnails.
@@ -140,4 +140,4 @@ private:
     quint32 m_generation = 0;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

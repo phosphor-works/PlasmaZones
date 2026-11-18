@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/AutotileMarshalling.h>
@@ -17,9 +19,11 @@
 
 #include <functional>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class WindowTracker;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief The D-Bus binding of WindowTracker: org.phosphor_works.Placement.WindowTracking

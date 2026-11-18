@@ -30,6 +30,7 @@
  */
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QDBusAbstractAdaptor>
 #include <QDBusUnixFileDescriptor>
 #include <QFile>

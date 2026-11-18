@@ -32,6 +32,7 @@
  */
 
 #include <QDBusAbstractAdaptor>
+#include "common/engineruntimenamespace.h"
 #include <QDBusConnectionInterface>
 #include <QDir>
 #include <QDirIterator>

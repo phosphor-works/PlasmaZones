@@ -32,7 +32,7 @@
 #include <functional>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -241,4 +241,4 @@ void EngineRuntime::connectScrollingShortcuts()
     }));
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

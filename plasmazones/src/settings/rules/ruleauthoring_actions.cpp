@@ -9,6 +9,7 @@
 // file.
 
 #include "ruleauthoring.h"
+#include "common/engineruntimenamespace.h"
 #include "ruleauthoring_p.h"
 
 #include "rulemodel.h"

@@ -16,7 +16,7 @@
 using PhosphorRendering::ZoneLabelTexture;
 using PhosphorRendering::ZoneLabelTile;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -199,4 +199,4 @@ ZoneLabelTexture ZoneLabelTextureBuilder::build(const QVariantList& zones, const
     return result;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

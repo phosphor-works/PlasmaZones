@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "TemplateStrategy.h"
 #include <QObject>
 #include <QVariantList>

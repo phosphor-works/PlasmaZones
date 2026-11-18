@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "modifierutils.h"
+#include "common/engineruntimenamespace.h"
 
 namespace PlasmaZones {
 namespace ModifierUtils {

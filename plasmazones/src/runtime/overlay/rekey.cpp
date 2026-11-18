@@ -30,7 +30,7 @@
 
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 bool OverlayService::rekeyOverlayState(const QString& oldKey, const QString& newKey)
 {
@@ -480,4 +480,4 @@ QMetaObject::Connection OverlayService::installOverlayGeometryWatcher(QScreen* p
     });
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

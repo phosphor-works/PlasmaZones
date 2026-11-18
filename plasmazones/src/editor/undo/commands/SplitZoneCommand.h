@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "BaseZoneCommand.h"
 #include <QVariantMap>
 #include <QVariantList>

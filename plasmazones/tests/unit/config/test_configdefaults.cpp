@@ -10,6 +10,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 
 #include "common/hostsettings.h"
 #include "config/configdefaults.h"

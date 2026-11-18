@@ -18,6 +18,7 @@
  */
 
 #include <QScopeGuard>
+#include "common/engineruntimenamespace.h"
 #include <QSet>
 #include <QTest>
 #include <QColor>

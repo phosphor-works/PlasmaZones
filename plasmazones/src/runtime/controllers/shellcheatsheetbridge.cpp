@@ -10,7 +10,7 @@
 #include <QLoggingCategory>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace {
 Q_LOGGING_CATEGORY(lcCheatsheetBridge, "plasmazones.cheatsheetbridge")
 constexpr int ReplyLimit = 64 * 1024;
@@ -182,4 +182,4 @@ void ShellCheatsheetBridge::cancel()
     m_buffer.clear();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

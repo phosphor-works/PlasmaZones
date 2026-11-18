@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "shaderpackinstaller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"

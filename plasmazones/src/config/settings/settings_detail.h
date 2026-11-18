@@ -109,7 +109,7 @@
         Q_EMIT settingsChanged();                                                                                      \
     }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 namespace settings_detail {
 
 // ── Per-mode disable-list helpers ────────────────────────────────────────────
@@ -292,4 +292,4 @@ inline QStringList parseCommaList(const QString& raw)
 }
 
 } // namespace settings_detail
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

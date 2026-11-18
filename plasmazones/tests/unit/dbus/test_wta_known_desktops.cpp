@@ -16,6 +16,7 @@
  */
 
 #include <QHash>
+#include "common/engineruntimenamespace.h"
 #include <QSize>
 #include <QTest>
 #include <memory>

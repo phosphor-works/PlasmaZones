@@ -26,7 +26,7 @@
 
 #include <initializer_list>
 
-namespace PlasmaZones::SchemaValidators {
+namespace PhosphorEngineRuntime::SchemaValidators {
 
 inline auto clampDouble(double minVal, double maxVal)
 {
@@ -210,9 +210,9 @@ inline QVariant canonicalProportionList(const QVariant& v, const QString& fallba
     return QVariant(canonicalFallback.isEmpty() ? fallback : canonicalFallback.join(QLatin1Char(',')));
 }
 
-} // namespace PlasmaZones::SchemaValidators
+} // namespace PhosphorEngineRuntime::SchemaValidators
 
-namespace PlasmaZones::SchemaRows {
+namespace PhosphorEngineRuntime::SchemaRows {
 
 /// Append a string KeyDef with no validator: the shape of every global
 /// shortcut row. `description` is what the action DOES, in the user's terms,
@@ -224,4 +224,4 @@ inline void addShortcut(QVector<PhosphorConfig::KeyDef>& list, const QString& ke
     list.append({key, defaultValue, QMetaType::QString, description});
 }
 
-} // namespace PlasmaZones::SchemaRows
+} // namespace PhosphorEngineRuntime::SchemaRows

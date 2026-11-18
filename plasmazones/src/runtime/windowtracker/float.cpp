@@ -24,7 +24,7 @@
 #include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorZones/LayoutRegistry.h>
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 bool WindowTrackingInternal::isOptOutContext(const WindowTracker& adaptor, const QString& screenId, int desktop,
                                              const QString& activity)
@@ -758,4 +758,4 @@ void WindowTracker::setWindowFloatingForScreen(const QString& windowId, const QS
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

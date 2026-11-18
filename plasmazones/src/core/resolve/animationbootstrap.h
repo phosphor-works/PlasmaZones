@@ -22,7 +22,7 @@ class CurveLoader;
 class CurveRegistry;
 } // namespace PhosphorAnimation
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class Settings;
 
@@ -272,4 +272,4 @@ private:
     std::unique_ptr<PhosphorAnimation::CurveLoader> m_curveLoader;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

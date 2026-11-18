@@ -32,6 +32,7 @@
  */
 
 #include <QRegularExpression>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QTest>
 

@@ -5,7 +5,7 @@
 
 #include <PhosphorRendering/ShaderCompiler.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 PhosphorRendering::WarmShaderBakeResult
 warmShaderBakeCacheForPaths(const QString& vertexPath, const QString& fragmentPath, const QStringList& includePaths,
@@ -25,4 +25,4 @@ warmShaderBakeCacheForPaths(const QString& vertexPath, const QString& fragmentPa
                                                           entryPrologue, entryCandidates);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

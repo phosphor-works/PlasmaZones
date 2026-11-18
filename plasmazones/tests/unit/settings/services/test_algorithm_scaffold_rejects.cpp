@@ -20,6 +20,7 @@
 // template's id and collides with it.
 
 #include "settings/services/algorithmscaffold.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QtTest>
 

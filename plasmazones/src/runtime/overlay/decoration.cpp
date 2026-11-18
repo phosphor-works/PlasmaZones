@@ -34,7 +34,7 @@
 #include <QQuickItem>
 #include <QVariant>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// Forces the re-bake an in-place source edit cannot get. See qml_property_names.h.
@@ -436,4 +436,4 @@ void OverlayService::applyDecoration(QObject* slot, const QString& surfacePath)
     syncCavaState();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

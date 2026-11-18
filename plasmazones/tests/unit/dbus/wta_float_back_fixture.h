@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 /**
  * @file wta_float_back_fixture.h
  * @brief Shared fixture for the adaptor tests that need real outputs, such as

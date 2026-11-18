@@ -34,7 +34,7 @@
 #include <memory>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::setupAnimationShaderEffects()
 {
@@ -684,4 +684,4 @@ void EngineRuntime::setupShaderWarmBakes()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

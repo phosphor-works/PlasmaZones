@@ -19,6 +19,7 @@
  */
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QJsonObject>
 #include <QSignalSpy>
 #include <QTest>

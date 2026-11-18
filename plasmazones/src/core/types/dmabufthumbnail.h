@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// DRM "no/invalid modifier" sentinel (DRM_FORMAT_MOD_INVALID). Defined here so
 /// the Vulkan importer (dmabuftextureprovider.cpp) and the OpenGL importer
@@ -50,4 +50,4 @@ struct DmabufThumbnailDesc
     int fenceFd = -1;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

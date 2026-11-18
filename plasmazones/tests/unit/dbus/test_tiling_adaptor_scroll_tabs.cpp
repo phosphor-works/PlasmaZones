@@ -20,6 +20,7 @@
  */
 
 #include <QObject>
+#include "common/engineruntimenamespace.h"
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTest>

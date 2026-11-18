@@ -25,6 +25,7 @@
  */
 
 #include <QElapsedTimer>
+#include "common/engineruntimenamespace.h"
 #include <QScopedPointer>
 #include <QString>
 #include <QTest>

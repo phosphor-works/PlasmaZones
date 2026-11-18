@@ -20,7 +20,7 @@
 #include <functional>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 SettingsService::SettingsService(ISettings* settings, PhosphorAnimation::PhosphorProfileRegistry* profileRegistry,
                                  QObject* parent)
@@ -700,4 +700,4 @@ void SettingsService::provideRunningWindows(const QString& json)
     Q_EMIT runningWindowsAvailable(json);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -9,7 +9,7 @@
 // IS the zone overlay's, so this header genuinely depends on that symbol.
 #include <PhosphorZones/ZoneDefaults.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 6: the scrolling engine's Scrolling defaults (the mode switch,
 // the strip geometry, the column width and window height vocabulary, and
@@ -943,4 +943,4 @@ static_assert(ConfigDefaultsScrolling::scrollingStripAxisAuto() == 0,
 static_assert(ConfigDefaultsScrolling::scrollingStripAxis() == ConfigDefaultsScrolling::scrollingStripAxisAuto(),
               "the StripAxis default must be Auto");
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

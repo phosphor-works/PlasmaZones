@@ -18,7 +18,7 @@ Q_DECLARE_METATYPE(QVulkanInstance*)
 
 class QGuiApplication;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Shared property name for passing the QVulkanInstance* between main.cpp and OverlayService.
 // Using a constant avoids silent nullptr from typos on either side.
@@ -122,4 +122,4 @@ QVariantMap clearedGpuPreferenceVariables();
 bool createAndRegisterVulkanInstance(QVulkanInstance& vulkanInstance, QGuiApplication& app, const QString& gpuDevice);
 #endif
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

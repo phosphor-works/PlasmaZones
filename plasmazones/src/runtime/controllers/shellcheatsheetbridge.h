@@ -10,7 +10,7 @@
 
 class QLocalSocket;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Uses the optional shell's registered cheatsheet IPC target. It deliberately
 // depends only on Qt: the daemon also builds without Phosphor shell libraries.
@@ -57,4 +57,4 @@ private:
     bool m_sent = false;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

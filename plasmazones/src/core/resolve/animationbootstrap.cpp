@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <array>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 constexpr QLatin1StringView kShellAnimationFamilySeedsOwnerTag{"plasmazones-shell-family-seeds"};
 
@@ -400,4 +400,4 @@ void AnimationBootstrap::bindToSettings(Settings& settings, bool keepLive)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

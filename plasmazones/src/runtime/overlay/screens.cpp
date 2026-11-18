@@ -24,7 +24,7 @@
 #include <QStringList>
 #include <QTimer>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void OverlayService::assertWindowOnScreen(QWindow* window, QScreen* screen, const QRect& geometry)
 {
@@ -416,4 +416,4 @@ void OverlayService::onVirtualScreensChanged(const QString& physicalScreenId)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "layoutadaptor.h"
+#include "common/engineruntimenamespace.h"
 
 #include "runtime/services/layoutservice/layoutservice.h"
 

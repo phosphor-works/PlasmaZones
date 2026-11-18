@@ -8,6 +8,7 @@
 // animationspagecontroller.cpp, separate TU.
 
 #include "animationspagecontroller.h"
+#include "common/engineruntimenamespace.h"
 #include "animations_controller_detail.h"
 
 #include "phosphor_i18n.h"

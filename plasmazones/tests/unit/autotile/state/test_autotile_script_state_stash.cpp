@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>

@@ -12,6 +12,7 @@
 // added a spurious 2x-border-width gap between tiles).
 
 #include <QtTest/QtTest>
+#include "common/engineruntimenamespace.h"
 
 #include "core/resolve/daemongeometryresolver.h"
 #include "helpers/StubSettings.h"

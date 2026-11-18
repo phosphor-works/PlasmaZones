@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <iterator>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Settings::canonicalPerScreenKey (declared in settings.h, defined among the
 // file-scope helpers further down) is the write-side key canonicalization that
@@ -1040,4 +1040,4 @@ void Settings::reloadMembersFromRepairedConfig()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

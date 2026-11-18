@@ -32,7 +32,7 @@
 #include <memory>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Paths that follow the user's `Settings.animationProfile` slider directly.
 //
@@ -410,4 +410,4 @@ void EngineRuntime::publishActiveAnimationProfile()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QAbstractListModel>
 #include <QHash>
 #include <QList>

@@ -17,7 +17,7 @@
 
 #include <memory>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void OverlayService::primeSurfaceRenderPipeline(PhosphorLayer::Surface* surface)
 {
@@ -184,4 +184,4 @@ void OverlayService::cancelSurfacePrime(PhosphorLayer::Surface* surface)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

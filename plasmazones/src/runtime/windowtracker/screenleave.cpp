@@ -26,7 +26,7 @@
 #include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorTileEngine/AutotileEngine.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace WindowTrackingInternal {
 
@@ -556,4 +556,4 @@ void WindowTracker::windowScreenChanged(const QString& windowId, const QString& 
                                                                  false});
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

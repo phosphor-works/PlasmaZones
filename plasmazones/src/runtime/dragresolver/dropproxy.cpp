@@ -12,7 +12,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -183,4 +183,4 @@ DropProxyRegistry::Resolution DropProxyRegistry::resolve(const QString& screenId
     return result;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

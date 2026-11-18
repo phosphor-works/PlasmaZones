@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <functional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Result of importing a dma-buf into a GL texture (OpenGL RHI fallback).
@@ -38,4 +38,4 @@ struct GlDmabufImport
  */
 GlDmabufImport importDmabufToGlTexture(const DmabufThumbnailDesc& desc);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

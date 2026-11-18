@@ -25,7 +25,7 @@
 #include <functional>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -466,4 +466,4 @@ void EngineRuntime::pruneContextMapsForActivities(const QSet<QString>& validActi
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

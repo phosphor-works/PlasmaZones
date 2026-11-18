@@ -44,7 +44,7 @@
 #include <PhosphorIdentity/WindowId.h>
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::connectScreenSignals()
 {
@@ -496,13 +496,13 @@ ScreenReshapeTracker::ReportVerdict EngineRuntime::admitPixelSizeReport(const QS
     }
     // The adaptor merges, so a monitor unplugged now keeps the size it last
     // had in the session state.
-    return PlasmaZones::admitPixelSizeReport(m_reshapeTracker, *m_screenManager, connectorName,
-                                             [this](const QString& screenIdentifier, const QSize& pixelSize) {
-                                                 if (m_windowTracker) {
-                                                     m_windowTracker->recordScreenPixelSizes(
-                                                         QHash<QString, QSize>{{screenIdentifier, pixelSize}});
-                                                 }
-                                             });
+    return PhosphorEngineRuntime::admitPixelSizeReport(
+        m_reshapeTracker, *m_screenManager, connectorName,
+        [this](const QString& screenIdentifier, const QSize& pixelSize) {
+            if (m_windowTracker) {
+                m_windowTracker->recordScreenPixelSizes(QHash<QString, QSize>{{screenIdentifier, pixelSize}});
+            }
+        });
 }
 
 void EngineRuntime::onCompositorPixelSizeChanged(const QString& connectorName)
@@ -1308,4 +1308,4 @@ void EngineRuntime::onVirtualScreenRegionsChanged(const QString& physicalScreenI
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

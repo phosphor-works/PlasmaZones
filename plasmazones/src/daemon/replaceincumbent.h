@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorConfig/HostDirectory.h>
 
 #include <QByteArray>

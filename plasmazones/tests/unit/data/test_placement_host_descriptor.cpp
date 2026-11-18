@@ -15,6 +15,7 @@
 // and neither failure is loud. Each case below pins one of the values.
 
 #include <QtTest>
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "core/types/constants.h"

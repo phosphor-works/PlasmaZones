@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QHash>
 #include <QObject>
 #include <QString>
@@ -14,9 +16,11 @@ class AlgorithmRegistry;
 class ScriptedAlgorithmLoader;
 }
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class Settings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /// Algorithm registry / loader surface extracted from SettingsController.
 ///

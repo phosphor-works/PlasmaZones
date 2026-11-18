@@ -25,7 +25,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Ids are compared against the STATIC table and the indexed slot prefixes
 // (shared with the registration TU).
@@ -262,4 +262,4 @@ bool ShortcutManager::drainPendingAdhocOps()
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

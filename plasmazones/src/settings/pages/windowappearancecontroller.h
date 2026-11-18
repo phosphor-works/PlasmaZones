@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "config/configdefaults.h"
 
 #include <PhosphorCompositor/DecorationDefaults.h>
@@ -11,9 +13,11 @@
 #include <QString>
 #include <QVariant>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ISettings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /// Q_PROPERTY surface for the "Appearance → Decorations → General" settings
 /// page.

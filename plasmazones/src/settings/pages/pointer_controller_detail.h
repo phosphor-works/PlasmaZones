@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // The pointer-pack half of decoration_controller_detail.h: the projections of
 // a PointerShaderEffect and its ParameterInfo to the QVariantMap shapes QML
 // reads. Split out so PointerPreviewController, which knows only the pointer

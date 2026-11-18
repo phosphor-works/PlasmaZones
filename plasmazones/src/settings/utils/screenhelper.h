@@ -3,14 +3,18 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorZones/AssignmentEntry.h>
 #include <QObject>
 #include <QTimer>
 #include <QVariantList>
 
-namespace PlasmaZones {
-
+namespace PhosphorEngineRuntime {
 class ISettings;
+} // namespace PhosphorEngineRuntime
+
+namespace PlasmaZones {
 
 /**
  * @brief Helper that manages screen list, monitor disable, and D-Bus signal connections.

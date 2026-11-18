@@ -20,7 +20,7 @@
 #include <QJsonObject>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void WindowTracker::storePreTileGeometry(const QString& windowId, int x, int y, int width, int height,
                                          const QString& screenId, bool overwrite)
@@ -395,4 +395,4 @@ QString WindowTracker::detectScreenForZone(const QString& zoneId) const
     return QString();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

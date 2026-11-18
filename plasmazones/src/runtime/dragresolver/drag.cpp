@@ -26,7 +26,7 @@
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void DragResolver::dragStarted(const QString& windowId, double x, double y, double width, double height)
 {
@@ -1073,4 +1073,4 @@ void DragResolver::selectorScrollWheel(int angleDeltaY)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

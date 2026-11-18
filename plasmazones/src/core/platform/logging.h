@@ -39,7 +39,7 @@
  *   - Use consistent names across categories: screen=, layout=, zone=, id=, name=, etc.
  */
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Core module - layout, zone, detection, screen management
 PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcCore) PLASMAZONES_EXPORT
@@ -77,4 +77,4 @@ PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcCore) PLASMAZONES_EXPORT
     // KCM module - System Settings integration
     PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcKcm)
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

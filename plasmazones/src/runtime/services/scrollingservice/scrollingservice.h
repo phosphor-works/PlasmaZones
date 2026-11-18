@@ -18,7 +18,7 @@ namespace PhosphorScrollEngine {
 class ScrollEngine;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The scrolling placement engine's service, behind
@@ -766,4 +766,4 @@ private:
     QStringList m_scrollFocusScrollBlockedWindows;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -6,7 +6,7 @@
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorTiles/AutotileConstants.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Keyboard modifier options for drag activation
@@ -100,4 +100,4 @@ using AutotileDragBehavior = PhosphorTiles::AutotileDragBehavior;
 using AutotileInsertPosition = PhosphorTiles::AutotileInsertPosition;
 using AutotileOverflowBehavior = PhosphorTiles::AutotileOverflowBehavior;
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

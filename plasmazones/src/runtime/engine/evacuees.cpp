@@ -20,7 +20,7 @@
 
 #include <algorithm>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void EngineRuntime::retireOutputPlacements(const QString& physicalScreenId)
 {
@@ -163,4 +163,4 @@ void EngineRuntime::reseedScreenDesktopsAfterRenumber()
     updateEngineScreens();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

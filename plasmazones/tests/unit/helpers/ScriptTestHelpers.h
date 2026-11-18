@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QFile>
 #include <QString>
 #include <QTemporaryDir>

@@ -16,6 +16,7 @@
 // as settingscontroller.cpp, separate translation unit, no API change.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"

@@ -27,7 +27,7 @@
 #include <QQuickWindow>
 #include <QScreen>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -282,4 +282,4 @@ void OverlayService::onCheatsheetDismissRequested()
     hideCheatsheet();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

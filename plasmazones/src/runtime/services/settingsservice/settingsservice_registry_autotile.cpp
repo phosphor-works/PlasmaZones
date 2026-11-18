@@ -30,7 +30,7 @@
 #include "core/interfaces/interfaces.h"
 #include "config/settings.h" // For concrete Settings type
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 void SettingsService::initializeRegistryAutotile()
 {
@@ -240,4 +240,4 @@ void SettingsService::initializeRegistryAutotile()
 #undef REGISTER_CONCRETE_STRING
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

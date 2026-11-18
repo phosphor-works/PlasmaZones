@@ -19,6 +19,7 @@
 // See README.md for the full flag reference.
 
 #include "renderer.h"
+#include "common/engineruntimenamespace.h"
 #include "layoutloader.h"
 #include "metadataloader.h"
 #include "audiomock.h"

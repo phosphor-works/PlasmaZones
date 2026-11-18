@@ -8,7 +8,7 @@
 
 #include <QPointer>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 SnapService::SnapService(PhosphorSnapEngine::SnapEngine* engine, WindowTracker* adaptor, ISettings* settings,
                          QObject* parent)
@@ -251,4 +251,4 @@ void SnapService::emitRestatement(const QString& windowId, const QRect& geometry
     });
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

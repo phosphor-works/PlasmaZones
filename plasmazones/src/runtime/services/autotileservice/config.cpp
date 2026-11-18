@@ -11,7 +11,7 @@
 #include <PhosphorTiles/AutotileConstants.h>
 #include "core/platform/logging.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper Methods
@@ -204,4 +204,4 @@ void AutotileService::decreaseMasterCount()
     m_engine->decreaseMasterCount();
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

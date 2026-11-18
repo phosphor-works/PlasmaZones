@@ -10,6 +10,7 @@
 // for file-size; same class, separate TU.
 
 #include "settingscontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "core/interfaces/shaderregistry.h"
 #include "phosphor_i18n.h"

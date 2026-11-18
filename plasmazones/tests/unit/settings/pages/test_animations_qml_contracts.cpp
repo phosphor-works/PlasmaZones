@@ -29,6 +29,7 @@
  */
 
 #include <PhosphorAnimation/ProfilePaths.h>
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 

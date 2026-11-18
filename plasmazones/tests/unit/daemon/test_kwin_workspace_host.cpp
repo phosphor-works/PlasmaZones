@@ -11,6 +11,7 @@
  */
 
 #include "runtime/controllers/shortcutmanager.h"
+#include "common/engineruntimenamespace.h"
 #include "daemon/host/kwinworkspacehost.h"
 
 #include "common/hostsettings.h"

@@ -21,7 +21,7 @@
 
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// What the host process adds to the engine's settings: keys of its own,
 /// appended to the schema (into its own groups or the engine's), and which
@@ -191,4 +191,4 @@ void appendWorkspacesShortcutKeys(QVector<PhosphorConfig::KeyDef>& globals);
 void appendGapsSchema(PhosphorConfig::Schema& schema);
 void appendDecorationsSchema(PhosphorConfig::Schema& schema);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

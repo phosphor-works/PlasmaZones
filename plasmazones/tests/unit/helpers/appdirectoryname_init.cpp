@@ -8,6 +8,7 @@
 // plasmazones_core.
 
 #include "common/hostsettings.h"
+#include "common/engineruntimenamespace.h"
 
 namespace {
 const bool s_hostInitialized = [] {

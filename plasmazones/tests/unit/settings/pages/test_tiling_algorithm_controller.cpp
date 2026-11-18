@@ -22,6 +22,7 @@
  */
 
 #include <QTest>
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTiles/AutotileConstants.h>

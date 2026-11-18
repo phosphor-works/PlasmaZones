@@ -17,7 +17,7 @@ class ScreenManager;
 struct PhysicalScreen;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The daemon's bookkeeping for a screen whose shape (the size,
@@ -233,4 +233,4 @@ ScreenReshapeTracker::ReportVerdict admitPixelSizeReport(ScreenReshapeTracker& t
                                                          const PixelSizePersistSink& persist,
                                                          const ReportScaleReader& readScale = {});
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

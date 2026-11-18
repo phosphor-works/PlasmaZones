@@ -27,6 +27,7 @@
 // the pure halves are extracted into a header this test includes directly.
 
 #include <tilinghandler/scrolldecisions.h>
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 

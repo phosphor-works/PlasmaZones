@@ -21,7 +21,7 @@
 // happens before any overlay exists.
 // Filter with plasmazones.core=true when debugging GPU selection.
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -296,4 +296,4 @@ bool createAndRegisterVulkanInstance(QVulkanInstance& vulkanInstance, QGuiApplic
 }
 #endif
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

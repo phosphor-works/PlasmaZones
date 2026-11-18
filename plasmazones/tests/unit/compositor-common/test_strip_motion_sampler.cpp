@@ -10,6 +10,7 @@
 // prevents rather than just the formula it checks.
 
 #include <QtTest>
+#include "common/engineruntimenamespace.h"
 
 #include "transitions/stripmotionsampler.h"
 

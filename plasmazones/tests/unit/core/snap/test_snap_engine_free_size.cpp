@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "helpers/SnapEngineTestFixture.h"
+#include "common/engineruntimenamespace.h"
 #include "helpers/WindowPlacementBuilders.h"
 
 #include <PhosphorScreens/Manager.h>

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "settingslaunchcontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "settingsappadaptor.h"
 #include "settings/controller/settingscontroller.h"

@@ -9,6 +9,7 @@
 // ceiling; same class, separate translation unit, no API change.
 
 #include "settings/utils/animationfileutils.h"
+#include "common/engineruntimenamespace.h"
 #include "settingscontroller.h"
 
 #include "config/configdefaults.h"

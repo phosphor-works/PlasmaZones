@@ -13,6 +13,7 @@
 // ever disagreeing about a page's class.
 
 #include "settingscontroller_pagekeys.h"
+#include "common/engineruntimenamespace.h"
 
 #include "settingscontroller.h"
 

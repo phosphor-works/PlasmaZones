@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include "ILayoutService.h"
 
 namespace PlasmaZones {

@@ -9,6 +9,7 @@
 // tracking fake plus a real LayoutRegistry holding a real zone layout.
 
 #include <QHash>
+#include "common/engineruntimenamespace.h"
 #include <QRect>
 #include <QSignalSpy>
 #include <QTest>

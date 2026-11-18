@@ -9,7 +9,7 @@
 // back in for this link's own declarations and undefine them again below.
 #include "configkeymacro.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The Shortcuts.Scrolling config key accessors.
@@ -69,6 +69,6 @@ public:
     P_CONFIG_KEY(minimizeWindowHeightKey, "MinimizeWindowHeight")
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
 
 #include "configkeymacro_undef.h"

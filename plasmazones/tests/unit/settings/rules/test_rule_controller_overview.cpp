@@ -17,6 +17,7 @@
  */
 
 #include <QFile>
+#include "common/engineruntimenamespace.h"
 #include <QJSEngine>
 #include <QLocale>
 #include <QRegularExpression>

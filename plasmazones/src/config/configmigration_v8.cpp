@@ -24,7 +24,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -351,4 +351,4 @@ bool ConfigMigration::finalizeV8MotionImport(const QString& jsonPath)
     return true;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

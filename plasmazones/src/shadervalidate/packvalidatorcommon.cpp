@@ -4,6 +4,7 @@
 // Shared helpers for the shader-pack validators — see packvalidatorcommon.h.
 
 #include "packvalidatorcommon.h"
+#include "common/engineruntimenamespace.h"
 
 #include "runtime/rendering/zoneentryscaffold.h"
 

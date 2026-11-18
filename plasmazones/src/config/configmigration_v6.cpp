@@ -12,7 +12,7 @@
 #include <QStringList>
 #include <QVariant>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // ── v5 → v6: snapping zone colours → theme-fallback strings ─────────────────
 //
@@ -244,4 +244,4 @@ void ConfigMigration::migrateV5ToV6(QJsonObject& root)
     root[ConfigKeys::versionKey()] = 6;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

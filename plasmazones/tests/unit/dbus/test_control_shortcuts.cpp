@@ -17,6 +17,7 @@
  */
 
 #include <QDBusConnection>
+#include "common/engineruntimenamespace.h"
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QJsonArray>

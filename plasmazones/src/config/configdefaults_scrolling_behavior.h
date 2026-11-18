@@ -5,7 +5,7 @@
 
 #include "configdefaults_scrolling.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 7: the Scrolling.Behavior tunables (window handling, focus,
 // edge auto-scroll, the step percents) and the Scrolling.ZoneSelector strip
@@ -369,4 +369,4 @@ static_assert(ConfigDefaultsScrollingBehavior::scrollingDragScrollMaxSpeed()
                       <= ConfigDefaultsScrollingBehavior::scrollingDragScrollMaxSpeedMax(),
               "ConfigDefaults::scrollingDragScrollMaxSpeed() outside the declared [min, max] range");
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

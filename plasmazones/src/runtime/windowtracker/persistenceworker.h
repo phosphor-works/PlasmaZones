@@ -9,7 +9,7 @@
 
 class QThread;
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Internal worker that lives on the I/O thread.
@@ -64,4 +64,4 @@ private:
     PersistenceIO* m_io = nullptr;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

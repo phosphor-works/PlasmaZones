@@ -21,7 +21,7 @@
 #include <functional>
 #include <utility>
 
-namespace PlasmaZones::RuleAdmission {
+namespace PhosphorEngineRuntime::RuleAdmission {
 
 /// Structural admission tests for the open-path resolvers, one per stamping
 /// shape. Every one of them is the same guard the zones-layer context resolvers
@@ -235,4 +235,4 @@ inline std::function<bool(const PhosphorRules::Rule&)> admitWith(bool (*base)(co
     };
 }
 
-} // namespace PlasmaZones::RuleAdmission
+} // namespace PhosphorEngineRuntime::RuleAdmission

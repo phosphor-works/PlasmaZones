@@ -10,7 +10,7 @@
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 QString seedWindowScreen(const QString& windowId, const QList<const PhosphorEngine::IPlacementEngine*>& tilingEngines,
                          const PhosphorEngine::IPlacementEngine* snap, const QRect& frame,
@@ -86,4 +86,4 @@ void filterEngineSeedOrder(QStringList& order, PhosphorPlacement::WindowTracking
     });
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

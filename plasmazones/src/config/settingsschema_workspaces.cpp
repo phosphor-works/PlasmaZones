@@ -27,7 +27,7 @@
 #include <QSet>
 #include <QUuid>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -287,4 +287,4 @@ void appendWorkspacesShortcutKeys(QVector<PhosphorConfig::KeyDef>& globals)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

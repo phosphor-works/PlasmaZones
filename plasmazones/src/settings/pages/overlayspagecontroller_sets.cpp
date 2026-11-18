@@ -26,6 +26,7 @@
 // re-running the whole set-row active sweep against each intermediate tree.
 
 #include "overlayspagecontroller.h"
+#include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"
 #include "core/interfaces/isettings.h"

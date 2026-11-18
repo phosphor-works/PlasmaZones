@@ -21,7 +21,7 @@ class IBackend;
 class Registry;
 } // namespace PhosphorShortcuts
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class IWorkspaceHost;
 class Settings;
@@ -519,4 +519,4 @@ private:
     bool m_suppressAdhocFlush = false;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

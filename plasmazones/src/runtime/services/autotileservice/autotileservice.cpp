@@ -11,7 +11,7 @@
 #include <PhosphorTiles/ITileAlgorithmRegistry.h>
 #include <PhosphorTiles/TilingAlgorithm.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 AutotileService::AutotileService(PhosphorTileEngine::AutotileEngine* engine,
                                  PhosphorTiles::ITileAlgorithmRegistry* algorithmRegistry, QObject* parent)
@@ -187,4 +187,4 @@ void AutotileService::clearEngine()
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // Canonical serialisation of PhosphorLayout::LayoutPreview to the QML /
 // D-Bus wire shapes.  Both @c toVariantMap and @c toJson emit the SAME
 // shape (member-for-member mirror of the LayoutPreview struct); they

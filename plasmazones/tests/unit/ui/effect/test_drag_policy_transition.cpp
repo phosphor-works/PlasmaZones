@@ -7,6 +7,7 @@
 // slot with no unit seam.
 
 #include "plasmazoneseffect/dragpolicytransition.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QtTest>
 

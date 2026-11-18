@@ -6,7 +6,7 @@
 #include "config/configdefaults.h"
 #include "core/platform/logging.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Enum setters: stored as int, exposed via the enum-typed getter/setter and
 // also via the int adapters QML uses (osdStyleInt / overlayDisplayModeInt).
@@ -406,4 +406,4 @@ void Settings::setAutotileOverflowBehaviorInt(int behavior)
     }
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

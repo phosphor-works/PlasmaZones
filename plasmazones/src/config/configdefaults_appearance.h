@@ -45,7 +45,7 @@
 #include <QVariantMap>
 #include <QtCore/qnamespace.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 // Chain link 1 of the ConfigDefaults inheritance chain (the order is in the
 // include-set note at the top of this file).
@@ -319,4 +319,4 @@ public:
     }
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

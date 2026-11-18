@@ -8,6 +8,7 @@
 // no self-activation echo filter, so both legs heal from genuine reports.
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QTest>
 

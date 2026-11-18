@@ -8,7 +8,7 @@
 #include <QString>
 #include <QVariant>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class ShaderRegistry;
 
@@ -134,4 +134,4 @@ private:
     ShaderRegistry* m_registry;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

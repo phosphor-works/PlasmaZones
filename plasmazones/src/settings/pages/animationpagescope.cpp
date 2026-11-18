@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "animationpagescope.h"
+#include "common/engineruntimenamespace.h"
 
 #include <PhosphorAnimation/ProfilePaths.h>
 

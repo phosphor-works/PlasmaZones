@@ -10,6 +10,7 @@
  */
 
 #include "plasmazoneseffect/pixelsizedecisions.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QTest>
 

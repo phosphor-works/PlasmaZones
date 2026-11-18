@@ -12,6 +12,7 @@
  */
 
 #include "tilinghandler/stackdecisions.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QString>
 #include <QStringList>

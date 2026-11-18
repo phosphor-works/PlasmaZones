@@ -15,6 +15,7 @@
  */
 
 #include "daemon/replaceincumbent.h"
+#include "common/engineruntimenamespace.h"
 
 #include <QByteArray>
 #include <QString>

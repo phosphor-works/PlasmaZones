@@ -7,7 +7,7 @@
 
 #include <QtGlobal>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief Pure, state-free resolver for the per-tick "should the snap overlay
@@ -172,4 +172,4 @@ PLASMAZONES_EXPORT int graceExpiryDueMs(qint64 remainingMs);
  */
 PLASMAZONES_EXPORT bool shouldRearmGraceExpiry(bool timerActive, int timerRemainingMs, int dueMs);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

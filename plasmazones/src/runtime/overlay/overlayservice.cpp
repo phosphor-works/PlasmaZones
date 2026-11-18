@@ -57,7 +57,7 @@
 #include "phosphor_slot_keys.h"
 #include <PhosphorScreens/ScreenIdentity.h>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -178,7 +178,8 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
     // screen-signal wiring below, with its diagnostic, instead of crashing
     // on this read first.
     if (qApp) {
-        externalVulkanInstance = qApp->property(PlasmaZones::PVulkanInstanceProperty).value<QVulkanInstance*>();
+        externalVulkanInstance =
+            qApp->property(PhosphorEngineRuntime::PVulkanInstanceProperty).value<QVulkanInstance*>();
     }
 #endif
 
@@ -269,7 +270,7 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
             },
         .pipelineCachePath = pipelineCachePath,
         .vulkanInstance = externalVulkanInstance,
-        .vulkanApiVersion = PlasmaZones::PVulkanApiVersion,
+        .vulkanApiVersion = PhosphorEngineRuntime::PVulkanApiVersion,
         // Zero-copy dma-buf thumbnail import (PLASMAZONES_DMABUF_THUMBNAILS)
         // needs these device extensions enabled on the overlay windows' QRhi
         // Vulkan device; without them vkGetMemoryFdPropertiesKHR is unavailable
@@ -1110,7 +1111,7 @@ QVariantList OverlayService::buildLayoutsList(const QString& screenId, QSize aut
         // they follow the screen's strip axis. Count-neutral, which is why
         // visibleLayoutCount does not pay for the same resolve.
         stripIsVertical(resolvedId));
-    return PlasmaZones::toVariantList(entries);
+    return PhosphorEngineRuntime::toVariantList(entries);
 }
 
 void OverlayService::setLayoutFilter(bool includeManual, bool includeAutotile)
@@ -1230,4 +1231,4 @@ void OverlayService::onShaderError(const QString& errorLog)
     qCWarning(lcOverlay) << "Shader error during overlay:" << errorLog;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

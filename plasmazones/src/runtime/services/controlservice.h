@@ -14,16 +14,16 @@ class Zone;
 class LayoutRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 class WindowTracker;
 class SnapService;
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
 namespace PhosphorEngine {
 class IPlacementEngine;
 }
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief The high-level convenience API: the service behind
@@ -132,4 +132,4 @@ private:
     std::function<void(const QString& screenId)> m_modeToggle;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

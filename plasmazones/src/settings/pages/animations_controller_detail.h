@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 // Shared helpers for the five TUs that split AnimationsPageController across
 // files (animationspagecontroller.cpp and its _overrides / _shaders / _paths /
 // _groupwrites siblings). Covers the shader-effect / parameter / shader-profile conversions

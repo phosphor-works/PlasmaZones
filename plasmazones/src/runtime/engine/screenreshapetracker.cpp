@@ -11,7 +11,7 @@
 #include <iterator>
 #include <utility>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 ScreenReshapeTracker::ScreenReshapeTracker(Lookups lookups)
     : m_lookups(std::move(lookups))
@@ -212,4 +212,4 @@ ScreenReshapeTracker::ReportVerdict admitPixelSizeReport(ScreenReshapeTracker& t
     return verdict;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

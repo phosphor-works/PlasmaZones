@@ -10,7 +10,7 @@
 
 #include <functional>
 
-namespace PlasmaZones::EngineRouting {
+namespace PhosphorEngineRuntime::EngineRouting {
 
 using Mode = PhosphorZones::AssignmentEntry::Mode;
 
@@ -61,4 +61,4 @@ QString engineIdForMode(Mode mode);
 /// @p isFloating answers true for: the owning engine's float verdict.
 QStringList ownedFloatingWindows(QStringList candidates, const std::function<bool(const QString&)>& isFloating);
 
-} // namespace PlasmaZones::EngineRouting
+} // namespace PhosphorEngineRuntime::EngineRouting

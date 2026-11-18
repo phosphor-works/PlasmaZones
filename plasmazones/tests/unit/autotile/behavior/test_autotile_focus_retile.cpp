@@ -9,6 +9,7 @@
 // real screen geometry and the bundled Luau algorithms.
 
 #include <QCoreApplication>
+#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QTest>
 

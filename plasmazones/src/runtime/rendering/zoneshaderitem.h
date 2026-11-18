@@ -19,7 +19,7 @@ QT_BEGIN_NAMESPACE
 class QSGNode;
 QT_END_NAMESPACE
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /**
  * @brief QQuickItem for rendering zone overlays with custom shaders
@@ -279,4 +279,4 @@ private:
     bool m_loggedZoneOverflow = false;
 };
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

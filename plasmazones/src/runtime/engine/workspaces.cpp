@@ -47,7 +47,7 @@
 #include <memory>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 /// The feature is off or dormant: its shortcut family holds no grabs, and
@@ -761,4 +761,4 @@ void EngineRuntime::teardownWorkspaces()
     parkWorkspaceShortcuts(m_shortcutManager.get(), m_workspaceHost);
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

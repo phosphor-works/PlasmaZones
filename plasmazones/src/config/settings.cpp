@@ -29,7 +29,7 @@
 #include <algorithm>
 #include <optional>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 using namespace settings_detail;
 
@@ -1790,4 +1790,4 @@ bool Settings::reset()
     return ruleStorePersisted;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
