@@ -458,6 +458,9 @@ target_link_libraries(plasmazones_dbus
     PRIVATE
         # ControlAdaptor::generateSupportReport builds its report off the GUI thread.
         Qt6::Concurrent
+        # OverlayAdaptor::compositor reads the Wayland connection's fd to name
+        # the compositor process (wl_display_get_fd).
+        Wayland::Client
 )
 
 target_include_directories(plasmazones_dbus
