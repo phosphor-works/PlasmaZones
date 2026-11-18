@@ -16,7 +16,7 @@ Three placement modes in one daemon. Snap windows into zones you drew, let an al
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
 [![Wayland](https://img.shields.io/badge/Wayland-native-blue.svg)](https://wayland.freedesktop.org/)
 
-**Docs and screenshots: [phosphor-works.github.io/plasmazones](https://phosphor-works.github.io/plasmazones/)**
+**Docs and screenshots: [phosphor-works.org/plasmazones](https://phosphor-works.org/plasmazones/)**
 
 **Questions, ideas or bug reports: [join the Discord](https://discord.gg/9CQzAptdJ5)**
 
@@ -38,7 +38,7 @@ Hold **Alt** (or your configured modifier) while dragging a window. The zones li
 
 Zones are named regions you draw yourself, in a visual editor with drag-to-resize, snap-to-grid, and mirroring. A library of layouts ships built in (grids, BSP, master and stack, fibonacci, plus portrait, ultrawide, and super-ultrawide variants), and after a snap the remaining zones show as thumbnails so the next window is one click away. Zones can span, and keyboard users can skip the drag entirely with `Meta+Ctrl+1` through `Meta+Ctrl+9`.
 
-[Layouts gallery →](https://phosphor-works.github.io/plasmazones/layouts/) · [Coming from FancyZones →](https://phosphor-works.github.io/plasmazones/from-fancyzones/)
+[Layouts gallery →](https://phosphor-works.org/plasmazones/layouts/) · [Coming from FancyZones →](https://phosphor-works.org/plasmazones/from-fancyzones/)
 
 ### Tiling
 
@@ -48,7 +48,7 @@ Zones are named regions you draw yourself, in a visual editor with drag-to-resiz
 
 Windows place themselves as they open, with no drag and no zones to draw. The bundled algorithms are written in Luau and run in a sandbox, covering the usual master-and-stack, BSP, columns, grid, spiral, and monocle families along with less common ones. Write your own in the same language and the daemon hot-reloads it from disk while you edit.
 
-[Autotile gallery →](https://phosphor-works.github.io/plasmazones/autotile/) · [Authoring guide →](https://phosphor-works.github.io/plasmazones/guides/tiling/)
+[Autotile gallery →](https://phosphor-works.org/plasmazones/autotile/) · [Authoring guide →](https://phosphor-works.org/guides/tiling/)
 
 ### Scrolling
 
@@ -60,7 +60,7 @@ Modeled on the [niri](https://github.com/YaLTeR/niri) compositor. Windows form c
 
 Columns cycle through width presets or take any width you give them. Windows inside a column share it or show one at a time as tabs, with a configurable indicator alongside. A window can be consumed into its neighbor's column or expelled into its own, columns center on demand, and the strip runs side to side or top to bottom to match the shape of the monitor. Hold **Meta** and scroll the wheel to move along it. Templates set the starting columns and the presets each screen cycles through.
 
-A shortcut family on `Meta+Alt` covers the whole vocabulary: [Keyboard shortcuts →](https://phosphor-works.github.io/plasmazones/shortcuts/)
+A shortcut family on `Meta+Alt` covers the whole vocabulary: [Keyboard shortcuts →](https://phosphor-works.org/plasmazones/shortcuts/)
 
 ---
 
@@ -80,10 +80,10 @@ A shortcut family on `Meta+Alt` covers the whole vocabulary: [Keyboard shortcuts
 </p>
 -->
 
-- **Appearance** — GLSL shader overlays for zones (audio-reactive, procedural, distro-themed) with up to 4 image textures each, window decoration packs, and animation packs for open, close, minimize, and desktop switching — [Shader gallery →](https://phosphor-works.github.io/plasmazones/shaders/) · [authoring guide →](https://phosphor-works.github.io/plasmazones/guides/shaders/)
+- **Appearance** — GLSL shader overlays for zones (audio-reactive, procedural, distro-themed) with up to 4 image textures each, window decoration packs, and animation packs for open, close, minimize, and desktop switching — [Shader gallery →](https://phosphor-works.org/plasmazones/shaders/) · [authoring guide →](https://phosphor-works.org/guides/shaders/)
 - **Per-monitor, per-desktop, per-activity** — layouts, algorithms, templates, and mode assignments are all scoped, and virtual screens subdivide a physical monitor into independent logical workspaces with their own everything
 - **Window rules** — match on class, title, active layout, screen orientation, and more, then act on placement, floating, opacity, borders, animations, scroll speed, and per-app behavior in every mode
-- **Scriptable** — a D-Bus API on `org.phosphor_works.Placement` covering every mode — [scripting guide →](https://phosphor-works.github.io/plasmazones/dbus/)
+- **Scriptable** — a D-Bus API on `org.phosphor_works.Placement` covering every mode — [scripting guide →](https://phosphor-works.org/plasmazones/dbus/)
 
 ---
 
@@ -120,7 +120,7 @@ sudo apt update && sudo apt install plasmazones
 
 On Debian testing, swap `Debian_Unstable` for `Debian_Testing` in both lines. Packages are built for x86_64 only. The same repository works on Debian-derived rolling distributions such as PikaOS.
 
-The release tarball is built on Arch and only runs where KWin matches Arch's at release time and Qt is the same or newer, so it is not a route for Fedora, Debian or SteamOS. openSUSE Tumbleweed, the tarball, and source-build instructions (including the `-DUSE_KDE_FRAMEWORKS=OFF` portable build): **[Install page →](https://phosphor-works.github.io/plasmazones/#install)**.
+The release tarball is built on Arch and only runs where KWin matches Arch's at release time and Qt is the same or newer, so it is not a route for Fedora, Debian or SteamOS. openSUSE Tumbleweed, the tarball, and source-build instructions (including the `-DUSE_KDE_FRAMEWORKS=OFF` portable build): **[Install page →](https://phosphor-works.org/plasmazones/#install)**.
 
 After install, enable the daemon:
 
@@ -179,7 +179,7 @@ nix profile install github:phosphor-works/PlasmaZones
 4. **Drag any window while holding Alt** — zones appear, drop to snap.
 5. To try the other modes, open **Overview** in the settings app and assign Tiling or Scrolling to a screen, or press `Meta+Shift+T` to cycle the focused one through the enabled modes.
 
-Full first-run tour: **[Getting started →](https://phosphor-works.github.io/plasmazones/getting-started/)**.
+Full first-run tour: **[Getting started →](https://phosphor-works.org/plasmazones/getting-started/)**.
 
 ---
 
@@ -200,7 +200,7 @@ Full first-run tour: **[Getting started →](https://phosphor-works.github.io/pl
 | Scrolling: windowed fullscreen | `Meta+Alt+Shift+F` |
 | Open shortcut cheatsheet | `Meta+Alt+/` |
 
-Full reference, across core actions, zone movement, snap, layouts, autotile, scrolling, virtual screens, and the editor: **[Keyboard shortcuts →](https://phosphor-works.github.io/plasmazones/shortcuts/)**.
+Full reference, across core actions, zone movement, snap, layouts, autotile, scrolling, virtual screens, and the editor: **[Keyboard shortcuts →](https://phosphor-works.org/plasmazones/shortcuts/)**.
 
 All bindings are rebindable in **System Settings → Shortcuts → PlasmaZones** (KDE). The PlasmaZones settings app rebinds only the layout editor's own shortcuts.
 
@@ -223,7 +223,7 @@ The app is single-instance — launching it again while running raises the exist
 
 ## Troubleshooting
 
-Daemon startup, verbose logging, KWin minimum-size rules, and the full support-report flow: **[Troubleshooting →](https://phosphor-works.github.io/plasmazones/troubleshooting/)**.
+Daemon startup, verbose logging, KWin minimum-size rules, and the full support-report flow: **[Troubleshooting →](https://phosphor-works.org/plasmazones/troubleshooting/)**.
 
 **Better Blur DX:** the force-blur mode blurs every window not on its allowlist, which catches PlasmaZones' overlay surfaces and makes the screen look blurred all the time. To fix it, open System Settings → Window Management → Desktop Effects → Better Blur DX → Configure → **Force blur** tab, select **"Blur all except matching"**, then add this line:
 
@@ -245,7 +245,7 @@ The archive lands in `/tmp` by default with home paths redacted, so it's safe to
 
 ## D-Bus API
 
-The daemon exposes its whole surface on `org.phosphor_works.Placement` for scripting and integration. Interface inventory, scripting recipes, and signal watching: **[D-Bus scripting guide →](https://phosphor-works.github.io/plasmazones/dbus/)**.
+The daemon exposes its whole surface on `org.phosphor_works.Placement` for scripting and integration. Interface inventory, scripting recipes, and signal watching: **[D-Bus scripting guide →](https://phosphor-works.org/plasmazones/dbus/)**.
 
 ---
 

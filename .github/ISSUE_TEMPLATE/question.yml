@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have a question about PlasmaZones? Please check the [documentation](https://phosphor-works.github.io/plasmazones/) and search the open and closed issues first.
+        Have a question about PlasmaZones? Please check the [documentation](https://phosphor-works.org/plasmazones/) and search the open and closed issues first.
   - type: textarea
     id: question
     attributes:

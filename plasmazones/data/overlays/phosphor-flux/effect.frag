@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Phosphor Flux — the official Phosphor brand overlay.
-// Built from the brand identity (phosphor-works.github.io/brand): Φ is the
+// Built from the brand identity (phosphor-works.org/brand): Φ is the
 // symbol for luminous flux, so the look is light flowing through containment.
 // Five layers over the deep-navy brand surfaces (#0B1730 → #050916):
 //   1. Flux field    — two parallax depths of fbm-displaced ribbons of the
@@ -52,7 +52,7 @@ float getAudioSensitivity() { return p_audioSensitivity >= 0.0 ? p_audioSensitiv
 float getLabelBrightness()  { return p_labelBrightness >= 0.0 ? p_labelBrightness : 1.8; }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BRAND PALETTE  (phosphor-works.github.io/palette, dark theme)
+// BRAND PALETTE  (phosphor-works.org/palette, dark theme)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const vec3 kFluxCyan   = vec3(0.133, 0.827, 0.933);  // #22D3EE

@@ -4,5 +4,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://phosphor-works.github.io/plasmazones/
+    url: https://phosphor-works.org/plasmazones/
     about: Setup, troubleshooting and the D-Bus scripting guide

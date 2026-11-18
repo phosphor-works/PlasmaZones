@@ -4,7 +4,7 @@
 // plasmazones-settings-schema-dump — serialize the PlasmaZones settings
 // schema to JSON, offline.
 //
-// The documentation site (phosphor-works.github.io/plasmazones/settings/)
+// The documentation site (phosphor-works.org/plasmazones/settings/)
 // generates its settings reference from this output, the same way it
 // generates the shader gallery from plasmazones-shader-render.  Both exist
 // so the site tracks the app instead of drifting from it.

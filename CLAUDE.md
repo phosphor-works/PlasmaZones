@@ -396,6 +396,6 @@ Cross-cutting traps that each cost audit passes or a whole session. A trap owned
 - **A new validation gate turns a producer/consumer disagreement into lost data.** Before adding a schema check or gate, check every producer against it. One gate rejected saves that clients still reported as successful.
 
 ## Support
-- Documentation: https://phosphor-works.github.io/plasmazones/
+- Documentation: https://phosphor-works.org/plasmazones/
 - Repository: https://github.com/phosphor-works/PlasmaZones
 - Issues: https://github.com/phosphor-works/PlasmaZones/issues
