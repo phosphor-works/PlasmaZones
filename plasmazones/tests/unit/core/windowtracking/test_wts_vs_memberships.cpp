@@ -14,7 +14,6 @@
  */
 
 #include <QRect>
-#include "common/engineruntimenamespace.h"
 #include <QRectF>
 #include <QSet>
 #include <QString>

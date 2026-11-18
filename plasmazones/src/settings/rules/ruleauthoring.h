@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorRules/MatchTypes.h>
 
 #include <QString>

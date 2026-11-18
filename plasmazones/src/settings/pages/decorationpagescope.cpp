@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "decorationpagescope.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QHash>
 #include <QLatin1Char>
 #include <QSet>

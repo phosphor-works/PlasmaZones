@@ -12,8 +12,6 @@
 // against the vertex stage it runs with.
 
 #include "packvalidators.h"
-#include "common/engineruntimenamespace.h"
-
 #include "packvalidatorcommon.h"
 
 #include <PhosphorAnimation/AnimationShaderContract.h>

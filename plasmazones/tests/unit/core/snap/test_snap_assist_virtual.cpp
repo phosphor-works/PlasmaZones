@@ -16,7 +16,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
 #include <QString>
 #include <QStringList>
 #include <QSet>

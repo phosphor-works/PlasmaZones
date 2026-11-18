@@ -7,7 +7,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
 #include <QScopedPointer>
 #include <QUuid>
 #include <memory>

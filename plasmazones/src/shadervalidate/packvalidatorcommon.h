@@ -10,8 +10,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorAnimation/AnimationShaderEffect.h>
 #include <PhosphorPointer/PointerShaderEffect.h>
 #include <PhosphorRendering/ShaderCompiler.h>

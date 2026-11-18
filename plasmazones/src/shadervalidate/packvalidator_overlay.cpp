@@ -14,8 +14,6 @@
 // genuinely generalise belong in packvalidatorcommon instead.
 
 #include "packvalidators.h"
-#include "common/engineruntimenamespace.h"
-
 #include "packvalidatorcommon.h"
 
 #include <PhosphorRendering/ShaderCompiler.h>

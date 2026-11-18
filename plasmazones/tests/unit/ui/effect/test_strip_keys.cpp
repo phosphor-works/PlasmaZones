@@ -7,8 +7,6 @@
 // spring and one tab band, and a strip's edges were the monitor's.
 
 #include "tilinghandler/stripkeys.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QList>
 #include <QtTest>
 

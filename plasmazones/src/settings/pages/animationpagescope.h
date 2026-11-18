@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorAnimation/ShaderProfileTree.h>
 
 #include <QString>

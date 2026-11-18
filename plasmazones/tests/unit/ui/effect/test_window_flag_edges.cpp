@@ -7,8 +7,6 @@
 // opened with, on both the daemon's and the effect's side.
 
 #include "plasmazoneseffect/windowflagedges.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QtTest>
 
 using namespace PlasmaZones::WindowFlagEdges;

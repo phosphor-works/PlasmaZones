@@ -10,8 +10,6 @@
 // compiles the implementation straight in. No compositor needed.
 
 #include "compositor/stripviewanimator.h"
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorAnimation/Curve.h>
 #include <PhosphorAnimation/Easing.h>
 #include <PhosphorAnimation/IMotionClock.h>

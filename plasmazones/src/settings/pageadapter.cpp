@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "pageadapter.h"
-#include "common/engineruntimenamespace.h"
 
 namespace PlasmaZones {
 

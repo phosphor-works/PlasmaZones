@@ -16,7 +16,6 @@
  */
 
 #include <QJsonObject>
-#include "common/engineruntimenamespace.h"
 #include <QSet>
 #include <QSignalSpy>
 #include <QTest>

@@ -24,8 +24,6 @@
 // undefined content rather than a clean transparent texel.
 
 #include "packvalidators.h"
-#include "common/engineruntimenamespace.h"
-
 #include "packvalidatorcommon.h"
 
 #include <PhosphorPointer/PointerShaderContract.h>

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "settings/services/algorithmscaffold.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QDir>
 #include <QFile>
 #include <QtTest>

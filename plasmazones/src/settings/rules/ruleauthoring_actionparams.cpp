@@ -11,7 +11,6 @@
 // seam is the same one the action-description ladder was split along.
 
 #include "ruleauthoring.h"
-#include "common/engineruntimenamespace.h"
 #include "ruleauthoring_p.h"
 
 #include "phosphor_i18n.h"

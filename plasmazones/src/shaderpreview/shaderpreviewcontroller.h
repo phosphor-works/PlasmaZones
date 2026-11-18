@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include "ishaderpreviewbackend.h"
 #include "plasmazones_shaderpreview_export.h"
 

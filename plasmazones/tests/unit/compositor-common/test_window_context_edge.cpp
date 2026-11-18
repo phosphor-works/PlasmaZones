@@ -10,8 +10,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
-
 #include "plasmazoneseffect/windowcontextedge.h"
 
 using namespace PlasmaZones::WindowContextEdge;

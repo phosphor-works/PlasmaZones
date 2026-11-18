@@ -18,7 +18,6 @@
  */
 
 #include <QSet>
-#include "common/engineruntimenamespace.h"
 #include <QTest>
 
 #include "settings/rules/ruleauthoring.h"

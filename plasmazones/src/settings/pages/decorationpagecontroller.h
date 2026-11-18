@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 // Not forward-declared: moc needs the complete type to register the
 // ShaderSetStore* Q_PROPERTY below as a pointer meta-type.
 #include "settings/stores/shadersetstore.h"

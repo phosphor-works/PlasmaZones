@@ -27,7 +27,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QRect>
 #include <QUuid>

@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorShaders/ShaderPreset.h>
 
 #include <QObject>

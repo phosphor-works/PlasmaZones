@@ -10,7 +10,6 @@
  */
 
 #include <QSet>
-#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QString>
 #include <QStringList>

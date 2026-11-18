@@ -15,8 +15,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorSurface/DecorationProfile.h>
 #include <PhosphorSurface/DecorationProfileTree.h>
 #include <PhosphorSurface/DecorationSupportedPaths.h>

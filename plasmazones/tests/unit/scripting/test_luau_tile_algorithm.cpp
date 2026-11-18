@@ -6,8 +6,6 @@
 // split-tree marshalling (memory), and lifecycle hooks.
 
 #include <QtTest>
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorTiles/AutotileConstants.h>
 #include <PhosphorTiles/LuauTileAlgorithm.h>
 #include <PhosphorTiles/SplitTree.h>

@@ -10,8 +10,6 @@
 // Called only by seedSearchCatalog.
 
 #include "searchcatalog_p.h"
-#include "common/engineruntimenamespace.h"
-
 #include "phosphor_i18n.h"
 
 namespace PlasmaZones {

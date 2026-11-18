@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "searchcatalog.h"
-#include "common/engineruntimenamespace.h"
 #include "searchcatalog_p.h"
 
 #include "phosphor_i18n.h"

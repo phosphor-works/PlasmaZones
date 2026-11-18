@@ -9,8 +9,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
-
 #include "handlers/desktoparrivalparks.h"
 
 using PlasmaZones::DesktopArrivalParks;

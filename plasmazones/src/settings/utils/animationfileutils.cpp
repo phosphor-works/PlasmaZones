@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "animationfileutils.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QLatin1Char>
 #include <QStringLiteral>
 

@@ -13,7 +13,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
 #include <QDir>
 #include <QFile>
 #include <memory>

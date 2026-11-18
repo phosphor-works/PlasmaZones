@@ -16,8 +16,6 @@
 // here check that resolution instead of confining a pack-relative path.
 
 #include "packvalidators.h"
-#include "common/engineruntimenamespace.h"
-
 #include "packvalidatorcommon.h"
 #include "packvalidators_surface_lints.h"
 

@@ -10,8 +10,6 @@
 // halves are extracted into a header this test includes directly.
 
 #include <tilinghandler/pretiledecisions.h>
-#include "common/engineruntimenamespace.h"
-
 #include <QTest>
 
 using namespace PlasmaZones::PreTileDecisions;

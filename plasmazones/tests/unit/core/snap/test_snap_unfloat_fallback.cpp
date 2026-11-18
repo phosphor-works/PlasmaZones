@@ -18,7 +18,6 @@
 // asserted end to end.
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 #include <QUuid>
 

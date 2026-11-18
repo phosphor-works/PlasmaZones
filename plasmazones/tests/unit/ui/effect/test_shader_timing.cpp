@@ -19,8 +19,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
-
 #include <cmath>
 
 #include <PhosphorAnimation/AnimationLimits.h>

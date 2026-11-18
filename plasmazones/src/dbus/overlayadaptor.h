@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include "plasmazones_dbus_export.h"
 #include <PhosphorProtocol/ZoneMarshalling.h>
 #include <QDBusAbstractAdaptor>

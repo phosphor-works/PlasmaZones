@@ -12,7 +12,6 @@
  */
 
 #include <QGuiApplication>
-#include "common/engineruntimenamespace.h"
 #include <QRegularExpression>
 #include <QSet>
 #include <QSignalSpy>

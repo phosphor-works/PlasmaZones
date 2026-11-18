@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "common/kwinperoutputdesktops.h"
-#include "common/engineruntimenamespace.h"
-
 #ifdef USE_KDE_FRAMEWORKS
 #include <KConfig>
 #include <KConfigGroup>

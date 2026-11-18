@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include "plasmazones_export.h"
 #include <QLatin1String>
 #include <QRect>

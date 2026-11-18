@@ -19,8 +19,6 @@
 // whatever is INSTALLED rather than the working tree.
 
 #include <QtTest>
-#include "common/engineruntimenamespace.h"
-
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>

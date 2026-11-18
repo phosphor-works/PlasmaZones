@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 // Internal helpers shared by the search-catalog seeding TUs
 // (searchcatalog.cpp, searchcatalog_animations.cpp and
 // searchcatalog_simple.cpp). Not installed and not

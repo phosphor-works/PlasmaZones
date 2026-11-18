@@ -10,8 +10,6 @@
  */
 
 #include "plasmazoneseffect/effect_state.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QTest>
 
 using PlasmaZones::WindowCommandStamps;

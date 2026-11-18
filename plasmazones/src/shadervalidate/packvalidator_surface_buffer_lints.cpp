@@ -22,8 +22,6 @@
 // that objection was about a three-way split, not about a seam inside the lint collector.
 
 #include "packvalidators_surface_lints.h"
-#include "common/engineruntimenamespace.h"
-
 #include "packvalidatorcommon.h"
 
 #include <PhosphorShaders/CustomParamsKey.h>

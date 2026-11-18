@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorControl/ISearchProvider.h>
 #include <PhosphorControl/SearchEntry.h>
 

@@ -6,8 +6,6 @@
 // failed-call arm and the publish-on-difference rule, driven without D-Bus.
 
 #include "settings/controller/screenstatescache.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QSignalSpy>
 #include <QTest>
 

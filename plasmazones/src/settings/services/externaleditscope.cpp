@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "externaleditscope.h"
-#include "common/engineruntimenamespace.h"
-
 #include "settings/controller/settingscontroller.h"
 
 namespace PlasmaZones {

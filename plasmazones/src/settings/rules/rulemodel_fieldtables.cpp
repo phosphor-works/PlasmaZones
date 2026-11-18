@@ -11,8 +11,6 @@
 // Same class as rulemodel.cpp, separate translation unit, no API change.
 
 #include "rulemodel.h"
-#include "common/engineruntimenamespace.h"
-
 #include "phosphor_i18n.h"
 
 #include <PhosphorRules/MatchTypes.h>

@@ -19,7 +19,6 @@
  */
 
 #include <QTest>
-#include "common/engineruntimenamespace.h"
 #include <QVector2D>
 #include <QVector4D>
 

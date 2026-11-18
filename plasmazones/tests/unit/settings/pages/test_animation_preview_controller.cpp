@@ -20,8 +20,6 @@
  */
 
 #include "settings/pages/animationpreviewcontroller.h"
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorAnimation/AnimationLimits.h>
 #include <PhosphorRendering/ShaderEffect.h>
 

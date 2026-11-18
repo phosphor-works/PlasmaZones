@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include <PhosphorAudio/IAudioSpectrumProvider.h>
 
 #include <QSize>

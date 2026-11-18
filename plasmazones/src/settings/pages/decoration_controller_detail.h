@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 // Inline helpers for the DecorationPageController translation units (currently
 // decorationpagecontroller.cpp; the class is split across several TUs). They
 // convert surface-pack and pointer-pack effect / parameter values to

@@ -31,7 +31,6 @@
  */
 
 #include <QTemporaryDir>
-#include "common/engineruntimenamespace.h"
 #include <QTest>
 
 #include <QJsonObject>

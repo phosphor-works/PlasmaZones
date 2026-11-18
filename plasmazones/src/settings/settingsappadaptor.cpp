@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "settingsappadaptor.h"
-#include "common/engineruntimenamespace.h"
-
 #include "settingslaunchcontroller.h"
 
 #include <QtGlobal>

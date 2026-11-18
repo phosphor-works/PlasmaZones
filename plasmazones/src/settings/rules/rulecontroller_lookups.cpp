@@ -9,7 +9,6 @@
 // Same class as rulecontroller.cpp, separate TU, no API change.
 
 #include "rulecontroller.h"
-#include "common/engineruntimenamespace.h"
 
 namespace PlasmaZones {
 

@@ -14,7 +14,6 @@
 // unit, no API change.
 
 #include "rulecontroller.h"
-#include "common/engineruntimenamespace.h"
 #include "ruleauthoring.h"
 
 #include "phosphor_i18n.h"
