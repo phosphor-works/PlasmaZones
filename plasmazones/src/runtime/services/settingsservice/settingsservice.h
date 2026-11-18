@@ -85,6 +85,20 @@ public:
     /// reason in @p rejection, when it is refused, as setPerScreenSetting.
     bool clearPerScreenSettings(const QString& screenId, const QString& category, QString* rejection = nullptr);
 
+    /**
+     * @brief Add one of the host's own settings (HostSettingsExtension) to the
+     *        registry under @p name, for getSetting, setSetting, setSettings and
+     *        the schema calls alike
+     *
+     * @p get and @p set are the host's, and @p set answers whether the value
+     * was accepted. @p group and @p key are where the value is stored, so a
+     * batch announces its change as ISettings::hostValueChanged the way a
+     * direct write does. The registry is rebuilt with the service, so a host
+     * registers again after every EngineRuntime::init().
+     */
+    void registerHostSetting(const QString& name, const QString& type, const QString& group, const QString& key,
+                             std::function<QVariant()> get, std::function<bool(const QVariant&)> set);
+
 public Q_SLOTS:
     // Settings operations
     void reloadSettings();
@@ -195,20 +209,6 @@ public Q_SLOTS:
      *        PhosphorProtocol::Service::MaxRunningWindowsPayloadBytes is refused.
      */
     void provideRunningWindows(const QString& json);
-
-    /**
-     * @brief Add one of the host's own settings (HostSettingsExtension) to the
-     *        registry under @p name, for getSetting, setSetting, setSettings and
-     *        the schema calls alike
-     *
-     * @p get and @p set are the host's, and @p set answers whether the value
-     * was accepted. @p group and @p key are where the value is stored, so a
-     * batch announces its change as ISettings::hostValueChanged the way a
-     * direct write does. The registry is rebuilt with the service, so a host
-     * registers again after every EngineRuntime::init().
-     */
-    void registerHostSetting(const QString& name, const QString& type, const QString& group, const QString& key,
-                             std::function<QVariant()> get, std::function<bool(const QVariant&)> set);
 
     /**
      * @brief Get metadata for a single setting
