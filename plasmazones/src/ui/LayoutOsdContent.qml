@@ -4,7 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Layout OSD content — Item-rooted body for use inside the
@@ -102,9 +102,9 @@ Item {
     // Theme colors
     property color backgroundColor: Kirigami.Theme.backgroundColor
     property color textColor: Kirigami.Theme.textColor
-    property color highlightColor: QFZCommon.ZoneColorDefaults.previewActiveZoneColor
-    property color inactiveColor: QFZCommon.ZoneColorDefaults.previewInactiveZoneColor
-    property color borderColor: QFZCommon.ZoneColorDefaults.previewZoneBorderColor
+    property color highlightColor: Components.ZoneColorDefaults.previewActiveZoneColor
+    property color inactiveColor: Components.ZoneColorDefaults.previewInactiveZoneColor
+    property color borderColor: Components.ZoneColorDefaults.previewZoneBorderColor
     // Zone fill opacities for the preview. Written by C++ (osd.cpp
     // pushLayoutOsdContent) with the settings/context-override-resolved
     // values; these literals are the QML-side defaults.
@@ -175,13 +175,13 @@ Item {
         onRequest: root.dismissRequested()
     }
 
-    // The OSD card. QFZCommon.PopupFrame owns the opaque card body and the
+    // The OSD card. Components.PopupFrame owns the opaque card body and the
     // SurfaceAnimator shader anchor; border, glow, and shadow come from the
     // surface-decoration pipeline. PopupFrame's internal captureItem extends
     // past the frame by captureMargin so any decoration halo and the show /
     // hide shader transition are captured with the card through bounce /
     // fly-in / etc. instead of snapping in when the leg ends.
-    QFZCommon.PopupFrame {
+    Components.PopupFrame {
         id: container
 
         anchors.centerIn: parent
@@ -217,7 +217,7 @@ Item {
             }
 
             // Zone preview using shared component
-            QFZCommon.ZonePreview {
+            Components.ZonePreview {
                 id: zonePreview
 
                 anchors.fill: parent
@@ -262,7 +262,7 @@ Item {
 
             // The empty strip. Not a variant of the zone preview: it draws no
             // zones at all, because there are none, and says why in words.
-            QFZCommon.StripEmptyState {
+            Components.StripEmptyState {
                 anchors.fill: parent
                 anchors.margins: Kirigami.Units.smallSpacing
                 visible: root.stripEmptyCaption !== ""
@@ -320,7 +320,7 @@ Item {
             spacing: Kirigami.Units.smallSpacing
 
             // Category badge (layout type) — hidden when disabled
-            QFZCommon.CategoryBadge {
+            Components.CategoryBadge {
                 id: categoryBadge
 
                 visible: !root.disabled

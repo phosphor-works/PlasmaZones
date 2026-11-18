@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief One overlay shader assignment card: the global default (path "")
@@ -403,7 +403,7 @@ Item {
                         text: i18nc("@label", "Shader:")
                     }
 
-                    PZCommon.CategoryMenuButton {
+                    Components.CategoryMenuButton {
                         Layout.fillWidth: true
                         items: root._effects
                         currentId: root._editShaderId
@@ -422,7 +422,7 @@ Item {
                     }
                 }
 
-                PZCommon.ShaderParamsEditor {
+                Components.ShaderParamsEditor {
                     Layout.fillWidth: true
                     visible: root._editShaderId.length > 0
                     parameters: root._paramDefs

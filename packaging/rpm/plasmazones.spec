@@ -68,6 +68,11 @@ Source4:        https://github.com/phosphor-works/phosphor-libs/archive/3d4654ea
 # and metadata the build installs as data, so no bundled() provide.
 # phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz sha256 fbbf0b9849d83396029bc4e310c3dcac49c08758e73d560538888e685f0a5e30
 Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive/e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz#/phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz
+# The phosphor-components commit, pinned in the same file: the QML components
+# the overlays, settings app and editor draw with, built from it into the
+# executables, and its catalogs.
+# phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz sha256 a932243fdffe2b5c496558d322e2878d54f825469a6be3715179d427558940aa
+Source6:        https://github.com/phosphor-works/phosphor-components/archive/e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz#/phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz
 Provides:       bundled(luau) = 0.745
 Provides:       bundled(valijson) = 1.1.3
 
@@ -270,7 +275,7 @@ Features:
 # changing the KWin floor: this is the path that compiles against Fedora's and
 # openSUSE's KWin, so it proves the build rather than the behaviour.
 #
-# %%autosetup above unpacks Source0 only. Source1 to Source5 stay archives in
+# %%autosetup above unpacks Source0 only. Source1 to Source6 stay archives in
 # the source directory, where PHOSPHOR_DEPS_ARCHIVES points CMake.
 %cmake \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \

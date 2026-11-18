@@ -10,7 +10,30 @@
 #include <QLocale>
 #include <QTranslator>
 
+#include <memory>
+
 namespace PlasmaZones {
+
+namespace {
+/// Install the catalog @p name for the current locale on @p app from the first
+/// of @p searchDirs that has one. False when none does.
+bool installCatalog(QCoreApplication* app, const QString& name, const QStringList& searchDirs)
+{
+    // Owned here until it loads, then by the application it is installed on.
+    auto translator = std::make_unique<QTranslator>();
+    const QLocale locale;
+    for (const QString& dir : searchDirs) {
+        if (translator->load(locale, name, QStringLiteral("_"), dir)) {
+            translator->setParent(app);
+            app->installTranslator(translator.release());
+            qCDebug(lcCore) << "Loaded" << name << "translations from" << dir << "for locale" << locale.name();
+            return true;
+        }
+    }
+    qCDebug(lcCore) << "No" << name << "translations found for locale" << locale.name();
+    return false;
+}
+} // namespace
 
 void loadTranslations(QCoreApplication* app)
 {
@@ -18,30 +41,20 @@ void loadTranslations(QCoreApplication* app)
     if (!app)
         return;
 
-    auto* translator = new QTranslator(app);
-    const QLocale locale;
-
     // Search paths in priority order:
     // 1. Alongside the binary: ../share/plasmazones/translations/ (installed)
     // 2. Build tree root: ../ from bin/ (qt_add_lrelease puts .qm in build root)
     // 3. Build tree: ../translations/ (manual lrelease)
-
     const QString appDir = QCoreApplication::applicationDirPath();
-    const QStringList searchDirs = {
-        appDir + QStringLiteral("/../share/plasmazones/translations"),
-        appDir + QStringLiteral("/.."),
-        appDir + QStringLiteral("/../translations"),
-    };
-
-    for (const QString& dir : searchDirs) {
-        if (translator->load(locale, QStringLiteral("plasmazones"), QStringLiteral("_"), dir)) {
-            app->installTranslator(translator);
-            qCDebug(lcCore) << "Loaded translations from" << dir << "for locale" << locale.name();
-            return;
-        }
-    }
-
-    qCDebug(lcCore) << "No translations found for locale" << locale.name();
+    installCatalog(app, QStringLiteral("plasmazones"),
+                   {
+                       appDir + QStringLiteral("/../share/plasmazones/translations"),
+                       appDir + QStringLiteral("/.."),
+                       appDir + QStringLiteral("/../translations"),
+                   });
+    // Phosphor.Components' own catalog, for the shared components every
+    // PlasmaZones app draws (phosphor-works/phosphor-components).
+    installCatalog(app, QStringLiteral("phosphor-components"),
+                   {appDir + QStringLiteral("/../share/phosphor-components/translations")});
 }
-
 } // namespace PlasmaZones

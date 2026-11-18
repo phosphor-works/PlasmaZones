@@ -4,7 +4,7 @@
 import QtQuick
 import org.kde.kirigami as Kirigami
 import org.phosphor.surface as PhosphorSurface
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief The stand-in card run through the real decoration chain host.
@@ -373,7 +373,7 @@ Item {
         // The decorated subject. Sized to leave room for an outer effect on every
         // side: the host centres its padded canvas on the card, so the halo needs
         // _outerPad clear above and below, left and right (see _cardSize).
-        PZCommon.DecorationPreviewCard {
+        Components.DecorationPreviewCard {
             id: card
 
             anchors.centerIn: parent

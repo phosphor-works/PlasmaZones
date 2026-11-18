@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 import org.phosphor.animation
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Individual zone display component
@@ -18,9 +18,9 @@ Item {
     property bool isHighlighted: false
     property bool isMultiZone: false // True if this zone is part of a multi-zone selection
     property bool showNumber: true
-    property color highlightColor: QFZCommon.ZoneColorDefaults.activeZoneColor
-    property color inactiveColor: QFZCommon.ZoneColorDefaults.inactiveZoneColor
-    property color borderColor: QFZCommon.ZoneColorDefaults.zoneBorderColor
+    property color highlightColor: Components.ZoneColorDefaults.activeZoneColor
+    property color inactiveColor: Components.ZoneColorDefaults.inactiveZoneColor
+    property color borderColor: Components.ZoneColorDefaults.zoneBorderColor
     property color labelFontColor: Kirigami.Theme.textColor
     property string fontFamily: ""
     property real fontSizeScale: 1

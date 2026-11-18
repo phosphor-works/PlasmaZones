@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Live preview pane for a DECORATION (surface) pack.
@@ -132,7 +132,7 @@ Item {
             // rendering to reach `ready` at all, because a ShaderEffectSource
             // whose chain is not visible is starved and never compiles. Opaque,
             // and the same colour as this frame, so it reads as the empty slot.
-            PZCommon.ShaderPreviewPlaceholder {
+            Components.ShaderPreviewPlaceholder {
                 anchors.fill: parent
                 anchors.margins: 1
                 // Shown while the preview is still arriving, and kept up when a

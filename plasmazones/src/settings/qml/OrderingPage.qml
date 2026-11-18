@@ -6,7 +6,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.phosphor.animation
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 SettingsFlickable {
     id: root
@@ -325,7 +325,7 @@ SettingsFlickable {
                                         border.color: delegateHover.hovered ? Kirigami.Theme.hoverColor : Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, Kirigami.Theme.frameContrast)
                                         border.width: delegateHover.hovered ? 2 : 1
 
-                                        QFZCommon.ZonePreview {
+                                        Components.ZonePreview {
                                             anchors.fill: parent
                                             anchors.margins: Math.round(Kirigami.Units.smallSpacing * 0.75)
                                             zones: root._zoneCache[delegateRoot.model.id] || []

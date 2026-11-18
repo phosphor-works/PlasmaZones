@@ -12,13 +12,15 @@
 #include "runtime/rendering/zoneshaderitem.h"
 
 Q_IMPORT_PLUGIN(org_plasmazones_commonPlugin)
+Q_IMPORT_PLUGIN(Phosphor_ComponentsPlugin)
 
 /**
- * @brief Every type in org.plasmazones.common must instantiate.
+ * @brief Every type in org.plasmazones.common and Phosphor.Components must
+ *        instantiate through PlasmaZones' own static plugin links.
  *
  * "X is not a type" at runtime hides the nested cause (a bad property in the
  * file, a broken singleton it references, a missing dependent import). This
- * pins component CREATION for each public type in the shared module, so a
+ * pins component CREATION for each public type of the two modules, so a
  * load regression fails here with the real nested error message instead of
  * silently breaking every settings page / popup that consumes the type.
  *
@@ -38,7 +40,9 @@ private:
     {
         QQmlComponent comp(&m_engine);
         comp.setData(
-            QStringLiteral("import QtQuick\nimport org.plasmazones.common\n%1 { %2 }\n").arg(name, extraProps).toUtf8(),
+            QStringLiteral("import QtQuick\nimport org.plasmazones.common\nimport Phosphor.Components\n%1 { %2 }\n")
+                .arg(name, extraProps)
+                .toUtf8(),
             QUrl(QStringLiteral("inline://%1.qml").arg(name)));
         // Module types with singleton/animation dependencies compile
         // ASYNCHRONOUSLY — creation before Ready returns null with no error.
@@ -165,7 +169,7 @@ private Q_SLOTS:
     void singletonResolves()
     {
         QQmlComponent comp(&m_engine);
-        comp.setData(QByteArrayLiteral("import QtQuick\nimport org.plasmazones.common\n"
+        comp.setData(QByteArrayLiteral("import QtQuick\nimport Phosphor.Components\n"
                                        "Item { property color c: ZoneColorDefaults.previewActiveZoneColor }\n"),
                      QUrl(QStringLiteral("inline://singleton.qml")));
         QTRY_VERIFY_WITH_TIMEOUT(comp.status() != QQmlComponent::Loading, 5000);

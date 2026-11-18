@@ -141,6 +141,14 @@ let
         hash = "sha256-+78LmEnYM5YCm8TjEMPcrEnAh1jnPVYFOIiOaF8KXjA=";
       };
     }
+    {
+      name = "phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz";
+      path = fetchurl {
+        url = "https://github.com/phosphor-works/phosphor-components/archive/e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz";
+        # sha256 a932243fdffe2b5c496558d322e2878d54f825469a6be3715179d427558940aa
+        hash = "sha256-qTIkP9/+K1xJZVjTIuKHjVT4JUaaa+NxUXnUJ1WJQKo=";
+      };
+    }
   ];
 in
 

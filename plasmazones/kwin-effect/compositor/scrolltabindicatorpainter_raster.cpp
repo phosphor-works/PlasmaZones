@@ -86,8 +86,8 @@ qreal tabRadius(const ScrollTabIndicatorStyle& style, qreal thickness)
 ///
 /// The four THEME fallbacks (active = highlight, urgent = negativeText,
 /// inactive bar = text at 0.35, inactive chip = transparent) are mirrored
-/// by hand in src/shared/ZoneColorDefaults.qml, which the settings page's
-/// swatch previews read. Change one, change both.
+/// by hand in ZoneColorDefaults.qml (Phosphor.Components, phosphor-works/phosphor-components), which the settings
+/// page's swatch previews read. Change one, change both.
 QColor resolveTabColor(const ScrollTabPill& pill, const ScrollTabIndicatorStyle& style, bool forBar, bool hovered)
 {
     if (pill.urgent) {

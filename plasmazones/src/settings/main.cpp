@@ -52,6 +52,7 @@
 // daemon, src/daemon/main.cpp). The generated plugin carries the
 // auto-generated qmldir, so shared types can never silently go missing again.
 Q_IMPORT_QML_PLUGIN(org_plasmazones_commonPlugin)
+Q_IMPORT_QML_PLUGIN(Phosphor_ComponentsPlugin)
 
 namespace {
 

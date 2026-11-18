@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief One editable action row inside ActionListEditor.
@@ -370,7 +370,7 @@ ColumnLayout {
 
     // ── Top: action-type picker + per-param editors + delete ─────────────
     RowLayout {
-        // The action-type picker is `PZCommon.CategoryMenuButton` (a cascading
+        // The action-type picker is `Components.CategoryMenuButton` (a cascading
         // category menu, declared further below); it gets a fixed
         // `Layout.preferredWidth` wide enough for the longest action label.
 
@@ -385,7 +385,7 @@ ColumnLayout {
         }
 
         // Categorized action-type picker — the shared cascading category-menu
-        // button (PZCommon.CategoryMenuButton). Grouped into Gaps / Engine /
+        // button (Components.CategoryMenuButton). Grouped into Gaps / Engine /
         // Snapping / Tiling / Scrolling / Overlay / Window. Tiling nests
         // Algorithm and Behavior; Scrolling nests Tab indicator and Drop
         // indicator; Window nests Placement, Scrolling, Appearance, Animation,
@@ -395,7 +395,7 @@ ColumnLayout {
         // warning tooltip (the picker's `dimmed` item flag); the per-row chip
         // below + the sheet's InlineMessage reinforce it for an action that's
         // already selected.
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             id: typeCombo
 
             // Sized for the common labels. The two per-window drop-indicator

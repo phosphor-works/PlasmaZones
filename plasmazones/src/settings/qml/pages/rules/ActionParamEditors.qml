@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief The per-parameter editor Components for ActionRow, hoisted out of it.
@@ -201,7 +201,7 @@ QtObject {
             // shrinks `_addable`, so the list the user just clicked changes
             // under the click; that is exactly the case the shared component
             // handles.
-            PZCommon.CategoryMenuButton {
+            Components.CategoryMenuButton {
                 id: zoneNamePicker
 
                 items: zoneNamesRow._addable
@@ -626,11 +626,11 @@ QtObject {
     // rows). The wire value remains the dotted path (`window.open`).
     property Component _animationEventEditor: Component {
         // Categorized event picker — the shared cascading category-menu button
-        // (PZCommon.CategoryMenuButton), grouping the events by their section
+        // (Components.CategoryMenuButton), grouping the events by their section
         // (Window / Editor / Overlays / …) into submenus instead of the long
         // flat "Section · Event" combo. The read-only rule row still renders the
         // full "Section · Event" label (see ActionListView._resolveParamValue).
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             readonly property var _param: parent.modelData
 
             /// The event path this action currently stores, or "".
@@ -798,7 +798,7 @@ QtObject {
         // chain. The chain rows themselves render full-width BELOW the row
         // via decorationChainLoader, exactly like the shader-uniform editor
         // splits from its inline effect picker.
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             readonly property var _param: parent.modelData
             readonly property var _chain: row.action[row._decorationChainKey] || []
             // Packs not already in the chain; re-evaluates as the chain grows.
@@ -952,7 +952,7 @@ QtObject {
         // action's target event, so a geometry-only shader (window-morph) is
         // omitted on a show/hide event, matching the animations page and the
         // WHEN/THEN pickers in this same editor.
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             readonly property var _param: parent.modelData
             // Reading `row.action.event` re-filters the list when the user
             // changes the action's target event. Empty event → the controller
@@ -987,7 +987,7 @@ QtObject {
     // as the empty id exactly as the page addresses it. The wording is the
     // page's uncontexted string so the two share one catalogue entry.
     property Component _overlayLayoutEditor: Component {
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             readonly property var _param: parent.modelData
 
             items: {
@@ -1034,7 +1034,7 @@ QtObject {
         // tree's own override card offers under the same word (and the same
         // context, so the two share a catalogue entry). Showing it for the
         // empty state says what saving the row as it stands would do.
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             readonly property var _param: parent.modelData
 
             items: {
@@ -1072,7 +1072,7 @@ QtObject {
         // The shared parameter editor, same as the shader / decoration-pack
         // param UIs, minus the lock / randomize affordances. The algorithm
         // schema is adapted to the descriptor shape via row._adapted*.
-        PZCommon.ParameterEditor {
+        Components.ParameterEditor {
             id: algorithmParamEditor
 
             parameters: row._adaptedAlgorithmParamSchema

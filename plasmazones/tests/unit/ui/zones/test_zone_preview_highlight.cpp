@@ -16,10 +16,10 @@
 #include <memory>
 
 // Force-link the static QML module's auto-generated init symbol so the test
-// binary registers `org.plasmazones.common` types into the QmlEngine. Without
+// binary registers `Phosphor.Components` types into the QmlEngine. Without
 // this the linker drops the init code as dead and the import fails to resolve.
 // The symbol name is the qmldir's `classname` field.
-Q_IMPORT_PLUGIN(org_plasmazones_commonPlugin)
+Q_IMPORT_PLUGIN(Phosphor_ComponentsPlugin)
 
 /**
  * @brief Per-zone highlight semantics of the shared ZonePreview.
@@ -103,8 +103,8 @@ private:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.ZonePreview { width: 180; height: 101 }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.ZonePreview { width: 180; height: 101 }\n",
             QUrl(QStringLiteral("qrc:/test_zone_preview_highlight.qml")));
         QList<bool> states;
         if (!component.isReady()) {
@@ -147,8 +147,8 @@ private:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.ZonePreview { width: 180; height: 101 }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.ZonePreview { width: 180; height: 101 }\n",
             QUrl(QStringLiteral("qrc:/test_zone_preview_tabs.qml")));
         if (!component.isReady()) {
             qWarning() << "component not ready:" << component.errorString();
@@ -229,8 +229,8 @@ private:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.ZonePreview { }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.ZonePreview { }\n",
             QUrl(QStringLiteral("qrc:/test_zone_preview_axis.qml")));
         if (!component.isReady()) {
             qWarning() << "component not ready:" << component.errorString();
@@ -276,8 +276,8 @@ private:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.StripEmptyState { }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.StripEmptyState { }\n",
             QUrl(QStringLiteral("qrc:/test_strip_empty_state_probe.qml")));
         if (!component.isReady()) {
             return false;
@@ -480,8 +480,8 @@ private Q_SLOTS:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.ZonePreview { }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.ZonePreview { }\n",
             QUrl(QStringLiteral("qrc:/test_zone_preview_axis_populated.qml")));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
 
@@ -529,8 +529,8 @@ private Q_SLOTS:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.LayoutCard { previewWidth: 200; previewHeight: 120 }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.LayoutCard { previewWidth: 200; previewHeight: 120 }\n",
             QUrl(QStringLiteral("qrc:/test_layout_card_axis.qml")));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
 
@@ -592,8 +592,8 @@ private Q_SLOTS:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.LayoutCard { previewWidth: 200; previewHeight: 120 }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.LayoutCard { previewWidth: 200; previewHeight: 120 }\n",
             QUrl(QStringLiteral("qrc:/test_layout_card_empty.qml")));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
 
@@ -644,7 +644,7 @@ private Q_SLOTS:
         // Loaded from the source tree, not by import: the settings QML module
         // is attached to the settings EXECUTABLE target and cannot be linked
         // into a test binary. LayoutThumbnail's own imports (QtQuick, Kirigami,
-        // org.plasmazones.common) all resolve here.
+        // Phosphor.Components) all resolve here.
         QQmlComponent component(
             &m_engine,
             QUrl::fromLocalFile(QStringLiteral(P_SOURCE_DIR "/src/settings/qml/pages/layouts/LayoutThumbnail.qml")));
@@ -704,8 +704,8 @@ private Q_SLOTS:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.StripEmptyState { }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.StripEmptyState { }\n",
             QUrl(QStringLiteral("qrc:/test_strip_empty_state_axis.qml")));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
 
@@ -845,8 +845,8 @@ private Q_SLOTS:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.StripEmptyState { }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.StripEmptyState { }\n",
             QUrl(QStringLiteral("qrc:/test_strip_empty_state_hairline.qml")));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
 
@@ -891,8 +891,8 @@ private Q_SLOTS:
         QQmlComponent component(&m_engine);
         component.setData(
             "import QtQuick\n"
-            "import org.plasmazones.common as QFZCommon\n"
-            "QFZCommon.StripEmptyState { }\n",
+            "import Phosphor.Components as Components\n"
+            "Components.StripEmptyState { }\n",
             QUrl(QStringLiteral("qrc:/test_strip_empty_state_short.qml")));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
 

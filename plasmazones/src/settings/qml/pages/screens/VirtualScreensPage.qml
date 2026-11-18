@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 import org.phosphor.animation
 
 /**
@@ -784,7 +784,7 @@ SettingsFlickable {
                                         border.width: presetCard.active ? 3 : 1
                                         border.color: presetCard.active ? Kirigami.Theme.highlightColor : Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, Kirigami.Theme.frameContrast)
 
-                                        QFZCommon.ZonePreview {
+                                        Components.ZonePreview {
                                             anchors.fill: parent
                                             anchors.margins: Kirigami.Units.smallSpacing
                                             zones: presetCard.modelData.regions

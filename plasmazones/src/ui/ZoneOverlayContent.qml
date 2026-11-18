@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 import org.phosphor.animation
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Zone overlay content body — Item version of the legacy ZoneOverlay.qml,
@@ -20,9 +20,9 @@ Item {
     property var highlightedZoneIds: []
     property bool showNumbers: true
     property var previewZones: []
-    property color highlightColor: QFZCommon.ZoneColorDefaults.activeZoneColor
-    property color inactiveColor: QFZCommon.ZoneColorDefaults.inactiveZoneColor
-    property color borderColor: QFZCommon.ZoneColorDefaults.zoneBorderColor
+    property color highlightColor: Components.ZoneColorDefaults.activeZoneColor
+    property color inactiveColor: Components.ZoneColorDefaults.inactiveZoneColor
+    property color borderColor: Components.ZoneColorDefaults.zoneBorderColor
     property color labelFontColor: Kirigami.Theme.textColor
     property string fontFamily: ""
     property real fontSizeScale: 1
@@ -179,7 +179,7 @@ Item {
                         border.width: 1
                     }
 
-                    QFZCommon.ZonePreview {
+                    Components.ZonePreview {
                         anchors.fill: parent
                         zones: root.previewZones
                         selectedZoneIndex: zoneIndex

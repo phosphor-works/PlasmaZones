@@ -5,7 +5,6 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as PZCommon
 
 /**
  * @brief Pick, save and maintain one pack's named parameter presets.

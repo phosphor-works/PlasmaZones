@@ -4,7 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * Snap Assist content body — Aero-Snap-style window picker rendered as
@@ -42,9 +42,9 @@ Item {
     // Zone appearance defaults — C++ side overwrites from settings.
     // highlightColor is unused in-file but declared for the
     // writeColorSettings push contract symmetry (all slots receive the trio).
-    property color highlightColor: QFZCommon.ZoneColorDefaults.activeZoneColor
-    property color inactiveColor: QFZCommon.ZoneColorDefaults.inactiveZoneColor
-    property color borderColor: QFZCommon.ZoneColorDefaults.zoneBorderColor
+    property color highlightColor: Components.ZoneColorDefaults.activeZoneColor
+    property color inactiveColor: Components.ZoneColorDefaults.inactiveZoneColor
+    property color borderColor: Components.ZoneColorDefaults.zoneBorderColor
     property real activeOpacity: 0.5
     property real inactiveOpacity: 0.3
     property int borderWidth: Kirigami.Units.smallSpacing

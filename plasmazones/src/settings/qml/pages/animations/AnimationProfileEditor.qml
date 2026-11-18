@@ -7,7 +7,7 @@ import QtQuick.Layouts
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.phosphor.animation
-import org.plasmazones.common as PZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Timing + shader editor body for the per-event animation card.
@@ -1080,7 +1080,7 @@ ColumnLayout {
             return i18n("Apply a shader pack to this event");
         }
 
-        PZCommon.CategoryMenuButton {
+        Components.CategoryMenuButton {
             // SettingsRow lays its default children out in a plain Row positioner, so
             // Layout.* attached properties are inert here: size explicitly or the
             // button sits at implicit width. Clamped to the same 45% of the row that

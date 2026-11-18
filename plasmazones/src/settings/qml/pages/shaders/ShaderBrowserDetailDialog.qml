@@ -9,6 +9,7 @@ import org.kde.kirigami as Kirigami
 import PlasmaZones
 import org.plasmazones.common as PZCommon
 
+import Phosphor.Components as Components
 import "../../js/FontUtils.js" as FontUtils
 
 /**
@@ -709,7 +710,7 @@ Kirigami.Dialog {
                         Layout.fillWidth: true
                         active: root._livePreview && root._hasParameters
 
-                        sourceComponent: PZCommon.ParameterEditor {
+                        sourceComponent: Components.ParameterEditor {
                             id: paramEditor
 
                             compact: false
@@ -1079,7 +1080,7 @@ Kirigami.Dialog {
                     // still loading / compiling the new shader (the "round trip").
                     // No fill needed: this pane HIDES its renderer until Ready,
                     // so there is nothing underneath to conceal.
-                    PZCommon.ShaderPreviewPlaceholder {
+                    Components.ShaderPreviewPlaceholder {
                         anchors.centerIn: parent
                         width: parent.width - Kirigami.Units.largeSpacing * 2
                         // Shown until the new shader is Ready (or has errored, when
@@ -1092,7 +1093,7 @@ Kirigami.Dialog {
                     // T3.2: surface the live preview's actual GLSL compile error
                     // in-app. The renderer is
                     // recreated per shader, so its Error is always THIS shader's.
-                    PZCommon.ShaderErrorBanner {
+                    Components.ShaderErrorBanner {
                         anchors.centerIn: parent
                         width: Math.min(parent.width - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 22)
                         height: Math.min(parent.height - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 12)

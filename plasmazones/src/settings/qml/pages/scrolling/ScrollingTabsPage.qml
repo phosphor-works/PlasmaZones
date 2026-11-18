@@ -6,7 +6,7 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.plasmazones.common as QFZCommon
+import Phosphor.Components as Components
 
 /**
  * @brief Scrolling → Tabs: the indicator drawn alongside a tabbed column.
@@ -440,7 +440,7 @@ SettingsFlickable {
                     searchAnchor: "tabIndicatorActiveColor"
                     description: i18n("The tab of the window the column is currently showing.")
                     storedColor: appSettings.scrollingTabIndicatorActiveColor
-                    themeColor: QFZCommon.ZoneColorDefaults.tabActiveColor
+                    themeColor: Components.ZoneColorDefaults.tabActiveColor
                     picker: tabColorDialog
                     onColorChosen: function (hex) {
                         appSettings.scrollingTabIndicatorActiveColor = hex;
@@ -455,7 +455,7 @@ SettingsFlickable {
                     description: i18n("The tabs of the column's other windows.")
                     storedColor: appSettings.scrollingTabIndicatorInactiveColor
                     // 0 = titled chips (see ISettings::scrollingTabIndicatorStyle).
-                    themeColor: appSettings.scrollingTabIndicatorStyle === 0 ? QFZCommon.ZoneColorDefaults.tabInactiveChipColor : QFZCommon.ZoneColorDefaults.tabInactiveBarColor
+                    themeColor: appSettings.scrollingTabIndicatorStyle === 0 ? Components.ZoneColorDefaults.tabInactiveChipColor : Components.ZoneColorDefaults.tabInactiveBarColor
                     picker: tabColorDialog
                     onColorChosen: function (hex) {
                         appSettings.scrollingTabIndicatorInactiveColor = hex;
@@ -469,7 +469,7 @@ SettingsFlickable {
                     searchAnchor: "tabIndicatorUrgentColor"
                     description: i18n("The tab of a window that is asking for attention.")
                     storedColor: appSettings.scrollingTabIndicatorUrgentColor
-                    themeColor: QFZCommon.ZoneColorDefaults.tabUrgentColor
+                    themeColor: Components.ZoneColorDefaults.tabUrgentColor
                     picker: tabColorDialog
                     onColorChosen: function (hex) {
                         appSettings.scrollingTabIndicatorUrgentColor = hex;

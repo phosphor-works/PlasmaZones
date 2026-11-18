@@ -60,6 +60,7 @@
 
 // Import static QML module for shared components
 Q_IMPORT_QML_PLUGIN(org_plasmazones_commonPlugin)
+Q_IMPORT_QML_PLUGIN(Phosphor_ComponentsPlugin)
 
 using namespace PlasmaZones;
 
