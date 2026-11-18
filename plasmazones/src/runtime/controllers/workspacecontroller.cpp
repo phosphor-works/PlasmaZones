@@ -130,11 +130,7 @@ WorkspaceController::WorkspaceController(PhosphorWorkspaces::VirtualDesktopManag
             &PhosphorWorkspaces::VirtualDesktopManager::setDesktopName);
     connect(&m_reconciler, &Rec::resyncRequested, this, [this]() {
         // A ledger entry expired: re-pull the authoritative desktop list.
-        // String-based on purpose: refreshFromKWin is a PRIVATE slot of
-        // VirtualDesktopManager, so a pointer-to-member form does not compile
-        // from here. The name is covered by the invoke's own runtime warning
-        // if it ever moves.
-        QMetaObject::invokeMethod(m_vdm, "refreshFromKWin");
+        m_vdm->refresh();
     });
     connect(&m_reconciler, &Rec::foreignSwitchDetected, this,
             [this](const QString& screenId, const QString& desktopId, const QString& ownerScreenId) {

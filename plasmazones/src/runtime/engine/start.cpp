@@ -793,7 +793,7 @@ void EngineRuntime::connectDesktopActivity()
     // Initialize and start activity manager
     // Connect to PhosphorWorkspaces::VirtualDesktopManager for desktop+activity coordinate lookup
     m_activityManager->init();
-    if (PhosphorWorkspaces::ActivityManager::isAvailable()) {
+    if (m_activityManager && m_activityManager->isAvailable()) {
         m_activityManager->start();
 
         // Prune the rules and engine state of removed activities (desktop_renumber.cpp).

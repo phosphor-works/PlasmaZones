@@ -66,7 +66,7 @@ void EngineRuntime::initializeUnifiedController()
     const int desktopNow = currentDesktop();
     m_layoutManager->setCurrentVirtualDesktop(desktopNow);
     m_unifiedLayoutController->setCurrentVirtualDesktop(desktopNow);
-    if (m_activityManager && PhosphorWorkspaces::ActivityManager::isAvailable()) {
+    if (m_activityManager && m_activityManager->isAvailable()) {
         m_layoutManager->setCurrentActivity(m_activityManager->currentActivity());
         m_unifiedLayoutController->setCurrentActivity(m_activityManager->currentActivity());
     }
@@ -571,7 +571,7 @@ void EngineRuntime::finalizeStartup()
         const QString activity = currentActivity();
         // activityReady: either we already have a non-empty activity, or
         // KActivities is unavailable on this system (no point waiting).
-        const bool activityReady = !activity.isEmpty() || !PhosphorWorkspaces::ActivityManager::isAvailable();
+        const bool activityReady = !activity.isEmpty() || !(m_activityManager && m_activityManager->isAvailable());
         if (activityReady) {
             showOsdForAllScreens(activity);
         } else if (m_activityManager) {
@@ -610,7 +610,7 @@ void EngineRuntime::finalizeStartup()
                 // slower than the timeout still gets its welcome from the
                 // activity handler when the activity arrives.
                 const QString activity = currentActivity();
-                if (activity.isEmpty() && PhosphorWorkspaces::ActivityManager::isAvailable()) {
+                if (activity.isEmpty() && m_activityManager && m_activityManager->isAvailable()) {
                     return;
                 }
                 m_welcomeOsdAwaitsActivity = false;

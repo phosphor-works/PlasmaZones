@@ -45,9 +45,9 @@ int DaemonWorkspaceStateAdapter::currentVirtualDesktopForScreen(const QString& s
 QString DaemonWorkspaceStateAdapter::currentActivity() const
 {
     // Guard on both the manager pointer AND `ActivityManager::isAvailable()`
-    // so headless sessions report "" rather than crashing through a deref of a
-    // manager whose D-Bus backend never connected. Shared with Daemon and WTA
-    // via the ActivityManager helper.
+    // so a session without activities reports "" rather than a deref of a
+    // manager with no backend. Shared with EngineRuntime and the window
+    // tracker via the ActivityManager helper.
     return PhosphorWorkspaces::ActivityManager::currentActivityOrEmpty(m_activityManager);
 }
 
