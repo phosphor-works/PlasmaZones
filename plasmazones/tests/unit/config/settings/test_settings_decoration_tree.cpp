@@ -80,58 +80,6 @@ class TestSettingsDecorationTree : public QObject
 
 private Q_SLOTS:
 
-    void runtimeSeedsNotifyWithoutPersistingOrMovingTheUserBaseline()
-    {
-        IsolatedConfigGuard guard;
-        Settings settings;
-        settings.setInnerGap(9);
-        QVERIFY(settings.save());
-        const auto readFile = [&guard] {
-            QFile file(guard.configPath() + QStringLiteral("/plasmazones/config.json"));
-            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{};
-        };
-        const auto saved = readFile();
-        QVERIFY(!saved.isEmpty());
-        auto seeds = settings.decorationSeedTree();
-        PhosphorSurfaceShaders::DecorationProfile shell;
-        shell.chain = QStringList{QStringLiteral("phosphor-glass")};
-        const auto path = PhosphorSurfaceShaders::decorationShellPhosphorBarPath();
-        seeds.setOverride(path, shell);
-        QSignalSpy changed(&settings, &Settings::decorationProfileTreeChanged);
-        bool announcedAsRuntime = false;
-        connect(&settings, &Settings::decorationProfileTreeChanged, this, [&] {
-            announcedAsRuntime = settings.isAnnouncingDecorationSeedChange();
-        });
-        settings.setDecorationSeedTree(seeds);
-        QCOMPARE(changed.count(), 1);
-        QVERIFY(announcedAsRuntime);
-        QVERIFY(!settings.isAnnouncingDecorationSeedChange());
-        QCOMPARE(settings.decorationProfileTree(), settings.committedDecorationProfileTree());
-        QCOMPARE(readFile(), saved);
-        settings.setDecorationSeedTree(seeds);
-        QCOMPARE(changed.count(), 1);
-
-        // An unrelated edit must not freeze the preview defaults into config.
-        auto tree = settings.decorationProfileTree();
-        PhosphorSurfaceShaders::DecorationProfile leaf;
-        leaf.chain = QStringList{QStringLiteral("glow")};
-        tree.setOverride(QStringLiteral("window.tiled"), leaf);
-        settings.setDecorationProfileTree(tree);
-        settings.save();
-        const auto stored = QJsonDocument::fromJson(readFile())
-                                .object()
-                                .value(QStringLiteral("Decorations"))
-                                .toObject()
-                                .value(QStringLiteral("DecorationProfileTree"))
-                                .toObject();
-        QVERIFY(!PhosphorSurfaceShaders::DecorationProfileTree::fromJson(stored).hasOverride(path));
-        shell.chain = QStringList{QStringLiteral("phosphor-motes")};
-        seeds.setOverride(path, shell);
-        settings.setDecorationSeedTree(seeds);
-        QCOMPARE(settings.decorationProfileTree().resolve(path).enabledChain(), *shell.chain);
-        QCOMPARE(settings.decorationProfileTree(), settings.committedDecorationProfileTree());
-    }
-
     /// A fresh config has no Decorations/DecorationProfileTree entry, so
     /// Settings::decorationProfileTree() must fall back to the canonical
     /// ConfigDefaults default. The baseline stays neutral (no global chain —

@@ -10,9 +10,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # PZ Build & Test
 
-Two configure flags in this repo default to `OFF` and **fail as success**. A
-build dir configured without them produces no tests at all, and `ctest` then
-prints "No tests were found", which reads like a pass. Everything below exists
+`BUILD_TESTING` defaults to `OFF` and **fails as success**. A build dir
+configured without it produces no tests at all, and `ctest` then prints "No
+tests were found", which reads like a pass. Everything below exists
 because that failure mode is invisible.
 
 ## Build dirs that already exist
@@ -20,38 +20,28 @@ because that failure mode is invisible.
 Check what a dir actually is before trusting a green result from it:
 
 ```bash
-grep -E "^(BUILD_TESTING|BUILD_PHOSPHOR_SHELL|BUILD_TOOLS|CMAKE_UNITY_BUILD|CMAKE_GENERATOR):" build*/CMakeCache.txt
+grep -E "^(BUILD_TESTING|BUILD_TOOLS|CMAKE_UNITY_BUILD|CMAKE_GENERATOR):" build*/CMakeCache.txt
 ```
 
-| dir | testing | shell tier | unity | use for |
-|---|---|---|---|---|
-| `build` | ON | **ON** | ON | day-to-day work, including the shell tier |
-| `build-release` | ON | ON | ON | the release preset, optimized |
-| `build-off` | ON | **OFF** | ON | confirming a shell-tier change still builds shell-OFF |
-| `build-nounity` | ON | ON | OFF | packager parity and the clangd compile database |
-| `build-make` | ON | **OFF** | ON | Unix Makefiles generator parity; tools OFF too, so a green ctest here covers neither the shell tier nor the tools |
+| dir | testing | unity | use for |
+|---|---|---|---|
+| `build` | ON | ON | day-to-day work |
+| `build-release` | ON | ON | the release preset, optimized |
+| `build-nounity` | ON | OFF | packager parity and the clangd compile database |
+| `build-make` | ON | ON | Unix Makefiles generator parity; tools OFF, so a green ctest here does not cover the tools |
 
 `build` is what `cmake --preset debug` produces, and `CMakePresets.json` sets
-`BUILD_TESTING`, `BUILD_PHOSPHOR_SHELL` and `BUILD_TOOLS` all ON there, so the
-shell tier IS built and its tests DO run. Every moon task configures through
-that preset. A dir configured by hand without those flags is the one that runs
-nothing, which is what the grep above is for.
-
-The dirs that still need care are the shell-OFF ones, `build-off` and
-`build-make` (which is tools-OFF as well): a shell-tier change has to be
-confirmed there, because `BUILD_PHOSPHOR_SHELL` defaults OFF for anyone
-configuring without a preset.
+`BUILD_TESTING` and `BUILD_TOOLS` both ON there. Every moon task configures
+through that preset. A dir configured by hand without `BUILD_TESTING` is the
+one that runs nothing, which is what the grep above is for.
 
 ## Configure
 
 ```bash
-cmake -B build -DBUILD_TESTING=ON -DBUILD_PHOSPHOR_SHELL=ON
+cmake -B build -DBUILD_TESTING=ON
 ```
 
 - `BUILD_TESTING=ON` or there are no tests. Not optional.
-- `BUILD_PHOSPHOR_SHELL=ON` for anything in the shell tier. Requires
-  `USE_KDE_FRAMEWORKS=ON` (the default); those libraries need KF6 Kirigami for
-  icon rendering and have no Qt-only fallback.
 - `BUILD_TOOLS=ON` adds `shader-render` and friends.
 - The `shader_validate_animations`, `shader_validate_surface` and
   `shader_validate_pointer` gates shell out to `glslangValidator` (or `glslang`)
@@ -125,7 +115,7 @@ once, serially.
 `build` uses unity blobs, which pull a symbol in from whichever sibling TU
 happens to include it. A file can therefore call something it never included and
 stay green, and only a packager's non-unity build fails. After touching daemon,
-engine, effect, or shell sources:
+engine or effect sources:
 
 ```bash
 cmake --build build-nounity --parallel 6
@@ -140,9 +130,8 @@ The nastiest shape is not a missing include but a genuine cross-TU dependency on
 a function with internal linkage (a `static` in an anonymous namespace), which
 only ever links under unity.
 
-Shell-tier changes need **both** a shell-ON and a shell-OFF configure
-(`build-nounity` and `build-off`). Both of those are Ninja trees; `build-make`
-is the only Unix Makefiles one, and that generator rejects ninja's `-k 0`.
+`build-nounity` is a Ninja tree; `build-make` is the only Unix Makefiles one,
+and that generator rejects ninja's `-k 0`.
 
 ## Conventions gate
 

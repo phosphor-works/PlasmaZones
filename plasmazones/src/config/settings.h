@@ -1990,9 +1990,9 @@ public:
     void setMotionProfileTreeJson(const QString& json) override;
 
     // Per-surface pack chains and parameters. The Decorations group stores user
-    // edits; runtime seeds are read-side defaults. JSON backs Q_PROPERTY tracking.
+    // edits; the ConfigDefaults seeds are read-side defaults. JSON backs
+    // Q_PROPERTY tracking.
     PhosphorSurfaceShaders::DecorationProfileTree decorationSeedTree() const override;
-    void setDecorationSeedTree(const PhosphorSurfaceShaders::DecorationProfileTree& seeds);
     PhosphorSurfaceShaders::DecorationProfileTree decorationProfileTree() const override;
     void setDecorationProfileTree(const PhosphorSurfaceShaders::DecorationProfileTree& tree) override;
     QString decorationProfileTreeJson() const override;
@@ -2514,12 +2514,6 @@ public:
         return m_announcingPaletteChange;
     }
 
-    /// True only during runtime-default NOTIFY fan-out; this is not a user edit.
-    bool isAnnouncingDecorationSeedChange() const
-    {
-        return m_announcingDecorationSeedChange;
-    }
-
     /// True while reloadPreservingLocalEdits() (or a composite setter's
     /// clean-backend refresh, which runs the same body) is announcing values
     /// adopted from disk. Like a palette change they are not user edits, so
@@ -2931,8 +2925,8 @@ private:
     // empty sentinel and resolve in their getters, so nothing is written.
     QHash<QString, QVariantMap> m_baseline;
 
-    PhosphorSurfaceShaders::DecorationProfileTree m_decorationSeeds = ConfigDefaults::decorationProfileTree();
-    bool m_announcingDecorationSeedChange = false;
+    // The decoration seeds, built once: every decoration tree read overlays them.
+    const PhosphorSurfaceShaders::DecorationProfileTree m_decorationSeeds = ConfigDefaults::decorationProfileTree();
 
     // Which id-less Workspaces.Named entry of the baseline each id the
     // settings page stamped replaced: stamped id → that entry's name.

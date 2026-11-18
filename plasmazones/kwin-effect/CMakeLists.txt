@@ -356,7 +356,3 @@ target_include_directories(kwin_effect_plasmazones PRIVATE
 # the KWIN_EFFECT_FACTORY_SUPPORTED macro. The source file MUST include
 # "plasmazoneseffect.moc" at the end for MOC to process the generated Q_OBJECT class.
 
-# The shell's native titlebar decoration plugin.
-if(BUILD_PHOSPHOR_SHELL)
-    add_subdirectory(shell-decoration)
-endif()

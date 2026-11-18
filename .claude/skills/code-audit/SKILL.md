@@ -301,7 +301,7 @@ List each fix: `file:line` — what changed.
 
 ### 6. Build Verification
 
-Build and run the tests the way the `pz-build` skill says: a build dir configured with `BUILD_TESTING=ON` (and `BUILD_PHOSPHOR_SHELL=ON` when the scope touches the shell tier), the warning grep rather than the exit code, and `ctest` with `--no-tests=error` so an unconfigured suite cannot pass by running nothing. Run `python3 scripts/check-conventions.py` over the changed files. If any of these fails, treat each error as CRITICAL, fix, rebuild. Do not proceed until all of them are green.
+Build and run the tests the way the `pz-build` skill says: a build dir configured with `BUILD_TESTING=ON`, the warning grep rather than the exit code, and `ctest` with `--no-tests=error` so an unconfigured suite cannot pass by running nothing. Run `python3 scripts/check-conventions.py` over the changed files. If any of these fails, treat each error as CRITICAL, fix, rebuild. Do not proceed until all of them are green.
 
 A green suite is not evidence that a placement or effect fix works (`pz-verify-live`). When a fix touches the snap, tile or scroll engines, window tracking, the daemon's placement paths or the KWin effect, verify it in the nested-KWin session: check the invariant the finding was about in `dump-windows.sh` output before and after, and drive the repeat (second call, retry, next tick) when the finding was about one.
 

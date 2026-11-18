@@ -8,7 +8,6 @@
       "generator": "Ninja",
       "cacheVariables": {
         "BUILD_TESTING": "ON",
-        "BUILD_PHOSPHOR_SHELL": "ON",
         "BUILD_TOOLS": "ON"
       }
     },

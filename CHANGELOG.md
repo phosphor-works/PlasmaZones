@@ -39,6 +39,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **`zoneSpanModifier` over D-Bus**: `org.phosphor_works.Placement.Settings` no longer reads or writes `zoneSpanModifier`, the older single-modifier form of the zone span trigger. Scripts read and set `zoneSpanTriggers` instead, which carries the whole trigger list. ([#990](https://github.com/phosphor-works/PlasmaZones/pull/990))
 - **The Lambent shell's overview and touchpad gestures in the KWin effect**: the effect no longer draws the shell's desktop overview, no longer relays the shell's three and four finger touchpad gestures, and no longer tints window borders with the shell's per-window identity colours. `org.phosphor_works.Placement.CompositorBridge` loses `reportGesture` and the `gestureReported` signal with them. All of this existed only for Lambent, which is moving off KWin and no longer reaches into the effect. ([#1225](https://github.com/phosphor-works/PlasmaZones/pull/1225))
+- **The Lambent integration**: PlasmaZones no longer builds anything for the Lambent shell. The `org.phosphor_works.Lambent.Decoration` window decoration plugin, the decoration defaults that followed Lambent's appearance settings, and the Phosphor shell cards on Settings → Decoration → Shell are gone, along with the `BUILD_PHOSPHOR_SHELL` build option and the phosphor-shell-libs dependency it pulled in. The Plasma panel and applet popup cards on that page stay. Lambent keeps using the placement service over D-Bus.
 
 ### Fixed
 

@@ -18,9 +18,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 - Once the library change is merged, bump the pin: the commit, URL, FILE and SHA-256 together, then the same archive in every recipe the dep-pins rule names. A bump can move the library tree's own Luau and valijson pins too, and the rule reports those.
 - The scripts that read library files without a build (the JSON schema gate, the dep-pins rule) find the pinned tree with `scripts/pinned_phosphor_libs.py`, which unpacks the pinned archive into `.cache/phosphor-libs/`. `PHOSPHOR_LIBS_DIR=<checkout>` points them at a local tree instead.
 - In CMake the library tree is `${phosphor-libs_SOURCE_DIR}` and its build tree `${phosphor-libs_BINARY_DIR}`. Its shared helper modules (`PhosphorTestIsolation`, `PhosphorLibTesting`, `PhosphorTestPch`) are in `${PHOSPHOR_LIBS_CMAKE_DIR}`, which is also on `CMAKE_MODULE_PATH`.
-- The shell libraries (theme, popout, the `Phosphor.*` surfaces, the `phosphor-service-*` libraries) are the same kind of repository, [phosphor-works/phosphor-shell-libs](https://github.com/phosphor-works/phosphor-shell-libs), checked out as `../phosphor-shell-libs`. Only PlasmaZones' Lambent integration needs them, so `plasmazones_add_phosphor_shell_libs()` adds them under `BUILD_PHOSPHOR_SHELL`, after phosphor-libs, and the phosphor-libs pin here is the one that tree uses. Its pin is in the same file but outside the recipes, because no package builds the shell. Override it with `-DCPM_phosphor-shell-libs_SOURCE=<dir>` or `-DPHOSPHOR_SHELL_LIBS_GIT_REF=<ref>`.
-- The shell itself is [phosphor-works/Lambent](https://github.com/phosphor-works/Lambent) (app ID `org.phosphor_works.Lambent`), checked out as `../Lambent`. `BUILD_PHOSPHOR_SHELL` builds PlasmaZones' side of it: the shell appearance adapter, the shell decoration plugin and the shell decoration settings pages. Lambent's nested-shell scripts run on this repository's `scripts/nested-kwin/` harness and build tree.
-- The surface decoration packs (borders, glows, shadows, blur and glass) are [phosphor-works/phosphor-surface-packs](https://github.com/phosphor-works/phosphor-surface-packs), shared with Lambent and checked out as `../phosphor-surface-packs`. PlasmaZones pins one commit of it in `cmake/PlasmaZonesDependencies.cmake`, fetches it like the branding release and installs its packs to `share/phosphor-works/surface` with its `cmake/PhosphorSurfacePacks.cmake`. User packs go in `~/.local/share/phosphor-works/surface`. In CMake the packs are `${PHOSPHOR_SURFACE_PACKS_DIR}` and the install subdir `${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}`, which each process hands to `PhosphorSurfaceShaders::setSurfacePackDataSubdir()` at startup. A pack change is a phosphor-surface-packs PR followed by a pin bump here, and `scripts/pinned_surface_packs.py` finds the pinned packs for the scripts that read them without a build (`PHOSPHOR_SURFACE_PACKS_DIR=<packs dir>` points them at a local checkout).
+- The surface decoration packs (borders, glows, shadows, blur and glass) are [phosphor-works/phosphor-surface-packs](https://github.com/phosphor-works/phosphor-surface-packs), shared with the other apps that draw them and checked out as `../phosphor-surface-packs`. PlasmaZones pins one commit of it in `cmake/PlasmaZonesDependencies.cmake`, fetches it like the branding release and installs its packs to `share/phosphor-works/surface` with its `cmake/PhosphorSurfacePacks.cmake`. User packs go in `~/.local/share/phosphor-works/surface`. In CMake the packs are `${PHOSPHOR_SURFACE_PACKS_DIR}` and the install subdir `${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}`, which each process hands to `PhosphorSurfaceShaders::setSurfacePackDataSubdir()` at startup. A pack change is a phosphor-surface-packs PR followed by a pin bump here, and `scripts/pinned_surface_packs.py` finds the pinned packs for the scripts that read them without a build (`PHOSPHOR_SURFACE_PACKS_DIR=<packs dir>` points them at a local checkout).
 
 ## Behavioral Rules (Always Enforced)
 - NEVER question or doubt what the user says they did (installed, restarted, tested, etc.) — trust them and focus on the code
@@ -49,7 +47,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 - SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt. JSON is such a format, so no `.json` file needs a header wherever it sits. The usual cases are `plasmazones/data/**/*.json`, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
 - License identifier depends on the tree:
   - **App tiers** (`plasmazones/**` except its `data/` trees, `scripts/**`): `GPL-3.0-or-later`
-  - **Reusable libraries, including their own tests** (everything in phosphor-libs, and phosphor-shell-libs' `libs/`): `LGPL-2.1-or-later`
+  - **Reusable libraries, including their own tests** (everything in phosphor-libs): `LGPL-2.1-or-later`
   - A library's own `tests/` follow the library (LGPL), NOT the app-tier GPL rule: test code that links and ships inside an LGPL lib must not taint that lib's build tree with GPL. The GPL `plasmazones/tests/**` rule means only the top-level app test tree.
   - **Bundled animation and pointer shader packs** (`plasmazones/data/animations/**` and `plasmazones/data/pointer/**` shader source: `.frag`, `.vert`, `.glsl`): `LGPL-2.1-or-later` for PlasmaZones-original shaders, so a third-party pack or tool can build on them. The exception is incorporated upstream copyleft. A shader that copies verbatim or ports GPL-3.0 upstream code (the Burn-My-Windows ports and their `shared/bmw_compat.glsl` shim, the niri `honeycomb` port) MUST stay `GPL-3.0-or-later` and carries a second `SPDX-FileCopyrightText` crediting the upstream author, because PlasmaZones is not the copyright holder of those bodies and cannot relicense them. The license follows the incorporated content and is never a per-directory blanket, so a pack's `.frag` and `.vert` may legitimately differ (a GPL-derived `.frag` beside a PlasmaZones-original LGPL `.vert`). Ports of permissively-licensed upstreams such as the MIT gl-transitions `desktop-*` frags may be LGPL. Generated editor aids like `p_generated.glsl` are gitignored and carry no SPDX header. (`plasmazones/data/overlays/**` is currently GPL and has not been normalized, so follow the existing header in that tree. The surface packs carry their own REUSE licensing in phosphor-surface-packs.)
   - Rationale: the shell is GPL; libraries are LGPL so third-party plugins / tools can link them without inheriting GPL. Never "fix" a lib header to GPL-3 without understanding the split.
@@ -223,17 +221,7 @@ On Linux (native):
 # machine without it that task fails with "no tests were found" rather than
 # skipping. Install appstream before running repo:test, or reconfigure after
 # installing it.
-#
-# BUILD_PHOSPHOR_SHELL also defaults to OFF, and it gates PlasmaZones'
-# integration with the Lambent shell: the phosphor-shell-libs repository (the
-# shell, bar, control center, launcher, power and popout libraries and their
-# tests), the shell appearance adapter, the shell decoration plugin and the
-# shell decoration settings pages. Configure without it and none of that is
-# built, so ctest passes without ever running those suites. Pass it when
-# working on anything that touches the shell. It requires
-# USE_KDE_FRAMEWORKS=ON (the default), since those libraries need KF6 Kirigami
-# for icon rendering and have no Qt-only fallback.
-cmake -B build -DBUILD_TESTING=ON -DBUILD_PHOSPHOR_SHELL=ON
+cmake -B build -DBUILD_TESTING=ON
 
 # Build
 cmake --build build --parallel 6   # literal 6, not $(nproc): see the pz-build skill
@@ -282,7 +270,7 @@ python3 scripts/check-conventions.py --list-rules
 ```
 
 ### Per-tier builds with moon
-The repo is a [moon](https://moonrepo.dev) workspace. CMake still does every compile; moon adds the tier graph on top: one command per tier, dependency ordering, and affected-only runs locally (CI still drives CMake directly). The one tier is the project `plasmazones`, plus `repo` for the whole-tree checks. phosphor-libs and phosphor-shell-libs are not projects: they are the pinned repositories above, and the pin file is a test input of every tier. Install moon from the AUR (`moon-bin`) or with `proto install moon`.
+The repo is a [moon](https://moonrepo.dev) workspace. CMake still does every compile; moon adds the tier graph on top: one command per tier, dependency ordering, and affected-only runs locally (CI still drives CMake directly). The one tier is the project `plasmazones`, plus `repo` for the whole-tree checks. phosphor-libs is not a project: it is the pinned repository above, and the pin file is a test input of every tier. Install moon from the AUR (`moon-bin`) or with `proto install moon`.
 
 ```bash
 moon run plasmazones:build          # build that tier and its upstream tiers (configure runs first each time)
@@ -296,13 +284,13 @@ moon run plasmazones:test-release   # ctest --test-dir build-release/plasmazones
 moon query projects --affected      # which tiers a change reaches
 ```
 
-Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests, the shell and the tools on. The moon tasks are the debug ones by default. Each tier's `build` and `test` and the `repo:configure` step have a `-release` twin; `repo:test` and `repo:install` have none and act on `build/`. Plain CMake users get the same trees with `cmake --preset release && cmake --build --preset release`.
+Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests and the tools on. The moon tasks are the debug ones by default. Each tier's `build` and `test` and the `repo:configure` step have a `-release` twin; `repo:test` and `repo:install` have none and act on `build/`. Plain CMake users get the same trees with `cmake --preset release && cmake --build --preset release`.
 
 How it maps onto CMake (see `.moon/tasks/cmake.yml`): every tier task runs from the workspace root against the build directory its preset names. `build` invokes the tier's aggregate target, `<tier>-tier`, declared by `phosphor_tier_target()` near the end of each tier CMakeLists (the plasmazones one attaches its translations target after the call); `test` runs ctest scoped to `build/<tier>`. Because the build directory is shared, moon does not cache build outputs and ccache remains the compile cache. A tier gets its own build directory, and with it a moon-cached output, once it can be configured standalone against an installed upstream tier.
 
 Install is a whole-tree verb on the `repo` project, not a per-tier one, because CMake cannot install a subset here: none of the install rules declares a `COMPONENT`, so `cmake --install build --component <tier>` would install nothing. Per-tier install verbs need every rule tagged with a component first. Follow an install with `moon run repo:post-install` to refresh the KDE service cache, the same step `make post-install` runs.
 
-Layer enforcement is on (`.moon/workspace.yml`): an application tier may not depend on another application tier. With the shell in Lambent, plasmazones is the only one.
+Layer enforcement is on (`.moon/workspace.yml`): an application tier may not depend on another application tier. plasmazones is the only one.
 
 - CMake with `CMAKE_AUTOMOC/AUTORCC/AUTOUIC ON`
 - `qt_add_qml_module()` — ALL QML files must be listed (missing = runtime "not a type" error)
@@ -312,7 +300,7 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 - Standalone settings app (`plasmazones-settings`) + minimal KCM launcher
 
 ### Directory Structure
-The tree is one product tier plus repo-level support directories. The tier has its own `CMakeLists.txt` (entered from the root one) and its own `moon.yml` project. The libraries it builds on are the phosphor-libs and phosphor-shell-libs repositories, and the shell is Lambent (see phosphor-libs above).
+The tree is one product tier plus repo-level support directories. The tier has its own `CMakeLists.txt` (entered from the root one) and its own `moon.yml` project. The libraries it builds on are the phosphor-libs repository (see phosphor-libs above).
 ```
 plasmazones/             — PlasmaZones
   src/core/              — Domain models (Zone, Layout, ScreenManager)

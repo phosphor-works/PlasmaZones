@@ -119,7 +119,6 @@ Gates that iterate every bundled pack:
 - `test_strip_pack_contract`: a `strip` pack must be identity at zero motion, must not paint
   the gap, must stay inside the edge band. Built only with `USE_KDE_FRAMEWORKS=ON` and
   `BUILD_KWIN_EFFECT=ON`.
-- `test_shell_chrome`: loads the whole surface tree. Built only with `BUILD_PHOSPHOR_SHELL=ON`.
 - `shader_validate_bundled`, `shader_validate_animations`, `shader_validate_surface`,
   `shader_validate_pointer`.
 
