@@ -97,6 +97,7 @@ void EngineRuntime::initCoreAdaptors()
         new LayoutService(m_layoutManager.get(), m_virtualDesktopManager.get(), m_screenManager.get(), this);
     m_layoutService->setActivityManager(m_activityManager.get());
     m_layoutService->setSettings(m_settings.get());
+    m_layoutService->setHostApps(m_hostApps);
     m_layoutService->setLayoutsAvailableResolver([this](const QString& screenId) {
         return !m_shuttingDown && anyModeEnabled()
             && layoutSupportForScreen(screenId) != PhosphorEngine::IPlacementEngine::LayoutSupport::None;

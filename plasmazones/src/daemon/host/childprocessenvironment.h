@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
 #include "core/types/constants.h"
 
 #include <QCoreApplication>
@@ -13,7 +14,7 @@
 
 #include <initializer_list>
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 /// The environment a process spawned from this one starts with: this
 /// process's own, with what it changed for itself undone. The names in
@@ -46,4 +47,4 @@ inline QProcessEnvironment childProcessEnvironment()
     return env;
 }
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

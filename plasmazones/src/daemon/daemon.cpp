@@ -15,6 +15,7 @@
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
+#include "daemon/host/plasmazonesapps.h"
 #include "runtime/overlay/overlayservice.h"
 
 #include "dbus/autotileadaptor.h"
@@ -81,6 +82,7 @@ Daemon::Daemon(QObject* parent)
     , m_workspaceHost(std::make_unique<KWinWorkspaceHost>(m_runtime->shortcutManager(), m_runtime->settings(),
                                                           m_hostSettings.get()))
     , m_systemOsd(std::make_unique<PlasmaSystemOsd>())
+    , m_apps(std::make_unique<PlasmaZonesApps>())
 {
     m_runtime->setWorkspaceHost(m_workspaceHost.get());
     // The KWin host's two preferences are PlasmaZones' own settings: the
@@ -90,6 +92,7 @@ Daemon::Daemon(QObject* parent)
         connect(m_hostSettings.get(), changed, m_runtime.get(), &EngineRuntime::workspaceHostPreferencesChanged);
     }
     m_runtime->setSystemOsd(m_systemOsd.get());
+    m_runtime->setHostApps(m_apps.get());
 
     // Direct: the runtime's stop() emits this mid-teardown and relies on the
     // withdrawal having happened by the time the emit returns.
@@ -125,6 +128,7 @@ Daemon::~Daemon()
     // hosts first, which are destroyed before it.
     m_runtime->setWorkspaceHost(nullptr);
     m_runtime->setSystemOsd(nullptr);
+    m_runtime->setHostApps(nullptr);
 }
 
 bool Daemon::init()

@@ -89,6 +89,7 @@ class WindowTracker;
 class DragResolver;
 class IWorkspaceHost;
 class ISystemOsd;
+class IHostApps;
 class RuleService;
 class UnifiedLayoutController;
 class WorkspaceController;

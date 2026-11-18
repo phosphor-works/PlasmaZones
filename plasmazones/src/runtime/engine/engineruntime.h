@@ -177,6 +177,9 @@ public:
     {
         m_systemOsd = osd;
     }
+    /// The host's settings application and layout editor. Not owned; null
+    /// opens neither.
+    void setHostApps(IHostApps* apps);
     /// Whether the desktop session is a real, presentable one. False (a phantom
     /// session) suppresses the OSDs. Defaults to true.
     void setSessionPresentable(bool presentable)
@@ -1522,9 +1525,10 @@ private:
 
     // What the engine needs from the desktop it runs on, behind host
     // interfaces (runtime/host/). Borrowed from the host (setWorkspaceHost,
-    // setSystemOsd); null means the host has none.
+    // setSystemOsd, setHostApps); null means the host has none.
     IWorkspaceHost* m_workspaceHost = nullptr;
     ISystemOsd* m_systemOsd = nullptr;
+    IHostApps* m_hostApps = nullptr;
     /// The desktop's own text OSD (ISystemOsd), when the host has one.
     void showSystemOsd(const QString& iconName, const QString& text);
     ShellCheatsheetBridge* m_shellCheatsheetBridge = nullptr;
