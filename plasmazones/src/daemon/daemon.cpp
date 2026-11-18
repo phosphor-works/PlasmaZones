@@ -32,8 +32,10 @@
 #include "config/settingsconfigstore.h"
 #include "core/platform/logging.h"
 
+#include <PhosphorLayer/defaults/PhosphorWaylandTransport.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
+#include <PhosphorScreens/PlasmaPanelSource.h>
 
 #include <QDBusConnection>
 #include <QDBusError>
@@ -41,9 +43,26 @@
 
 namespace PlasmaZones {
 
+namespace {
+const QString Login1Service = QStringLiteral("org.freedesktop.login1");
+const QString Login1Path = QStringLiteral("/org/freedesktop/login1");
+const QString Login1ManagerInterface = QStringLiteral("org.freedesktop.login1.Manager");
+const QString PrepareForSleepSignal = QStringLiteral("PrepareForSleep");
+
+/// plasmazonesd's overlays are wlr-layer-shell surfaces, and its panels are
+/// Plasma's.
+EngineRuntime::Platform kwinSessionPlatform()
+{
+    EngineRuntime::Platform platform;
+    platform.layerShell = std::make_unique<PhosphorLayer::PhosphorWaylandTransport>();
+    platform.panels = std::make_unique<PhosphorScreens::PlasmaPanelSource>();
+    return platform;
+}
+} // namespace
+
 Daemon::Daemon(QObject* parent)
     : QObject(parent)
-    , m_runtime(std::make_unique<EngineRuntime>())
+    , m_runtime(std::make_unique<EngineRuntime>(kwinSessionPlatform()))
     , m_workspaceHost(std::make_unique<KWinWorkspaceHost>(m_runtime->shortcutManager()))
     , m_systemOsd(std::make_unique<PlasmaSystemOsd>())
 {
@@ -56,10 +75,25 @@ Daemon::Daemon(QObject* parent)
 
     m_bridgeWatchdogTimer.setSingleShot(true);
     connect(&m_bridgeWatchdogTimer, &QTimer::timeout, this, &Daemon::warnCompositorBridgeMissing);
+
+    // System sleep/resume via logind, so the runtime can restart its shader
+    // clock after a wake instead of handing the first frame the whole suspend
+    // as its delta. The connect result is kept so ~Daemon can disconnect.
+    m_prepareForSleepConnected = QDBusConnection::systemBus().connect(
+        Login1Service, Login1Path, Login1ManagerInterface, PrepareForSleepSignal, this, SLOT(onPrepareForSleep(bool)));
+    if (!m_prepareForSleepConnected) {
+        qCDebug(lcDaemon) << "PrepareForSleep D-Bus signal subscription failed (logind not available?):"
+                          << "shader-timer restart on resume will not run";
+    }
 }
 
 Daemon::~Daemon()
 {
+    if (m_prepareForSleepConnected) {
+        QDBusConnection::systemBus().disconnect(Login1Service, Login1Path, Login1ManagerInterface,
+                                                PrepareForSleepSignal, this, SLOT(onPrepareForSleep(bool)));
+        m_prepareForSleepConnected = false;
+    }
     stop();
     // The bindings are Qt children, which ~QObject destroys only after every
     // member, the runtime included, is gone. Delete them while what they
@@ -119,6 +153,11 @@ void Daemon::stop()
     // The runtime releases the shortcut grabs and the dynamic workspaces, then
     // emits servicesClosing (withdrawFromBus) before it detaches anything.
     m_runtime->stop();
+}
+
+void Daemon::onPrepareForSleep(bool goingToSleep)
+{
+    m_runtime->prepareForSleep(goingToSleep);
 }
 
 void Daemon::withdrawFromBus()

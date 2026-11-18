@@ -416,7 +416,7 @@ inline void writeColorSettings(QObject* window, const IZoneVisualizationSettings
 }
 
 // writeQmlProperty, patchZonesWithHighlight, ensureShaderTimerStarted,
-// getAnchorsForPosition, findQmlItemByName, collectQmlItemsByName, mapVisibleRectToItem
+// findQmlItemByName, collectQmlItemsByName, mapVisibleRectToItem
 // are defined in overlay_helpers.h (included above)
 
 } // namespace PlasmaZones
