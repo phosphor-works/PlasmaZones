@@ -177,7 +177,7 @@ Column {
         wrapMode: Text.Wrap
         // With a query up, the line reports its own hidden matches instead of
         // its total, so the one thing worth clicking says so.
-        text: root.expanded ? i18n("Hide unassigned actions") : (root.queryActive && root.unassignedMatches > 0 ? i18np("%n unassigned action matches", "%n unassigned actions match", root.unassignedMatches) : i18np("%n unassigned action", "%n unassigned actions", root.unassignedRows.length))
+        text: root.expanded ? qsTr("Hide unassigned actions") : (root.queryActive && root.unassignedMatches > 0 ? qsTr("%n unassigned action matches", "", root.unassignedMatches) : qsTr("%n unassigned action", "", root.unassignedRows.length))
         // Hover and keyboard focus both brighten it. The highlight state has
         // its own hovered shade rather than dropping the feedback, since that
         // is exactly the state where the line is worth activating.

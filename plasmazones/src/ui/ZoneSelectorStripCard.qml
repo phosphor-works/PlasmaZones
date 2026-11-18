@@ -273,6 +273,6 @@ Item {
         font.strikeout: card.fontStrikeout
         // Plural strings carry %n (this project's i18np substitutes only %n;
         // %1 renders literally — see PR #801).
-        text: card.isTabbed ? i18ncp("@info:label tabbed column tab count", "%n tab", "%n tabs", card.tiles.length) : i18ncp("@info:label column window count", "%n window", "%n windows", card.tiles.length)
+        text: card.isTabbed ? qsTr("%n tab", "@info:label tabbed column tab count", card.tiles.length) : qsTr("%n window", "@info:label column window count", card.tiles.length)
     }
 }

@@ -387,10 +387,10 @@ Item {
     /// a name any user-facing string uses.
     readonly property string modeDisplayName: {
         if (root.currentMode === "autotile")
-            return i18n("Tiling");
+            return qsTr("Tiling");
         if (root.currentMode === "scrolling")
-            return i18n("Scrolling");
-        return i18n("Snapping");
+            return qsTr("Scrolling");
+        return qsTr("Snapping");
     }
 
     // Metrics mirror LayoutPickerContent's card chrome exactly (paddingSide
@@ -441,7 +441,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         onClicked: root._requestDismiss()
-        Accessible.name: i18n("Dismiss shortcut cheatsheet")
+        Accessible.name: qsTr("Dismiss shortcut cheatsheet")
         Accessible.role: Accessible.Button
         Accessible.onPressAction: root._requestDismiss()
     }
@@ -519,7 +519,7 @@ Item {
                 id: titleLabel
 
                 Layout.alignment: Qt.AlignHCenter
-                text: i18n("Keyboard Shortcuts")
+                text: qsTr("Keyboard Shortcuts")
                 fontFamily: root.fontFamily
                 fontSizeScale: root.fontSizeScale
             }
@@ -531,7 +531,7 @@ Item {
 
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: -Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
-                text: i18nc("which placement mode the listed shortcuts belong to", "Filtered for %1 mode on this screen", root.modeDisplayName)
+                text: qsTr("Filtered for %1 mode on this screen", "which placement mode the listed shortcuts belong to").arg(root.modeDisplayName)
                 color: Kirigami.Theme.disabledTextColor
                 font.family: root.fontFamily.length > 0 ? root.fontFamily : Kirigami.Theme.defaultFont.family
                 font.pixelSize: Math.round(Kirigami.Theme.defaultFont.pixelSize * 0.9 * root.fontSizeScale)
@@ -572,7 +572,7 @@ Item {
                 // Only the mode-filtered-everything-out case now. A query
                 // that matches nothing leaves the full sheet in place, dimmed,
                 // with the search field's counter reporting no matches.
-                text: i18n("No shortcuts apply in the current mode.")
+                text: qsTr("No shortcuts apply in the current mode.")
                 color: Kirigami.Theme.disabledTextColor
                 visible: root.groups.length === 0
                 font.family: root.fontFamily.length > 0 ? root.fontFamily : Kirigami.Theme.defaultFont.family
@@ -699,7 +699,7 @@ Item {
                 id: footerLabel
 
                 Layout.alignment: Qt.AlignHCenter
-                text: i18n("Press Escape to close")
+                text: qsTr("Press Escape to close")
                 color: Kirigami.Theme.disabledTextColor
                 font.family: root.fontFamily.length > 0 ? root.fontFamily : Kirigami.Theme.defaultFont.family
                 font.pixelSize: Math.round(Kirigami.Theme.defaultFont.pixelSize * 0.85 * root.fontSizeScale)

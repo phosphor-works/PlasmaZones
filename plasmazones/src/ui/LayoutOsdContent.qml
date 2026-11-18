@@ -164,7 +164,7 @@ Item {
     // grammar of its own, so a translator can reorder them freely. The card
     // also has only the caption TEXT to work with — the daemon pushes the
     // sentence, not which branch produced it.
-    Accessible.name: root.stripEmptyCaption !== "" ? i18nc("accessible name of the scrolling strip OSD when the strip is empty; %1 is the card name, %2 the reason", "%1, %2", nameLabel.text, root.stripEmptyCaption) : nameLabel.text
+    Accessible.name: root.stripEmptyCaption !== "" ? qsTr("%1, %2", "accessible name of the scrolling strip OSD when the strip is empty; %1 is the card name, %2 the reason").arg(nameLabel.text).arg(root.stripEmptyCaption) : nameLabel.text
 
     // Auto-dismiss timer + idempotency latch. See OsdDismissable.qml for
     // why the latch is needed (timer-fire and click both race to dismiss).
@@ -354,8 +354,8 @@ Item {
                 text: {
                     if (root.disabled)
                         return root.disabledReason;
-                    var name = root.isTemplate ? i18nc("OSD caption, %1 is the template name", "Column template — %1", root.layoutName) : root.layoutName;
-                    return root.locked ? i18n("%1 (Locked)", name) : name;
+                    var name = root.isTemplate ? qsTr("Column template — %1", "OSD caption, %1 is the template name").arg(root.layoutName) : root.layoutName;
+                    return root.locked ? qsTr("%1 (Locked)").arg(name) : name;
                 }
                 font.pixelSize: Kirigami.Theme.defaultFont.pixelSize * nameFontScale
                 font.weight: Font.Medium
@@ -381,7 +381,7 @@ Item {
         anchors.fill: container
         onClicked: dismiss.fire()
         Accessible.role: Accessible.Button
-        Accessible.name: i18n("Dismiss notification")
+        Accessible.name: qsTr("Dismiss notification")
         // Without a press action an assistive client can see the button but
         // not activate it — same call the click handler makes, same wiring
         // as every sibling dismiss surface (picker, cheatsheet, snap assist).

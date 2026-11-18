@@ -102,7 +102,7 @@ Rectangle {
             id: field
 
             Layout.fillWidth: true
-            placeholderText: i18n("Filter shortcuts")
+            placeholderText: qsTr("Filter shortcuts")
             // The card is the whole UI; a second frame inside it reads as a
             // nested control. The parent Rectangle draws the field's chrome.
             background: null
@@ -113,7 +113,7 @@ Rectangle {
             // A shortcut sheet is a reference, not a form: nothing here
             // benefits from the shell guessing at completions.
             inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
-            Accessible.name: i18n("Filter shortcuts")
+            Accessible.name: qsTr("Filter shortcuts")
             Accessible.role: Accessible.EditableText
             // The counter beside the field is the only surface that reports
             // how a query landed, and it is kept out of the a11y tree so it
@@ -133,7 +133,7 @@ Rectangle {
             visible: root.hasQuery
             opacity: clearArea.containsMouse ? 1 : 0.6
             Accessible.role: Accessible.Button
-            Accessible.name: i18n("Clear the filter")
+            Accessible.name: qsTr("Clear the filter")
             Accessible.onPressAction: field.clear()
 
             MouseArea {
@@ -156,7 +156,7 @@ Rectangle {
             // that changes on every keystroke, so it stays terse. The
             // no-matches case gets words rather than a bare zero, since it is
             // the one state the dimmed card cannot express by itself.
-            text: root.noMatches ? i18n("No matches") : i18nc("matching shortcuts out of the total", "%1 of %2", root.shownCount, root.totalCount)
+            text: root.noMatches ? qsTr("No matches") : qsTr("%1 of %2", "matching shortcuts out of the total").arg(root.shownCount).arg(root.totalCount)
             color: root.noMatches ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
             font.family: root.effectiveFamily
             font.pixelSize: Math.round(root.rowFontSize * 0.85)

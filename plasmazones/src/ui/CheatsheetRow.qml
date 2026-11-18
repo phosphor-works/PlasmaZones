@@ -156,7 +156,7 @@ RowLayout {
     // Announces every binding, and composes the unassigned state from the
     // SAME translated token the visible label shows, so a translator cannot
     // make the two diverge.
-    readonly property string accessibleRowText: root.modelData.assigned ? i18nc("shortcut row: action, keys", "%1, %2", root.modelData.label, root.modelData.triggers.join(", ")) : i18nc("shortcut row: action, state", "%1, %2", root.modelData.label, unassignedLabel.text)
+    readonly property string accessibleRowText: root.modelData.assigned ? qsTr("%1, %2", "shortcut row: action, keys").arg(root.modelData.label).arg(root.modelData.triggers.join(", ")) : qsTr("%1, %2", "shortcut row: action, state").arg(root.modelData.label).arg(unassignedLabel.text)
     // While a query is up, the row's answer to it is carried in the name
     // rather than in opacity alone. Dimming and the bold runs inside the label
     // are the sighted signal, and neither reaches the accessibility tree: the
@@ -164,7 +164,7 @@ RowLayout {
     // without this a screen-reader user typing a query hears the whole sheet
     // read back unchanged. Only matching rows are marked, so the common case
     // adds nothing to what is spoken.
-    Accessible.name: (root.queryTerms.length > 0 && root.matched) ? i18nc("a shortcut row that answers the current search, then the row itself", "Match, %1", root.accessibleRowText) : root.accessibleRowText
+    Accessible.name: (root.queryTerms.length > 0 && root.matched) ? qsTr("Match, %1", "a shortcut row that answers the current search, then the row itself").arg(root.accessibleRowText) : root.accessibleRowText
     Accessible.description: root.effectiveDescription
 
     // Plain-prose explanation from the catalog, on hover (long-press on
@@ -297,7 +297,7 @@ RowLayout {
     Label {
         id: unassignedLabel
 
-        text: i18n("Unassigned")
+        text: qsTr("Unassigned")
         color: Kirigami.Theme.disabledTextColor
         font.italic: true
         font.family: root.effectiveFamily

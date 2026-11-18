@@ -709,6 +709,8 @@ def _runtime_firewall_failures(partition_readable) -> list[str]:
             (write(rt + "adaptor.cpp", '#include "dbus/windowtrackingadaptor.h"\n'), True, "a dbus/ header"),
             (write(rt + "daemon.cpp", '#include "daemon/daemon.h"\n'), True, "a daemon/ header"),
             (write(rt + "appi18n.cpp", '#include "phosphor_i18n.h"\n'), True, "PlasmaZones' translation context"),
+            (write(rt + "appqmli18n.cpp", '#include "phosphor_qml_i18n.h"\n'), True,
+             "PlasmaZones' QML translation context"),
             (write(rt + "rti18n.cpp", '#include "runtime/common/runtimei18n.h"\n'), False,
              "the runtime's own translation context"),
             (write(rt + "wayland.cpp", "#include <PhosphorWayland/LayerSurface.h>\n"), True, "PhosphorWayland"),

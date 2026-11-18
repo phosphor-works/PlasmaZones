@@ -545,7 +545,7 @@ Item {
                         width: parent.width
                         wrapMode: Text.WordWrap
                         horizontalAlignment: Text.AlignHCenter
-                        text: i18nc("@info strip selector empty state", "No columns yet. Drop here to start the strip.")
+                        text: qsTr("No columns yet. Drop here to start the strip.", "@info strip selector empty state")
                         color: Kirigami.Theme.disabledTextColor
                         visible: root.stripColumns.length === 0 // stripLayer already gates on stripMode
                     }
@@ -642,7 +642,7 @@ Item {
                                     hoverEnabled: true
                                     cursorShape: Qt.ForbiddenCursor
                                     Accessible.role: Accessible.Button
-                                    Accessible.name: i18nc("@info:whatsthis zone selector lock overlay", "Layout is locked. Switch to this layout before selecting a zone.")
+                                    Accessible.name: qsTr("Layout is locked. Switch to this layout before selecting a zone.", "@info:whatsthis zone selector lock overlay")
                                     onClicked: function (mouse) {
                                         mouse.accepted = true;
                                     }
@@ -747,7 +747,7 @@ Item {
 
         Label {
             anchors.centerIn: parent
-            text: i18nc("@info zone selector empty state", "No layouts available")
+            text: qsTr("No layouts available", "@info zone selector empty state")
             color: Kirigami.Theme.disabledTextColor
             visible: !root.stripMode && root.layouts.length === 0
         }

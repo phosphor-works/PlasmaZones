@@ -877,11 +877,10 @@ RUNTIME_FORBIDDEN = (
     (re.compile(r"^PhosphorScreens/PlasmaPanelSource\.h$"), "Plasma's panel source"),
 )
 RUNTIME_PROJECT_FORBIDDEN = re.compile(r"^(dbus|daemon)/")
-# PlasmaZones' C++ translation context. The runtime's C++ translates under its
-# own (runtime/common/runtimei18n.h), into its own catalog. Its QML still
-# resolves through PlasmaZones' QML context (phosphor_qml_i18n.h) until the
-# overlay's QML moves with it.
-RUNTIME_APP_I18N = re.compile(r"^phosphor_i18n\.h$")
+# PlasmaZones' translation contexts, C++ and QML. The runtime translates under
+# its own (runtime/common/runtimei18n.h for C++, qsTr() in the overlay QML),
+# into its own catalog.
+RUNTIME_APP_I18N = re.compile(r"^phosphor_(qml_)?i18n\.h$")
 
 
 def rule_runtime_firewall(files: list[str]) -> list[Violation]:

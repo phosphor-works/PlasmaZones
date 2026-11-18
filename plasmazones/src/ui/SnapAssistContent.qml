@@ -77,7 +77,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: root.dismissRequested()
-            Accessible.name: i18n("Dismiss snap assist overlay")
+            Accessible.name: qsTr("Dismiss snap assist overlay")
             Accessible.role: Accessible.Button
             Accessible.onPressAction: root.dismissRequested()
         }
@@ -261,7 +261,7 @@ Item {
                             hoverEnabled: root.visible
                             cursorShape: Qt.PointingHandCursor
                             Accessible.role: Accessible.Button
-                            Accessible.name: candidateCard.candidate && candidateCard.candidate.caption ? i18n("Snap %1 to this zone", candidateCard.candidate.caption) : i18n("Snap window to this zone")
+                            Accessible.name: candidateCard.candidate && candidateCard.candidate.caption ? qsTr("Snap %1 to this zone").arg(candidateCard.candidate.caption) : qsTr("Snap window to this zone")
                             onClicked: {
                                 const wId = candidateCard.candidate ? candidateCard.candidate.windowId : "";
                                 const zoneId = zoneContainer.zone ? (zoneContainer.zone.zoneId || "") : "";

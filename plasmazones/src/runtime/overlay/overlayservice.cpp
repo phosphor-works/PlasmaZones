@@ -37,7 +37,6 @@
 #include <QMutexLocker>
 
 #include "core/platform/logging.h"
-#include "phosphor_qml_i18n.h"
 #include "runtime/rendering/vulkansupport.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>
@@ -204,8 +203,9 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
         .surfaceFactory = m_surfaceFactory.get(),
         .engineConfigurator =
             [this](QQmlEngine& engine) {
-                auto* localizedContext = new PhosphorLocalizedContext(&engine);
-                engine.rootContext()->setContextObject(localizedContext);
+                // The overlay QML translates with qsTr() into the runtime's
+                // catalog (loadRuntimeTranslations), so the engine needs no
+                // i18n() context object.
                 engine.rootContext()->setContextProperty(QStringLiteral("overlayService"), this);
 
                 // Bounded LRU cache + image provider for Snap Assist thumbnails.

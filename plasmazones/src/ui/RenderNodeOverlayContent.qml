@@ -167,7 +167,7 @@ Item {
 
         anchors.fill: parent
         visible: !root._idled
-        Accessible.name: i18n("Zone overlay")
+        Accessible.name: qsTr("Zone overlay")
 
         QtObject {
             id: shaderConfig
@@ -309,9 +309,9 @@ Item {
                 // that is the default accessible name. Overriding the name would hide the
                 // actual error from assistive technology, which is what the settings app's
                 // ShaderErrorBanner documents for the same card.
-                Accessible.description: i18nc("@info:whatsthis", "Shader error details")
+                Accessible.description: qsTr("Shader error details", "@info:whatsthis")
                 anchors.centerIn: parent
-                text: zoneShaderRenderer.errorLog || i18n("Shader error")
+                text: zoneShaderRenderer.errorLog || qsTr("Shader error")
                 color: Kirigami.Theme.textColor
                 wrapMode: Text.WordWrap
                 width: parent.width - Kirigami.Units.gridUnit * 2
