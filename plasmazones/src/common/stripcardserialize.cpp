@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "stripcardserialize.h"
-#include "common/engineruntimenamespace.h"
-
 #include <QVariantMap>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 namespace {
 
@@ -66,4 +64,4 @@ QVariantList stripColumnsToVariantList(const PhosphorScrollEngine::ScrollStripSn
     return columns;
 }
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

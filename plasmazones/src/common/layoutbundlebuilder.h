@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include "plasmazones_export.h"
 
 namespace PhosphorLayout {
@@ -20,7 +18,7 @@ namespace PhosphorTiles {
 class ITileAlgorithmRegistry;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Populate a @c FactoryContext with the layout registries a PlasmaZones
 /// composition root (daemon, editor, settings) owns — manual zone layouts,
@@ -61,4 +59,4 @@ buildStandardLayoutSourceBundle(PhosphorLayout::LayoutSourceBundle& bundle,
                                 PhosphorTiles::ITileAlgorithmRegistry* tileAlgorithms,
                                 PhosphorZones::ScrollingTemplateStore* scrollingTemplates = nullptr);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

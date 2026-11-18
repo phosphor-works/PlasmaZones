@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 // Canonical serialisation of PhosphorLayout::LayoutPreview to the QML /
 // D-Bus wire shapes.  Both @c toVariantMap and @c toJson emit the SAME
 // shape (member-for-member mirror of the LayoutPreview struct); they
@@ -76,7 +74,7 @@ namespace PhosphorLayout {
 struct LayoutPreview;
 }
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// QML-facing QVariantMap projection.
 PLASMAZONES_EXPORT QVariantMap toVariantMap(const PhosphorLayout::LayoutPreview& preview);
@@ -87,4 +85,4 @@ PLASMAZONES_EXPORT QJsonObject toJson(const PhosphorLayout::LayoutPreview& previ
 /// Convert a list of previews to a QVariantList of toVariantMap results.
 PLASMAZONES_EXPORT QVariantList toVariantList(const QVector<PhosphorLayout::LayoutPreview>& previews);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

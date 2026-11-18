@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 // Canonical serialisation of a ScrollStripSnapshot to the QML wire shape
 // consumed by ZoneSelectorContent.qml's strip layer (the `stripColumns`
 // property). One shape, one producer — the strip-cards provider Daemon's
@@ -33,7 +31,7 @@
 
 #include <QVariantList>
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 PLASMAZONES_EXPORT QVariantList stripColumnsToVariantList(const PhosphorScrollEngine::ScrollStripSnapshot& snapshot);
 
@@ -45,4 +43,4 @@ PLASMAZONES_EXPORT QVariantList stripColumnsToVariantList(const PhosphorScrollEn
 /// full-width fallback for out-of-range values.
 PLASMAZONES_EXPORT QList<qreal> stripFractionsFromColumns(const QVariantList& columns);
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime

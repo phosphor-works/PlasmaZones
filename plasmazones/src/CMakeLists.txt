@@ -27,6 +27,7 @@ set(plasmazones_core_SRCS
     phosphor_qml_i18n.h
     phosphor_qml_i18n.cpp
     core/types/constants.h
+    core/types/screenscale.h
     core/platform/logging.h
     core/platform/logging.cpp
     core/utils/translationloader.h

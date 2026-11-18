@@ -3,11 +3,9 @@
 
 #pragma once
 
-#include "common/engineruntimenamespace.h"
-
 #include "plasmazones_export.h"
 
-namespace PlasmaZones {
+namespace PhosphorEngineRuntime {
 
 /// Install the PhosphorZones::Layout::setScreenIdResolver translator for this
 /// process exactly once. Normalises legacy connector names ("DP-2") to
@@ -25,4 +23,4 @@ namespace PlasmaZones {
 /// parent))` comma-operator trick so the intent is obvious at a glance).
 PLASMAZONES_EXPORT void ensureScreenIdResolver();
 
-} // namespace PlasmaZones
+} // namespace PhosphorEngineRuntime
