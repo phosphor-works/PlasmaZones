@@ -36,6 +36,7 @@
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 #include <PhosphorScreens/PlasmaPanelSource.h>
+#include <PhosphorShortcuts/Factory.h>
 #include <PhosphorWorkspaces/Plasma/Backends.h>
 
 #include <QDBusConnection>
@@ -59,6 +60,11 @@ EngineRuntime::Platform kwinSessionPlatform()
     platform.panels = std::make_unique<PhosphorScreens::PlasmaPanelSource>();
     platform.desktops = PhosphorWorkspaces::Plasma::createVirtualDesktopBackend();
     platform.activities = PhosphorWorkspaces::Plasma::createActivityBackend();
+    // KGlobalAccel on Plasma, the portal or the session-bus fallback
+    // elsewhere: PhosphorShortcuts reads the session.
+    platform.shortcutBackends = [] {
+        return PhosphorShortcuts::createBackend(PhosphorShortcuts::BackendHint::Auto, nullptr);
+    };
     return platform;
 }
 } // namespace

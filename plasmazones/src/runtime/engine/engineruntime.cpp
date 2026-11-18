@@ -196,6 +196,9 @@ EngineRuntime::EngineRuntime(Platform platform, QObject* parent)
     , m_activityManager(std::make_unique<PhosphorWorkspaces::ActivityManager>(std::move(platform.activities), nullptr))
     , m_shortcutManager(std::make_unique<ShortcutManager>(m_settings.get(), nullptr))
 {
+    if (platform.shortcutBackends) {
+        m_shortcutManager->setBackendFactory(std::move(platform.shortcutBackends));
+    }
     // Install the layout screen-id resolver before any Daemon-owned machinery
     // starts loading layouts. First-call ensures the once-only install runs
     // exactly once across all Daemon constructions in the process; subsequent
