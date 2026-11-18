@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <QDBusError>
 #include <QLatin1StringView>
@@ -48,13 +48,13 @@ namespace DbusHelpers {
  * reaches anyone. The parent has to inherit it (Daemon does); a parent that
  * does not answers null.
  */
-PLASMAZONES_EXPORT const QDBusContext* busContext(const QObject* adaptor);
+PLASMAZONES_DBUS_EXPORT const QDBusContext* busContext(const QObject* adaptor);
 
 /**
  * @brief The unique bus name of the sender of the message busContext()
  *        reads, or empty while the host serves none.
  */
-PLASMAZONES_EXPORT QString busCaller(const QObject* adaptor);
+PLASMAZONES_DBUS_EXPORT QString busCaller(const QObject* adaptor);
 
 /**
  * @brief The unique bus name of the sender of the call @p adaptor is serving,
@@ -66,7 +66,7 @@ PLASMAZONES_EXPORT QString busCaller(const QObject* adaptor);
  * A served call can still answer an empty name (a peer-to-peer connection
  * names no sender), which matches no registered bridge.
  */
-PLASMAZONES_EXPORT std::optional<QString> busCallerOf(const QObject* adaptor, QLatin1StringView member);
+PLASMAZONES_DBUS_EXPORT std::optional<QString> busCallerOf(const QObject* adaptor, QLatin1StringView member);
 
 /**
  * @brief Whether @p busName is the unique bus name the compositor bridge
@@ -77,7 +77,7 @@ PLASMAZONES_EXPORT std::optional<QString> busCallerOf(const QObject* adaptor, QL
  * applies it to compositor-only slots, and the daemon hands it to the adaptors
  * that treat the bridge's calls differently from other callers'.
  */
-PLASMAZONES_EXPORT bool isBridgeCaller(const QObject* adaptor, const QString& busName);
+PLASMAZONES_DBUS_EXPORT bool isBridgeCaller(const QObject* adaptor, const QString& busName);
 
 /**
  * @brief Answer the bus call @p adaptor is serving with the error @p type,
@@ -93,7 +93,7 @@ PLASMAZONES_EXPORT bool isBridgeCaller(const QObject* adaptor, const QString& bu
  * so the slot's return value matters only on false, where it is the answer:
  * to a direct call, or to a bus call this adaptor does not own.
  */
-PLASMAZONES_EXPORT bool sendBusError(const QObject* adaptor, QDBusError::ErrorType type, const QString& message);
+PLASMAZONES_DBUS_EXPORT bool sendBusError(const QObject* adaptor, QDBusError::ErrorType type, const QString& message);
 
 /**
  * @brief The first statement of a compositor-only slot (#1155): true when the
@@ -125,7 +125,7 @@ PLASMAZONES_EXPORT bool sendBusError(const QObject* adaptor, QDBusError::ErrorTy
  * A refused caller is logged once at warning, for a bounded number of
  * distinct callers, and at debug after that.
  */
-PLASMAZONES_EXPORT bool admitCompositorReport(const QObject* adaptor, QLatin1StringView member);
+PLASMAZONES_DBUS_EXPORT bool admitCompositorReport(const QObject* adaptor, QLatin1StringView member);
 
 } // namespace DbusHelpers
 } // namespace PlasmaZones

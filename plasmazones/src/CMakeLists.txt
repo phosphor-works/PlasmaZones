@@ -152,20 +152,15 @@ set(plasmazones_core_SRCS
     config/configmigration_v7.cpp
     config/configmigration_v8.cpp
     config/configmigration_v8overlay.cpp
-    dbus/dbushelpers.cpp
     runtime/common/lookups.cpp
     runtime/common/lookups.h
     runtime/common/runtimei18n.cpp
     runtime/common/runtimei18n.h
-    dbus/layoutadaptor.cpp
-    dbus/layoutadaptor.h
     runtime/services/layoutservice/layoutservice.cpp
     runtime/services/layoutservice/assignment.cpp
     runtime/services/layoutservice/assignment_batch.cpp
     runtime/services/layoutservice/editor.cpp
     runtime/services/layoutservice/layoutservice.h
-    dbus/settingsadaptor.cpp
-    dbus/settingsadaptor.h
     runtime/services/settingsservice/settingsservice.cpp
     runtime/services/settingsservice/settingsservice_batch.cpp
     runtime/services/settingsservice/settingsservice_registry.cpp
@@ -173,32 +168,18 @@ set(plasmazones_core_SRCS
     runtime/services/settingsservice/settingsservice_registry_autotile.cpp
     runtime/services/settingsservice/settingsservice_registry_scrolling.cpp
     runtime/services/settingsservice/settingsservice.h
-    dbus/shaderadaptor.cpp
-    dbus/shaderadaptor.h
     runtime/services/shaderservice.cpp
     runtime/services/shaderservice.h
-    dbus/compositorbridgeadaptor.cpp
-    dbus/compositorbridgeadaptor.h
-    dbus/controladaptor.cpp
-    dbus/controladaptor.h
     runtime/services/controlservice.cpp
     runtime/services/controlservice_shortcuts.cpp
     runtime/services/controlservice.h
-    dbus/overlayadaptor.cpp
-    dbus/overlayadaptor.h
     runtime/services/overlaycontrolservice.cpp
     runtime/services/overlaycontrolservice.h
-    dbus/zonedetectionadaptor.cpp
-    dbus/zonedetectionadaptor.h
     runtime/services/zonequeryservice.cpp
     runtime/services/zonequeryservice.h
-    dbus/ruleadaptor.cpp
-    dbus/ruleadaptor.h
     runtime/services/ruleservice.cpp
     runtime/services/ruleservice.h
     # snapnavigationtargets moved to phosphor-libs/libs/phosphor-snap-engine/
-    dbus/windowtrackingadaptor.cpp
-    dbus/windowtrackingadaptor.h
     runtime/windowtracker/windowtracker.cpp
     runtime/windowtracker/lifecycle.cpp
     runtime/windowtracker/activation.cpp
@@ -224,8 +205,6 @@ set(plasmazones_core_SRCS
     runtime/windowtracker/shellsurface_desktop.cpp
     runtime/windowtracker/windowtracker.h
     runtime/windowtracker/internal.h
-    dbus/windowdragadaptor.cpp
-    dbus/windowdragadaptor.h
     runtime/dragresolver/dragresolver.cpp
     runtime/dragresolver/selector_gate.cpp
     runtime/dragresolver/drag.cpp
@@ -238,24 +217,16 @@ set(plasmazones_core_SRCS
     runtime/dragresolver/dropproxy.cpp
     runtime/dragresolver/dropproxy.h
     runtime/dragresolver/dragresolver.h
-    dbus/scrollingadaptor.cpp
-    dbus/scrollingadaptor.h
     runtime/services/scrollingservice/scrollingservice.cpp
     runtime/services/scrollingservice/scrollingservice.h
-    dbus/autotileadaptor.cpp
-    dbus/autotileadaptor.h
     runtime/services/autotileservice/autotileservice.cpp
     runtime/services/autotileservice/config.cpp
     runtime/services/autotileservice/autotileservice.h
-    dbus/tilingadaptor.cpp
-    dbus/tilingadaptor.h
     runtime/services/tilingservice/tilingservice.cpp
     runtime/services/tilingservice/relay.cpp
     runtime/services/tilingservice/mapmodel.cpp
     runtime/services/tilingservice/desktopreconcile.cpp
     runtime/services/tilingservice/tilingservice.h
-    dbus/snapadaptor.cpp
-    dbus/snapadaptor.h
     runtime/services/snapservice/snapservice.cpp
     runtime/services/snapservice/busgate.cpp
     runtime/services/snapservice/commit.cpp
@@ -426,6 +397,84 @@ install(TARGETS plasmazones_core
     # INSTALL_INTERFACE include dirs above are inert. Kept because dropping
     # the keyword changes install() semantics; wire up the config-file pair
     # if the app tier is ever meant to be consumable.
+    EXPORT PlasmaZonesTargets
+    LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${KDE_INSTALL_LIBDIR}
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# D-Bus adaptors (plasmazonesd's bus surface over the runtime's services)
+# ═══════════════════════════════════════════════════════════════════════════════
+# The QDBusAbstractAdaptor bindings in dbus/, apart from plasmazones_core so
+# that the core, which the engine runtime will be carved from, holds no bus
+# surface of its own. They depend on the runtime and never the reverse (the
+# runtime-firewall conventions rule refuses a dbus/ include under runtime/).
+# Only the daemon links this, and the unit tests that drive an adaptor.
+set(plasmazones_dbus_SRCS
+    dbus/dbushelpers.cpp
+    dbus/layoutadaptor.cpp
+    dbus/layoutadaptor.h
+    dbus/settingsadaptor.cpp
+    dbus/settingsadaptor.h
+    dbus/shaderadaptor.cpp
+    dbus/shaderadaptor.h
+    dbus/compositorbridgeadaptor.cpp
+    dbus/compositorbridgeadaptor.h
+    dbus/controladaptor.cpp
+    dbus/controladaptor.h
+    dbus/overlayadaptor.cpp
+    dbus/overlayadaptor.h
+    dbus/zonedetectionadaptor.cpp
+    dbus/zonedetectionadaptor.h
+    dbus/ruleadaptor.cpp
+    dbus/ruleadaptor.h
+    dbus/windowtrackingadaptor.cpp
+    dbus/windowtrackingadaptor.h
+    dbus/windowdragadaptor.cpp
+    dbus/windowdragadaptor.h
+    dbus/scrollingadaptor.cpp
+    dbus/scrollingadaptor.h
+    dbus/autotileadaptor.cpp
+    dbus/autotileadaptor.h
+    dbus/tilingadaptor.cpp
+    dbus/tilingadaptor.h
+    dbus/snapadaptor.cpp
+    dbus/snapadaptor.h
+    dbus/dbushelpers.h
+)
+
+add_library(plasmazones_dbus SHARED ${plasmazones_dbus_SRCS})
+
+generate_export_header(plasmazones_dbus
+    EXPORT_FILE_NAME plasmazones_dbus_export.h
+    EXPORT_MACRO_NAME PLASMAZONES_DBUS_EXPORT
+)
+
+target_link_libraries(plasmazones_dbus
+    PUBLIC
+        plasmazones_core
+        Qt6::DBus
+        PhosphorProtocol::PhosphorProtocol
+    PRIVATE
+        # ControlAdaptor::generateSupportReport builds its report off the GUI thread.
+        Qt6::Concurrent
+)
+
+target_include_directories(plasmazones_dbus
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+        $<INSTALL_INTERFACE:include/plasmazones>
+)
+
+# Versioned SONAME, as plasmazones_core and plasmazones_rendering.
+set_target_properties(plasmazones_dbus PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION 1
+)
+
+install(TARGETS plasmazones_dbus
+    # EXPORT PlasmaZonesTargets is inert, as on plasmazones_core above.
     EXPORT PlasmaZonesTargets
     LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${KDE_INSTALL_LIBDIR}
@@ -677,6 +726,7 @@ add_executable(plasmazonesd ${plasmazones_daemon_SRCS})
 target_link_libraries(plasmazonesd
     PRIVATE
         plasmazones_core
+        plasmazones_dbus  # the bus surface: every adaptor the daemon registers
         plasmazones_rendering
         plasmazones_shared_qml
         plasmazones_shared_qmlplugin  # Generated by qt_add_qml_module

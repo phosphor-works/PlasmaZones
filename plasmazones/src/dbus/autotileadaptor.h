@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <PhosphorProtocol/AutotileMarshalling.h>
 
@@ -27,7 +27,7 @@ class AutotileService;
  * AutotileService member of the same name. The binding forwards and relays
  * the service's signals.
  */
-class PLASMAZONES_EXPORT AutotileAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT AutotileAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.Autotile")

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "plasmazones_export.h"
+#include "plasmazones_dbus_export.h"
 
 #include <QDBusAbstractAdaptor>
 #include <QDBusVariant>
@@ -28,7 +28,7 @@ class LayoutService;
  *
  * layoutPropertyChanged carries its value as a QDBusVariant on the bus, wrapped here.
  */
-class PLASMAZONES_EXPORT LayoutAdaptor : public QDBusAbstractAdaptor
+class PLASMAZONES_DBUS_EXPORT LayoutAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.phosphor_works.Placement.LayoutRegistry")
