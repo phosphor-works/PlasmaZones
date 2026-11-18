@@ -3562,3 +3562,19 @@ phosphor_append_test_environment(test_windowdrag_drop_proxy
 # which the unnamed offscreen screen does not have. Same named config.
 phosphor_append_test_environment(test_layout_adaptor_signals
     "QT_QPA_PLATFORM=offscreen:configfile=${CMAKE_CURRENT_SOURCE_DIR}/helpers/two-screens.json")
+
+# Every test sets PlasmaZones' app directory name before main, as the
+# executables do at the top of theirs (core/platform/appdirectoryname.h): the
+# config and data paths have no default and abort when read unset. Linked into
+# every executable declared above, whatever else it links, so a test that
+# reaches plasmazones_core only through another library is covered too. It
+# stays at the end of the file so it sees every test target.
+add_library(pz_test_app_directory_name OBJECT helpers/appdirectoryname_init.cpp)
+target_link_libraries(pz_test_app_directory_name PUBLIC plasmazones_core)
+get_property(_pz_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_pz_test_target IN LISTS _pz_test_targets)
+    get_target_property(_pz_test_type ${_pz_test_target} TYPE)
+    if(_pz_test_type STREQUAL "EXECUTABLE")
+        target_link_libraries(${_pz_test_target} PRIVATE pz_test_app_directory_name)
+    endif()
+endforeach()

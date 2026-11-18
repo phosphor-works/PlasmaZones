@@ -485,7 +485,7 @@ SettingsController::SettingsController(QObject* parent)
     // Parenting to `this` would defer destruction to ~QObject, which runs
     // AFTER the registry's unique_ptr has already been reset — a UAF in
     // ~ScriptedAlgorithmLoader's unregisterAlgorithm loop.
-    m_scriptLoader = std::make_unique<PhosphorTiles::ScriptedAlgorithmLoader>(QString(ScriptedAlgorithmSubdir),
+    m_scriptLoader = std::make_unique<PhosphorTiles::ScriptedAlgorithmLoader>(scriptedAlgorithmSubdir(),
                                                                               m_localAlgorithmRegistry.get());
 
     // Algorithm-registry / scripted-loader surface. Owned via unique_ptr so

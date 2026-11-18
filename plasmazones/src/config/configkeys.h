@@ -6,6 +6,7 @@
 // The accessor macros. Defined in one place for the whole ConfigKeys chain,
 // undef'd again at the bottom of this file.
 #include "configkeymacro.h"
+#include "core/platform/appdirectoryname.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>
 // Not used by this header. The ConfigDefaults chain has always re-exported
@@ -1127,23 +1128,48 @@ public:
     //
     // The data families the daemon, settings app and editor locate, as
     // RELATIVE sub-paths: the form QStandardPaths::locate / locateAll and the
-    // registries' subdirectory arguments take. Hoisted into one accessor each
-    // so a rename only touches one site. The ConfigDefaults::user*Subdir()
+    // registries' subdirectory arguments take, each under the application's
+    // directory (appDirectoryName()). Hoisted into one accessor each so a
+    // rename only touches one site. The ConfigDefaults::user*Subdir()
     // accessors are the same paths with the leading '/' a writableLocation()
     // concatenation needs, derived from these. The algorithms directory is
-    // spelled by Constants::ScriptedAlgorithmSubdir (core/types/constants.h).
+    // spelled by scriptedAlgorithmSubdir() (core/types/constants.h).
     // The surface packs are shared with the other apps that draw them and live
     // where phosphor-surface-packs installs them; the build passes that subdir
     // in as PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR.
     // ═══════════════════════════════════════════════════════════════════════════
-    P_CONFIG_KEY(layoutsSubdir, "plasmazones/layouts")
-    P_CONFIG_KEY(animationsSubdir, "plasmazones/animations")
-    P_CONFIG_KEY(overlaysSubdir, "plasmazones/overlays")
-    P_CONFIG_KEY(profilesSubdir, "plasmazones/profiles")
-    P_CONFIG_KEY(pointerSubdir, "plasmazones/pointer")
-    P_CONFIG_KEY(curvesSubdir, "plasmazones/curves")
-    P_CONFIG_KEY(shaderPresetsSubdir, "plasmazones/shader-presets")
-    P_CONFIG_KEY(scrollingTemplatesSubdir, "plasmazones/scrolling-templates")
+    static QString layoutsSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/layouts");
+    }
+    static QString animationsSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/animations");
+    }
+    static QString overlaysSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/overlays");
+    }
+    static QString profilesSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/profiles");
+    }
+    static QString pointerSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/pointer");
+    }
+    static QString curvesSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/curves");
+    }
+    static QString shaderPresetsSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/shader-presets");
+    }
+    static QString scrollingTemplatesSubdir()
+    {
+        return appDirectoryName() + QStringLiteral("/scrolling-templates");
+    }
     P_CONFIG_KEY(surfacePacksSubdir, PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR)
 
 private:

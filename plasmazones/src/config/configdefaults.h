@@ -1180,7 +1180,7 @@ public:
     }
     static QString userMotionSetsSubdir()
     {
-        return QStringLiteral("/plasmazones/motionsets");
+        return QLatin1Char('/') + appDirectoryName() + QStringLiteral("/motionsets");
     }
     /// Snapping overlay shader packs (the `data/overlays/` family — wallpaper
     /// drift, neon-city, cosmic-flow, etc.). Mirrors the
@@ -1196,7 +1196,7 @@ public:
     /// decoration twin of `userMotionSetsSubdir()`.
     static QString userDecorationSetsSubdir()
     {
-        return QStringLiteral("/plasmazones/decorationsets");
+        return QLatin1Char('/') + appDirectoryName() + QStringLiteral("/decorationsets");
     }
 
     /// Overlay sets — named snapshots of the zone-overlay shader assignments
@@ -1204,7 +1204,7 @@ public:
     /// `userDecorationSetsSubdir()`.
     static QString userOverlaySetsSubdir()
     {
-        return QStringLiteral("/plasmazones/overlaysets");
+        return QLatin1Char('/') + appDirectoryName() + QStringLiteral("/overlaysets");
     }
 
     /// Surface shader packs, shared with the other apps that draw them:

@@ -12,6 +12,8 @@
 #include <QTest>
 
 #include "config/configdefaults.h"
+#include "core/platform/appdirectoryname.h"
+#include "core/types/constants.h"
 #include "core/interfaces/settings_interfaces.h" // ZoneSelectorConfig struct tripwire
 
 using namespace PlasmaZones;
@@ -270,6 +272,40 @@ private Q_SLOTS:
             const QString once = ConfigDefaults::normalizeGpuDevice(s);
             QCOMPARE(ConfigDefaults::normalizeGpuDevice(once), once);
         }
+    }
+
+    /// Every config file and data subdirectory sits under the app directory
+    /// name, none under a spelled-out "plasmazones": an engine host that sets
+    /// its own name gets its own tree.
+    void testPathsFollowTheAppDirectoryName()
+    {
+        QCOMPARE(appDirectoryName(), QString(AppDirectoryName));
+        setAppDirectoryName(QStringLiteral("enginehost"));
+        const QString config = QStringLiteral("/enginehost/");
+        const QStringList paths{
+            ConfigDefaults::configFilePath(),         ConfigDefaults::sessionFilePath(),
+            ConfigDefaults::rulesFilePath(),          ConfigDefaults::quickLayoutsFilePath(),
+            ConfigDefaults::layoutSettingsFilePath(), ConfigDefaults::profilesDir() + QLatin1Char('/'),
+            ConfigDefaults::layoutsDirPath()};
+        for (const QString& path : paths) {
+            QVERIFY2(path.contains(config), qPrintable(path));
+            QVERIFY2(!path.contains(QStringLiteral("plasmazones")), qPrintable(path));
+        }
+        QVERIFY(ConfigDefaults::legacyConfigFilePath().endsWith(QStringLiteral("/enginehostrc")));
+        const QStringList dataSubdirs{ConfigKeys::layoutsSubdir(),       ConfigKeys::animationsSubdir(),
+                                      ConfigKeys::overlaysSubdir(),      ConfigKeys::profilesSubdir(),
+                                      ConfigKeys::pointerSubdir(),       ConfigKeys::curvesSubdir(),
+                                      ConfigKeys::shaderPresetsSubdir(), ConfigKeys::scrollingTemplatesSubdir(),
+                                      scriptedAlgorithmSubdir()};
+        for (const QString& subdir : dataSubdirs) {
+            QVERIFY2(subdir.startsWith(QStringLiteral("enginehost/")), qPrintable(subdir));
+        }
+        const QStringList setSubdirs{ConfigDefaults::userMotionSetsSubdir(), ConfigDefaults::userDecorationSetsSubdir(),
+                                     ConfigDefaults::userOverlaySetsSubdir()};
+        for (const QString& subdir : setSubdirs) {
+            QVERIFY2(subdir.startsWith(QStringLiteral("/enginehost/")), qPrintable(subdir));
+        }
+        setAppDirectoryName(AppDirectoryName);
     }
 };
 

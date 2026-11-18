@@ -56,6 +56,8 @@ set(plasmazones_core_SRCS
     core/resolve/daemongeometryresolver.cpp
     core/platform/platform.cpp
     core/platform/platform.h
+    core/platform/appdirectoryname.cpp
+    core/platform/appdirectoryname.h
     core/utils/geometryutils.cpp
     core/utils/geometryutils.h
     core/types/spatialadjacency.h
