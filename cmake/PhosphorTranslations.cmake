@@ -63,12 +63,25 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
 # file's name its context, into its own catalog,
 # phosphor-engine-runtime_<lang>.ts, which goes with it into phosphor-libs.
 # lupdate reads qsTr() natively, so the overlay QML needs no stub step.
-list(FILTER PLASMAZONES_I18N_SOURCES EXCLUDE REGEX "/plasmazones/src/runtime/")
+# The engine runtime's sources: runtime/ and the library-bound part of core/
+# and config/. The app-side files in those two trees, which stay with
+# PlasmaZones when the runtime moves, translate in PlasmaZones' catalog.
+set(_runtime_i18n_app_side "/plasmazones/src/(core/(platform/(supportreport|singleinstanceservice)|utils/(translationloader|modifierutils|dbusvariantutils))|config/settingsvaluelabels)\\.(cpp|h)$")
 file(GLOB_RECURSE PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.cpp"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.h"
+    "${CMAKE_SOURCE_DIR}/plasmazones/src/core/*.cpp"
+    "${CMAKE_SOURCE_DIR}/plasmazones/src/core/*.h"
+    "${CMAKE_SOURCE_DIR}/plasmazones/src/config/*.cpp"
+    "${CMAKE_SOURCE_DIR}/plasmazones/src/config/*.h"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/ui/*.qml"
 )
+list(FILTER PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES EXCLUDE REGEX "${_runtime_i18n_app_side}")
+set(_plasmazones_runtime_owned ${PLASMAZONES_I18N_SOURCES})
+list(FILTER _plasmazones_runtime_owned INCLUDE REGEX "/plasmazones/src/(core|config)/")
+list(FILTER _plasmazones_runtime_owned EXCLUDE REGEX "${_runtime_i18n_app_side}")
+list(FILTER PLASMAZONES_I18N_SOURCES EXCLUDE REGEX "/plasmazones/src/runtime/")
+list(REMOVE_ITEM PLASMAZONES_I18N_SOURCES ${_plasmazones_runtime_owned})
 file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/src/*.qml"
     # phosphor-control extracts nothing HERE today — its chrome calls qsTr(),

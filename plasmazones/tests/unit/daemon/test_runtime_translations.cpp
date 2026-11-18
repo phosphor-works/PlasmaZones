@@ -30,6 +30,10 @@ private Q_SLOTS:
         // A shortcut name marked QT_TRANSLATE_NOOP("PhosphorEngineRuntime", ...)
         // in shortcutmanager_table.cpp and translated by RuntimeI18n::tr().
         QCOMPARE(RuntimeI18n::tr("Open Settings"), QStringLiteral("Einstellungen öffnen"));
+        // core/'s strings, in the runtime's context like its own: the layout
+        // list's section labels and its disambiguated "None" rows.
+        QCOMPARE(RuntimeI18n::tr("All Monitors"), QStringLiteral("Alle Bildschirme"));
+        QCOMPARE(RuntimeI18n::tr("None", "the explicit no-layout choice"), QStringLiteral("Keines"));
         // The overlay QML's qsTr(), under its file name.
         QCOMPARE(QCoreApplication::translate("ZoneSelectorContent", "No columns yet. Drop here to start the strip.",
                                              "@info strip selector empty state"),

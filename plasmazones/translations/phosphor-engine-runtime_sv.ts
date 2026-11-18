@@ -2091,6 +2091,64 @@
         <source>Swap Screens</source>
         <translation>Byt skärmar</translation>
     </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="55"/>
+        <source>All Monitors</source>
+        <translation>Alla skärmar</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="59"/>
+        <source>Standard (16:9)</source>
+        <translation>Standard (16:9)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="63"/>
+        <source>Ultrawide (21:9)</source>
+        <translation>Ultrabred (21:9)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="67"/>
+        <source>Super-Ultrawide (32:9)</source>
+        <translation>Superultrabred (32:9)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="71"/>
+        <source>Portrait (9:16)</source>
+        <translation>Stående (9:16)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="93"/>
+        <source>Scrolling Templates</source>
+        <translation>Rullningsmallar</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="112"/>
+        <source>None</source>
+        <comment>the explicit no-template choice</comment>
+        <translation>Ingen</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="114"/>
+        <source>Use no template on this screen, so columns keep the built-in widths and heights</source>
+        <translation>Använd ingen mall på den här skärmen, så att kolumner behåller de inbyggda bredderna och höjderna</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="136"/>
+        <source>None</source>
+        <comment>the explicit no-layout choice</comment>
+        <translation>Ingen</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="137"/>
+        <source>Use no layout on this screen, so windows float and nothing snaps or tiles them</source>
+        <translation>Använd ingen layout på den här skärmen, så att fönster flyter och inget fäster eller panelindelar dem</translation>
+    </message>
+    <message>
+        <location filename="../src/core/utils/unifiedlayoutlist.cpp" line="141"/>
+        <source>None</source>
+        <comment>@title:group section holding the no-layout row</comment>
+        <translation>Ingen</translation>
+    </message>
 </context>
 <context>
     <name>RenderNodeOverlayContent</name>

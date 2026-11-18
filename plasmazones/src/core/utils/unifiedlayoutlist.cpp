@@ -5,7 +5,7 @@
 
 #include "core/types/constants.h"
 #include "core/interfaces/interfaces.h"
-#include "phosphor_i18n.h"
+#include "runtime/common/runtimei18n.h"
 #include "utils.h"
 
 #include <PhosphorLayoutApi/AspectRatioClass.h>
@@ -52,23 +52,23 @@ void setAspectRatioSection(LayoutPreview& preview)
     preview.sectionKey = ScreenClassification::toString(cls);
     switch (cls) {
     case AspectRatioClass::Any:
-        preview.sectionLabel = PhosphorI18n::tr("All Monitors");
+        preview.sectionLabel = RuntimeI18n::tr("All Monitors");
         preview.sectionOrder = 0;
         break;
     case AspectRatioClass::Standard:
-        preview.sectionLabel = PhosphorI18n::tr("Standard (16:9)");
+        preview.sectionLabel = RuntimeI18n::tr("Standard (16:9)");
         preview.sectionOrder = 1;
         break;
     case AspectRatioClass::Ultrawide:
-        preview.sectionLabel = PhosphorI18n::tr("Ultrawide (21:9)");
+        preview.sectionLabel = RuntimeI18n::tr("Ultrawide (21:9)");
         preview.sectionOrder = 2;
         break;
     case AspectRatioClass::SuperUltrawide:
-        preview.sectionLabel = PhosphorI18n::tr("Super-Ultrawide (32:9)");
+        preview.sectionLabel = RuntimeI18n::tr("Super-Ultrawide (32:9)");
         preview.sectionOrder = 3;
         break;
     case AspectRatioClass::Portrait:
-        preview.sectionLabel = PhosphorI18n::tr("Portrait (9:16)");
+        preview.sectionLabel = RuntimeI18n::tr("Portrait (9:16)");
         preview.sectionOrder = 4;
         break;
     }
@@ -90,7 +90,7 @@ LayoutPreview previewFromLayoutWithSection(PhosphorZones::Layout* layout)
 void stampScrollingTemplateSection(LayoutPreview& preview)
 {
     preview.sectionKey = QStringLiteral("scrolling-templates");
-    preview.sectionLabel = PhosphorI18n::tr("Scrolling Templates");
+    preview.sectionLabel = RuntimeI18n::tr("Scrolling Templates");
     preview.sectionOrder = 10;
 }
 
@@ -109,9 +109,9 @@ LayoutPreview noScrollingTemplatePreview()
 {
     LayoutPreview preview;
     preview.id = QString(PhosphorZones::NoScrollingTemplate);
-    preview.displayName = PhosphorI18n::tr("None", "the explicit no-template choice");
+    preview.displayName = RuntimeI18n::tr("None", "the explicit no-template choice");
     preview.description =
-        PhosphorI18n::tr("Use no template on this screen, so columns keep the built-in widths and heights");
+        RuntimeI18n::tr("Use no template on this screen, so columns keep the built-in widths and heights");
     preview.isScrollingTemplate = true;
     stampScrollingTemplateSection(preview);
     return preview;
@@ -133,12 +133,12 @@ LayoutPreview noLayoutPreview()
 {
     LayoutPreview preview;
     preview.id = QString(PhosphorZones::NoSnappingLayout);
-    preview.displayName = PhosphorI18n::tr("None", "the explicit no-layout choice");
-    preview.description = PhosphorI18n::tr(
+    preview.displayName = RuntimeI18n::tr("None", "the explicit no-layout choice");
+    preview.description = RuntimeI18n::tr(
         "Use no layout on this screen, so windows float and nothing "
         "snaps or tiles them");
     preview.sectionKey = QStringLiteral("no-layout");
-    preview.sectionLabel = PhosphorI18n::tr("None", "@title:group section holding the no-layout row");
+    preview.sectionLabel = RuntimeI18n::tr("None", "@title:group section holding the no-layout row");
     preview.sectionOrder = 99;
     return preview;
 }
