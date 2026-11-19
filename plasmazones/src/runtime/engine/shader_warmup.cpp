@@ -7,8 +7,8 @@
 #include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/overlay/overlayservice.h"
-#include "runtime/rendering/zoneentryscaffold.h"
-#include "runtime/rendering/zoneshadernoderhi.h"
+#include <PhosphorZoneRendering/ZoneEntryScaffold.h>
+#include <PhosphorZoneRendering/ZoneShaderNodeRhi.h>
 
 #include <PhosphorAnimation/AnimationShaderEffect.h>
 #include <PhosphorAnimation/AnimationShaderRegistry.h>
@@ -354,7 +354,7 @@ void EngineRuntime::setupShaderWarmBakes()
         // because ShaderRegistry::searchPaths() is reverse(locateAll)),
         // which is why this now goes through one helper instead of
         // re-deriving the walk.
-        const QString zoneVertPath = resolveZoneVertexPath(info.sourcePath);
+        const QString zoneVertPath = PhosphorZoneRendering::resolveZoneVertexPath(info.sourcePath);
         if (zoneVertPath.isEmpty() || !QFile::exists(zoneVertPath)) {
             return;
         }
@@ -391,8 +391,8 @@ void EngineRuntime::setupShaderWarmBakes()
         // so a zone pack's warm entry keys identically to its live load (both
         // are folded into the bake-cache key). Computed on the GUI thread
         // (reads `info`) and captured by value into the bake-thread lambda.
-        const QString entryPrologue = zoneEntryPrologue();
-        const QList<PhosphorShaders::EntryCandidate> entryCandidates = zoneEntryCandidates();
+        const QString entryPrologue = PhosphorZoneRendering::zoneEntryPrologue();
+        const QList<PhosphorShaders::EntryCandidate> entryCandidates = PhosphorZoneRendering::zoneEntryCandidates();
         // Zone shaders bake through the UNQUALIFIED (PlasmaZones) wrapper on
         // purpose: it prepends the plasmazones/overlays trusted roots so
         // `#include <common.glsl>` resolves the same way ZoneShaderItem's
@@ -406,9 +406,9 @@ void EngineRuntime::setupShaderWarmBakes()
         watcher->setFuture(QtConcurrent::run(&m_shaderBakePool,
                                              [vertPath = zoneVertPath, fragPath = info.sourcePath, includePaths,
                                               paramPreamble, entryPrologue, entryCandidates]() {
-                                                 return warmShaderBakeCacheForPaths(vertPath, fragPath, includePaths,
-                                                                                    paramPreamble, entryPrologue,
-                                                                                    entryCandidates);
+                                                 return PhosphorZoneRendering::warmShaderBakeCacheForPaths(
+                                                     vertPath, fragPath, includePaths, paramPreamble, entryPrologue,
+                                                     entryCandidates);
                                              }));
     };
     m_zoneWarmBakeConnection =

@@ -16,7 +16,7 @@
 #include <PhosphorZones/Zone.h>
 #include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngineRuntime/ShaderRegistry.h>
-#include "runtime/rendering/zonelabeltexturebuilder.h"
+#include <PhosphorZoneRendering/ZoneLabelTextureBuilder.h>
 #include "phosphor_roles.h"
 
 #include <PhosphorLayer/ILayerShellTransport.h>

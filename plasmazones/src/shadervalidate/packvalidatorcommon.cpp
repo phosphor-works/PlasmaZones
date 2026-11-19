@@ -6,7 +6,7 @@
 #include "packvalidatorcommon.h"
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/rendering/zoneentryscaffold.h"
+#include <PhosphorZoneRendering/ZoneEntryScaffold.h>
 
 #include <PhosphorFsLoader/PackPathGuard.h>
 
@@ -984,7 +984,7 @@ int compileStage(QTextStream& out, const QString& label, const QString& path, QS
     // effect.frag goes through the entry scaffold (which may wrap a pZone/pImage
     // body in a generated main()); buffer passes and the vertex shader carry their
     // own main() and are not scaffolded — matching ZoneShaderItem's live load.
-    const QString assembled = useScaffold ? PlasmaZones::assembleZoneEntrySource(raw) : raw;
+    const QString assembled = useScaffold ? PhosphorZoneRendering::assembleZoneEntrySource(raw) : raw;
 
     QString err;
     QString expanded =

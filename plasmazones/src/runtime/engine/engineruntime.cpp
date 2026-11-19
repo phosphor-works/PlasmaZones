@@ -30,8 +30,8 @@
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/workspacecontroller.h"
-#include "runtime/rendering/zoneentryscaffold.h"
-#include "runtime/rendering/zoneshadernoderhi.h"
+#include <PhosphorZoneRendering/ZoneEntryScaffold.h>
+#include <PhosphorZoneRendering/ZoneShaderNodeRhi.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorZones/LayoutRegistry.h>

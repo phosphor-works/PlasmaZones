@@ -40,8 +40,8 @@ cmake --build build --target plasmazones-shader-render
 ```
 
 It links `Qt6::Quick` plus `PhosphorRendering`, `PhosphorShaders`,
-`PhosphorWayland`, `PhosphorAudio`, `PhosphorPointer`, and the daemon's
-`plasmazones_rendering` target.
+`PhosphorWayland`, `PhosphorAudio`, `PhosphorPointer`, and phosphor-libs'
+`PhosphorZoneRendering` (the zone entry scaffold the daemon assembles packs with).
 For headless CI it works under software Vulkan
 (`VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json)`),
 or fall back to OpenGL with `QSG_RHI_BACKEND=opengl`.

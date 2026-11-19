@@ -4,7 +4,7 @@
 #include "renderer.h"
 #include "common/engineruntimenamespace.h"
 
-#include "zoneentryscaffold.h"
+#include <PhosphorZoneRendering/ZoneEntryScaffold.h>
 
 #include <PhosphorRendering/ShaderEffect.h>
 #include <PhosphorRendering/ShaderNodeRhi.h>
@@ -660,7 +660,7 @@ int Renderer::render(const RenderOptions& opts)
     // metadata defaults were seeded into. Without both, every migrated pack
     // (the whole bundled catalog) fails to compile — no #version, no p_
     // defines — and previews come out as empty frames.
-    effect->setEntryScaffold(PlasmaZones::zoneEntryPrologue(), PlasmaZones::zoneEntryCandidates());
+    effect->setEntryScaffold(PhosphorZoneRendering::zoneEntryPrologue(), PhosphorZoneRendering::zoneEntryCandidates());
     // Overlay preamble only. A pointer pack's slots are allocated by
     // PointerShaderRegistry and installPointerPack pushes that preamble below;
     // running the overlay parse for it would either warn about a pack it was

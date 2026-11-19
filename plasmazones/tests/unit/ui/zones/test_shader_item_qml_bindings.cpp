@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "runtime/rendering/zoneshaderitem.h"
+#include <PhosphorZoneRendering/ZoneShaderItem.h>
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorSurfaceQuick/SurfaceShaderItem.h>
@@ -27,7 +27,7 @@
 #include <memory>
 
 using PhosphorSurfaceQuick::SurfaceShaderItem;
-using PlasmaZones::ZoneShaderItem;
+using PhosphorZoneRendering::ZoneShaderItem;
 
 namespace {
 
@@ -174,7 +174,8 @@ QStringList bindingElementSpans(const QString& src)
 QStringList guardedProperties()
 {
     QSet<QString> names;
-    for (const QMetaObject* mo : {&SurfaceShaderItem::staticMetaObject, &ZoneShaderItem::staticMetaObject}) {
+    for (const QMetaObject* mo :
+         {&SurfaceShaderItem::staticMetaObject, &PhosphorZoneRendering::ZoneShaderItem::staticMetaObject}) {
         for (int i = 0; i < mo->propertyCount(); ++i) {
             const QMetaProperty prop = mo->property(i);
             if (prop.metaType().id() != QMetaType::QVariant)
@@ -246,7 +247,7 @@ private Q_SLOTS:
         // Type registration is process-global and permanent, so doing it inside
         // a slot makes every later slot's type availability depend on execution
         // order. Once, up front, instead.
-        qmlRegisterType<ZoneShaderItem>("PlasmaZonesTest", 1, 0, "ZoneShaderItem");
+        qmlRegisterType<PhosphorZoneRendering::ZoneShaderItem>("PlasmaZonesTest", 1, 0, "ZoneShaderItem");
     }
 
     /// No shipping QML may drive a guarded property through a Binding ELEMENT,
@@ -391,7 +392,7 @@ Item {
         QImage glyphs(16, 16, QImage::Format_ARGB32_Premultiplied);
         glyphs.fill(Qt::white);
 
-        ZoneShaderItem item;
+        PhosphorZoneRendering::ZoneShaderItem item;
         item.setProperty("labelsTexture", QVariant::fromValue(glyphs));
         QVERIFY(!item.labelsTexture().isEmpty());
 
@@ -441,8 +442,8 @@ import PlasmaZonesTest 1.0
 Item {
     property alias fromPayload: a
     property alias fromImage: b
-    ZoneShaderItem { id: a; labelsTexture: testPayload }
-    ZoneShaderItem { id: b; labelsTexture: testImage }
+    PhosphorZoneRendering::ZoneShaderItem { id: a; labelsTexture: testPayload }
+    PhosphorZoneRendering::ZoneShaderItem { id: b; labelsTexture: testImage }
 }
 )QML",
                           QUrl(QStringLiteral("qrc:/test_labels_binding.qml")));
@@ -451,7 +452,7 @@ Item {
         QVERIFY(root);
 
         for (const char* which : {"fromPayload", "fromImage"}) {
-            auto* item = root->property(which).value<ZoneShaderItem*>();
+            auto* item = root->property(which).value<PhosphorZoneRendering::ZoneShaderItem*>();
             QVERIFY2(item, which);
             QVERIFY2(!item->labelsTexture().isEmpty(), which);
             QCOMPARE(item->labelsTexture().size, glyphs.size());
@@ -465,7 +466,7 @@ Item {
         QImage glyphs(4, 4, QImage::Format_ARGB32_Premultiplied);
         glyphs.fill(Qt::white);
 
-        ZoneShaderItem item;
+        PhosphorZoneRendering::ZoneShaderItem item;
         item.setProperty("labelsTexture", QVariant::fromValue(glyphs));
         QVERIFY(!item.labelsTexture().isEmpty());
 

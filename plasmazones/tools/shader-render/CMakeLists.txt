@@ -69,15 +69,7 @@ target_link_libraries(plasmazones-shader-render PRIVATE
     # The daemon's zone entry scaffold (zoneEntryPrologue / zoneEntryCandidates)
     # lives here. The tool installs the same scaffold so its shader assembly
     # matches the runtime byte-for-byte (see renderer.cpp).
-    plasmazones_rendering
-)
-
-# Needed for the daemon's zoneentryscaffold.h, so a pack defining
-# pZone/pImage is assembled here exactly as the daemon assembles it.
-# ZoneUniformExtension no longer needs this path; it comes from the
-# linked PhosphorRendering target.
-target_include_directories(plasmazones-shader-render PRIVATE
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/rendering
+    PhosphorZoneRendering::PhosphorZoneRendering
 )
 
 # The data tree of the checkout this binary was built from. The tool probes the
