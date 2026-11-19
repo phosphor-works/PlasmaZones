@@ -532,18 +532,18 @@ mkdir -p "$HOME_N/config" "$HOME_N/data" "$HOME_N/cache" "$HOME_N/state"
 # system dir below: the session would run the stale copies as user files.
 # Named rather than deleted, because under keep-state the user dir is the state
 # under test and some of it may be the probe's own.
-if [ "$KEEP_STATE" = "1" ] && [ -d "$HOME_N/data/plasmazones" ]; then
+if [ "$KEEP_STATE" = "1" ] && [ -d "$HOME_N/data/phosphor-works" ]; then
     shadowing=0
-    for sub in layouts scrolling-templates curves overlays animations pointer algorithms; do
-        [ -d "$HOME_N/data/plasmazones/$sub" ] || continue
-        for entry in "$HOME_N/data/plasmazones/$sub"/*; do
-            if [ -e "$entry" ] && [ -e "$REPO/plasmazones/data/$sub/${entry##*/}" ]; then
+    for sub in layouts scrolling-templates curves algorithms shaders/overlays shaders/animations shaders/pointer; do
+        [ -d "$HOME_N/data/phosphor-works/$sub" ] || continue
+        for entry in "$HOME_N/data/phosphor-works/$sub"/*; do
+            if [ -e "$entry" ] && [ -e "$REPO/plasmazones/data/${sub#shaders/}/${entry##*/}" ]; then
                 shadowing=$((shadowing + 1))
             fi
         done
     done
     if [ "$shadowing" -gt 0 ]; then
-        echo "warning: the kept home holds $shadowing user-dir copies named like bundled assets under $HOME_N/data/plasmazones;" >&2
+        echo "warning: the kept home holds $shadowing user-dir copies named like bundled assets under $HOME_N/data/phosphor-works;" >&2
         echo "they override the checkout's data as user files. Delete them unless the probe wrote them itself." >&2
     fi
 fi
@@ -559,9 +559,13 @@ fi
 # home. Rebuilt every launch, so it always follows the checkout.
 REPO_DATA="$NEST/repo-data"
 rm -rf "$REPO_DATA"
-mkdir -p "$REPO_DATA/plasmazones" "$REPO_DATA/phosphor-works"
-for sub in layouts scrolling-templates curves overlays animations pointer algorithms; do
-    ln -s "$REPO/plasmazones/data/$sub" "$REPO_DATA/plasmazones/$sub"
+mkdir -p "$REPO_DATA/phosphor-works/shaders"
+# The trees every Phosphor app shares, and the shader families under shaders/.
+for sub in layouts scrolling-templates curves algorithms; do
+    ln -s "$REPO/plasmazones/data/$sub" "$REPO_DATA/phosphor-works/$sub"
+done
+for sub in overlays animations pointer; do
+    ln -s "$REPO/plasmazones/data/$sub" "$REPO_DATA/phosphor-works/shaders/$sub"
 done
 ln -s "$REPO/plasmazones/data/placement-hosts" "$REPO_DATA/phosphor-works/placement-hosts"
 # The surface packs are not in this checkout: they come from the pinned
