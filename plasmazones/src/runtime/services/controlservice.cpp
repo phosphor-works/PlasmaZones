@@ -3,7 +3,7 @@
 
 #include "controlservice.h"
 #include "runtime/services/snapservice/snapservice.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>

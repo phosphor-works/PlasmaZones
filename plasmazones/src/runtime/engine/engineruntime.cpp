@@ -70,8 +70,8 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
-#include "runtime/windowtracker/windowtracker.h"
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
+#include <PhosphorEngineRuntime/DragResolver.h>
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/services/snapservice/snapservice.h"
 #include <PhosphorRules/ActionParams.h> // MaxGap, static_asserted below

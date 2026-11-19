@@ -3,7 +3,7 @@
 
 #include "tilingservice.h"
 
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorEngineRuntime/Logging.h>
 

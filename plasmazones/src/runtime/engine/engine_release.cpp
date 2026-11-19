@@ -11,8 +11,8 @@
 
 #include "runtime/engine/engineruntime.h"
 
-#include "runtime/windowtracker/internal.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/WindowRegistry.h>

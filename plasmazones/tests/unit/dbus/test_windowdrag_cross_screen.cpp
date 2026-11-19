@@ -51,8 +51,8 @@
 #include <PhosphorZones/Zone.h>
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include "helpers/AutotileTestHelpers.h"
 #include "helpers/IsolatedConfigGuard.h"

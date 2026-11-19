@@ -43,7 +43,7 @@
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorProtocol/WindowTypeEnum.h>
 #include <PhosphorZones/Zone.h>
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <QScopeGuard>
 #include <QTemporaryDir>

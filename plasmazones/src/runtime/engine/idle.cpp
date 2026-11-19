@@ -18,7 +18,7 @@
 // that includes settings.h — which is not a guarantee, it is a coincidence of chunking.
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
 #include "runtime/services/settingsservice/settingsservice.h"
 
 #include <PhosphorServiceIdle/IdleService.h>

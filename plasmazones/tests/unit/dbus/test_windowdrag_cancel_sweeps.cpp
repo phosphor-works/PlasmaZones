@@ -54,8 +54,8 @@
 #include <PhosphorEngineRuntime/ConfigKeys.h>
 #include "runtime/services/snapservice/snapservice.h"
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include "helpers/AutotileTestHelpers.h"
 #include "helpers/IsolatedConfigGuard.h"

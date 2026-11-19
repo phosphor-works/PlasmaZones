@@ -32,7 +32,7 @@
 #include <PhosphorTiles/TilingState.h>
 
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/windowtracker/internal.h"
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 #include "helpers/AutotileTestHelpers.h"
 
 #include <optional>

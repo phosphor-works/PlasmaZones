@@ -25,8 +25,8 @@
 #include "runtime/controllers/workspacecontroller.h"
 #include "runtime/engine/helpers.h"
 #include "runtime/overlay/overlayservice.h"
-#include "runtime/windowtracker/lifecyclerelay.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowLifecycleRelay.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorEngineRuntime/RuntimeI18n.h>
 #include "runtime/host/iworkspacehost.h"

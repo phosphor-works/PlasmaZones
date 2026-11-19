@@ -19,8 +19,8 @@
 #include <PhosphorScreens/Swapper.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include "runtime/services/snapservice/snapservice.h"
-#include "runtime/windowtracker/internal.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorTiles/AlgorithmRegistry.h>

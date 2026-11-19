@@ -13,7 +13,7 @@
 
 #include "wta_convenience_fixture.h"
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/windowtracker/lifecyclerelay.h"
+#include <PhosphorEngineRuntime/WindowLifecycleRelay.h>
 
 #include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/EngineTypes.h>

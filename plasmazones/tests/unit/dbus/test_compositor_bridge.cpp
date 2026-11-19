@@ -24,7 +24,7 @@
 
 #include <PhosphorProtocol/ServiceConstants.h>
 #include "runtime/services/controlservice.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorSnapEngine/SnapState.h>

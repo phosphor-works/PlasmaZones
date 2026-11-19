@@ -7,8 +7,8 @@
 // refuses it unless a keyboard snap could make the same move (F20).
 
 #include "snapservice.h"
-#include "runtime/windowtracker/windowtracker.h"
-#include "runtime/windowtracker/internal.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 #include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorEngineRuntime/Logging.h>
 

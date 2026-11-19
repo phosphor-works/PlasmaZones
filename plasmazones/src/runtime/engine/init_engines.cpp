@@ -24,8 +24,8 @@
 #include <PhosphorEngineRuntime/GeometryUtils.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
-#include "runtime/windowtracker/windowtracker.h"
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
+#include <PhosphorEngineRuntime/DragResolver.h>
 #include "runtime/services/autotileservice/autotileservice.h"
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/services/scrollingservice/scrollingservice.h"

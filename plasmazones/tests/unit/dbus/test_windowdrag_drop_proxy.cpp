@@ -47,10 +47,10 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/Enums.h>
-#include "runtime/dragresolver/dropproxy.h"
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/DropProxy.h>
+#include <PhosphorEngineRuntime/DragResolver.h>
 #include "dbus/windowdragadaptor.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include "helpers/BusPeer.h"
 #include "helpers/IsolatedConfigGuard.h"

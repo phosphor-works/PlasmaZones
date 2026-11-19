@@ -33,14 +33,14 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorSnapEngine/SnapState.h>
-#include "runtime/windowtracker/internal.h"
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 #include <PhosphorScreens/Manager.h>
 #include "FakePhysicalScreenSource.h"
 #include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include "runtime/services/snapservice/snapservice.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/WindowPlacement.h>

@@ -18,7 +18,7 @@
 #include "wta_float_back_fixture.h"
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/windowtracker/internal.h"
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 #include "dbus/windowtrackingadaptor.h"
 #include "helpers/ScreenDisablingResolver.h"
 #include "helpers/VirtualScreenTestHelpers.h"

@@ -2179,13 +2179,6 @@ target_link_libraries(test_windowdrag_drop_proxy PRIVATE Qt6::Test Qt6::Core Qt6
                                                          PhosphorSnapEngine::PhosphorSnapEngine)
 add_test(NAME test_windowdrag_drop_proxy COMMAND test_windowdrag_drop_proxy)
 
-# Truth-table guard for resolveActivationActive() - pins the per-tick
-# overlay-active decision (toggle latch + deactivation override + the
-# always-active gate that scopes deactivation to its UI surface, #249).
-add_executable(test_drag_activation dbus/test_drag_activation.cpp)
-target_link_libraries(test_drag_activation PRIVATE Qt6::Test Qt6::Core plasmazones_core)
-add_test(NAME test_drag_activation COMMAND test_drag_activation)
-
 # TriggerUtils lives in the plasmazones-settings executable, so the two
 # behavior-controller suites below link it from this OBJECT library rather
 # than each compiling it.

@@ -44,7 +44,7 @@
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include "FakePhysicalScreenSource.h"
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include "helpers/AutotileTestHelpers.h"
 
 #include "helpers/IsolatedConfigGuard.h"

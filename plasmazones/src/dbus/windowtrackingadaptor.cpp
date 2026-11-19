@@ -6,7 +6,7 @@
 
 #include "dbushelpers.h"
 #include "core/utils/dbusvariantutils.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
 

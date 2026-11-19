@@ -30,8 +30,8 @@
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "runtime/services/overlaycontrolservice.h"
 #include "runtime/services/zonequeryservice.h"
-#include "runtime/windowtracker/windowtracker.h"
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
+#include <PhosphorEngineRuntime/DragResolver.h>
 #include "runtime/services/tilingservice/tilingservice.h"
 // Needed as COMPLETE types, not just forward declarations: the re-entry
 // preamble below deletes them, and deleting through an incomplete type calls

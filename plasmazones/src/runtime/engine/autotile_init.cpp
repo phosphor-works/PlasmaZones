@@ -16,7 +16,7 @@
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/services/snapservice/snapservice.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorEngine/PlacementEngineBase.h>

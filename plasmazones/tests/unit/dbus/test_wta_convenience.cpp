@@ -11,7 +11,7 @@
  */
 
 #include "wta_convenience_fixture.h"
-#include "runtime/windowtracker/lifecyclerelay.h"
+#include <PhosphorEngineRuntime/WindowLifecycleRelay.h>
 
 #include <PhosphorEngine/GeometryUtils.h>
 #include <PhosphorProtocol/AutotileTypes.h>

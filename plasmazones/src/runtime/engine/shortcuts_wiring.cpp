@@ -17,8 +17,8 @@
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorZones/LayoutRegistry.h>
