@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "SplitZoneCommand.h"
+#include "common/plasmazoneslogging.h"
 #include "common/engineruntimenamespace.h"
 #include "../../services/ZoneManager.h"
 #include <PhosphorEngineRuntime/Constants.h>
