@@ -10,11 +10,12 @@
 #   restarted (step 2), then restarted again (step 4). Step 5: quick slots 1 = COLS3, 2 = the copy;
 #   p1 is snapped into COLS3 zone 1 (left column), quick_layout_2 switches to the copy, quick_layout_1
 #   back. Step 6: COLS3's zones under another fresh layout id are imported with importLayout.
-# Asserts: step 2 logs one "Layout file .../p13-copy.json reused 3 zone id(s) of another layout - gave
-#   them new ids", the copy's zone ids share none with COLS3's, and the copy's id-named file on disk
+# Asserts: step 2 logs one "Layout file .../p13-copy.json reused or lacked 3 zone id(s) - gave them ids
+#   of its own", the copy's zone ids share none with COLS3's, and the copy's id-named file on disk
 #   holds the new ids; step 4 logs no "reused" line and the ids stay; step 5 p1 goes left, right (the
-#   copy's zone number 1), left (COLS3 zone 1); step 6 logs "importLayout: 3 zone id(s) of another
-#   layout given new ids" and the import's ids share none with COLS3's.
+#   copy's zone number 1), left (COLS3 zone 1); step 6 logs "importLayout: 3 zone id(s) that another
+#   layout held or that were missing given ids of their own" and the import's ids share none with
+#   COLS3's.
 # A FAIL means: the copy kept COLS3's zone ids, so the shared ids made the layout round trip move p1.
 set -u
 NEST="$1"
@@ -72,7 +73,7 @@ json.dump(dict(d, id=impid, name="P13 Import"), open(imp, "w"), indent=2)
 drestart
 sleep 4
 check "step 2: one 'reused' line for p13-copy.json" \
-    "$(grep -cE "Layout file \".*p13-copy\.json\" reused 3 zone id\(s\) of another layout - gave them new ids" "$NEST/daemon.log")" = 1
+    "$(grep -cE "Layout file \".*p13-copy\.json\" reused or lacked 3 zone id\(s\) - gave them ids of its own" "$NEST/daemon.log")" = 1
 C3=$(lzones "$COLS3")
 CP=$(lzones "$COPYID")
 echo "  COLS3 zones: $C3"
@@ -86,7 +87,7 @@ echo "== step 4: restarted again"
 dkill
 drestart
 sleep 4
-check "step 4: no 'reused' line" "$(grep -cE "reused .* zone id\(s\) of another layout" "$NEST/daemon.log")" = 0
+check "step 4: no 'reused' line" "$(grep -cE "reused or lacked [0-9]+ zone id\(s\)" "$NEST/daemon.log")" = 0
 check "step 4: the copy keeps its ids" "$(lzones "$COPYID")" = "$CP"
 echo "== step 5: a layout round trip through the copy"
 setting snapAssistEnabled false
@@ -125,7 +126,7 @@ dmark
 NEWID=$(PZ org.phosphor_works.Placement.LayoutRegistry.importLayout "$IMPORT")
 echo "  importLayout -> $NEWID"
 check "step 6: the import re-issues COLS3's zone ids" \
-    "$(dlog "importLayout: 3 zone id\\(s\\) of another layout given new ids" | wc -l)" -ge 1
+    "$(dlog "importLayout: 3 zone id\\(s\\) that another layout held or that were missing given ids of their own" | wc -l)" -ge 1
 IM=$(lzones "$NEWID")
 echo "  imported zones: $IM"
 [ "$(echo "$IM" | wc -w)" = 3 ] || stage_fail "the import did not load with three zones"
