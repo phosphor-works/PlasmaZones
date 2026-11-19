@@ -25,8 +25,12 @@ setting snapAssistEnabled false
 assign Virtual-0 "$COLS3"
 assign Virtual-1 "autotile:bsp"
 sleep 2
-for c in t1 t2 p1; do
+# p1 first: KWin opens a window on the active output, and once t2 has been
+# sent to Virtual-1 that is the autotile screen, where p1 would be tiled
+# before it reached Virtual-0 and its tile size recorded as its pre-snap size.
+for c in p1 t1 t2; do
     open "$c" 300 300
+    [ "$c" = p1 ] && OPENED=$(size "$(geo p1)")
     case "$c" in t*) out=Virtual-1 ;; *) out=Virtual-0 ;; esac
     sendto "$c" "$out" || stage_fail "$c not on $out ($(geo "$c"))"
 done
@@ -38,6 +42,7 @@ P1=$(uuid p1)
 [ -n "$T1" ] && [ -n "$T2" ] && [ -n "$P1" ] || stage_fail "a window never mapped"
 PRESNAP=$(size "$(geo p1)")
 echo "p1 pre-snap size: $PRESNAP"
+[ "$PRESNAP" = "$OPENED" ] || stage_fail "p1 was resized before the snap ($OPENED -> $PRESNAP), so its pre-snap size is not its own"
 PZ org.phosphor_works.Placement.Snap.moveWindowToZone "org.pz.plain|$P1" "$ZONE1" >/dev/null
 sleep 2
 [ "$(zoneof "org.pz.plain|$P1")" = "$ZONE1" ] || stage_fail "p1 not in zone 1"
