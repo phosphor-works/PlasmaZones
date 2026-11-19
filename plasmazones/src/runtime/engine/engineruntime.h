@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "runtime/controllers/shortcutmanager.h"
+#include "runtime/overlay/surfacepresentationhost.h"
 #include <PhosphorLayoutApi/LayoutSourceBundle.h>
 #include <PhosphorEngineRuntime/Types.h>
 #include <PhosphorLayer/ILayerShellTransport.h>
@@ -64,6 +65,11 @@ public:
         /// How overlay surfaces reach the screen: wlr-layer-shell for
         /// plasmazonesd. Required.
         std::unique_ptr<PhosphorLayer::ILayerShellTransport> layerShell;
+        /// The rest of how the overlays are presented: the render backend and
+        /// the GPU thumbnail import (plasmazonesd: its Vulkan instance and the
+        /// KWin effect's dma-bufs). Null means Qt's default backend and
+        /// raw-pixel thumbnails only.
+        std::unique_ptr<ISurfacePresentationHost> presentation;
         /// Where the desktop's panels are, so available geometry leaves them
         /// clear. Null means the host has no panels.
         std::unique_ptr<PhosphorScreens::IPanelSource> panels;

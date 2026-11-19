@@ -13,9 +13,9 @@
 
 #include <vector>
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
-// DrmFormatModInvalid is shared via dmabufthumbnail.h (PlasmaZones namespace).
+// DrmFormatModInvalid comes from the runtime's <PhosphorEngineRuntime/DmabufThumbnail.h>.
 
 GlDmabufImport importDmabufToGlTexture(const DmabufThumbnailDesc& desc)
 {
@@ -104,4 +104,4 @@ GlDmabufImport importDmabufToGlTexture(const DmabufThumbnailDesc& desc)
     return result;
 }
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones
