@@ -414,6 +414,8 @@ set(plasmazones_daemon_SRCS
     daemon/rendering/dmabufglimport.h
     daemon/host/shellcheatsheetbridge.cpp
     daemon/host/shellcheatsheetbridge.h
+    daemon/host/waylandidlesource.cpp
+    daemon/host/waylandidlesource.h
     # Dynamic per-monitor workspaces: KWin's side
     daemon/host/kwinworkspacehost.cpp
     daemon/host/kwinworkspacehost.h

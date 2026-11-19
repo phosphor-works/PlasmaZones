@@ -21,7 +21,7 @@
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include <PhosphorEngineRuntime/SettingsService.h>
 
-#include <PhosphorServiceIdle/IdleService.h>
+#include <PhosphorEngineRuntime/IIdleSource.h>
 
 #include <QString>
 #include <QStringList>
@@ -50,11 +50,12 @@ void EngineRuntime::setupIdleService()
     // dual ownership (it survives only because member destruction runs before
     // ~QObject de-parents the children), and every other unique_ptr-held QObject
     // in this file is constructed with a null parent for the same reason.
-    m_idleService = std::make_unique<PhosphorServiceIdle::IdleService>(nullptr);
-    if (!m_idleService->isSupported()) {
-        // No ext-idle-notify-v1 on this compositor. The decoration chain simply
-        // keeps animating; PauseWhenIdle degrades to a no-op rather than guessing
-        // at idleness from some other signal.
+    m_idleService = m_idleSourceFactory ? m_idleSourceFactory() : nullptr;
+    if (!m_idleService) {
+        // The host's compositor cannot tell (no ext-idle-notify-v1 for
+        // plasmazonesd). The decoration chain simply keeps animating;
+        // PauseWhenIdle degrades to a no-op rather than guessing at idleness
+        // from some other signal.
         qCInfo(lcDaemon) << "Idle notification unsupported by this compositor — "
                             "decoration PauseWhenIdle will not engage";
         m_idleUnsupported = true;
@@ -65,10 +66,10 @@ void EngineRuntime::setupIdleService()
     // Both edges publish the SAME derived answer, and neither of them decides anything
     // on its own. sessionIdleNow() is the single place that knows what "the session is
     // idle, as far as this feature is concerned" means; every caller asks it.
-    connect(m_idleService.get(), &PhosphorServiceIdle::IdleService::idled, this, [this](int /*stage*/) {
+    connect(m_idleService.get(), &IIdleSource::idled, this, [this]() {
         publishSessionIdle(sessionIdleNow());
     });
-    connect(m_idleService.get(), &PhosphorServiceIdle::IdleService::resumed, this, [this]() {
+    connect(m_idleService.get(), &IIdleSource::resumed, this, [this]() {
         publishSessionIdle(sessionIdleNow());
     });
 
@@ -191,7 +192,7 @@ void EngineRuntime::refreshIdleStages()
     // notification — regardless of the PauseWhenIdle toggle. See setupIdleService for
     // why the toggle must NOT tear this down.
     //
-    // Setting the ladder it already has is a no-op inside IdleService (it does not
+    // Setting the timeout it already has is a no-op in the idle source (it does not
     // re-arm and does not resume), which is what makes this safe to call freely.
     const int timeoutMs = m_settings->decorationIdleTimeoutSec() * 1000;
     // A non-positive timeout can only arrive from a config hand-edited below the schema
@@ -201,20 +202,16 @@ void EngineRuntime::refreshIdleStages()
     // misconfiguration. Treat it as disabled: clear the ladder and keep the retry budget
     // intact so a later valid timeout arms cleanly.
     if (timeoutMs <= 0) {
-        m_idleService->setStages({});
+        m_idleService->setIdleTimeout(0);
         m_idleArmRetriesLeft = kIdleArmRetries;
         return;
     }
-    const QVariantList ladder{QVariantMap{
-        {PhosphorServiceIdle::StageKey::Name, QStringLiteral("decorations")},
-        {PhosphorServiceIdle::StageKey::TimeoutMs, timeoutMs},
-    }};
-    m_idleService->setStages(ladder);
+    m_idleService->setIdleTimeout(timeoutMs);
 
     // Did it actually arm? Supporting the protocol and managing to USE it are two different
     // facts, and only the second one matters: arming needs a seat whose input devices the
     // compositor has advertised, and the daemon can win that race at login. Arming then does
-    // nothing, isSupported() still says true, and idle detection is dead for the session
+    // nothing, the source still exists, and idle detection is dead for the session
     // with a single warning to show for it. Nothing would ever rebuild it, because the only
     // rebuild trigger is a timeout change and setting the ladder it already has is a no-op.
     //
@@ -233,7 +230,7 @@ void EngineRuntime::refreshIdleStages()
     }
     --m_idleArmRetriesLeft;
     qCInfo(lcDaemon) << "Idle ladder did not arm (no seat yet?) — retrying in" << kIdleArmRetryDelayMs << "ms";
-    m_idleService->setStages({});
+    m_idleService->setIdleTimeout(0);
     m_idleStagesRefreshTimer.start(kIdleArmRetryDelayMs);
 }
 

@@ -18,6 +18,7 @@
 #include "daemon/host/plasmasystemosd.h"
 #include "daemon/host/plasmazonesapps.h"
 #include "daemon/host/shellcheatsheetbridge.h"
+#include "daemon/host/waylandidlesource.h"
 #include <PhosphorEngineRuntime/OverlayService.h>
 
 #include "dbus/autotileadaptor.h"
@@ -71,6 +72,9 @@ EngineRuntime::Platform kwinSessionPlatform()
     platform.activities = PhosphorWorkspaces::Plasma::createActivityBackend();
     // KGlobalAccel on Plasma, the portal or the session-bus fallback
     // elsewhere: PhosphorShortcuts reads the session.
+    // ext-idle-notify-v1 through PhosphorServiceIdle, or none where the
+    // compositor does not offer it.
+    platform.idleSource = &WaylandIdleSource::create;
     platform.shortcutBackends = [] {
         return PhosphorShortcuts::createBackend(PhosphorShortcuts::BackendHint::Auto, nullptr);
     };
