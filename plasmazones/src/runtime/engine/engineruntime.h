@@ -26,6 +26,7 @@
 
 #include <PhosphorEngineRuntime/ShortcutManager.h>
 #include <PhosphorEngineRuntime/ISurfacePresentationHost.h>
+#include <PhosphorEngineRuntime/IIdleSource.h>
 #include <PhosphorLayoutApi/LayoutSourceBundle.h>
 #include <PhosphorEngineRuntime/Types.h>
 #include <PhosphorLayer/ILayerShellTransport.h>
@@ -83,6 +84,11 @@ public:
         /// (ShortcutManager::setBackendFactory). Null lets PhosphorShortcuts
         /// pick one for the session it runs in.
         ShortcutManager::BackendFactory shortcutBackends;
+        /// Builds the session's idle notification (ext-idle-notify-v1 for
+        /// plasmazonesd), on the first start and again after a stop. Null, or
+        /// a factory that returns null, means the compositor cannot tell, and
+        /// the decoration pause never engages.
+        std::function<std::unique_ptr<IIdleSource>()> idleSource;
     };
 
     explicit EngineRuntime(Platform platform, QObject* parent = nullptr);
@@ -1462,7 +1468,9 @@ private:
     /// that lets the GPU leave its top performance state. An animated pack
     /// repaints every window carrying it on every vsync, and it is the EXISTENCE
     /// of per-frame work, not its size, that holds the clocks up.
-    std::unique_ptr<PhosphorServiceIdle::IdleService> m_idleService;
+    std::unique_ptr<IIdleSource> m_idleService;
+    /// The host's Platform::idleSource, kept for every rebuild after a stop.
+    std::function<std::unique_ptr<IIdleSource>()> m_idleSourceFactory;
 
     /// Coalesces idle-ladder rebuilds. Rearming destroys and recreates the
     /// compositor's ext-idle-notify-v1 object, and while idle it announces a

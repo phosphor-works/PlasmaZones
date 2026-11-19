@@ -33,7 +33,7 @@
 #include <PhosphorEngineRuntime/ControlService.h>
 #include <PhosphorEngineRuntime/RuleService.h>
 
-#include <PhosphorServiceIdle/IdleService.h>
+#include <PhosphorEngineRuntime/IIdleSource.h>
 #include <PhosphorShaders/ShaderPresetStore.h>
 #include <PhosphorAnimation/CurveLoader.h>
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>

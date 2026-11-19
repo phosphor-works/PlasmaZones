@@ -8,8 +8,6 @@
 #include <QStandardPaths>
 #include <QFile>
 
-#include <PhosphorServiceIdle/IdleService.h>
-
 #include <PhosphorAnimation/CurveLoader.h>
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
@@ -200,6 +198,7 @@ EngineRuntime::EngineRuntime(Platform platform, QObject* parent)
     if (platform.shortcutBackends) {
         m_shortcutManager->setBackendFactory(std::move(platform.shortcutBackends));
     }
+    m_idleSourceFactory = std::move(platform.idleSource);
     // Install the layout screen-id resolver before any Daemon-owned machinery
     // starts loading layouts. First-call ensures the once-only install runs
     // exactly once across all Daemon constructions in the process; subsequent

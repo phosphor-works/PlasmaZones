@@ -39,10 +39,6 @@ class ActivityManager;
 class VirtualDesktopManager;
 }
 
-namespace PhosphorServiceIdle {
-class IdleService;
-}
-
 // PhosphorRules::RuleSet is held as a value member below
 // (m_excludeRuleSet) — needs a complete type, so include the header
 // rather than forward-declare. RuleStore stays in the header by
