@@ -3,7 +3,7 @@
 
 #include "scrollingservice.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "core/platform/logging.h"
 
 #include <algorithm>

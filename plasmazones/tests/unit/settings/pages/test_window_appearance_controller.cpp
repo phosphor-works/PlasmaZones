@@ -22,7 +22,7 @@
 #include <QTest>
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "settings/pages/windowappearancecontroller.h"
 #include "helpers/StubSettings.h"
 

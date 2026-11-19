@@ -17,7 +17,7 @@
 
 #include "settingscontroller.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 namespace PlasmaZones {
 

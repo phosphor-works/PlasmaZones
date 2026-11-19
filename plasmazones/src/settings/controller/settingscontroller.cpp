@@ -8,7 +8,7 @@
 // siblings, the rule-label resolvers included (settingscontroller_rulelookups.cpp).
 
 #include "settingscontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
 #include "settings/stores/shaderpresetbridge.h"
@@ -27,15 +27,15 @@
 #include "settings/pages/tilingbehaviorcontroller.h"
 #include "settings/pages/windowappearancecontroller.h"
 #include "settings/utils/virtualscreenutils.h"
-#include "config/configbackends.h"
-#include "config/configdefaults.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "config/settingsvaluelabels.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "common/layoutpreviewserialize.h"
 #include "common/screenidresolver.h"
 #include "common/layoutbundlebuilder.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/utils/geometryutils.h"
 #include <PhosphorZones/LayoutComputeService.h>
 #include <PhosphorZones/ScrollingTemplate.h>

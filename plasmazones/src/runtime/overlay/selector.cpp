@@ -18,7 +18,7 @@
 #include "core/utils/utils.h"
 #include <PhosphorScreens/VirtualScreen.h>
 #include "core/types/zoneselectorlayout.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <QCursor>
 #include <QHash>
 #include <QScreen>

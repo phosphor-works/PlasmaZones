@@ -50,7 +50,7 @@
 #include <PhosphorRules/MatchExpression.h>
 #include <PhosphorRules/MatchTypes.h>
 #include <PhosphorZones/AssignmentEntry.h>
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <QUuid>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"

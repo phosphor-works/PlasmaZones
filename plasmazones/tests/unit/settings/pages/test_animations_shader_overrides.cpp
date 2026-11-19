@@ -43,7 +43,7 @@
 // way to set it up is through the tree.
 #include <PhosphorAnimation/ShaderProfileTree.h>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "settings/pages/animationspagecontroller.h"
 #include "helpers/AnimationsControllerFixture.h"
 

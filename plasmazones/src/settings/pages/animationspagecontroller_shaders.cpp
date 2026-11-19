@@ -17,12 +17,12 @@
 // translation unit, no API change.
 
 #include "animationspagecontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "core/types/animationshadersupportedpaths.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/AnimationShaderSupportedPaths.h>
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 #include "phosphor_i18n.h"

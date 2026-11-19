@@ -22,10 +22,10 @@
 #include <QVariantMap>
 #include <memory>
 
-#include "config/settings.h"
-#include "config/configdefaults.h"
-#include "core/types/constants.h"
-#include "core/interfaces/settings_interfaces.h"
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include <PhosphorEngine/PerScreenKeys.h>
 #include <PhosphorIdentity/VirtualScreenId.h>

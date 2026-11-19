@@ -4,8 +4,8 @@
 #include "triggerutils.h"
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "core/utils/modifierutils.h"
 
 namespace PlasmaZones::TriggerUtils {

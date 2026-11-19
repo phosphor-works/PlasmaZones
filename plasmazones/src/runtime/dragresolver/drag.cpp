@@ -6,8 +6,8 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <cmath>
-#include "config/configdefaults.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "runtime/windowtracker/windowtracker.h"
 #include "core/interfaces/interfaces.h"
 #include <PhosphorContext/ContextResolver.h>
@@ -22,7 +22,7 @@
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 #include <PhosphorScreens/VirtualScreen.h>
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 

@@ -26,7 +26,6 @@ add_subdirectory(shared)
 set(plasmazones_core_SRCS
     phosphor_qml_i18n.h
     phosphor_qml_i18n.cpp
-    core/types/constants.h
     core/types/screenscale.h
     core/platform/logging.h
     core/platform/logging.cpp
@@ -35,7 +34,6 @@ set(plasmazones_core_SRCS
     core/resolve/animationbootstrap.h
     core/resolve/animationbootstrap.cpp
     # wallpaperprovider moved to PhosphorShaders
-    core/types/enums.h
     core/interfaces/interfaces.h
     core/interfaces/interfaces.cpp
     # ilayoutmanager / izonedetector shims removed. Consumers include
@@ -43,11 +41,6 @@ set(plasmazones_core_SRCS
     # <PhosphorZones/IZoneDetector.h> directly. (There is no
     # PhosphorZones/ILayoutManager.h; that name survives only in prose.)
     core/interfaces/ioverlayservice.h
-    core/interfaces/isettings.h
-    core/interfaces/settings_interfaces.h
-    core/types/animationshadersupportedpaths.h
-    core/types/overlayshadertree.h
-    core/types/overlayshadertree.cpp
     core/types/stripselectorhittest.h
     core/types/types.h
     core/types/zoneselectorlayout.h
@@ -57,8 +50,6 @@ set(plasmazones_core_SRCS
     core/resolve/daemongeometryresolver.cpp
     core/platform/platform.cpp
     core/platform/platform.h
-    core/platform/appdirectoryname.cpp
-    core/platform/appdirectoryname.h
     core/utils/geometryutils.cpp
     core/utils/geometryutils.h
     core/types/spatialadjacency.h
@@ -105,58 +96,8 @@ set(plasmazones_core_SRCS
     # shaderregistry.cpp + shaderincluderesolver moved to PhosphorShaders
     core/utils/modifierutils.cpp
     core/utils/modifierutils.h
-    config/settings.cpp
-    config/settings/loadsave.cpp
-    config/settings/setters.cpp
-    config/settings/perscreen.cpp
-    config/settings/perscreen_selector.cpp
-    config/settings/animationprofile.cpp
-    config/settings/profiletrees.cpp
-    config/settings/disable.cpp
-    config/settings/uienums.cpp
-    config/settings/triggers.cpp
-    config/settings/systemcolors.cpp
-    config/settings/storescalars.cpp
-    config/settings/shortcuts.cpp
-    config/settings/scrolling.cpp
-    config/settings/workspaces.cpp
-    config/settings.h
-    config/configdefaults.cpp
-    config/configbackends.h
-    config/configbackends.cpp
-    config/settingsconfigstore.cpp
-    config/settingsconfigstore.h
-    config/perscreenresolver.h
-    config/perscreenresolver.cpp
-    config/settingsschema.h
-    config/settingsschema.cpp
-    config/settingsschema_p.h
-    config/settingsschema_overlayshaders.cpp
-    config/settingsschema_shaderbounds.h
-    config/settingsschema_shaderbounds.cpp
-    config/settingsschema_shadertrees.cpp
-    config/settingsschema_scrolling.cpp
-    config/settingsschema_tiling.cpp
-    config/settingsschema_workspaces.cpp
-    config/settingsschemachoices.h
     config/settingsvaluelabels.cpp
     config/settingsvaluelabels.h
-    config/configmigration.h
-    config/configmigration_util.h
-    config/configmigration_v4detail.h
-    config/configlogging.cpp
-    config/configlogging.h
-    config/configmigration.cpp
-    config/configmigration_v2.cpp
-    config/configmigration_v3.cpp
-    config/configmigration_v4.cpp
-    config/configmigration_v4rules.cpp
-    config/configmigration_v4finalize.cpp
-    config/configmigration_v5.cpp
-    config/configmigration_v6.cpp
-    config/configmigration_v7.cpp
-    config/configmigration_v8.cpp
-    config/configmigration_v8overlay.cpp
     runtime/common/lookups.cpp
     runtime/common/lookups.h
     runtime/common/runtimei18n.cpp
@@ -265,7 +206,6 @@ generate_export_header(plasmazones_core
 #     forward-declaration conflicts with the d-bus-adaptor-generated extern
 #     declarations across these TUs
 set_source_files_properties(
-    config/configdefaults.cpp
     runtime/dragresolver/drag.cpp
     runtime/dragresolver/drag_protocol.cpp
     runtime/dragresolver/drop.cpp
@@ -300,6 +240,10 @@ target_link_libraries(plasmazones_core
         PhosphorProtocol::PhosphorProtocol
         PhosphorScreens::PhosphorScreens
         PhosphorShaders::PhosphorShaders
+        # The engine runtime's settings model (Settings, ISettings, ConfigDefaults,
+        # the schema and migrations), from phosphor-libs. PUBLIC: every consumer of
+        # plasmazones_core reads settings through it.
+        PhosphorEngineRuntime::PhosphorEngineRuntime
         PhosphorWayland::PhosphorWayland
         PhosphorTiles::PhosphorTiles
         PhosphorZones::PhosphorZones
@@ -308,21 +252,21 @@ target_link_libraries(plasmazones_core
         # configdefaults.h includes the header).
         PhosphorCompositor::PhosphorCompositor
         # PhosphorSurface: DecorationProfileTree / DecorationProfile — the
-        # per-surface decoration tree type. PUBLIC because configdefaults.h,
-        # config/settings.h and core/isettings.h expose the type by value in
+        # per-surface decoration tree type. PUBLIC because the engine runtime's
+        # ConfigDefaults.h, Settings.h and ISettings.h expose the type by value in
         # their public API (the decorationProfileTree accessors + the
         # ConfigDefaults baseline), so consumers linking plasmazones_core need
         # the include path + link edge.
         PhosphorSurface::PhosphorSurface
         # PhosphorRegistry: PathKeyedOverrides — the shared baseline + keyed
-        # overrides container. PUBLIC because core/types/overlayshadertree.h
+        # overrides container. PUBLIC because PhosphorEngineRuntime/OverlayShaderTree.h
         # includes the header and holds one BY VALUE as a member, so anything that
         # #includes that header needs the include path and the link edge.
         PhosphorRegistry::PhosphorRegistry
         # PhosphorRules: the unified LGPL rule engine. PUBLIC since
-        # Phase 3 — config/settings.h owns a RuleStore for the per-mode
-        # disable lists, the RuleService serves the store, and
-        # config/configmigration.cpp builds rules during the v3→v4 conversion,
+        # Phase 3 — the engine runtime's Settings owns a RuleStore for the
+        # per-mode disable lists, the RuleService serves the store, and its
+        # migrations build rules during the v3→v4 conversion,
         # so consumers of plasmazones_core need the include path + link edge.
         PhosphorRules::PhosphorRules
         # Frozen-snapshot per-screen mode + disable/lock resolver. PUBLIC

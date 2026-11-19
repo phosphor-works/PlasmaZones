@@ -3,7 +3,7 @@
 
 #include "unifiedlayoutcontroller.h"
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 

@@ -9,7 +9,7 @@
 
 #include "workspacecontroller.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "runtime/controllers/shortcutmanager.h"
 
 #include <PhosphorEngine/WindowRegistry.h>

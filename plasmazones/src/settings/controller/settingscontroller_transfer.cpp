@@ -12,9 +12,9 @@
 #include "common/engineruntimenamespace.h"
 #include "settingscontroller.h"
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
-#include "config/configmigration_util.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/ConfigMigrationUtil.h>
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 #include "phosphor_i18n.h"

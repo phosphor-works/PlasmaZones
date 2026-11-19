@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "screenprovider.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 #include "dbusutils.h"
 #include "core/platform/logging.h"
@@ -11,8 +11,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QScreen>
-#include "core/types/constants.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/ISettings.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/ScreenIdentity.h>

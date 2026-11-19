@@ -16,8 +16,8 @@
 #include "common/engineruntimenamespace.h"
 #include <QTest>
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "settings/pages/editorpagecontroller.h"
 

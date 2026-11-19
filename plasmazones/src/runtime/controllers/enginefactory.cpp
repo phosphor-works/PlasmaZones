@@ -12,7 +12,7 @@
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include "core/resolve/crosssurfaceresolver.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/resolve/screenmoderouter.h"
 
 namespace PhosphorEngineRuntime {

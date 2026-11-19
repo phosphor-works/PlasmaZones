@@ -8,7 +8,7 @@
 #include "../services/ZoneManager.h"
 #include "../undo/UndoController.h"
 #include "../../common/daemonscreenscale.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorProtocol/ClientHelpers.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/Layout.h>

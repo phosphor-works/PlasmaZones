@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "stagingservice.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
 #include "settings/controller/settingscontroller_pagekeys.h"
 #include "settings/utils/dbusutils.h"
 #include "settings/utils/virtualscreenutils.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/platform/logging.h"
 
 #include <PhosphorLayoutApi/LayoutId.h>

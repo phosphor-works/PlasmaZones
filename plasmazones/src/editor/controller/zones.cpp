@@ -13,7 +13,7 @@
 #include "../undo/commands/UpdateZoneNumberCommand.h"
 #include "../undo/commands/UpdateZoneAppearanceCommand.h"
 #include "../undo/commands/BatchUpdateAppearanceCommand.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 
 #include "phosphor_i18n.h"

@@ -11,10 +11,10 @@
 #include <QJsonArray>
 #include <QScopeGuard>
 
-#include "config/configbackends.h"
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
-#include "config/perscreenresolver.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/PerScreenResolver.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

@@ -27,11 +27,11 @@
 // check and the section catalog.
 
 #include "animationspagecontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include "animations_controller_detail.h"
 

@@ -21,9 +21,9 @@
 #include <PhosphorWorkspaces/ActivityManager.h>
 #include <PhosphorRules/RuleStore.h>
 
-#include "config/settingsconfigstore.h"
-#include "config/settings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include "core/interfaces/shaderregistry.h"
 #include "runtime/services/layoutservice/layoutservice.h"

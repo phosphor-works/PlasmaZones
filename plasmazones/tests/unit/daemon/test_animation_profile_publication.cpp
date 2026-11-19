@@ -50,7 +50,7 @@
 #include "core/resolve/animationbootstrap.h"
 #include <PhosphorAnimation/ProfilePaths.h>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

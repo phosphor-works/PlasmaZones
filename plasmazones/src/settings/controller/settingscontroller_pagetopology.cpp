@@ -24,7 +24,7 @@
 #include "common/engineruntimenamespace.h"
 #include "settingscontroller_pagekeys.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "core/platform/logging.h"
 
 #include <PhosphorControl/PageRegistry.h>

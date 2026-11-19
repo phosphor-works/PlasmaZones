@@ -4,7 +4,7 @@
 #include "ZoneManager.h"
 #include "common/engineruntimenamespace.h"
 #include "ZoneAutoFiller.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/Zone.h>
 
 #include <QUuid>

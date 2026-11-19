@@ -14,7 +14,7 @@
 #include <cmath>
 #include <optional>
 #include "runtime/common/runtimei18n.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorShortcuts/IAdhocRegistrar.h>
 #include "runtime/windowtracker/windowtracker.h"
 #include <PhosphorSnapEngine/SnapEngine.h>
@@ -28,8 +28,8 @@
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 #include <PhosphorScreens/VirtualScreen.h>
-#include "core/types/constants.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorContext/ContextHandle.h>
 #include <PhosphorContext/IContextResolver.h>
 #include <PhosphorEngine/EngineTypes.h>

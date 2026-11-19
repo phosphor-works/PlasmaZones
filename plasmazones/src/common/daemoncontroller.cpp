@@ -7,7 +7,7 @@
 #include <QDBusConnectionInterface>
 #include <QProcess>
 #include <QTimer>
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include <PhosphorProtocol/ServiceConstants.h>
 

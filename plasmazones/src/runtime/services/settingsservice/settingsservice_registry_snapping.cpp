@@ -30,7 +30,7 @@
 
 #include "settingsservice.h"
 #include "core/interfaces/interfaces.h"
-#include "config/settings.h" // For concrete Settings type
+#include <PhosphorEngineRuntime/Settings.h> // For concrete Settings type
 
 namespace PhosphorEngineRuntime {
 

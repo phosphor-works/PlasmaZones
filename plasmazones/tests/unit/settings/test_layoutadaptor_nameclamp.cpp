@@ -13,7 +13,7 @@
 // them and leave a lone high surrogate that serializes as U+FFFD, which is a
 // name the user never typed reaching disk.
 
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "common/engineruntimenamespace.h"
 
 #include "runtime/services/layoutservice/layoutservice.h"

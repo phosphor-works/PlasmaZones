@@ -14,5 +14,5 @@
 
 #include <PhosphorZones/LayoutRegistry.h>
 #include "ioverlayservice.h"
-#include "isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include <PhosphorZones/IZoneDetector.h>

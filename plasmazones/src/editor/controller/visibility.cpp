@@ -5,7 +5,7 @@
 #include "common/engineruntimenamespace.h"
 #include "../undo/UndoController.h"
 #include "../undo/commands/UpdateVisibilityCommand.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
 

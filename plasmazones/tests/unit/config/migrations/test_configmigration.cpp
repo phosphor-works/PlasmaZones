@@ -13,10 +13,10 @@
 #include <QTextStream>
 
 #include "common/hostsettings.h"
-#include "config/configmigration.h"
-#include "config/configdefaults.h"
-#include "config/configbackends.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include <PhosphorZones/LayoutSettingsStore.h>

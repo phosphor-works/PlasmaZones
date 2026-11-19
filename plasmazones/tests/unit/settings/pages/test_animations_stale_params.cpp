@@ -39,7 +39,7 @@
 #include <PhosphorAnimation/AnimationShaderRegistry.h>
 #include <PhosphorAnimation/ProfilePaths.h>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/AnimationsControllerFixture.h"
 #include "settings/pages/animationspagecontroller.h"
 

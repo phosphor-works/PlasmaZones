@@ -64,7 +64,7 @@
 #include <PhosphorSurface/DecorationProfile.h>
 #include <PhosphorSurface/DecorationProfileTree.h>
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "settings/pages/decorationpagecontroller.h"
 #include "helpers/TreeStubSettings.h"
 

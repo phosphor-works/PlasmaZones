@@ -34,7 +34,7 @@
 
 #include <PhosphorAnimation/AnimationShaderRegistry.h>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "settings/pages/animationspagecontroller.h"
 #include "helpers/IsolatedConfigGuard.h"
 

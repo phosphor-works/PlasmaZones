@@ -41,7 +41,7 @@
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include <PhosphorZones/Zone.h>
 #include "helpers/StubSettings.h"
 #include "helpers/IsolatedConfigGuard.h"

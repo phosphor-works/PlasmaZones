@@ -37,9 +37,9 @@
 #include "common/engineruntimenamespace.h"
 #include "runtime/controllers/shortcutmanager_ids.h"
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include <PhosphorShortcuts/IBackend.h>

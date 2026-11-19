@@ -3,7 +3,7 @@
 
 #include "persistenceworker.h"
 
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include "core/platform/logging.h"
 
 #include <QThread>

@@ -3,10 +3,10 @@
 
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/platform/logging.h"
 #include "core/resolve/screenmoderouter.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/services/layoutservice/layoutservice.h"

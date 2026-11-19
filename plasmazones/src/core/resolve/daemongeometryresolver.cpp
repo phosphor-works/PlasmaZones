@@ -3,7 +3,7 @@
 
 #include "daemongeometryresolver.h"
 #include "core/utils/geometryutils.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include <PhosphorEngine/IGeometrySettings.h>
 #include <PhosphorLayoutApi/EdgeGaps.h>
 #include <PhosphorZones/AssignmentEntry.h>

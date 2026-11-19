@@ -9,7 +9,7 @@
 #include <PhosphorWorkspaces/ActivityManager.h>
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include <PhosphorTiles/AlgorithmRegistry.h>

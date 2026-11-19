@@ -7,11 +7,11 @@
 // the security-sensitive install path is the shared ShaderPackInstaller.
 
 #include "decorationpagecontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
 #include "settings/services/shaderpackinstaller.h"

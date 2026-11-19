@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "decorationpagecontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
 #include "decoration_controller_detail.h"
 #include "decorationpreviewcontroller.h"
 #include "pointerpreviewcontroller.h"
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 
 #include <PhosphorPointer/PointerShaderRegistry.h>

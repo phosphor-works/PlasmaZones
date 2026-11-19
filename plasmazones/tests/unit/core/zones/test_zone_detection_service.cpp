@@ -23,7 +23,7 @@
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorSnapEngine/SnapState.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include "core/interfaces/interfaces.h"
 #include "core/utils/utils.h"
 #include "helpers/StubSettings.h"

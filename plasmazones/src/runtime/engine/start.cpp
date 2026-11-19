@@ -7,7 +7,7 @@
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/workspacecontroller.h"
-#include "config/settingsconfigstore.h"
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/LayoutComputeService.h>
 #include <PhosphorZones/ScrollingTemplateStore.h> // count() (inline) for the cycle shortcut's empty-store gate
@@ -31,12 +31,12 @@
 #include <PhosphorTiles/TilingAlgorithm.h>
 #include <PhosphorTiles/ScriptedAlgorithmLoader.h>
 #include "core/interfaces/shaderregistry.h"
-#include "config/settingsconfigstore.h"
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorZones/ZoneDetector.h>
 #include <QProcess>
 #include <QPointer>
 #include <QSet>
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include <QGuiApplication>
 #include <QScreen>
 #include <PhosphorScreens/ScreenIdentity.h>

@@ -34,8 +34,8 @@
 
 #include <memory>
 
-#include "config/configkeys.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigKeys.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 
 using namespace PlasmaZones;
 

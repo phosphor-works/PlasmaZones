@@ -20,9 +20,9 @@
 #include <QTest>
 #include <QUuid>
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include "MigrationV3V4Fixture.h"

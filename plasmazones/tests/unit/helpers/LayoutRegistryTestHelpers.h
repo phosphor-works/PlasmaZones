@@ -8,7 +8,7 @@
 #include <PhosphorRules/RuleStore.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 namespace PlasmaZones {
 namespace TestHelpers {

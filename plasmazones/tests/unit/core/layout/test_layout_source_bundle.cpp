@@ -40,7 +40,7 @@
 
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 
 #include "helpers/LayoutRegistryTestHelpers.h"
 

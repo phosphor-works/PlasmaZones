@@ -4,9 +4,9 @@
 #include "profilepagecontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include "phosphor_i18n.h"
 #include "settings/stores/profilestore.h"
 #include "settings/rules/rulecontroller.h"

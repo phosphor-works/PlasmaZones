@@ -35,7 +35,7 @@
 #include <PhosphorRules/RuleSet.h>
 #include <PhosphorRules/RuleStore.h>
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/windowtracker/windowtracker.h"
 #include "helpers/IsolatedConfigGuard.h"

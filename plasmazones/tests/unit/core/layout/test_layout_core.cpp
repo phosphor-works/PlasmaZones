@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorLayoutApi/AspectRatioClass.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutComputeService.h>

@@ -39,10 +39,10 @@
 #include <PhosphorRules/ActionParams.h>
 
 #include "common/hostsettings.h"
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

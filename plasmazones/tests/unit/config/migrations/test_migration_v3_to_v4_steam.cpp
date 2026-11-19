@@ -33,8 +33,8 @@
 #include <PhosphorRules/RuleSet.h>
 #include <PhosphorRules/WindowQuery.h>
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include "MigrationV3V4Fixture.h"

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "animationspagecontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
 #include "settings/utils/animationfileutils.h"
@@ -13,7 +13,7 @@
 #include "animationpreviewcontroller.h"
 #include "animations_controller_detail.h"
 // shaderSupportedEventPaths — the set the motion-set sweep resolves over.
-#include "core/types/animationshadersupportedpaths.h"
+#include <PhosphorEngineRuntime/AnimationShaderSupportedPaths.h>
 #include "settings/services/motionsetdomain.h"
 #include "settings/stores/shadersetstore.h"
 

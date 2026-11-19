@@ -16,8 +16,8 @@
 // forward-declares it, and this file connects to its signals and calls its accessors. It
 // compiles without this only because the unity build happens to group this TU with one
 // that includes settings.h — which is not a guarantee, it is a coincidence of chunking.
-#include "config/settings.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "runtime/dragresolver/dragresolver.h"
 #include "runtime/services/settingsservice/settingsservice.h"
 

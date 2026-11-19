@@ -11,7 +11,7 @@
 
 #include <utility>
 
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 using PhosphorRendering::ZoneLabelTexture;
 using PhosphorRendering::ZoneLabelTile;

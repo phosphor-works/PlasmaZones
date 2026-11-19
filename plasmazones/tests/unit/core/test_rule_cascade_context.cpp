@@ -43,7 +43,7 @@
 #include <PhosphorZones/Zone.h>
 
 #include "RuleCascadeFixture.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 class TestRuleCascadeContext : public QObject, public RuleCascadeFixture
 {

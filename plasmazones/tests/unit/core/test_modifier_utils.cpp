@@ -11,7 +11,7 @@
 // of the enum it mirrors, so nothing but these assertions ties the two
 // together.
 
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/Enums.h>
 #include "common/engineruntimenamespace.h"
 #include "core/utils/modifierutils.h"
 

@@ -8,7 +8,7 @@
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutFactory.h>
 #include <PhosphorZones/Zone.h>
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/LayoutUtils.h>
 #include "common/layoutpreviewserialize.h"
 #include "core/utils/unifiedlayoutlist.h"

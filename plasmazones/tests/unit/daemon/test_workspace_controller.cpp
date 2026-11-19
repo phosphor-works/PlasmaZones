@@ -20,7 +20,7 @@
 #include <PhosphorWorkspaces/WorkspaceReconciler.h>
 
 #include "FakePhysicalScreenSource.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include <QFile>
 #include <QSignalSpy>

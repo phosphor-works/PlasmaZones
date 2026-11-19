@@ -39,7 +39,7 @@
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "core/types/overlayshadertree.h"
+#include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/SetRowHelpers.h"

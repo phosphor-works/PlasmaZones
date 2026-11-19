@@ -12,9 +12,9 @@
 #include "../undo/commands/ToggleGeometryModeCommand.h"
 #include "../undo/commands/UpdateFixedGeometryCommand.h"
 #include "../helpers/SettingsDbusQueries.h"
-#include "../../config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "../../common/daemonscreenscale.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include <PhosphorProtocol/ServiceConstants.h>
 #include "core/utils/utils.h"

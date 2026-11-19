@@ -20,7 +20,7 @@
 #include <QScreen>
 #include <QQuickWindow>
 #include <QSize>
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ZoneDefaults.h> // zone-overlay border ceilings exposed to QML
 #include "core/platform/logging.h"

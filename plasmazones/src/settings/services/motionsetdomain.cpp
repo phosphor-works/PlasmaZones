@@ -10,12 +10,12 @@
 // set FILES themselves.
 
 #include "motionsetdomain.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
 
-#include "core/types/animationshadersupportedpaths.h"
+#include <PhosphorEngineRuntime/AnimationShaderSupportedPaths.h>
 
 #include <PhosphorAnimation/Profile.h>
 #include <PhosphorAnimation/ProfilePaths.h>

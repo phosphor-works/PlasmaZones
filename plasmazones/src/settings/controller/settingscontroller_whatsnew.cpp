@@ -12,7 +12,7 @@
 #include "common/engineruntimenamespace.h"
 #include "version.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "core/platform/logging.h"
 
 #include <PhosphorFsLoader/SchemaValidator.h>

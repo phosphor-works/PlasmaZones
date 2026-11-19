@@ -18,9 +18,9 @@
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/RuleSet.h>
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
-#include "core/types/overlayshadertree.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

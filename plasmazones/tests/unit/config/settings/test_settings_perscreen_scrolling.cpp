@@ -41,9 +41,9 @@
 #include <QTest>
 #include <QVariantMap>
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "core/interfaces/settings_interfaces.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include <PhosphorIdentity/VirtualScreenId.h>

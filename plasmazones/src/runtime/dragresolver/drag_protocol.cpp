@@ -16,7 +16,7 @@
 #include "core/interfaces/interfaces.h"
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorZones/LayoutRegistry.h>
-#include "core/interfaces/settings_interfaces.h"
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "core/platform/logging.h"
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorScreens/ScreenIdentity.h>

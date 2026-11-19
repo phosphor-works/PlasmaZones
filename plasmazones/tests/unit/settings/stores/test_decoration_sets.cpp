@@ -44,7 +44,7 @@
 #include <QTemporaryDir>
 #include <QUrl>
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "phosphor_i18n.h"
 #include "settings/pages/decorationpagecontroller.h"
 #include "settings/stores/shadersetstore.h"

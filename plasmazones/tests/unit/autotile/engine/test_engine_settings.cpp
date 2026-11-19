@@ -16,8 +16,8 @@
 #include <PhosphorTiles/AutotileConstants.h>
 #include <PhosphorTiles/TilingAlgorithm.h>
 #include <PhosphorTiles/TilingState.h>
-#include "core/types/constants.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/ScriptedAlgoTestSetup.h"
 

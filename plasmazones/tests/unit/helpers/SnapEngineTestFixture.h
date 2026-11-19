@@ -27,7 +27,7 @@
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/Rule.h>
 #include <PhosphorRules/RuleSet.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include "core/interfaces/interfaces.h"
 
 #include <PhosphorZones/Layout.h>

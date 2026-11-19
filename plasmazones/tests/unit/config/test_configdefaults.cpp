@@ -13,10 +13,10 @@
 #include "common/engineruntimenamespace.h"
 
 #include "common/hostsettings.h"
-#include "config/configdefaults.h"
-#include "core/platform/appdirectoryname.h"
-#include "core/types/constants.h"
-#include "core/interfaces/settings_interfaces.h" // ZoneSelectorConfig struct tripwire
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/SettingsInterfaces.h> // ZoneSelectorConfig struct tripwire
 
 using namespace PlasmaZones;
 

@@ -18,7 +18,7 @@
 // page's class. Consumers vary per entity — each declaration below names its
 // own, rather than the file claiming a single pair.
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/AssignmentEntry.h>

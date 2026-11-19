@@ -17,7 +17,7 @@
 #include <PhosphorRendering/ZoneShaderCommon.h>
 #include <PhosphorShaders/CustomParamsKey.h>
 #include <PhosphorRendering/ZoneLabelTexture.h>
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "helpers/TestHelpers.h"
 
 #include <QImage>

@@ -26,10 +26,10 @@
 // where it refuses to answer — not every validator is a clamp, and a wrong
 // range published as fact is worse than no range.
 
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "common/engineruntimenamespace.h"
 #include "common/hostsettings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 #include <PhosphorConfig/Schema.h>
 

@@ -39,11 +39,11 @@
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
-#include "core/interfaces/settings_interfaces.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

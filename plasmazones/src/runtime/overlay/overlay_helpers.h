@@ -34,7 +34,7 @@
 
 #include <PhosphorZones/ZoneJsonKeys.h>
 #include "qml_property_names.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/Enums.h>
 
 namespace PhosphorEngineRuntime {
 

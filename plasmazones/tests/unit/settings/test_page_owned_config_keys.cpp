@@ -38,9 +38,9 @@
 #include <PhosphorConfig/Schema.h>
 
 #include "common/hostsettings.h"
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "settings/controller/settingscontroller.h"
 
 using namespace PlasmaZones;

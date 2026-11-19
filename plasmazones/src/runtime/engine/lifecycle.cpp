@@ -14,8 +14,8 @@
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/enginefactory.h"
 #include "runtime/controllers/contextresolverwiring.h"
-#include "config/settingsconfigstore.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/resolve/crosssurfaceresolver.h"
 #include "core/resolve/animationbootstrap.h"
 #include "core/resolve/screenmoderouter.h"

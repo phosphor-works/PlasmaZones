@@ -45,8 +45,8 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Zone.h>
 
-#include "config/configdefaults.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "runtime/dragresolver/dropproxy.h"
 #include "runtime/dragresolver/dragresolver.h"
 #include "dbus/windowdragadaptor.h"

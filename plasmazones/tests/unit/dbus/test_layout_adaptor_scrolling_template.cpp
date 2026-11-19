@@ -38,8 +38,8 @@
 #include <QTest>
 #include <QUuid>
 
-#include "core/types/constants.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "runtime/host/ihostapps.h"
 #include "runtime/services/layoutservice/layoutservice.h"
 #include <PhosphorLayoutApi/LayoutId.h>

@@ -4,7 +4,7 @@
 #include "TemplateService.h"
 #include "common/engineruntimenamespace.h"
 #include "TemplateStrategy.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 #include <QUuid>
 #include <QLatin1String>

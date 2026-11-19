@@ -5,7 +5,7 @@
 
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include <PhosphorCompositor/DecorationDefaults.h>
 #include <PhosphorControl/PageController.h>

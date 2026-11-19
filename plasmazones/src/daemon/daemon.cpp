@@ -10,7 +10,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include "common/hostsettings.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/engine/engineruntime.h"
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "daemon/host/kwinworkspacehost.h"
@@ -34,7 +34,7 @@
 #include "dbus/windowtrackingadaptor.h"
 #include "dbus/zonedetectionadaptor.h"
 
-#include "config/settingsconfigstore.h"
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include "core/platform/logging.h"
 
 #include <PhosphorLayer/defaults/PhosphorWaylandTransport.h>

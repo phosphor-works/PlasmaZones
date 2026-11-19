@@ -28,8 +28,8 @@
 #include <PhosphorConfig/Schema.h>
 
 #include "common/hostsettings.h"
-#include "config/settingsschema.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/SettingsSchema.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "config/settingsvaluelabels.h"
 
 using namespace PlasmaZones;
