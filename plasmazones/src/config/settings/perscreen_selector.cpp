@@ -17,7 +17,6 @@
 #include "config/configlogging.h"
 #include "config/settings/perscreen_detail.h"
 #include "config/configdefaults.h"
-#include "core/platform/logging.h"
 
 #include <PhosphorIdentity/VirtualScreenId.h>
 

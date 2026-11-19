@@ -4,7 +4,6 @@
 #include "config/settings.h"
 #include "config/configlogging.h"
 #include "config/configdefaults.h"
-#include "core/platform/logging.h"
 #include "core/types/animationshadersupportedpaths.h"
 #include "core/types/overlayshadertree.h"
 

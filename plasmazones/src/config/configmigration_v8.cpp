@@ -6,7 +6,6 @@
 
 #include "configdefaults.h"
 #include "configkeys.h"
-#include "core/platform/logging.h"
 
 #include <PhosphorAnimation/Profile.h>
 #include <PhosphorAnimation/ProfilePaths.h>

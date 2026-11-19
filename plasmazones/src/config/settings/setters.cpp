@@ -5,7 +5,6 @@
 #include "config/configlogging.h"
 #include "config/configdefaults.h"
 #include "core/types/constants.h"
-#include "core/platform/logging.h"
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTileEngine/AutotileConfig.h>

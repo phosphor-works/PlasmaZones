@@ -4,7 +4,6 @@
 #include "config/settings.h"
 #include "config/configlogging.h"
 #include "config/configdefaults.h"
-#include "core/platform/logging.h"
 
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorAnimation/Profile.h>

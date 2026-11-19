@@ -4,7 +4,6 @@
 #include "config/settings.h"
 #include "config/settings/settings_detail.h"
 #include "config/configdefaults.h"
-#include "core/platform/logging.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorTileEngine/AutotileConfig.h>

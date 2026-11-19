@@ -5,7 +5,6 @@
 #include "config/configlogging.h"
 #include "config/settings/settings_detail.h"
 #include "config/configdefaults.h"
-#include "core/platform/logging.h"
 
 #include <QHash>
 #include <QSet>

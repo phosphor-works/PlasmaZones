@@ -10,8 +10,6 @@
 #include "settings/settings_detail.h"
 #include "settingsschema.h"
 
-#include "core/platform/logging.h"
-
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorConfig/JsonBackend.h>
 #include <PhosphorRules/ContextRuleBridge.h>

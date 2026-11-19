@@ -7,7 +7,6 @@
 #include "config/configdefaults.h"
 #include "config/configkeys.h"
 #include "config/configkeys_disablelabels.h"
-#include "core/platform/logging.h"
 
 #include <PhosphorRules/ContextRuleBridge.h>
 #include <PhosphorRules/Rule.h>

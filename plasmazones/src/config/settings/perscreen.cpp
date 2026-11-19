@@ -8,7 +8,6 @@
 #include "config/configbackends.h"
 #include "config/configdefaults.h"
 #include "core/types/constants.h"
-#include "core/platform/logging.h"
 #include <PhosphorEngine/PerScreenKeys.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorScreens/ScreenIdentity.h>
