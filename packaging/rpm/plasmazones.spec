@@ -62,8 +62,8 @@ Source3:        https://github.com/phosphor-works/branding/releases/download/v0.
 # cmake/PlasmaZonesDependencies.cmake. Its libraries are built from it and
 # installed with the package. Luau and valijson above are the archives that
 # commit pins in its own cmake/PhosphorDependencies.cmake.
-# phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz sha256 51563082f6409ac180b091bbb13a904b191389265d6b10343440ff0fdbca44ea
-Source4:        https://github.com/phosphor-works/phosphor-libs/archive/7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz#/phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz
+# phosphor-libs-fce9291d101ff466939bb327bf9638a130ce1842.tar.gz sha256 5f2dd4cf7a838ae6e3e98e4d6ccd6afe2be53087b6be334d668f3a1395909869
+Source4:        https://github.com/phosphor-works/phosphor-libs/archive/fce9291d101ff466939bb327bf9638a130ce1842.tar.gz#/phosphor-libs-fce9291d101ff466939bb327bf9638a130ce1842.tar.gz
 # The surface decoration packs commit, pinned in the same file. Shader source
 # and metadata the build installs as data, so no bundled() provide.
 # phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz sha256 2b3244bbd1d198cc9361dea105b01bfbcd32bbe35843ddd392881208370b40e1
