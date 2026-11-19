@@ -355,7 +355,7 @@ void OverlayService::initializeOverlay(QScreen* cursorScreen, const QPoint& curs
                     shellSurface->show();
                 }
                 slot->setVisible(true);
-                m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::ZoneOverlay, []() { });
+                m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::ZoneOverlay(), []() { });
                 // Main overlay during drag is purely visual (KWin owns
                 // the drag, daemon receives cursor pushes via D-Bus).
                 // Sync to keep the surface click-through unless a
@@ -760,7 +760,7 @@ void OverlayService::createOverlayWindow(QScreen* screen)
 
 void OverlayService::createOverlayWindow(const QString& screenId, QScreen* physScreen, const QRect& geometry)
 {
-    // Post-shell-migration: the per-screen PhosphorRoles::ZoneOverlay wl_surface
+    // Post-shell-migration: the per-screen PhosphorRoles::ZoneOverlay() wl_surface
     // is replaced by an Item slot inside the per-screen passive shell.
     // Both overlay modes (rectangles + shader) live as alternative
     // sourceComponents inside the same slot, switched via the slot's

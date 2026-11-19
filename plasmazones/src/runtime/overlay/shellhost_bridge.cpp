@@ -182,19 +182,19 @@ void OverlayService::wirePassiveShellSlots(const QString& screenId, PhosphorOver
         shellState.slots.insert(slotKey, PhosphorOverlay::SlotEntry{item, role});
     };
 
-    wireSlot(PhosphorSlotKeys::Osd(), "osdSlotItem", PhosphorRoles::Osd, "OSD content writes");
-    wireSlot(PhosphorSlotKeys::SnapAssist(), "snapAssistSlotItem", PhosphorRoles::SnapAssist,
+    wireSlot(PhosphorSlotKeys::Osd(), "osdSlotItem", PhosphorRoles::Osd(), "OSD content writes");
+    wireSlot(PhosphorSlotKeys::SnapAssist(), "snapAssistSlotItem", PhosphorRoles::SnapAssist(),
              "snap-assist on this screen");
-    wireSlot(PhosphorSlotKeys::LayoutPicker(), "layoutPickerSlotItem", PhosphorRoles::LayoutPicker,
+    wireSlot(PhosphorSlotKeys::LayoutPicker(), "layoutPickerSlotItem", PhosphorRoles::LayoutPicker(),
              "picker on this screen");
-    wireSlot(PhosphorSlotKeys::ZoneSelector(), "zoneSelectorSlotItem", PhosphorRoles::ZoneSelector,
+    wireSlot(PhosphorSlotKeys::ZoneSelector(), "zoneSelectorSlotItem", PhosphorRoles::ZoneSelector(),
              "selector on this screen");
-    wireSlot(PhosphorSlotKeys::MainOverlay(), "mainOverlaySlotItem", PhosphorRoles::ZoneOverlay,
+    wireSlot(PhosphorSlotKeys::MainOverlay(), "mainOverlaySlotItem", PhosphorRoles::ZoneOverlay(),
              "main overlay on this screen");
-    wireSlot(PhosphorSlotKeys::Cheatsheet(), "cheatsheetSlotItem", PhosphorRoles::Cheatsheet,
+    wireSlot(PhosphorSlotKeys::Cheatsheet(), "cheatsheetSlotItem", PhosphorRoles::Cheatsheet(),
              "cheatsheet on this screen");
-    wireSlot(PhosphorSlotKeys::ScrollDropIndicator(), "scrollDropIndicatorSlotItem", PhosphorRoles::ScrollDropIndicator,
-             "scroll drag drop indicator on this screen");
+    wireSlot(PhosphorSlotKeys::ScrollDropIndicator(), "scrollDropIndicatorSlotItem",
+             PhosphorRoles::ScrollDropIndicator(), "scroll drag drop indicator on this screen");
 
     // Wire QML signals → animator-driven slot hide / forward.
     // String-based SIGNAL/SLOT macros are required here because the source
