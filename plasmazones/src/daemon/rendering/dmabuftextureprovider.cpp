@@ -19,11 +19,10 @@
 #include <QVulkanDeviceFunctions>
 #include <QVulkanInstance>
 
-// The dma-buf import's trace, under the name the snap-assist trace had before
-// the raw-pixel provider moved to the engine runtime (which traces under
-// phosphor.engineruntime.snapassist.trace). The daemon-side cost here is the
-// lazy import below, not a cache insert.
-Q_LOGGING_CATEGORY(lcDmabufThumbnailTrace, "plasmazones.daemon.snapassist.trace", QtInfoMsg)
+// The dma-buf import's per-thumbnail timings (PLASMAZONES_THUMBNAIL_TRACE).
+// Its cost is the lazy import below, not a cache insert. The raw-pixel cache
+// is the engine runtime's and traces under phosphor.engineruntime.snapassist.trace.
+Q_LOGGING_CATEGORY(lcDmabufThumbnailTrace, "plasmazones.daemon.dmabufthumbnail.trace", QtInfoMsg)
 
 #include <functional>
 #include <unistd.h>
