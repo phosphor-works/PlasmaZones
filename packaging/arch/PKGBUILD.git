@@ -69,21 +69,21 @@ conflicts=('plasmazones' 'plasmazones-bin')
 # network.
 source=(
     "$pkgname::git+$url.git"
-    "phosphor-libs-1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz::https://github.com/phosphor-works/phosphor-libs/archive/1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz"
+    "phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz::https://github.com/phosphor-works/phosphor-libs/archive/7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz"
     "luau-0.745.tar.gz::https://github.com/luau-lang/luau/archive/refs/tags/0.745.tar.gz"
     "valijson-1.1.3.tar.gz::https://github.com/tristanpenman/valijson/archive/refs/tags/v1.1.3.tar.gz"
     "phosphor-branding-0.3.1.tar.gz::https://github.com/phosphor-works/branding/releases/download/v0.3.1/phosphor-branding-0.3.1.tar.gz"
-    "phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz::https://github.com/phosphor-works/phosphor-surface-packs/archive/e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz"
+    "phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz::https://github.com/phosphor-works/phosphor-surface-packs/archive/087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz"
     "phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz::https://github.com/phosphor-works/phosphor-components/archive/e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz"
 )
-noextract=('phosphor-libs-1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz' 'luau-0.745.tar.gz' 'valijson-1.1.3.tar.gz' 'phosphor-branding-0.3.1.tar.gz' 'phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz' 'phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz')
+noextract=('phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz' 'luau-0.745.tar.gz' 'valijson-1.1.3.tar.gz' 'phosphor-branding-0.3.1.tar.gz' 'phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz' 'phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz')
 sha256sums=(
     'SKIP'
-    '24a3d53851a461dd5486892c16424ae3d44cb296d6ba2019dcbfa2284c24a2b3' # phosphor-libs-1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz
+    '51563082f6409ac180b091bbb13a904b191389265d6b10343440ff0fdbca44ea' # phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz
     '53c22773bace6cabbabaead576fbc08d11a0317fce11a3dbf9d027dda6849248' # luau-0.745.tar.gz
     '887b53b1a924f6fe0b35fa3bbc9bbbe5ae8c72097b7f0f7c17b45f4cfa646029' # valijson-1.1.3.tar.gz
     'd6ec9261d4391148f5c21dfb02be410214d42ea675f1558a826042d63f495094' # phosphor-branding-0.3.1.tar.gz
-    'fbbf0b9849d83396029bc4e310c3dcac49c08758e73d560538888e685f0a5e30' # phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz
+    '2b3244bbd1d198cc9361dea105b01bfbcd32bbe35843ddd392881208370b40e1' # phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz
     'a932243fdffe2b5c496558d322e2878d54f825469a6be3715179d427558940aa' # phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz
 )
 install=plasmazones.install

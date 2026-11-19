@@ -66,7 +66,7 @@ pinned by `static_assert` on size and offsets:
 
 1. Change the GLSL block and the C++ struct together, std140 (a `vec3` takes 16 bytes, an array element at least 16).
    Update each `static_assert` value; never delete one to get a build through.
-2. The KWin effect sets the `#ifdef PLASMAZONES_KWIN` branch as loose uniforms: `grep -rn <name> plasmazones/kwin-effect`
+2. The KWin effect sets the `#ifdef PHOSPHOR_KWIN` branch as loose uniforms: `grep -rn <name> plasmazones/kwin-effect`
    (`plasmazoneseffect/paint_shader_window.cpp`, `surface_*`, `transitions/`, `pointer/pointerdecoration*`).
 3. Feed it in `plasmazones/tools/shader-render/renderer.cpp` (and `pointerdriver.cpp`), document new helpers in the
    shader-theme reference, and run the ctest subset below. The effect `.so` never reloads in a running session, so
@@ -145,10 +145,10 @@ The tree has no GPU timer, and the renderer's wall clock is startup and readback
 - Registries scan `plasmazones/<family>` in the XDG data dirs, user dir first, and rescan 50 ms after a change. A pack
   under `plasmazones/data/<family>/` is already live in a nested session, which serves the checkout's data dirs
   directly (see `pz-verify-live`), and an edit to it reaches the session at the next rescan. Only a pack kept outside
-  the tree needs copying, into the nested session's user dir (`$XDG_DATA_HOME/plasmazones/<family>/` from a shell
+  the tree needs copying, into the nested session's user dir (`$XDG_DATA_HOME/phosphor-works/<family>/` from a shell
   that sourced the nested `env.sh`). Validate with the family flag (`references/validation.md` gate 6 explains the
   installed include lookup). Never copy into the host
-  `~/.local/share/plasmazones/`: the user's running daemon rescans it and picks the pack up. Never `cmake --install`
+  `~/.local/share/phosphor-works/`: the user's running daemon rescans it and picks the pack up. Never `cmake --install`
   or sudo.
 - Selecting it is a profile change (decoration chain for surface and pointer, the latter at the `pointer` path):
   `references/profiles.md`.

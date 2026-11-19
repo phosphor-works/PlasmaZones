@@ -4,8 +4,8 @@
 #
 # fu-dbusctx-thumbnail-admitted: the effect's snap-assist thumbnail push is admitted by the
 # compositor trust gate, with kwin_wayland as the session's own compositor (no wrapper).
-# Runner: 1 output, flag F, PLASMAZONES_THUMBNAIL_TRACE=1 in the compositor's environment (kenv).
-#   The -pixels row adds PLASMAZONES_DMABUF_THUMBNAILS=0, so the pushes take the raw-pixel
+# Runner: 1 output, flag F, PHOSPHOR_THUMBNAIL_TRACE=1 in the compositor's environment (kenv).
+#   The -pixels row adds PHOSPHOR_DMABUF_THUMBNAILS=0, so the pushes take the raw-pixel
 #   setSnapAssistThumbnail path instead of the dma-buf one.
 # Staging: Snap Assist on, Virtual-0 COLS3, three windows a, b, c. a is Alt-dragged into zone 1,
 #   so Snap Assist opens with b and c as candidates and the effect captures and pushes their
@@ -24,7 +24,7 @@ LOG="$2"
 kwjs_ok
 KP=$(kwinpid)
 [ -n "$KP" ] || stage_fail "no nested kwin_wayland pid for socket $WAYLAND_DISPLAY"
-grep -q "PLASMAZONES_THUMBNAIL_TRACE set" "$LOG" || note "the effect has not announced the thumbnail trace yet (it does at the first capture)"
+grep -q "PHOSPHOR_THUMBNAIL_TRACE set" "$LOG" || note "the effect has not announced the thumbnail trace yet (it does at the first capture)"
 dlog "compositor: pid.*|trustIfCompositor: .*|validateExeAndTrust: .*" | head -6 | sed 's/^/    /'
 check "the compositor read (nested kwin $KP, no wrapper)" \
     "$(dlog "compositor: pid $KP trusts its children false" | wc -l)" -ge 1

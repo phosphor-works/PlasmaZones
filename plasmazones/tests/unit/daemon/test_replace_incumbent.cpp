@@ -34,7 +34,7 @@ PhosphorConfig::HostRecord record(const QString& host, qint64 pid)
 {
     PhosphorConfig::HostRecord r;
     r.host = host;
-    r.configPath = QStringLiteral("/home/user/.config/plasmazones/config.json");
+    r.configPath = QStringLiteral("/home/user/.config/phosphor-works/plasmazones/config.json");
     r.pid = pid;
     return r;
 }

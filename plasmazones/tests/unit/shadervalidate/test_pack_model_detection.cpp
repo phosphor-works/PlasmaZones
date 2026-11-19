@@ -97,11 +97,11 @@ private Q_SLOTS:
             PackModel expected;
         };
         const QList<Family> families = {
-            {"plasmazones/animations", "animation_uniforms.glsl", PackModel::Animation},
+            {"phosphor-works/shaders/animations", "animation_uniforms.glsl", PackModel::Animation},
             // The surface packs install where phosphor-surface-packs puts them.
             {PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR, "surface_uniforms.glsl", PackModel::Surface},
-            {"plasmazones/pointer", "pointer_uniforms.glsl", PackModel::Pointer},
-            {"plasmazones/overlays", "common.glsl", PackModel::Overlay},
+            {"phosphor-works/shaders/pointer", "pointer_uniforms.glsl", PackModel::Pointer},
+            {"phosphor-works/shaders/overlays", "common.glsl", PackModel::Overlay},
         };
 
         for (const Family& family : families) {
@@ -157,7 +157,7 @@ private Q_SLOTS:
         QVERIFY(tree.isValid());
 
         // An installed copy of the helpers, which must NOT be consulted.
-        const QString installedShared = sysRoot.filePath(QStringLiteral("plasmazones/animations/shared"));
+        const QString installedShared = sysRoot.filePath(QStringLiteral("phosphor-works/shaders/animations/shared"));
         QVERIFY(QDir().mkpath(installedShared));
         QFile installedMarker(installedShared + QStringLiteral("/animation_uniforms.glsl"));
         QVERIFY(installedMarker.open(QIODevice::WriteOnly));
@@ -201,19 +201,19 @@ private Q_SLOTS:
         QVERIFY(sysRoot.isValid());
         QVERIFY(userRoot.isValid());
 
-        const QString installedShared = sysRoot.filePath(QStringLiteral("plasmazones/animations/shared"));
+        const QString installedShared = sysRoot.filePath(QStringLiteral("phosphor-works/shaders/animations/shared"));
         QVERIFY(QDir().mkpath(installedShared));
         QFile installedMarker(installedShared + QStringLiteral("/animation_uniforms.glsl"));
         QVERIFY(installedMarker.open(QIODevice::WriteOnly));
         installedMarker.close();
 
         // The user's override dir carries the marker header and nothing else.
-        const QString userShared = userRoot.filePath(QStringLiteral("plasmazones/animations/shared"));
+        const QString userShared = userRoot.filePath(QStringLiteral("phosphor-works/shaders/animations/shared"));
         QVERIFY(QDir().mkpath(userShared));
         QFile userMarker(userShared + QStringLiteral("/animation_uniforms.glsl"));
         QVERIFY(userMarker.open(QIODevice::WriteOnly));
         userMarker.close();
-        const QString pack = userRoot.filePath(QStringLiteral("plasmazones/animations/some-pack"));
+        const QString pack = userRoot.filePath(QStringLiteral("phosphor-works/shaders/animations/some-pack"));
         QVERIFY(QDir().mkpath(pack));
 
         XdgEnvGuard guard;

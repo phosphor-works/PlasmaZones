@@ -13,7 +13,8 @@
 
 #include <QCoreApplication>
 #include <QQmlEngine>
-#include <QStandardPaths>
+#include <PhosphorEngineRuntime/AppDirectoryName.h>
+
 #include <QVulkanInstance>
 
 #include <unistd.h>
@@ -38,10 +39,8 @@ KWinSurfacePresentation::~KWinSurfacePresentation()
 ISurfacePresentationHost::RenderBackend KWinSurfacePresentation::renderBackend() const
 {
     RenderBackend backend;
-    const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    if (!cacheDir.isEmpty()) {
-        backend.pipelineCachePath = cacheDir + QStringLiteral("/plasmazones-pipeline.cache");
-    }
+    // The app's cache directory (~/.cache/phosphor-works/plasmazones).
+    backend.pipelineCachePath = appCacheDir() + QStringLiteral("/pipeline.cache");
 #if QT_CONFIG(vulkan)
     // main() made the instance (createAndRegisterVulkanInstance) and parked it
     // on the application object.
@@ -89,7 +88,7 @@ bool KWinSurfacePresentation::importThumbnail(const QString& compositorHandle, c
 {
     // Zero-copy GPU thumbnail path, the default transport. The env gate is a
     // kill switch rather than an opt-in: the import is refused here when
-    // PLASMAZONES_DMABUF_THUMBNAILS=0, and returning false makes the effect
+    // PHOSPHOR_DMABUF_THUMBNAILS=0, and returning false makes the effect
     // fall back to the raw-pixel setSnapAssistThumbnail path. That fallback is
     // also what covers every driver, backend and format the gate cannot
     // predict, so a preview always appears regardless of dma-buf support.

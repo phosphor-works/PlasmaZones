@@ -453,7 +453,7 @@ private:
 
         TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layouts{
-            TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"))};
+            TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"))};
         RecordingOverlay overlay;
         StubZoneDetector detector;
         StubSettings settings;

@@ -3,6 +3,6 @@
     "Name": "PlasmaZones",
     "BusName": "org.phosphor_works.Placement",
     "Backend": "json",
-    "ConfigPath": "$XDG_CONFIG_HOME/plasmazones/config.json",
+    "ConfigPath": "$XDG_CONFIG_HOME/phosphor-works/plasmazones/config.json",
     "Desktops": ["KDE"]
 }

@@ -29,7 +29,7 @@ layout(location = 1) in vec2 texCoord;
 
 layout(location = 0) out vec2 vTexCoord;
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform mat4 modelViewProjectionMatrix;
 #endif
 
@@ -59,7 +59,7 @@ vec2 sampleMesh(float s, float t) {
 }
 
 void main() {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     // Card uv with y = 0 at the window top on both KWin versions. The
     // lattice rows run top (row 0) to bottom, so cuv indexes it directly.
     vec2 cuv = animationScreenUv(texCoord);
@@ -86,7 +86,7 @@ void main() {
     }
 
     vTexCoord = cuv;
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     gl_Position = modelViewProjectionMatrix * vec4(position + lag, 0.0, 1.0);
 #else
     // Qt-RHI path: the logical-px deflection converts to clip units at

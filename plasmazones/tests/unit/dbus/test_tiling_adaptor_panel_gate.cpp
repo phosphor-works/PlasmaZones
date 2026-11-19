@@ -352,7 +352,7 @@ private Q_SLOTS:
     void testReleaseClosesOutTheFloatItEnded()
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
-        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         const auto dropRegistry = qScopeGuard([layoutManager] {
             delete layoutManager;
         });
@@ -631,7 +631,7 @@ private Q_SLOTS:
     void testRenumberReannouncesOnlyWhenItMovedAStampedDesktop()
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
-        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         const auto dropRegistry = qScopeGuard([layoutManager] {
             delete layoutManager;
         });

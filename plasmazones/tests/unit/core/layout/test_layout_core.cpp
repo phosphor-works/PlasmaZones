@@ -347,7 +347,7 @@ private Q_SLOTS:
     void testLayout_clone_noSourcePath()
     {
         PhosphorZones::Layout original(QStringLiteral("Original"));
-        original.setSourcePath(QStringLiteral("/usr/share/plasmazones/layouts/test.json"));
+        original.setSourcePath(QStringLiteral("/usr/share/phosphor-works/layouts/test.json"));
 
         const std::unique_ptr<PhosphorZones::Layout> copy(original.clone());
 

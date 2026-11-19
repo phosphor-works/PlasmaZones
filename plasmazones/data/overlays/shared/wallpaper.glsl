@@ -12,8 +12,8 @@
 // Use textureSize(uWallpaper, 0) to get the wallpaper resolution.
 // The texture is 1x1 transparent when no wallpaper is available.
 
-#ifndef PLASMAZONES_WALLPAPER_GLSL
-#define PLASMAZONES_WALLPAPER_GLSL
+#ifndef PHOSPHOR_WALLPAPER_GLSL
+#define PHOSPHOR_WALLPAPER_GLSL
 
 layout(binding = 15) uniform sampler2D uWallpaper;
 
@@ -36,4 +36,4 @@ vec2 wallpaperUv(vec2 fragCoord, vec2 screenResolution) {
     return uv;
 }
 
-#endif // PLASMAZONES_WALLPAPER_GLSL
+#endif // PHOSPHOR_WALLPAPER_GLSL

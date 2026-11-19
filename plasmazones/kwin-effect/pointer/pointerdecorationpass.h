@@ -85,7 +85,7 @@ namespace PlasmaZones {
 ///
 /// TEXCOORD ORIENTATION. `pointerPixel()` in pointer_lib.glsl reconstructs
 /// top-down canvas px from vTexCoord as `vec2(uv.x, 1.0 - uv.y)` under
-/// PLASMAZONES_KWIN — it expects BOTTOM-UP texcoords, the render target's own
+/// PHOSPHOR_KWIN — it expects BOTTOM-UP texcoords, the render target's own
 /// orientation. That is the opposite of TransitionPass::drawOutputQuad, which
 /// deliberately pins TOP-DOWN uv for the transition packs' Y-flipping
 /// samplers. Hence this pass draws its own quad (drawDamageQuad) rather than

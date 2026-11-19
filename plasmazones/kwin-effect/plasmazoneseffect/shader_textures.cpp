@@ -251,7 +251,7 @@ PlasmaZonesEffect::compileOrLoadAnimationShader(const QString& effectId,
     // Authors that ship a per-shader vertex stage via metadata's
     // `vertexShader` field own the matrix / attribute contract
     // themselves: call `animationScreenUv(texCoord)` under
-    // `#ifdef PLASMAZONES_KWIN` and multiply `position` by
+    // `#ifdef PHOSPHOR_KWIN` and multiply `position` by
     // modelViewProjectionMatrix on the kwin path. See the canonical
     // GLSL header (`data/animations/shared/animation_uniforms.glsl`).
     auto cacheIt = m_shaderManager.m_shaderCache.find(effectId);
@@ -307,7 +307,7 @@ PlasmaZonesEffect::compileOrLoadAnimationShader(const QString& effectId,
         // after `#version`, identically to the daemon's loadFragmentShader. The
         // accessors it emits (`customParams[N].xyzw`, `customColors[N]`,
         // `uTexture<N>`) are declared in BOTH branches of animation_uniforms.glsl
-        // — including the PLASMAZONES_KWIN default-block branch injected below —
+        // — including the PHOSPHOR_KWIN default-block branch injected below —
         // so the same preamble compiles on this GL path and the daemon RHI path.
         // Done before injectKwinDefineAfterVersion so the KWIN define still lands
         // first after `#version`; the preamble's defines are pure text macros,
@@ -365,7 +365,7 @@ PlasmaZonesEffect::compileOrLoadAnimationShader(const QString& effectId,
         // Selects the default-block branch in `animation_uniforms.glsl`.
         // KWin's `KWin::GLShader` API addresses default-block uniforms only
         // (no UBO bind path), so the canonical header's `#ifdef
-        // PLASMAZONES_KWIN` branch emits plain `uniform float iTime;`-style
+        // PHOSPHOR_KWIN` branch emits plain `uniform float iTime;`-style
         // declarations instead of the daemon's `layout(std140, binding=0)
         // uniform AnimationUniforms { ... };`. The macro must land AFTER the
         // shader's `#version` line — the GLSL spec disallows tokens before

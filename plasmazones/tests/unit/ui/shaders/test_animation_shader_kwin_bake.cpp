@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Bakes every built-in animation pack's KWIN-PATH variant — the
-// `#define PLASMAZONES_KWIN` branch — through a real offscreen OpenGL context,
+// `#define PHOSPHOR_KWIN` branch — through a real offscreen OpenGL context,
 // the way the kwin-effect compiles it at runtime (generateCustomShader →
 // glCompileShader).
 //
@@ -10,7 +10,7 @@
 // the DAEMON variant via qsb (glslang → SPIR-V), whose Vulkan-GLSL front-end
 // REJECTS the default-block uniforms and unbound samplers the KWin branch
 // declares (that rejection is the whole reason animation_uniforms.glsl carries
-// two branches). So the entire PLASMAZONES_KWIN region — surfaceColor's kwin
+// two branches). So the entire PHOSPHOR_KWIN region — surfaceColor's kwin
 // Y-flip, desktop_transition.glsl's getFromColor / getToColor samplers, and any
 // customColors[] / iFrame usage — went uncompiled by CI. A desktop pack's body
 // lives ENTIRELY inside that branch, so a GLSL error there (a typo'd uniform, a
@@ -37,7 +37,7 @@
 // It compiles both stages the runtime's KWin path touches — the fragment stage
 // always, and, for packs that ship a custom `effect.vert`, the vertex stage too
 // (a vertex-driven pack like wobble reads its `p_<id>` params in the VERT, whose
-// PLASMAZONES_KWIN branch the daemon qsb bake never compiles either). Each pack
+// PHOSPHOR_KWIN branch the daemon qsb bake never compiles either). Each pack
 // is baked twice, with and without the top-down texcoord define KWin 6.8's
 // per-window path adds, so both branches a pack keys off it compile.
 //
@@ -198,7 +198,7 @@ private Q_SLOTS:
         const bool ok = compileStage(GL_FRAGMENT_SHADER, src, &log);
         QVERIFY2(ok, qPrintable(QStringLiteral("KWin-path frag bake failed: ") + dir + QStringLiteral("\n") + log));
 
-        // Packs that ship a custom effect.vert have a PLASMAZONES_KWIN vertex
+        // Packs that ship a custom effect.vert have a PHOSPHOR_KWIN vertex
         // branch the daemon qsb bake never compiles either — assemble and compile
         // it the same way the runtime custom-vertex path does (include expansion
         // → param preamble → kwinCompositorSource), so a vertex-side KWin GLSL

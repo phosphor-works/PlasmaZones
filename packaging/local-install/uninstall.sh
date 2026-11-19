@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-MANIFEST_FILE="$PREFIX/share/plasmazones/install_manifest.txt"
+MANIFEST_FILE="$PREFIX/share/phosphor-works/plasmazones/install_manifest.txt"
 
 # Check if manifest exists
 if [ ! -f "$MANIFEST_FILE" ]; then
@@ -132,13 +132,13 @@ done
 # Remove config if user requested
 if [ "$REMOVE_CONFIG" = true ]; then
     echo "Removing configuration and layouts..."
-    rm -rf "$PREFIX/share/plasmazones"
+    rm -rf "$PREFIX/share/phosphor-works/plasmazones"
     # The user's own layouts live under XDG data, not under $PREFIX.
     # Those coincide only when PREFIX is the default $HOME/.local, so
     # with a --prefix elsewhere this prompt used to delete the config
     # directory while leaving every saved layout behind.
     rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/plasmazones"
-    rm -rf "$HOME/.config/plasmazones"
+    rm -rf "$HOME/.config/phosphor-works/plasmazones"
     # The record of which placement host last ran, which plasmazonesd writes
     # under the XDG state directory. Only that file goes: the phosphor-works
     # directory is shared with the suite's other apps, so it is removed only
@@ -150,7 +150,7 @@ if [ "$REMOVE_CONFIG" = true ]; then
 else
     # Remove manifest and uninstall script but keep user data
     rm -f "$MANIFEST_FILE"
-    rm -f "$PREFIX/share/plasmazones/uninstall.sh"
+    rm -f "$PREFIX/share/phosphor-works/plasmazones/uninstall.sh"
 fi
 
 # Refresh KDE cache

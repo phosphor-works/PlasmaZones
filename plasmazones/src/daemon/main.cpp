@@ -551,7 +551,7 @@ int main(int argc, char* argv[])
     app.setApplicationName(QString::fromLatin1(kApplicationName));
     app.setApplicationDisplayName(QStringLiteral("PlasmaZones"));
     app.setApplicationVersion(PlasmaZones::VERSION_STRING);
-    app.setOrganizationName(QStringLiteral("plasmazones"));
+    app.setOrganizationName(QStringLiteral("phosphor-works"));
     app.setOrganizationDomain(QStringLiteral("phosphor-works.org"));
     app.setDesktopFileName(QStringLiteral("org.phosphor_works.PlasmaZones"));
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.phosphor_works.PlasmaZones")));

@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
 
     app.setApplicationName(QStringLiteral("plasmazones-editor"));
     app.setApplicationVersion(PlasmaZones::VERSION_STRING);
-    app.setOrganizationName(QStringLiteral("plasmazones"));
+    app.setOrganizationName(QStringLiteral("phosphor-works"));
     app.setOrganizationDomain(QStringLiteral("phosphor-works.org"));
     app.setDesktopFileName(QStringLiteral("org.phosphor_works.PlasmaZones.Editor"));
 

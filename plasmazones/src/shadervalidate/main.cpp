@@ -29,14 +29,14 @@
 //   • surface/decoration packs (--surface, phosphor-surface-packs' packs/*):
 //     SurfaceShaderEffect + paramPreamble; validates effect.frag and the buffer
 //     passes on BOTH the daemon Qt-RHI path and, through glslang, the compositor
-//     PLASMAZONES_KWIN path every decoration ships on. A vertex the pack
+//     PHOSPHOR_KWIN path every decoration ships on. A vertex the pack
 //     declares of its own bakes on both; the shared surface.vert fallback bakes
 //     on Qt-RHI only, because it reads qt_Matrix and the compositor branch does
 //     not declare it — see validateSurfacePack.
 //   • pointer packs (--pointer, data/pointer/*):
 //     PointerShaderEffect + the pPointer entry scaffold + paramPreamble;
 //     validates effect.frag and the buffer passes on BOTH the preview Qt-RHI
-//     path and, through glslang, the compositor PLASMAZONES_KWIN path every
+//     path and, through glslang, the compositor PHOSPHOR_KWIN path every
 //     pointer pack ships on; the shared vertex stage bakes on the preview
 //     path only — see validatePointerPack.
 //

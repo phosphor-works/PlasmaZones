@@ -68,7 +68,8 @@ private Q_SLOTS:
         m_settingsAdaptor =
             new SettingsAdaptor(new SettingsService(m_settings, /*profileRegistry=*/nullptr, m_parent), m_parent);
 
-        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), m_parent);
+        m_layoutManager =
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), m_parent);
         auto* layout = new PhosphorZones::Layout(QStringLiteral("BenchLayout"));
         for (int i = 0; i < 4; ++i) {
             auto* zone = new PhosphorZones::Zone(QRectF(0.25 * i, 0.0, 0.25, 1.0));

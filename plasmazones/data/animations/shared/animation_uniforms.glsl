@@ -14,7 +14,7 @@
 //   • Compositor window-content execution (kwin-effect → KWin::GLShader,
 //     classic OpenGL). KWin's `GLShader::setUniform(loc, val)` API
 //     addresses default-block uniforms only and never binds UBOs. The
-//     kwin-effect prepends `#define PLASMAZONES_KWIN` after the
+//     kwin-effect prepends `#define PHOSPHOR_KWIN` after the
 //     `#version` line of every animation shader before compile, which
 //     selects the default-block branch below.
 //
@@ -22,8 +22,8 @@
 // effect.frag with `#include <animation_uniforms.glsl>` and use the
 // declared names directly (`iTime`, `iResolution`, `customParams[N]`,
 // `uTexture0`, etc.) — both branches expose the same identifiers, so
-// shader code does not need its own `#ifdef PLASMAZONES_KWIN` blocks.
-// The `#define PLASMAZONES_KWIN` switch describes the uniform-binding
+// shader code does not need its own `#ifdef PHOSPHOR_KWIN` blocks.
+// The `#define PHOSPHOR_KWIN` switch describes the uniform-binding
 // ABI, not the runtime's feature set.
 //
 // Coordinate convention: `vTexCoord` is a Y-down screen UV — y = 0 at
@@ -63,8 +63,8 @@
 // `tests/unit/ui/shaders/test_animation_shader_bake.cpp` surfaces
 // GLSL-side drift by running `qsb` over every daemon-eligible shader.
 
-#ifndef PLASMAZONES_ANIMATION_UNIFORMS_GLSL
-#define PLASMAZONES_ANIMATION_UNIFORMS_GLSL
+#ifndef PHOSPHOR_ANIMATION_UNIFORMS_GLSL
+#define PHOSPHOR_ANIMATION_UNIFORMS_GLSL
 
 #ifdef GL_ES
 // KWin can compile the vertex and fragment stages with different default int
@@ -75,14 +75,14 @@ precision highp int;
 // KWin 6.8 supplies top-down offscreen-quad texcoords. Earlier KWin versions
 // supply bottom-up texcoords. Keep effect-space coordinates top-down on both.
 vec2 animationScreenUv(vec2 uv) {
-#if defined(PLASMAZONES_KWIN) && !defined(PZ_KWIN_OFFSCREEN_TEXCOORDS_TOP_DOWN)
+#if defined(PHOSPHOR_KWIN) && !defined(PZ_KWIN_OFFSCREEN_TEXCOORDS_TOP_DOWN)
     return vec2(uv.x, 1.0 - uv.y);
 #else
     return uv;
 #endif
 }
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 
 // ─── KWin classic-GL default-block branch ──────────────────────────────
 // `qt_Matrix` / `qt_Opacity` / `_appField0` / `_appField1` /
@@ -510,7 +510,7 @@ layout(binding = 12) uniform sampler2D uTexture1;
 layout(binding = 13) uniform sampler2D uTexture2;
 layout(binding = 14) uniform sampler2D uTexture3;
 
-#endif // PLASMAZONES_KWIN
+#endif // PHOSPHOR_KWIN
 
 // ─── Surface sampling helper ───────────────────────────────────────────
 // Read the transitioning surface (the redirected window / popup
@@ -536,7 +536,7 @@ layout(binding = 14) uniform sampler2D uTexture3;
 // passthrough.
 vec4 surfaceColor(vec2 uv) {
     vec2 t = iAnchorRectInTexture.xy + uv * iAnchorRectInTexture.zw;
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     // Scale by the window's resolved opacity: uTexture0 is premultiplied,
     // so multiplying the whole sample by the [0, 1] `iWindowOpacity` is the correct
     // premultiplied-alpha dim. This is what makes a dim hold throughout a
@@ -620,7 +620,7 @@ vec4 surfaceColor(vec2 uv) {
 // anchor-extent pack's card already spans the shadow and only the chain
 // padding lies past it.
 vec2 surfacePadRel() {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     // No layer means no composited canvas, so `iLayerRectInTexture` carries
     // nothing to measure; the mask stays at the bare card edge.
     if (iHasSurfaceLayer == 0) {
@@ -685,7 +685,7 @@ float legProgress() {
 // rects are UBO-branch members of the transition tail, and the compositor
 // pushes them to any shader that DECLARES them. So a pack reading either rect
 // on the kwin path must declare them itself, inside its own
-// `#ifdef PLASMAZONES_KWIN`, which is what all six packs that use them do.
+// `#ifdef PHOSPHOR_KWIN`, which is what all six packs that use them do.
 // The helpers below take the rects as arguments for that reason rather than
 // reading them.
 //
@@ -804,4 +804,4 @@ vec2 resolutionSafe() {
 #define PZ_FINALIZE_COLOR(c) (c)
 #endif
 
-#endif // PLASMAZONES_ANIMATION_UNIFORMS_GLSL
+#endif // PHOSPHOR_ANIMATION_UNIFORMS_GLSL

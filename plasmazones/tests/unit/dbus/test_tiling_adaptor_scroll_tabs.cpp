@@ -269,7 +269,7 @@ private Q_SLOTS:
         // WTA is a child of `parent` and borrows the layout registry that
         // the guard below deletes, so `parent` (and with it the WTA) must go
         // first, and reverse declaration order is what guarantees that.
-        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         const auto dropRegistry = qScopeGuard([layoutManager] {
             delete layoutManager;
         });
@@ -386,7 +386,7 @@ private Q_SLOTS:
     {
         IsolatedConfigGuard guard;
         // Declared before `parent`, as in testColorsPassThroughToRuleResolution.
-        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        auto* layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         const auto dropRegistry = qScopeGuard([layoutManager] {
             delete layoutManager;
         });

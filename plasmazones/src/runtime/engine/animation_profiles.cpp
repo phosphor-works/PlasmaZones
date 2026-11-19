@@ -63,7 +63,7 @@ static const auto kSettingsDrivenProfilePaths = std::array{
 /// partitioned-ownership map so replacing that partition on a settings change
 /// wipes only these entries, leaving the settings-driven ones (owned by the
 /// empty/direct tag) and the family seeds alone.
-static constexpr QLatin1StringView kPlasmaZonesUserProfilesOwnerTag{"plasmazones-user-profiles"};
+static constexpr QLatin1StringView kPlasmaZonesUserProfilesOwnerTag{"engineruntime-user-profiles"};
 
 void EngineRuntime::setupAnimationProfiles()
 {

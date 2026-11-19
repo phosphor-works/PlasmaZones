@@ -17,7 +17,7 @@ NEST="$1"
 LOG="$2"
 . "$(dirname "$0")/../lib.sh"
 kwjs_ok
-RULES="$XDG_CONFIG_HOME/plasmazones/rules.json"
+RULES="$XDG_CONFIG_HOME/phosphor-works/plasmazones/rules.json"
 # offrules: every rule whose name says "off ·" or "probe F1012", as "NAME|vd=[LEAVES]" lines
 offrules() {
     python3 -c '

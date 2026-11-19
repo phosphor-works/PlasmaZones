@@ -65,8 +65,8 @@ class SnapEngineTestFixture : public QObject
 
 protected:
     // Isolates XDG_DATA_HOME / XDG_CONFIG_HOME under a temp dir so the
-    // LayoutRegistry's default "plasmazones/layouts" subdir resolves into
-    // the temp dir instead of ~/.local/share/plasmazones/layouts/.
+    // LayoutRegistry's default "phosphor-works/layouts" subdir resolves into
+    // the temp dir instead of ~/.local/share/phosphor-works/layouts/.
     // Without this every test run leaks a "TestLayout-<uuid>.json" into
     // the user's real layouts dir — by April 2026 the directory had
     // accumulated >100 stale TestLayouts from prior CI / dev test runs,
@@ -83,7 +83,7 @@ protected Q_SLOTS:
     void init()
     {
         m_guard = std::make_unique<IsolatedConfigGuard>();
-        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         m_settings = new StubSettings(nullptr);
         m_zoneDetector = new StubZoneDetectorSnap(nullptr);
         m_wts = new PhosphorPlacement::WindowTrackingService(m_layoutManager, nullptr, nullptr);

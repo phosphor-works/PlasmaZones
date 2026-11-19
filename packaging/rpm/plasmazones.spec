@@ -62,12 +62,12 @@ Source3:        https://github.com/phosphor-works/branding/releases/download/v0.
 # cmake/PlasmaZonesDependencies.cmake. Its libraries are built from it and
 # installed with the package. Luau and valijson above are the archives that
 # commit pins in its own cmake/PhosphorDependencies.cmake.
-# phosphor-libs-1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz sha256 24a3d53851a461dd5486892c16424ae3d44cb296d6ba2019dcbfa2284c24a2b3
-Source4:        https://github.com/phosphor-works/phosphor-libs/archive/1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz#/phosphor-libs-1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz
+# phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz sha256 51563082f6409ac180b091bbb13a904b191389265d6b10343440ff0fdbca44ea
+Source4:        https://github.com/phosphor-works/phosphor-libs/archive/7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz#/phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz
 # The surface decoration packs commit, pinned in the same file. Shader source
 # and metadata the build installs as data, so no bundled() provide.
-# phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz sha256 fbbf0b9849d83396029bc4e310c3dcac49c08758e73d560538888e685f0a5e30
-Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive/e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz#/phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz
+# phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz sha256 2b3244bbd1d198cc9361dea105b01bfbcd32bbe35843ddd392881208370b40e1
+Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive/087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz#/phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz
 # The phosphor-components commit, pinned in the same file: the QML components
 # the overlays, settings app and editor draw with, built from it into the
 # executables, and its catalogs.
@@ -411,11 +411,12 @@ echo ""
 %endif
 %{_datadir}/systemsettings/categories/settings-windowmanagement-plasmazones.desktop
 
-# Runtime data — application data plus the Phosphor data trees the build
-# installs: phosphorwayland/ (protocol XMLs), phosphor-works/ (the
-# placement-host descriptors and the surface decoration packs) and
-# phosphor-libs/ (pluau.d.luau, the tiling script type definitions).
-%{_datadir}/plasmazones/
+# Runtime data — the Phosphor data trees the build installs:
+# phosphor-works/ (the shared layouts, algorithms, scrolling templates,
+# shader packs, curves and translations, the placement-host descriptors, the
+# surface decoration packs, and plasmazones/ for this app's own files),
+# phosphorwayland/ (protocol XMLs) and phosphor-libs/ (pluau.d.luau, the
+# tiling script type definitions).
 %{_datadir}/phosphor*/
 
 # Icons — the standard hicolor theme directories are owned by

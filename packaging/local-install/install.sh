@@ -161,7 +161,7 @@ if [ -f "$BUILD_ENV_FILE" ]; then
     fi
 fi
 
-MANIFEST_FILE="$PREFIX/share/plasmazones/install_manifest.txt"
+MANIFEST_FILE="$PREFIX/share/phosphor-works/plasmazones/install_manifest.txt"
 NEED_RESTART=false
 
 # Check for existing installation
@@ -193,7 +193,7 @@ cp -rT "$DIST_ROOT" "$PREFIX/"
 
 # 2. Generate manifest with version header
 echo "Generating installation manifest..."
-mkdir -p "$PREFIX/share/plasmazones"
+mkdir -p "$PREFIX/share/phosphor-works/plasmazones"
 {
     echo "# version: $VERSION"
     echo "# installed: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
@@ -303,4 +303,4 @@ echo "  - PlasmaZones will appear in System Settings"
 echo "  - The daemon will start automatically"
 echo "  - All features will be available"
 echo ""
-echo "To uninstall, run: $PREFIX/share/plasmazones/uninstall.sh"
+echo "To uninstall, run: $PREFIX/share/phosphor-works/plasmazones/uninstall.sh"

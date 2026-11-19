@@ -14,7 +14,7 @@
 //
 //   • The compositor (kwin-effect): a screen-space pass over the composited
 //     scene of the output under the pointer. The effect prepends `#define
-//     PLASMAZONES_KWIN` after `#version`, so the KWin branch below is taken;
+//     PHOSPHOR_KWIN` after `#version`, so the KWin branch below is taken;
 //     uniforms are classic default-block uniforms set with GLShader::setUniform.
 //
 //   • The settings preview (PhosphorRendering Qt-RHI ShaderEffect): Qt-RHI's
@@ -42,8 +42,8 @@
 // transparent black wherever nothing is painted, and fade to exactly zero
 // within the pack's `trailSeconds`, because the host stops repainting then.
 
-#ifndef PLASMAZONES_POINTER_UNIFORMS_GLSL
-#define PLASMAZONES_POINTER_UNIFORMS_GLSL
+#ifndef PHOSPHOR_POINTER_UNIFORMS_GLSL
+#define PHOSPHOR_POINTER_UNIFORMS_GLSL
 
 #ifdef GL_ES
 // GLSL ES defaults int to highp in the vertex stage and mediump in the
@@ -52,7 +52,7 @@
 precision highp int;
 #endif
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 
 // ── Compositor branch — classic default-block uniforms ──────────────────────
 
@@ -206,7 +206,7 @@ layout(binding = 14) uniform sampler2D uTexture3;
 // shared table's eight-wide block) live in pointer_multipass.glsl,
 // which a multipass pack includes.
 
-#endif // PLASMAZONES_KWIN
+#endif // PHOSPHOR_KWIN
 
 // ─── Final-colour hook (HDR colour management) ─────────────────────────
 // The generated entry main() routes its fragColor write through
@@ -227,4 +227,4 @@ layout(binding = 14) uniform sampler2D uTexture3;
 #define PZ_FINALIZE_COLOR(c) (c)
 #endif
 
-#endif // PLASMAZONES_POINTER_UNIFORMS_GLSL
+#endif // PHOSPHOR_POINTER_UNIFORMS_GLSL

@@ -34,7 +34,7 @@
 //
 // Geometry-morph endpoints (logical-screen px, x/y/w/h). Default-block
 // uniforms pushed by the kwin-effect paint pipeline.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 // On the UBO branch both rects come from the AnimationUniforms transition
 // tail (shared/animation_uniforms.glsl); only the kwin branch declares
 // them as default-block uniforms.

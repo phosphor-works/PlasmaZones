@@ -13,8 +13,8 @@
 // This is what the registry's entry prologue includes, so a pPointer body
 // sees everything here without an include of its own.
 
-#ifndef PLASMAZONES_POINTER_LIB_GLSL
-#define PLASMAZONES_POINTER_LIB_GLSL
+#ifndef PHOSPHOR_POINTER_LIB_GLSL
+#define PHOSPHOR_POINTER_LIB_GLSL
 
 #include <pointer_uniforms.glsl>
 
@@ -61,7 +61,7 @@ float pointerReachWindow(float d, float reach) {
 // vTexCoord. The compositor's render target is bottom-origin (Y-up), so the Y
 // is flipped there to reach the top-down space the position uniforms use.
 vec2 pointerPixel(vec2 uv) {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     return vec2(uv.x, 1.0 - uv.y) * iResolution;
 #else
     return uv * iResolution;
@@ -489,4 +489,4 @@ vec4 pointerButtonColour(float button, vec4 left, vec4 right, vec4 middle) {
     return left;
 }
 
-#endif // PLASMAZONES_POINTER_LIB_GLSL
+#endif // PHOSPHOR_POINTER_LIB_GLSL

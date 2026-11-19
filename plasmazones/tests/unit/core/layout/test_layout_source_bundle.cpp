@@ -510,7 +510,7 @@ private Q_SLOTS:
     void testInvariant_layoutManagerSingleQObjectBase()
     {
         std::unique_ptr<PhosphorZones::LayoutRegistry> mgr(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         // Direct concrete → QObject path.
         QObject* directQObject = static_cast<QObject*>(mgr.get());
         // Concrete → IZoneLayoutRegistry → ILayoutSourceRegistry → QObject.

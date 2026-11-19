@@ -19,8 +19,8 @@ NEST="$1"
 LOG="$2"
 . "$(dirname "$0")/../lib.sh"
 kwjs_ok
-RULES="$XDG_CONFIG_HOME/plasmazones/rules.json"
-SESSION="$XDG_CONFIG_HOME/plasmazones/session.json"
+RULES="$XDG_CONFIG_HOME/phosphor-works/plasmazones/rules.json"
+SESSION="$XDG_CONFIG_HOME/phosphor-works/plasmazones/session.json"
 # known -> session.json's KnownDesktopIds, comma-separated
 known() {
     python3 -c '

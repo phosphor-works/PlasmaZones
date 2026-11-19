@@ -36,7 +36,7 @@ set(plasmazones_core_SRCS
     # AssignmentEntry, LayoutAssignmentKey live in phosphor-libs/libs/phosphor-zones/ -
     # consumers include <PhosphorZones/...> directly and construct the registry
     # with a borrowed PhosphorRules::RuleStore* + the
-    # "plasmazones/layouts" subdir inline.
+    # ConfigKeys::layoutsSubdir() subdir.
     common/engineruntimenamespace.h
     common/hostsettings.cpp
     common/plasmazoneslogging.cpp
@@ -399,7 +399,7 @@ set(plasmazones_daemon_SRCS
     runtime/engine/engineruntime_fwd.h
     runtime/engine/helpers.h
     runtime/engine/macros.h
-    # Zero-copy GPU thumbnail path (PLASMAZONES_DMABUF_THUMBNAILS): imports
+    # Zero-copy GPU thumbnail path (PHOSPHOR_DMABUF_THUMBNAILS): imports
     # dma-bufs handed from the kwin-effect as Vulkan-backed QSGTextures. The
     # overlays reach it through the presentation host below.
     daemon/host/kwinsurfacepresentation.cpp

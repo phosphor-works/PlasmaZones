@@ -46,7 +46,7 @@ endif()
 # under org/phosphor and header/CMake package files stay manifest-covered).
 # Covers: bin, lib, share/applications, share/autostart, share/dbus-1/interfaces,
 # share/icons, share/kglobalaccel, share/phosphor-works/placement-hosts,
-# share/phosphor-works/surface (its empty directories only, in step 3),
+# share/phosphor-works/shaders/surface (its empty directories only, in step 3),
 # share/plasmazones, lib/.../qml, lib/.../plugins
 # ═══════════════════════════════════════════════════════════════════════════════
 

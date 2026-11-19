@@ -103,7 +103,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </arg>
         </method>
         <method name="setWindowThumbnailDmabuf">
-            <annotation name="org.gtk.GDBus.DocString" value="Deliver a window thumbnail as a single-plane DMA-BUF (zero-copy GPU path) instead of raw pixels. This is the default transport. The daemon refuses it and returns false when started with PLASMAZONES_DMABUF_THUMBNAILS=0, and on any false the caller must fall back to setSnapAssistThumbnail. Only the compositor's own process may call it, as for the raw-pixel method, and any other caller is answered with AccessDenied. The fd is consumed/duplicated by the daemon's GPU import, so the caller may close its copy after the call returns."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Deliver a window thumbnail as a single-plane DMA-BUF (zero-copy GPU path) instead of raw pixels. This is the default transport. The daemon refuses it and returns false when started with PHOSPHOR_DMABUF_THUMBNAILS=0, and on any false the caller must fall back to setSnapAssistThumbnail. Only the compositor's own process may call it, as for the raw-pixel method, and any other caller is answered with AccessDenied. The fd is consumed/duplicated by the daemon's GPU import, so the caller may close its copy after the call returns."/>
             <arg name="compositorHandle" type="s" direction="in">
                 <annotation name="org.gtk.GDBus.DocString" value="KWin internal UUID (EffectWindow::internalId().toString(), braced form)."/>
             </arg>
@@ -132,7 +132,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 <annotation name="org.gtk.GDBus.DocString" value="sync_file fence fd that signals when the producer's GPU render into the buffer completes. The daemon waits on it before sampling so a repeated/live producer is not read mid-render. Borrowed for the call."/>
             </arg>
             <arg name="accepted" type="b" direction="out">
-                <annotation name="org.gtk.GDBus.DocString" value="True iff the daemon accepted and stored the descriptor. The GPU import is deferred (it runs lazily on the daemon's render thread once the render-completion fence signals), so true means accepted and will display, not already imported. False when the dma-buf path is disabled (PLASMAZONES_DMABUF_THUMBNAILS=0), the driver/RHI backend can't import it, auth fails, or dimensions are out of range. On false the caller MUST fall back to setSnapAssistThumbnail."/>
+                <annotation name="org.gtk.GDBus.DocString" value="True iff the daemon accepted and stored the descriptor. The GPU import is deferred (it runs lazily on the daemon's render thread once the render-completion fence signals), so true means accepted and will display, not already imported. False when the dma-buf path is disabled (PHOSPHOR_DMABUF_THUMBNAILS=0), the driver/RHI backend can't import it, auth fails, or dimensions are out of range. On false the caller MUST fall back to setSnapAssistThumbnail."/>
             </arg>
         </method>
 

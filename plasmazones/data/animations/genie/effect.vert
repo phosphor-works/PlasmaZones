@@ -38,7 +38,7 @@ layout(location = 1) in vec2 texCoord;
 
 layout(location = 0) out vec2 vTexCoord;
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform mat4 modelViewProjectionMatrix;
 // Task-manager icon rect (logical screen px, x/y/w/h), pushed by the
 // kwin-effect paint pipeline for any shader that declares it.
@@ -51,7 +51,7 @@ uniform vec4 iIconRect;
 layout(location = 1) out vec3 vGenie;
 
 void main() {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     // Normalise the KWin offscreen quad's version-dependent texcoords to
     // top-down card uv, as flow and the shared vertex stage do.
     vec2 cuv = animationScreenUv(texCoord);
@@ -104,7 +104,7 @@ void main() {
 
     vTexCoord = cuv;
     vGenie = vec3(cuv, p);
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     gl_Position = modelViewProjectionMatrix * vec4(position + delta, 0.0, 1.0);
 #else
     // Qt-RHI path: `position` is clip-space over the shader item (extent

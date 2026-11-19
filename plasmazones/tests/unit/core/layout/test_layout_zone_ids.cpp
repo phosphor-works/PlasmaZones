@@ -53,7 +53,7 @@ private Q_SLOTS:
     void init()
     {
         m_guard = std::make_unique<IsolatedConfigGuard>();
-        m_layoutDir = m_guard->dataPath() + QStringLiteral("/plasmazones/layouts");
+        m_layoutDir = m_guard->dataPath() + QStringLiteral("/phosphor-works/layouts");
         QVERIFY(QDir().mkpath(m_layoutDir));
     }
 
@@ -132,7 +132,7 @@ private Q_SLOTS:
     {
         QTemporaryDir systemRoot;
         QVERIFY(systemRoot.isValid());
-        const QString systemLayouts = systemRoot.path() + QStringLiteral("/plasmazones/layouts");
+        const QString systemLayouts = systemRoot.path() + QStringLiteral("/phosphor-works/layouts");
         QVERIFY(QDir().mkpath(systemLayouts));
         QVERIFY(
             writeJson(systemLayouts + QLatin1Char('/') + QUuid::fromString(kOriginalId).toString(QUuid::WithoutBraces)
@@ -413,7 +413,7 @@ private:
     PhosphorZones::LayoutRegistry* loadedRegistry(QObject* owner) const
     {
         PhosphorZones::LayoutRegistry* registry =
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), owner);
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), owner);
         registry->setLayoutDirectory(m_layoutDir);
         registry->loadLayouts();
         return registry;

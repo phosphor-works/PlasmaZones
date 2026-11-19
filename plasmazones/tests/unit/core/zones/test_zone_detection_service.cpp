@@ -62,7 +62,7 @@ private Q_SLOTS:
     {
         IsolatedConfigGuard guard;
         QScopedPointer<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         QScopedPointer<StubSettings> settings(new StubSettings(nullptr));
         QScopedPointer<StubZoneDetectorSvc> detector(new StubZoneDetectorSvc(nullptr));
         QScopedPointer<PhosphorPlacement::WindowTrackingService> service(
@@ -103,7 +103,7 @@ private Q_SLOTS:
     {
         IsolatedConfigGuard guard;
         QScopedPointer<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         QScopedPointer<StubSettings> settings(new StubSettings(nullptr));
         QScopedPointer<StubZoneDetectorSvc> detector(new StubZoneDetectorSvc(nullptr));
         QScopedPointer<PhosphorPlacement::WindowTrackingService> service(

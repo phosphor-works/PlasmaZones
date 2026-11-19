@@ -93,8 +93,8 @@ private:
     PhosphorZones::LayoutRegistry* createManager()
     {
         m_guards.emplace_back(std::make_unique<TestHelpers::IsolatedConfigGuard>());
-        auto* mgr = TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
-        const QString layoutDir = m_guards.back()->dataPath() + QStringLiteral("/plasmazones/layouts");
+        auto* mgr = TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
+        const QString layoutDir = m_guards.back()->dataPath() + QStringLiteral("/phosphor-works/layouts");
         QDir().mkpath(layoutDir);
         mgr->setLayoutDirectory(layoutDir);
         return mgr;

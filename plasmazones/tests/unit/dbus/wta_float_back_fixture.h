@@ -59,7 +59,7 @@ struct FloatBackFixture
         screenMgr = std::make_unique<PhosphorScreens::ScreenManager>(
             PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
         screenMgr->start();
-        layouts = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        layouts = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         layout = createTestLayout(3, layouts);
         layouts->addLayout(layout);
         layouts->setActiveLayout(layout);

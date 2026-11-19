@@ -38,14 +38,14 @@
 // the kwin branch below and the CAVA run-gate it describes are uncovered. A
 // pack that adopts it is the first thing to compile it.
 
-#ifndef PLASMAZONES_ANIMATION_AUDIO_GLSL
-#define PLASMAZONES_ANIMATION_AUDIO_GLSL
+#ifndef PHOSPHOR_ANIMATION_AUDIO_GLSL
+#define PHOSPHOR_ANIMATION_AUDIO_GLSL
 
 // Audio spectrum texture (binding 10 on the daemon's RHI pipeline, shared with
 // the overlay convention; a plain named sampler on the compositor's classic-GL
 // pipeline, bound to a texture unit at draw time). Never sampled while
 // iAudioSpectrumSize is 0. 1D: bar index = x, y = 0; R = bar value in 0..1.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform sampler2D uAudioSpectrum;
 uniform int iAudioSpectrumSize;
 #else
@@ -198,4 +198,4 @@ float getOverallSoft() {
     return v * smoothstep(0.03, 0.20, v);
 }
 
-#endif // PLASMAZONES_ANIMATION_AUDIO_GLSL
+#endif // PHOSPHOR_ANIMATION_AUDIO_GLSL

@@ -23,7 +23,7 @@ layout(location = 1) in vec2 texCoord;
 
 layout(location = 0) out vec2 vTexCoord;
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform mat4 modelViewProjectionMatrix;
 #endif
 
@@ -33,7 +33,7 @@ void main() {
     // version. Mirrors `AnimationShaderRegistry::compositorVertexSource()` and the
     // header's vertex-stage contract. gl_Position also differs: KWin
     // needs the MVP matrix, the daemon emits clip space.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     vTexCoord = animationScreenUv(texCoord);
     gl_Position = modelViewProjectionMatrix * vec4(position, 0.0, 1.0);
 #else

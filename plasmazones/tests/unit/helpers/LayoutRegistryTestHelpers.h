@@ -30,7 +30,7 @@ namespace TestHelpers {
  * empty rule set on disk.
  *
  * @param layoutSubdirectory XDG-relative layout discovery path (callers pass
- *        @c "plasmazones/layouts" to match production).
+ *        @c "phosphor-works/layouts" to match production).
  * @param parent Qt parent for the registry.
  */
 inline PhosphorZones::LayoutRegistry* makeLayoutRegistry(const QString& layoutSubdirectory, QObject* parent = nullptr)

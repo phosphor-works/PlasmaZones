@@ -102,11 +102,11 @@ let
   # pin. Bump both forms together.
   depsArchives = linkFarm "plasmazones-deps-archives" [
     {
-      name = "phosphor-libs-1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz";
+      name = "phosphor-libs-7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-libs/archive/1cac2f93eb5f815eef42ae860901f5cda5a2592b.tar.gz";
-        # sha256 24a3d53851a461dd5486892c16424ae3d44cb296d6ba2019dcbfa2284c24a2b3
-        hash = "sha256-JKPVOFGkYd1UhoksFkJK49RMspbWuiAZ3L+iKEwkorM=";
+        url = "https://github.com/phosphor-works/phosphor-libs/archive/7b0d45ad8108398d3a37cbfab9edbffb36a661dc.tar.gz";
+        # sha256 51563082f6409ac180b091bbb13a904b191389265d6b10343440ff0fdbca44ea
+        hash = "sha256-UVYwgvZAmsGAsJG7sTqQSxkTiSZdaxA0NED/D9vKROo=";
       };
     }
     {
@@ -134,11 +134,11 @@ let
       };
     }
     {
-      name = "phosphor-surface-packs-e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz";
+      name = "phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-surface-packs/archive/e89d9f7bb6320eab8b6a0b3325858d2ca5356ce3.tar.gz";
-        # sha256 fbbf0b9849d83396029bc4e310c3dcac49c08758e73d560538888e685f0a5e30
-        hash = "sha256-+78LmEnYM5YCm8TjEMPcrEnAh1jnPVYFOIiOaF8KXjA=";
+        url = "https://github.com/phosphor-works/phosphor-surface-packs/archive/087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz";
+        # sha256 2b3244bbd1d198cc9361dea105b01bfbcd32bbe35843ddd392881208370b40e1
+        hash = "sha256-KzJEu9HRmMyTYd6hBbAb+80yu+NYQ93TkogSCDcLQOE=";
       };
     }
     {

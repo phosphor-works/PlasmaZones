@@ -77,9 +77,9 @@ QString resolveLayoutPath(const QString& layoutArg, const QString& layoutDir)
 // nothing. The daemon's trustedShaderRoots() uses the generic tier, and a
 // preview that cannot see a pack the daemon loads is the divergence this tool
 // exists to avoid.
-QString xdgPlasmaZonesDir(const QString& subdir)
+QString xdgPhosphorWorksDir(const QString& subdir)
 {
-    const QString suffix = QStringLiteral("/plasmazones/") + subdir;
+    const QString suffix = QStringLiteral("/phosphor-works/") + subdir;
     const QStringList roots = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
     for (const QString& root : roots) {
         const QString candidate = root + suffix;
@@ -123,7 +123,7 @@ QString defaultShaderDir()
     // No hardcoded /usr/share tier: GenericDataLocation already ends with the
     // XDG_DATA_DIRS list, which contains it. A second spelling of a path the
     // walk above already covers is just a second thing to keep in sync.
-    return xdgPlasmaZonesDir(QStringLiteral("overlays"));
+    return xdgPhosphorWorksDir(QStringLiteral("shaders/overlays"));
 }
 
 // The pointer family's equivalent of defaultShaderDir(). Used when --pointer is
@@ -134,7 +134,7 @@ QString defaultPointerDir()
     const QString inTree = sourceTreeDataDir(QStringLiteral("pointer"));
     if (!inTree.isEmpty())
         return inTree;
-    return xdgPlasmaZonesDir(QStringLiteral("pointer"));
+    return xdgPhosphorWorksDir(QStringLiteral("shaders/pointer"));
 }
 
 QString defaultLayoutDir()
@@ -145,7 +145,7 @@ QString defaultLayoutDir()
     // No hardcoded /usr/share tier: GenericDataLocation already ends with the
     // XDG_DATA_DIRS list, which contains it. A second spelling of a path the
     // walk above already covers is just a second thing to keep in sync.
-    return xdgPlasmaZonesDir(QStringLiteral("layouts"));
+    return xdgPhosphorWorksDir(QStringLiteral("layouts"));
 }
 
 } // namespace

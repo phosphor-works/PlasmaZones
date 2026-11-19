@@ -58,7 +58,7 @@ private Q_SLOTS:
     void init()
     {
         m_guard = std::make_unique<IsolatedConfigGuard>();
-        m_layoutManager.reset(PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+        m_layoutManager.reset(PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         m_source = std::make_unique<PhosphorScreens::FakePhysicalScreenSource>();
         m_source->addScreen(kLeft, kLeftGeometry);
         m_source->addScreen(kRight, kRightGeometry);

@@ -86,7 +86,8 @@ private Q_SLOTS:
     {
         m_guard = std::make_unique<IsolatedConfigGuard>();
         m_parent = new QObject(nullptr);
-        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), m_parent);
+        m_layoutManager =
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), m_parent);
         m_store = std::make_unique<PhosphorZones::ScrollingTemplateStore>(
             PlasmaZones::ConfigDefaults::scrollingTemplatesSubdir());
         m_layoutManager->setScrollingTemplateStore(m_store.get());

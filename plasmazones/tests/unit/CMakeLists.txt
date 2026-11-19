@@ -1430,7 +1430,7 @@ target_link_libraries(test_animation_shader_preamble_bake PRIVATE Qt6::Test Qt6:
 target_compile_definitions(test_animation_shader_preamble_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animation_shader_preamble_bake COMMAND test_animation_shader_preamble_bake)
 
-# Bakes the KWIN-PATH variant (#define PLASMAZONES_KWIN) of every animation pack
+# Bakes the KWIN-PATH variant (#define PHOSPHOR_KWIN) of every animation pack
 # through a real offscreen OpenGL context — the branch qsb/SPIR-V rejects and the
 # daemon preamble bake therefore never compiles. Catches GLSL errors in the KWin
 # branch (getFromColor/getToColor, surfaceColor's kwin flip, customColors/iFrame

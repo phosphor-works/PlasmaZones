@@ -98,7 +98,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         // Declared BEFORE the service: the probe captures it by reference and
         // lives in the store, so the set has to outlive it
         // (WindowPlacementBuilders.h).
@@ -151,7 +151,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         // Declared BEFORE the service, as above: the probe holds a reference.
         QSet<QString> liveInstances;
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
@@ -232,7 +232,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
         AutotileEngine engine(layoutManager.get(), &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
         const QString home = QStringLiteral("DP-1/vs:0");

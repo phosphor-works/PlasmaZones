@@ -58,7 +58,7 @@ namespace {
 const QStringList kNoDeclaredParams;
 
 // How the compositor assembles the MAIN fragment of a surface pack for the
-// compositor arms (`#define PLASMAZONES_KWIN`, default-block uniforms), which
+// compositor arms (`#define PHOSPHOR_KWIN`, default-block uniforms), which
 // QShaderBaker cannot compile, since it wants Vulkan-dialect GLSL. Buffer
 // passes and vertex stages take a default CompositorAssembly instead: they
 // compile WITHOUT the scaffold and the generated preamble and read their
@@ -89,7 +89,7 @@ CompositorAssembly surfaceMainAssembly(const SurfaceShaderEffect& eff)
 //
 // The daemon (Qt-RHI) branch bakes through QShaderBaker, which validates the UBO
 // contract in surface_uniforms.glsl. The kwin-effect classic-GL branch
-// (`#define PLASMAZONES_KWIN`, default-block uniforms) is baked separately through
+// (`#define PHOSPHOR_KWIN`, default-block uniforms) is baked separately through
 // glslang, because QShaderBaker wants Vulkan-dialect GLSL and rejects default-block
 // uniforms. Both are required: a contract error on the compositor branch used to
 // ship and surface as a black decoration, since the compositor swallows a compile
@@ -224,7 +224,7 @@ int validateSurfacePack(const QString& packDir, QTextStream& out)
         out << "  " << padLabel(QString())
             << "and the surface family ships no depth module, so declare "
                "`layout(binding = 16) uniform sampler2D uDepthBuffer;` yourself, inside `#ifndef "
-               "PLASMAZONES_KWIN` (the compositor branch compiles as GLSL ES 300 on a GLES context, which has no "
+               "PHOSPHOR_KWIN` (the compositor branch compiles as GLSL ES 300 on a GLES context, which has no "
                "binding qualifier)\n";
     }
     // Also a NOTE, beside the one above because a note printed before the lint flush
@@ -426,7 +426,7 @@ int validateSurfacePack(const QString& packDir, QTextStream& out)
                 // baked here: the compositor never resolves that file (it supplies
                 // its own built-in stage), and the shared one reads qt_Matrix,
                 // which is a daemon UBO member and undeclared under
-                // PLASMAZONES_KWIN. Baking it would fail every bundled pack on a
+                // PHOSPHOR_KWIN. Baking it would fail every bundled pack on a
                 // stage that never runs there.
                 if (vertPath == eff.vertexShaderPath) {
                     declaredVert =

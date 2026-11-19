@@ -12,8 +12,8 @@
 // to carry their own variants (opensuse-drift's forward-difference version is
 // named curlNoiseFwd to stay collision-proof either way).
 
-#ifndef PLASMAZONES_FLOW_NOISE_GLSL
-#define PLASMAZONES_FLOW_NOISE_GLSL
+#ifndef PHOSPHOR_FLOW_NOISE_GLSL
+#define PHOSPHOR_FLOW_NOISE_GLSL
 
 #include <common.glsl>
 
@@ -27,4 +27,4 @@ vec2 curlNoise(vec2 p, float t) {
     return vec2(n - ns, -(ne - nw)) / (2.0 * eps);
 }
 
-#endif // PLASMAZONES_FLOW_NOISE_GLSL
+#endif // PHOSPHOR_FLOW_NOISE_GLSL

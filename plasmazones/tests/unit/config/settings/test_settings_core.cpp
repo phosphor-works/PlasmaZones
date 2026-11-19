@@ -202,7 +202,7 @@ private Q_SLOTS:
      * across all config groups.
      *
      * createDefaultConfigBackend() reads from
-     * $XDG_CONFIG_HOME/plasmazones/config.json. The IsolatedConfigGuard
+     * $XDG_CONFIG_HOME/phosphor-works/plasmazones/config.json. The IsolatedConfigGuard
      * redirects XDG_CONFIG_HOME to a temp directory, so each test gets a fresh file.
      */
     void testSave_load_roundtrip_allGroups()
@@ -1681,7 +1681,7 @@ private Q_SLOTS:
         };
 
         IsolatedConfigGuard guard;
-        FailingCommitBackend backend(guard.configPath() + QStringLiteral("/plasmazones/config.json"));
+        FailingCommitBackend backend(guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json"));
         Settings settings(&backend, nullptr, nullptr, nullptr);
 
         // A committed non-default value to reset back to later.

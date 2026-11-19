@@ -45,7 +45,7 @@ private Q_SLOTS:
         m_guard = std::make_unique<IsolatedConfigGuard>();
         m_parent = new QObject(nullptr);
         auto* layoutManager =
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), m_parent);
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), m_parent);
         auto* virtualDesktopManager = new PhosphorWorkspaces::VirtualDesktopManager(m_parent);
         m_service = new PhosphorPlacement::WindowTrackingService(layoutManager, nullptr, virtualDesktopManager, nullptr,
                                                                  PhosphorPlacement::PlacementConfig{}, m_parent);

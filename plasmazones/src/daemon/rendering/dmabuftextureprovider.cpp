@@ -19,7 +19,7 @@
 #include <QVulkanDeviceFunctions>
 #include <QVulkanInstance>
 
-// The dma-buf import's per-thumbnail timings (PLASMAZONES_THUMBNAIL_TRACE).
+// The dma-buf import's per-thumbnail timings (PHOSPHOR_THUMBNAIL_TRACE).
 // Its cost is the lazy import below, not a cache insert. The raw-pixel cache
 // is the engine runtime's and traces under phosphor.engineruntime.snapassist.trace.
 Q_LOGGING_CATEGORY(lcDmabufThumbnailTrace, "plasmazones.daemon.dmabufthumbnail.trace", QtInfoMsg)

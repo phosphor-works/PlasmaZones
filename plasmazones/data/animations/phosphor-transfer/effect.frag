@@ -22,7 +22,7 @@
 // the one place the shared old-content sampler is fed from a different window
 // (see tab-fade's header for the coordinate-system argument). Tab-only pack,
 // hence compositor-only, so old_content.glsl's binding-less uOldWindow
-// declaration needs no PLASMAZONES_KWIN guard.
+// declaration needs no PHOSPHOR_KWIN guard.
 //
 // Output is premultiplied alpha. Both tabs are opaque, so the base blend's
 // weights are kept summing to exactly 1 and the breakup dim touches rgb ONLY —

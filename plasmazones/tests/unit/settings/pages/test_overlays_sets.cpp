@@ -85,7 +85,7 @@ private:
             return false;
         }
         m_settings = std::make_unique<StubSettings>();
-        m_layouts.reset(TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+        m_layouts.reset(TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         auto* layout = new PhosphorZones::Layout(m_layouts.get());
         layout->setName(QStringLiteral("Layout A"));
         m_layouts->addLayout(layout);

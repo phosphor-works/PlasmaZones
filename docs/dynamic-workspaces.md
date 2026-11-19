@@ -38,7 +38,7 @@ monitor is showing is removed again, the way niri drops a stray empty
 workspace, so such a desktop lasts only once a window is on it or a monitor
 shows it.
 
-The daemon keeps its runtime state under `~/.local/state/plasmazones/plasmazonesd/`:
+The daemon keeps its runtime state under `~/.local/state/phosphor-works/plasmazones/`:
 
 - `workspaces.json`, the ownership map, so monitors get their workspaces back
   after a restart.

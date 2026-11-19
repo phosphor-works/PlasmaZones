@@ -15,11 +15,11 @@ independent artefacts below. Generate all of them.
 
 | artefact | where | carries |
 |---|---|---|
-| Decoration set | `~/.local/share/plasmazones/decorationsets/<slug>.json` | surface pack chains + params per surface path |
-| Motion set | `~/.local/share/plasmazones/motionsets/<slug>.json` | duration/curve AND the animation pack per event path |
-| Overlay set | `~/.local/share/plasmazones/overlaysets/<slug>.json` | zone-overlay shader: the global baseline plus a per-layout override each |
-| Curves | `~/.local/share/plasmazones/curves/<name>.json` | named easing presets referenced by name |
-| Config trees | `~/.config/plasmazones/config.json` | `Animations.ShaderProfileTree` (pack per event), `Animations.MotionProfileTree` (timing per event), `Decorations.DecorationProfileTree`, and `Overlays.OverlayShaderTree` (zone overlay shader, baseline plus per-layout overrides) |
+| Decoration set | `~/.local/share/phosphor-works/decorationsets/<slug>.json` | surface pack chains + params per surface path |
+| Motion set | `~/.local/share/phosphor-works/motionsets/<slug>.json` | duration/curve AND the animation pack per event path |
+| Overlay set | `~/.local/share/phosphor-works/overlaysets/<slug>.json` | zone-overlay shader: the global baseline plus a per-layout override each |
+| Curves | `~/.local/share/phosphor-works/curves/<name>.json` | named easing presets referenced by name |
+| Config trees | `~/.config/phosphor-works/plasmazones/config.json` | `Animations.ShaderProfileTree` (pack per event), `Animations.MotionProfileTree` (timing per event), `Decorations.DecorationProfileTree`, and `Overlays.OverlayShaderTree` (zone overlay shader, baseline plus per-layout overrides) |
 
 Animation pack selection (`effectId`) lives in `Animations.ShaderProfileTree` in config.json,
 and per-event timing beside it in `Animations.MotionProfileTree`. A format-2 MOTION SET
@@ -137,7 +137,7 @@ Both are config keys, in `PhosphorAnimation::ProfileTree`'s serialized shape:
 }
 ```
 Write that directly for the same effect as applying the set. Schema v7 and earlier
-kept these in `~/.local/share/plasmazones/profiles/<event.path>.json`; those files are
+kept these in `~/.local/share/phosphor-works/profiles/<event.path>.json`; those files are
 read once on the upgrade and ignored afterwards.
 
 ### Decoration set profile fields
@@ -218,7 +218,7 @@ A motion set now carries BOTH halves of every event it covers (the pack and the 
 and a decoration set has always carried a whole surface. So the normal route is two clicks
 and no file surgery:
 
-1. Write the set files to `~/.local/share/plasmazones/{motionsets,decorationsets,overlaysets}/`.
+1. Write the set files to `~/.local/share/phosphor-works/{motionsets,decorationsets,overlaysets}/`.
 2. Settings → Appearance → Animations → Library → Sets → Apply, Settings → Appearance →
    Decorations → Library → Sets → Apply, and Settings → Appearance → Overlays → Library →
    Sets → Apply. Apply is a pending settings change in each of the three, so it needs the

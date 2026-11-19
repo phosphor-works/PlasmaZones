@@ -268,7 +268,7 @@ CompiledSurfacePack* PlasmaZonesEffect::compiledPack(const QString& packId,
     // from the resolved appearance.
     expanded = PhosphorShaders::spliceAfterVersion(expanded,
                                                    PhosphorSurfaceShaders::SurfaceShaderRegistry::paramPreamble(eff));
-    // Select the PLASMAZONES_KWIN branch of surface_uniforms.glsl (classic-GL
+    // Select the PHOSPHOR_KWIN branch of surface_uniforms.glsl (classic-GL
     // default-block uniforms; KWin::GLShader has no UBO bind path), exactly as
     // the animation compile path does.
     const QByteArray fragWithKwinDefine =

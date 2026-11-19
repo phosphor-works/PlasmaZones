@@ -10,7 +10,7 @@
  * file mirrors the motion side's test_animations_motion_sets.cpp.
  *
  * A decoration set is every per-surface override, captured
- * as one JSON file under `<GenericDataLocation>/plasmazones/decorationsets`.
+ * as one JSON file under `<GenericDataLocation>/phosphor-works/decorationsets`.
  * Pinned behaviour:
  *   - Save / list / apply / remove round-trip, with apply MERGING (surfaces the
  *     set does not cover keep their current chains)

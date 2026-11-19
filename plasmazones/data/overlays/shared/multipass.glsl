@@ -16,8 +16,8 @@
 // iResolution larger than the surface it is writing; size the pass's own target
 // with iChannelResolution[N].xy or textureSize() instead.
 
-#ifndef PLASMAZONES_MULTIPASS_GLSL
-#define PLASMAZONES_MULTIPASS_GLSL
+#ifndef PHOSPHOR_MULTIPASS_GLSL
+#define PHOSPHOR_MULTIPASS_GLSL
 
 layout(binding = 2) uniform sampler2D iChannel0;
 layout(binding = 3) uniform sampler2D iChannel1;

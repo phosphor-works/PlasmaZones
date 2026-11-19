@@ -12,8 +12,8 @@
 //
 // Bindings 0-1: UBO and labels. Channels (2-9) in multipass.glsl.
 
-#ifndef PLASMAZONES_COMMON_GLSL
-#define PLASMAZONES_COMMON_GLSL
+#ifndef PHOSPHOR_COMMON_GLSL
+#define PHOSPHOR_COMMON_GLSL
 
 layout(std140, binding = 0) uniform ZoneUniforms {
     // ── Base uniforms (PhosphorShaders::BaseUniforms, 672 bytes) ───────
@@ -574,4 +574,4 @@ float vitalityScale(float dormant, float alive, float vitality) {
     return mix(dormant, alive, vitality);
 }
 
-#endif // PLASMAZONES_COMMON_GLSL
+#endif // PHOSPHOR_COMMON_GLSL

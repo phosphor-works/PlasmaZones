@@ -1758,7 +1758,7 @@ private:
     CompiledSurfacePack* compiledPack(const QString& packId, const PhosphorSurfaceShaders::DecorationProfile& profile);
 
     /// Populate the surface-shader registry's search paths (the bundled
-    /// ${XDG_DATA_DIRS}/phosphor-works/surface dirs + the user override) on first
+    /// ${XDG_DATA_DIRS}/phosphor-works/shaders/surface dirs + the user override) on first
     /// use. One-shot: the registry's live-reload watcher then tracks pack edits.
     void ensureSurfaceRegistryPaths();
 

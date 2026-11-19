@@ -6,7 +6,7 @@
 // pPointer entry scaffold + the generated p_<id> preamble + include expansion
 // over the pack's {shared, root} pair) and bakes every stage on the preview
 // (Qt-RHI, UBO) dialect through headless QShaderBaker, and on the compositor
-// (PLASMAZONES_KWIN, default-block uniforms) in both of KWin's dialects through
+// (PHOSPHOR_KWIN, default-block uniforms) in both of KWin's dialects through
 // glslang in default mode (reportCompositorCompile), linking each fragment
 // against the vertex stage the compositor runs it with. The compositor is where
 // every pointer pack actually ships, and the two branches do not declare the
@@ -286,7 +286,7 @@ CompositorAssembly pointerMainAssembly(const PointerShaderEffect& eff)
 // it on the preview dialect and on both of the compositor's. Returns the error
 // count.
 //
-// The compositor branch (`#define PLASMAZONES_KWIN`, default-block uniforms) is
+// The compositor branch (`#define PHOSPHOR_KWIN`, default-block uniforms) is
 // baked out of process through glslang in default mode, as on the animation
 // and surface arms, and it is the bake that matters here: every shipping
 // pointer pack compiles through that branch, while the Qt-RHI #else branch is

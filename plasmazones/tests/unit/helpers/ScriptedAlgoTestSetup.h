@@ -60,10 +60,10 @@ public:
         if (!m_xdgRoot.isValid())
             return false;
 
-        if (!QDir().mkpath(m_xdgRoot.path() + QStringLiteral("/plasmazones")))
+        if (!QDir().mkpath(m_xdgRoot.path() + QStringLiteral("/phosphor-works")))
             return false;
         const QString sourceAlgoDir = sourceDir + QStringLiteral("/data/algorithms");
-        const QString algoLink = m_xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        const QString algoLink = m_xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         if (!QFile::link(sourceAlgoDir, algoLink)) {
             // Symlink failed (Windows, restricted FS) — fall back to recursive copy
             QDir srcAlgoDir(sourceAlgoDir);
@@ -90,7 +90,7 @@ public:
         // a singleton, but per-instance ownership means engines built
         // against testRegistry() can't see scripts loaded into a
         // different instance.
-        m_loader = std::make_unique<PhosphorTiles::ScriptedAlgorithmLoader>(QStringLiteral("plasmazones/algorithms"),
+        m_loader = std::make_unique<PhosphorTiles::ScriptedAlgorithmLoader>(QStringLiteral("phosphor-works/algorithms"),
                                                                             registry());
         m_loader->scanAndRegister();
 

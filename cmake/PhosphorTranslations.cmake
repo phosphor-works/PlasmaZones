@@ -231,7 +231,7 @@ if(Qt6LinguistTools_FOUND AND TRANSLATION_TS_FILES)
         TS_FILES ${TRANSLATION_TS_FILES}
         QM_FILES_OUTPUT_VARIABLE QM_FILES
     )
-    install(FILES ${QM_FILES} DESTINATION ${KDE_INSTALL_DATADIR}/plasmazones/translations)
+    install(FILES ${QM_FILES} DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/plasmazones/translations)
 endif()
 
 # The engine runtime's catalog: phosphor-engine-runtime_<lang>.qm, which
@@ -242,5 +242,5 @@ if(Qt6LinguistTools_FOUND AND RUNTIME_TRANSLATION_TS_FILES)
         TS_FILES ${RUNTIME_TRANSLATION_TS_FILES}
         QM_FILES_OUTPUT_VARIABLE RUNTIME_QM_FILES
     )
-    install(FILES ${RUNTIME_QM_FILES} DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-engine-runtime/translations)
+    install(FILES ${RUNTIME_QM_FILES} DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/translations)
 endif()

@@ -7,8 +7,8 @@
 //   #include <common.glsl>
 //   #include <audio.glsl>
 
-#ifndef PLASMAZONES_AUDIO_GLSL
-#define PLASMAZONES_AUDIO_GLSL
+#ifndef PHOSPHOR_AUDIO_GLSL
+#define PHOSPHOR_AUDIO_GLSL
 
 // Audio spectrum texture (binding 10). 1D: bar index = x, y=0. R = bar value 0-1.
 // Only valid when iAudioSpectrumSize > 0; the helpers below all return 0 when

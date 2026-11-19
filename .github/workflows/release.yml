@@ -1135,9 +1135,9 @@ jobs:
           grep -qE '^KWIN_VERSION=[0-9]+\.[0-9]+\.[0-9]+$' "$DIRNAME/BUILD_ENV"
 
           # Copy uninstall.sh to the installed location so it's available after install
-          mkdir -p "$DIRNAME/usr/share/plasmazones"
-          cp packaging/local-install/uninstall.sh "$DIRNAME/usr/share/plasmazones/"
-          chmod +x "$DIRNAME/usr/share/plasmazones/uninstall.sh"
+          mkdir -p "$DIRNAME/usr/share/phosphor-works/plasmazones"
+          cp packaging/local-install/uninstall.sh "$DIRNAME/usr/share/phosphor-works/plasmazones/"
+          chmod +x "$DIRNAME/usr/share/phosphor-works/plasmazones/uninstall.sh"
 
           # Create tarball
           tar czf plasmazones-${VERSION}-linux-x86_64.tar.gz "$DIRNAME"

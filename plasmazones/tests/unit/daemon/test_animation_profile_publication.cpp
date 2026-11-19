@@ -67,7 +67,7 @@ namespace {
 /// is opaque to the contract under test); the assertion is "loader
 /// uses SOME non-empty tag and Settings uses the direct/empty tag",
 /// not "the tag string is exactly this literal".
-const QString kLoaderOwnerTag = QStringLiteral("plasmazones-user-profiles");
+const QString kLoaderOwnerTag = QStringLiteral("engineruntime-user-profiles");
 
 /// The timing tree in the shape `ISettings::motionProfileTree()` returns, so
 /// these slots drive the route the daemon actually takes.

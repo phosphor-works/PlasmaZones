@@ -9,8 +9,8 @@
 // resolver looks up beside the including file, on every host; the angle
 // form searches only the shared roots.
 
-#ifndef PLASMAZONES_AFTERGLOW_COMMON_GLSL
-#define PLASMAZONES_AFTERGLOW_COMMON_GLSL
+#ifndef PHOSPHOR_AFTERGLOW_COMMON_GLSL
+#define PHOSPHOR_AFTERGLOW_COMMON_GLSL
 
 // The idle cut: 1 until the pointer has rested kIdleCutStart, exactly 0 at
 // kIdleCutSeconds, which is inside the metadata trailSeconds (1.0) so the
@@ -39,4 +39,4 @@ const float kIdleCutSeconds = 0.9;
 const float kCoverageFloor = 0.02;
 const float kMaxPersistence = 0.82;
 
-#endif // PLASMAZONES_AFTERGLOW_COMMON_GLSL
+#endif // PHOSPHOR_AFTERGLOW_COMMON_GLSL

@@ -142,8 +142,8 @@ finding.
   and after the change.
 - A proxy check that cannot fail is not verification. If the assertion would
   pass on the unfixed build too, it proves nothing.
-- Confirm the change is in the binary you are running. A stale
-  `/usr/share/plasmazones/*.qml` shadows the worktree copy, and a stale installed
+- Confirm the change is in the binary you are running. A stale installed
+  libPhosphorEngineRuntime (which carries the overlay QML) or a stale installed
   effect shadows the build tree.
 
 ## Host session, not nested

@@ -206,7 +206,7 @@ while [[ ${#HOME} -gt 1 && "$HOME" == */ ]]; do
     HOME="${HOME%/}"
 done
 
-CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/plasmazones"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/phosphor-works/plasmazones"
 # Guard against empty or root HOME (e.g., running from a systemd service without User=,
 # or running as root where HOME=/ would mangle every absolute path).
 if [[ -z "${HOME:-}" ]]; then
@@ -245,7 +245,7 @@ for var, repl in ((b"PZ_XDG_CONFIG", b"$XDG_CONFIG_HOME"),
     if val and val != b"/":
         subs.append((val.rstrip(b"/"), repl))
 # Longest literal first: with XDG_CONFIG_HOME under HOME, replacing HOME first
-# would leave "~/.config/plasmazones" instead of "$XDG_CONFIG_HOME".
+# would leave "~/.config/phosphor-works" instead of "$XDG_CONFIG_HOME".
 subs.sort(key=lambda s: len(s[0]), reverse=True)
 pats = [(re.compile(re.escape(v) + rb"(?=[/\s]|$)", re.M), r) for v, r in subs]
 out = sys.stdout.buffer
@@ -380,8 +380,8 @@ if [[ -d "$CONFIG_DIR" ]]; then
     done | redact_pairs "$STAGING/binary-files-omitted.txt"
 fi
 
-# 3. User data directory (layouts, custom algorithms, shaders, etc.)
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/plasmazones"
+# 3. User data, shared by the Phosphor apps (layouts, custom algorithms, shaders, etc.)
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/phosphor-works"
 if [[ -d "$DATA_DIR" ]]; then
     mkdir -p "$STAGING/data"
     # Copy tree structure, redacting home paths in text files.

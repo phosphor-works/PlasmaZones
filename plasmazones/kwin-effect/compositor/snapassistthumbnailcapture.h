@@ -49,7 +49,7 @@ namespace PlasmaZones {
  * @c org.phosphor_works.Placement.Overlay.setWindowThumbnailDmabuf, so the pixels never
  * cross the session bus. Captures on this path run as one batch per show,
  * paying the settle delay and the GL-context window once for every queued
- * candidate. Setting @c PLASMAZONES_DMABUF_THUMBNAILS=0 pins the session to
+ * candidate. Setting @c PHOSPHOR_DMABUF_THUMBNAILS=0 pins the session to
  * raw pixels outright.
  *
  * The FALLBACK is the raw-pixel path, taken automatically whenever the
@@ -149,7 +149,7 @@ public:
      * recovery edge. Called from the daemon-ready hook ONLY (not the cache
      * trim, which fires repeatedly in healthy sessions): re-enables the path
      * and zeroes the failure counter unless the env gate is off. No-op when
-     * PLASMAZONES_DMABUF_THUMBNAILS=0.
+     * PHOSPHOR_DMABUF_THUMBNAILS=0.
      */
     void rearmDmabufPath();
 
@@ -196,7 +196,7 @@ private:
         QUuid internalId;
         QSize maxSize;
     };
-    /// Per-capture timing sample for the PLASMAZONES_THUMBNAIL_TRACE flag.
+    /// Per-capture timing sample for the PHOSPHOR_THUMBNAIL_TRACE flag.
     /// Filled by the render functions (stage durations in microseconds, the
     /// fitted size) and completed by the post functions (payload bytes,
     /// D-Bus round-trip). Only populated when @ref m_traceEnabled; the
@@ -360,7 +360,7 @@ private:
                   "RecentPostedCapacity must be positive — the eviction loop in markRecentlyPosted "
                   "assumes the just-inserted handle survives the capacity check.");
 
-    /// Zero-copy GPU path, on unless PLASMAZONES_DMABUF_THUMBNAILS=0. When
+    /// Zero-copy GPU path, on unless PHOSPHOR_DMABUF_THUMBNAILS=0. When
     /// set, each capture renders into its own FBO texture, exports it as a
     /// dma-buf and posts via setWindowThumbnailDmabuf instead of the raw-ARGB32
     /// setSnapAssistThumbnail. Initialised from the env var at construction;
@@ -368,7 +368,7 @@ private:
     /// runtime, after which the session uses the pixel path (until a
     /// daemon-ready transition re-arms it via @ref rearmDmabufPath).
     bool m_dmabufEnabled = false;
-    /// PLASMAZONES_THUMBNAIL_TRACE: per-capture stage timings to the
+    /// PHOSPHOR_THUMBNAIL_TRACE: per-capture stage timings to the
     /// kwin.effect.plasmazones.snapassist.trace category. Process-constant.
     const bool m_traceEnabled = false;
     /// Consecutive dma-buf capture failures (export or daemon rejection).

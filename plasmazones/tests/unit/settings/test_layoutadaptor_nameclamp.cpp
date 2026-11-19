@@ -216,7 +216,7 @@ void TestLayoutAdaptorNameClamp::duplicateLeavesAnInLimitNameAlone()
     // toward the reduced budget it applies to the base.
     IsolatedConfigGuard guard;
     QObject parent;
-    auto* registry = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), &parent);
+    auto* registry = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), &parent);
     const QString suffix = PhosphorZones::LayoutRegistry::duplicateNameSuffix();
 
     const QString out = duplicatedNameFor(registry, &parent, QStringLiteral("Grid"));
@@ -232,7 +232,7 @@ void TestLayoutAdaptorNameClamp::duplicateTrimsTheBaseAndKeepsTheSuffix()
     // exactly like its source in the picker.
     IsolatedConfigGuard guard;
     QObject parent;
-    auto* registry = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), &parent);
+    auto* registry = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), &parent);
     const QString suffix = PhosphorZones::LayoutRegistry::duplicateNameSuffix();
     const int budget = MaxLayoutNameLength - suffix.size();
 

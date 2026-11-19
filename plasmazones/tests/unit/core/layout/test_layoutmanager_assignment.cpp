@@ -1471,7 +1471,7 @@ private Q_SLOTS:
         // createManager(), NOT makeLayoutRegistry directly: the factory installs the
         // IsolatedConfigGuard that redirects the rule store and the layout directory
         // into a temporary XDG root. Constructing the registry bare writes to the
-        // developer's REAL ~/.config/plasmazones/rules.json and layout directory.
+        // developer's REAL ~/.config/phosphor-works/plasmazones/rules.json and layout directory.
         QScopedPointer<PhosphorZones::LayoutRegistry> mgr(createManager());
 
         // Two different desktops on one screen, both autotile, different algorithms.

@@ -30,7 +30,7 @@ parser.
 - `--into user` (default): prototype in ignored `scratchpad/<theme>/`, laid out as
   `references/validation.md` section 0 prescribes (a `plasmazones/data/<family>/` tree with the shared
   helpers symlinked in, so the gates run unchanged), then deliver packs to
-  `~/.local/share/plasmazones/...` (surface packs to `~/.local/share/phosphor-works/surface/`).
+  `~/.local/share/phosphor-works/...` (surface packs to `~/.local/share/phosphor-works/shaders/surface/`).
   Local skill tests stay out of bundled inventories.
 - `--into repo`: explicitly requested bundled packs go under
   `plasmazones/data/animations|overlays|curves`, licensed and test-gated like bundled packs. Surface

@@ -69,7 +69,7 @@ QByteArray animationVertex(const QByteArray& extra, const QByteArray& body = QBy
                "layout(location = 0) in vec2 position;\n"
                "layout(location = 1) in vec2 texCoord;\n"
                "layout(location = 0) out vec2 vTexCoord;\n"
-               "#ifdef PLASMAZONES_KWIN\n"
+               "#ifdef PHOSPHOR_KWIN\n"
                "uniform mat4 modelViewProjectionMatrix;\n"
                "#else\n"
                "#define modelViewProjectionMatrix qt_Matrix\n"
@@ -276,7 +276,7 @@ private Q_SLOTS:
                               "layout(location = 0) in vec2 position;\n"
                               "layout(location = 1) in vec2 texCoord;\n"
                               "layout(location = 0) out vec2 vTexCoord;\n"
-                              "#ifdef PLASMAZONES_KWIN\n"
+                              "#ifdef PHOSPHOR_KWIN\n"
                               "uniform mat4 modelViewProjectionMatrix;\n"
                               "#else\n"
                               "#define modelViewProjectionMatrix qt_Matrix\n"
@@ -345,7 +345,7 @@ private Q_SLOTS:
                     "layout(location = 0) out vec2 vTexCoord;\n";
             }
             if (!broken || !breakPreview) {
-                source += "#ifdef PLASMAZONES_KWIN\n";
+                source += "#ifdef PHOSPHOR_KWIN\n";
             }
             source += "uniform vec4 iFromRect;\nuniform vec4 iToRect;\n";
             if (broken && !breakPreview) {
@@ -532,11 +532,11 @@ private Q_SLOTS:
         QTemporaryDir tmp;
         REQUIRE_ANIMATION_FIXTURE(tmp);
         const QByteArray frag =
-            "#ifdef PLASMAZONES_KWIN\nuniform highp int uLinked;\n#else\n#define uLinked 0\n#endif\n"
+            "#ifdef PHOSPHOR_KWIN\nuniform highp int uLinked;\n#else\n#define uLinked 0\n#endif\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(uv, float(uLinked), 1.0); }\n";
         const PackResult r = validateWithVertex(
             tmp, QStringLiteral("precision"), frag,
-            animationVertex("#ifdef PLASMAZONES_KWIN\nuniform mediump int uLinked;\n#else\n#define uLinked 0\n#endif\n",
+            animationVertex("#ifdef PHOSPHOR_KWIN\nuniform mediump int uLinked;\n#else\n#define uLinked 0\n#endif\n",
                             "    vTexCoord *= float(uLinked);\n"));
         QVERIFY2(r.report.contains(linkLine(QStringLiteral("effect.frag"), QStringLiteral("ERROR"))),
                  qPrintable(r.report));
@@ -552,7 +552,7 @@ private Q_SLOTS:
         QTemporaryDir tmp;
         REQUIRE_ANIMATION_FIXTURE(tmp);
         const QByteArray frag =
-            "#if defined(PLASMAZONES_KWIN) && defined(GL_ES)\n#extension GL_OES_standard_derivatives : enable\n#endif\n"
+            "#if defined(PHOSPHOR_KWIN) && defined(GL_ES)\n#extension GL_OES_standard_derivatives : enable\n#endif\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(uv, t, 1.0); }\n";
         const PackResult r = validateWithVertex(tmp, QStringLiteral("mid-ext"), frag, animationVertex(""));
         QVERIFY2(r.report.contains(glesLine(QStringLiteral("effect.frag"), QStringLiteral("OK"))),
@@ -671,7 +671,7 @@ private Q_SLOTS:
         QTemporaryDir tmp;
         REQUIRE_ANIMATION_FIXTURE(tmp);
         const QByteArray frag =
-            "#if defined(PLASMAZONES_KWIN) && !defined(GL_ES)\n"
+            "#if defined(PHOSPHOR_KWIN) && !defined(GL_ES)\n"
             "#extension GL_ARB_shading_language_420pack : enable\n#endif\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(uv, t, 1.0); }\n";
         const PackResult r = validateWithVertex(tmp, QStringLiteral("mid-ext-desktop"), frag, animationVertex(""));
@@ -691,7 +691,7 @@ private Q_SLOTS:
         // the extension can move. A `#pragma` counts as a statement on Mesa.
         const QByteArray vert =
             "#version 450\n"
-            "#if defined(PLASMAZONES_KWIN) && !defined(GL_ES)\n"
+            "#if defined(PHOSPHOR_KWIN) && !defined(GL_ES)\n"
             "#pragma optimize(on)\n"
             "#extension GL_ARB_shading_language_420pack : enable\n"
             "#endif\n"
@@ -730,11 +730,11 @@ private Q_SLOTS:
         // Several declarators on a line are compositor-only here: SPIR-V wants
         // a location per varying, so the preview branch declares them apart.
         const QByteArray multiVert = animationVertex(
-            "#ifdef PLASMAZONES_KWIN\nout vec2 vFirst, vSecond;\n#else\n"
+            "#ifdef PHOSPHOR_KWIN\nout vec2 vFirst, vSecond;\n#else\n"
             "layout(location = 1) out vec2 vFirst;\nlayout(location = 2) out vec2 vSecond;\n#endif\n",
             "    vFirst = position;\n    vSecond = position;\n");
         const QByteArray readsSecond =
-            "#ifdef PLASMAZONES_KWIN\nin vec2 vSecond, vOther;\n#else\n"
+            "#ifdef PHOSPHOR_KWIN\nin vec2 vSecond, vOther;\n#else\n"
             "layout(location = 2) in vec2 vSecond;\nlayout(location = 3) in vec2 vOther;\n#endif\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(vSecond, t, 1.0); }\n";
         const PackResult multi = validateWithVertex(tmp, QStringLiteral("multi-decl"), readsSecond, multiVert);
@@ -743,7 +743,7 @@ private Q_SLOTS:
         QCOMPARE(multi.errors, 0);
 
         const QByteArray readsOther =
-            "#ifdef PLASMAZONES_KWIN\nin vec2 vSecond, vOther;\n#else\n"
+            "#ifdef PHOSPHOR_KWIN\nin vec2 vSecond, vOther;\n#else\n"
             "layout(location = 2) in vec2 vSecond;\nlayout(location = 3) in vec2 vOther;\n#endif\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(vOther, t, 1.0); }\n";
         const PackResult missed = validateWithVertex(tmp, QStringLiteral("multi-missed"), readsOther, multiVert);
@@ -756,7 +756,7 @@ private Q_SLOTS:
         // input, and two declarations on one line are both read.
         const QByteArray shadowFrag =
             "layout(location = 1) in vec2 vShadowed;\n"
-            "#ifdef PLASMAZONES_KWIN\nin vec2 vOne; in vec2 vTwo;\n#else\n"
+            "#ifdef PHOSPHOR_KWIN\nin vec2 vOne; in vec2 vTwo;\n#else\n"
             "layout(location = 2) in vec2 vOne;\nlayout(location = 3) in vec2 vTwo;\n#endif\n"
             "float unusedHelper(vec2 vShadowed) { return 1.0; }\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(vTwo, t, 1.0); }\n";
@@ -798,10 +798,10 @@ private Q_SLOTS:
         QVERIFY2(k.report.contains(QStringLiteral("reads the varying vElse")), qPrintable(k.report));
 
         const QByteArray arrayVert = animationVertex(
-            "#ifdef PLASMAZONES_KWIN\nout vec2 vArr[2];\n#else\nlayout(location = 1) out vec2 vArr[2];\n#endif\n",
+            "#ifdef PHOSPHOR_KWIN\nout vec2 vArr[2];\n#else\nlayout(location = 1) out vec2 vArr[2];\n#endif\n",
             "    vArr[0] = position;\n    vArr[1] = texCoord;\n");
         const QByteArray arrayFrag =
-            "#ifdef PLASMAZONES_KWIN\nin vec2[2] vArr;\n#else\nlayout(location = 1) in vec2 vArr[2];\n#endif\n"
+            "#ifdef PHOSPHOR_KWIN\nin vec2[2] vArr;\n#else\nlayout(location = 1) in vec2 vArr[2];\n#endif\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(vArr[0] + vArr[1], t, 1.0); }\n";
         const PackResult arr = validateWithVertex(tmp, QStringLiteral("array-type"), arrayFrag, arrayVert);
         QVERIFY2(arr.report.contains(linkLine(QStringLiteral("effect.frag"), QStringLiteral("OK"))),
@@ -809,7 +809,7 @@ private Q_SLOTS:
         QCOMPARE(arr.errors, 0);
 
         const QByteArray desktopOnly =
-            "#if defined(PLASMAZONES_KWIN) && !defined(GL_ES)\n"
+            "#if defined(PHOSPHOR_KWIN) && !defined(GL_ES)\n"
             "in vec2 vDesktopOnly;\n#define PZ_PROBE_UV vDesktopOnly\n"
             "#else\n#define PZ_PROBE_UV uv\n#endif\n"
             "vec4 pTransition(vec2 uv, float t) { return vec4(PZ_PROBE_UV, t, 1.0); }\n";
@@ -830,7 +830,7 @@ private Q_SLOTS:
         obj.insert(QStringLiteral("appliesTo"), toArray({QStringLiteral("appearance")}));
         QVERIFY(writePackFile(tmp.filePath(QStringLiteral("colour-first")), QStringLiteral("effect.frag"),
                               "#version 450\n"
-                              "#if defined(PLASMAZONES_KWIN) && !defined(GL_ES)\n"
+                              "#if defined(PHOSPHOR_KWIN) && !defined(GL_ES)\n"
                               "#extension GL_ARB_shading_language_420pack : enable\n"
                               "#endif\n"
                               "#include <animation_uniforms.glsl>\n"
@@ -874,7 +874,7 @@ private Q_SLOTS:
         QJsonObject obj = basePack(QStringLiteral("gles-67"));
         obj.insert(QStringLiteral("appliesTo"), toArray({QStringLiteral("appearance")}));
         QVERIFY(writePackFile(tmp.filePath(QStringLiteral("gles-67")), QStringLiteral("effect.frag"),
-                              "#if defined(PLASMAZONES_KWIN) && !defined(PZ_KWIN_OFFSCREEN_TEXCOORDS_TOP_DOWN)\n"
+                              "#if defined(PHOSPHOR_KWIN) && !defined(PZ_KWIN_OFFSCREEN_TEXCOORDS_TOP_DOWN)\n"
                               "const float kBottomUpOnly = 1;\n"
                               "#else\n"
                               "const float kBottomUpOnly = 1.0;\n"
