@@ -186,6 +186,9 @@ public:
     /// The host's settings application and layout editor. Not owned; null
     /// opens neither.
     void setHostApps(IHostApps* apps);
+    /// The host's desktop shell, when it shows the shortcut cheatsheet itself.
+    /// Not owned; null shows the runtime's overlay cheatsheet.
+    void setShellCheatsheet(IShellCheatsheet* shell);
     /// Whether the desktop session is a real, presentable one. False (a phantom
     /// session) suppresses the OSDs. Defaults to true.
     void setSessionPresentable(bool presentable)
@@ -368,6 +371,8 @@ private:
     /// Fallback show on the output captured at keypress. Resolves catalog
     /// and mode, dismisses sibling modals, then binds the Escape grab.
     void showCheatsheetOnScreen(const QString& screenId);
+    /// Hide the overlay cheatsheet when it shows, else show it on @p screenId.
+    void toggleOverlayCheatsheet(const QString& screenId);
     /// Everything both cheatsheet push sites hand the overlay, resolved in
     /// one place so show and refresh cannot drift apart.
     struct CheatsheetPushState
@@ -1537,7 +1542,7 @@ private:
     IHostApps* m_hostApps = nullptr;
     /// The desktop's own text OSD (ISystemOsd), when the host has one.
     void showSystemOsd(const QString& iconName, const QString& text);
-    ShellCheatsheetBridge* m_shellCheatsheetBridge = nullptr;
+    IShellCheatsheet* m_shellCheatsheet = nullptr;
 
     // The services behind the public interfaces. Qt-parented to this
     // runtime (raw pointers); the host's D-Bus bindings forward to them.

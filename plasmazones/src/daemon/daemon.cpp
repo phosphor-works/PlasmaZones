@@ -17,6 +17,7 @@
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
 #include "daemon/host/plasmazonesapps.h"
+#include "daemon/host/shellcheatsheetbridge.h"
 #include <PhosphorEngineRuntime/OverlayService.h>
 
 #include "dbus/autotileadaptor.h"
@@ -85,6 +86,7 @@ Daemon::Daemon(QObject* parent)
                                                           m_hostSettings.get()))
     , m_systemOsd(std::make_unique<PlasmaSystemOsd>())
     , m_apps(std::make_unique<PlasmaZonesApps>())
+    , m_shellCheatsheet(std::make_unique<ShellCheatsheetBridge>())
 {
     m_runtime->setWorkspaceHost(m_workspaceHost.get());
     // The KWin host's two preferences are PlasmaZones' own settings: the
@@ -95,6 +97,7 @@ Daemon::Daemon(QObject* parent)
     }
     m_runtime->setSystemOsd(m_systemOsd.get());
     m_runtime->setHostApps(m_apps.get());
+    m_runtime->setShellCheatsheet(m_shellCheatsheet.get());
 
     // Direct: the runtime's stop() emits this mid-teardown and relies on the
     // withdrawal having happened by the time the emit returns.
@@ -131,6 +134,7 @@ Daemon::~Daemon()
     m_runtime->setWorkspaceHost(nullptr);
     m_runtime->setSystemOsd(nullptr);
     m_runtime->setHostApps(nullptr);
+    m_runtime->setShellCheatsheet(nullptr);
 }
 
 bool Daemon::init()

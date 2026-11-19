@@ -908,9 +908,9 @@ add_test(NAME test_cheatsheet_compression COMMAND test_cheatsheet_compression)
 
 qt_add_executable(test_shell_cheatsheet_bridge
     daemon/test_shell_cheatsheet_bridge.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shellcheatsheetbridge.cpp
+    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/host/shellcheatsheetbridge.cpp
 )
-target_link_libraries(test_shell_cheatsheet_bridge PRIVATE Qt6::Test Qt6::Core Qt6::Network)
+target_link_libraries(test_shell_cheatsheet_bridge PRIVATE Qt6::Test Qt6::Core Qt6::Network plasmazones_core)
 add_test(NAME test_shell_cheatsheet_bridge COMMAND test_shell_cheatsheet_bridge)
 
 # Shortcuts.Scrolling four-list parity (schema / registration / catalog /

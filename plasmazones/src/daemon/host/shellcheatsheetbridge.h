@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
+#include <PhosphorEngineRuntime/IShellCheatsheet.h>
+
 #include <QObject>
 #include <QByteArray>
 #include <QPointer>
@@ -10,19 +14,20 @@
 
 class QLocalSocket;
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 // Uses the optional shell's registered cheatsheet IPC target. It deliberately
 // depends only on Qt: the daemon also builds without Phosphor shell libraries.
-class ShellCheatsheetBridge : public QObject
+class ShellCheatsheetBridge : public QObject, public IShellCheatsheet
 {
     Q_OBJECT
 public:
     explicit ShellCheatsheetBridge(QObject* parent = nullptr);
     ShellCheatsheetBridge(QString socketPath, int timeoutMs, QObject* parent = nullptr);
     ~ShellCheatsheetBridge() override;
-    void toggle(const QString& screenId, const QString& screenName);
-    void cancel();
+    void setHandlers(Handlers handlers) override;
+    void toggle(const QString& screenId, const QString& screenName) override;
+    void cancel() override;
     static QString socketPath();
 
 Q_SIGNALS:
@@ -48,6 +53,7 @@ private:
     const QString m_socketPath;
     const int m_timeoutMs;
     QPointer<QLocalSocket> m_socket;
+    Handlers m_handlers;
     QTimer m_timeout;
     QQueue<Request> m_requests;
     Request m_current;
@@ -57,4 +63,4 @@ private:
     bool m_sent = false;
 };
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

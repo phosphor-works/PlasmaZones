@@ -78,7 +78,6 @@ class Settings;
 class OverlayService;
 
 class ShortcutManager;
-class ShellCheatsheetBridge;
 class LayoutService;
 class SettingsService;
 class ShaderService;
@@ -90,6 +89,7 @@ class DragResolver;
 class IWorkspaceHost;
 class ISystemOsd;
 class IHostApps;
+class IShellCheatsheet;
 class RuleService;
 class UnifiedLayoutController;
 class WorkspaceController;
