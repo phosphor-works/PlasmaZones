@@ -4,7 +4,6 @@
 #include "internal.h"
 #include "overlayservice.h"
 #include "runtime/rendering/snapassistthumbnailprovider.h"
-#include "runtime/rendering/dmabuftextureprovider.h"
 
 #include <PhosphorAudio/CavaSpectrumProvider.h>
 #include <PhosphorOverlay/ShellHost.h>
@@ -24,22 +23,16 @@
 #include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngineRuntime/Constants.h>
 
-#include <QCoreApplication>
 #include <QCursor>
 #include <QGuiApplication>
 #include <QScreen>
-#include <QByteArrayList>
 #include <QQmlEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
-#include <QStandardPaths>
 #include <QTimer>
 #include <QMutexLocker>
 
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/rendering/vulkansupport.h"
-
-#include <PhosphorProtocol/ServiceConstants.h>
 
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorAnimation/ProfilePaths.h>
@@ -124,10 +117,12 @@ QQuickItem* OverlayService::PerScreenOverlayState::scrollDropIndicatorSlot() con
 
 OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, ShaderRegistry* shaderRegistry,
                                PhosphorAnimation::PhosphorProfileRegistry* profileRegistry,
-                               std::unique_ptr<PhosphorLayer::ILayerShellTransport> transport, QObject* parent)
+                               std::unique_ptr<PhosphorLayer::ILayerShellTransport> transport,
+                               std::unique_ptr<ISurfacePresentationHost> presentation, QObject* parent)
     : IOverlayService(parent)
     , m_screenProvider(std::make_unique<PhosphorLayer::DefaultScreenProvider>())
     , m_transport(std::move(transport))
+    , m_presentation(std::move(presentation))
 {
     Q_ASSERT_X(m_transport, "OverlayService", "the host must supply a layer-shell transport");
     m_screenManager = screenManager;
@@ -168,20 +163,11 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
                                             .engineProvider = nullptr,
                                             .animator = m_surfaceAnimator.get()});
 
-    const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    const QString pipelineCachePath =
-        cacheDir.isEmpty() ? QString() : (cacheDir + QStringLiteral("/plasmazones-pipeline.cache"));
-
-    QVulkanInstance* externalVulkanInstance = nullptr;
-#if QT_CONFIG(vulkan)
-    // Guarded so a null application object reaches the qFatal in the
-    // screen-signal wiring below, with its diagnostic, instead of crashing
-    // on this read first.
-    if (qApp) {
-        externalVulkanInstance =
-            qApp->property(PhosphorEngineRuntime::PVulkanInstanceProperty).value<QVulkanInstance*>();
-    }
-#endif
+    // The host's render backend: plasmazonesd's pipeline cache, the Vulkan
+    // instance main() made and the device extensions its dma-buf thumbnail
+    // import needs. Without a presentation host, Qt's defaults.
+    const ISurfacePresentationHost::RenderBackend renderBackend =
+        m_presentation ? m_presentation->renderBackend() : ISurfacePresentationHost::RenderBackend{};
 
     // Construct the thumbnail provider eagerly so the borrowed @c m_thumbnailProvider
     // pointer is non-null from this point onwards. The SurfaceManager (and
@@ -192,13 +178,6 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
     // hasn't materialised yet.
     m_thumbnailProviderOwned = std::make_unique<SnapAssistThumbnailProvider>();
     m_thumbnailProvider.store(m_thumbnailProviderOwned.get(), std::memory_order_release);
-
-    // Same eager-construct + engine-handover pattern for the zero-copy GPU
-    // thumbnail provider (PLASMAZONES_DMABUF_THUMBNAILS). Always constructed so
-    // the borrowed pointer is non-null; it only ever receives descriptors while
-    // the env gate is on and the kwin-effect takes the dma-buf path.
-    m_dmabufTextureProviderOwned = std::make_unique<DmabufTextureProvider>();
-    m_dmabufTextureProvider.store(m_dmabufTextureProviderOwned.get(), std::memory_order_release);
 
     m_surfaceManager = std::make_unique<PhosphorSurfaces::SurfaceManager>(PhosphorSurfaces::SurfaceManagerConfig{
         .surfaceFactory = m_surfaceFactory.get(),
@@ -239,50 +218,33 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
                 engine.addImageProvider(QString::fromLatin1(SnapAssistThumbnailProvider::ProviderId),
                                         m_thumbnailProviderOwned.release());
 
-                // Mirror for the dma-buf (Texture-type) provider.
-                if (!m_dmabufTextureProviderOwned) {
-                    m_dmabufTextureProviderOwned = std::make_unique<DmabufTextureProvider>();
-                    m_dmabufTextureProvider.store(m_dmabufTextureProviderOwned.get(), std::memory_order_release);
+                // The host's own image providers (plasmazonesd's dma-buf
+                // thumbnail import).
+                if (m_presentation) {
+                    m_presentation->configureQmlEngine(engine);
                 }
-                engine.addImageProvider(QString::fromLatin1(DmabufTextureProvider::ProviderId),
-                                        m_dmabufTextureProviderOwned.release());
 
-                // Compare-exchange against the pointers minted for THIS
+                // Compare-exchange against the pointer minted for THIS
                 // engine: if the configurator ever runs again (re-created
                 // engine), the FIRST engine's late destroyed signal must not
-                // null out the SECOND engine's freshly-stored providers.
+                // null out the SECOND engine's freshly-stored provider.
                 auto* thumbForThisEngine = m_thumbnailProvider.load(std::memory_order_acquire);
-                auto* dmabufForThisEngine = m_dmabufTextureProvider.load(std::memory_order_acquire);
                 // Retire the PREVIOUS engine's connection before overwriting
                 // the handle: the compare-exchange makes a live fire
                 // harmless, but a first-engine connection surviving into
                 // ~m_surfaceManager would CAS against already-destructed
                 // atomic storage.
                 QObject::disconnect(m_engineProviderDestroyConnection);
-                m_engineProviderDestroyConnection = QObject::connect(
-                    &engine, &QObject::destroyed, this, [this, thumbForThisEngine, dmabufForThisEngine]() {
+                m_engineProviderDestroyConnection =
+                    QObject::connect(&engine, &QObject::destroyed, this, [this, thumbForThisEngine]() {
                         auto* expectedThumb = thumbForThisEngine;
                         m_thumbnailProvider.compare_exchange_strong(expectedThumb, nullptr, std::memory_order_acq_rel);
-                        auto* expectedDmabuf = dmabufForThisEngine;
-                        m_dmabufTextureProvider.compare_exchange_strong(expectedDmabuf, nullptr,
-                                                                        std::memory_order_acq_rel);
                     });
             },
-        .pipelineCachePath = pipelineCachePath,
-        .vulkanInstance = externalVulkanInstance,
-        .vulkanApiVersion = PhosphorEngineRuntime::PVulkanApiVersion,
-        // Zero-copy dma-buf thumbnail import (PLASMAZONES_DMABUF_THUMBNAILS)
-        // needs these device extensions enabled on the overlay windows' QRhi
-        // Vulkan device; without them vkGetMemoryFdPropertiesKHR is unavailable
-        // and the import fails. Skipped when the gate is off, so a session
-        // pinned to raw pixels keeps Qt's stock device. Qt enables only the
-        // physically-supported subset.
-        .vulkanDeviceExtensions = PhosphorProtocol::Service::snapAssistDmabufThumbnailsEnabled()
-            ? QByteArrayList{QByteArrayLiteral("VK_KHR_external_memory_fd"),
-                             QByteArrayLiteral("VK_EXT_external_memory_dma_buf"),
-                             QByteArrayLiteral("VK_EXT_image_drm_format_modifier"),
-                             QByteArrayLiteral("VK_KHR_image_format_list")}
-            : QByteArrayList{},
+        .pipelineCachePath = renderBackend.pipelineCachePath,
+        .vulkanInstance = renderBackend.vulkanInstance,
+        .vulkanApiVersion = renderBackend.vulkanApiVersion,
+        .vulkanDeviceExtensions = renderBackend.vulkanDeviceExtensions,
     });
 
     // ShellHost was constructed earlier (before setupSurfaceAnimator)
@@ -412,13 +374,12 @@ OverlayService::~OverlayService()
     m_surfaceManager->drainDeferredDeletes();
 
     // Retire the engine-destroyed provider null-out lambda and null the
-    // atomics here, in the destructor BODY: the engine dies inside
-    // ~m_surfaceManager during member destruction, which runs AFTER the two
-    // provider atomics' destructors (they are declared later in the class) —
+    // atomic here, in the destructor BODY: the engine dies inside
+    // ~m_surfaceManager during member destruction, which runs AFTER the
+    // provider atomic's destructor (it is declared later in the class) —
     // letting the lambda fire then would write through destructed storage.
     QObject::disconnect(m_engineProviderDestroyConnection);
     m_thumbnailProvider.store(nullptr, std::memory_order_release);
-    m_dmabufTextureProvider.store(nullptr, std::memory_order_release);
 
     // Explicitly disconnect + clear the prime-tracking maps so the
     // invariant ("every Connection retired before its sender's window

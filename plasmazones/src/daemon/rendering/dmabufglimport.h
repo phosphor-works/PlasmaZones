@@ -3,12 +3,14 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorEngineRuntime/DmabufThumbnail.h>
 
 #include <cstdint>
 #include <functional>
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 /**
  * @brief Result of importing a dma-buf into a GL texture (OpenGL RHI fallback).
@@ -38,4 +40,4 @@ struct GlDmabufImport
  */
 GlDmabufImport importDmabufToGlTexture(const DmabufThumbnailDesc& desc);
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

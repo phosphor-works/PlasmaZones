@@ -190,7 +190,8 @@ EngineRuntime::EngineRuntime(Platform platform, QObject* parent)
           nullptr))
     , m_shaderRegistry(std::make_unique<ShaderRegistry>(nullptr))
     , m_overlayService(std::make_unique<OverlayService>(m_screenManager.get(), m_shaderRegistry.get(),
-                                                        &m_profileRegistry, std::move(platform.layerShell), nullptr))
+                                                        &m_profileRegistry, std::move(platform.layerShell),
+                                                        std::move(platform.presentation), nullptr))
     , m_virtualDesktopManager(
           std::make_unique<PhosphorWorkspaces::VirtualDesktopManager>(std::move(platform.desktops), nullptr))
     , m_activityManager(std::make_unique<PhosphorWorkspaces::ActivityManager>(std::move(platform.activities), nullptr))

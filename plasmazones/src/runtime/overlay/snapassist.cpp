@@ -15,8 +15,6 @@
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include "runtime/rendering/snapassistthumbnailprovider.h"
-#include "runtime/rendering/dmabuftextureprovider.h"
-#include "runtime/rendering/dmabuffencewaiter.h"
 #include <PhosphorLayoutApi/LayoutId.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <QElapsedTimer>
@@ -29,7 +27,6 @@
 #include <QKeyEvent>
 #include <QTimer>
 
-#include <unistd.h>
 #include <QUrl>
 
 #include <PhosphorLayer/Surface.h>
@@ -253,17 +250,16 @@ void OverlayService::showSnapAssist(const QString& screenId, const PhosphorProto
     m_snapAssistThumbnails.clear();
     int cachedCount = 0;
     auto* const thumbProvider = m_thumbnailProvider.load(std::memory_order_acquire);
-    auto* const gpuProvider = m_dmabufTextureProvider.load(std::memory_order_acquire);
     for (const auto& candVariant : std::as_const(m_snapAssistCandidates)) {
         const QString compositorHandle = candVariant.toMap().value(QStringLiteral("compositorHandle")).toString();
         if (compositorHandle.isEmpty()) {
             continue;
         }
         QString cachedUrl = thumbProvider ? thumbProvider->urlFor(compositorHandle) : QString();
-        if (cachedUrl.isEmpty() && gpuProvider) {
-            // urlFor only serves REVEALED entries (render fence signaled),
-            // so a warm dma-buf URL is always safe to hand to QML.
-            cachedUrl = gpuProvider->urlFor(compositorHandle);
+        if (cachedUrl.isEmpty() && m_presentation) {
+            // The host serves only thumbnails it has revealed, so a warm
+            // imported URL is always safe to hand to QML.
+            cachedUrl = m_presentation->thumbnailUrlFor(compositorHandle);
         }
         if (!cachedUrl.isEmpty()) {
             m_snapAssistThumbnails.insert(compositorHandle, cachedUrl);
@@ -469,99 +465,18 @@ bool OverlayService::setSnapAssistThumbnail(const QString& compositorHandle, int
 
 bool OverlayService::setWindowThumbnailDmabuf(const QString& compositorHandle, const DmabufThumbnailDesc& desc)
 {
-    // Zero-copy GPU thumbnail path, the default transport. The env gate is a
-    // kill switch rather than an opt-in: the daemon refuses the import here
-    // when PLASMAZONES_DMABUF_THUMBNAILS=0, and returning false makes the
-    // effect fall back to the raw-pixel setSnapAssistThumbnail path. That
-    // fallback is also what covers every driver, backend and format the gate
-    // cannot predict, so a preview always appears regardless of dma-buf
-    // support.
-    static const bool dmabufEnabled = PhosphorProtocol::Service::snapAssistDmabufThumbnailsEnabled();
-    if (!dmabufEnabled) {
+    // The host imports the buffer (plasmazonesd: on the GPU, revealed once the
+    // producer's render fence signals) and hands back the URL to show. Without
+    // a host that imports, false makes the producer fall back to raw pixels.
+    if (!m_presentation) {
         return false;
     }
-    auto* provider = m_dmabufTextureProvider.load(std::memory_order_acquire);
-    if (!provider || desc.fd < 0) {
-        return false;
-    }
-    // Re-validate shape at the service boundary, mirroring the raw-pixel
-    // sibling and for the same reason (IOverlayService is a public C++ API;
-    // the adaptor's checks only cover the D-Bus path). Beyond dimensions,
-    // bound stride/offset: the Vulkan importer feeds them into
-    // VkSubresourceLayout unchecked, and a stride below the row's real byte
-    // count can only be a corrupt descriptor.
-    static constexpr int MaxDimension = PhosphorProtocol::Service::SnapAssistThumbnailMaxDimension;
-    if (desc.width <= 0 || desc.height <= 0 || desc.width > MaxDimension || desc.height > MaxDimension
-        || desc.stride < static_cast<uint32_t>(desc.width) * 4 || desc.stride > (1u << 30)
-        || desc.offset > (1u << 30)) {
-        qCDebug(lcOverlay) << "setWindowThumbnailDmabuf: invalid descriptor shape" << desc.width << "x" << desc.height
-                           << "stride=" << desc.stride << "offset=" << desc.offset << "for" << compositorHandle;
-        return false;
-    }
-    // Store the descriptor (the provider dups the borrowed fd) and resolve the
-    // GPU image:// URL. The actual Vulkan import happens lazily on the render
-    // thread when QML loads that URL through the texture provider.
-    const QString providerUrl = provider->insert(compositorHandle, desc);
-    if (providerUrl.isEmpty()) {
-        return false;
-    }
-    qCDebug(lcOverlay) << "setWindowThumbnailDmabuf: stored dma-buf for" << compositorHandle << desc.width << "x"
-                       << desc.height << "fourcc=0x" << QString::number(desc.fourcc, 16);
-
-    // Reveal-gate on the render-completion fence: only push the URL into the
-    // live candidate list once the producer's GPU render has finished, so QML
-    // never loads (and the render thread never imports) a half-rendered buffer.
-    // The wait is event-driven (DmabufFenceWaiter / QSocketNotifier) — no
-    // busy-poll, no blocked thread.
-    //
-    // No-fence branch: the D-Bus boundary currently requires a valid fence fd
-    // (OverlayAdaptor rejects an invalid one), so fenceFd < 0 only arises for a
-    // hypothetical direct (non-D-Bus) C++ caller; reveal immediately as a
-    // defensive fallback. markRevealed also unlocks the provider's urlFor so
-    // the warm-cache pass can re-serve this entry on a later show.
-    if (desc.fenceFd < 0) {
-        provider->markRevealed(compositorHandle, providerUrl);
-        return applyCandidateThumbnailUrl(compositorHandle, providerUrl);
-    }
-    const int fenceDup = ::dup(desc.fenceFd);
-    if (fenceDup < 0) {
-        // Can't watch the fence — reveal now rather than drop the thumbnail.
-        // (This is the one branch where a theoretically mid-render buffer can
-        // reach QML; under fd exhaustion, showing a torn frame beats showing
-        // nothing.)
-        provider->markRevealed(compositorHandle, providerUrl);
-        return applyCandidateThumbnailUrl(compositorHandle, providerUrl);
-    }
-    // 1 s bound: a thumbnail render completes in well under a frame; the cap
-    // only guards against a producer that crashed mid-render. The
-    // DmabufFenceWaiter owns fenceDup and self-deletes on signal or timeout
-    // (so per-candidate waiters live at most ~1 s — bounded, not leaked).
-    //
-    // accepted=true is returned now (deferred-reveal contract: stored, will
-    // reveal when the fence signals), unlike the raw-pixel path which returns
-    // true only after storing. If the fence times out (only on a hung or
-    // crashed producer) the reveal is dropped for THIS show; the entry stays
-    // un-revealed, so the warm-cache pass will not serve it either, and
-    // recovery happens when the producer re-posts after its own daemon-ready
-    // or cache-trim dedup reset.
-    auto* waiter = new DmabufFenceWaiter(fenceDup, /*timeoutMs=*/1000, this);
-    // The reveal is matched by handle against the CURRENT candidate list when it
-    // fires (up to ~1 s later): if snap-assist was dismissed, or re-shown for a
-    // different window set that doesn't include this handle, applyCandidate-
-    // ThumbnailUrl is a harmless no-op. Same window → same thumbnail content.
-    // markRevealed runs regardless so the stored descriptor becomes warm-cache
-    // servable once its render is provably complete.
-    connect(waiter, &DmabufFenceWaiter::ready, this, [this, compositorHandle, providerUrl]() {
-        // providerUrl names the generation THIS fence belongs to; the
-        // provider applies the reveal only if that generation is still the
-        // stored one, so a late fence from a superseded post cannot reveal
-        // a newer, still-rendering buffer.
-        if (auto* gpuProvider = m_dmabufTextureProvider.load(std::memory_order_acquire)) {
-            gpuProvider->markRevealed(compositorHandle, providerUrl);
-        }
-        applyCandidateThumbnailUrl(compositorHandle, providerUrl);
-    });
-    return true;
+    return m_presentation->importThumbnail(
+        compositorHandle, desc, [self = QPointer<OverlayService>(this), compositorHandle](const QString& url) {
+            if (self) {
+                self->applyCandidateThumbnailUrl(compositorHandle, url);
+            }
+        });
 }
 
 bool OverlayService::updateSnapAssistCandidateThumbnail(const QString& compositorHandle, QImage image)
@@ -687,8 +602,8 @@ void OverlayService::scheduleSnapAssistCacheTrim()
             if (auto* provider = m_thumbnailProvider.load(std::memory_order_acquire)) {
                 provider->clear();
             }
-            if (auto* gpuProvider = m_dmabufTextureProvider.load(std::memory_order_acquire)) {
-                gpuProvider->clear();
+            if (m_presentation) {
+                m_presentation->clearThumbnails();
             }
             // Tell the producer its residency assumptions just went cold.
             // The kwin-effect mirrors this cache with a recently-posted

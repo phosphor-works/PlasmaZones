@@ -13,6 +13,7 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/engine/engineruntime.h"
 #include <PhosphorEngineRuntime/SettingsService.h>
+#include "daemon/host/kwinsurfacepresentation.h"
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
 #include "daemon/host/plasmazonesapps.h"
@@ -63,6 +64,7 @@ EngineRuntime::Platform kwinSessionPlatform()
 {
     EngineRuntime::Platform platform;
     platform.layerShell = std::make_unique<PhosphorLayer::PhosphorWaylandTransport>();
+    platform.presentation = std::make_unique<KWinSurfacePresentation>();
     platform.panels = std::make_unique<PhosphorScreens::PlasmaPanelSource>();
     platform.desktops = PhosphorWorkspaces::Plasma::createVirtualDesktopBackend();
     platform.activities = PhosphorWorkspaces::Plasma::createActivityBackend();

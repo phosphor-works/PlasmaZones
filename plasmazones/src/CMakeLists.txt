@@ -357,8 +357,8 @@ install(TARGETS plasmazones_shaderpreview
 # Daemon executable
 set(plasmazones_daemon_SRCS
     daemon/main.cpp
-    runtime/rendering/vulkansupport.cpp
-    runtime/rendering/vulkansupport.h
+    daemon/rendering/vulkansupport.cpp
+    daemon/rendering/vulkansupport.h
     daemon/daemon.cpp
     daemon/daemon.h
     daemon/bridgewatchdog.cpp
@@ -434,21 +434,25 @@ set(plasmazones_daemon_SRCS
     runtime/overlay/overlayservice.h
     runtime/overlay/overlayservice_types.h
     runtime/overlay/internal.h
+    runtime/overlay/surfacepresentationhost.h
     runtime/rendering/snapassistthumbnailprovider.cpp
     runtime/rendering/snapassistthumbnailprovider.h
     # Handle-normalisation + image:// URL composition shared by both thumbnail
     # providers (pixel and dma-buf) so their key/URL discipline cannot drift.
     runtime/rendering/thumbnailurlutil.h
     # Zero-copy GPU thumbnail path (PLASMAZONES_DMABUF_THUMBNAILS): imports
-    # dma-bufs handed from the kwin-effect as Vulkan-backed QSGTextures.
-    runtime/rendering/dmabuftextureprovider.cpp
-    runtime/rendering/dmabuftextureprovider.h
-    runtime/rendering/dmabuffencewaiter.cpp
-    runtime/rendering/dmabuffencewaiter.h
+    # dma-bufs handed from the kwin-effect as Vulkan-backed QSGTextures. The
+    # overlays reach it through the presentation host below.
+    daemon/host/kwinsurfacepresentation.cpp
+    daemon/host/kwinsurfacepresentation.h
+    daemon/rendering/dmabuftextureprovider.cpp
+    daemon/rendering/dmabuftextureprovider.h
+    daemon/rendering/dmabuffencewaiter.cpp
+    daemon/rendering/dmabuffencewaiter.h
     # OpenGL-RHI fallback import (EGL dma-buf -> GL texture). Isolated TU so its
     # epoxy GL/EGL headers don't mix with the Vulkan + Qt RHI headers.
-    runtime/rendering/dmabufglimport.cpp
-    runtime/rendering/dmabufglimport.h
+    daemon/rendering/dmabufglimport.cpp
+    daemon/rendering/dmabufglimport.h
     runtime/controllers/shortcutmanager.cpp
     runtime/controllers/shortcutmanager.h
     runtime/controllers/shellcheatsheetbridge.cpp
@@ -545,7 +549,7 @@ find_package(Vulkan REQUIRED)
 target_link_libraries(plasmazonesd PRIVATE Vulkan::Vulkan)
 
 # libepoxy: EGL/GL entry points for the OpenGL-RHI dma-buf import fallback
-# (runtime/rendering/dmabufglimport.cpp). Only that TU includes epoxy headers.
+# (daemon/rendering/dmabufglimport.cpp). Only that TU includes epoxy headers.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(Epoxy REQUIRED IMPORTED_TARGET epoxy)
 target_link_libraries(plasmazonesd PRIVATE PkgConfig::Epoxy)
@@ -554,7 +558,7 @@ target_link_libraries(plasmazonesd PRIVATE PkgConfig::Epoxy)
 # first GL include and refuses to coexist with GL/gl.h, which jumbo-grouping
 # with the Vulkan + Qt RHI sources would pull in. Standalone TU keeps its
 # EGL/GL headers fully isolated.
-set_source_files_properties(runtime/rendering/dmabufglimport.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties(daemon/rendering/dmabufglimport.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 
 install(TARGETS plasmazonesd DESTINATION ${KDE_INSTALL_BINDIR})
 

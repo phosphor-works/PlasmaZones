@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QtGui/qtguiglobal.h> // Ensure QT_CONFIG(vulkan)/QT_FEATURE_vulkan is defined regardless of include order
 
 #include <QVersionNumber>
@@ -18,7 +20,7 @@ Q_DECLARE_METATYPE(QVulkanInstance*)
 
 class QGuiApplication;
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 // Shared property name for passing the QVulkanInstance* between main.cpp and OverlayService.
 // Using a constant avoids silent nullptr from typos on either side.
@@ -122,4 +124,4 @@ QVariantMap clearedGpuPreferenceVariables();
 bool createAndRegisterVulkanInstance(QVulkanInstance& vulkanInstance, QGuiApplication& app, const QString& gpuDevice);
 #endif
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

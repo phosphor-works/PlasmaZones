@@ -28,6 +28,8 @@
 #include <PhosphorOverlay/ShellState.h>
 
 #include <PhosphorEngineRuntime/Interfaces.h>
+
+#include "surfacepresentationhost.h"
 #include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "overlayservice_types.h"
 #include <PhosphorZones/Layout.h>
@@ -89,7 +91,6 @@ class ShaderPresetRegistry;
 namespace PhosphorEngineRuntime {
 class ShaderRegistry;
 class SnapAssistThumbnailProvider;
-class DmabufTextureProvider;
 }
 namespace PhosphorScreens {
 class ScreenManager;
@@ -138,10 +139,15 @@ public:
     ///                 it through here; the singleton accessor is gone.
     /// @param transport How the overlay surfaces reach the screen, from the host:
     ///                  wlr-layer-shell for plasmazonesd. Required; owned from here on.
+    /// @param presentation The rest of what the host decides about presenting the
+    ///                  overlays: the render backend and the GPU thumbnail import.
+    ///                  Null: Qt's default backend and raw-pixel thumbnails only.
+    ///                  Owned from here on.
     /// @param parent Qt parent.
     explicit OverlayService(PhosphorScreens::ScreenManager* screenManager, ShaderRegistry* shaderRegistry,
                             PhosphorAnimation::PhosphorProfileRegistry* profileRegistry,
-                            std::unique_ptr<PhosphorLayer::ILayerShellTransport> transport, QObject* parent = nullptr);
+                            std::unique_ptr<PhosphorLayer::ILayerShellTransport> transport,
+                            std::unique_ptr<ISurfacePresentationHost> presentation, QObject* parent = nullptr);
     ~OverlayService() override;
 
     /// The system is about to sleep (@p goingToSleep) or has resumed. On resume
@@ -959,6 +965,9 @@ private:
     // raw pointers to the other two).
     std::unique_ptr<PhosphorLayer::IScreenProvider> m_screenProvider;
     std::unique_ptr<PhosphorLayer::ILayerShellTransport> m_transport;
+    /// Declared before m_surfaceManager so it outlives the overlay QML engine
+    /// it registered its image providers on.
+    std::unique_ptr<ISurfacePresentationHost> m_presentation;
     /// Raw pointer to Daemon-owned registry. m_animationShaderRegistry is
     /// declared AFTER m_overlayService in daemon.h; the pointer stays valid
     /// because EngineRuntime::stop() nulls this borrow (setAnimationShaderRegistry
@@ -1198,17 +1207,8 @@ private:
     // rather than relying on the single-threaded teardown invariant.
     std::unique_ptr<SnapAssistThumbnailProvider> m_thumbnailProviderOwned;
     std::atomic<SnapAssistThumbnailProvider*> m_thumbnailProvider{nullptr};
-    // Zero-copy GPU thumbnail provider (PLASMAZONES_DMABUF_THUMBNAILS). Same
-    // ownership pattern as m_thumbnailProvider: constructed eagerly, ownership
-    // released to the QQmlEngine in engineConfigurator, borrowed atomic pointer
-    // nulled when the engine tears it down. Registered under the separate
-    // DmabufTextureProvider::ProviderId (Texture-type) image scheme. The full
-    // delete→null teardown-window safety analysis above (no-event-loop-pumping
-    // during ~QQmlEngine + std::atomic null-out) applies identically here.
-    std::unique_ptr<DmabufTextureProvider> m_dmabufTextureProviderOwned;
-    std::atomic<DmabufTextureProvider*> m_dmabufTextureProvider{nullptr};
-    /// Connection of the engine-destroyed lambda that nulls the two provider
-    /// atomics. Stored so ~OverlayService can disconnect it in its BODY:
+    /// Connection of the engine-destroyed lambda that nulls the provider
+    /// atomic. Stored so ~OverlayService can disconnect it in its BODY:
     /// m_surfaceManager is declared before the atomics, so reverse member
     /// destruction destroys the atomics first and the engine teardown inside
     /// ~m_surfaceManager would otherwise fire the lambda into
@@ -1221,8 +1221,9 @@ private:
     // screen-teardown reset in resetModalSingletonsForDestroyedId) and
     // stopped on showSnapAssist. If snap-assist stays dismissed long enough
     // for it to fire, it clears BOTH thumbnail stores — the pixel LRU
-    // (bounded ~6 MB) and the dma-buf descriptor store (whose entries pin a
-    // dup'd fd and the producer's GPU buffer each) — and emits
+    // (bounded ~6 MB) and the host's imported thumbnails (plasmazonesd's
+    // dma-buf descriptors pin a dup'd fd and the producer's GPU buffer each)
+    // — and emits
     // snapAssistThumbnailCacheTrimmed so the kwin-effect drops its
     // recently-posted dedup set in the same breath. Rapid dismiss/re-show
     // continuations restart it before it fires, keeping the warm caches.
