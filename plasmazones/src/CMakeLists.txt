@@ -412,8 +412,8 @@ set(plasmazones_daemon_SRCS
     # epoxy GL/EGL headers don't mix with the Vulkan + Qt RHI headers.
     daemon/rendering/dmabufglimport.cpp
     daemon/rendering/dmabufglimport.h
-    runtime/controllers/shellcheatsheetbridge.cpp
-    runtime/controllers/shellcheatsheetbridge.h
+    daemon/host/shellcheatsheetbridge.cpp
+    daemon/host/shellcheatsheetbridge.h
     # Dynamic per-monitor workspaces: KWin's side
     daemon/host/kwinworkspacehost.cpp
     daemon/host/kwinworkspacehost.h

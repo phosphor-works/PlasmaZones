@@ -147,7 +147,7 @@ void EngineRuntime::initializeWorkspaces()
     // made once per adaptor and goes away with it on a stop.
     if (m_windowTracker) {
         WindowLifecycleRelay* const relay = m_windowTracker->lifecycleRelay();
-        const QString gateName = QStringLiteral("plasmazones-workspaces-mode-gate");
+        const QString gateName = QStringLiteral("engineruntime-workspaces-mode-gate");
         if (relay && !relay->findChild<QObject*>(gateName, Qt::FindDirectChildrenOnly)) {
             auto* gate = new QObject(relay);
             gate->setObjectName(gateName);

@@ -10,7 +10,7 @@
 #include <QLoggingCategory>
 #include <utility>
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 namespace {
 Q_LOGGING_CATEGORY(lcCheatsheetBridge, "plasmazones.cheatsheetbridge")
 constexpr int ReplyLimit = 64 * 1024;
@@ -44,6 +44,11 @@ QString ShellCheatsheetBridge::socketPath()
 ShellCheatsheetBridge::~ShellCheatsheetBridge()
 {
     cancel();
+}
+
+void ShellCheatsheetBridge::setHandlers(Handlers handlers)
+{
+    m_handlers = std::move(handlers);
 }
 
 void ShellCheatsheetBridge::toggle(const QString& screenId, const QString& screenName)
@@ -162,11 +167,15 @@ void ShellCheatsheetBridge::finish(Result result)
     m_pending = false;
     m_timeout.stop();
     discardSocket();
-    if (result == Result::Accepted)
+    if (result == Result::Accepted) {
         Q_EMIT accepted();
-    else if (result == Result::Unavailable)
+        if (m_handlers.accepted)
+            m_handlers.accepted();
+    } else if (result == Result::Unavailable) {
         Q_EMIT fallbackRequested(screenId);
-    else
+        if (m_handlers.fallback)
+            m_handlers.fallback(screenId);
+    } else
         // Once sent, a lost reply does not prove the shell did not open.
         // Never open a second overlay based on that ambiguous outcome.
         qCWarning(lcCheatsheetBridge) << "Shell shortcut reference did not confirm the request";
@@ -182,4 +191,4 @@ void ShellCheatsheetBridge::cancel()
     m_buffer.clear();
 }
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

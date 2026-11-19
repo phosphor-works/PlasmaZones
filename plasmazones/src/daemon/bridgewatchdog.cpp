@@ -164,7 +164,7 @@ void Daemon::emitBridgeMissingWarning(const QString& diagnosis)
         QStringLiteral("org.freedesktop.Notifications"), QStringLiteral("Notify"));
     notify << QStringLiteral("PlasmaZones") // app_name
            << 0u // replaces_id
-           << QStringLiteral("plasmazones") // app_icon
+           << QStringLiteral("org.phosphor_works.PlasmaZones") // app_icon
            << PhosphorI18n::tr("Window manager integration is inactive") // summary
            << body // body
            << QStringList() // actions

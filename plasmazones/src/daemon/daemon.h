@@ -35,6 +35,7 @@ class HostSettings;
 class KWinWorkspaceHost;
 class PlasmaSystemOsd;
 class PlasmaZonesApps;
+class ShellCheatsheetBridge;
 class AutotileAdaptor;
 class CompositorBridgeAdaptor;
 class ControlAdaptor;
@@ -134,6 +135,8 @@ private:
     std::unique_ptr<KWinWorkspaceHost> m_workspaceHost;
     std::unique_ptr<PlasmaSystemOsd> m_systemOsd;
     std::unique_ptr<PlasmaZonesApps> m_apps;
+    // The Phosphor shell's cheatsheet, over its local socket.
+    std::unique_ptr<ShellCheatsheetBridge> m_shellCheatsheet;
 
     // The bus bindings of the runtime's services. QDBusAbstractAdaptor children
     // of this object (raw pointers). Each forwards to a service the runtime

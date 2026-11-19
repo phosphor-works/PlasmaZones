@@ -313,7 +313,7 @@ void EngineRuntime::showLayoutOsd(PhosphorZones::Layout* layout, const QString& 
 
     case OsdStyle::Text: {
         QString displayText = RuntimeI18n::tr("Layout: %1").arg(layoutName);
-        showSystemOsd(QStringLiteral("plasmazones"), displayText);
+        showSystemOsd(QString(), displayText);
         qCInfo(lcDaemon) << "Showing text OSD for layout=" << layoutName;
     } break;
 
@@ -607,7 +607,7 @@ void EngineRuntime::showScrollingModeOsd(const QString& screenId, OsdTrigger tri
     }
     stopScrollingOsdSettleTimer(screenId);
     recordAnnouncedScrollingTemplate(screenId);
-    showSystemOsd(QStringLiteral("plasmazones"), RuntimeI18n::tr("Scrolling", "tiling mode name"));
+    showSystemOsd(QString(), RuntimeI18n::tr("Scrolling", "tiling mode name"));
     qCInfo(lcDaemon) << "Showing scrolling-mode text OSD: screen=" << screenId;
 }
 
@@ -658,7 +658,7 @@ void EngineRuntime::showScrollingTemplateOsd(const PhosphorZones::ScrollingTempl
         // The text card is a bare D-Bus call to plasmashell's OSD service, so
         // it works without an overlay service. Only the preview arm below
         // needs one, which is why the null check sits there and not above.
-        showSystemOsd(QStringLiteral("plasmazones"),
+        showSystemOsd(QString(),
                       RuntimeI18n::tr("Column template — %1", "OSD caption, %1 is the template name").arg(templ.name));
         return;
     }
@@ -727,7 +727,7 @@ void EngineRuntime::showLayoutOsdForAlgorithm(const QString& algorithmId, const 
 
     case OsdStyle::Text: {
         QString displayText = RuntimeI18n::tr("Tiling: %1").arg(displayName);
-        showSystemOsd(QStringLiteral("plasmazones"), displayText);
+        showSystemOsd(QString(), displayText);
         qCInfo(lcDaemon) << "Showing text OSD for algorithm=" << displayName;
     } break;
 

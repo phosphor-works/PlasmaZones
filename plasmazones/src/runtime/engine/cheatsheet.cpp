@@ -12,10 +12,10 @@
 
 #include "runtime/engine/engineruntime.h"
 
+#include <PhosphorEngineRuntime/IShellCheatsheet.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/OverlayService.h>
-#include "runtime/controllers/shellcheatsheetbridge.h"
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include "helpers.h"
 #include <PhosphorEngineRuntime/RuntimeI18n.h>
@@ -66,32 +66,59 @@ void EngineRuntime::toggleCheatsheet()
     if (screenId.isEmpty() || !screen) {
         return;
     }
-    if (!m_shellCheatsheetBridge) {
-        m_shellCheatsheetBridge = new ShellCheatsheetBridge(this);
-        connect(m_shellCheatsheetBridge, &ShellCheatsheetBridge::accepted, this, [this] {
-            if (m_overlayService) {
-                m_overlayService->hideCheatsheet();
-                m_overlayService->hideLayoutPicker();
-                m_overlayService->hideSnapAssist();
-            }
-        });
-        connect(m_shellCheatsheetBridge, &ShellCheatsheetBridge::fallbackRequested, this,
-                [this](const QString& target) {
-                    if (m_shuttingDown || !m_overlayService || !m_shortcutManager)
-                        return;
-                    if (m_overlayService->isCheatsheetVisible())
-                        m_overlayService->hideCheatsheet();
-                    else
-                        showCheatsheetOnScreen(target);
-                });
+    // The host's shell shows it if it can; without one, the overlay does.
+    if (!m_shellCheatsheet) {
+        toggleOverlayCheatsheet(screenId);
+        return;
     }
-    m_shellCheatsheetBridge->toggle(screenId, screen->name());
+    m_shellCheatsheet->toggle(screenId, screen->name());
+}
+
+void EngineRuntime::setShellCheatsheet(IShellCheatsheet* shell)
+{
+    if (m_shellCheatsheet == shell) {
+        return;
+    }
+    if (m_shellCheatsheet) {
+        m_shellCheatsheet->cancel();
+        m_shellCheatsheet->setHandlers({});
+    }
+    m_shellCheatsheet = shell;
+    if (!m_shellCheatsheet) {
+        return;
+    }
+    m_shellCheatsheet->setHandlers({
+        .accepted =
+            [this] {
+                // The shell shows it: the overlay's cheatsheet and the pickers
+                // it would cover give way.
+                if (m_overlayService) {
+                    m_overlayService->hideCheatsheet();
+                    m_overlayService->hideLayoutPicker();
+                    m_overlayService->hideSnapAssist();
+                }
+            },
+        .fallback =
+            [this](const QString& screenId) {
+                toggleOverlayCheatsheet(screenId);
+            },
+    });
+}
+
+void EngineRuntime::toggleOverlayCheatsheet(const QString& screenId)
+{
+    if (m_shuttingDown || !m_overlayService || !m_shortcutManager)
+        return;
+    if (m_overlayService->isCheatsheetVisible())
+        m_overlayService->hideCheatsheet();
+    else
+        showCheatsheetOnScreen(screenId);
 }
 
 void EngineRuntime::cancelCheatsheetRequest()
 {
-    if (m_shellCheatsheetBridge)
-        m_shellCheatsheetBridge->cancel();
+    if (m_shellCheatsheet)
+        m_shellCheatsheet->cancel();
 }
 
 void EngineRuntime::showCheatsheetOnScreen(const QString& screenId)

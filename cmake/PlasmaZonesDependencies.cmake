@@ -55,10 +55,10 @@ set(PLASMAZONES_DEPS phosphor-libs phosphor-components branding phosphor-surface
 # The phosphor-libs commit PlasmaZones builds against (LGPL-2.1-or-later,
 # phosphor-works/phosphor-libs): its placement engines, rendering, layer-shell
 # and config libraries. A commit, not a release, so VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-libs_VERSION "fce9291d101ff466939bb327bf9638a130ce1842")
-set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/fce9291d101ff466939bb327bf9638a130ce1842.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-fce9291d101ff466939bb327bf9638a130ce1842.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_SHA256 "5f2dd4cf7a838ae6e3e98e4d6ccd6afe2be53087b6be334d668f3a1395909869")
+set(PLASMAZONES_DEP_phosphor-libs_VERSION "508a064f053260a3fff8ce2db59f5f9eb4a2c41d")
+set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/508a064f053260a3fff8ce2db59f5f9eb4a2c41d.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-508a064f053260a3fff8ce2db59f5f9eb4a2c41d.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_SHA256 "1fa903086b4cb09bffb381d5b23a11dd9e59b89384bfd863823de8d7c5f8d505")
 
 # The phosphor-components commit (LGPL-2.1-or-later,
 # phosphor-works/phosphor-components): the Phosphor.Components QML module the
