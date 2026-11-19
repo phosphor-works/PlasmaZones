@@ -232,6 +232,14 @@ endif()
 # declares as a cache entry, never wins.
 set(PHOSPHOR_LIBS_BUNDLED_PACKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plasmazones/data" CACHE PATH
     "Directory holding bundled animations/ and pointer/ packs, for the phosphor-libs tests that check them" FORCE)
+# The surface decoration packs, from their own repository at the commit
+# cmake/PlasmaZonesDependencies.cmake pins. Fetched BEFORE the libraries:
+# phosphor-libs fetches its own pinned copy for its tests unless an app has
+# already set PHOSPHOR_SURFACE_PACKS_DIR, and CPM keeps the first copy
+# declared, so fetching them after the libraries let phosphor-libs' pin decide
+# the packs this build compiled, validated and installed (#1282).
+plasmazones_fetch_dependency(phosphor-surface-packs)
+include(${phosphor-surface-packs_SOURCE_DIR}/cmake/PhosphorSurfacePacks.cmake)
 plasmazones_add_phosphor_libs()
 # Phosphor.Components, on the phosphor-libs tree just added.
 plasmazones_add_phosphor_components()

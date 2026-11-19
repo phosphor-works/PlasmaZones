@@ -5,18 +5,13 @@
 # developer tools, bundled data assets and the unit tests. Builds on the
 # phosphor-libs tree.
 
-# The surface decoration packs come from their own repository, at the commit
-# cmake/PlasmaZonesDependencies.cmake pins. Fetched before any target is
-# declared: PHOSPHOR_SURFACE_PACKS_DIR is the packs tree the tests and the
+# The surface decoration packs, fetched in the root CMakeLists ahead of the
+# libraries: PHOSPHOR_SURFACE_PACKS_DIR is the packs tree the tests and the
 # validator gate read, and every target here gets the install subdir as
 # PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR, which each process hands to
 # PhosphorSurfaceShaders::setSurfacePackDataSubdir() at startup and uses to
 # build its own pack search list.
-plasmazones_fetch_dependency(phosphor-surface-packs)
-include(${phosphor-surface-packs_SOURCE_DIR}/cmake/PhosphorSurfacePacks.cmake)
 add_compile_definitions(PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR="${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}")
-# The root CMakeLists configures the uninstall script, which needs the subdir.
-set(PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR "${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}" PARENT_SCOPE)
 
 # Source directories
 add_subdirectory(src)
