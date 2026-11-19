@@ -67,7 +67,7 @@ set(QT_QML_GENERATE_QMLLS_INI ON CACHE BOOL "Generate QML language server config
 # intermittently fires against these directories. Instead of racing the
 # clean/autogen ordering from here at configure time (which `--clean-first`
 # would wipe again), the suppression is applied per target rather than
-# globally here. plasmazones/src/shared/CMakeLists.txt carries the full
+# globally here. plasmazones/src/settings/CMakeLists.txt carries the
 # rationale. Dozens of CMakeLists across the tiers apply it, so do not read
 # this as "one file opts out". For the current set, grep for the full
 # `set_property(DIRECTORY APPEND PROPERTY COMPILE_OPTIONS "-Wno-missing-include-dirs")`
@@ -150,7 +150,7 @@ endif()
 # every consumer of `PhosphorAnimation::PhosphorAnimation`. Without this,
 # Qt's static-QML-plugin dependency walker emits "QuickPrivate target is
 # mentioned as a dependency ... but not declared" when collecting
-# transitive deps from the `src/shared` static-plugin consumer.
+# transitive deps for the executables that link static QML plugins.
 if(NOT TARGET Qt6::QuickPrivate)
     find_package(Qt6QuickPrivate CONFIG REQUIRED)
 endif()

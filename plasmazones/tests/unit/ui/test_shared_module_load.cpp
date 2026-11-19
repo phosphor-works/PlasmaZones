@@ -10,14 +10,13 @@
 
 #include <QtPlugin>
 
-#include <PhosphorZoneRendering/ZoneShaderItem.h>
-
-Q_IMPORT_PLUGIN(org_plasmazones_commonPlugin)
+Q_IMPORT_PLUGIN(org_phosphor_zonerenderingPlugin)
 Q_IMPORT_PLUGIN(Phosphor_ComponentsPlugin)
 
 /**
- * @brief Every type in org.plasmazones.common and Phosphor.Components must
- *        instantiate through PlasmaZones' own static plugin links.
+ * @brief Every type in Phosphor.Components, and ZoneShaderRenderer from
+ *        org.phosphor.zonerendering, must instantiate through PlasmaZones' own
+ *        static plugin links.
  *
  * "X is not a type" at runtime hides the nested cause (a bad property in the
  * file, a broken singleton it references, a missing dependent import). This
@@ -25,7 +24,7 @@ Q_IMPORT_PLUGIN(Phosphor_ComponentsPlugin)
  * load regression fails here with the real nested error message instead of
  * silently breaking every settings page / popup that consumes the type.
  *
- * One slot steps outside the shared module: it instantiates SurfaceDecoration
+ * One slot steps outside those modules: it instantiates SurfaceDecoration
  * from org.phosphor.surface through the same STATIC plugin link the daemon and
  * the settings app use, so a dropped PhosphorSurfaceQuickQmlplugin link fails
  * here rather than as "SurfaceDecoration is not a type" on the first OSD show.
@@ -41,7 +40,7 @@ private:
     {
         QQmlComponent comp(&m_engine);
         comp.setData(
-            QStringLiteral("import QtQuick\nimport org.plasmazones.common\nimport Phosphor.Components\n%1 { %2 }\n")
+            QStringLiteral("import QtQuick\nimport org.phosphor.zonerendering\nimport Phosphor.Components\n%1 { %2 }\n")
                 .arg(name, extraProps)
                 .toUtf8(),
             QUrl(QStringLiteral("inline://%1.qml").arg(name)));
@@ -71,10 +70,6 @@ private Q_SLOTS:
         // their deployed import path; the test binary lives in build/bin, so
         // ../qml is the build tree's QML module root.
         m_engine.addImportPath(QCoreApplication::applicationDirPath() + QStringLiteral("/../qml"));
-        // ZoneShaderRenderer wraps ZoneShaderItem, which the daemon and settings
-        // composition roots register imperatively — mirror that here so the
-        // shared component's `import PlasmaZones` resolves.
-        qmlRegisterType<PhosphorZoneRendering::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
     }
     void loadsLayoutCard()
     {

@@ -25,7 +25,6 @@
 
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include <PhosphorZoneRendering/ZoneShaderItem.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 
 #include <PhosphorAnimation/CurveLoader.h>
@@ -49,10 +48,11 @@
 #include <memory>
 #include <vector>
 
-// Import the static org.plasmazones.common QML module (same pattern as the
-// daemon, src/daemon/main.cpp). The generated plugin carries the
-// auto-generated qmldir, so shared types can never silently go missing again.
-Q_IMPORT_QML_PLUGIN(org_plasmazones_commonPlugin)
+// The static QML modules this app links (same pattern as the daemon,
+// src/daemon/main.cpp). Each generated plugin carries its own qmldir, so a type
+// cannot silently go missing. org.phosphor.zonerendering serves the shader
+// browser's live zone-shader preview.
+Q_IMPORT_QML_PLUGIN(org_phosphor_zonerenderingPlugin)
 Q_IMPORT_QML_PLUGIN(Phosphor_ComponentsPlugin)
 
 namespace {
@@ -248,9 +248,6 @@ int main(int argc, char* argv[])
     // recorder can take one.
     PhosphorShortcuts::releaseStrandedGlobalShortcutBlock();
 
-    // Register ZoneShaderItem for QML (live zone-shader preview in the settings
-    // shader browser — mirrors daemon/main.cpp).
-    qmlRegisterType<PhosphorZoneRendering::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
     // The live DECORATION preview's SurfaceShaderItem stages need no
     // registration: they and the SurfaceDecoration.qml chain host ship in the
     // org.phosphor.surface module linked into this binary.

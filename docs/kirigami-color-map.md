@@ -4,7 +4,7 @@
 # Kirigami Color Usage — Ruleset
 
 Which Kirigami theme role to reach for when painting QML in `plasmazones/src/settings/qml`,
-`plasmazones/src/shared`, `plasmazones/src/ui`, `plasmazones/src/editor/qml`, and `phosphor/libs/phosphor-control`. The shell
+`plasmazones/src/ui`, `plasmazones/src/editor/qml`, and `phosphor/libs/phosphor-control`. The shell
 libraries (`phosphor-shell*`, `phosphor-popout`, `phosphor-theme`) have their own
 token system and are out of scope; `phosphor-control` is in scope because it
 paints the settings app's own sidebar and footer chrome with `Kirigami.Theme`.
@@ -90,11 +90,12 @@ tertiary accent, which is exactly why the misuses above render in
   contents, settings previews) use the opaque `preview*` flavor; only
   zones drawn naked over the desktop use the alpha overlay flavor.
 
-- **The settings app links the shared QML plugin.** It used to embed a
-  hand-listed copy of `org.plasmazones.common` with a hand-written qmldir,
-  which drifted and broke LayoutThumbnail→LayoutCard ("X is not a type" only
-  in settings, while the daemon and tests worked). Settings now links
-  `plasmazones_shared_qmlplugin` + `Q_IMPORT_QML_PLUGIN` exactly like the
+- **The settings app links the shared QML plugins.** It used to embed a
+  hand-listed copy of the shared module with a hand-written qmldir, which
+  drifted and broke LayoutThumbnail→LayoutCard ("X is not a type" only in
+  settings, while the daemon and tests worked). Settings now links the
+  generated static plugins (`PhosphorComponentsQmlplugin`,
+  `PhosphorZoneRenderingQmlplugin`) + `Q_IMPORT_QML_PLUGIN` exactly like the
   daemon. Two build notes: `Q_IMPORT_QML_PLUGIN` must sit at FILE scope
   (inside an anonymous namespace the extern symbol binds internally →
   undefined reference), and the importing .cpp must be excluded from unity

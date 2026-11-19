@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import PlasmaZones 1.0
 import QtQuick
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 import org.phosphor.animation
-import org.plasmazones.common 1.0
+import org.phosphor.zonerendering
 
 import Phosphor.Components
 
