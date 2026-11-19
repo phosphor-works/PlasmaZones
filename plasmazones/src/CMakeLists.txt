@@ -932,6 +932,9 @@ add_executable(plasmazones-shader-validate
 )
 target_link_libraries(plasmazones-shader-validate
     PRIVATE
+        # initPlasmaZonesHost() at the top of main(): the app directory name and
+        # the surface packs' data subdirectory the pack lookups search.
+        plasmazones_core
         PhosphorZoneRendering::PhosphorZoneRendering
         PhosphorRendering::PhosphorRendering
         PhosphorShaders::PhosphorShaders
