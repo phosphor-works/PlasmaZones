@@ -7,7 +7,7 @@
 #include "compositorbridgeadaptor.h"
 #include <PhosphorEngineRuntime/Logging.h>
 #include "core/platform/supportreport.h"
-#include "runtime/services/controlservice.h"
+#include <PhosphorEngineRuntime/ControlService.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
 

@@ -6,7 +6,7 @@
 
 #include "dbushelpers.h"
 
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 
 namespace PlasmaZones {
 

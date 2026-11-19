@@ -43,7 +43,7 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include "FakePhysicalScreenSource.h"
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include "helpers/AutotileTestHelpers.h"
 

@@ -6,7 +6,7 @@
 
 #include "dbushelpers.h"
 
-#include "runtime/services/scrollingservice/scrollingservice.h"
+#include <PhosphorEngineRuntime/ScrollingService.h>
 
 namespace PlasmaZones {
 

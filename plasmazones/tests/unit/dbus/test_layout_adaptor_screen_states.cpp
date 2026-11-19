@@ -33,7 +33,7 @@
 #include <PhosphorZones/LayoutRegistry.h>
 
 #include "FakePhysicalScreenSource.h"
-#include "runtime/services/layoutservice/layoutservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 

@@ -9,7 +9,7 @@
 #include "runtime/engine/engineruntime.h"
 #include "runtime/overlay/overlayservice.h"
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngine/DesktopRemap.h>

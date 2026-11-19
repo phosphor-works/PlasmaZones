@@ -4,7 +4,7 @@
 #include "zonedetectionadaptor.h"
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/services/zonequeryservice.h"
+#include <PhosphorEngineRuntime/ZoneQueryService.h>
 
 namespace PlasmaZones {
 

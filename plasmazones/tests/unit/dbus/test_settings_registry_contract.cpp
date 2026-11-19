@@ -59,7 +59,7 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include "dbus/settingsadaptor.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/SettingsService.h>
 
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 

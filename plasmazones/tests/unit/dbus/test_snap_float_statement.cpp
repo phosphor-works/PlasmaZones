@@ -17,7 +17,7 @@
  */
 
 #include "wta_snap_nav_fixture.h"
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/SnapService.h>
 
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorEngine/GeometryUtils.h>

@@ -26,22 +26,22 @@
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/ShaderRegistry.h>
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/settingsservice/settingsservice.h"
-#include "runtime/services/overlaycontrolservice.h"
-#include "runtime/services/zonequeryservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
+#include <PhosphorEngineRuntime/SettingsService.h>
+#include <PhosphorEngineRuntime/OverlayControlService.h>
+#include <PhosphorEngineRuntime/ZoneQueryService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 // Needed as COMPLETE types, not just forward declarations: the re-entry
 // preamble below deletes them, and deleting through an incomplete type calls
 // neither the destructor nor a class-specific operator delete.
-#include "runtime/services/autotileservice/autotileservice.h"
-#include "runtime/services/scrollingservice/scrollingservice.h"
-#include "runtime/services/snapservice/snapservice.h"
-#include "runtime/services/shaderservice.h"
-#include "runtime/services/controlservice.h"
-#include "runtime/services/ruleservice.h"
+#include <PhosphorEngineRuntime/AutotileService.h>
+#include <PhosphorEngineRuntime/ScrollingService.h>
+#include <PhosphorEngineRuntime/SnapService.h>
+#include <PhosphorEngineRuntime/ShaderService.h>
+#include <PhosphorEngineRuntime/ControlService.h>
+#include <PhosphorEngineRuntime/RuleService.h>
 
 namespace PhosphorEngineRuntime {
 

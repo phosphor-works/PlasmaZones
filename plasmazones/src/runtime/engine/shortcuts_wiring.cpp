@@ -8,15 +8,15 @@
 #include "runtime/engine/engineruntime.h"
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "runtime/host/ihostapps.h"
+#include <PhosphorEngineRuntime/IHostApps.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/Utils.h>
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/engine/helpers.h"
 #include "runtime/overlay/overlayservice.h"
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
+#include <PhosphorEngineRuntime/SettingsService.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngineRuntime/Constants.h>

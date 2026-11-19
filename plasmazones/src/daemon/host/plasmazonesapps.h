@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/engineruntimenamespace.h"
-#include "runtime/host/ihostapps.h"
+#include <PhosphorEngineRuntime/IHostApps.h>
 
 namespace PlasmaZones {
 

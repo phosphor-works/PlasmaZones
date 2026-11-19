@@ -16,7 +16,7 @@
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 
-#include "runtime/services/scrollingservice/scrollingservice.h"
+#include <PhosphorEngineRuntime/ScrollingService.h>
 #include "dbus/scrollingadaptor.h"
 
 #include <QObject>

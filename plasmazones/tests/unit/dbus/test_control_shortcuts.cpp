@@ -27,7 +27,7 @@
 #include <QTest>
 
 #include "dbus/controladaptor.h"
-#include "runtime/services/controlservice.h"
+#include <PhosphorEngineRuntime/ControlService.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
 

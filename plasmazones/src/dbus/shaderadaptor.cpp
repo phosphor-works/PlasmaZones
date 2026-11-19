@@ -4,7 +4,7 @@
 #include "shaderadaptor.h"
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/services/shaderservice.h"
+#include <PhosphorEngineRuntime/ShaderService.h>
 
 namespace PlasmaZones {
 

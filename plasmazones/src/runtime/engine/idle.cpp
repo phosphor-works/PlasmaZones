@@ -19,7 +19,7 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/ISettings.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/SettingsService.h>
 
 #include <PhosphorServiceIdle/IdleService.h>
 

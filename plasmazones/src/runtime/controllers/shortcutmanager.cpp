@@ -9,7 +9,7 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/RuntimeI18n.h>
-#include "runtime/host/iworkspacehost.h"
+#include <PhosphorEngineRuntime/IWorkspaceHost.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorShortcuts/Factory.h>

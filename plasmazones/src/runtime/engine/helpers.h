@@ -13,7 +13,7 @@
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include <PhosphorEngineRuntime/Utils.h>
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>

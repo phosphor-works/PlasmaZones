@@ -7,7 +7,7 @@
 #include "dbushelpers.h"
 #include "core/utils/dbusvariantutils.h"
 
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/SettingsService.h>
 
 namespace PlasmaZones {
 

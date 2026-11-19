@@ -5,7 +5,7 @@
 
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/host/isystemosd.h"
+#include <PhosphorEngineRuntime/ISystemOsd.h>
 
 namespace PlasmaZones {
 

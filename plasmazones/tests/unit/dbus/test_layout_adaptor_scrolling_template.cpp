@@ -40,8 +40,8 @@
 
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "runtime/host/ihostapps.h"
-#include "runtime/services/layoutservice/layoutservice.h"
+#include <PhosphorEngineRuntime/IHostApps.h>
+#include <PhosphorEngineRuntime/LayoutService.h>
 #include <PhosphorLayoutApi/LayoutId.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorZones/Layout.h>

@@ -11,7 +11,7 @@
  */
 
 #include "wta_float_back_fixture.h"
-#include "runtime/services/zonequeryservice.h"
+#include <PhosphorEngineRuntime/ZoneQueryService.h>
 
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorEngine/ICrossSurfaceResolver.h>

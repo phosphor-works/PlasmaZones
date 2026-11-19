@@ -65,9 +65,9 @@
 #include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/ShaderRegistry.h>
-#include "runtime/services/layoutservice/layoutservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/SnapService.h>
 
 namespace PhosphorEngineRuntime {
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "engineruntime.h"
-#include "runtime/host/isystemosd.h"
+#include <PhosphorEngineRuntime/ISystemOsd.h>
 
 #include <QGuiApplication>
 #include <QStandardPaths>
@@ -68,12 +68,12 @@
 #include <PhosphorScreens/NoOpPanelSource.h>
 #include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include <PhosphorEngineRuntime/Settings.h>
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
+#include <PhosphorEngineRuntime/SettingsService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
-#include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
+#include <PhosphorEngineRuntime/SnapService.h>
 #include <PhosphorRules/ActionParams.h> // MaxGap, static_asserted below
 #include <PhosphorRules/ExclusionRules.h>
 #include <PhosphorRules/RuleAction.h>

@@ -35,9 +35,9 @@
 #include <QStringList>
 
 #include "dbus/settingsadaptor.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/SettingsService.h>
 #include "dbus/layoutadaptor.h"
-#include "runtime/services/layoutservice/layoutservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>

@@ -38,7 +38,7 @@
 #include <limits>
 
 #include "dbus/layoutadaptor.h"
-#include "runtime/services/layoutservice/layoutservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorZones/Layout.h>

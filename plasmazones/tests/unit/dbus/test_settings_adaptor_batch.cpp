@@ -36,7 +36,7 @@
 #include <PhosphorAnimation/ProfileTree.h>
 
 #include "dbus/settingsadaptor.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/SettingsService.h>
 #include "helpers/BusPeer.h"
 #include "helpers/StubSettings.h"
 #include "helpers/IsolatedConfigGuard.h"

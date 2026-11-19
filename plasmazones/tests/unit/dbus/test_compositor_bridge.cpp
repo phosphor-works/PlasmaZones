@@ -23,7 +23,7 @@
 #include "dbus/compositorbridgeadaptor.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>
-#include "runtime/services/controlservice.h"
+#include <PhosphorEngineRuntime/ControlService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorZones/LayoutRegistry.h>

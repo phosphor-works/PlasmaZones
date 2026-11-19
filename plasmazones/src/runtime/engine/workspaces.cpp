@@ -29,7 +29,7 @@
 #include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorEngineRuntime/RuntimeI18n.h>
-#include "runtime/host/iworkspacehost.h"
+#include <PhosphorEngineRuntime/IWorkspaceHost.h>
 
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorIdentity/VirtualScreenId.h>

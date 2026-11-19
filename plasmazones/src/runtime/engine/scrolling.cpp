@@ -19,8 +19,8 @@
 #include "runtime/overlay/overlayservice.h"
 // Complete type needed for setScrollEffectBehaviour — daemon.h forward
 // declares ScrollingService only.
-#include "runtime/services/scrollingservice/scrollingservice.h"
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/ScrollingService.h>
+#include <PhosphorEngineRuntime/TilingService.h>
 #include "seedorderfilter.h"
 
 #include <PhosphorEngineRuntime/WindowTracker.h>
