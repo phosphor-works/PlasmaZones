@@ -5,8 +5,8 @@
 #include "shortcutmanager_ids.h"
 #include "shortcutmanager_table.h"
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/platform/logging.h"
 #include "runtime/common/runtimei18n.h"
 #include "runtime/host/iworkspacehost.h"

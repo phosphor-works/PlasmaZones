@@ -6,7 +6,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/types/screenscale.h"
 
 #include <PhosphorProtocol/ClientHelpers.h>

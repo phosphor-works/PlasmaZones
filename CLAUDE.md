@@ -123,14 +123,16 @@ User-facing strings MUST read like plain, human-written prose with no LLM tics. 
 - Editor settings: separate, in `EditorController` (separate process)
 
 ### Adding a Setting
-Use the `pz-add-setting` skill, which carries the full worked example. Summary:
+Use the `pz-add-setting` skill, which carries the full worked example. An engine setting lives in phosphor-libs' engine runtime (`libs/phosphor-engine-runtime`, the settings model PlasmaZones links), so adding one is a phosphor-libs PR followed by a pin bump here (see phosphor-libs above). Summary, with paths in that library:
 
-1. `plasmazones/src/config/configdefaults_<area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `configdefaults.h` is split by area (`_appearance`, `_gaps`, `_limits`, `_screens`, `_scrolling`, `_scrolling_behavior`, `_scrolling_shortcuts`, `_shaders`, `_workspaces`).
-2. `plasmazones/src/config/configkeys.h` — group and `xxxKey()` accessors, if new (`configkeys_scrolling.h` for a scrolling group, `configkeys_workspaces.h` for a workspaces group). NOT `configdefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
-3. `plasmazones/src/config/settingsschema*.cpp` — register the `{key, default, QMetaType, description, coercion}` KeyDef in its group. **The store takes its default, type and clamping from the schema, not from the getter.** Skip this and the setting silently reads back as the type-default. The description field is user-facing prose and is held to the plain-prose rules below.
-4. `plasmazones/src/core/interfaces/isettings.h` — signal in ISettings.
-5. `plasmazones/src/config/settings.h` — Q_PROPERTY + getter + setter declarations (`override`). **No member variable.**
-6. The matching `plasmazones/src/config/settings/*.cpp` — store-backed getter (`m_store->read<T>(group, key)`) and setter. There is **no** load/save/reset arm to write; persistence goes through the store. Setters live in that directory split by concern (`setters.cpp`, `shortcuts.cpp`, `storescalars.cpp`, `scrolling.cpp`, `triggers.cpp`, `perscreen.cpp`, `disable.cpp`, `uienums.cpp`, and so on), NOT in `plasmazones/src/config/settings.cpp`. Note three different files in the tree are named `settings.cpp` (`plasmazones/src/config/`, `plasmazones/src/runtime/overlay/`, `plasmazones/src/editor/controller/`), so always use the full path.
+1. `include/PhosphorEngineRuntime/ConfigDefaults<Area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `ConfigDefaults.h` is split by area (`Appearance`, `Gaps`, `Limits`, `Screens`, `Scrolling`, `ScrollingBehavior`, `ScrollingShortcuts`, `Shaders`, `Workspaces`).
+2. `include/PhosphorEngineRuntime/ConfigKeys.h` — group and `xxxKey()` accessors, if new (`ConfigKeysScrolling.h` for a scrolling group, `ConfigKeysWorkspaces.h` for a workspaces group). NOT `ConfigDefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
+3. `src/config/settingsschema*.cpp` — register the `{key, default, QMetaType, description, coercion}` KeyDef in its group. **The store takes its default, type and clamping from the schema, not from the getter.** Skip this and the setting silently reads back as the type-default. The description field is user-facing prose and is held to the plain-prose rules below.
+4. `include/PhosphorEngineRuntime/ISettings.h` — signal in ISettings.
+5. `include/PhosphorEngineRuntime/Settings.h` — Q_PROPERTY + getter + setter declarations (`override`). **No member variable.**
+6. The matching `src/config/settings/*.cpp` — store-backed getter (`m_store->read<T>(group, key)`) and setter. There is **no** load/save/reset arm to write; persistence goes through the store. Setters live in that directory split by concern (`setters.cpp`, `shortcuts.cpp`, `storescalars.cpp`, `scrolling.cpp`, `triggers.cpp`, `perscreen.cpp`, `disable.cpp`, `uienums.cpp`, and so on), NOT in `src/config/settings.cpp`.
+
+A setting only PlasmaZones means anything by (KWin's, or plasmazonesd's own) is not an engine setting: it goes in `plasmazones/src/common/hostsettings.cpp` (see Architecture above), in this repository.
 
 An unclamped setter compares, early-returns, writes, then emits. A **clamped** setter must write first and compare after, because the schema's coercion runs on the write and the stored value may differ from the value passed in.
 
@@ -315,7 +317,7 @@ plasmazones/             — PlasmaZones
   src/settings/          — Standalone settings app
   src/ui/                — Shared QML controls (OSD, picker and selector content)
   src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services), its own plasmazones_dbus library
-  src/config/            — Configuration backends
+  src/config/            — PlasmaZones' settings labels (the settings model itself is phosphor-libs' engine runtime)
   src/common/            — Cross-target helpers
   src/shared/            — Code shared between daemon and apps
   src/shaderpreview/     — Shader preview host

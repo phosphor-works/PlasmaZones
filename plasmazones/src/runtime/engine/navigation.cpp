@@ -6,12 +6,12 @@
 #include "macros.h"
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/controllers/unifiedlayoutcontroller.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include "core/resolve/screenmoderouter.h"
 #include "core/utils/utils.h"

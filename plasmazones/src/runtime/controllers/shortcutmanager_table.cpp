@@ -13,8 +13,8 @@
 #include "shortcutmanager.h"
 #include "shortcutmanager_ids.h"
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
 
 #include <iterator>
 

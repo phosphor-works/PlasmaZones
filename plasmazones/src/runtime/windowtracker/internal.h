@@ -15,8 +15,8 @@
 #include <QPointer>
 #include <QScreen>
 #include <optional>
-#include "core/interfaces/isettings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/ISettings.h>
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/utils/utils.h"
 #include <PhosphorScreens/VirtualScreen.h>
 #include <PhosphorPlacement/WindowTrackingService.h>

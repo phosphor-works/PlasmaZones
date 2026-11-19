@@ -32,7 +32,7 @@
 #include "settings/pages/decorationpagescope.h"
 #include "settingscontroller_pagekeys.h"
 
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 
 #include "core/platform/logging.h"
 

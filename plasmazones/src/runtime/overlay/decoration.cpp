@@ -14,7 +14,7 @@
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
 #include "core/platform/logging.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "qml_property_names.h"
 
 #include <PhosphorShaders/ShaderPresetRegistry.h>

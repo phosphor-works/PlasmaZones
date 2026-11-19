@@ -20,9 +20,9 @@
 #include <QJsonObject>
 #include <QSignalSpy>
 
-#include "config/settings.h"
-#include "config/configdefaults.h"
-#include "config/perscreenresolver.h"
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/PerScreenResolver.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

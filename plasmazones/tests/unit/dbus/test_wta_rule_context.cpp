@@ -39,7 +39,7 @@
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/RuleSet.h>
 #include <PhosphorRules/RuleStore.h>
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/StubSettings.h"

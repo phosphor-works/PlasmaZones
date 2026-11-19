@@ -255,6 +255,10 @@ def _prose_extraction_failures(partition_readable) -> list[str]:
         "src/settingsschema_probe.cpp": (
             f'void reg() {{ add({{enabledKey(), false, QMetaType::Bool,\n'
             f'                   QStringLiteral("{splice}"), none}}); }}\n'),
+        # PlasmaZones' own host keys, declared beside initPlasmaZonesHost().
+        "src/common/hostsettings.cpp": (
+            f'void reg() {{ add({{flagKey(), false, QMetaType::Bool,\n'
+            f'                   QStringLiteral("{splice}"), none}}); }}\n'),
         # A bundled Luau algorithm's description field. The arm gates on the full
         # plasmazones/data/algorithms/ prefix, so the probe has to sit there.
         "plasmazones/data/algorithms/probe.luau": f'local algorithm = {{\n  description = "{splice}",\n}}\n',
@@ -570,7 +574,8 @@ def _remaining_rule_failures(partition_readable) -> list[str]:
         # `obj.i18n(` and `Ns::i18n(` from reading as the free function.
         i18n_member = write("src/member.cpp", "void f() { ctx.i18n(1); Ns::i18n(2); }\n")
 
-        # config-keys. A v2 dot-path literal outside the three definition files.
+        # config-keys. A v2 dot-path literal anywhere in the tree: its definitions are
+        # phosphor-libs'.
         cfg_bad = write("src/daemon/x.cpp", 'auto g = QStringLiteral("Snapping.Behavior.ZoneSpan");\n')
         cfg_accessor = write("src/daemon/y.cpp", "auto g = ConfigDefaults::snappingBehaviorGroup();\n")
         cfg_def = write("plasmazones/src/config/configkeys.h",
@@ -650,7 +655,7 @@ def _remaining_rule_failures(partition_readable) -> list[str]:
         for path, want, why in (
             (cfg_bad, True, "an inline v2 config dot-path outside the definition files"),
             (cfg_accessor, False, "a ConfigDefaults:: accessor call"),
-            (cfg_def, False, "the dot-path literal inside configkeys.h, which defines it"),
+            (cfg_def, True, "a dot-path literal even in a file named configkeys.h, the definitions being phosphor-libs'"),
             (cfg_test, False, "a dot-path literal under /tests/, which pins the on-disk layout"),
             (cfg_other, False, "a dotted literal that names no v2 group"),
         ):

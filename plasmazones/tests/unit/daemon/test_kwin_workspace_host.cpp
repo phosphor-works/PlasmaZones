@@ -15,7 +15,7 @@
 #include "daemon/host/kwinworkspacehost.h"
 
 #include "common/hostsettings.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include <PhosphorShortcuts/IBackend.h>

@@ -14,7 +14,7 @@
 #include "../undo/commands/ClearAllZonesCommand.h"
 #include "../undo/commands/SplitZoneCommand.h"
 #include "../undo/commands/DividerResizeCommand.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 
 #include "phosphor_i18n.h"

@@ -3,7 +3,7 @@
 
 #include "runtime/engine/engineruntime.h"
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/interfaces/shaderregistry.h"
 #include "core/platform/logging.h"
 #include "runtime/overlay/overlayservice.h"

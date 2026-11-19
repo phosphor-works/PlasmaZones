@@ -19,7 +19,7 @@
 #include "internal.h"
 #include "rules_admission.h"
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorIdentity/WindowId.h>

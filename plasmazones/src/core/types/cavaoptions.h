@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 
 #include <PhosphorAudio/IAudioSpectrumProvider.h>
 

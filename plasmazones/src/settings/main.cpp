@@ -6,8 +6,8 @@
 #include "core/platform/logging.h"
 #include "core/platform/singleinstanceservice.h"
 #include "core/utils/translationloader.h"
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "settings/controller/settingscontroller.h"
 #include "settingslaunchcontroller.h"
 #include "version.h"
@@ -24,10 +24,9 @@
 #include <PhosphorControl/SearchController.h>
 
 #include "common/hostsettings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "runtime/rendering/zoneshaderitem.h"
 #include <PhosphorProtocol/ServiceConstants.h>
-#include <PhosphorSurface/SurfacePackLocation.h>
 
 #include <PhosphorAnimation/CurveLoader.h>
 #include <PhosphorAnimation/PhosphorCurve.h>
@@ -121,11 +120,6 @@ int main(int argc, char* argv[])
     PlasmaZones::ConfigMigration::setCorruptConfigHandling(
         PlasmaZones::ConfigMigration::CorruptConfigHandling::LeaveInPlace);
     PlasmaZones::loadTranslations(&app);
-
-    // Before any QML or surface pack lookup: the library's own surface pack
-    // lookups (SurfaceShaderItem's include paths, the `builtin:` buffer
-    // fallback) search the subdir phosphor-surface-packs installs to.
-    PhosphorSurfaceShaders::setSurfacePackDataSubdir(PlasmaZones::ConfigDefaults::surfacePacksSubdir());
 
     app.setApplicationName(QStringLiteral("plasmazones-settings"));
     app.setApplicationVersion(PlasmaZones::VERSION_STRING);

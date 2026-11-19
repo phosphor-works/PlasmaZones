@@ -5,7 +5,7 @@
 #include "common/engineruntimenamespace.h"
 #include "../services/ZoneManager.h"
 #include "../services/SnappingService.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 
 #include <PhosphorProtocol/ClientHelpers.h>
@@ -14,10 +14,10 @@
 #include <PhosphorScreens/ScreenIdentity.h>
 
 #include "phosphor_i18n.h"
-#include "../../config/configdefaults.h"
-#include "../../config/configmigration.h"
-#include "../../config/configbackends.h"
-#include "../../config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 
 #include <PhosphorConfig/Store.h>
 #include <QRegularExpression>

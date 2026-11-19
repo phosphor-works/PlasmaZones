@@ -5,7 +5,7 @@
 #include "zoneentryscaffold.h"
 #include "zoneshadernoderhi.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "core/platform/logging.h"
 
 #include <PhosphorZones/ZoneJsonKeys.h>

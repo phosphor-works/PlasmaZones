@@ -20,9 +20,9 @@
 #include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 
-#include "config/settings.h"
-#include "config/configdefaults.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "settings/pages/snappingbehaviorcontroller.h"
 #include "settings/utils/triggerutils.h"
 #include "helpers/IsolatedConfigGuard.h"

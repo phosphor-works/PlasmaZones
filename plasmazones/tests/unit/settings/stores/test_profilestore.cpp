@@ -44,8 +44,8 @@
 #include <PhosphorRules/Rule.h>
 
 #include "common/hostsettings.h"
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "phosphor_i18n.h"
 #include "settings/stores/profilestore.h"
 

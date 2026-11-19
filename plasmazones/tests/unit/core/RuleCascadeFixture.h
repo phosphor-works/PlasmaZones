@@ -22,8 +22,8 @@
 #include <PhosphorZones/LayoutRegistry.h>
 
 #include "helpers/IsolatedConfigGuard.h"
-#include "config/configdefaults.h"
-#include "config/configkeys.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigKeys.h>
 
 namespace PWR = PhosphorRules;
 namespace CRB = PhosphorRules::ContextRuleBridge;

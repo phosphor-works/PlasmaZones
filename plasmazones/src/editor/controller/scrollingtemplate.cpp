@@ -6,7 +6,7 @@
 #include "../EditorTemplateModel.h"
 #include "../undo/UndoController.h"
 #include "core/platform/logging.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorProtocol/ClientHelpers.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/ScrollingTemplate.h>

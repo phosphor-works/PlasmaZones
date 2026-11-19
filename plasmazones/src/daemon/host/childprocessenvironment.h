@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/engineruntimenamespace.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 #include <QCoreApplication>
 #include <QProcessEnvironment>

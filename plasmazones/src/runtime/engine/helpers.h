@@ -11,7 +11,7 @@
 
 #include <QScreen>
 #include "core/platform/logging.h"
-#include "core/interfaces/settings_interfaces.h"
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "core/utils/utils.h"
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/windowtracker/windowtracker.h"

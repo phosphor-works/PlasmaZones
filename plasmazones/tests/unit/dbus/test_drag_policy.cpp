@@ -51,8 +51,8 @@
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include <PhosphorZones/LayoutRegistry.h>
-#include "config/configdefaults.h"
-#include "config/configkeys.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigKeys.h>
 #include "helpers/AutotileTestHelpers.h"
 #include "helpers/IsolatedConfigGuard.h"
 #include "runtime/dragresolver/dragresolver.h"

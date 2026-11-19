@@ -4,7 +4,7 @@
 #include "decorationpreviewcontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include "core/types/cavaoptions.h"
 

@@ -7,7 +7,7 @@
 
 #include "runtime/engine/engineruntime.h"
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/host/ihostapps.h"
 #include "core/platform/logging.h"
 #include "core/utils/utils.h"
@@ -19,7 +19,7 @@
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "runtime/dragresolver/dragresolver.h"
 #include "runtime/windowtracker/windowtracker.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ScrollingTemplateStore.h> // count() (inline) for the picker's empty-store gate

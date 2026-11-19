@@ -16,9 +16,9 @@
 
 #include "runtime/engine/engineruntime.h"
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "core/platform/logging.h"
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/shortcutmanager_ids.h"

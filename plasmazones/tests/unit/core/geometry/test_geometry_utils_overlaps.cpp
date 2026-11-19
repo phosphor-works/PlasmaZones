@@ -13,7 +13,7 @@
 #include <QSize>
 
 #include "core/utils/geometryutils.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 using namespace PlasmaZones;
 

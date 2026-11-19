@@ -9,8 +9,8 @@
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include "version.h"
-#include "config/configdefaults.h"
-#include "config/configkeys.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigKeys.h>
 #include "core/resolve/screenmoderouter.h"
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorZones/AssignmentEntry.h>

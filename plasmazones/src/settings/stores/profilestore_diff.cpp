@@ -9,7 +9,7 @@
 #include "profilestore.h"
 #include "common/engineruntimenamespace.h"
 
-#include "config/configkeys.h"
+#include <PhosphorEngineRuntime/ConfigKeys.h>
 #include "config/settingsvaluelabels.h"
 #include "phosphor_i18n.h"
 

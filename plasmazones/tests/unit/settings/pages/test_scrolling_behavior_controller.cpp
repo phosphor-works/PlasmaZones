@@ -30,9 +30,9 @@
 #include "common/engineruntimenamespace.h"
 #include <QTest>
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "settings/pages/scrollingbehaviorcontroller.h"
 #include "settings/utils/triggerutils.h"

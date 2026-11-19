@@ -13,7 +13,7 @@
 #include <QScreen>
 #include <cmath>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/interfaces/interfaces.h"
 #include "core/types/zoneselectorlayout.h"
 #include "core/utils/utils.h"

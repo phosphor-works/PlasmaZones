@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "screenhelper.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include "screenprovider.h"
 

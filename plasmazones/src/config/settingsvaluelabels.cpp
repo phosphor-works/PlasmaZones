@@ -5,9 +5,9 @@
 #include "common/engineruntimenamespace.h"
 
 #include "phosphor_i18n.h"
-#include "configdefaults.h"
-#include "configkeys.h"
-#include "settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigKeys.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 
 #include <QHash>
 #include <QVariantMap>

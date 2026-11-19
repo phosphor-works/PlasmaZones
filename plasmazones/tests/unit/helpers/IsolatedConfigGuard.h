@@ -10,7 +10,7 @@
 #include <QStandardPaths>
 #include <QUuid>
 
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 
 namespace PlasmaZones {
 namespace TestHelpers {

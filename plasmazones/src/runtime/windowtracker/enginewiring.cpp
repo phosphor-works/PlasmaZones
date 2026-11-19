@@ -14,7 +14,7 @@
 // key through it, and unity batching must not be what supplies the declaration.
 #include "internal.h"
 #include "rules_admission.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorIdentity/WindowId.h>

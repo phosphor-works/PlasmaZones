@@ -18,8 +18,8 @@
 #include "common/engineruntimenamespace.h"
 #include "common/hostsettings.h"
 
-#include "config/configdefaults.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Constants.h>
 
 #include <PhosphorConfig/HostDirectory.h>
 #include <PhosphorProtocol/ServiceConstants.h>

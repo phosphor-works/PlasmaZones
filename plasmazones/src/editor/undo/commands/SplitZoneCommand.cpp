@@ -4,7 +4,7 @@
 #include "SplitZoneCommand.h"
 #include "common/engineruntimenamespace.h"
 #include "../../services/ZoneManager.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
 #include <QSet>

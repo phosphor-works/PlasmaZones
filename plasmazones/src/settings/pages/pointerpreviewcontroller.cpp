@@ -6,7 +6,7 @@
 
 #include "pointer_controller_detail.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include <PhosphorPointer/PointerFrameState.h>
 #include <PhosphorPointer/PointerShaderEffect.h>

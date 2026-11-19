@@ -4,8 +4,8 @@
 #include "EditorOwnedConfig.h"
 #include "common/engineruntimenamespace.h"
 
-#include "../../config/configdefaults.h"
-#include "../../config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 
 #include <PhosphorConfig/IBackend.h>
 #include <PhosphorConfig/Store.h>

@@ -6,14 +6,15 @@
 
 #include "phosphor_i18n.h"
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
-#include "config/settingsschemachoices.h"
-#include "core/platform/appdirectoryname.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
+#include <PhosphorEngineRuntime/SettingsSchemaChoices.h>
+#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorEngineRuntime/Constants.h>
 
 #include <PhosphorConfig/Schema.h>
+#include <PhosphorSurface/SurfacePackLocation.h>
 
 #include <QFile>
 #include <QJsonDocument>
@@ -95,6 +96,11 @@ QList<HostEnumLabels> hostEnumLabels()
 void initPlasmaZonesHost()
 {
     setAppDirectoryName(AppDirectoryName);
+    // Before any QML or surface pack lookup: the surface packs are shared with
+    // the other apps that draw them, and every lookup (SurfaceShaderItem's
+    // include paths, the `builtin:` buffer fallback, the settings' user
+    // directory) searches the subdir phosphor-surface-packs installs to.
+    PhosphorSurfaceShaders::setSurfacePackDataSubdir(QStringLiteral(PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR));
     setHostSettingsExtension({&appendHostSchema, &isHostMachineScopedKey, &hostEnumLabels});
 }
 

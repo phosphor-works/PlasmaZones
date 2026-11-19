@@ -17,7 +17,7 @@
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include "core/interfaces/interfaces.h"
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Layout.h>

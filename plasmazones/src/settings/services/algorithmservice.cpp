@@ -6,9 +6,9 @@
 
 #include "algorithmscaffold.h"
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
 

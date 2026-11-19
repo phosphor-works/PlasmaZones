@@ -22,10 +22,10 @@
 
 #include <QFile>
 
-#include "config/configbackends.h"
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "editor/helpers/EditorOwnedConfig.h"
 #include "helpers/IsolatedConfigGuard.h"
 

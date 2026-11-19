@@ -13,11 +13,11 @@
 // and for what deliberately stayed in QML.
 
 #include "animationspagecontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
 #include "animations_controller_detail.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include "phosphor_i18n.h"
 

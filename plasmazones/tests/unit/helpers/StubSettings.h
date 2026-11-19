@@ -5,10 +5,10 @@
 
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "core/interfaces/interfaces.h"
-#include "core/types/overlayshadertree.h"
+#include <PhosphorEngineRuntime/OverlayShaderTree.h>
 
 #include <PhosphorConfig/Schema.h>
 

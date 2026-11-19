@@ -55,11 +55,11 @@
 #include <PhosphorRules/Rule.h>
 #include <PhosphorRules/RuleStore.h>
 
-#include "config/configbackends.h"
-#include "config/configdefaults.h"
-#include "config/settingsconfigstore.h"
-#include "config/settings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/resolve/screenmoderouter.h"
 #include "core/utils/geometryutils.h"
 #include "core/utils/utils.h"

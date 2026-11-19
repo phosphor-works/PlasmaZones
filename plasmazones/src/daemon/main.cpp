@@ -4,10 +4,10 @@
 #include "daemon/daemon.h"
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "common/hostsettings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "runtime/common/runtimei18n.h"
 #include "core/platform/logging.h"
 #include "core/utils/translationloader.h"
@@ -21,7 +21,6 @@
 #include <PhosphorConfig/HostDirectory.h>
 #include <PhosphorProtocol/Registration.h>
 #include <PhosphorProtocol/ServiceConstants.h>
-#include <PhosphorSurface/SurfacePackLocation.h>
 #include <PhosphorWayland/LayerShellPluginLoader.h>
 #include <PhosphorWayland/LayerSurface.h>
 
@@ -499,10 +498,6 @@ int main(int argc, char* argv[])
     PlasmaZones::applyOpenGlGpuPreference(gpuDevice);
 
     QGuiApplication app(argc, argv);
-    // Before any QML or surface pack lookup: the library's own surface pack
-    // lookups (SurfaceShaderItem's include paths, the `builtin:` buffer
-    // fallback) search the subdir phosphor-surface-packs installs to.
-    PhosphorSurfaceShaders::setSurfacePackDataSubdir(PlasmaZones::ConfigDefaults::surfacePacksSubdir());
 
     // Publish the daemon-private variables changed above, so the daemon's
     // spawn sites (PlasmaZonesApps) can undo them for a child through

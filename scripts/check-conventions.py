@@ -396,11 +396,11 @@ CONFIG_DOTPATH = re.compile(
     r'QStringLiteral\(\s*"((?:Snapping|Tiling|Scrolling|Workspaces|General|Appearance|Editor|Shell|Rules|Profiles'
     r'|Shortcuts|Animations|Decorations|Shaders)\.[A-Za-z0-9.]+)"\s*\)'
 )
-CONFIG_KEY_DEFS = (
-    "plasmazones/src/config/configkeys.h",
-    "plasmazones/src/config/configdefaults.h",
-    "plasmazones/src/config/configmigration.cpp",
-)
+# The accessor definitions, which are the one place a literal may spell a v2
+# group, live in phosphor-libs' engine runtime (ConfigKeys.h, ConfigDefaults.h
+# and the migrations) since the settings model moved there, so no file in this
+# tree is exempt.
+CONFIG_KEY_DEFS: tuple[str, ...] = ()
 
 
 def rule_config_keys(files: list[str]) -> list[Violation]:
@@ -586,7 +586,10 @@ def rule_prose(files: list[str]) -> list[Violation]:
                     lit = "".join(re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1)))
                     for p in prose_problems(lit):
                         out.append(Violation("prose", f, line_of(code, m.start()), f"{p} -> {lit[:80]!r}"))
-            if Path(f).name.startswith("settingsschema"):
+            # Setting descriptions: the schema's own moved to phosphor-libs with
+            # the settings model, and PlasmaZones declares its host keys'
+            # descriptions in common/hostsettings.cpp.
+            if Path(f).name.startswith("settingsschema") or Path(f).name == "hostsettings.cpp":
                 for m in SCHEMA_DESCRIPTION.finditer(code):
                     lit = "".join(re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1)))
                     for p in prose_problems(lit):

@@ -25,7 +25,7 @@
 #include <PhosphorZones/Zone.h>
 
 #include "helpers/IsolatedConfigGuard.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "helpers/LayoutRegistryTestHelpers.h"
 
 namespace PlasmaZones {

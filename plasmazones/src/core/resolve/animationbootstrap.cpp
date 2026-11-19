@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "animationbootstrap.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 
 #include <PhosphorAnimation/Curve.h>
 #include <PhosphorAnimation/CurveLoader.h>

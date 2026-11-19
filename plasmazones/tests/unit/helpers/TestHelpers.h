@@ -9,7 +9,7 @@
 #include <QString>
 #include <QLatin1String>
 
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 namespace PlasmaZones {
 namespace TestHelpers {

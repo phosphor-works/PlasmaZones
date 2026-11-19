@@ -7,7 +7,7 @@
 #include "../undo/UndoController.h"
 #include "../undo/commands/BatchUpdateAppearanceCommand.h"
 #include "../helpers/BatchOperationScope.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 
 #include "phosphor_i18n.h"

@@ -36,7 +36,7 @@
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ScrollingTemplateStore.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTiles/AutotileConstants.h>
 #include <PhosphorTiles/AutotileLayoutSourceFactory.h>
@@ -49,7 +49,7 @@
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorWorkspaces/ActivityManager.h>
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/resolve/crosssurfaceresolver.h"
 #include "core/utils/geometryutils.h"
 #include <PhosphorProtocol/ServiceConstants.h>
@@ -61,13 +61,13 @@
 #include <PhosphorContext/ContextResolver.h>
 #include "core/utils/utils.h"
 #include "runtime/common/runtimei18n.h"
-#include "config/configdefaults.h"
-#include "config/settingsconfigstore.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 #include <PhosphorScreens/Swapper.h>
 #include <PhosphorScreens/NoOpPanelSource.h>
 #include "core/interfaces/shaderregistry.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "runtime/windowtracker/windowtracker.h"

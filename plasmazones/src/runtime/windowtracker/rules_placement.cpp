@@ -18,7 +18,7 @@
 #include "internal.h"
 #include "rules_admission.h"
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/platform/logging.h"
 #include <PhosphorEngine/GeometryUtils.h>
 #include <PhosphorEngine/WindowRegistry.h>

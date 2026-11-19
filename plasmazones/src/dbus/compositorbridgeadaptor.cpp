@@ -3,7 +3,7 @@
 
 #include "compositorbridgeadaptor.h"
 #include "common/engineruntimenamespace.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include "dbus/dbushelpers.h"
 

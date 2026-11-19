@@ -36,12 +36,12 @@
 
 #include <iterator>
 
-#include "config/settings.h"
-#include "config/settingsschema.h"
-#include "config/configdefaults.h"
-#include "config/configbackends.h"
-#include "core/types/constants.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

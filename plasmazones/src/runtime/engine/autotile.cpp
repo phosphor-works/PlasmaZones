@@ -12,11 +12,11 @@
 #include <PhosphorWorkspaces/ActivityManager.h>
 #include "core/utils/geometryutils.h"
 #include "core/platform/logging.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/utils/utils.h"
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorContext/ContextResolver.h>
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/snapservice/snapservice.h"
 #include "runtime/dragresolver/dragresolver.h"

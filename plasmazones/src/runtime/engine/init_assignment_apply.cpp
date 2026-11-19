@@ -24,7 +24,7 @@
 #include <PhosphorTiles/TilingAlgorithm.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "core/platform/logging.h"
 
 #include <QSet>

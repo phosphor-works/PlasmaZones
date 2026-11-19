@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "plasmazones_export.h"
 #include "core/types/types.h"
 #include <PhosphorEngine/GeometryUtils.h>

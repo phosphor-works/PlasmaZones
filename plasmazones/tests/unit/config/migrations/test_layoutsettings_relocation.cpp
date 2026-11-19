@@ -11,8 +11,8 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 
-#include "config/configmigration.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include <PhosphorZones/LayoutSettingsStore.h>

@@ -50,8 +50,8 @@
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "config/configdefaults.h"
-#include "config/configkeys.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigKeys.h>
 #include "runtime/services/snapservice/snapservice.h"
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/dragresolver/dragresolver.h"

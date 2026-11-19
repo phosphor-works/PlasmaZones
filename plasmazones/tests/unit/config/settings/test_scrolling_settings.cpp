@@ -65,10 +65,10 @@
 #include <PhosphorRules/ActionParams.h>
 #include <PhosphorZones/ZoneDefaults.h>
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

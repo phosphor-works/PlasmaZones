@@ -4,7 +4,7 @@
 #include "windowappearancecontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 
 #include <PhosphorEngine/PerScreenKeys.h>
 

@@ -29,8 +29,8 @@
 #include <QTest>
 #include <QUuid>
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include <PhosphorRules/ContextRuleBridge.h>

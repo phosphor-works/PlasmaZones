@@ -3,9 +3,9 @@
 
 #include "SnappingService.h"
 #include "common/engineruntimenamespace.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
-#include "../../config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include <QtMath>
 

@@ -18,9 +18,9 @@
 #include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 
-#include "config/configdefaults.h"
-#include "config/configbackends.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigBackends.h>
+#include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/VirtualScreenTestHelpers.h"

@@ -24,10 +24,10 @@
 // Same class as settingscontroller.cpp, separate TU, no API change.
 
 #include "settingscontroller.h"
-#include "config/configlogging.h"
+#include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include "settings/utils/dbusutils.h"
 #include "settingscontroller_pagekeys.h"

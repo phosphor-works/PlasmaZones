@@ -4,7 +4,7 @@
 #include "windowtracker.h"
 #include "persistenceworker.h"
 #include <PhosphorSnapEngine/SnapEngine.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include "core/interfaces/interfaces.h"
 #include "core/resolve/screenmoderouter.h"
 #include <PhosphorContext/ContextResolver.h>
@@ -18,7 +18,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QSet>
-#include "config/configkeys.h"
+#include <PhosphorEngineRuntime/ConfigKeys.h>
 #include <QTimer>
 #include <PhosphorScreens/ScreenIdentity.h>
 #include <PhosphorIdentity/WindowId.h>

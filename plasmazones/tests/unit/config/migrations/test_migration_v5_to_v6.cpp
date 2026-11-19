@@ -34,8 +34,8 @@
 #include <QJsonObject>
 #include <QTest>
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

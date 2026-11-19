@@ -51,7 +51,7 @@
 #include <PhosphorAnimation/ProfilePaths.h>
 #include <PhosphorAnimation/Spring.h>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "settings/pages/animationspagecontroller.h"
 #include "helpers/AnimationsControllerFixture.h"

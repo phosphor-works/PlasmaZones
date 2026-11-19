@@ -51,9 +51,9 @@
 #include <algorithm>
 #include <optional>
 
-#include "config/configdefaults.h"
-#include "config/configkeys.h"
-#include "config/configmigration.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigKeys.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 #include <PhosphorRules/ContextRuleBridge.h>

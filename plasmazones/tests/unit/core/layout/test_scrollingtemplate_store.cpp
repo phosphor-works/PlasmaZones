@@ -15,7 +15,7 @@
  * the C++ that produces and normalizes the documents it describes.
  */
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "common/engineruntimenamespace.h"
 
 #include <QTest>

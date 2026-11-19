@@ -4,7 +4,7 @@
 #include "snappingzonescontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include <QString>
 

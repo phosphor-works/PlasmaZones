@@ -15,7 +15,7 @@
 #include <vector>
 
 #include <PhosphorZones/LayoutRegistry.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include "helpers/IsolatedConfigGuard.h"

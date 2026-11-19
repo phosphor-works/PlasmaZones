@@ -22,7 +22,7 @@
 #include "core/utils/geometryutils.h"
 #include <PhosphorScreens/Manager.h>
 #include "core/utils/utils.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 #include <QCoreApplication>
 #include <QCursor>

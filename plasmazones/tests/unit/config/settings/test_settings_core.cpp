@@ -33,7 +33,7 @@
 #include <PhosphorAnimation/Profile.h>
 #include <PhosphorAnimation/ShaderProfile.h>
 #include <PhosphorAnimation/ShaderProfileTree.h>
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include <PhosphorConfig/JsonBackend.h>
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorConfig/Store.h>
@@ -45,14 +45,14 @@
 
 #include <memory>
 
-#include "config/settings.h"
-#include "config/configmigration.h"
-#include "config/settingsschema.h"
-#include "core/interfaces/settings_interfaces.h"
-#include "core/types/enums.h"
-#include "core/types/overlayshadertree.h"
-#include "config/configdefaults.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
+#include <PhosphorEngineRuntime/Enums.h>
+#include <PhosphorEngineRuntime/OverlayShaderTree.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Constants.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

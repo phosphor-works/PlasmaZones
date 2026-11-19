@@ -18,15 +18,15 @@
 
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "phosphor_i18n.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "common/daemoncontroller.h"
 #include "common/hostsettings.h"
 #include "settings/controller/screenstatescache.h"
 #include "settings/utils/screenhelper.h"
-#include "core/types/constants.h"
-#include "core/types/enums.h"
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/Enums.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorLayoutApi/LayoutSourceBundle.h>
 

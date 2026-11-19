@@ -29,7 +29,7 @@
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTiles/AutotilePreviewRender.h>
 #include <PhosphorTiles/TilingAlgorithm.h>
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include <QRegularExpression>
 #include <QScreen>
 #include <QTimer>

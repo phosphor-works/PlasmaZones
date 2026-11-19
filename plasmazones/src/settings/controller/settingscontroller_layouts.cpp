@@ -13,10 +13,10 @@
 
 #include "common/daemonscreenscale.h"
 #include "common/layoutpreviewserialize.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "core/utils/geometryutils.h"
 #include "core/platform/logging.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/utils/utils.h"
 #include "phosphor_i18n.h"
 #include "settings/rules/ruleauthoring.h"

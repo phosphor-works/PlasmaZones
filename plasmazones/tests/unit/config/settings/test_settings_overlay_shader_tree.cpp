@@ -29,10 +29,10 @@
 #include <PhosphorShaders/ShaderPreset.h>
 #include <PhosphorShaders/ShaderPresetRegistry.h>
 
-#include "config/configdefaults.h"
-#include "config/configmigration.h"
-#include "config/settings.h"
-#include "core/types/overlayshadertree.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

@@ -3,7 +3,7 @@
 
 #include "ZoneSerialization.h"
 #include "common/engineruntimenamespace.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/Zone.h>
 
 #include <QJsonDocument>

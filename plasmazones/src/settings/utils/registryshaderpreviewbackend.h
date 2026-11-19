@@ -5,9 +5,9 @@
 
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "core/types/cavaoptions.h"
-#include "core/interfaces/settings_interfaces.h"
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "shaderpreview/ishaderpreviewbackend.h"
 
 #include <PhosphorShaders/ShaderRegistry.h>

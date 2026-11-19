@@ -6,7 +6,7 @@
 
 #include "EditorGapsModel.h"
 #include "EditorTemplateModel.h"
-#include "../config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "services/ILayoutService.h"
 #include "services/DBusLayoutService.h"
 #include "services/ZoneManager.h"

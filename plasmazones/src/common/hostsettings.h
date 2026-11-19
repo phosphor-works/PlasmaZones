@@ -40,8 +40,8 @@ inline constexpr QLatin1String PlacementHostId{"plasmazones"};
  */
 inline constexpr QLatin1String AppDirectoryName{"plasmazones"};
 
-/// Ready this process as a PlasmaZones host: its app directory name, and the
-/// settings PlasmaZones adds to the engine's (HostSettings, installed as the
+/// Ready this process as a PlasmaZones host: its app directory name, the surface
+/// packs' data subdirectory, and the settings PlasmaZones adds to the engine's (HostSettings, installed as the
 /// HostSettingsExtension). Call at the top of main(), before anything reads a
 /// path or builds a Settings: a store built without the extension deletes
 /// PlasmaZones' own keys as undeclared on its next save.

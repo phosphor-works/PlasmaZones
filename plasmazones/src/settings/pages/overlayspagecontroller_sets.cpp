@@ -28,10 +28,10 @@
 #include "overlayspagecontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "config/configdefaults.h"
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/interfaces/shaderregistry.h"
-#include "core/types/overlayshadertree.h"
+#include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "phosphor_i18n.h"
 
 #include <PhosphorZones/IZoneLayoutRegistry.h>

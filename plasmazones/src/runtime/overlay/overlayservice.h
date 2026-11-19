@@ -28,7 +28,7 @@
 #include <PhosphorOverlay/ShellState.h>
 
 #include "core/interfaces/interfaces.h"
-#include "core/types/overlayshadertree.h"
+#include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "overlayservice_types.h"
 #include <PhosphorZones/Layout.h>
 

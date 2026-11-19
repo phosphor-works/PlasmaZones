@@ -3,7 +3,7 @@
 
 #include "contextresolverwiring.h"
 
-#include "core/interfaces/isettings.h"
+#include <PhosphorEngineRuntime/ISettings.h>
 #include "core/resolve/screenmoderouter.h"
 #include "core/utils/utils.h"
 

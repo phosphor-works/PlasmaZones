@@ -7,8 +7,8 @@
 #include "EditorController.h"
 #include "undo/UndoController.h"
 #include "undo/commands/UpdateTemplateCommand.h"
-#include "../config/configdefaults.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Constants.h>
 #include "core/platform/logging.h"
 #include <PhosphorZones/ScrollingTemplate.h>
 

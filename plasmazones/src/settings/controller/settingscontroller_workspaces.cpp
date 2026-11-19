@@ -13,8 +13,8 @@
 #include "common/engineruntimenamespace.h"
 
 #include "common/kwinperoutputdesktops.h"
-#include "config/configdefaults.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 
 #include <PhosphorRules/ActionParams.h>
 #include <PhosphorShortcuts/GlobalShortcutBlock.h>

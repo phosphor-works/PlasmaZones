@@ -10,8 +10,8 @@
 #include <PhosphorZones/ZoneDefaults.h>
 
 #include "helpers/IsolatedConfigGuard.h"
-#include "config/configdefaults.h"
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
 
 using namespace PlasmaZones;
 

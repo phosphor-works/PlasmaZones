@@ -14,6 +14,12 @@ A setting is spread over six files. Getting five of six right produces a value
 that reads back as its type-default with no error anywhere, so work down the
 list and verify each one.
 
+The six files are phosphor-libs' since the settings model moved to its engine
+runtime (`libs/phosphor-engine-runtime`, below `<lib>`), so a setting is a phosphor-libs PR followed by a
+pin bump in PlasmaZones. A setting only PlasmaZones means anything by (KWin's,
+or plasmazonesd's own) is not one of these: it goes in PlasmaZones'
+`plasmazones/src/common/hostsettings.cpp`, through the host settings extension.
+
 CLAUDE.md summarises this; the worked example lives here. The pattern is
 store-backed: the getter reads through `m_store` on every call, there is **no
 member variable**, and there is **no load/save/reset arm** to write. Defaults
@@ -21,11 +27,11 @@ and clamping come from the schema.
 
 ## The six files
 
-### 1. `plasmazones/src/config/configdefaults_<area>.h` — the default value
+### 1. `<lib>/include/PhosphorEngineRuntime/ConfigDefaults<Area>.h` — the default value
 
-`configdefaults.h` is split by area: `_appearance`, `_gaps`, `_limits`,
-`_screens`, `_scrolling`, `_scrolling_behavior`, `_scrolling_shortcuts`,
-`_shaders`, `_workspaces`. Pick the matching one.
+`ConfigDefaults.h` is split by area: `Appearance`, `Gaps`, `Limits`,
+`Screens`, `Scrolling`, `ScrollingBehavior`, `ScrollingShortcuts`,
+`Shaders`, `Workspaces` (`ConfigDefaults<Area>.h`). Pick the matching one.
 
 ```cpp
 static bool enableAudioVisualizer() { return false; }
@@ -35,11 +41,11 @@ static constexpr int audioSpectrumBarCountMin() { return 16; }
 static constexpr int audioSpectrumBarCountMax() { return 256; }
 ```
 
-### 2. `plasmazones/src/config/configkeys.h` — the group and key accessors
+### 2. `<lib>/include/PhosphorEngineRuntime/ConfigKeys.h` — the group and key accessors
 
-`configkeys.h`, NOT `configdefaults.h`. Every accessor lives there, or in
-`configkeys_scrolling.h` for a scrolling group and `configkeys_workspaces.h`
-for a workspaces group; configdefaults.h declares none of them. The
+`ConfigKeys.h`, NOT `ConfigDefaults.h`. Every accessor lives there, or in
+`ConfigKeysScrolling.h` for a scrolling group and `ConfigKeysWorkspaces.h`
+for a workspaces group; ConfigDefaults.h declares none of them. The
 `P_CONFIG_GROUP` / `P_CONFIG_KEY` macros come from `configkeymacro.h`, which
 each of those headers includes at its top and undoes with
 `configkeymacro_undef.h` at its end, so a new per-domain header follows the
@@ -54,7 +60,7 @@ hierarchy (`"Snapping.Behavior.ZoneSpan"`). Key accessors are generic
 Never inline a config path as a `QStringLiteral`. `scripts/check-conventions.py`
 fails the build on that.
 
-### 3. `plasmazones/src/config/settingsschema*.cpp` — register the key
+### 3. `<lib>/src/config/settingsschema*.cpp` — register the key
 
 This is the step that is easy to miss and the reason a setting silently reads
 back as `false` or `0`: **the store gets its default and its type from the
@@ -80,11 +86,11 @@ clause-splicing semicolon, no spaced hyphen. The conventions checker enforces
 that. The 5th field is the coercion applied on **every read and every write**,
 which is what makes the clamped-setter idiom below necessary.
 
-### 4. `plasmazones/src/core/interfaces/isettings.h` — the signal
+### 4. `<lib>/include/PhosphorEngineRuntime/ISettings.h` — the signal
 
 Add it under `Q_SIGNALS:`, past tense, named `<property>Changed`.
 
-### 5. `plasmazones/src/config/settings.h` — the property
+### 5. `<lib>/include/PhosphorEngineRuntime/Settings.h` — the property
 
 ```cpp
 Q_PROPERTY(bool enableAudioVisualizer READ enableAudioVisualizer
@@ -96,15 +102,15 @@ void setEnableAudioVisualizer(bool enable) override;
 
 No member.
 
-### 6. `plasmazones/src/config/settings/<concern>.cpp` — getter and setter
+### 6. `<lib>/src/config/settings/<concern>.cpp` — getter and setter
 
-Never `plasmazones/src/config/settings.cpp`. Pick the file matching the concern (not exhaustive):
+Never `<lib>/src/config/settings.cpp`. Pick the file matching the concern (not exhaustive):
 `setters.cpp`, `storescalars.cpp`, `shortcuts.cpp`, `scrolling.cpp`,
 `triggers.cpp`, `perscreen.cpp`, `disable.cpp`, `uienums.cpp`,
 `profiletrees.cpp`, `animationprofile.cpp`, `systemcolors.cpp`.
 
-Note there are three files named `settings.cpp` in the tree (`plasmazones/src/config/`,
-`plasmazones/src/runtime/overlay/`, `plasmazones/src/editor/controller/`). Always use full paths.
+Note there are three files named `settings.cpp` across the two trees (`<lib>/src/config/`,
+PlasmaZones' `plasmazones/src/runtime/overlay/` and `plasmazones/src/editor/controller/`). Always use full paths.
 
 **Unclamped setting** — compare, early-return, write, emit:
 
@@ -151,7 +157,7 @@ value actually changed.
 These have no `Q_PROPERTY` on `Settings` (`EditorPageController` is their
 property surface), so three more places carry each one:
 
-- the `editorSettingEntries()` table in `plasmazones/src/config/settings.cpp`,
+- the `editorSettingEntries()` table in `<lib>/src/config/settings.cpp`,
   which is how a reload announces it (`test_settings_core`'s schema sweep
   fails for a key missing there);
 - `EditorOwnedConfig` in `plasmazones/src/editor/helpers/`, the editor's own

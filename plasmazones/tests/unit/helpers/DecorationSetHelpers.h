@@ -27,7 +27,7 @@
 #include <QString>
 #include <QStringList>
 
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 using namespace PlasmaZones;
 

@@ -29,7 +29,7 @@
 #include <PhosphorAnimation/ShaderProfile.h>
 #include <PhosphorAnimation/ShaderProfileTree.h>
 
-#include "config/settings.h"
+#include <PhosphorEngineRuntime/Settings.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "settings/pages/animationspagecontroller.h"
 

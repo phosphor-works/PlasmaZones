@@ -29,8 +29,8 @@
 // that form, in the same commit).
 
 #include "settingsservice.h"
-#include "config/settings.h" // For concrete Settings type
-#include "config/configdefaults.h" // ConfigDefaults::isValidScrolling* validators
+#include <PhosphorEngineRuntime/Settings.h> // For concrete Settings type
+#include <PhosphorEngineRuntime/ConfigDefaults.h> // ConfigDefaults::isValidScrolling* validators
 #include <QColor>
 #include <QUuid> // id-format validation (defaultScrollingTemplate, scrollingTemplateOrder)
 

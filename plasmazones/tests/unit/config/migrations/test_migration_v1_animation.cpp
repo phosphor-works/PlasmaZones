@@ -10,9 +10,9 @@
 #include <QJsonObject>
 #include <QTextStream>
 
-#include "config/configmigration.h"
-#include "config/configdefaults.h"
-#include "config/configbackends.h"
+#include <PhosphorEngineRuntime/ConfigMigration.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/ConfigBackends.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

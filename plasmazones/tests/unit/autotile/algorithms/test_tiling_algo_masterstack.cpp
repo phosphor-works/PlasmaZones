@@ -9,8 +9,8 @@
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTiles/TilingAlgorithm.h>
 #include <PhosphorTiles/TilingState.h>
-#include "core/types/constants.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/Constants.h>
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include "helpers/TilingTestHelpers.h"
 #include "helpers/ScriptedAlgoTestSetup.h"

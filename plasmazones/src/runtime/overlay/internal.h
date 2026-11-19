@@ -13,11 +13,11 @@
 // settings_interfaces, so that test TUs can include it directly. That header carries plenty
 // of Qt includes; what it does not carry is a reason for this one, and it no longer does.
 #include "core/platform/logging.h"
-#include "core/interfaces/settings_interfaces.h"
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "core/interfaces/interfaces.h"
 #include "core/interfaces/shaderregistry.h"
 #include "core/utils/utils.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include <PhosphorLayer/Role.h>
 #include <PhosphorScreens/Manager.h>

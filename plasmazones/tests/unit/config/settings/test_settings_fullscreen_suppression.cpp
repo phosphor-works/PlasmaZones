@@ -33,9 +33,9 @@
 #include "common/engineruntimenamespace.h"
 #include <QTest>
 
-#include "config/configdefaults.h"
-#include "config/settings.h"
-#include "config/settingsschema.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "helpers/IsolatedConfigGuard.h"
 
 using namespace PlasmaZones;

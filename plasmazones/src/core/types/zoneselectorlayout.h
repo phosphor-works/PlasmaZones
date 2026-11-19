@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/interfaces/settings_interfaces.h"
+#include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include <QList>
 #include <QRect>
 #include <algorithm>

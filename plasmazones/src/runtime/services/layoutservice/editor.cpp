@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "layoutservice.h"
-#include "config/configdefaults.h"
+#include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "core/interfaces/interfaces.h"
 #include <PhosphorLayoutApi/AspectRatioClass.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutFactory.h>
 #include <PhosphorZones/Zone.h>
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/LayoutUtils.h>
 #include <PhosphorZones/LayoutRegistry.h>
 // LayoutRegistry.h only forward-declares ScrollingTemplateStore; templateById()

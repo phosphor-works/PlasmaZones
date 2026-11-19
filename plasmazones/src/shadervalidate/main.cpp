@@ -50,7 +50,7 @@
 #include "common/engineruntimenamespace.h"
 #include "packvalidators.h"
 #include "common/hostsettings.h"
-#include "core/types/constants.h"
+#include <PhosphorEngineRuntime/Constants.h>
 
 #include <PhosphorAnimation/AnimationShaderEffect.h>
 #include <PhosphorAnimation/AnimationShaderRegistry.h>
@@ -59,7 +59,6 @@
 #include <PhosphorShaders/ShaderIncludeResolver.h>
 #include <PhosphorShaders/ShaderRegistry.h>
 #include <PhosphorSurface/SurfaceShaderEffect.h>
-#include <PhosphorSurface/SurfacePackLocation.h>
 #include <PhosphorSurface/SurfaceShaderRegistry.h>
 
 #include <QDir>
@@ -206,10 +205,6 @@ int main(int argc, char** argv)
 {
     // Before anything reads a config or data path.
     PlasmaZones::initPlasmaZonesHost();
-
-    // The installed-copy fallback of SurfaceShaderRegistry's `builtin:` buffer
-    // tokens looks here, so it matches the runtime's.
-    PhosphorSurfaceShaders::setSurfacePackDataSubdir(QStringLiteral(PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR));
 
     QTextStream out(stdout);
     QTextStream errStream(stderr);

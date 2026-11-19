@@ -31,8 +31,8 @@
 
 #include "settingsservice.h"
 #include "core/interfaces/interfaces.h"
-#include "config/settings.h" // For concrete Settings type
-#include "config/configdefaults.h" // ConfigDefaults range bounds + normalizeGpuDevice
+#include <PhosphorEngineRuntime/Settings.h> // For concrete Settings type
+#include <PhosphorEngineRuntime/ConfigDefaults.h> // ConfigDefaults range bounds + normalizeGpuDevice
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorAnimation/ProfilePaths.h>
 #include <PhosphorAnimation/ProfileTree.h>

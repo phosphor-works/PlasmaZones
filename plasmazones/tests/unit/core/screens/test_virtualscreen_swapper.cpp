@@ -24,8 +24,8 @@
 #include "core/utils/utils.h"
 #include <PhosphorScreens/VirtualScreen.h>
 #include <PhosphorScreens/Swapper.h>
-#include "config/settings.h"
-#include "config/settingsconfigstore.h"
+#include <PhosphorEngineRuntime/Settings.h>
+#include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/VirtualScreenTestHelpers.h"
 
