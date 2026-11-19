@@ -22,11 +22,6 @@
 #include <iterator>
 #include <memory>
 
-#if __has_include(<libintl.h>)
-#include <libintl.h>
-#define PLASMAZONES_HAVE_LIBINTL 1
-#endif
-
 Q_LOGGING_CATEGORY(lcWorkspaceCtl, "plasmazones.workspaces.controller", QtInfoMsg)
 
 namespace PhosphorEngineRuntime {
@@ -50,27 +45,6 @@ constexpr int MaxReunionAttempts = 3;
 /// State-file write debounce: map churn (a create + settle + maintenance
 /// run) coalesces into one atomic write.
 constexpr int StateSaveDebounceMs = 1000;
-
-/// KWin's own label for an unnamed desktop at a 1-based position, in KWin's
-/// language: KWin's defaultName() looks "Desktop %1" up in its "kwin"
-/// catalog. The reconciler pushes this wherever it means "unnamed" and uses
-/// it to tell a generated label from a name a user chose, so it has to match
-/// what KWin writes itself. Without the catalog (not installed, or no
-/// gettext) the untranslated form is what KWin shows too.
-QString kwinDefaultDesktopName(int oneBasedPosition)
-{
-    static const QString pattern = [] {
-#ifdef PLASMAZONES_HAVE_LIBINTL
-        bind_textdomain_codeset("kwin", "UTF-8");
-        const QString translated = QString::fromUtf8(dgettext("kwin", "Desktop %1"));
-        if (translated.contains(QLatin1String("%1"))) {
-            return translated;
-        }
-#endif
-        return QStringLiteral("Desktop %1");
-    }();
-    return pattern.arg(oneBasedPosition);
-}
 
 /// Whether @p stamps holds a stamp for @p key younger than @p cooldownMs.
 bool withinCooldown(const QHash<QString, qint64>& stamps, const QString& key, qint64 now, qint64 cooldownMs)
@@ -104,7 +78,6 @@ WorkspaceController::WorkspaceController(PhosphorWorkspaces::VirtualDesktopManag
     , m_screens(screens)
 {
     m_clock.start();
-    m_reconciler.setDefaultDesktopNameProvider(&kwinDefaultDesktopName);
 
     // Saves are scheduled on every map change but refused until adoption
     // (scheduleStateSave), so the candidate restored from last session's file

@@ -48,6 +48,7 @@ public:
     bool stockDesktopShortcutsTakeoverWanted() const override;
     void takeOverStockDesktopShortcuts() override;
     void restoreStockDesktopShortcuts() override;
+    QString defaultDesktopName(int oneBasedPosition) const override;
 
 private:
     ShortcutManager* m_shortcutManager;
