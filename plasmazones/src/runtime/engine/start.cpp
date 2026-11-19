@@ -21,8 +21,8 @@
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "runtime/services/snapservice/snapservice.h"
-#include "runtime/windowtracker/windowtracker.h"
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
+#include <PhosphorEngineRuntime/DragResolver.h>
 #include "runtime/services/tilingservice/tilingservice.h"
 #include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/PlacementEngineBase.h>

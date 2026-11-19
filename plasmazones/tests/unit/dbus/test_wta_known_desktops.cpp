@@ -24,7 +24,7 @@
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"

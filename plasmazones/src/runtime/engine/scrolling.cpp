@@ -23,12 +23,12 @@
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "seedorderfilter.h"
 
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 // WindowColorKeys — the one home for the five colour-override key spellings
 // this file produces. The three tab colours are consumed by the KWin effect,
 // which paints the pills; the two indicator colours by the overlay's
 // drop-indicator slot.
-#include "runtime/windowtracker/internal.h"
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorPlacement/WindowTrackingService.h>

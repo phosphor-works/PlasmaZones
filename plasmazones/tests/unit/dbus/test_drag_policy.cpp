@@ -55,7 +55,7 @@
 #include <PhosphorEngineRuntime/ConfigKeys.h>
 #include "helpers/AutotileTestHelpers.h"
 #include "helpers/IsolatedConfigGuard.h"
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
 
 #include "helpers/StubSettings.h"
 

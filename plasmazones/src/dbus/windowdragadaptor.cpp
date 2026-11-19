@@ -5,7 +5,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include "dbushelpers.h"
-#include "runtime/dragresolver/dragresolver.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
 
 #include <QDBusConnection>
 #include <QDBusServiceWatcher>

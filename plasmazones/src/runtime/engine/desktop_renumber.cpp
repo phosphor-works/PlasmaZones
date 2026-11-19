@@ -10,8 +10,8 @@
 #include "runtime/overlay/overlayservice.h"
 #include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/WindowPlacementStore.h>
 #include <PhosphorEngine/WindowRegistry.h>

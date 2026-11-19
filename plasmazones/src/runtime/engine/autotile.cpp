@@ -19,9 +19,9 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/snapservice/snapservice.h"
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/windowtracker/internal.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/WindowPlacement.h>

@@ -17,7 +17,7 @@
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/IPlacementState.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include "runtime/overlay/internal.h"
 #include "helpers.h"
 #include "stripzones.h"

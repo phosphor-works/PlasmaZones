@@ -4,8 +4,8 @@
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
 
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>

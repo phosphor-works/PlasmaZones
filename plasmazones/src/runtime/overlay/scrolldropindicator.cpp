@@ -20,7 +20,7 @@
 // Full path, because this directory has its own "internal.h" — this is the
 // WindowTracking one, for the WindowColorKeys spellings shared with the daemon
 // side that produces these overrides.
-#include "runtime/windowtracker/internal.h"
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 #include "runtime/overlay/overlayservice.h"
 #include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_slot_keys.h"

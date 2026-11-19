@@ -9,7 +9,7 @@
 #include "tilingservice.h"
 
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/IPlacementEngine.h>

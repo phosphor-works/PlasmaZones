@@ -14,7 +14,7 @@
 #include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include <PhosphorEngineRuntime/Utils.h>
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 #include <PhosphorContext/DisabledReason.h>

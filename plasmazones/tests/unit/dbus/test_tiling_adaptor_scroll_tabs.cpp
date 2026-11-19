@@ -37,7 +37,7 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/StubSettings.h"

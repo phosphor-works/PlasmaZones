@@ -38,7 +38,7 @@
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include "dbus/windowtrackingadaptor.h"
 
 #include "helpers/IsolatedConfigGuard.h"

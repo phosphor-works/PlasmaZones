@@ -15,9 +15,9 @@
 // (TilingService::onTrackedWindowDestroyed / pruneStaleFloatBroadcasts) —
 // daemon.h forward declares TilingService only.
 #include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/dragresolver/dragresolver.h"
-#include "runtime/windowtracker/lifecyclerelay.h"
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/DragResolver.h>
+#include <PhosphorEngineRuntime/WindowLifecycleRelay.h>
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorLayoutApi/LayoutId.h>

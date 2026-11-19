@@ -4,7 +4,7 @@
 #include "tilingservice.h"
 
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorIdentity/WindowId.h>

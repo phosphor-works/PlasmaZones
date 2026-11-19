@@ -30,7 +30,7 @@
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Zone.h>
-#include "runtime/windowtracker/windowtracker.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>

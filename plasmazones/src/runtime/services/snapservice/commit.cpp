@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "snapservice.h"
-#include "runtime/windowtracker/windowtracker.h"
-#include "runtime/windowtracker/internal.h"
+#include <PhosphorEngineRuntime/WindowTracker.h>
+#include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngine/WindowPlacement.h>
 #include <PhosphorPlacement/WindowTrackingService.h>

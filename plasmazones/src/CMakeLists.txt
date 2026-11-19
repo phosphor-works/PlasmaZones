@@ -91,43 +91,6 @@ set(plasmazones_core_SRCS
     runtime/services/ruleservice.cpp
     runtime/services/ruleservice.h
     # snapnavigationtargets moved to phosphor-libs/libs/phosphor-snap-engine/
-    runtime/windowtracker/windowtracker.cpp
-    runtime/windowtracker/lifecycle.cpp
-    runtime/windowtracker/activation.cpp
-    runtime/windowtracker/prune.cpp
-    runtime/windowtracker/evacuees.cpp
-    runtime/windowtracker/screenleave.cpp
-    runtime/windowtracker/evacueeledger.h
-    runtime/windowtracker/lifecyclerelay.h
-    runtime/windowtracker/queries.cpp
-    runtime/windowtracker/enginewiring.cpp
-    runtime/windowtracker/rules.cpp
-    runtime/windowtracker/rules_placement.cpp
-    runtime/windowtracker/rules_admission.h
-    runtime/windowtracker/crossmode.cpp
-    runtime/windowtracker/navigation.cpp
-    runtime/windowtracker/float.cpp
-    runtime/windowtracker/persistence.cpp
-    runtime/windowtracker/saveload.cpp
-    runtime/windowtracker/persistenceworker.cpp
-    runtime/windowtracker/persistenceworker.h
-    runtime/windowtracker/convenience.cpp
-    runtime/windowtracker/shellsurface.cpp
-    runtime/windowtracker/shellsurface_desktop.cpp
-    runtime/windowtracker/windowtracker.h
-    runtime/windowtracker/internal.h
-    runtime/dragresolver/dragresolver.cpp
-    runtime/dragresolver/selector_gate.cpp
-    runtime/dragresolver/drag.cpp
-    runtime/dragresolver/drag_protocol.cpp
-    runtime/dragresolver/drop.cpp
-    runtime/dragresolver/dragtimers.cpp
-    runtime/dragresolver/dragzonespan.cpp
-    runtime/dragresolver/dragactivation.cpp
-    runtime/dragresolver/dragactivation.h
-    runtime/dragresolver/dropproxy.cpp
-    runtime/dragresolver/dropproxy.h
-    runtime/dragresolver/dragresolver.h
     runtime/services/scrollingservice/scrollingservice.cpp
     runtime/services/scrollingservice/scrollingservice.h
     runtime/services/autotileservice/autotileservice.cpp
@@ -164,21 +127,6 @@ generate_export_header(plasmazones_core
 # The compatibility wrappers were removed with the move; nothing remains here.
 # PhosphorWayland provides the QPA plugin, protocol code, and LayerSurface implementation.
 
-# Every TU below is excluded from unity build:
-#   configdefaults.cpp — Settings PCH includes that conflict with unity macros
-#   drag.cpp / drag_protocol.cpp / drop.cpp / dragtimers.cpp /
-#   dragzonespan.cpp / selector_gate.cpp —
-#     forward-declaration conflicts with the d-bus-adaptor-generated extern
-#     declarations across these TUs
-set_source_files_properties(
-    runtime/dragresolver/drag.cpp
-    runtime/dragresolver/drag_protocol.cpp
-    runtime/dragresolver/drop.cpp
-    runtime/dragresolver/dragtimers.cpp
-    runtime/dragresolver/dragzonespan.cpp
-    runtime/dragresolver/selector_gate.cpp
-    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
-)
 # PhosphorShaders + PhosphorWayland headers are available via PUBLIC link dependencies
 
 target_link_libraries(plasmazones_core
@@ -244,17 +192,6 @@ target_link_libraries(plasmazones_core
         Wayland::Client
         Qt6::Concurrent
         Qt6::WaylandClientPrivate
-)
-
-# PhosphorShortcuts: plasmazones_core uses ONLY the Integration::IAdhocRegistrar header
-# (consumed by DragResolver); the daemon links the shared library
-# binary (see target_link_libraries(plasmazonesd ...) below). Wire the
-# headers via PRIVATE include — consumer-time only — so the header path
-# is available when plasmazones_core's own translation units compile
-# but is NOT re-exported to downstream targets that link
-# plasmazones_core (editor / settings) and never touch shortcuts.
-target_include_directories(plasmazones_core SYSTEM PRIVATE
-    $<BUILD_INTERFACE:${phosphor-libs_SOURCE_DIR}/libs/phosphor-shortcuts/include>
 )
 
 # Activities are not linked here: Plasma's activity backend lives in
