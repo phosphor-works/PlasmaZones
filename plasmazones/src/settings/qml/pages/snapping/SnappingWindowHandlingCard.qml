@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 MaslovKK
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import QtQuick
@@ -100,13 +101,13 @@ SettingsCard {
         SettingsSeparator {}
 
         SettingsRow {
-            title: i18n("Restore unsnapped windows to their previous position")
+            title: i18n("Restore unsnapped windows to their previous position and size")
             searchAnchor: "restoreUnsnappedWindowsPosition"
-            description: i18n("When an unsnapped window reopens after a logout, it returns to the position and monitor it was on instead of wherever the compositor would place it. A rule can override this either way, opting individual windows in or out.")
+            description: i18n("When an unsnapped window reopens, during the session or after a logout, it returns to the position, size and monitor it was last on instead of wherever the compositor would place it and whatever size the app asked for. A rule can override this either way, opting individual windows in or out.")
 
             SettingsSwitch {
                 checked: appSettings.snappingRestoreFloatedWindowsOnLogin
-                accessibleName: i18n("Restore unsnapped windows to their previous position")
+                accessibleName: i18n("Restore unsnapped windows to their previous position and size")
                 onToggled: function (newValue) {
                     appSettings.snappingRestoreFloatedWindowsOnLogin = newValue;
                 }

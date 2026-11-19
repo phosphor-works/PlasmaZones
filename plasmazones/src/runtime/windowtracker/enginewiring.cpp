@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 MaslovKK
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -487,29 +488,51 @@ void WindowTracker::setEngines(PhosphorEngine::PlacementEngineBase* snapEngine,
     // managed sibling's zone, tile or column size from the app's own config,
     // #1106). sizeOnly=true makes the effect keep the window where KWin
     // placed it.
-    const auto sizeRestoreRelay = [this](const QString& windowId, const QSize& size, const QString& screenId) {
-        if (size.isEmpty()) {
-            return;
-        }
-        // Same reasoning as the float relay above: the open-time RouteToScreen
-        // translation reads the frame NEXT, and without this a routed window
-        // carried the un-restored managed size onto its target monitor. Only
-        // the size is what this relay restored; the position is the effect's
-        // to decide (it keeps the top-left for a drag-out and recentres a
-        // fresh open), so only the size is remembered, and the shadow itself
-        // stays what the effect last reported.
-        m_pendingOpenSize.insert(shadowWindowId(windowId), size);
-        Q_EMIT applyGeometryRequested(windowId, 0, 0, size.width(), size.height(), QString(), screenId, true,
-                                      static_cast<int>(PhosphorProtocol::PlacementPurpose::UserVerb));
+    //
+    // The size arm is the other half of the reopen restore the engine already
+    // consulted this same predicate for when it refused (or skipped) the float
+    // MOVE. A RestorePosition rule, or the per-engine *RestoreFloatedWindowsOnLogin
+    // setting, that says "leave this window alone when it reopens" must also
+    // stop the remembered SIZE from being applied — otherwise a closed window
+    // still snaps back to its old size on every reopen while the setting the
+    // user turned off looks like it does nothing. Per-engine resolution mirrors
+    // each engine's own setRestorePositionPredicate wiring: autotile asks
+    // uncached with the engine's insert screen as the hint (it reaches here
+    // mid-session from insertWindow), snap and scroll read the open path's
+    // memo, which the routing resolvers have stamped before any engine emits a
+    // restore on that path.
+    const auto sizeRestoreRelay = [this](PhosphorZones::AssignmentEntry::Mode mode) {
+        return [this, mode](const QString& windowId, const QSize& size, const QString& screenId) {
+            if (size.isEmpty()) {
+                return;
+            }
+            const bool autotile = mode == PhosphorZones::AssignmentEntry::Mode::Autotile;
+            if (!shouldRestoreFloatedPosition(windowId, mode, /*useCache=*/!autotile,
+                                              autotile ? screenId : QString())) {
+                return;
+            }
+            // Same reasoning as the float relay above: the open-time RouteToScreen
+            // translation reads the frame NEXT, and without this a routed window
+            // carried the un-restored managed size onto its target monitor. Only
+            // the size is what this relay restored; the position is the effect's
+            // to decide (it keeps the top-left for a drag-out and recentres a
+            // fresh open), so only the size is remembered, and the shadow itself
+            // stays what the effect last reported.
+            m_pendingOpenSize.insert(shadowWindowId(windowId), size);
+            Q_EMIT applyGeometryRequested(windowId, 0, 0, size.width(), size.height(), QString(), screenId, true,
+                                          static_cast<int>(PhosphorProtocol::PlacementPurpose::UserVerb));
+        };
     };
     if (m_snapEngine) {
         connect(m_snapEngine, &PhosphorEngine::PlacementEngineBase::geometryRestoreRequested, this, floatRestoreRelay);
-        connect(m_snapEngine, &PhosphorEngine::PlacementEngineBase::sizeRestoreRequested, this, sizeRestoreRelay);
+        connect(m_snapEngine, &PhosphorEngine::PlacementEngineBase::sizeRestoreRequested, this,
+                sizeRestoreRelay(PhosphorZones::AssignmentEntry::Mode::Snapping));
     }
     if (m_autotileEngine) {
         connect(m_autotileEngine, &PhosphorEngine::PlacementEngineBase::geometryRestoreRequested, this,
                 floatRestoreRelay);
-        connect(m_autotileEngine, &PhosphorEngine::PlacementEngineBase::sizeRestoreRequested, this, sizeRestoreRelay);
+        connect(m_autotileEngine, &PhosphorEngine::PlacementEngineBase::sizeRestoreRequested, this,
+                sizeRestoreRelay(PhosphorZones::AssignmentEntry::Mode::Autotile));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -541,7 +564,8 @@ void WindowTracker::setEngines(PhosphorEngine::PlacementEngineBase* snapEngine,
                 &WindowTracker::handleCrossModeFocus, Qt::DirectConnection);
         connect(m_scrollEngine, &PhosphorEngine::PlacementEngineBase::geometryRestoreRequested, this,
                 floatRestoreRelay);
-        connect(m_scrollEngine, &PhosphorEngine::PlacementEngineBase::sizeRestoreRequested, this, sizeRestoreRelay);
+        connect(m_scrollEngine, &PhosphorEngine::PlacementEngineBase::sizeRestoreRequested, this,
+                sizeRestoreRelay(PhosphorZones::AssignmentEntry::Mode::Scrolling));
         if (auto* scroll = m_cachedScrollEngine.data()) {
             // DELIBERATE SCOPE NOTE: of the injections the scroll engine
             // takes, THIS seam owns three — the float predicate, the

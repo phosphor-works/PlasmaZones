@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 MaslovKK
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // QtQuick is load-bearing here: the Accessible attached type on the combo
@@ -129,13 +130,13 @@ SettingsCard {
         SettingsSeparator {}
 
         SettingsRow {
-            title: i18n("Restore floated windows to their previous position")
+            title: i18n("Restore floated windows to their previous position and size")
             searchAnchor: "scrollingRestoreFloatedOnLogin"
             description: i18n("When a floated window reopens, it returns to the position and size it had before, rather than being placed by the compositor. A rule can override this either way, opting individual windows in or out.")
 
             SettingsSwitch {
                 checked: appSettings.scrollingRestoreFloatedWindowsOnLogin
-                accessibleName: i18n("Restore floated windows to their previous position")
+                accessibleName: i18n("Restore floated windows to their previous position and size")
                 onToggled: function (newValue) {
                     appSettings.scrollingRestoreFloatedWindowsOnLogin = newValue;
                 }

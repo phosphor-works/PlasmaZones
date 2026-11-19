@@ -22,6 +22,12 @@ needs no logout.
 
 ## Start a session
 
+Before the first launch, confirm the prerequisites the failure modes hide: build
+the effect target (`kwin_effect_plasmazones`) or the session log says only that
+the effect `.so` is missing, and check `/dev/dri/render*` exists — nested KWin
+needs a render node, and a shell sandbox without one burns all eight launch
+attempts per probe on `Found no render device!` and stages nothing.
+
 ```bash
 scripts/nested-kwin/run-nested.sh [output-count] [width height] [scale]
 ```

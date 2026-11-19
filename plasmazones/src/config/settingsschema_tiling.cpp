@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 MaslovKK
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The tiling half of the settings schema: the Tiling.* groups (Algorithm,
@@ -99,8 +100,8 @@ void appendAutotilingSchema(PhosphorConfig::Schema& schema)
         {CD::respectMinimumSizeKey(), CD::autotileRespectMinimumSize(), QMetaType::Bool,
          QStringLiteral("Stop windows being resized below their minimum size, which may leave gaps in the layout.")},
         {CD::restoreFloatedOnLoginKey(), CD::autotileRestoreFloatedWindowsOnLogin(), QMetaType::Bool,
-         QStringLiteral("Return a floated window to the position and monitor it was on when it reopens after a logout. "
-                        "A rule can opt individual windows in or out.")},
+         QStringLiteral("Return a floated window to the position, size and monitor it was last on when it reopens. A "
+                        "rule can opt individual windows in or out.")},
         {CD::keepFloatingAboveKey(), CD::autotileKeepFloatingAbove(), QMetaType::Bool,
          QStringLiteral("Keep the windows you float stacked above the tiled windows. A rule that sets a window layer "
                         "takes precedence for the windows it matches.")},

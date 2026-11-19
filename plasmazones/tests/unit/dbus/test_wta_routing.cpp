@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 MaslovKK
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
@@ -251,6 +252,33 @@ private Q_SLOTS:
 
         QVERIFY(m_wta->shouldRestoreFloatedPosition(QStringLiteral("deskflow|inst9"),
                                                     PhosphorZones::AssignmentEntry::Mode::Snapping));
+    }
+
+    // ── Size restore: the reopen size arm follows the position gate ──
+    void testSizeRestoreRelay_respectsTheRestorePositionGate()
+    {
+        // The size arm of the reopen restore is gated by the same policy as
+        // the float MOVE. With the per-engine setting off and no
+        // RestorePosition rule matching, the engine's sizeRestoreRequested
+        // must not reach the effect; a closed window otherwise reopens resized
+        // to its remembered size while the setting the user turned off looks
+        // like it does nothing.
+        QSignalSpy geomSpy(m_wta, &WindowTracker::applyGeometryRequested);
+        m_settings->setSnappingRestoreFloatedWindowsOnLogin(false);
+        const auto restore = qScopeGuard(
+            [this] { m_settings->setSnappingRestoreFloatedWindowsOnLogin(true); });
+
+        Q_EMIT m_snapEngine->sizeRestoreRequested(QStringLiteral("sizegate|w1"), QSize(880, 640), m_screenId);
+        QCOMPARE(geomSpy.count(), 0);
+
+        // With it back on, the same emit lands as a size-only apply.
+        m_settings->setSnappingRestoreFloatedWindowsOnLogin(true);
+        Q_EMIT m_snapEngine->sizeRestoreRequested(QStringLiteral("sizegate|w2"), QSize(880, 640), m_screenId);
+        QCOMPARE(geomSpy.count(), 1);
+        const auto args = geomSpy.takeFirst();
+        QCOMPARE(args.at(0).toString(), QStringLiteral("sizegate|w2"));
+        QVERIFY(args.at(7).toBool());
+        QCOMPARE(QSize(args.at(3).toInt(), args.at(4).toInt()), QSize(880, 640));
     }
 
     void testApplyOpenRoutingForTiling_acceptsScrollingTarget()

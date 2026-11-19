@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 MaslovKK
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This TU stays whole deliberately. It is a flat sequence of one
@@ -1064,8 +1065,8 @@ void appendBehaviorSchema(PhosphorConfig::Schema& schema)
          QStringLiteral("When an app reopens, during the session or after a logout, return it to the zone it was last "
                         "snapped in.")},
         {CD::restoreFloatedOnLoginKey(), CD::snappingRestoreFloatedWindowsOnLogin(), QMetaType::Bool,
-         QStringLiteral("When an unsnapped window reopens after a logout, return it to the position and monitor it was "
-                        "on. A rule can opt individual windows in or out.")},
+         QStringLiteral("When an unsnapped window reopens, during the session or after a logout, return it to the "
+                        "position, size and monitor it was last on. A rule can opt individual windows in or out.")},
         {CD::keepFloatingAboveKey(), CD::snappingKeepFloatingAbove(), QMetaType::Bool,
          QStringLiteral("Keep the windows you float stacked above the windows snapped into zones. A rule that sets a "
                         "window layer takes precedence for the windows it matches.")},

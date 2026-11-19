@@ -27,6 +27,23 @@ Files: packaging/local-install/install.sh
 Copyright: 2026 abirkel <abirkel@users.noreply.github.com>
 License: GPL-3.0-or-later
 
+# Contributed by MaslovKK: the reopen size-restore gate. These files keep
+# fuddlesworth's header alongside, so the stanza names both holders.
+Files: plasmazones/src/config/settingsschema.cpp
+       plasmazones/src/config/settingsschema_tiling.cpp
+       plasmazones/src/runtime/windowtracker/enginewiring.cpp
+       plasmazones/src/settings/qml/pages/scrolling/ScrollingWindowHandlingCard.qml
+       plasmazones/src/settings/qml/pages/snapping/SnappingWindowHandlingCard.qml
+       plasmazones/src/settings/qml/pages/tiling/TilingWindowHandlingCard.qml
+       plasmazones/src/settings/search/searchcatalog.cpp
+       plasmazones/src/settings/search/searchcatalog_simple.cpp
+       plasmazones/tests/unit/dbus/test_wta_routing.cpp
+       scripts/nested-kwin/regression/run.sh
+       scripts/nested-kwin/regression/probes/frestore-floated-size-gate.sh
+Copyright: 2026 MaslovKK <45038542+MaslovKK@users.noreply.github.com>
+           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+License: GPL-3.0-or-later
+
 # The LGPL build scaffolding. These carry LGPL-2.1-or-later in their own SPDX
 # headers, so the Files: * catch-all would assert GPL-3 over them in the
 # packaging metadata while the sources say otherwise. The Phosphor libraries

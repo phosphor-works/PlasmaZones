@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 MaslovKK
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "searchcatalog.h"
@@ -715,8 +716,8 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                PhosphorI18n::tr("Restore windows to their previous zone"),
                {PhosphorI18n::tr("restore"), PhosphorI18n::tr("login")});
     addSetting(search, QStringLiteral("snapping-window-behavior"), QStringLiteral("restoreUnsnappedWindowsPosition"),
-               PhosphorI18n::tr("Restore unsnapped windows to their previous position"),
-               {PhosphorI18n::tr("floated"), PhosphorI18n::tr("position")});
+               PhosphorI18n::tr("Restore unsnapped windows to their previous position and size"),
+               {PhosphorI18n::tr("floated"), PhosphorI18n::tr("position"), PhosphorI18n::tr("size")});
     addSetting(search, QStringLiteral("snapping-window-behavior"), QStringLiteral("keepFloatingAbove"),
                PhosphorI18n::tr("Keep floating windows above"),
                {PhosphorI18n::tr("float"), PhosphorI18n::tr("above"), PhosphorI18n::tr("stacking"),
@@ -967,8 +968,9 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                {PhosphorI18n::tr("restore"), PhosphorI18n::tr("login"), PhosphorI18n::tr("session"),
                 PhosphorI18n::tr("column")});
     addSetting(search, QStringLiteral("scrolling-window"), QStringLiteral("scrollingRestoreFloatedOnLogin"),
-               PhosphorI18n::tr("Restore floated windows to their previous position"),
-               {PhosphorI18n::tr("restore"), PhosphorI18n::tr("float"), PhosphorI18n::tr("position")});
+               PhosphorI18n::tr("Restore floated windows to their previous position and size"),
+               {PhosphorI18n::tr("restore"), PhosphorI18n::tr("float"), PhosphorI18n::tr("position"),
+                PhosphorI18n::tr("size")});
     addSetting(search, QStringLiteral("scrolling-window"), QStringLiteral("scrollingKeepFloatingAbove"),
                PhosphorI18n::tr("Keep floating windows above"),
                {PhosphorI18n::tr("float"), PhosphorI18n::tr("above"), PhosphorI18n::tr("stacking"),
@@ -1056,8 +1058,8 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
     addSetting(search, QStringLiteral("tiling-behavior"), QStringLiteral("respectMinimumSize"),
                PhosphorI18n::tr("Respect minimum size"), {PhosphorI18n::tr("minimum"), PhosphorI18n::tr("gaps")});
     addSetting(search, QStringLiteral("tiling-behavior"), QStringLiteral("restoreUntiledWindowsPosition"),
-               PhosphorI18n::tr("Restore untiled windows to their previous position"),
-               {PhosphorI18n::tr("floated"), PhosphorI18n::tr("position")});
+               PhosphorI18n::tr("Restore untiled windows to their previous position and size"),
+               {PhosphorI18n::tr("floated"), PhosphorI18n::tr("position"), PhosphorI18n::tr("size")});
     addSetting(search, QStringLiteral("tiling-behavior"), QStringLiteral("keepFloatingAbove"),
                PhosphorI18n::tr("Keep floating windows above"),
                {PhosphorI18n::tr("float"), PhosphorI18n::tr("above"), PhosphorI18n::tr("stacking"),

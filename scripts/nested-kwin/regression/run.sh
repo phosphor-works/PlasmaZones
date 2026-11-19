@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-FileCopyrightText: 2026 MaslovKK
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # run.sh: run nested-KWin regression probes, each in a fresh nested session.
@@ -167,6 +168,7 @@ f1170-shell-unmaps-after-drag f1170-shell-unmaps-after-drag.sh 1 F
 f1170-cheatsheet-focus-fsp f1170-cheatsheet-focus-fsp.sh 1 -
 f1182-user-maximize-borderless f1182-user-maximize-borderless.sh 1 -
 fdrag-float-keeps-size fdrag-float-keeps-size.sh 1 FS
+frestore-floated-size-gate frestore-floated-size-gate.sh 1 -
 fsplash-sibling-size-scroll fsplash-sibling-size.sh 1 S PZ_FSPLASH_MODE=scroll
 fsplash-sibling-size-tile fsplash-sibling-size.sh 1 S PZ_FSPLASH_MODE=tile
 fsplash-sibling-size-snap fsplash-sibling-size.sh 1 S PZ_FSPLASH_MODE=snap
