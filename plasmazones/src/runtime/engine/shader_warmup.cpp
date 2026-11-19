@@ -6,7 +6,7 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
 #include <PhosphorZoneRendering/ZoneEntryScaffold.h>
 #include <PhosphorZoneRendering/ZoneShaderNodeRhi.h>
 

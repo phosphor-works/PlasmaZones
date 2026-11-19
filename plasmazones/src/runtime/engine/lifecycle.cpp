@@ -9,11 +9,11 @@
 
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
-#include "runtime/overlay/overlayservice.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
-#include "runtime/controllers/shortcutmanager.h"
-#include "runtime/controllers/enginefactory.h"
-#include "runtime/controllers/contextresolverwiring.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
+#include <PhosphorEngineRuntime/ShortcutManager.h>
+#include <PhosphorEngineRuntime/EngineFactory.h>
+#include <PhosphorEngineRuntime/ContextResolverWiring.h>
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/CrossSurfaceResolver.h>

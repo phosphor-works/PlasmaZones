@@ -58,7 +58,7 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
 )
 # The engine runtime is NOT in PlasmaZones' catalog. Its C++ translates under
 # its own context (RuntimeI18n, <PhosphorEngineRuntime/RuntimeI18n.h>), and its overlay
-# QML (src/ui, loaded only by the runtime's overlay engine) through qsTr(), each
+# QML (the library's qml/, loaded only by the runtime's overlay engine) through qsTr(), each
 # file's name its context, into its own catalog,
 # phosphor-engine-runtime_<lang>.ts, which goes with it into phosphor-libs.
 # lupdate reads qsTr() natively, so the overlay QML needs no stub step.
@@ -70,13 +70,13 @@ set(_runtime_i18n_app_side "/plasmazones/src/(core/(platform/(supportreport|sing
 file(GLOB_RECURSE PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES CONFIGURE_DEPENDS
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/src/*.cpp"
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/include/*.h"
+    "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/qml/*.qml"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.cpp"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.h"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/core/*.cpp"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/core/*.h"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/config/*.cpp"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/config/*.h"
-    "${CMAKE_SOURCE_DIR}/plasmazones/src/ui/*.qml"
 )
 list(FILTER PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES EXCLUDE REGEX "${_runtime_i18n_app_side}")
 set(_plasmazones_runtime_owned ${PLASMAZONES_I18N_SOURCES})
@@ -94,8 +94,6 @@ file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
     # whole file exists to prevent.
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-control/qml/*.qml"
 )
-# The overlay QML is the runtime's (above), and calls qsTr() rather than i18n().
-list(FILTER PLASMAZONES_I18N_QML EXCLUDE REGEX "/plasmazones/src/ui/")
 
 # phosphor-control's QML is ALSO handed to lupdate raw, below. Its chrome
 # (the apply/discard footer, sidebar, breadcrumbs, page-loading placeholder)

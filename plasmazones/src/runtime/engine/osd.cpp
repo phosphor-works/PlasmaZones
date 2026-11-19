@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "runtime/engine/engineruntime.h"
-#include "runtime/overlay/overlayservice.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
 #include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorZones/AssignmentEntry.h>
@@ -18,7 +18,7 @@
 #include <PhosphorEngine/IPlacementState.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
-#include "runtime/overlay/internal.h"
+#include <PhosphorEngineRuntime/OverlayInternal.h>
 #include "helpers.h"
 #include "stripzones.h"
 #include <PhosphorIdentity/VirtualScreenId.h>

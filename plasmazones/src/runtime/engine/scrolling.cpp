@@ -16,7 +16,7 @@
 #include <PhosphorEngineRuntime/Logging.h>
 // Complete type needed for setScrollDropIndicatorOverrides — daemon.h forward
 // declares OverlayService only.
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
 // Complete type needed for setScrollEffectBehaviour — daemon.h forward
 // declares ScrollingService only.
 #include <PhosphorEngineRuntime/ScrollingService.h>

@@ -10,7 +10,7 @@
  *        takes nothing and keeps the backup for a pass that can.
  */
 
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 #include "common/engineruntimenamespace.h"
 #include "daemon/host/kwinworkspacehost.h"
 

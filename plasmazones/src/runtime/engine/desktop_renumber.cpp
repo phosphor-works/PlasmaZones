@@ -7,7 +7,7 @@
 // or an activity id is moved here (orchestrator_phaseb_1).
 
 #include "runtime/engine/engineruntime.h"
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/DragResolver.h>

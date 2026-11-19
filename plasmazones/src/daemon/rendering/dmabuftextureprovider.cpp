@@ -3,7 +3,7 @@
 
 #include "dmabuftextureprovider.h"
 #include "dmabufglimport.h"
-#include "runtime/rendering/thumbnailurlutil.h"
+#include <PhosphorEngineRuntime/ThumbnailUrl.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <QElapsedTimer>
@@ -19,9 +19,10 @@
 #include <QVulkanDeviceFunctions>
 #include <QVulkanInstance>
 
-// Shared with snapassistthumbnailprovider.cpp (defined there); the dma-buf
-// path's daemon-side cost is the lazy import below, not a cache insert.
-Q_DECLARE_LOGGING_CATEGORY(lcSnapAssistTrace)
+// The dma-buf import's per-thumbnail timings (PLASMAZONES_THUMBNAIL_TRACE).
+// Its cost is the lazy import below, not a cache insert. The raw-pixel cache
+// is the engine runtime's and traces under phosphor.engineruntime.snapassist.trace.
+Q_LOGGING_CATEGORY(lcDmabufThumbnailTrace, "plasmazones.daemon.dmabufthumbnail.trace", QtInfoMsg)
 
 #include <functional>
 #include <unistd.h>
@@ -530,7 +531,7 @@ public:
         if (traceEnabled) {
             // Runs on the scene-graph render thread: the whole import (native
             // image + RHI wrapper). Nothing further is deferred to a frame.
-            qCInfo(lcSnapAssistTrace).nospace()
+            qCInfo(lcDmabufThumbnailTrace).nospace()
                 << "import " << size.width() << "x" << size.height() << " backend=" << int(api)
                 << " import=" << importTimer.nsecsElapsed() / 1000 << "us";
         }

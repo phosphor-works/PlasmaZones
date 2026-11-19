@@ -4,7 +4,7 @@
 # Kirigami Color Usage — Ruleset
 
 Which Kirigami theme role to reach for when painting QML in `plasmazones/src/settings/qml`,
-`plasmazones/src/ui`, `plasmazones/src/editor/qml`, and `phosphor/libs/phosphor-control`. The shell
+`plasmazones/src/editor/qml`, and `phosphor/libs/phosphor-control`. The shell
 libraries (`phosphor-shell*`, `phosphor-popout`, `phosphor-theme`) have their own
 token system and are out of scope; `phosphor-control` is in scope because it
 paints the settings app's own sidebar and footer chrome with `Kirigami.Theme`.

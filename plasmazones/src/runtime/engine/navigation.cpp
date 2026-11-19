@@ -4,8 +4,8 @@
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
 #include "macros.h"
-#include "runtime/overlay/overlayservice.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorEngine/IPlacementEngine.h>

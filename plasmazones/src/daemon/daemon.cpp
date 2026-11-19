@@ -17,7 +17,7 @@
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
 #include "daemon/host/plasmazonesapps.h"
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
 
 #include "dbus/autotileadaptor.h"
 #include "dbus/compositorbridgeadaptor.h"

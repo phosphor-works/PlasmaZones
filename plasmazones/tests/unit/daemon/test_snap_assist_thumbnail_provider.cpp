@@ -5,7 +5,7 @@
 // uniqueness across inserts, eviction-tied URL state, and the brace-handed
 // braced-UUID lookup path.
 
-#include "runtime/rendering/snapassistthumbnailprovider.h"
+#include <PhosphorEngineRuntime/SnapAssistThumbnailProvider.h>
 #include "common/engineruntimenamespace.h"
 
 #include <QtTest/QtTest>

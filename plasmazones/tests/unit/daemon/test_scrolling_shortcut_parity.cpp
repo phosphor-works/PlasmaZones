@@ -33,9 +33,9 @@
 // already pins every *Shortcut property against the D-Bus getter registry.
 // Asserting the registry again here would copy that canary, not extend it.
 
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 #include "common/engineruntimenamespace.h"
-#include "runtime/controllers/shortcutmanager_ids.h"
+#include <PhosphorEngineRuntime/ShortcutManagerIds.h>
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/Settings.h>

@@ -15,9 +15,9 @@
 //   - the named-workspace chords: adhoc ids the collision guard must not
 //     refuse, listed on the sheet under Workspaces while bound.
 
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 #include "common/engineruntimenamespace.h"
-#include "runtime/controllers/shortcutmanager_ids.h"
+#include <PhosphorEngineRuntime/ShortcutManagerIds.h>
 #include <PhosphorEngineRuntime/IWorkspaceHost.h>
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>

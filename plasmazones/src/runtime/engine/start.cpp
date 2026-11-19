@@ -3,10 +3,10 @@
 
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
-#include "runtime/overlay/overlayservice.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
-#include "runtime/controllers/shortcutmanager.h"
-#include "runtime/controllers/workspacecontroller.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
+#include <PhosphorEngineRuntime/ShortcutManager.h>
+#include <PhosphorEngineRuntime/WorkspaceController.h>
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/LayoutComputeService.h>
