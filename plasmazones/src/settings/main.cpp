@@ -25,7 +25,7 @@
 
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "runtime/rendering/zoneshaderitem.h"
+#include <PhosphorZoneRendering/ZoneShaderItem.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 
 #include <PhosphorAnimation/CurveLoader.h>
@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
 
     // Register ZoneShaderItem for QML (live zone-shader preview in the settings
     // shader browser — mirrors daemon/main.cpp).
-    qmlRegisterType<PlasmaZones::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
+    qmlRegisterType<PhosphorZoneRendering::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
     // The live DECORATION preview's SurfaceShaderItem stages need no
     // registration: they and the SurfaceDecoration.qml chain host ship in the
     // org.phosphor.surface module linked into this binary.

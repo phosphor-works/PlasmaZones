@@ -8,7 +8,7 @@
 #include <QQuickWindow>
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h> // borderRadiusMax, so the preview clamps where the daemon clamps
-#include "runtime/rendering/zonelabeltexturebuilder.h"
+#include <PhosphorZoneRendering/ZoneLabelTextureBuilder.h>
 
 #include <PhosphorAudio/CavaSpectrumProvider.h>
 #include <PhosphorShaders/PixelUnits.h>
@@ -338,7 +338,7 @@ QImage ShaderPreviewController::buildLabelsTexture(const QVariantList& zones, QQ
     // integer buffer scale (2 on a 1.15 output), while the shader's
     // iResolution comes from QQuickWindow::effectiveDevicePixelRatio.
     const qreal dpr = target->window() ? target->window()->effectiveDevicePixelRatio() : 1.0;
-    return ZoneLabelTextureBuilder::build(zones, size, dpr, Qt::white, true).toImage();
+    return PhosphorZoneRendering::ZoneLabelTextureBuilder::build(zones, size, dpr, Qt::white, true).toImage();
 }
 
 QImage ShaderPreviewController::loadWallpaperTexture() const

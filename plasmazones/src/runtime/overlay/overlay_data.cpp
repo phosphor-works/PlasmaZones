@@ -12,7 +12,7 @@
 #include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/VirtualScreen.h>
-#include "runtime/rendering/zonelabeltexturebuilder.h"
+#include <PhosphorZoneRendering/ZoneLabelTextureBuilder.h>
 #include <QCursor>
 #include <QHashFunctions>
 #include <QQuickWindow>
@@ -174,7 +174,7 @@ void OverlayService::updateLabelsTextureForWindow(QQuickItem* slot, const QVaria
     // image; the render node composites it into the screen-addressed texture.
     // An empty payload (numbers off / no zones) is fine: the node binds a 1×1
     // transparent fallback, so no full-screen texture is allocated.
-    const PhosphorRendering::ZoneLabelTexture labels = ZoneLabelTextureBuilder::build(
+    const PhosphorRendering::ZoneLabelTexture labels = PhosphorZoneRendering::ZoneLabelTextureBuilder::build(
         patched, size, dpr, lfs.fontColor, showNumbers, lfs.backgroundColor, lfs.fontFamily, lfs.fontSizeScale,
         lfs.fontWeight, lfs.fontItalic, lfs.fontUnderline, lfs.fontStrikeout);
     writeQmlProperty(slot, QString(OverlayQmlPropertyNames::LabelsTexture), QVariant::fromValue(labels));

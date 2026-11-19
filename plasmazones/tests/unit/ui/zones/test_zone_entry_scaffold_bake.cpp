@@ -10,7 +10,7 @@
 // live bake layer applies (ZoneShaderItem::updatePaintNode → setEntryScaffold).
 // Also pins that a traditional main() pack is passed through untouched.
 
-#include "runtime/rendering/zoneentryscaffold.h"
+#include <PhosphorZoneRendering/ZoneEntryScaffold.h>
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorRendering/ShaderCompiler.h>
@@ -33,7 +33,7 @@ class TestZoneEntryScaffold : public QObject
 
     static bool bakeAssembled(const QString& rawBody, QString* errOut)
     {
-        const QString assembled = PlasmaZones::assembleZoneEntrySource(rawBody);
+        const QString assembled = PhosphorZoneRendering::assembleZoneEntrySource(rawBody);
         const QStringList includePaths = {QStringLiteral(PLASMAZONES_SOURCE_DIR "/data/overlays/shared"),
                                           QStringLiteral(PLASMAZONES_SOURCE_DIR "/data/overlays")};
         QString err;
@@ -90,7 +90,7 @@ private Q_SLOTS:
             "layout(location = 1) in vec2 vFragCoord;\n"
             "layout(location = 0) out vec4 fragColor;\n"
             "void main() { fragColor = vec4(1.0); }\n");
-        QCOMPARE(PlasmaZones::assembleZoneEntrySource(full), full);
+        QCOMPARE(PhosphorZoneRendering::assembleZoneEntrySource(full), full);
     }
 
     void testEntryOnlyIsNotPassedThrough()
@@ -98,7 +98,7 @@ private Q_SLOTS:
         // Sanity: an entry-only body must actually change (scaffold added),
         // otherwise the bake above would be testing nothing.
         const QString body = QStringLiteral("vec4 pZone(ZoneCtx z) { return z.fillColor; }\n");
-        const QString assembled = PlasmaZones::assembleZoneEntrySource(body);
+        const QString assembled = PhosphorZoneRendering::assembleZoneEntrySource(body);
         QVERIFY(assembled != body);
         QVERIFY2(assembled.startsWith(QStringLiteral("#version 450")), qPrintable(assembled));
         QVERIFY2(assembled.contains(QStringLiteral("void main()")), qPrintable(assembled));
@@ -158,7 +158,7 @@ private Q_SLOTS:
         }
         const QString preamble = PhosphorShaders::ShaderRegistry::paramPreamble(info);
 
-        const QString assembled = PlasmaZones::assembleZoneEntrySource(raw);
+        const QString assembled = PhosphorZoneRendering::assembleZoneEntrySource(raw);
         const QStringList includePaths = {QStringLiteral(PLASMAZONES_SOURCE_DIR "/data/overlays/shared"),
                                           QStringLiteral(PLASMAZONES_SOURCE_DIR "/data/overlays")};
         QString err;
@@ -175,4 +175,4 @@ private Q_SLOTS:
 };
 
 QTEST_MAIN(TestZoneEntryScaffold)
-#include "test_zone_entry_scaffold.moc"
+#include "test_zone_entry_scaffold_bake.moc"

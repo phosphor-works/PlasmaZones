@@ -12,7 +12,7 @@
 #include <PhosphorEngineRuntime/Logging.h>
 #include "core/utils/translationloader.h"
 #include "phosphor_i18n.h"
-#include "runtime/rendering/zoneshaderitem.h"
+#include <PhosphorZoneRendering/ZoneShaderItem.h>
 #include "version.h"
 #include "runtime/rendering/vulkansupport.h"
 #include "replaceincumbent.h"
@@ -542,7 +542,7 @@ int main(int argc, char* argv[])
     // This enables RenderNodeOverlayContent.qml to use the GPU-accelerated
     // shader item (the item's ctor registers the ZoneLabelTexture metatype +
     // QImage converter).
-    qmlRegisterType<PlasmaZones::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
+    qmlRegisterType<PhosphorZoneRendering::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
     // SurfaceShaderItem (the per-surface decoration layer) needs no
     // registration here: it ships in the org.phosphor.surface module linked
     // into this binary, beside the SurfaceDecoration.qml host that

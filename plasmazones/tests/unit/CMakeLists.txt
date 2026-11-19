@@ -1295,10 +1295,10 @@ add_test(NAME test_engine_settings COMMAND test_engine_settings)
 target_compile_definitions(test_engine_settings PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ui/ - Zone Shader Item Tests - need Qt6::Quick + plasmazones_rendering
+# ui/ - Zone Shader Item Tests - need Qt6::Quick + PhosphorZoneRendering::PhosphorZoneRendering
 # ═══════════════════════════════════════════════════════════════════════════════
 add_executable(test_zone_shader_item ui/zones/test_zone_shader_item.cpp)
-target_link_libraries(test_zone_shader_item PRIVATE Qt6::Test Qt6::Core Qt6::Quick Qt6::GuiPrivate plasmazones_rendering)
+target_link_libraries(test_zone_shader_item PRIVATE Qt6::Test Qt6::Core Qt6::Quick Qt6::GuiPrivate PhosphorZoneRendering::PhosphorZoneRendering)
 add_test(NAME test_zone_shader_item COMMAND test_zone_shader_item)
 
 # Pins the shared ZonePreview's per-zone vs whole-card highlight split. The
@@ -1321,7 +1321,7 @@ add_test(NAME test_zone_preview_highlight COMMAND test_zone_preview_highlight)
 
 # Component-load canary for the shared QML module: "X is not a type" at app
 # runtime hides the nested cause; this fails with the real error instead.
-# plasmazones_rendering supplies ZoneShaderItem, which the test registers under
+# PhosphorZoneRendering::PhosphorZoneRendering supplies ZoneShaderItem, which the test registers under
 # "PlasmaZones 1.0" (mirroring the daemon/editor composition roots) so
 # ZoneShaderRenderer's `import PlasmaZones` resolves. The SurfaceDecoration
 # item tests moved with the host to phosphor-surface-quick's
@@ -1329,7 +1329,7 @@ add_test(NAME test_zone_preview_highlight COMMAND test_zone_preview_highlight)
 # org.phosphor.surface STATIC plugin link, the composition the daemon and the
 # settings app rely on, so that link is pinned from this tier too.
 add_executable(test_shared_module_load ui/test_shared_module_load.cpp)
-target_link_libraries(test_shared_module_load PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick plasmazones_shared_qmlplugin PhosphorComponentsQmlplugin plasmazones_rendering PhosphorSurfaceQuick::PhosphorSurfaceQuickQml PhosphorSurfaceQuickQmlplugin)
+target_link_libraries(test_shared_module_load PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick plasmazones_shared_qmlplugin PhosphorComponentsQmlplugin PhosphorZoneRendering::PhosphorZoneRendering PhosphorSurfaceQuick::PhosphorSurfaceQuickQml PhosphorSurfaceQuickQmlplugin)
 add_test(NAME test_shared_module_load COMMAND test_shared_module_load)
 
 # Pins the C++/QML contract the zone selector's cursor hit test depends on:
@@ -1354,7 +1354,7 @@ add_test(NAME test_shader_node_teardown COMMAND test_shader_node_teardown)
 # demonstration. Qt6::Qml as well as Quick: the demonstrations run a real QML
 # binding, the only shape that reproduces the silent write failure.
 add_executable(test_shader_item_qml_bindings ui/zones/test_shader_item_qml_bindings.cpp)
-target_link_libraries(test_shader_item_qml_bindings PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::GuiPrivate plasmazones_rendering PhosphorSurfaceQuick::PhosphorSurfaceQuick)
+target_link_libraries(test_shader_item_qml_bindings PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::GuiPrivate PhosphorZoneRendering::PhosphorZoneRendering PhosphorSurfaceQuick::PhosphorSurfaceQuick)
 # P_SURFACE_QUICK_QML_DIR as well as P_SOURCE_DIR: the guarded properties are
 # declared on ShaderEffect and their hosts are spread across tiers, so a sweep
 # scoped to plasmazones/src misses SurfaceDecoration.qml — which is the file the
@@ -1368,7 +1368,7 @@ add_test(NAME test_shader_item_qml_bindings COMMAND test_shader_item_qml_binding
 # Pure-data byte-layout test for the zone UBO extension. No GPU / scene graph
 # required - guards against silent C++/GLSL UBO drift after a struct refactor.
 add_executable(test_zone_uniform_extension ui/zones/test_zone_uniform_extension.cpp)
-target_link_libraries(test_zone_uniform_extension PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate plasmazones_rendering)
+target_link_libraries(test_zone_uniform_extension PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate PhosphorZoneRendering::PhosphorZoneRendering)
 # layout_matchesGlslUboDeclaration parses the real data/overlays/shared/common.glsl,
 # so the C++ struct is pinned to the declaration the packs actually compile against
 # rather than only to itself.
@@ -1409,10 +1409,12 @@ add_test(NAME test_shader_entry_point COMMAND test_shader_entry_point)
 # End-to-end: an entry-only zone shader (author writes only pZone/pImage)
 # assembles through the harness scaffold and bakes against the real zone UBO,
 # and a traditional main() pack is passed through unchanged (T1.4 scope B).
-add_executable(test_zone_entry_scaffold ui/zones/test_zone_entry_scaffold.cpp)
-target_link_libraries(test_zone_entry_scaffold PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate plasmazones_rendering PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_zone_entry_scaffold PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
-add_test(NAME test_zone_entry_scaffold COMMAND test_zone_entry_scaffold)
+# Named _bake: it bakes against PlasmaZones' bundled overlay packs, beside
+# phosphor-libs' own test_zone_entry_scaffold for the scaffold alone.
+add_executable(test_zone_entry_scaffold_bake ui/zones/test_zone_entry_scaffold_bake.cpp)
+target_link_libraries(test_zone_entry_scaffold_bake PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorZoneRendering::PhosphorZoneRendering PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
+target_compile_definitions(test_zone_entry_scaffold_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+add_test(NAME test_zone_entry_scaffold_bake COMMAND test_zone_entry_scaffold_bake)
 
 # Pins the source transforms in PhosphorShaders/ShaderParamPreamble.h:
 # buildParamPreamble's generated `#define p_<id> <accessor>` block
@@ -3259,7 +3261,7 @@ add_library(pz_test_pack_validators OBJECT
     ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_compositor.cpp)
 target_link_libraries(pz_test_pack_validators
     PUBLIC
-        plasmazones_rendering
+        PhosphorZoneRendering::PhosphorZoneRendering
         PhosphorRendering::PhosphorRendering
         PhosphorShaders::PhosphorShaders
         PhosphorAnimation::PhosphorAnimation

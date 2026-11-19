@@ -10,7 +10,7 @@
 
 #include <QtPlugin>
 
-#include "runtime/rendering/zoneshaderitem.h"
+#include <PhosphorZoneRendering/ZoneShaderItem.h>
 
 Q_IMPORT_PLUGIN(org_plasmazones_commonPlugin)
 Q_IMPORT_PLUGIN(Phosphor_ComponentsPlugin)
@@ -74,7 +74,7 @@ private Q_SLOTS:
         // ZoneShaderRenderer wraps ZoneShaderItem, which the daemon and settings
         // composition roots register imperatively — mirror that here so the
         // shared component's `import PlasmaZones` resolves.
-        qmlRegisterType<PlasmaZones::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
+        qmlRegisterType<PhosphorZoneRendering::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
     }
     void loadsLayoutCard()
     {
