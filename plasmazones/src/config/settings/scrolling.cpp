@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "config/settings.h"
+#include "config/configlogging.h"
 #include "config/settings/settings_detail.h"
 #include "config/configdefaults.h"
-#include "core/platform/logging.h"
 
 // For the bidirectional default asserts below: the interface names the four
 // edge auto-scroll defaults, so both sides are compared rather than copied.

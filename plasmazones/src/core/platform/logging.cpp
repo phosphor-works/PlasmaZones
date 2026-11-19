@@ -38,9 +38,6 @@ Q_LOGGING_CATEGORY(lcDbusScrolling, "plasmazones.dbus.scrolling", QtInfoMsg)
 // KWin effect module categories
 Q_LOGGING_CATEGORY(lcEffect, "plasmazones.effect", QtInfoMsg)
 
-// Configuration module categories
-Q_LOGGING_CATEGORY(lcConfig, "plasmazones.config", QtInfoMsg)
-
 // KCM module categories
 Q_LOGGING_CATEGORY(lcKcm, "plasmazones.kcm", QtInfoMsg)
 

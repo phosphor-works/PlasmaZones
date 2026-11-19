@@ -16,6 +16,7 @@
 
 #include <QtTest>
 #include "common/engineruntimenamespace.h"
+#include "common/hostsettings.h"
 
 #include "config/configdefaults.h"
 #include "core/types/constants.h"

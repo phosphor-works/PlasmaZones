@@ -17,6 +17,7 @@
 // translation unit, no API change.
 
 #include "animationspagecontroller.h"
+#include "config/configlogging.h"
 #include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"

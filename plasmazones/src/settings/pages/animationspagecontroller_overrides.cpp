@@ -27,6 +27,7 @@
 // check and the section catalog.
 
 #include "animationspagecontroller.h"
+#include "config/configlogging.h"
 #include "common/engineruntimenamespace.h"
 
 #include "config/configdefaults.h"

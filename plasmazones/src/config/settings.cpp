@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "settings.h"
+#include "config/configlogging.h"
 #include "configdefaults.h"
 #include "configbackends.h"
 #include "configmigration.h"
 #include "perscreenresolver.h"
 #include "settings/settings_detail.h"
 #include "settingsschema.h"
-
-#include "core/platform/logging.h"
 
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorConfig/JsonBackend.h>

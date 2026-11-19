@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "config/settings.h"
+#include "config/configlogging.h"
 #include "config/settings/perscreen_detail.h"
 #include "config/settings/settings_detail.h"
 #include "config/configbackends.h"
 #include "config/configdefaults.h"
 #include "core/types/constants.h"
-#include "core/platform/logging.h"
 #include <PhosphorEngine/PerScreenKeys.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorScreens/ScreenIdentity.h>

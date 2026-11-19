@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "configmigration.h"
+#include "config/configlogging.h"
 
 #include "configdefaults.h"
 #include "configkeys.h"
-#include "core/platform/logging.h"
 
 #include <PhosphorAnimation/Profile.h>
 #include <PhosphorAnimation/ProfilePaths.h>
