@@ -52,8 +52,8 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/ConfigKeys.h>
-#include "runtime/services/snapservice/snapservice.h"
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/SnapService.h>
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 

@@ -18,12 +18,12 @@
 #include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/Utils.h>
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/settingsservice/settingsservice.h"
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
+#include <PhosphorEngineRuntime/SettingsService.h>
+#include <PhosphorEngineRuntime/SnapService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngine/DesktopRemap.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorEngine/WindowRegistry.h>

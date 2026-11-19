@@ -22,7 +22,7 @@
 #include <QSignalSpy>
 #include <QObject>
 
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 
 using namespace PlasmaZones;
 

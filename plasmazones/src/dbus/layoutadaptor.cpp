@@ -4,7 +4,7 @@
 #include "layoutadaptor.h"
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/services/layoutservice/layoutservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
 
 namespace PlasmaZones {
 

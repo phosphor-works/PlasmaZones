@@ -5,7 +5,7 @@
 
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/host/iworkspacehost.h"
+#include <PhosphorEngineRuntime/IWorkspaceHost.h>
 
 namespace PhosphorEngineRuntime {
 class Settings;

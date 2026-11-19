@@ -19,7 +19,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/SettingsService.h>
 #include "helpers/StubSettings.h"
 #include "helpers/IsolatedConfigGuard.h"
 

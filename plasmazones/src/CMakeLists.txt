@@ -65,48 +65,7 @@ set(plasmazones_core_SRCS
     core/utils/modifierutils.h
     config/settingsvaluelabels.cpp
     config/settingsvaluelabels.h
-    runtime/common/lookups.cpp
-    runtime/common/lookups.h
-    runtime/services/layoutservice/layoutservice.cpp
-    runtime/services/layoutservice/assignment.cpp
-    runtime/services/layoutservice/assignment_batch.cpp
-    runtime/services/layoutservice/editor.cpp
-    runtime/services/layoutservice/layoutservice.h
-    runtime/services/settingsservice/settingsservice.cpp
-    runtime/services/settingsservice/settingsservice_batch.cpp
-    runtime/services/settingsservice/settingsservice_registry.cpp
-    runtime/services/settingsservice/settingsservice_registry_snapping.cpp
-    runtime/services/settingsservice/settingsservice_registry_autotile.cpp
-    runtime/services/settingsservice/settingsservice_registry_scrolling.cpp
-    runtime/services/settingsservice/settingsservice.h
-    runtime/services/shaderservice.cpp
-    runtime/services/shaderservice.h
-    runtime/services/controlservice.cpp
-    runtime/services/controlservice_shortcuts.cpp
-    runtime/services/controlservice.h
-    runtime/services/overlaycontrolservice.cpp
-    runtime/services/overlaycontrolservice.h
-    runtime/services/zonequeryservice.cpp
-    runtime/services/zonequeryservice.h
-    runtime/services/ruleservice.cpp
-    runtime/services/ruleservice.h
     # snapnavigationtargets moved to phosphor-libs/libs/phosphor-snap-engine/
-    runtime/services/scrollingservice/scrollingservice.cpp
-    runtime/services/scrollingservice/scrollingservice.h
-    runtime/services/autotileservice/autotileservice.cpp
-    runtime/services/autotileservice/config.cpp
-    runtime/services/autotileservice/autotileservice.h
-    runtime/services/tilingservice/tilingservice.cpp
-    runtime/services/tilingservice/relay.cpp
-    runtime/services/tilingservice/mapmodel.cpp
-    runtime/services/tilingservice/desktopreconcile.cpp
-    runtime/services/tilingservice/tilingservice.h
-    runtime/services/snapservice/snapservice.cpp
-    runtime/services/snapservice/busgate.cpp
-    runtime/services/snapservice/commit.cpp
-    runtime/services/snapservice/snaprestore.cpp
-    runtime/services/snapservice/navigation.cpp
-    runtime/services/snapservice/snapservice.h
     # TilingAlgorithm, TilingState, SplitTree, AlgorithmRegistry, scripted-algo
     # machinery live in phosphor-libs/libs/phosphor-tiles/. Consumers include canonical
     # <PhosphorTiles/...> headers directly; no forwarding shims remain.

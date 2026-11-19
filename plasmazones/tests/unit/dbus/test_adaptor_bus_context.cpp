@@ -47,7 +47,7 @@
 #include <PhosphorEngineRuntime/DmabufThumbnail.h>
 #include "dbus/dbushelpers.h"
 #include "dbus/overlayadaptor.h"
-#include "runtime/services/overlaycontrolservice.h"
+#include <PhosphorEngineRuntime/OverlayControlService.h>
 
 #include "helpers/BusPeer.h"
 #include "helpers/IsolatedConfigGuard.h"

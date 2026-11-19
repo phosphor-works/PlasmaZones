@@ -3,9 +3,9 @@
 
 #include "overlayadaptor.h"
 #include "common/engineruntimenamespace.h"
-#include "runtime/services/overlaycontrolservice.h"
+#include <PhosphorEngineRuntime/OverlayControlService.h>
 #include "dbushelpers.h"
-#include "runtime/common/lookups.h"
+#include <PhosphorEngineRuntime/Lookups.h>
 #include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorEngineRuntime/DmabufThumbnail.h>
 #include <PhosphorEngineRuntime/IOverlayService.h>

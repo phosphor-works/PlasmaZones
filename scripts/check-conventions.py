@@ -881,7 +881,7 @@ RUNTIME_FORBIDDEN = (
 )
 RUNTIME_PROJECT_FORBIDDEN = re.compile(r"^(dbus|daemon)/")
 # PlasmaZones' translation contexts, C++ and QML. The runtime translates under
-# its own (runtime/common/runtimei18n.h for C++, qsTr() in the overlay QML),
+# its own (<PhosphorEngineRuntime/RuntimeI18n.h> for C++, qsTr() in the overlay QML),
 # into its own catalog.
 RUNTIME_APP_I18N = re.compile(r"^phosphor_(qml_)?i18n\.h$")
 

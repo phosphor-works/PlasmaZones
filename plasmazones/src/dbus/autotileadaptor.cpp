@@ -4,7 +4,7 @@
 #include "autotileadaptor.h"
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/services/autotileservice/autotileservice.h"
+#include <PhosphorEngineRuntime/AutotileService.h>
 
 namespace PlasmaZones {
 

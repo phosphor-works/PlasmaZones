@@ -12,7 +12,7 @@
  */
 
 #include "wta_convenience_fixture.h"
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/WindowLifecycleRelay.h>
 
 #include <PhosphorEngine/DesktopRemap.h>

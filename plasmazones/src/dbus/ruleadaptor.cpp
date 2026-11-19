@@ -4,7 +4,7 @@
 #include "ruleadaptor.h"
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/services/ruleservice.h"
+#include <PhosphorEngineRuntime/RuleService.h>
 
 namespace PlasmaZones {
 

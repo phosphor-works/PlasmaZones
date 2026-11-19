@@ -13,7 +13,7 @@
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
 
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/SnapService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 
 #include <PhosphorContext/ContextResolver.h>

@@ -3,7 +3,7 @@
 
 #include "runtime/engine/engineruntime.h"
 #include "runtime/overlay/overlayservice.h"
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/LayoutComputeService.h>
@@ -17,8 +17,8 @@
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorEngineRuntime/Settings.h>
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
+#include <PhosphorEngineRuntime/SnapService.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include <PhosphorEngineRuntime/WindowTrackerInternal.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>

@@ -12,7 +12,7 @@
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/engine/engineruntime.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/SettingsService.h>
 #include "daemon/host/kwinworkspacehost.h"
 #include "daemon/host/plasmasystemosd.h"
 #include "daemon/host/plasmazonesapps.h"

@@ -107,7 +107,7 @@
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorScrollEngine/ScrollEngine.h>
 
-#include "runtime/services/scrollingservice/scrollingservice.h"
+#include <PhosphorEngineRuntime/ScrollingService.h>
 #include "scrollingadaptortestfixture.h"
 
 using namespace PlasmaZones;

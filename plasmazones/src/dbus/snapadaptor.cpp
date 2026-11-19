@@ -6,7 +6,7 @@
 
 #include "dbushelpers.h"
 
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/SnapService.h>
 
 namespace PlasmaZones {
 

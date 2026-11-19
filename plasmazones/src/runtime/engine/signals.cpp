@@ -9,12 +9,12 @@
 #include <PhosphorEngineRuntime/Constants.h>
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/overlay/overlayservice.h"
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
+#include <PhosphorEngineRuntime/SettingsService.h>
 // Complete types needed for the WindowLifecycleRelay PMF connects below
 // (TilingService::onTrackedWindowDestroyed / pruneStaleFloatBroadcasts) —
 // daemon.h forward declares TilingService only.
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include <PhosphorEngineRuntime/WindowLifecycleRelay.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>

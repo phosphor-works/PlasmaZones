@@ -39,7 +39,7 @@
 #include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
-#include "runtime/services/snapservice/snapservice.h"
+#include <PhosphorEngineRuntime/SnapService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorEngine/IPlacementEngine.h>

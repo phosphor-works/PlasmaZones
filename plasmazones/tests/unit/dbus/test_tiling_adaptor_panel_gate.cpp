@@ -29,7 +29,7 @@
 #include "helpers/AutotileTestHelpers.h"
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
-#include "runtime/services/tilingservice/tilingservice.h"
+#include <PhosphorEngineRuntime/TilingService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"

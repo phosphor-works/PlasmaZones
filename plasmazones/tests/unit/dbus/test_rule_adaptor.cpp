@@ -40,7 +40,7 @@
 #include <PhosphorRules/RuleSet.h>
 #include <PhosphorRules/RuleStore.h>
 
-#include "runtime/services/ruleservice.h"
+#include <PhosphorEngineRuntime/RuleService.h>
 
 #include <memory>
 

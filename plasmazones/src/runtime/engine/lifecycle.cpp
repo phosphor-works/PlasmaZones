@@ -21,17 +21,17 @@
 #include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorEngineRuntime/Utils.h>
-#include "runtime/services/layoutservice/layoutservice.h"
-#include "runtime/services/settingsservice/settingsservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
+#include <PhosphorEngineRuntime/SettingsService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 #include <PhosphorEngineRuntime/DragResolver.h>
-#include "runtime/services/autotileservice/autotileservice.h"
-#include "runtime/services/tilingservice/tilingservice.h"
-#include "runtime/services/scrollingservice/scrollingservice.h"
-#include "runtime/services/snapservice/snapservice.h"
-#include "runtime/services/shaderservice.h"
-#include "runtime/services/controlservice.h"
-#include "runtime/services/ruleservice.h"
+#include <PhosphorEngineRuntime/AutotileService.h>
+#include <PhosphorEngineRuntime/TilingService.h>
+#include <PhosphorEngineRuntime/ScrollingService.h>
+#include <PhosphorEngineRuntime/SnapService.h>
+#include <PhosphorEngineRuntime/ShaderService.h>
+#include <PhosphorEngineRuntime/ControlService.h>
+#include <PhosphorEngineRuntime/RuleService.h>
 
 #include <PhosphorServiceIdle/IdleService.h>
 #include <PhosphorShaders/ShaderPresetStore.h>

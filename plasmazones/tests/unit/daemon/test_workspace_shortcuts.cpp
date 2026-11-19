@@ -18,7 +18,7 @@
 #include "runtime/controllers/shortcutmanager.h"
 #include "common/engineruntimenamespace.h"
 #include "runtime/controllers/shortcutmanager_ids.h"
-#include "runtime/host/iworkspacehost.h"
+#include <PhosphorEngineRuntime/IWorkspaceHost.h>
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/Settings.h>

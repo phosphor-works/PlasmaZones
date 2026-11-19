@@ -16,7 +16,7 @@
 #include <PhosphorEngineRuntime/Constants.h>
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/services/layoutservice/layoutservice.h"
+#include <PhosphorEngineRuntime/LayoutService.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
 

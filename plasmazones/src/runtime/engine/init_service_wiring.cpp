@@ -4,7 +4,7 @@
 #include "runtime/engine/engineruntime.h"
 
 #include "runtime/overlay/overlayservice.h"
-#include "runtime/services/zonequeryservice.h"
+#include <PhosphorEngineRuntime/ZoneQueryService.h>
 
 #include <PhosphorProtocol/ZoneTypes.h>
 
