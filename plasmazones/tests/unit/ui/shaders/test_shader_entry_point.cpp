@@ -164,7 +164,7 @@ private Q_SLOTS:
     // T1.4, when wrapping was purely opt-in. Packs are now being migrated TO the
     // entry convention, so that premise no longer holds. The real per-pack
     // assembly+bake invariant is covered more strongly by
-    // test_zone_entry_scaffold (testEveryBundledZoneFragBakes) and
+    // test_zone_entry_scaffold_bake (testEveryBundledZoneFragBakes) and
     // test_animation_shader_preamble_bake, which bake every pack through the full
     // runtime assembly.)
 };

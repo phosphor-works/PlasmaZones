@@ -175,4 +175,4 @@ private Q_SLOTS:
 };
 
 QTEST_MAIN(TestZoneEntryScaffold)
-#include "test_zone_entry_scaffold.moc"
+#include "test_zone_entry_scaffold_bake.moc"

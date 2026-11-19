@@ -1409,10 +1409,12 @@ add_test(NAME test_shader_entry_point COMMAND test_shader_entry_point)
 # End-to-end: an entry-only zone shader (author writes only pZone/pImage)
 # assembles through the harness scaffold and bakes against the real zone UBO,
 # and a traditional main() pack is passed through unchanged (T1.4 scope B).
-add_executable(test_zone_entry_scaffold ui/zones/test_zone_entry_scaffold.cpp)
-target_link_libraries(test_zone_entry_scaffold PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorZoneRendering::PhosphorZoneRendering PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_zone_entry_scaffold PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
-add_test(NAME test_zone_entry_scaffold COMMAND test_zone_entry_scaffold)
+# Named _bake: it bakes against PlasmaZones' bundled overlay packs, beside
+# phosphor-libs' own test_zone_entry_scaffold for the scaffold alone.
+add_executable(test_zone_entry_scaffold_bake ui/zones/test_zone_entry_scaffold_bake.cpp)
+target_link_libraries(test_zone_entry_scaffold_bake PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorZoneRendering::PhosphorZoneRendering PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
+target_compile_definitions(test_zone_entry_scaffold_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+add_test(NAME test_zone_entry_scaffold_bake COMMAND test_zone_entry_scaffold_bake)
 
 # Pins the source transforms in PhosphorShaders/ShaderParamPreamble.h:
 # buildParamPreamble's generated `#define p_<id> <accessor>` block
