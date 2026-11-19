@@ -22,6 +22,11 @@
 
 #include <optional>
 
+#if __has_include(<libintl.h>)
+#include <libintl.h>
+#define PLASMAZONES_HAVE_LIBINTL 1
+#endif
+
 namespace PlasmaZones {
 
 namespace {
@@ -202,6 +207,27 @@ void KWinWorkspaceHost::restoreStockDesktopShortcuts()
         }
     }
     backup.sync();
+}
+
+/// KWin's own label for an unnamed desktop at a 1-based position, in KWin's
+/// language: KWin's defaultName() looks "Desktop %1" up in its "kwin"
+/// catalog. The reconciler pushes this wherever it means "unnamed" and uses
+/// it to tell a generated label from a name a user chose, so it has to match
+/// what KWin writes itself. Without the catalog (not installed, or no
+/// gettext) the untranslated form is what KWin shows too.
+QString KWinWorkspaceHost::defaultDesktopName(int oneBasedPosition) const
+{
+    static const QString pattern = [] {
+#ifdef PLASMAZONES_HAVE_LIBINTL
+        bind_textdomain_codeset("kwin", "UTF-8");
+        const QString translated = QString::fromUtf8(dgettext("kwin", "Desktop %1"));
+        if (translated.contains(QLatin1String("%1"))) {
+            return translated;
+        }
+#endif
+        return QStringLiteral("Desktop %1");
+    }();
+    return pattern.arg(oneBasedPosition);
 }
 
 } // namespace PlasmaZones

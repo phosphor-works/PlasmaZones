@@ -206,6 +206,13 @@ void EngineRuntime::initializeWorkspaces()
     QObject* const wiring = m_workspaceWiring.get();
     WorkspaceController* const controller = m_workspaceController.get();
     PhosphorWorkspaces::WorkspaceReconciler* const reconciler = &controller->reconciler();
+    // A desktop the feature adds carries the name the compositor would give
+    // it (KWin's own, translated in KWin's catalog). The host outlives the
+    // runtime.
+    IWorkspaceHost* const workspaceHost = m_workspaceHost;
+    reconciler->setDefaultDesktopNameProvider([workspaceHost](int oneBasedPosition) {
+        return workspaceHost->defaultDesktopName(oneBasedPosition);
+    });
 
     // Workspace hints: the shared navigation-OSD gate first (OSD style None,
     // global suppression, the per-context rule), then the OSD style. The

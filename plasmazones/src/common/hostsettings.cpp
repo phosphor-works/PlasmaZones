@@ -15,6 +15,7 @@
 
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorSurface/SurfacePackLocation.h>
+#include <PhosphorZoneRendering/OverlayPackLocation.h>
 
 #include <QFile>
 #include <QJsonDocument>
@@ -101,6 +102,9 @@ void initPlasmaZonesHost()
     // include paths, the `builtin:` buffer fallback, the settings' user
     // directory) searches the subdir phosphor-surface-packs installs to.
     PhosphorSurfaceShaders::setSurfacePackDataSubdir(QStringLiteral(PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR));
+    // The zone-overlay packs, under this app's directory: the roots
+    // ZoneShaderItem and the warm bake trust for includes and vertex stages.
+    PhosphorZoneRendering::setOverlayPackDataSubdir(ConfigDefaults::overlaysSubdir());
     setHostSettingsExtension({&appendHostSchema, &isHostMachineScopedKey, &hostEnumLabels});
 }
 

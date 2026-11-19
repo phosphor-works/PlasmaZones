@@ -143,6 +143,10 @@ target_link_libraries(plasmazones_core
         # plasmazones_core need the include path + link edge to read those.
         PhosphorContextResolver::PhosphorContextResolver
     PRIVATE
+        # PhosphorZoneRendering: setOverlayPackDataSubdir, which
+        # initPlasmaZonesHost() (common/hostsettings.cpp) calls for every
+        # PlasmaZones process.
+        PhosphorZoneRendering::PhosphorZoneRendering
         Wayland::Client
         Qt6::Concurrent
         Qt6::WaylandClientPrivate
