@@ -40,6 +40,7 @@
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorEngineRuntime/Logging.h>
 
+#include <PhosphorAnimation/PhosphorCurve.h>
 #include <PhosphorLayer/defaults/PhosphorWaylandTransport.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
@@ -75,6 +76,9 @@ EngineRuntime::Platform kwinSessionPlatform()
     // ext-idle-notify-v1 through PhosphorServiceIdle, or none where the
     // compositor does not offer it.
     platform.idleSource = &WaylandIdleSource::create;
+    // PhosphorCurve's default lives in the org.phosphor.animation QML module
+    // this binary links, so the runtime hands its curve registry here.
+    platform.publishCurveRegistry = &PhosphorAnimation::PhosphorCurve::setDefaultRegistry;
     platform.shortcutBackends = [] {
         return PhosphorShortcuts::createBackend(PhosphorShortcuts::BackendHint::Auto, nullptr);
     };
@@ -92,6 +96,8 @@ Daemon::Daemon(QObject* parent)
     , m_apps(std::make_unique<PlasmaZonesApps>())
     , m_shellCheatsheet(std::make_unique<ShellCheatsheetBridge>())
 {
+    // The overlay QML loads in start(), after this.
+    PhosphorAnimation::QtQuickClockManager::setDefaultManager(&m_clockManager);
     m_runtime->setWorkspaceHost(m_workspaceHost.get());
     // The KWin host's two preferences are PlasmaZones' own settings: the
     // runtime hears of a change through the host's report.
@@ -139,6 +145,7 @@ Daemon::~Daemon()
     m_runtime->setSystemOsd(nullptr);
     m_runtime->setHostApps(nullptr);
     m_runtime->setShellCheatsheet(nullptr);
+    PhosphorAnimation::QtQuickClockManager::setDefaultManager(nullptr);
 }
 
 bool Daemon::init()

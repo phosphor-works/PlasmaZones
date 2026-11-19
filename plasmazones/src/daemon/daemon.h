@@ -13,6 +13,8 @@
 
 #include "common/engineruntimenamespace.h"
 
+#include <PhosphorAnimation/QtQuickClockManager.h>
+
 #include <QDBusContext>
 #include <QObject>
 #include <QString>
@@ -123,7 +125,14 @@ private:
     // an empty string falls back to the generic enable-the-effect guidance.
     void emitBridgeMissingWarning(const QString& diagnosis);
 
-    // Declared first so it is destroyed last: everything below borrows it.
+    // The clock the overlay QML animates against. plasmazonesd links the
+    // org.phosphor.animation QML module, so it owns this and publishes it as
+    // the module's default for the daemon's whole life, as the editor and the
+    // settings app do. Declared before the runtime so it outlives the overlay
+    // QML.
+    PhosphorAnimation::QtQuickClockManager m_clockManager;
+
+    // Declared before the hosts so it is destroyed after them: they borrow it.
     std::unique_ptr<EngineRuntime> m_runtime;
 
     // PlasmaZones' own settings, stored through the runtime's Settings.
