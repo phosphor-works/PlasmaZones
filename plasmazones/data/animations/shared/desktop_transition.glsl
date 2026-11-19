@@ -67,10 +67,10 @@
 //     warning on the journal, and no recompile for the rest of the session.
 //     Use getFromColor() / getToColor() instead.
 // Include AFTER the animation uniform block.
-#ifndef PLASMAZONES_DESKTOP_TRANSITION_GLSL
-#define PLASMAZONES_DESKTOP_TRANSITION_GLSL
+#ifndef PHOSPHOR_DESKTOP_TRANSITION_GLSL
+#define PHOSPHOR_DESKTOP_TRANSITION_GLSL
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform sampler2D uFromDesktop;
 uniform sampler2D uToDesktop;
 #else
@@ -90,7 +90,7 @@ uniform sampler2D uToDesktop;
 // through switchDirection() below so their configured direction params still
 // apply as the fallback (and as the forced direction when the pack's
 // followSwitch toggle is off).
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform vec4 iSwitchDelta;
 #endif
 
@@ -112,7 +112,7 @@ vec2 switchDirection(vec2 fallback) {
 // branch samples the uv directly, mirroring surfaceColor's per-branch
 // split.
 vec4 getFromColor(vec2 uv) {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     return texture(uFromDesktop, vec2(uv.x, 1.0 - uv.y));
 #else
     return texture(uFromDesktop, uv);
@@ -120,7 +120,7 @@ vec4 getFromColor(vec2 uv) {
 }
 
 vec4 getToColor(vec2 uv) {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     return texture(uToDesktop, vec2(uv.x, 1.0 - uv.y));
 #else
     return texture(uToDesktop, uv);
@@ -135,4 +135,4 @@ vec4 crossFade(vec2 uv, float t) {
     return mix(getFromColor(uv), getToColor(uv), t);
 }
 
-#endif // PLASMAZONES_DESKTOP_TRANSITION_GLSL
+#endif // PHOSPHOR_DESKTOP_TRANSITION_GLSL

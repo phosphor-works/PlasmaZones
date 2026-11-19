@@ -480,7 +480,7 @@ private Q_SLOTS:
         // Smuggle a LayoutMode into the stored strip group the way a
         // hand-edited config would (PerScreen -> ScrollingZoneSelector ->
         // <screen> is the resolver's JSON path for the group prefix).
-        const QString configFile = guard.configPath() + QStringLiteral("/plasmazones/config.json");
+        const QString configFile = guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json");
         QFile file(configFile);
         QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(configFile));
         QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();

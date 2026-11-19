@@ -91,7 +91,7 @@ const QString& ShaderInternal::kwinFinalizeColorBlock()
 }
 
 /// The compositor branch of a stage: PhosphorShaders::kwinCompositorSource,
-/// which splices `#define PLASMAZONES_KWIN` (and the desktop-only extension
+/// which splices `#define PHOSPHOR_KWIN` (and the desktop-only extension
 /// guard) after the shader's `#version` and strips the stage's varying
 /// locations, plus the journal warning that function leaves to its caller. The
 /// macro selects the default-block branch of the shared uniform headers, which

@@ -25,7 +25,7 @@ layout(location = 1) in vec2 texCoord;
 
 layout(location = 0) out vec2 vTexCoord;
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform mat4 modelViewProjectionMatrix;
 // Geometry-morph endpoints (logical-screen px, x/y/w/h), pushed by the
 // kwin-effect paint pipeline for any shader that declares them. On the
@@ -53,7 +53,7 @@ void main() {
     float shadeGain = p_shade;                // crest/trough shade gain
 
     // Card uv normalised to top-down on either KWin offscreen quad.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     vec2 cuv = animationScreenUv(texCoord);
 #else
     // The Qt-RHI quad's texCoord is Y-down already — no re-flip.
@@ -110,7 +110,7 @@ void main() {
 
     vTexCoord = cuv;
     vRip = vec4(cuv, shade, teE);
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     gl_Position = modelViewProjectionMatrix * vec4(displaced, 0.0, 1.0);
 #else
     // Qt-RHI path: logical-px delta to clip units at 2 / iResolution, on

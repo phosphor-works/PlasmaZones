@@ -8,10 +8,10 @@
  *        OverlayService::setupSurfaceAnimator.
  *
  * Why this exists: every overlay surface gets a per-instance compositor
- * scope (e.g. `plasmazones-osd-{screenId}-{gen}`) so wlr-layer-shell
+ * scope (e.g. `phosphor-osd-{screenId}-{gen}`) so wlr-layer-shell
  * sees each Surface as a distinct scope. The SurfaceAnimator registers
  * per-Role configs against the BASE scope from PhosphorRoles
- * (`plasmazones-osd`) and looks up by longest-prefix-match against
+ * (`phosphor-osd`) and looks up by longest-prefix-match against
  * the Surface's scope. If the per-instance scope literal in
  * `osd.cpp` / `selector.cpp` / `snapassist.cpp` ever diverges from the
  * matching PhosphorRoles base, the lookup silently falls back to the empty
@@ -164,17 +164,17 @@ class TestOverlayScopePrefixes : public QObject
 private Q_SLOTS:
 
     /// Each registered base role's scopePrefix must be the production
-    /// `plasmazones-{family}` literal so the per-instance prefix
-    /// (`plasmazones-{family}-...`) can prefix-match. Catches a future
+    /// `phosphor-{family}` literal so the per-instance prefix
+    /// (`phosphor-{family}-...`) can prefix-match. Catches a future
     /// rename of any PhosphorRoles literal that the daemon's create paths
     /// don't also pick up.
     void p_role_base_scope_prefixes_match_production_families()
     {
-        QCOMPARE(PhosphorRoles::Osd().scopePrefix, QStringLiteral("plasmazones-osd"));
-        QCOMPARE(PhosphorRoles::ZoneSelector().scopePrefix, QStringLiteral("plasmazones-zone-selector"));
-        QCOMPARE(PhosphorRoles::SnapAssist().scopePrefix, QStringLiteral("plasmazones-snap-assist"));
-        QCOMPARE(PhosphorRoles::LayoutPicker().scopePrefix, QStringLiteral("plasmazones-layout-picker"));
-        QCOMPARE(PhosphorRoles::Cheatsheet().scopePrefix, QStringLiteral("plasmazones-cheatsheet"));
+        QCOMPARE(PhosphorRoles::Osd().scopePrefix, QStringLiteral("phosphor-osd"));
+        QCOMPARE(PhosphorRoles::ZoneSelector().scopePrefix, QStringLiteral("phosphor-zone-selector"));
+        QCOMPARE(PhosphorRoles::SnapAssist().scopePrefix, QStringLiteral("phosphor-snap-assist"));
+        QCOMPARE(PhosphorRoles::LayoutPicker().scopePrefix, QStringLiteral("phosphor-layout-picker"));
+        QCOMPARE(PhosphorRoles::Cheatsheet().scopePrefix, QStringLiteral("phosphor-cheatsheet"));
     }
 
     /// Per-instance cheatsheet role resolves to its own registered config
@@ -225,8 +225,8 @@ private Q_SLOTS:
     /// Regression: ZoneSelector. The old Q_ASSERT_X (in the since-removed
     /// createZoneSelectorWindow) only caught divergence in debug builds;
     /// this test catches it in
-    /// release too. Pre-fix the daemon used "plasmazones-selector-..."
-    /// which did NOT prefix-match "plasmazones-zone-selector".
+    /// release too. Pre-fix the daemon used a "<prefix>-selector-..." scope,
+    /// which did NOT prefix-match "<prefix>-zone-selector".
     ///
     /// Also pins the surface-family separation: ZoneSelector lives under
     /// `popup.zoneSelector.*`, NOT under the shared `popup`
@@ -297,9 +297,9 @@ private Q_SLOTS:
     }
 
     /// Regression: longest-prefix matching must respect `-` boundaries.
-    /// `plasmazones-osd` is NOT a prefix of any other role's
+    /// `phosphor-osd` is NOT a prefix of any other role's
     /// scope, but a future rename that introduces overlap (e.g. adding a
-    /// `plasmazones-osd-bar`) must not silently route to the wrong
+    /// `phosphor-osd-bar`) must not silently route to the wrong
     /// config. Verify the boundary check works by confirming a
     /// per-instance OSD scope picks up the OSD config (showScaleFrom
     /// 0.92), not the picker (0.94).

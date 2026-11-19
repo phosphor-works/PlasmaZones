@@ -473,7 +473,7 @@ private:
     {
         Fixture()
         {
-            layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+            layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
             settings.setSnappingEnabled(true);
             settings.setToggleActivation(false);
             settings.setDragActivationTriggers(

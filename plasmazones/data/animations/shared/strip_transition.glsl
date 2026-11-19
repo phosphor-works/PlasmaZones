@@ -112,10 +112,10 @@
 //     warns on the journal once, and never recompiles that pack this
 //     session. Use getStripColor() instead.
 // Include AFTER the animation uniform block.
-#ifndef PLASMAZONES_STRIP_TRANSITION_GLSL
-#define PLASMAZONES_STRIP_TRANSITION_GLSL
+#ifndef PHOSPHOR_STRIP_TRANSITION_GLSL
+#define PHOSPHOR_STRIP_TRANSITION_GLSL
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform sampler2D uStrip;
 uniform sampler2D uBelow;
 #else
@@ -156,7 +156,7 @@ uniform sampler2D uBelow;
 //       along the travel axis per second.
 // All four converge to 0 at settle — the identity contract above keys off
 // exactly this.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform vec4 iStripMotion;
 #endif
 
@@ -165,7 +165,7 @@ uniform vec4 iStripMotion;
 // top-left, same orientation as the uv pTransition receives. Zero-sized when
 // the work area could not be resolved, in which case stripMask() below
 // returns 1.0 everywhere (mask nothing rather than everything).
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform vec4 iStripRect;
 #endif
 
@@ -182,7 +182,7 @@ uniform vec4 iStripRect;
 // Multiply displacements by this (or use stripAxisOffset below) instead of
 // writing vec2(amount, 0.0). Note .z/.w of iStripMotion are normalized by the
 // output's extent ALONG THIS AXIS, so they stay comparable across both.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform vec2 iStripAxis;
 #endif
 
@@ -215,7 +215,7 @@ vec2 stripAxisPerp() {
 // uploaded scene is top-origin (Y-down), so the UBO branch samples the uv
 // directly.
 vec2 stripSampleUv(vec2 uv) {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     return vec2(uv.x, 1.0 - uv.y);
 #else
     return uv;
@@ -262,7 +262,7 @@ vec4 getStripColor(vec2 uv) {
 // captures keep their headroom. The centre below texel is fetched once
 // more here rather than threaded out of the pack's own fetch; the taps are
 // cache-adjacent and the contract stays a plain vec4 in, vec4 out.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 vec4 stripComposite(vec4 packColor) {
     vec3 below = stripBelowColor(vTexCoord).rgb;
     float a = clamp(packColor.a, 0.0, 1.0);
@@ -340,4 +340,4 @@ vec2 stripUv(vec2 uv) {
     return (uv * iResolution - iStripRect.xy) / iStripRect.zw;
 }
 
-#endif // PLASMAZONES_STRIP_TRANSITION_GLSL
+#endif // PHOSPHOR_STRIP_TRANSITION_GLSL

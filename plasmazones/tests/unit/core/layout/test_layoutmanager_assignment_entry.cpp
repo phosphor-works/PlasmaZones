@@ -177,10 +177,10 @@ private Q_SLOTS:
 
         // Create a new manager and load — same config file sees the data
         QScopedPointer<PhosphorZones::LayoutRegistry> mgr2(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         mgr2->addLayout(createTestLayout(QStringLiteral("LayoutA")));
         mgr2->addLayout(createTestLayout(QStringLiteral("LayoutB")));
-        QString layoutDir2 = m_guards.back()->dataPath() + QStringLiteral("/plasmazones/layouts2");
+        QString layoutDir2 = m_guards.back()->dataPath() + QStringLiteral("/phosphor-works/layouts2");
         QDir().mkpath(layoutDir2);
         mgr2->setLayoutDirectory(layoutDir2);
         mgr2->loadAssignments();

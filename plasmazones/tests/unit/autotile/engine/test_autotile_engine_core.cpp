@@ -770,7 +770,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
 
         AutotileEngine engine(nullptr, &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
@@ -810,7 +810,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
         PhosphorEngine::WindowRegistry registry;
         AutotileEngine engine(nullptr, &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
@@ -889,7 +889,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
         PhosphorEngine::WindowRegistry registry;
         AutotileEngine engine(nullptr, &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
@@ -936,7 +936,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
         AutotileEngine engine(layoutManager.get(), &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
 
@@ -980,7 +980,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
         AutotileEngine engine(layoutManager.get(), &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
 
@@ -1113,7 +1113,7 @@ private Q_SLOTS:
     {
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         std::unique_ptr<PhosphorZones::LayoutRegistry> layoutManager(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         PhosphorPlacement::WindowTrackingService wts(layoutManager.get(), nullptr, nullptr);
         AutotileEngine engine(layoutManager.get(), &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
 

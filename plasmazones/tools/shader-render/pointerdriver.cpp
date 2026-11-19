@@ -75,7 +75,8 @@ bool installPointerPack(PhosphorRendering::ShaderEffect& effect, const QString& 
     // tool bakes byte-for-byte what the settings preview bakes for this pack.
     // The installed pointer packs' subdir, as the settings app passes it
     // (ConfigDefaults::pointerSubdir, which this tool does not link).
-    effect.setShaderIncludePaths(Registry::includePathsFor(eff.sourceDir, QStringLiteral("plasmazones/pointer")));
+    effect.setShaderIncludePaths(
+        Registry::includePathsFor(eff.sourceDir, QStringLiteral("phosphor-works/shaders/pointer")));
     effect.setShaderSource(QUrl::fromLocalFile(eff.fragmentShaderPath));
     effect.setParamPreamble(Registry::paramPreamble(eff));
     effect.setEntryScaffold(Registry::pointerEntryPrologue(), Registry::pointerEntryCandidates());

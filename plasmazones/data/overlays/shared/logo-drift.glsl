@@ -15,8 +15,8 @@
 // (gatherLabelHalo — fedora, neon). The per-zone composite loops stay in each
 // pack because they diverge algorithmically.
 
-#ifndef PLASMAZONES_LOGO_DRIFT_GLSL
-#define PLASMAZONES_LOGO_DRIFT_GLSL
+#ifndef PHOSPHOR_LOGO_DRIFT_GLSL
+#define PHOSPHOR_LOGO_DRIFT_GLSL
 
 #include <common.glsl>
 
@@ -218,4 +218,4 @@ LabelHalo gatherLabelHalo(vec2 uv, vec2 px, float labelGlowSpread, vec2 chromOff
     return h;
 }
 
-#endif // PLASMAZONES_LOGO_DRIFT_GLSL
+#endif // PHOSPHOR_LOGO_DRIFT_GLSL

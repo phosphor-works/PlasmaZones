@@ -5,7 +5,7 @@
  * @brief v7 → v8: per-event motion overrides move from loose files into config.
  *
  * The step must:
- *   - fold each `<data>/plasmazones/profiles/<event.path>.json` into
+ *   - fold each `<data>/phosphor-works/profiles/<event.path>.json` into
  *     Animations/MotionProfileTree in ProfileTree's own serialized shape;
  *   - leave USER PRESETS alone — files in the same directory whose `name` is
  *     not a built-in event path are named by the user from the curve editor,
@@ -44,7 +44,7 @@ namespace {
 QString profilesDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-        + QStringLiteral("/plasmazones/profiles");
+        + QStringLiteral("/phosphor-works/profiles");
 }
 
 /// @return false when the fixture could not be written.

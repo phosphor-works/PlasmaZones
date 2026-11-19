@@ -353,16 +353,16 @@ QStringList shaderIncludePaths()
         }
     }
 
-    // GenericDataLocation + "plasmazones/overlays", matching the daemon's
+    // GenericDataLocation + "phosphor-works/shaders/overlays", matching the daemon's
     // trustedShaderRoots(). This used to be AppDataLocation + "/overlays", which
     // appends the APPLICATION name ("plasmazones-shader-render"), so it probed
     // <xdg>/plasmazones-shader-render/overlays, a directory that does not exist,
     // and the whole user tier silently resolved nothing. A pack the user
-    // installed under ~/.local/share/plasmazones/overlays was live in the daemon
+    // installed under ~/.local/share/phosphor-works/shaders/overlays was live in the daemon
     // and invisible to the preview, which is the same class of divergence the
     // source-tree-first ordering above exists to prevent.
     for (const QString& dir : QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
-        pushRoot(dir + QStringLiteral("/plasmazones/overlays"));
+        pushRoot(dir + QStringLiteral("/phosphor-works/shaders/overlays"));
     }
     // No explicit /usr/share entry: GenericDataLocation already ends with the
     // XDG_DATA_DIRS list, which includes it on a normal system.

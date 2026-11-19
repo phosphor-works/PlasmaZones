@@ -75,7 +75,7 @@ private Q_SLOTS:
         m_bridgeAdaptor = new CompositorBridgeAdaptor(m_parent);
 
         // For ControlService tests we need a WTA + PhosphorZones::LayoutRegistry
-        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         m_settings = new StubSettingsBridge(nullptr);
         m_zoneDetector = new StubZoneDetectorBridge(nullptr);
 

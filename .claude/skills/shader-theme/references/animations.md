@@ -22,7 +22,7 @@ looks stale; the tests are the bar bundled packs must clear.
 No `preview.png`. Previews are rendered live by the settings app. `plasmazones/data/animations/shared/`
 is skipped by every scanner; never put a pack there.
 
-Runtime user dir: `~/.local/share/plasmazones/animations/<id>/`. Discovery is a directory
+Runtime user dir: `~/.local/share/phosphor-works/shaders/animations/<id>/`. Discovery is a directory
 scan (any subdir with `metadata.json`); user dir beats the system dir; changes hot-reload via
 a mtime signature. A pack failing schema validation is skipped with a warning, so validate
 before claiming it works.
@@ -78,10 +78,10 @@ Rules:
   inverting progress yourself.
 - Params: read `p_<id>`. Colors: guard `length(p_c.rgb) > 0.01 ? p_c.rgb : fallback`.
 - `resolutionSafe()` instead of raw `iResolution`. `iAnchorSize` = window logical px.
-- No `#ifdef PLASMAZONES_KWIN` in a fragment shader. It is only allowed in `effect.vert`
+- No `#ifdef PHOSPHOR_KWIN` in a fragment shader. It is only allowed in `effect.vert`
   (gl_Position + Y-flip arms) and for declaring a kwin-only uniform not in a shared module.
-- Every pack compiles twice: the Qt-RHI preview ABI (std140 UBO, no `PLASMAZONES_KWIN`) and
-  the compositor ABI (default-block uniforms, `PLASMAZONES_KWIN` defined). The validator bakes
+- Every pack compiles twice: the Qt-RHI preview ABI (std140 UBO, no `PHOSPHOR_KWIN`) and
+  the compositor ABI (default-block uniforms, `PHOSPHOR_KWIN` defined). The validator bakes
   both. The shared header exposes the same names on both branches, so ordinary packs need no
   `#ifdef`. The exceptions run in two directions:
   - Names that exist ONLY in the preview UBO: `qt_Matrix`, `qt_Opacity`, `_appField0/1`,
@@ -93,7 +93,7 @@ Rules:
     `iOldWindowOpacity`. The transition ones are declared for you by `desktop_transition.glsl`
     / `strip_transition.glsl` / `old_content.glsl`, so include the helper instead of declaring
     them. For the geometry and minimize rects, declare them yourself inside
-    `#ifdef PLASMAZONES_KWIN ... #endif` only (`window-morph/effect.frag` is the pattern):
+    `#ifdef PHOSPHOR_KWIN ... #endif` only (`window-morph/effect.frag` is the pattern):
     declaring them unguarded redeclares a UBO member and fails the preview bake, omitting them
     fails the compositor bake.
   - Names that are real uniforms on the compositor and `#define` stand-ins on the preview:
@@ -166,7 +166,7 @@ is inherited by every child that has none.
 ## effect.vert (geometry / surface-extent packs)
 
 Choose pass-through or grid deformation as required by the implementation and host. Preserve
-the `#ifdef PLASMAZONES_KWIN` split: `modelViewProjectionMatrix` + `1.0 - texCoord.y` on
+the `#ifdef PHOSPHOR_KWIN` split: `modelViewProjectionMatrix` + `1.0 - texCoord.y` on
 kwin, `qt_Matrix` and px delta `* 2.0 / iResolution` on the daemon. Extra varyings use
 `layout(location = 1) out ...` and the matching `in` at file scope in the frag.
 

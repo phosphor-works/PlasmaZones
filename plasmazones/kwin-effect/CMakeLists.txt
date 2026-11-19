@@ -319,7 +319,7 @@ target_link_libraries(kwin_effect_plasmazones PRIVATE
     PhosphorRules::PhosphorRules
     # ShaderIncludeResolver: kwin-effect resolves `#include` directives
     # in animation shader source so the canonical header inlines before
-    # the `#define PLASMAZONES_KWIN` injection selects its default-block
+    # the `#define PHOSPHOR_KWIN` injection selects its default-block
     # branch (KWin::GLShader's classic-GL pipeline doesn't bind UBOs).
     PhosphorShaders::PhosphorShaders
     # PhosphorSurface: the surface-shader pack registry/contract. The effect

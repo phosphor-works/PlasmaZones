@@ -20,7 +20,7 @@ class DmabufTextureProvider;
  * ISurfacePresentationHost for plasmazonesd: overlays through Qt's Wayland
  * platform plugin with the graphics API and Vulkan instance main() chose
  * (daemon/rendering/vulkansupport.h), and the KWin effect's window thumbnails
- * imported from dma-bufs on the GPU (PLASMAZONES_DMABUF_THUMBNAILS, on unless
+ * imported from dma-bufs on the GPU (PHOSPHOR_DMABUF_THUMBNAILS, on unless
  * set to 0).
  */
 class KWinSurfacePresentation : public QObject, public ISurfacePresentationHost

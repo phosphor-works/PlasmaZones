@@ -160,8 +160,8 @@ void PointerDecorationPass::ensureRegistryPaths()
         return;
     }
     m_registryPathsAdded = true;
-    // Candidate dirs: every ${XDG_DATA_DIRS}/plasmazones/pointer plus the user
-    // data dir (~/.local/share/plasmazones/pointer), where CMake installs
+    // Candidate dirs: every ${XDG_DATA_DIRS}/phosphor-works/shaders/pointer plus the
+    // user data dir (~/.local/share/phosphor-works/shaders/pointer), where CMake installs
     // data/pointer and where a user override would live. Added even when a dir
     // is missing so the registry's watcher promotes a parent-watch and picks up
     // packs that appear later (a fresh install).
@@ -179,7 +179,7 @@ void PointerDecorationPass::ensureRegistryPaths()
     std::reverse(bases.begin(), bases.end());
     paths.reserve(bases.size());
     for (const QString& base : bases) {
-        paths.append(base + QStringLiteral("/plasmazones/pointer"));
+        paths.append(base + QStringLiteral("/phosphor-works/shaders/pointer"));
     }
     if (!paths.isEmpty()) {
         m_registry.addSearchPaths(paths);
@@ -345,7 +345,7 @@ PointerDecorationPass::CompiledPointerPack* PointerDecorationPass::compiledPack(
     // their targets are intermediate and stay in the pack's own space. After
     // include expansion, because the block's `#include` is KWin's to resolve.
     expanded = PhosphorShaders::spliceAfterVersion(expanded, ShaderInternal::kwinFinalizeColorBlock());
-    // Select the PLASMAZONES_KWIN branch of pointer_uniforms.glsl (classic-GL
+    // Select the PHOSPHOR_KWIN branch of pointer_uniforms.glsl (classic-GL
     // default-block uniforms).
     const QByteArray fragWithKwinDefine =
         injectKwinDefineAfterVersion(expanded, PhosphorShaders::ShaderStage::Fragment);

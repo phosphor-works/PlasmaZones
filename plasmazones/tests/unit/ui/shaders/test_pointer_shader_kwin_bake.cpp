@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Bakes every built-in pointer pack's KWIN-PATH variant — the
-// `#define PLASMAZONES_KWIN` branch — through a real offscreen OpenGL context,
+// `#define PHOSPHOR_KWIN` branch — through a real offscreen OpenGL context,
 // the way the kwin-effect compiles it at runtime (pointerdecorationshader.cpp
 // → generateCustomShader → glCompileShader).
 //

@@ -208,7 +208,7 @@ All bindings are rebindable in **System Settings → Shortcuts → PlasmaZones**
 
 ## Configuration
 
-Settings live in `~/.config/plasmazones/config.json`. Layouts live in `~/.local/share/plasmazones/layouts/`. Everything is edited through the settings app:
+Settings live in `~/.config/phosphor-works/plasmazones/config.json`. Layouts live in `~/.local/share/phosphor-works/layouts/`. Everything is edited through the settings app:
 
 ```bash
 plasmazones-settings                           # overview

@@ -16,12 +16,12 @@
 // iTextureResolution[N].xy carries the bound image's pixel size, or (1,1) for
 // an unclaimed slot.
 
-#ifndef PLASMAZONES_TEXTURES_GLSL
-#define PLASMAZONES_TEXTURES_GLSL
+#ifndef PHOSPHOR_TEXTURES_GLSL
+#define PHOSPHOR_TEXTURES_GLSL
 
 layout(binding = 11) uniform sampler2D uTexture0;
 layout(binding = 12) uniform sampler2D uTexture1;
 layout(binding = 13) uniform sampler2D uTexture2;
 layout(binding = 14) uniform sampler2D uTexture3;
 
-#endif // PLASMAZONES_TEXTURES_GLSL
+#endif // PHOSPHOR_TEXTURES_GLSL

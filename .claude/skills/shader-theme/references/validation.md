@@ -178,24 +178,24 @@ present tense, reverse leg described.
 Install into the user dirs (never `cmake --install`, never sudo). `$P` is the scratchpad
 copy for `--into user`, the repo copy after `--into repo`:
 ```bash
-cp -r $P/animations/<id> ~/.local/share/plasmazones/animations/
-cp -r $P/overlays/<id>   ~/.local/share/plasmazones/overlays/
-cp -r $S/<id>            ~/.local/share/phosphor-works/surface/
-cp $P/curves/<theme>-*.json ~/.local/share/plasmazones/curves/
-cp $T/sets/motionsets/<slug>.json     ~/.local/share/plasmazones/motionsets/
-cp $T/sets/decorationsets/<slug>.json ~/.local/share/plasmazones/decorationsets/
-cp $T/sets/overlaysets/<slug>.json    ~/.local/share/plasmazones/overlaysets/
+cp -r $P/animations/<id> ~/.local/share/phosphor-works/shaders/animations/
+cp -r $P/overlays/<id>   ~/.local/share/phosphor-works/shaders/overlays/
+cp -r $S/<id>            ~/.local/share/phosphor-works/shaders/surface/
+cp $P/curves/<theme>-*.json ~/.local/share/phosphor-works/curves/
+cp $T/sets/motionsets/<slug>.json     ~/.local/share/phosphor-works/motionsets/
+cp $T/sets/decorationsets/<slug>.json ~/.local/share/phosphor-works/decorationsets/
+cp $T/sets/overlaysets/<slug>.json    ~/.local/share/phosphor-works/overlaysets/
 ```
 Registries hot-reload on file change (50 ms debounce). A brand-new directory in a watched
 root is picked up; if a pack does not appear, that is the case to check first.
 
 Re-run the validator against the INSTALLED copy, not only the source tree:
 ```bash
-build/bin/plasmazones-shader-validate ~/.local/share/plasmazones/animations/<id> ~/.local/share/plasmazones/overlays/<id> ~/.local/share/phosphor-works/surface/<id>
+build/bin/plasmazones-shader-validate ~/.local/share/phosphor-works/shaders/animations/<id> ~/.local/share/phosphor-works/shaders/overlays/<id> ~/.local/share/phosphor-works/shaders/surface/<id>
 ```
 An installed pack has no sibling `shared/`, so the validator resolves the family's helpers
-through the XDG data chain, normally `/usr/share/plasmazones/<family>/shared` (for a surface pack
-`/usr/share/phosphor-works/surface/shared`). That is a
+through the XDG data chain, normally `/usr/share/phosphor-works/<family>/shared` (for a surface pack
+`/usr/share/phosphor-works/shaders/surface/shared`). That is a
 different lookup from the sibling one a scratchpad or source-tree pack uses, and a pack that
 validates there can still fail once installed. It presupposes an installed PlasmaZones. On a
 machine without one the auto-detect run warns `no sibling shared/ marker, validating as an

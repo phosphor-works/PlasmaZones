@@ -812,7 +812,7 @@ for r in rules:
     route = [a.get("targetDesktop") for a in r.get("actions", []) if a.get("type") == "routeToDesktop"]
     if vd or route:
         print("%s|%s|%s|%s" % (r.get("name", "?"), r.get("enabled"), ",".join(map(str, vd)), ",".join(map(str, route))))
-' "$XDG_CONFIG_HOME/plasmazones/rules.json"
+' "$XDG_CONFIG_HOME/phosphor-works/plasmazones/rules.json"
 }
 rule_row() { rule_rows | grep "^$1|" | cut -d'|' -f2-; }
 rule_desktops() {
@@ -835,7 +835,7 @@ def leaves(m):
 for r in (d.get("rules", []) if isinstance(d, dict) else d):
     leaves(r.get("match", {}))
 print(",".join(str(x) for x in sorted(out, key=str)))
-' "$XDG_CONFIG_HOME/plasmazones/rules.json"
+' "$XDG_CONFIG_HOME/phosphor-works/plasmazones/rules.json"
 }
 # rule_state ID -> "present enabled=B desktop=[values]" for the rule with ID as the daemon's
 # Rules.getAllRules lists it, or "absent"
@@ -900,7 +900,7 @@ for app, recs in wp.items():
         fg = r.get("freeGeo", {})
         out.append("%s screen=%s freeGeo={%s}" % (r.get("windowId", "")[-8:], r.get("screenId"), ", ".join("%s: %s,%s %sx%s" % (k, v.get("x"), v.get("y"), v.get("width"), v.get("height")) for k, v in fg.items())))
 print("_version=%s (%s) | %s" % (wp.get("_version", "absent"), form, " | ".join(out) or "(no record)"))
-' "$XDG_CONFIG_HOME/plasmazones/session.json" "$@"
+' "$XDG_CONFIG_HOME/phosphor-works/plasmazones/session.json" "$@"
 }
 
 # Animation legs, from the effect's "Started animation from QRectF(..) to QRectF(..) duration: N"

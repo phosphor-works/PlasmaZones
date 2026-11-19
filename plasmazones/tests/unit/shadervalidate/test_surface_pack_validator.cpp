@@ -231,7 +231,7 @@ private Q_SLOTS:
         // The binding on the daemon branch only, which is all the lint reflects:
         // neither compositor dialect has a binding qualifier.
         const QString body = QStringLiteral(
-                                 "#ifdef PLASMAZONES_KWIN\nuniform sampler2D uMine;\n#else\n"
+                                 "#ifdef PHOSPHOR_KWIN\nuniform sampler2D uMine;\n#else\n"
                                  "layout(binding = 3) uniform sampler2D uMine;\n#endif\n")
             + QStringLiteral("vec4 pSurface(vec2 uv)\n{\n    return texture(uMine, uv);\n}\n");
 
@@ -253,7 +253,7 @@ private Q_SLOTS:
         // uBackdrop belongs at the wallpaper slot (15); declare it at a consumer
         // slot, on the daemon branch only, so only the table disagrees.
         const QString body = QStringLiteral(
-                                 "#ifdef PLASMAZONES_KWIN\nuniform sampler2D uBackdrop;\n#else\n"
+                                 "#ifdef PHOSPHOR_KWIN\nuniform sampler2D uBackdrop;\n#else\n"
                                  "layout(binding = 20) uniform sampler2D uBackdrop;\n#endif\n")
             + QStringLiteral("vec4 pSurface(vec2 uv)\n{\n    return texture(uBackdrop, uv);\n}\n");
 
@@ -283,7 +283,7 @@ private Q_SLOTS:
         // dialect KWin compiles the compositor branch in (desktop GLSL 140,
         // GLSL ES 300) has a binding qualifier, and the compositor binds the
         // sampler by name anyway.
-        const QString body = QStringLiteral("#ifdef PLASMAZONES_KWIN\nuniform sampler2D uBackdrop;\n#else\n")
+        const QString body = QStringLiteral("#ifdef PHOSPHOR_KWIN\nuniform sampler2D uBackdrop;\n#else\n")
             + QStringLiteral("layout(binding = 15) uniform sampler2D uBackdrop;\n#endif\n")
             + QStringLiteral("vec4 pSurface(vec2 uv)\n{\n    return texture(uBackdrop, uv);\n}\n");
 
@@ -311,7 +311,7 @@ private Q_SLOTS:
         // 20 sits squarely inside the consumer range, so this fixture collides
         // with no contract slot and fails ONLY on the rule under test.
         const QString body = QStringLiteral(
-                                 "#ifdef PLASMAZONES_KWIN\nuniform sampler2D uMine;\n#else\n"
+                                 "#ifdef PHOSPHOR_KWIN\nuniform sampler2D uMine;\n#else\n"
                                  "layout(binding = 20) uniform sampler2D uMine;\n#endif\n")
             + QStringLiteral("vec4 pSurface(vec2 uv)\n{\n    return texture(uMine, uv);\n}\n");
 
@@ -894,7 +894,7 @@ private Q_SLOTS:
     }
 
     /// And that compositor half is a real compile, not a line in a report: a
-    /// break behind PLASMAZONES_KWIN passes the Qt-RHI bake and must still fail
+    /// break behind PHOSPHOR_KWIN passes the Qt-RHI bake and must still fail
     /// the pack. Without this, a bake that silently no-opped would look exactly
     /// like the slot above passing.
     void aCompositorOnlyBreakInAPackVertexIsCaught()
@@ -906,7 +906,7 @@ private Q_SLOTS:
         obj.insert(QStringLiteral("vertexShader"), QStringLiteral("probe.vert"));
 
         const QString assign = QStringLiteral(
-            "#ifdef PLASMAZONES_KWIN\n"
+            "#ifdef PHOSPHOR_KWIN\n"
             "    gl_Position = pzNoSuchFunction(position);\n"
             "#else\n"
             "    gl_Position = vec4(position, 0.0, 1.0);\n"

@@ -40,7 +40,7 @@ layout(location = 1) in vec2 texCoord;
 
 layout(location = 0) out vec2 vTexCoord;
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform mat4 modelViewProjectionMatrix;
 // Task-manager icon rect (logical screen px, x/y/w/h), pushed by the
 // kwin-effect paint pipeline for any shader that declares it.
@@ -58,7 +58,7 @@ float laneHash(float n) {
 }
 
 void main() {
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     // Card uv with y = 0 at the window top on both KWin versions.
     vec2 cuv = animationScreenUv(texCoord);
 #else
@@ -125,7 +125,7 @@ void main() {
 
     vTexCoord = cuv;
     vSiphon = vec4(cuv, e, lh);
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     gl_Position = modelViewProjectionMatrix * vec4(position + delta, 0.0, 1.0);
 #else
     // Qt-RHI path: logical-px delta converts to clip units at

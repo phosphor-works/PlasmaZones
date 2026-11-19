@@ -89,7 +89,7 @@ protected:
     void initFixture()
     {
         m_guard = std::make_unique<IsolatedConfigGuard>();
-        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         m_settings = new StubSettingsConvenience(nullptr);
         m_zoneDetector = new StubZoneDetectorConvenience(nullptr);
 

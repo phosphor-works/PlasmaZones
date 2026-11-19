@@ -683,7 +683,7 @@ private Q_SLOTS:
         QObject root;
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         PhosphorZones::LayoutRegistry* layout =
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), &root);
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), &root);
         AutotileEngine engine(layout, nullptr, nullptr, PlasmaZones::TestHelpers::testRegistry());
         const QString screen = QLatin1String(Screen1);
         PhosphorZones::AssignmentEntry autotile;
@@ -813,7 +813,7 @@ private Q_SLOTS:
         QObject root;
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         PhosphorZones::LayoutRegistry* layout =
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), &root);
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), &root);
         PhosphorPlacement::WindowTrackingService wts(layout, nullptr, nullptr);
         AutotileEngine engine(layout, &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
 
@@ -863,7 +863,7 @@ private Q_SLOTS:
         QObject root;
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         PhosphorZones::LayoutRegistry* layout =
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), &root);
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), &root);
         PhosphorPlacement::WindowTrackingService wts(layout, nullptr, nullptr);
         AutotileEngine engine(layout, &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
 
@@ -950,7 +950,7 @@ private Q_SLOTS:
         QObject root;
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         PhosphorZones::LayoutRegistry* layout =
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), &root);
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), &root);
         PhosphorPlacement::WindowTrackingService wts(layout, nullptr, nullptr);
         AutotileEngine engine(layout, &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
 
@@ -1006,7 +1006,7 @@ private:
         QObject root;
         PlasmaZones::TestHelpers::IsolatedConfigGuard guard;
         PhosphorZones::LayoutRegistry* layout =
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), &root);
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), &root);
         PhosphorPlacement::WindowTrackingService wts(layout, nullptr, nullptr);
         AutotileEngine engine(layout, &wts, nullptr, PlasmaZones::TestHelpers::testRegistry());
 

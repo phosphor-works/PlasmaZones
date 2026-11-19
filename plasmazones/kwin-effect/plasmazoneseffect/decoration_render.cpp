@@ -35,7 +35,7 @@ namespace PlasmaZones {
 // pack) — per-pack compile + registry search-path setup live in
 // surface_compile.cpp (compiledPack() / ensureSurfaceRegistryPaths()),
 // reusing the shared GLSL include / param-preamble
-// / #define-PLASMAZONES_KWIN pipeline. The border is the first surface
+// / #define-PHOSPHOR_KWIN pipeline. The border is the first surface
 // shader pack: phosphor-surface-packs' border, loaded via SurfaceShaderRegistry.
 // ─────────────────────────────────────────────────────────────────────────────
 

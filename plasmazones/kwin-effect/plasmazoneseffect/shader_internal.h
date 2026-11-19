@@ -97,7 +97,7 @@ private:
 };
 
 /// The compositor branch of @p source for @p stage: PhosphorShaders::
-/// kwinCompositorSource (the `#define PLASMAZONES_KWIN` block and its
+/// kwinCompositorSource (the `#define PHOSPHOR_KWIN` block and its
 /// desktop-only extension guard spliced after `#version`, @p extraDefines
 /// beside it, and the stage's varying locations stripped, which a GLSL ES 300
 /// compile rejects on Mesa), plus a journal warning when a missing `#version`

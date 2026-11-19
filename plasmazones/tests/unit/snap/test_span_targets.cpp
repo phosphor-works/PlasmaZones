@@ -238,7 +238,7 @@ struct SpanFixture
     QStringList zoneIds;
 
     explicit SpanFixture(const QVector<QRectF>& relativeRects)
-        : registry(PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")))
+        : registry(PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")))
     {
         auto* layout = new PhosphorZones::Layout(QStringLiteral("SpanTestLayout"), registry.get());
         int number = 1;

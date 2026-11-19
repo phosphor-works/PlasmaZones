@@ -21,7 +21,7 @@ kwjs_ok
 need_outputs 2
 setting snapAssistEnabled false
 sleep 1
-CFG="$XDG_CONFIG_HOME/plasmazones/config.json"
+CFG="$XDG_CONFIG_HOME/phosphor-works/plasmazones/config.json"
 [ -f "$CFG" ] || stage_fail "no nested config.json to set the drag trigger in"
 python3 -c '
 import json, sys

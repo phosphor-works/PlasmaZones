@@ -21,8 +21,8 @@
 // channels come from, so it needs the same flip they do: pass it a uv you
 // built with channelUv(), not a raw vTexCoord.
 
-#ifndef PLASMAZONES_DEPTH_GLSL
-#define PLASMAZONES_DEPTH_GLSL
+#ifndef PHOSPHOR_DEPTH_GLSL
+#define PHOSPHOR_DEPTH_GLSL
 
 layout(binding = 16) uniform sampler2D uDepthBuffer;
 

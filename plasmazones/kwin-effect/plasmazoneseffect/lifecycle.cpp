@@ -109,7 +109,7 @@ PlasmaZonesEffect::PlasmaZonesEffect()
         const QStringList dataDirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
         for (const QString& dir : dataDirs) {
             if (translator->load(locale, QStringLiteral("plasmazones"), QStringLiteral("_"),
-                                 dir + QStringLiteral("/plasmazones/translations"))) {
+                                 dir + QStringLiteral("/phosphor-works/plasmazones/translations"))) {
                 QCoreApplication::installTranslator(translator);
                 break;
             }

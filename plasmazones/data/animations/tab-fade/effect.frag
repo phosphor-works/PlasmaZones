@@ -19,7 +19,7 @@
 //
 // Tab-only pack, hence compositor-only (shaderEffectIsCompositorOnly): the
 // daemon never bakes it, so the binding-less uOldWindow declaration in
-// old_content.glsl needs no PLASMAZONES_KWIN guard.
+// old_content.glsl needs no PHOSPHOR_KWIN guard.
 //
 // Geometry and texture coordinates coincide, so the samplers take uv directly.
 

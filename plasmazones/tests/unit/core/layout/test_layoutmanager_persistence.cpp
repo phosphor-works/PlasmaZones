@@ -56,10 +56,10 @@ private:
     PhosphorZones::LayoutRegistry* createManager(QObject* parent = nullptr)
     {
         m_guards.emplace_back(std::make_unique<IsolatedConfigGuard>());
-        auto* mgr = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), parent);
+        auto* mgr = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), parent);
         // Override layout dir to a path under the guard's temp dir to avoid
         // static-cache issues in PhosphorZones::Layout::isSystemLayout().
-        QString layoutDir = m_guards.back()->dataPath() + QStringLiteral("/plasmazones/layouts");
+        QString layoutDir = m_guards.back()->dataPath() + QStringLiteral("/phosphor-works/layouts");
         QDir().mkpath(layoutDir);
         mgr->setLayoutDirectory(layoutDir);
         return mgr;
@@ -219,7 +219,7 @@ private Q_SLOTS:
         // setAllRules would produce). Same fresh-registry pattern the sidecar
         // tests below use.
         QScopedPointer<PhosphorZones::LayoutRegistry> mgr2(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         mgr2->setLayoutDirectory(mgr->layoutDirectory());
         mgr2->loadLayouts();
         mgr2->loadAssignments();
@@ -378,7 +378,7 @@ private Q_SLOTS:
         // A fresh registry on the SAME dirs (guard still alive) reloads the layout
         // and merges its settings back from the sidecar.
         QScopedPointer<PhosphorZones::LayoutRegistry> mgr2(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         mgr2->setLayoutDirectory(layoutDir);
         mgr2->loadLayouts();
 
@@ -451,7 +451,7 @@ private Q_SLOTS:
         // (quicklayouts.json lives next to rules.json, not in the layout
         // dir, so no setLayoutDirectory is needed for quick-slot loading).
         QScopedPointer<PhosphorZones::LayoutRegistry> mgr2(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         mgr2->loadAssignments();
 
         QCOMPARE(mgr2->quickLayoutSlots(snapping).value(1), uuid);
@@ -555,7 +555,7 @@ private Q_SLOTS:
         // spellings rather than what the caller handed in.
         mgr->setScrollingTemplateStore(nullptr);
         QScopedPointer<PhosphorZones::LayoutRegistry> reloaded(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         reloaded->loadAssignments();
         const QHash<int, QString> afterReload = reloaded->quickLayoutSlots(PhosphorZones::AssignmentEntry::Scrolling);
         QCOMPARE(afterReload.value(1), templId.toString());
@@ -608,7 +608,7 @@ private Q_SLOTS:
         }
 
         QScopedPointer<PhosphorZones::LayoutRegistry> reloaded(
-            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts")));
+            PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts")));
         reloaded->loadAssignments();
         const QHash<int, QString> afterReload = reloaded->quickLayoutSlots(PhosphorZones::AssignmentEntry::Autotile);
         // Slot 1 is the positive control: only the hand-written document can

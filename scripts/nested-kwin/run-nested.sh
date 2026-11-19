@@ -566,12 +566,12 @@ done
 ln -s "$REPO/plasmazones/data/placement-hosts" "$REPO_DATA/phosphor-works/placement-hosts"
 # The surface packs are not in this checkout: they come from the pinned
 # phosphor-surface-packs commit, or the local packs directory
-# PHOSPHOR_SURFACE_PACKS_DIR names, and install to phosphor-works/surface.
+# PHOSPHOR_SURFACE_PACKS_DIR names, and install to phosphor-works/shaders/surface.
 if ! SURFACE_PACKS="$(python3 "$REPO/scripts/pinned_surface_packs.py")"; then
     echo "refusing: cannot find the surface packs (see the error above)" >&2
     exit 1
 fi
-ln -s "$SURFACE_PACKS" "$REPO_DATA/phosphor-works/surface"
+ln -s "$SURFACE_PACKS" "$REPO_DATA/phosphor-works/shaders/surface"
 
 # KWin keeps the virtual-desktop count and names in this same kwinrc
 # ([Desktops] Number= / Id_N=), and it preserves the [Plugins] group across

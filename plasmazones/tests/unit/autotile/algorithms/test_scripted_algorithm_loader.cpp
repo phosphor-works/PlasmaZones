@@ -103,7 +103,7 @@ private Q_SLOTS:
 
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
-        QString algoDir = xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        QString algoDir = xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         QDir().mkpath(algoDir);
 
         QVERIFY(!writeScript(algoDir, QStringLiteral("gamma.luau"), validScript(QStringLiteral("Gamma"))).isEmpty());
@@ -111,14 +111,14 @@ private Q_SLOTS:
         // XDG_DATA_DIRS pinned alongside XDG_DATA_HOME, like every sibling
         // slot: XdgEnvGuard saves and restores rather than clearing, so an
         // ambient value would let the scan below pick up the machine's
-        // installed /usr/share/plasmazones/algorithms and register every
+        // installed /usr/share/phosphor-works/algorithms and register every
         // bundled id into the process-shared test registry, past a cleanup()
         // that only knows a hardcoded list.
         qputenv("XDG_DATA_DIRS", (xdgRoot.path() + QStringLiteral("/system")).toUtf8());
         qputenv("XDG_DATA_HOME", xdgRoot.path().toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
 
         QSignalSpy spy(&*loader, &PhosphorTiles::ScriptedAlgorithmLoader::algorithmsChanged);
         loader->scanAndRegister();
@@ -145,7 +145,7 @@ private Q_SLOTS:
         // Files with spaces, dots (in basename), or other special chars are rejected
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
-        QString algoDir = xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        QString algoDir = xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         QDir().mkpath(algoDir);
 
         // Valid filename
@@ -164,7 +164,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_HOME", xdgRoot.path().toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
         loader->scanAndRegister();
 
         auto* registry = PlasmaZones::TestHelpers::testRegistry();
@@ -186,7 +186,7 @@ private Q_SLOTS:
 
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
-        const QString algoDir = xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        const QString algoDir = xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(algoDir));
 
         // Valid filename, valid Luau, returns a table — but no tile() function.
@@ -201,7 +201,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_HOME", xdgRoot.path().toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
         loader->scanAndRegister();
 
         auto* registry = PlasmaZones::TestHelpers::testRegistry();
@@ -221,13 +221,13 @@ private Q_SLOTS:
         QVERIFY(xdgRoot.isValid());
 
         // System dir
-        QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/plasmazones/algorithms");
+        QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/phosphor-works/algorithms");
         QDir().mkpath(systemAlgoDir);
         QVERIFY(!writeScript(systemAlgoDir, QStringLiteral("shared.luau"), validScript(QStringLiteral("SystemVersion")))
                      .isEmpty());
 
         // User dir
-        QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/plasmazones/algorithms");
+        QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/phosphor-works/algorithms");
         QDir().mkpath(userAlgoDir);
         QVERIFY(!writeScript(userAlgoDir, QStringLiteral("shared.luau"), validScript(QStringLiteral("UserVersion")))
                      .isEmpty());
@@ -236,7 +236,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_HOME", (xdgRoot.path() + QStringLiteral("/user")).toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
         loader->scanAndRegister();
 
         auto* registry = PlasmaZones::TestHelpers::testRegistry();
@@ -266,8 +266,8 @@ private Q_SLOTS:
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
 
-        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/plasmazones/algorithms");
-        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/plasmazones/algorithms");
+        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/phosphor-works/algorithms");
+        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(systemAlgoDir));
         QVERIFY(QDir().mkpath(userAlgoDir));
         QVERIFY(!writeScript(userAlgoDir, QStringLiteral("shared.luau"), validScript(QStringLiteral("Original")))
@@ -275,13 +275,13 @@ private Q_SLOTS:
         // XDG_DATA_DIRS pinned to an empty tmp tree, like every sibling slot.
         // XdgEnvGuard saves and restores but does not clear, so leaving it
         // ambient lets the scan pick up the machine's installed
-        // /usr/share/plasmazones/algorithms and register every bundled id into
+        // /usr/share/phosphor-works/algorithms and register every bundled id into
         // the process-shared test registry, past a cleanup() that only knows a
         // hardcoded id list.
         qputenv("XDG_DATA_DIRS", (xdgRoot.path() + QStringLiteral("/system")).toUtf8());
         qputenv("XDG_DATA_HOME", (xdgRoot.path() + QStringLiteral("/user")).toUtf8());
 
-        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("plasmazones/algorithms"),
+        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("phosphor-works/algorithms"),
                                                       PlasmaZones::TestHelpers::testRegistry());
         loader.scanAndRegister();
 
@@ -308,8 +308,8 @@ private Q_SLOTS:
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
 
-        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/plasmazones/algorithms");
-        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/plasmazones/algorithms");
+        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/phosphor-works/algorithms");
+        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(systemAlgoDir));
         QVERIFY(QDir().mkpath(userAlgoDir));
         QVERIFY(!writeScript(systemAlgoDir, QStringLiteral("shared.luau"), validScript(QStringLiteral("SystemVersion")))
@@ -317,7 +317,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_DIRS", (xdgRoot.path() + QStringLiteral("/system")).toUtf8());
         qputenv("XDG_DATA_HOME", (xdgRoot.path() + QStringLiteral("/user")).toUtf8());
 
-        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("plasmazones/algorithms"),
+        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("phosphor-works/algorithms"),
                                                       PlasmaZones::TestHelpers::testRegistry());
         loader.scanAndRegister();
 
@@ -354,7 +354,7 @@ private Q_SLOTS:
 
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
-        QString algoDir = xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        QString algoDir = xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         QDir().mkpath(algoDir);
 
         const QString scriptPath =
@@ -365,7 +365,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_HOME", xdgRoot.path().toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
         loader->scanAndRegister();
 
         auto* registry = PlasmaZones::TestHelpers::testRegistry();
@@ -396,7 +396,7 @@ private Q_SLOTS:
 
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
-        QString algoDir = xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        QString algoDir = xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         QDir().mkpath(algoDir);
 
         QVERIFY(!writeScript(algoDir, QStringLiteral("kept.luau"), validScript(QStringLiteral("Kept"))).isEmpty());
@@ -420,7 +420,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_HOME", xdgRoot.path().toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
         loader->scanAndRegister(PhosphorFsLoader::LiveReload::Off);
 
         auto* registry = PlasmaZones::TestHelpers::testRegistry();
@@ -452,7 +452,7 @@ private Q_SLOTS:
 
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
-        const QString algoDir = xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        const QString algoDir = xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(algoDir));
 
         QVERIFY(!writeScript(algoDir, QStringLiteral("ephemeral.luau"), validScript(QStringLiteral("Ephemeral")))
@@ -461,7 +461,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_DIRS", xdgRoot.path().toUtf8());
         qputenv("XDG_DATA_HOME", xdgRoot.path().toUtf8());
 
-        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("plasmazones/algorithms"),
+        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("phosphor-works/algorithms"),
                                                       PlasmaZones::TestHelpers::testRegistry());
         loader.scanAndRegister(PhosphorFsLoader::LiveReload::Off);
 
@@ -496,8 +496,8 @@ private Q_SLOTS:
 
         // Two system dirs — sysHigh is listed FIRST in XDG_DATA_DIRS
         // so it should win for collisions.
-        const QString sysHighDir = xdgRoot.path() + QStringLiteral("/sys-high/plasmazones/algorithms");
-        const QString sysLowDir = xdgRoot.path() + QStringLiteral("/sys-low/plasmazones/algorithms");
+        const QString sysHighDir = xdgRoot.path() + QStringLiteral("/sys-high/phosphor-works/algorithms");
+        const QString sysLowDir = xdgRoot.path() + QStringLiteral("/sys-low/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(sysHighDir));
         QVERIFY(QDir().mkpath(sysLowDir));
 
@@ -516,7 +516,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_HOME", (xdgRoot.path() + QStringLiteral("/user-home")).toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
         loader->scanAndRegister();
 
         auto* registry = PlasmaZones::TestHelpers::testRegistry();
@@ -537,9 +537,9 @@ private Q_SLOTS:
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
 
-        const QString userHomeDir = xdgRoot.path() + QStringLiteral("/user-home/plasmazones/algorithms");
-        const QString sysHighDir = xdgRoot.path() + QStringLiteral("/sys-high/plasmazones/algorithms");
-        const QString sysLowDir = xdgRoot.path() + QStringLiteral("/sys-low/plasmazones/algorithms");
+        const QString userHomeDir = xdgRoot.path() + QStringLiteral("/user-home/phosphor-works/algorithms");
+        const QString sysHighDir = xdgRoot.path() + QStringLiteral("/sys-high/phosphor-works/algorithms");
+        const QString sysLowDir = xdgRoot.path() + QStringLiteral("/sys-low/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(userHomeDir));
         QVERIFY(QDir().mkpath(sysHighDir));
         QVERIFY(QDir().mkpath(sysLowDir));
@@ -562,7 +562,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_HOME", (xdgRoot.path() + QStringLiteral("/user-home")).toUtf8());
 
         std::optional<PhosphorTiles::ScriptedAlgorithmLoader> loader;
-        loader.emplace(QStringLiteral("plasmazones/algorithms"), PlasmaZones::TestHelpers::testRegistry());
+        loader.emplace(QStringLiteral("phosphor-works/algorithms"), PlasmaZones::TestHelpers::testRegistry());
         loader->scanAndRegister();
 
         auto* registry = PlasmaZones::TestHelpers::testRegistry();
@@ -587,7 +587,7 @@ private Q_SLOTS:
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
 
-        QString expectedDir = xdgRoot.path() + QStringLiteral("/plasmazones/algorithms");
+        QString expectedDir = xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
 
         // Make sure it doesn't exist yet
         QVERIFY(!QDir(expectedDir).exists());
@@ -598,7 +598,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_DIRS", (xdgRoot.path() + QStringLiteral("/system")).toUtf8());
         qputenv("XDG_DATA_HOME", xdgRoot.path().toUtf8());
 
-        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("plasmazones/algorithms"),
+        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("phosphor-works/algorithms"),
                                                       PlasmaZones::TestHelpers::testRegistry());
         loader.ensureUserDirectoryExists();
 
@@ -626,8 +626,8 @@ private Q_SLOTS:
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
 
-        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/plasmazones/algorithms");
-        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/plasmazones/algorithms");
+        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/phosphor-works/algorithms");
+        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(systemAlgoDir));
         QVERIFY(QDir().mkpath(userAlgoDir));
 
@@ -660,7 +660,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_DIRS", (xdgRoot.path() + QStringLiteral("/system")).toUtf8());
         qputenv("XDG_DATA_HOME", (xdgRoot.path() + QStringLiteral("/user")).toUtf8());
 
-        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("plasmazones/algorithms"),
+        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("phosphor-works/algorithms"),
                                                       PlasmaZones::TestHelpers::testRegistry());
         loader.scanAndRegister();
 
@@ -696,8 +696,8 @@ private Q_SLOTS:
         QTemporaryDir xdgRoot;
         QVERIFY(xdgRoot.isValid());
 
-        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/plasmazones/algorithms");
-        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/plasmazones/algorithms");
+        const QString systemAlgoDir = xdgRoot.path() + QStringLiteral("/system/phosphor-works/algorithms");
+        const QString userAlgoDir = xdgRoot.path() + QStringLiteral("/user/phosphor-works/algorithms");
         QVERIFY(QDir().mkpath(systemAlgoDir));
         QVERIFY(QDir().mkpath(userAlgoDir));
         QVERIFY(!writeScript(userAlgoDir, QStringLiteral("mutable.luau"), validScript(QStringLiteral("BeforeEdit")))
@@ -705,7 +705,7 @@ private Q_SLOTS:
         qputenv("XDG_DATA_DIRS", (xdgRoot.path() + QStringLiteral("/system")).toUtf8());
         qputenv("XDG_DATA_HOME", (xdgRoot.path() + QStringLiteral("/user")).toUtf8());
 
-        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("plasmazones/algorithms"),
+        PhosphorTiles::ScriptedAlgorithmLoader loader(QStringLiteral("phosphor-works/algorithms"),
                                                       PlasmaZones::TestHelpers::testRegistry());
         loader.scanAndRegister();
 

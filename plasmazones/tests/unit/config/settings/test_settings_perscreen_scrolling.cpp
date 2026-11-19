@@ -95,7 +95,7 @@ class TestSettingsPerScreenScrolling : public QObject
 private:
     static QString configPathFor(const IsolatedConfigGuard& guard)
     {
-        return guard.configPath() + QStringLiteral("/plasmazones/config.json");
+        return guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json");
     }
 
 private Q_SLOTS:

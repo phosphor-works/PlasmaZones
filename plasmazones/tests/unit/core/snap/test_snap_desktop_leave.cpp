@@ -78,7 +78,7 @@ private Q_SLOTS:
     void init()
     {
         m_guard = std::make_unique<IsolatedConfigGuard>();
-        m_layoutManager = TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        m_layoutManager = TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
         m_settings = new StubSettings(nullptr);
         m_zoneDetector = new StubZoneDetector(nullptr);
         m_service = new PhosphorPlacement::WindowTrackingService(m_layoutManager, nullptr, nullptr);

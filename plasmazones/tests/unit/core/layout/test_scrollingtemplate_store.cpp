@@ -228,7 +228,7 @@ private Q_SLOTS:
         // while locateAll still consults XDG_DATA_DIRS.
         QTemporaryDir systemRoot;
         QVERIFY(systemRoot.isValid());
-        const QString systemTemplateDir = systemRoot.path() + QLatin1String("/plasmazones/scrolling-templates");
+        const QString systemTemplateDir = systemRoot.path() + QLatin1String("/phosphor-works/scrolling-templates");
         QVERIFY(QDir().mkpath(systemTemplateDir));
 
         ScrollingTemplate bundled = makeTemplate();
@@ -442,7 +442,7 @@ private:
     static QString userTemplateDir()
     {
         return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-            + QLatin1String("/plasmazones/scrolling-templates");
+            + QLatin1String("/phosphor-works/scrolling-templates");
     }
 
     static ScrollingTemplate makeTemplate()

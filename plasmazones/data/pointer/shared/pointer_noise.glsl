@@ -17,8 +17,8 @@
 // happens to use it (vnoise, hashSin and hashSin1 currently have no bundled
 // consumer).
 
-#ifndef PLASMAZONES_POINTER_NOISE_GLSL
-#define PLASMAZONES_POINTER_NOISE_GLSL
+#ifndef PHOSPHOR_POINTER_NOISE_GLSL
+#define PHOSPHOR_POINTER_NOISE_GLSL
 
 // Dave-Hoskins vec2 -> float, driver-stable.
 float hash13(vec2 p) {
@@ -55,4 +55,4 @@ float hashSin1(float n) {
     return fract(sin(n * 127.1 + 311.7) * 43758.5453);
 }
 
-#endif // PLASMAZONES_POINTER_NOISE_GLSL
+#endif // PHOSPHOR_POINTER_NOISE_GLSL

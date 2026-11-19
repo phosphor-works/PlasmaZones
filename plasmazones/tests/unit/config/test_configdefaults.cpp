@@ -276,23 +276,27 @@ private Q_SLOTS:
         }
     }
 
-    /// Every config file and data subdirectory sits under the app directory
-    /// name, none under a spelled-out "plasmazones": an engine host that sets
-    /// its own name gets its own tree.
-    void testPathsFollowTheAppDirectoryName()
+    /// Every config file sits in the app's own folder under phosphor-works
+    /// (phosphor-works/<app>/), named after the app directory name, never a
+    /// spelled-out "plasmazones"; every shared data tree sits in the common
+    /// phosphor-works/<tree>, whatever the app is called.
+    void testPathsFollowThePhosphorWorksLayout()
     {
         QCOMPARE(appDirectoryName(), QString(AppDirectoryName));
         setAppDirectoryName(QStringLiteral("enginehost"));
-        const QString config = QStringLiteral("/enginehost/");
-        const QStringList paths{
+        const QString appFolder = QStringLiteral("/phosphor-works/enginehost/");
+        const QStringList configPaths{
             ConfigDefaults::configFilePath(),         ConfigDefaults::sessionFilePath(),
             ConfigDefaults::rulesFilePath(),          ConfigDefaults::quickLayoutsFilePath(),
-            ConfigDefaults::layoutSettingsFilePath(), ConfigDefaults::profilesDir() + QLatin1Char('/'),
-            ConfigDefaults::layoutsDirPath()};
-        for (const QString& path : paths) {
-            QVERIFY2(path.contains(config), qPrintable(path));
+            ConfigDefaults::layoutSettingsFilePath(), ConfigDefaults::profilesDir() + QLatin1Char('/')};
+        for (const QString& path : configPaths) {
+            QVERIFY2(path.contains(appFolder), qPrintable(path));
             QVERIFY2(!path.contains(QStringLiteral("plasmazones")), qPrintable(path));
         }
+        QVERIFY2(ConfigDefaults::layoutsDirPath().endsWith(QStringLiteral("/phosphor-works/layouts")),
+                 qPrintable(ConfigDefaults::layoutsDirPath()));
+        // 3.x's single-file INI, read once by the migration chain from where
+        // 3.x left it.
         QVERIFY(ConfigDefaults::legacyConfigFilePath().endsWith(QStringLiteral("/enginehostrc")));
         const QStringList dataSubdirs{ConfigKeys::layoutsSubdir(),       ConfigKeys::animationsSubdir(),
                                       ConfigKeys::overlaysSubdir(),      ConfigKeys::profilesSubdir(),
@@ -300,12 +304,13 @@ private Q_SLOTS:
                                       ConfigKeys::shaderPresetsSubdir(), ConfigKeys::scrollingTemplatesSubdir(),
                                       scriptedAlgorithmSubdir()};
         for (const QString& subdir : dataSubdirs) {
-            QVERIFY2(subdir.startsWith(QStringLiteral("enginehost/")), qPrintable(subdir));
+            QVERIFY2(subdir.startsWith(QStringLiteral("phosphor-works/")), qPrintable(subdir));
+            QVERIFY2(!subdir.contains(QStringLiteral("enginehost")), qPrintable(subdir));
         }
         const QStringList setSubdirs{ConfigDefaults::userMotionSetsSubdir(), ConfigDefaults::userDecorationSetsSubdir(),
                                      ConfigDefaults::userOverlaySetsSubdir()};
         for (const QString& subdir : setSubdirs) {
-            QVERIFY2(subdir.startsWith(QStringLiteral("/enginehost/")), qPrintable(subdir));
+            QVERIFY2(subdir.startsWith(QStringLiteral("/phosphor-works/")), qPrintable(subdir));
         }
         setAppDirectoryName(AppDirectoryName);
     }

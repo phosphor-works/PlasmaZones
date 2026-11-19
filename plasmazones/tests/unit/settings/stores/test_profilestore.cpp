@@ -1014,7 +1014,7 @@ private Q_SLOTS:
     /// `readProfileFile` migrates a profile's sparse delta with
     /// `ExternalImports::Disabled`, and that one argument is the whole guard:
     /// the v7→v8 step, when imports are enabled, reads
-    /// `<data>/plasmazones/profiles/*.json` off the local filesystem and folds
+    /// `<data>/phosphor-works/profiles/*.json` off the local filesystem and folds
     /// them into `Animations/MotionProfileTree`. A profile is a document that
     /// never held those, so enabling imports there would write this user's
     /// timings into every profile they load.
@@ -1027,7 +1027,7 @@ private Q_SLOTS:
     void profileDeltaNeverAcquiresThisMachinesTimingFiles()
     {
         const QString profilesDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-            + QStringLiteral("/plasmazones/profiles");
+            + QStringLiteral("/phosphor-works/profiles");
         QVERIFY(QDir().mkpath(profilesDir));
         QFile f(profilesDir + QStringLiteral("/osd.show.json"));
         QVERIFY(f.open(QIODevice::WriteOnly));

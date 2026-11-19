@@ -22,7 +22,7 @@ set -u
 NEST="$1"
 LOG="$2"
 . "$(dirname "$0")/../lib.sh"
-SESSION="$XDG_CONFIG_HOME/plasmazones/session.json"
+SESSION="$XDG_CONFIG_HOME/phosphor-works/plasmazones/session.json"
 kwjs_ok
 need_outputs 2
 read -r V1X V1Y V1W V1H <<< "$(scr Virtual-1)"

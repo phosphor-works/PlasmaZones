@@ -18,7 +18,7 @@
 #include <QFileInfo>
 #include <QKeySequence>
 #include <QSettings>
-#include <QStandardPaths>
+#include <PhosphorEngineRuntime/AppDirectoryName.h>
 
 #include <optional>
 
@@ -32,10 +32,9 @@ namespace PlasmaZones {
 namespace {
 QString kwinShortcutBackupPath()
 {
-    // StateLocation is already app-scoped. .ini because every reader and
-    // writer opens it as QSettings::IniFormat.
-    return QStandardPaths::writableLocation(QStandardPaths::StateLocation)
-        + QStringLiteral("/kwin-shortcut-backup.ini");
+    // The app's state directory (~/.local/state/phosphor-works/plasmazones).
+    // .ini because every reader and writer opens it as QSettings::IniFormat.
+    return appStateDir() + QStringLiteral("/kwin-shortcut-backup.ini");
 }
 
 void askKWinToReconfigure()

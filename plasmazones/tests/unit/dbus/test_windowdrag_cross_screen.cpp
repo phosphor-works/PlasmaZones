@@ -120,7 +120,7 @@ private:
             screenMgr = std::make_unique<PhosphorScreens::ScreenManager>(
                 PhosphorScreens::ScreenManagerConfig{.physicalScreenSource = &fake, .useGeometrySensors = false});
             screenMgr->start();
-            layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+            layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
             settings.setSnappingEnabled(true);
             settings.setToggleActivation(false);
             settings.setDragActivationTriggers(

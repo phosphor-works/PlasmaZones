@@ -887,7 +887,7 @@ private Q_SLOTS:
                            "layout(location = 0) in vec2 position;\n"
                            "layout(location = 1) in vec2 texCoord;\n"
                            "layout(location = 0) out vec2 vTexCoord;\n"
-                           "#ifdef PLASMAZONES_KWIN\n"
+                           "#ifdef PHOSPHOR_KWIN\n"
                            "uniform mat4 modelViewProjectionMatrix;\n"
                            "#else\n"
                            "#define modelViewProjectionMatrix mat4(1.0)\n"

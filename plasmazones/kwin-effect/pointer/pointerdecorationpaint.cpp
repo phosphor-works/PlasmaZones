@@ -62,7 +62,7 @@ void PointerDecorationPass::drawDamageQuad(const KWin::RenderViewport& viewport,
 
     // Texcoords are BOTTOM-UP: pointer_lib.glsl's pointerPixel() reconstructs
     // top-down canvas px as `vec2(uv.x, 1.0 - uv.y) * iResolution` under
-    // PLASMAZONES_KWIN, so v must be 1 at the TOP of the output. This is the
+    // PHOSPHOR_KWIN, so v must be 1 at the TOP of the output. This is the
     // opposite convention to TransitionPass::drawOutputQuad, which pins
     // top-down uv for the transition packs' own Y-flipping samplers — see the
     // header note. Sub-rect texcoords, so the fragment stage runs only over

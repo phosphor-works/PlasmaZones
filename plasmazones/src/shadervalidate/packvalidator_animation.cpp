@@ -7,7 +7,7 @@
 // expansion). Every animation pack runs in the Qt-RHI settings preview and
 // can attach in KWin, so validate both uniform ABIs independently. QShaderBaker
 // checks the preview's SPIR-V path. External glslang checks the compositor's
-// classic-GL branch as the compositor builds it (PLASMAZONES_KWIN defined,
+// classic-GL branch as the compositor builds it (PHOSPHOR_KWIN defined,
 // varying locations stripped), in both of KWin's dialects, and links it
 // against the vertex stage it runs with.
 

@@ -28,10 +28,10 @@
 // the one that did not. Include AFTER the
 // animation uniform block so iHasOldWindow / iAnchorRectInTexture / iWindowOpacity
 // and surfaceColor() are in scope.
-#ifndef PLASMAZONES_OLD_CONTENT_GLSL
-#define PLASMAZONES_OLD_CONTENT_GLSL
+#ifndef PHOSPHOR_OLD_CONTENT_GLSL
+#define PHOSPHOR_OLD_CONTENT_GLSL
 
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform sampler2D uOldWindow;
 #else
 #define uOldWindow uTexture3
@@ -44,7 +44,7 @@ uniform sampler2D uOldWindow;
 // every self-cross-fade includer the C++ pushes the same value into both
 // uniforms, so their behaviour is bit-identical to when oldColor read
 // iWindowOpacity directly.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform float iOldWindowOpacity;
 #endif
 
@@ -63,7 +63,7 @@ vec4 oldColor(vec2 uv) {
         return surfaceColor(uv);
     }
     vec2 t = iAnchorRectInTexture.xy + uv * iAnchorRectInTexture.zw;
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
     // This compositor-created snapshot FBO is bottom-origin (Y-up) on both
     // KWin versions, unlike the 6.8 redirected live texture.
     return texture(uOldWindow, vec2(t.x, 1.0 - t.y)) * iOldWindowOpacity;
@@ -88,4 +88,4 @@ vec4 oldCrossFade(vec2 uv, float a) {
     return mix(oldColor(uv), surfaceColor(uv), a);
 }
 
-#endif // PLASMAZONES_OLD_CONTENT_GLSL
+#endif // PHOSPHOR_OLD_CONTENT_GLSL

@@ -154,7 +154,7 @@ License: CC-BY-SA-4.0
 
 # The surface decoration packs commit, pinned beside them. The package installs
 # its packs/ tree, shader source and metadata, to
-# /usr/share/phosphor-works/surface. The packs carry their own REUSE licensing,
+# /usr/share/phosphor-works/shaders/surface. The packs carry their own REUSE licensing,
 # which this stanza summarises: the shared contract, the metadata and most packs
 # are LGPL-2.1-or-later, and seven .frag files are GPL-3.0-or-later.
 # glass/effect.frag credits kwin-effects-glass. shared/surface_color.glsl adds a

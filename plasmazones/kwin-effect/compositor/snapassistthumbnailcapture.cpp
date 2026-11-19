@@ -47,7 +47,7 @@
 #include <QVariant>
 
 Q_LOGGING_CATEGORY(lcSnapAssistCapture, "kwin.effect.plasmazones.snapassist.capture", QtWarningMsg)
-// Info-level by default so PLASMAZONES_THUMBNAIL_TRACE alone surfaces the
+// Info-level by default so PHOSPHOR_THUMBNAIL_TRACE alone surfaces the
 // lines; every emit is additionally gated on m_traceEnabled so the category
 // stays silent without the env var.
 Q_LOGGING_CATEGORY(lcSnapAssistTrace, "kwin.effect.plasmazones.snapassist.trace", QtInfoMsg)
@@ -62,7 +62,7 @@ SnapAssistThumbnailCapture::SnapAssistThumbnailCapture(QObject* parent)
     , m_traceEnabled(PhosphorProtocol::Service::snapAssistThumbnailTraceEnabled())
 {
     if (m_traceEnabled) {
-        qCInfo(lcSnapAssistTrace) << "PLASMAZONES_THUMBNAIL_TRACE set — per-capture stage timings enabled, path:"
+        qCInfo(lcSnapAssistTrace) << "PHOSPHOR_THUMBNAIL_TRACE set — per-capture stage timings enabled, path:"
                                   << (m_dmabufEnabled ? "dma-buf" : "pixels");
     }
     // Only the non-default state is worth a line. The dma-buf path is on by
@@ -70,7 +70,7 @@ SnapAssistThumbnailCapture::SnapAssistThumbnailCapture(QObject* parent)
     // needs to know is the one who turned it off, or the one reading why a
     // session is on pixels.
     if (!m_dmabufEnabled) {
-        qCInfo(lcSnapAssistCapture) << "PLASMAZONES_DMABUF_THUMBNAILS=0 — snap-assist thumbnails will be posted as "
+        qCInfo(lcSnapAssistCapture) << "PHOSPHOR_DMABUF_THUMBNAILS=0 — snap-assist thumbnails will be posted as "
                                        "raw pixels (zero-copy dma-buf path disabled).";
     }
 }
@@ -779,7 +779,7 @@ void SnapAssistThumbnailCapture::attemptCapture(const Pending& p, int delayMs, i
         // retry budget rather than looping. Note also that this gate is inert on
         // the DEFAULT path: the dma-buf batch has no transparent-content test (it
         // cannot read the buffer back), so this only runs with
-        // PLASMAZONES_DMABUF_THUMBNAILS=0 or after the session fallback trips.
+        // PHOSPHOR_DMABUF_THUMBNAILS=0 or after the session fallback trips.
         const bool empty = image.isNull() || isFullyTransparent(image);
         if (empty && retriesLeft > 0) {
             // The window's first compositor frame after mapping is occasionally

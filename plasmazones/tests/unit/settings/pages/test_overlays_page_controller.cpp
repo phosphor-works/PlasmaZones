@@ -67,7 +67,7 @@ private:
     /// caller can read back off the returned layouts.
     static PhosphorZones::LayoutRegistry* registryWith(const QStringList& names, QObject* parent)
     {
-        auto* registry = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"), parent);
+        auto* registry = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"), parent);
         for (const QString& name : names)
             registry->addLayout(new PhosphorZones::Layout(name));
         return registry;

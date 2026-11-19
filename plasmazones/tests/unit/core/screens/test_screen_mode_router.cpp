@@ -68,7 +68,7 @@ private Q_SLOTS:
         m_guard = std::make_unique<IsolatedConfigGuard>();
         // PhosphorZones::LayoutRegistry with no backend — every screen hits the default
         // modeForScreen fallback (Snapping unless explicitly assigned).
-        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("plasmazones/layouts"));
+        m_layoutManager = PlasmaZones::TestHelpers::makeLayoutRegistry(QStringLiteral("phosphor-works/layouts"));
 
         // SnapEngine with all-nullptr dependencies is a valid construction:
         // the router only invokes it via the PhosphorEngine::IPlacementEngine interface

@@ -346,7 +346,7 @@ private Q_SLOTS:
         a.save();
 
         // The persisted blob must carry ONLY the user edit.
-        QFile file(guard.configPath() + QStringLiteral("/plasmazones/config.json"));
+        QFile file(guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
         const QJsonObject blob = root.value(QLatin1String("Decorations"))
@@ -420,7 +420,7 @@ private Q_SLOTS:
         a.save();
 
         // Stored blob: parameters engaged, chain NOT engaged (seed-owned).
-        QFile file(guard.configPath() + QStringLiteral("/plasmazones/config.json"));
+        QFile file(guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
         const auto stored =
@@ -465,7 +465,7 @@ private Q_SLOTS:
         a.save();
 
         // Stored blob keeps the chain-engaged override.
-        QFile file(guard.configPath() + QStringLiteral("/plasmazones/config.json"));
+        QFile file(guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
         const auto stored =
@@ -522,7 +522,7 @@ private Q_SLOTS:
                  QStringList{QStringLiteral("glow")});
 
         // Stored blob holds only the popup edit.
-        QFile file(guard.configPath() + QStringLiteral("/plasmazones/config.json"));
+        QFile file(guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
         const auto stored =
@@ -581,7 +581,7 @@ private Q_SLOTS:
         a.save();
         QVERIFY(!a.decorationProfileTree().hasOverride(pointer));
         QVERIFY(a.decorationProfileTree().resolve(pointer).enabledChain().isEmpty());
-        QFile file(guard.configPath() + QStringLiteral("/plasmazones/config.json"));
+        QFile file(guard.configPath() + QStringLiteral("/phosphor-works/plasmazones/config.json"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
         const auto stored =

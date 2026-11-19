@@ -380,7 +380,7 @@ void PlasmaZonesEffect::initRenderingAndRegistries()
     // its whole directory on every save, here on the compositor thread, so the
     // overlay family the effect cannot consult was real work for no effect.
     m_shaderManager.presetStore().load(
-        PhosphorShaders::standardUserPresetRoot(QStringLiteral("plasmazones/shader-presets")),
+        PhosphorShaders::standardUserPresetRoot(QStringLiteral("phosphor-works/shaders/presets")),
         {PhosphorShaders::ShaderFamily::Animation, PhosphorShaders::ShaderFamily::Surface,
          PhosphorShaders::ShaderFamily::Pointer});
     {

@@ -24,8 +24,8 @@
 // kwin branch it is a plain default-block uniform declared there so that a
 // single-pass pack can still read it.
 
-#ifndef PLASMAZONES_POINTER_MULTIPASS_GLSL
-#define PLASMAZONES_POINTER_MULTIPASS_GLSL
+#ifndef PHOSPHOR_POINTER_MULTIPASS_GLSL
+#define PHOSPHOR_POINTER_MULTIPASS_GLSL
 
 #include <pointer_uniforms.glsl>
 
@@ -33,7 +33,7 @@
 // contract caps a chain at TWO passes, because a pointer chain runs on every
 // output frame while the pointer is live, so iChannel2 and iChannel3 are
 // headroom rather than reachable slots today.
-#ifdef PLASMAZONES_KWIN
+#ifdef PHOSPHOR_KWIN
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 uniform sampler2D iChannel2;
@@ -49,4 +49,4 @@ layout(binding = 4) uniform sampler2D iChannel2;
 layout(binding = 5) uniform sampler2D iChannel3;
 #endif
 
-#endif // PLASMAZONES_POINTER_MULTIPASS_GLSL
+#endif // PHOSPHOR_POINTER_MULTIPASS_GLSL

@@ -187,8 +187,8 @@ fu-optout2-drag-overlay fu-optout2-drag-overlay.sh 2 F
 fu-optout2-zone-selector fu-optout2-zone-selector.sh 2 F
 fu-optout2-snap-release fu-optout2-snap-release.sh 1 -
 fu-optout2-strip-release fu-optout2-strip-release.sh 1 -
-fu-dbusctx-thumbnail-admitted fu-dbusctx-thumbnail-admitted.sh 1 F kenv=PLASMAZONES_THUMBNAIL_TRACE=1
-fu-dbusctx-thumbnail-admitted-pixels fu-dbusctx-thumbnail-admitted.sh 1 F kenv=PLASMAZONES_THUMBNAIL_TRACE=1 kenv=PLASMAZONES_DMABUF_THUMBNAILS=0
+fu-dbusctx-thumbnail-admitted fu-dbusctx-thumbnail-admitted.sh 1 F kenv=PHOSPHOR_THUMBNAIL_TRACE=1
+fu-dbusctx-thumbnail-admitted-pixels fu-dbusctx-thumbnail-admitted.sh 1 F kenv=PHOSPHOR_THUMBNAIL_TRACE=1 kenv=PHOSPHOR_DMABUF_THUMBNAILS=0
 fu-dbusctx-spoof-refused fu-dbusctx-spoof-refused.sh 1 -
 fu-dbusctx-settings-errors fu-dbusctx-settings-errors.sh 1 -
 fu-dbusctx-drop-proxy-owner fu-dbusctx-drop-proxy-owner.sh 1 F

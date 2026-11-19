@@ -43,13 +43,13 @@ void loadTranslations(QCoreApplication* app)
         return;
 
     // Search paths in priority order:
-    // 1. Alongside the binary: ../share/plasmazones/translations/ (installed)
+    // 1. Alongside the binary: ../share/phosphor-works/plasmazones/translations/ (installed)
     // 2. Build tree root: ../ from bin/ (qt_add_lrelease puts .qm in build root)
     // 3. Build tree: ../translations/ (manual lrelease)
     const QString appDir = QCoreApplication::applicationDirPath();
     installCatalog(app, QStringLiteral("plasmazones"),
                    {
-                       appDir + QStringLiteral("/../share/plasmazones/translations"),
+                       appDir + QStringLiteral("/../share/phosphor-works/plasmazones/translations"),
                        appDir + QStringLiteral("/.."),
                        appDir + QStringLiteral("/../translations"),
                    });

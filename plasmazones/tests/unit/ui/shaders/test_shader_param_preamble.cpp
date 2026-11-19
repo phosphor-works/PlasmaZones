@@ -256,7 +256,7 @@ private Q_SLOTS:
                                 "#extension GL_ARB_explicit_attrib_location : enable\n"
                                 "#extension GL_ARB_separate_shader_objects : enable\n"
                                 "#endif\n"
-                                "#define PLASMAZONES_KWIN\n"));
+                                "#define PHOSPHOR_KWIN\n"));
         const QString crlf = PhosphorShaders::kwinDefineBlock(QStringLiteral("\r\n"));
         QCOMPARE(crlf.count(QStringLiteral("\r\n")), crlf.count(QLatin1Char('\n')));
         QCOMPARE(crlf.count(QLatin1Char('\n')), block.count(QLatin1Char('\n')));
@@ -403,7 +403,7 @@ private Q_SLOTS:
     // 6.8's own prologue, the order a GLSL ES compiler then sees. Pinned whole.
     void testKwinGlesDialect()
     {
-        const QString src = QStringLiteral("#version 450\n#define PLASMAZONES_KWIN\nvoid main() {}\n");
+        const QString src = QStringLiteral("#version 450\n#define PHOSPHOR_KWIN\nvoid main() {}\n");
         QCOMPARE(PhosphorShaders::kwinGlesDialect(src),
                  QStringLiteral("#version 300 es\n"
                                 "#extension GL_OES_EGL_image_external : require\n"
@@ -411,7 +411,7 @@ private Q_SLOTS:
                                 "precision highp sampler2D;\n"
                                 "precision highp sampler3D;\n"
                                 "\n"
-                                "#define PLASMAZONES_KWIN\n"
+                                "#define PHOSPHOR_KWIN\n"
                                 "void main() {}\n"));
     }
 

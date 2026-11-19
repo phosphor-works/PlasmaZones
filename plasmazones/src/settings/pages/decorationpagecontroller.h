@@ -318,7 +318,7 @@ public:
     // surface-pack registry and the decoration profile tree.
 
     /// Copy a shader-pack folder into the user surface-pack directory
-    /// (~/.local/share/phosphor-works/surface) via the shared
+    /// (~/.local/share/phosphor-works/shaders/surface) via the shared
     /// ShaderPackInstaller. The registry's file watcher rescans on its own.
     Q_INVOKABLE bool installShaderPack(const QString& sourceUrl);
     /// Open (creating if needed) the user surface-pack directory in the
