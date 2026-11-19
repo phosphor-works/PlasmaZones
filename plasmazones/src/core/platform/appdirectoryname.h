@@ -4,7 +4,6 @@
 #pragma once
 
 #include "plasmazones_export.h"
-#include "common/hostsettings.h"
 
 #include <QString>
 
@@ -15,8 +14,8 @@ namespace PhosphorEngineRuntime {
 /// `<config root>/<name>/`, and every data subdirectory (layouts, algorithms,
 /// animations, ...) is `<name>/<kind>` under the data roots.
 ///
-/// Set once, at the top of main(), before anything reads a path; PlasmaZones'
-/// executables set Constants::AppDirectoryName. Nothing here supplies a
+/// Set once, at the top of main(), before anything reads a path; each host
+/// names its own (PlasmaZones' through initPlasmaZonesHost()). Nothing here supplies a
 /// default, so an engine host names its own tree. Reading it unset is a
 /// programming error and aborts, rather than handing out a path at the root of
 /// the user's config directory or a subdirectory that matches every data root.
