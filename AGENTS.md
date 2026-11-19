@@ -314,7 +314,6 @@ plasmazones/             — PlasmaZones
   src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services)
   src/config/            — PlasmaZones' settings labels (the settings model itself is phosphor-libs' engine runtime)
   src/common/            — Cross-target helpers
-  src/shared/            — Code shared between daemon and apps
   src/shaderpreview/     — Shader preview host
   src/shadervalidate/    — plasmazones-shader-validate pack validator
   kcm/                   — System Settings module

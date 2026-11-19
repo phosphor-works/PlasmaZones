@@ -1306,8 +1306,10 @@ add_test(NAME test_zone_shader_item COMMAND test_zone_shader_item)
 # singled-out zone renders differently from its siblings, while the picker / OSD
 # consumers rely on card-level state lighting every zone. Both halves live in
 # one expression, so a regression in either is silent at runtime.
+# Phosphor.Components imports org.phosphor.animation, so the three QML tests
+# below link its module too (the daemon and the apps link it themselves).
 add_executable(test_zone_preview_highlight ui/zones/test_zone_preview_highlight.cpp)
-target_link_libraries(test_zone_preview_highlight PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick plasmazones_shared_qmlplugin PhosphorComponentsQmlplugin)
+target_link_libraries(test_zone_preview_highlight PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick PhosphorComponentsQmlplugin PhosphorAnimation::PhosphorAnimation PhosphorAnimationQmlplugin)
 # The settings app's QML module hangs off its EXECUTABLE target, so it cannot
 # be linked here. LayoutThumbnail imports nothing beyond QtQuick, Kirigami and
 # Phosphor.Components (all present), so its chain case loads the file
@@ -1319,17 +1321,17 @@ target_link_libraries(test_zone_preview_highlight PRIVATE Qt6::Test Qt6::Core Qt
 target_compile_definitions(test_zone_preview_highlight PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_zone_preview_highlight COMMAND test_zone_preview_highlight)
 
-# Component-load canary for the shared QML module: "X is not a type" at app
-# runtime hides the nested cause; this fails with the real error instead.
-# PhosphorZoneRendering::PhosphorZoneRendering supplies ZoneShaderItem, which the test registers under
-# "PlasmaZones 1.0" (mirroring the daemon/editor composition roots) so
-# ZoneShaderRenderer's `import PlasmaZones` resolves. The SurfaceDecoration
+# Component-load canary for the shared QML modules PlasmaZones links:
+# "X is not a type" at app runtime hides the nested cause; this fails with the
+# real error instead. ZoneShaderRenderer comes through the
+# org.phosphor.zonerendering STATIC plugin, the link the daemon and the
+# settings app use. The SurfaceDecoration
 # item tests moved with the host to phosphor-surface-quick's
 # test_surfaceshaderitem; one slot here still instantiates it through the
 # org.phosphor.surface STATIC plugin link, the composition the daemon and the
 # settings app rely on, so that link is pinned from this tier too.
 add_executable(test_shared_module_load ui/test_shared_module_load.cpp)
-target_link_libraries(test_shared_module_load PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick plasmazones_shared_qmlplugin PhosphorComponentsQmlplugin PhosphorZoneRendering::PhosphorZoneRendering PhosphorSurfaceQuick::PhosphorSurfaceQuickQml PhosphorSurfaceQuickQmlplugin)
+target_link_libraries(test_shared_module_load PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick PhosphorComponentsQmlplugin PhosphorAnimation::PhosphorAnimation PhosphorAnimationQmlplugin PhosphorZoneRendering::PhosphorZoneRenderingQml PhosphorZoneRenderingQmlplugin PhosphorSurfaceQuick::PhosphorSurfaceQuickQml PhosphorSurfaceQuickQmlplugin)
 add_test(NAME test_shared_module_load COMMAND test_shared_module_load)
 
 # Pins the C++/QML contract the zone selector's cursor hit test depends on:
@@ -1337,7 +1339,7 @@ add_test(NAME test_shared_module_load COMMAND test_shared_module_load)
 # rendered geometry that tracks LayoutCard's aspect-ratio letterboxing. All of
 # it fails silently at runtime — the highlight just stops following the cursor.
 add_executable(test_zone_selector_hit_geometry ui/zones/test_zone_selector_hit_geometry.cpp)
-target_link_libraries(test_zone_selector_hit_geometry PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick plasmazones_shared_qmlplugin PhosphorComponentsQmlplugin plasmazones_core)
+target_link_libraries(test_zone_selector_hit_geometry PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick PhosphorComponentsQmlplugin PhosphorAnimation::PhosphorAnimation PhosphorAnimationQmlplugin plasmazones_core)
 add_test(NAME test_zone_selector_hit_geometry COMMAND test_zone_selector_hit_geometry)
 
 add_executable(test_shader_node_teardown ui/zones/test_shader_node_teardown.cpp)

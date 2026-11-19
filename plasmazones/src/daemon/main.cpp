@@ -12,7 +12,6 @@
 #include <PhosphorEngineRuntime/Logging.h>
 #include "core/utils/translationloader.h"
 #include "phosphor_i18n.h"
-#include <PhosphorZoneRendering/ZoneShaderItem.h>
 #include "version.h"
 #include "daemon/rendering/vulkansupport.h"
 #include "replaceincumbent.h"
@@ -60,7 +59,7 @@
 #include <unistd.h>
 
 // Import static QML module for shared components
-Q_IMPORT_QML_PLUGIN(org_plasmazones_commonPlugin)
+Q_IMPORT_QML_PLUGIN(org_phosphor_zonerenderingPlugin)
 Q_IMPORT_QML_PLUGIN(Phosphor_ComponentsPlugin)
 
 using namespace PlasmaZones;
@@ -538,11 +537,8 @@ int main(int argc, char* argv[])
     // windows; without this, Qt sees zero windows and calls quit()).
     app.setQuitOnLastWindowClosed(false);
 
-    // Register ZoneShaderItem for QML
-    // This enables RenderNodeOverlayContent.qml to use the GPU-accelerated
-    // shader item (the item's ctor registers the ZoneLabelTexture metatype +
-    // QImage converter).
-    qmlRegisterType<PhosphorZoneRendering::ZoneShaderItem>("PlasmaZones", 1, 0, "ZoneShaderItem");
+    // ZoneShaderItem and ZoneShaderRenderer, which RenderNodeOverlayContent.qml
+    // draws with, ship in the org.phosphor.zonerendering module imported above.
     // SurfaceShaderItem (the per-surface decoration layer) needs no
     // registration here: it ships in the org.phosphor.surface module linked
     // into this binary, beside the SurfaceDecoration.qml host that

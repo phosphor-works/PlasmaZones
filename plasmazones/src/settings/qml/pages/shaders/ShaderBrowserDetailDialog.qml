@@ -7,7 +7,7 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import PlasmaZones
-import org.plasmazones.common as PZCommon
+import org.phosphor.zonerendering as ZoneRendering
 
 import Phosphor.Components as Components
 import "../../js/FontUtils.js" as FontUtils
@@ -1032,7 +1032,7 @@ Kirigami.Dialog {
                     // updates only on audioSpectrumChanged.
                     readonly property var _audioSpectrum: root.previewController ? root.previewController.audioSpectrum : []
 
-                    // Shared zone-shader renderer (org.plasmazones.common) — the
+                    // Shared zone-shader renderer (org.phosphor.zonerendering) — the
                     // single source of truth for the ZoneShaderItem bindings (also
                     // used by the overlay). Wrapped in a Loader and recreated on
                     // every shader switch (via _rendererActive, toggled in
@@ -1046,9 +1046,9 @@ Kirigami.Dialog {
                         active: root._rendererActive
                         // Reveal the surface only once it has actually compiled —
                         // the placeholder covers loading, the banner covers errors.
-                        visible: item !== null && item.status === ZoneShaderItem.Ready
+                        visible: item !== null && item.status === ZoneRendering.ZoneShaderItem.Ready
 
-                        sourceComponent: PZCommon.ZoneShaderRenderer {
+                        sourceComponent: ZoneRendering.ZoneShaderRenderer {
                             config: ({
                                     "shaderSource": root._shaderInfo.shaderUrl || "",
                                     "paramPreamble": livePreviewPane._preamble,
@@ -1087,7 +1087,7 @@ Kirigami.Dialog {
                         // the banner takes over) — also covers the recreate tick
                         // when the Loader item is briefly null. The enclosing pane
                         // is hidden for the animation browser, so no extra gate.
-                        visible: !rendererLoader.item || (rendererLoader.item.status !== ZoneShaderItem.Ready && rendererLoader.item.status !== ZoneShaderItem.Error)
+                        visible: !rendererLoader.item || (rendererLoader.item.status !== ZoneRendering.ZoneShaderItem.Ready && rendererLoader.item.status !== ZoneRendering.ZoneShaderItem.Error)
                     }
 
                     // T3.2: surface the live preview's actual GLSL compile error
@@ -1097,7 +1097,7 @@ Kirigami.Dialog {
                         anchors.centerIn: parent
                         width: Math.min(parent.width - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 22)
                         height: Math.min(parent.height - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 12)
-                        errorLog: (rendererLoader.item && rendererLoader.item.status === ZoneShaderItem.Error) ? ((rendererLoader.item.errorLog && rendererLoader.item.errorLog.length > 0) ? rendererLoader.item.errorLog : i18nc("@info shader preview", "No error details available.")) : ""
+                        errorLog: (rendererLoader.item && rendererLoader.item.status === ZoneRendering.ZoneShaderItem.Error) ? ((rendererLoader.item.errorLog && rendererLoader.item.errorLog.length > 0) ? rendererLoader.item.errorLog : i18nc("@info shader preview", "No error details available.")) : ""
                     }
                 }
             }
