@@ -164,7 +164,7 @@ void OverlayService::showCheatsheet(const QString& screenId, const QVariantList&
         shellSurface->show();
     }
     slot->setVisible(true);
-    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::Cheatsheet, []() { });
+    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::Cheatsheet(), []() { });
 
     // Modal — needs input for the backdrop click-to-dismiss, and the keyboard
     // for the search field. The singleton state was latched above, before the

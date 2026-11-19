@@ -155,12 +155,6 @@ if(NOT TARGET Qt6::QuickPrivate)
     find_package(Qt6QuickPrivate CONFIG REQUIRED)
 endif()
 
-# Optional: Qt6::ShaderTools for shader effects support
-# RenderNode shaders use raw GLSL - no Qt6::ShaderTools compilation needed
-# Shaders are always enabled with the RenderNode implementation
-message(STATUS "RenderNode shaders ENABLED (raw GLSL, no qsb compilation)")
-set(PLASMAZONES_SHADERS_ENABLED ON)
-add_compile_definitions(PLASMAZONES_SHADERS_ENABLED)
 
 # Make the Qt6 string-literal rule real. Without this, `const char*` converts
 # implicitly to QString, so the CLAUDE.md rule ("QLatin1String for JSON keys

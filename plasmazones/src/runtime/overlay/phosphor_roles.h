@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <PhosphorEngineRuntime/AppDirectoryName.h>
+
 #include <PhosphorLayer/Role.h>
 #include <PhosphorOverlay/ShellHost.h>
 #include <PhosphorShellPatterns/Patterns.h>
@@ -20,31 +22,52 @@ namespace PhosphorEngineRuntime {
 /// @ref PhosphorShellPatterns axis-2 UI-pattern vocabulary.
 namespace PhosphorRoles {
 
+/// The layer-shell scope of an overlay family: the host's app directory name,
+/// a dash and the family (plasmazonesd: `plasmazones-osd`). The compositor sees
+/// it as the surface's namespace, so a rule or an effect exclusion matching it
+/// keeps working for that host.
+///
+/// The roles below are built on first use and kept, which is after the host
+/// has set its app directory name (at the top of main, before the runtime
+/// exists).
+inline QString scopeFor(const QString& family)
+{
+    return appDirectoryName() + QLatin1Char('-') + family;
+}
+
 /// Zone-overlay config-only role. Same migration story as the OSD /
 /// SnapAssist / LayoutPicker roles: post-shell-migration the zone
 /// rectangles are an Item slot inside the per-screen PassiveShell (see
 /// createOverlayWindow in overlay.cpp), so the surface anchoring lives
 /// on the PassiveShell role and this role exists purely as the
-/// SurfaceAnimator config-lookup key (`plasmazones-zone-overlay`). The
+/// SurfaceAnimator config-lookup key (`<app>-zone-overlay`). The
 /// Hud pattern's layer + AnchorAll fields are inherited but unused;
 /// createWarmedOsdSurface computes the shell's real anchors and margins,
 /// including the virtual-screen AnchorTop|AnchorLeft + offset case.
-inline const PhosphorLayer::Role ZoneOverlay =
-    PhosphorShellPatterns::Hud().withScopePrefix(QStringLiteral("plasmazones-zone-overlay"));
+inline const PhosphorLayer::Role& ZoneOverlay()
+{
+    static const PhosphorLayer::Role role =
+        PhosphorShellPatterns::Hud().withScopePrefix(scopeFor(QStringLiteral("zone-overlay")));
+    return role;
+}
 
 /// Zone selector: animator-config-only role (matches the OSD /
 /// SnapAssist / LayoutPicker pattern). Post-shell-migration the zone
 /// selector is a slot inside the per-screen PassiveShell - the surface
 /// anchoring lives on the shell's PassiveShell role, and this role only
-/// names an animator scope (`plasmazones-zone-selector`) for the slot's
+/// names an animator scope (`<app>-zone-selector`) for the slot's
 /// show/hide leg. The Top layer + AnchorNone fields are placeholders
 /// preserved for the (now unreachable) standalone-window path.
-inline const PhosphorLayer::Role ZoneSelector = PhosphorLayer::Role{PhosphorLayer::Layer::Top,
-                                                                    PhosphorLayer::AnchorNone,
-                                                                    -1,
-                                                                    PhosphorLayer::KeyboardInteractivity::None,
-                                                                    QMargins(),
-                                                                    QStringLiteral("plasmazones-zone-selector")};
+inline const PhosphorLayer::Role& ZoneSelector()
+{
+    static const PhosphorLayer::Role role = PhosphorLayer::Role{PhosphorLayer::Layer::Top,
+                                                                PhosphorLayer::AnchorNone,
+                                                                -1,
+                                                                PhosphorLayer::KeyboardInteractivity::None,
+                                                                QMargins(),
+                                                                scopeFor(QStringLiteral("zone-selector"))};
+    return role;
+}
 
 /// OSD config-only role. Used by both LayoutOsd (which layout is active)
 /// and NavigationOsd (focus-change indicators); a single animator config
@@ -55,7 +78,12 @@ inline const PhosphorLayer::Role ZoneSelector = PhosphorLayer::Role{PhosphorLaye
 /// role-override beginShow/beginHide overloads resolve per-content
 /// motion + shader profiles via this role's prefix even though the
 /// shell's actual surface uses PassiveShell).
-inline const PhosphorLayer::Role Osd = PhosphorShellPatterns::Hud().withScopePrefix(QStringLiteral("plasmazones-osd"));
+inline const PhosphorLayer::Role& Osd()
+{
+    static const PhosphorLayer::Role role =
+        PhosphorShellPatterns::Hud().withScopePrefix(scopeFor(QStringLiteral("osd")));
+    return role;
+}
 
 /// Passive overlay shell - single per-screen wlr-layer-shell host that
 /// groups every passive overlay (OSD, zone-selector, main zone overlay,
@@ -127,8 +155,12 @@ inline const PhosphorLayer::Role Osd = PhosphorShellPatterns::Hud().withScopePre
 ///
 /// See `PassiveOverlayShell.qml` for the QML side and the unified-shell
 /// migration commits for the per-consumer rewrite.
-inline const PhosphorLayer::Role PassiveShell =
-    PhosphorShellPatterns::Hud().withScopePrefix(QStringLiteral("plasmazones-passive-shell"));
+inline const PhosphorLayer::Role& PassiveShell()
+{
+    static const PhosphorLayer::Role role =
+        PhosphorShellPatterns::Hud().withScopePrefix(scopeFor(QStringLiteral("passive-shell")));
+    return role;
+}
 
 /// Snap-assist config-only role. The wl_surface lifetime moved to the
 /// unified PassiveShell post-shell-migration; this role is preserved
@@ -143,8 +175,12 @@ inline const PhosphorLayer::Role PassiveShell =
 ///
 /// Singleton at the daemon level - m_snapAssistScreenId tracks which
 /// screen's slot is active and re-targets across screens.
-inline const PhosphorLayer::Role SnapAssist =
-    PhosphorShellPatterns::Modal().withScopePrefix(QStringLiteral("plasmazones-snap-assist"));
+inline const PhosphorLayer::Role& SnapAssist()
+{
+    static const PhosphorLayer::Role role =
+        PhosphorShellPatterns::Modal().withScopePrefix(scopeFor(QStringLiteral("snap-assist")));
+    return role;
+}
 
 /// Layout-picker config-only role. Same migration story as SnapAssist -
 /// the picker now lives as an Item slot inside the per-screen passive
@@ -153,8 +189,12 @@ inline const PhosphorLayer::Role SnapAssist =
 /// + Escape) is routed via KGlobalAccel ad-hoc shortcuts registered
 /// by `DragResolver::ensureLayoutPickerNavShortcutsRegistered`
 /// on show and released on dismiss.
-inline const PhosphorLayer::Role LayoutPicker =
-    PhosphorShellPatterns::Modal().withScopePrefix(QStringLiteral("plasmazones-layout-picker"));
+inline const PhosphorLayer::Role& LayoutPicker()
+{
+    static const PhosphorLayer::Role role =
+        PhosphorShellPatterns::Modal().withScopePrefix(scopeFor(QStringLiteral("layout-picker")));
+    return role;
+}
 
 /// Shortcut-cheatsheet config-only role. Same shape as LayoutPicker — the
 /// sheet is an Item slot inside the per-screen passive shell and this role
@@ -162,8 +202,12 @@ inline const PhosphorLayer::Role LayoutPicker =
 /// rides a dedicated KGlobalAccel ad-hoc grab registered on show and
 /// released on dismiss (the shell is kbd-None). Singleton at the daemon
 /// level — m_cheatsheetScreenId tracks which screen's slot is active.
-inline const PhosphorLayer::Role Cheatsheet =
-    PhosphorShellPatterns::Modal().withScopePrefix(QStringLiteral("plasmazones-cheatsheet"));
+inline const PhosphorLayer::Role& Cheatsheet()
+{
+    static const PhosphorLayer::Role role =
+        PhosphorShellPatterns::Modal().withScopePrefix(scopeFor(QStringLiteral("cheatsheet")));
+    return role;
+}
 
 /// Scroll drag drop-indicator config-only role. Paints the slot a dragged
 /// window would land in while a scrolling drag re-insert is armed, so the
@@ -172,8 +216,12 @@ inline const PhosphorLayer::Role Cheatsheet =
 /// and it registers no per-role config: the taxonomy defines no domain for
 /// it, so both legs use the library default motion. Display-only and click-through — it must never take
 /// input, since it is painted underneath a cursor that is mid-drag.
-inline const PhosphorLayer::Role ScrollDropIndicator =
-    PhosphorShellPatterns::Hud().withScopePrefix(QStringLiteral("plasmazones-scroll-drop-indicator"));
+inline const PhosphorLayer::Role& ScrollDropIndicator()
+{
+    static const PhosphorLayer::Role role =
+        PhosphorShellPatterns::Hud().withScopePrefix(scopeFor(QStringLiteral("scroll-drop-indicator")));
+    return role;
+}
 
 /// Build a per-instance Role from one of the base roles above by appending
 /// `-{screenId}-{generation}` to its base scope prefix. Single-source for
@@ -183,13 +231,13 @@ inline const PhosphorLayer::Role ScrollDropIndicator =
 ///
 /// Pre-existing failure modes this prevents:
 ///  - Build the per-instance literal from scratch (e.g. typo
-///    "plasmazones-notif-..."), or
+///    "<app>-notif-..."), or
 ///  - Pass `OsdBase` instead of the named family role and re-type the
 ///    literal, then later rename the family role in this header.
 /// Either case made the longest-prefix match silently miss and the
 /// surface fell back to the library's empty default config.
 ///
-/// @param base       Named base role (e.g. PhosphorRoles::Osd).
+/// @param base       Named base role (e.g. PhosphorRoles::Osd()).
 /// @param screenId   Effective screen id (physical or virtual).
 /// @param generation Monotonic per-process counter, e.g. from
 ///                   `SurfaceManager::nextScopeGeneration()`.

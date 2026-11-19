@@ -72,7 +72,7 @@ std::unique_ptr<PAL::SurfaceAnimator> buildAnimatorMatchingDaemon(PhosphorAnimat
                                                  .hideShaderProfile = {},
                                                  .showShaderParameters = {},
                                                  .hideShaderParameters = {}};
-    anim->registerConfigForRole(PhosphorRoles::Osd, osdConfig);
+    anim->registerConfigForRole(PhosphorRoles::Osd(), osdConfig);
 
     // LayoutPicker: popup surface family. Path-family separation means
     // every leg resolves under `popup.layoutPicker.*`, NOT under
@@ -91,7 +91,7 @@ std::unique_ptr<PAL::SurfaceAnimator> buildAnimatorMatchingDaemon(PhosphorAnimat
                                                           .hideShaderProfile = {},
                                                           .showShaderParameters = {},
                                                           .hideShaderParameters = {}};
-    anim->registerConfigForRole(PhosphorRoles::LayoutPicker, layoutPickerConfig);
+    anim->registerConfigForRole(PhosphorRoles::LayoutPicker(), layoutPickerConfig);
 
     // ZoneSelector: popup surface family, dedicated `.show` / `.hide`
     // leaves under `popup.zoneSelector.*`. Previously borrowed
@@ -107,7 +107,7 @@ std::unique_ptr<PAL::SurfaceAnimator> buildAnimatorMatchingDaemon(PhosphorAnimat
                                                           .hideShaderProfile = {},
                                                           .showShaderParameters = {},
                                                           .hideShaderParameters = {}};
-    anim->registerConfigForRole(PhosphorRoles::ZoneSelector, zoneSelectorConfig);
+    anim->registerConfigForRole(PhosphorRoles::ZoneSelector(), zoneSelectorConfig);
 
     // SnapAssist: popup surface family, dedicated `.show` leaf.
     // Previously borrowed `popup` directly; now its own.
@@ -121,7 +121,7 @@ std::unique_ptr<PAL::SurfaceAnimator> buildAnimatorMatchingDaemon(PhosphorAnimat
                                                         .hideShaderProfile = {},
                                                         .showShaderParameters = {},
                                                         .hideShaderParameters = {}};
-    anim->registerConfigForRole(PhosphorRoles::SnapAssist, snapAssistConfig);
+    anim->registerConfigForRole(PhosphorRoles::SnapAssist(), snapAssistConfig);
 
     // Cheatsheet: popup surface family, dedicated `.show` leaf, picker-style
     // fade+scale envelope.
@@ -137,7 +137,7 @@ std::unique_ptr<PAL::SurfaceAnimator> buildAnimatorMatchingDaemon(PhosphorAnimat
                                                         .hideShaderProfile = {},
                                                         .showShaderParameters = {},
                                                         .hideShaderParameters = {}};
-    anim->registerConfigForRole(PhosphorRoles::Cheatsheet, cheatsheetConfig);
+    anim->registerConfigForRole(PhosphorRoles::Cheatsheet(), cheatsheetConfig);
 
     return anim;
 }
@@ -170,11 +170,11 @@ private Q_SLOTS:
     /// don't also pick up.
     void p_role_base_scope_prefixes_match_production_families()
     {
-        QCOMPARE(PhosphorRoles::Osd.scopePrefix, QStringLiteral("plasmazones-osd"));
-        QCOMPARE(PhosphorRoles::ZoneSelector.scopePrefix, QStringLiteral("plasmazones-zone-selector"));
-        QCOMPARE(PhosphorRoles::SnapAssist.scopePrefix, QStringLiteral("plasmazones-snap-assist"));
-        QCOMPARE(PhosphorRoles::LayoutPicker.scopePrefix, QStringLiteral("plasmazones-layout-picker"));
-        QCOMPARE(PhosphorRoles::Cheatsheet.scopePrefix, QStringLiteral("plasmazones-cheatsheet"));
+        QCOMPARE(PhosphorRoles::Osd().scopePrefix, QStringLiteral("plasmazones-osd"));
+        QCOMPARE(PhosphorRoles::ZoneSelector().scopePrefix, QStringLiteral("plasmazones-zone-selector"));
+        QCOMPARE(PhosphorRoles::SnapAssist().scopePrefix, QStringLiteral("plasmazones-snap-assist"));
+        QCOMPARE(PhosphorRoles::LayoutPicker().scopePrefix, QStringLiteral("plasmazones-layout-picker"));
+        QCOMPARE(PhosphorRoles::Cheatsheet().scopePrefix, QStringLiteral("plasmazones-cheatsheet"));
     }
 
     /// Per-instance cheatsheet role resolves to its own registered config
@@ -183,7 +183,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto role = perInstanceRole(PhosphorRoles::Cheatsheet, QStringLiteral("DP-1"), 7);
+        const auto role = perInstanceRole(PhosphorRoles::Cheatsheet(), QStringLiteral("DP-1"), 7);
         const auto cfg = anim->configForRole(role);
         QCOMPARE(cfg.showProfile, QStringLiteral("popup.cheatsheet.show"));
         QCOMPARE(cfg.showScaleProfile, QStringLiteral("popup.cheatsheet.show"));
@@ -195,7 +195,7 @@ private Q_SLOTS:
 
     /// Per-instance OSD role resolves to the registered osd config. If
     /// the daemon ever stops constructing scopes that prefix-match
-    /// PhosphorRoles::Osd.scopePrefix, configFor returns the empty default
+    /// PhosphorRoles::Osd().scopePrefix, configFor returns the empty default
     /// and the OSD silently falls back to the library default profile.
     /// Both layout-OSD and navigation-OSD content share this surface
     /// post-Phase-2, so this test covers both modes.
@@ -203,7 +203,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto role = perInstanceRole(PhosphorRoles::Osd, QStringLiteral("DP-1"), 7);
+        const auto role = perInstanceRole(PhosphorRoles::Osd(), QStringLiteral("DP-1"), 7);
         const auto cfg = anim->configForRole(role);
         QCOMPARE(cfg.showProfile, QStringLiteral("osd.show"));
         QCOMPARE(cfg.showScaleProfile, QStringLiteral("osd.show"));
@@ -216,7 +216,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto role = perInstanceRole(PhosphorRoles::Osd, QStringLiteral("HDMI-A-1/vs:0"), 3);
+        const auto role = perInstanceRole(PhosphorRoles::Osd(), QStringLiteral("HDMI-A-1/vs:0"), 3);
         const auto cfg = anim->configForRole(role);
         QCOMPARE(cfg.showProfile, QStringLiteral("osd.show"));
         QCOMPARE(cfg.showScaleProfile, QStringLiteral("osd.show"));
@@ -237,7 +237,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto role = perInstanceRole(PhosphorRoles::ZoneSelector, QStringLiteral("DP-1/vs:0"), 12);
+        const auto role = perInstanceRole(PhosphorRoles::ZoneSelector(), QStringLiteral("DP-1/vs:0"), 12);
         const auto cfg = anim->configForRole(role);
         QCOMPARE(cfg.showProfile, QStringLiteral("popup.zoneSelector.show"));
         QCOMPARE(cfg.hideProfile, QStringLiteral("popup.zoneSelector.hide"));
@@ -250,7 +250,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto role = perInstanceRole(PhosphorRoles::SnapAssist, QStringLiteral("DP-1"), 5);
+        const auto role = perInstanceRole(PhosphorRoles::SnapAssist(), QStringLiteral("DP-1"), 5);
         const auto cfg = anim->configForRole(role);
         QCOMPARE(cfg.showProfile, QStringLiteral("popup.snapAssist.show"));
         // SnapAssist deliberately has empty hideProfile (destroy-on-hide).
@@ -265,7 +265,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto role = perInstanceRole(PhosphorRoles::LayoutPicker, QStringLiteral("DP-1"), 1);
+        const auto role = perInstanceRole(PhosphorRoles::LayoutPicker(), QStringLiteral("DP-1"), 1);
         const auto cfg = anim->configForRole(role);
         QCOMPARE(cfg.showProfile, QStringLiteral("popup.layoutPicker.show"));
         QCOMPARE(cfg.hideProfile, QStringLiteral("popup.layoutPicker.hide"));
@@ -285,7 +285,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto cfg = anim->configForRole(PhosphorRoles::LayoutPicker);
+        const auto cfg = anim->configForRole(PhosphorRoles::LayoutPicker());
         QVERIFY2(!cfg.showProfile.startsWith(QStringLiteral("osd.")),
                  "LayoutPicker.showProfile must not live under osd.*: surface families are partitioned");
         QVERIFY2(!cfg.hideProfile.startsWith(QStringLiteral("osd.")),
@@ -307,7 +307,7 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        const auto role = perInstanceRole(PhosphorRoles::Osd, QStringLiteral("DP-1"), 1);
+        const auto role = perInstanceRole(PhosphorRoles::Osd(), QStringLiteral("DP-1"), 1);
         const auto cfg = anim->configForRole(role);
         // OSD config has 0.92, picker has 0.94. Picking up the picker
         // config here would mean the boundary check is broken.
@@ -323,8 +323,8 @@ private Q_SLOTS:
     {
         PhosphorAnimation::PhosphorProfileRegistry registry;
         const auto anim = buildAnimatorMatchingDaemon(registry);
-        QCOMPARE(anim->configForRole(PhosphorRoles::Osd).showProfile, QStringLiteral("osd.show"));
-        QCOMPARE(anim->configForRole(PhosphorRoles::ZoneSelector).showProfile,
+        QCOMPARE(anim->configForRole(PhosphorRoles::Osd()).showProfile, QStringLiteral("osd.show"));
+        QCOMPARE(anim->configForRole(PhosphorRoles::ZoneSelector()).showProfile,
                  QStringLiteral("popup.zoneSelector.show"));
     }
 
@@ -337,7 +337,7 @@ private Q_SLOTS:
         const auto anim = buildAnimatorMatchingDaemon(registry);
         // ScrollDropIndicator is not registered with the animator
         // (setupSurfaceAnimator's documented exclusion list).
-        const auto cfg = anim->configForRole(PhosphorRoles::ScrollDropIndicator);
+        const auto cfg = anim->configForRole(PhosphorRoles::ScrollDropIndicator());
         QVERIFY(cfg.showProfile.isEmpty());
         QVERIFY(cfg.hideProfile.isEmpty());
     }

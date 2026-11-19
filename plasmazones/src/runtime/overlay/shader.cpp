@@ -46,11 +46,7 @@ namespace PhosphorEngineRuntime {
 
 bool OverlayService::canUseShaders() const
 {
-#ifdef PLASMAZONES_SHADERS_ENABLED
     return m_shaderRegistry && m_shaderRegistry->shadersEnabled();
-#else
-    return false;
-#endif
 }
 
 bool OverlayService::useShaderForScreen(QScreen* screen) const

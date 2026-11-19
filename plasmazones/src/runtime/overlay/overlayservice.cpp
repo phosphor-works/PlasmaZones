@@ -290,7 +290,7 @@ OverlayService::OverlayService(PhosphorScreens::ScreenManager* screenManager, Sh
     // itself. The remaining callbacks (factory + post/pre-create) need
     // m_surfaceManager to exist, so they're registered here.
     m_shellHost->setSurfaceFactory([this](const QString& screenId, QScreen* physScreen) -> PhosphorLayer::Surface* {
-        const auto role = PhosphorRoles::makePerInstanceRole(PhosphorRoles::PassiveShell, screenId,
+        const auto role = PhosphorRoles::makePerInstanceRole(PhosphorRoles::PassiveShell(), screenId,
                                                              m_surfaceManager->nextScopeGeneration());
         auto* surface = createWarmedOsdSurface(role, QUrl(QStringLiteral("qrc:/ui/PassiveOverlayShell.qml")),
                                                physScreen, "passive shell", screenId);

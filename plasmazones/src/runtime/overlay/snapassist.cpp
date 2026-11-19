@@ -321,7 +321,7 @@ void OverlayService::showSnapAssist(const QString& screenId, const PhosphorProto
     // If snap-assist is currently shown on a DIFFERENT screen, dismiss
     // it there first - snap-assist is a singleton across all screens.
     // Animator-driven beginHide on (prevSurface, prevSlot,
-    // PhosphorRoles::SnapAssist) keys ONLY the snap-assist track via the
+    // PhosphorRoles::SnapAssist()) keys ONLY the snap-assist track via the
     // per-(Surface, target) animator keying - sibling slots on the
     // same shell (OSD, zone-selector) keep animating cleanly. hideSlot is
     // called UNCONDITIONALLY: the lib validates state itself and fires the
@@ -375,7 +375,7 @@ void OverlayService::showSnapAssist(const QString& screenId, const PhosphorProto
         shellSurface->show();
     }
     slot->setVisible(true);
-    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::SnapAssist, []() { });
+    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::SnapAssist(), []() { });
     // Hide the zone selector for the specific virtual screen where snap
     // assist is showing - selectors on adjacent VS of the same physical
     // monitor stay visible. Reset cursor state first so a re-show after
@@ -931,7 +931,7 @@ void OverlayService::showLayoutPicker(const QString& screenId)
         shellSurface->show();
     }
     slot->setVisible(true);
-    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::LayoutPicker, []() { });
+    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::LayoutPicker(), []() { });
     // Hide the zone selector on this VS to avoid overlap. Runs only after
     // every bail above (shell + layouts validated), so a failed request can
     // never leave the drag-time zone selector stuck hidden — same
