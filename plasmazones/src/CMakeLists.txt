@@ -144,6 +144,8 @@ set(plasmazones_core_SRCS
     config/configmigration.h
     config/configmigration_util.h
     config/configmigration_v4detail.h
+    config/configlogging.cpp
+    config/configlogging.h
     config/configmigration.cpp
     config/configmigration_v2.cpp
     config/configmigration_v3.cpp

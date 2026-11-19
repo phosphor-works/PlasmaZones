@@ -10,6 +10,7 @@
 // set FILES themselves.
 
 #include "motionsetdomain.h"
+#include "config/configlogging.h"
 #include "common/engineruntimenamespace.h"
 
 #include "core/platform/logging.h"

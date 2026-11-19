@@ -4,6 +4,7 @@
 #pragma once
 
 #include "common/engineruntimenamespace.h"
+#include "config/configlogging.h"
 
 // Shared helpers for the five TUs that split AnimationsPageController across
 // files (animationspagecontroller.cpp and its _overrides / _shaders / _paths /

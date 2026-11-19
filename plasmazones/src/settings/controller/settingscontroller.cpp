@@ -8,6 +8,7 @@
 // siblings, the rule-label resolvers included (settingscontroller_rulelookups.cpp).
 
 #include "settingscontroller.h"
+#include "config/configlogging.h"
 #include "common/engineruntimenamespace.h"
 
 #include "settings/stores/shaderpresetbridge.h"

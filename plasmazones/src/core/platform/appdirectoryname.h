@@ -4,6 +4,7 @@
 #pragma once
 
 #include "plasmazones_export.h"
+#include "common/hostsettings.h"
 
 #include <QString>
 

@@ -14,6 +14,7 @@
 // group prefixes, and the strip store admits only a subset of the vocabulary.
 
 #include "config/settings.h"
+#include "config/configlogging.h"
 #include "config/settings/perscreen_detail.h"
 #include "config/configdefaults.h"
 #include "core/platform/logging.h"

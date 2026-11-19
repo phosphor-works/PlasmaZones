@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "settings.h"
+#include "config/configlogging.h"
 #include "configdefaults.h"
 #include "configbackends.h"
 #include "configmigration.h"

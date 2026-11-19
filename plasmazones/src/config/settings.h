@@ -13,7 +13,7 @@
 
 #include "core/types/constants.h"
 #include "core/types/overlayshadertree.h"
-#include "core/interfaces/interfaces.h"
+#include "core/interfaces/isettings.h"
 #include "configbackends.h"
 #include "configdefaults.h"
 #include "settingsschema.h"
