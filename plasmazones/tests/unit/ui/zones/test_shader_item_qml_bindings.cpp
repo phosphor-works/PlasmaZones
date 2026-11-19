@@ -442,8 +442,8 @@ import PlasmaZonesTest 1.0
 Item {
     property alias fromPayload: a
     property alias fromImage: b
-    PhosphorZoneRendering::ZoneShaderItem { id: a; labelsTexture: testPayload }
-    PhosphorZoneRendering::ZoneShaderItem { id: b; labelsTexture: testImage }
+    ZoneShaderItem { id: a; labelsTexture: testPayload }
+    ZoneShaderItem { id: b; labelsTexture: testImage }
 }
 )QML",
                           QUrl(QStringLiteral("qrc:/test_labels_binding.qml")));
