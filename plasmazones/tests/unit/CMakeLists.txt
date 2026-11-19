@@ -826,19 +826,17 @@ target_link_libraries(test_overlay_scope_prefixes
 add_test(NAME test_overlay_scope_prefixes COMMAND test_overlay_scope_prefixes)
 
 # Snap-assist thumbnail provider: bounded LRU cache, monotonic URL
-# generation, eviction-tied URL state. Compiles the daemon source
-# directly because the provider lives in the plasmazonesd executable, not
-# plasmazones_core.
+# generation, eviction-tied URL state. The provider is the engine runtime's,
+# reached through plasmazones_core.
 add_executable(test_snap_assist_thumbnail_provider
     daemon/test_snap_assist_thumbnail_provider.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/rendering/snapassistthumbnailprovider.cpp
 )
 # PhosphorProtocol pulls in ServiceConstants.h's
 # SnapAssistThumbnailCacheCapacity that the provider's CacheCapacity now
 # resolves against - header-only constant, no .so coupling beyond the
 # include path.
 target_link_libraries(test_snap_assist_thumbnail_provider
-    PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Quick PhosphorProtocol::PhosphorProtocol)
+    PRIVATE Qt6::Test Qt6::Core Qt6::Gui Qt6::Quick PhosphorProtocol::PhosphorProtocol plasmazones_core)
 add_test(NAME test_snap_assist_thumbnail_provider COMMAND test_snap_assist_thumbnail_provider)
 
 # Autotile seed-order filter (EngineRuntime::seedAutotileOrderForScreen's admission
@@ -887,22 +885,15 @@ add_executable(test_snap_gap_tracker
 target_link_libraries(test_snap_gap_tracker PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_snap_gap_tracker COMMAND test_snap_gap_tracker)
 
-# ShortcutManager lives in the plasmazonesd executable, not plasmazones_core,
-# so the suites below link its sources from this library. The catalog TU has
-# a library of its own: the teardown suite does not need it, and an OBJECT
-# library puts every object it holds into each test that links it.
-add_library(pz_test_shortcut_manager OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager_adhoc.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager_table.cpp
-)
+# ShortcutManager is the engine runtime's, reached through plasmazones_core.
+# The suites below link it through these two names, which once held its
+# sources; the catalog was split out so the teardown suite need not carry it.
+add_library(pz_test_shortcut_manager INTERFACE)
 target_link_libraries(pz_test_shortcut_manager
-    PUBLIC Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
-add_library(pz_test_shortcut_catalog OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/shortcutmanager_catalog.cpp
-)
+    INTERFACE Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
+add_library(pz_test_shortcut_catalog INTERFACE)
 target_link_libraries(pz_test_shortcut_catalog
-    PUBLIC Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
+    INTERFACE Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
 
 # Cheatsheet family compression. The test drives only the static
 # compressCheatsheetFamilies helper, so no shortcut backend or Settings instance
@@ -934,13 +925,10 @@ target_link_libraries(test_scrolling_shortcut_parity
     PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core PhosphorShortcuts::PhosphorShortcuts)
 add_test(NAME test_scrolling_shortcut_parity COMMAND test_scrolling_shortcut_parity)
 
-# UnifiedLayoutController lives in the plasmazonesd executable, not
-# plasmazones_core, so the two suites below link its source from this OBJECT
-# library rather than each compiling it.
-add_library(pz_test_unified_layout_controller OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/unifiedlayoutcontroller.cpp
-)
-target_link_libraries(pz_test_unified_layout_controller PUBLIC Qt6::Core Qt6::Gui plasmazones_core)
+# UnifiedLayoutController is the engine runtime's, reached through
+# plasmazones_core; the two suites below link it through this name.
+add_library(pz_test_unified_layout_controller INTERFACE)
+target_link_libraries(pz_test_unified_layout_controller INTERFACE Qt6::Core Qt6::Gui plasmazones_core)
 
 # UnifiedLayoutController Templates (scrolling) semantics: the sentinel →
 # template display-id substitution and applyEntry's capability-gated routing.
@@ -2028,8 +2016,9 @@ add_test(NAME test_daemon_lifecycle_order COMMAND test_daemon_lifecycle_order)
 # pins — setPresetRegistry applying at set time, not only subscribing — fires only on a
 # second init(), so the suite could not see it either way. The file states that limitation.
 add_executable(test_preset_registry_wiring daemon/test_preset_registry_wiring.cpp)
+# OverlayService is the engine runtime's, in the pinned phosphor-libs tree.
 target_compile_definitions(test_preset_registry_wiring
-                           PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+                           PRIVATE "P_RUNTIME_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
 target_link_libraries(test_preset_registry_wiring PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_preset_registry_wiring COMMAND test_preset_registry_wiring)
 
@@ -3482,15 +3471,11 @@ add_test(NAME test_scroll_tab_layout COMMAND test_scroll_tab_layout)
 
 # WorkspaceController against a real reconciler, window registry and
 # ScreenManager (FakePhysicalScreenSource), with desktop lists fed straight into
-# the VirtualDesktopManager. Compiles the controller's two daemon sources
-# directly. Dynamic workspaces compile out without KDE Frameworks, so the test
-# does too.
+# the VirtualDesktopManager. The controller is the engine runtime's. Dynamic
+# workspaces compile out without KDE Frameworks, so the test does too.
 if(USE_KDE_FRAMEWORKS)
     add_executable(test_workspace_controller
-        daemon/test_workspace_controller.cpp
-        ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/workspacecontroller.cpp
-        ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/workspacecontroller_verbs.cpp
-        ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/controllers/workspacecontroller.h)
+        daemon/test_workspace_controller.cpp)
     target_link_libraries(test_workspace_controller PRIVATE pz_test_fake_screens Qt6::Test Qt6::Core Qt6::Gui
         plasmazones_core PhosphorWorkspaces::PhosphorWorkspaces PhosphorEngine::PhosphorEngine
         PhosphorScreens::PhosphorScreens PhosphorProtocol::PhosphorProtocol PhosphorShortcuts::PhosphorShortcuts)

@@ -21,9 +21,9 @@
 #include <PhosphorAnimation/AnimationShaderRegistry.h>
 #include <PhosphorSurface/SurfaceShaderRegistry.h>
 
-#include "runtime/overlay/overlayservice.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>

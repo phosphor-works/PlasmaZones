@@ -11,8 +11,8 @@ shortcut names are marked `QT_TRANSLATE_NOOP("PhosphorEngineRuntime", ...)`,
 under the `PhosphorEngineRuntime` context. It installs to
 `share/phosphor-engine-runtime/translations`, the daemon loads it with
 `loadRuntimeTranslations()`, and it goes with the runtime into phosphor-libs.
-The overlay QML (`plasmazones/src/ui`, which only the runtime's overlay engine
-loads) is in it too: it calls `qsTr()`, so each file's name is its context and
+The overlay QML (the runtime library's `qml/overlay`, which only its overlay
+engine loads) is in it too: it calls `qsTr()`, so each file's name is its context and
 lupdate reads it directly. Its English catalog is compiled, unlike the
 application's, because it holds the English plural forms of the `qsTr()` calls
 that pass a count. `update-ts` refreshes both catalogs.

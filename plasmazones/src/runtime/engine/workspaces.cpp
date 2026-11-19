@@ -20,11 +20,11 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/SettingsSchema.h>
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/controllers/shortcutmanager.h"
-#include "runtime/controllers/shortcutmanager_ids.h"
-#include "runtime/controllers/workspacecontroller.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
+#include <PhosphorEngineRuntime/ShortcutManagerIds.h>
+#include <PhosphorEngineRuntime/WorkspaceController.h>
 #include "runtime/engine/helpers.h"
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
 #include <PhosphorEngineRuntime/WindowLifecycleRelay.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 

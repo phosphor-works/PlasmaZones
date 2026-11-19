@@ -9,10 +9,10 @@
 // removal, first adoption by window location, and the strip stash of a
 // workspace moved to another monitor.
 
-#include "runtime/controllers/workspacecontroller.h"
+#include <PhosphorEngineRuntime/WorkspaceController.h>
 #include "common/engineruntimenamespace.h"
 
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorScreens/Manager.h>

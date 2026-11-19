@@ -26,10 +26,10 @@
 #include <PhosphorAnimation/AnimationShaderRegistry.h>
 #include <PhosphorSurface/SurfaceShaderRegistry.h>
 
-#include "runtime/overlay/overlayservice.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
-#include "runtime/controllers/shortcutmanager.h"
-#include "runtime/controllers/workspacecontroller.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
+#include <PhosphorEngineRuntime/ShortcutManager.h>
+#include <PhosphorEngineRuntime/WorkspaceController.h>
 #include <PhosphorZoneRendering/ZoneEntryScaffold.h>
 #include <PhosphorZoneRendering/ZoneShaderNodeRhi.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
@@ -56,7 +56,7 @@
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/AnimationBootstrap.h>
 #include <PhosphorEngineRuntime/ScreenModeRouter.h>
-#include "runtime/controllers/contextresolverwiring.h"
+#include <PhosphorEngineRuntime/ContextResolverWiring.h>
 
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorEngineRuntime/Utils.h>
@@ -81,7 +81,7 @@
 #include <PhosphorRules/RuleStore.h>
 #include <PhosphorRules/RuleStoreWatcher.h>
 
-#include "runtime/controllers/enginefactory.h"
+#include <PhosphorEngineRuntime/EngineFactory.h>
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include <PhosphorTiles/ScriptedAlgorithmLoader.h>
 #include <PhosphorTiles/TilingAlgorithm.h>

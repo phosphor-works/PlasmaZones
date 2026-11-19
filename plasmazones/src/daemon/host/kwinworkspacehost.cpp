@@ -8,7 +8,7 @@
 #include "common/kwinperoutputdesktops.h"
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 
 #include <QDBusConnection>
 #include <QDBusMessage>

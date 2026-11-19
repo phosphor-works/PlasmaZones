@@ -315,7 +315,6 @@ plasmazones/             — PlasmaZones
   src/daemon/            — plasmazonesd: the runtime bound to the session bus beside KWin and Plasma
   src/editor/            — Layout editor (zone layouts + scrolling templates)
   src/settings/          — Standalone settings app
-  src/ui/                — Shared QML controls (OSD, picker and selector content)
   src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services), its own plasmazones_dbus library
   src/config/            — PlasmaZones' settings labels (the settings model itself is phosphor-libs' engine runtime)
   src/common/            — Cross-target helpers

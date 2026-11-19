@@ -24,8 +24,8 @@
 #include <optional>
 #include <memory>
 
-#include "runtime/controllers/shortcutmanager.h"
-#include "runtime/overlay/surfacepresentationhost.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
+#include <PhosphorEngineRuntime/ISurfacePresentationHost.h>
 #include <PhosphorLayoutApi/LayoutSourceBundle.h>
 #include <PhosphorEngineRuntime/Types.h>
 #include <PhosphorLayer/ILayerShellTransport.h>

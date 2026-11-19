@@ -21,7 +21,7 @@
 
 // The functions under test. overlay_helpers.h is the overlayservice header with
 // no config / registry dependency, precisely so test TUs can include it.
-#include "runtime/overlay/overlay_helpers.h"
+#include <PhosphorEngineRuntime/OverlayHelpers.h>
 
 Q_IMPORT_PLUGIN(Phosphor_ComponentsPlugin)
 

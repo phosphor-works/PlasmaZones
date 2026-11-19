@@ -3,7 +3,7 @@
 
 #include "dmabuftextureprovider.h"
 #include "dmabufglimport.h"
-#include "runtime/rendering/thumbnailurlutil.h"
+#include <PhosphorEngineRuntime/ThumbnailUrl.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <QElapsedTimer>

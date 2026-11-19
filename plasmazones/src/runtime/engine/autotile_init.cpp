@@ -12,9 +12,9 @@
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorEngineRuntime/ScreenModeRouter.h>
-#include "runtime/controllers/shortcutmanager.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
+#include <PhosphorEngineRuntime/OverlayService.h>
 #include <PhosphorEngineRuntime/SnapService.h>
 #include <PhosphorEngineRuntime/WindowTracker.h>
 

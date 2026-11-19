@@ -6,8 +6,8 @@
 
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 
-#include "runtime/overlay/overlayservice.h"
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorZones/LayoutRegistry.h>

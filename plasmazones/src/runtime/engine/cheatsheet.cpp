@@ -14,7 +14,7 @@
 
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
 #include "runtime/controllers/shellcheatsheetbridge.h"
 #include <PhosphorEngineRuntime/DragResolver.h>
 #include "helpers.h"

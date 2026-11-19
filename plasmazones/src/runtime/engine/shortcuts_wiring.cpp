@@ -11,10 +11,10 @@
 #include <PhosphorEngineRuntime/IHostApps.h>
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/Utils.h>
-#include "runtime/controllers/shortcutmanager.h"
-#include "runtime/controllers/unifiedlayoutcontroller.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutController.h>
 #include "runtime/engine/helpers.h"
-#include "runtime/overlay/overlayservice.h"
+#include <PhosphorEngineRuntime/OverlayService.h>
 #include <PhosphorEngineRuntime/LayoutService.h>
 #include <PhosphorEngineRuntime/SettingsService.h>
 #include <PhosphorEngineRuntime/DragResolver.h>

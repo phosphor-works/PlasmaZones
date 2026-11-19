@@ -9,7 +9,7 @@
 
 // Shared overlay helpers — single source of truth for both production and tests.
 // Previously these were duplicated here; now they live in overlay_helpers.h.
-#include "runtime/overlay/overlay_helpers.h"
+#include <PhosphorEngineRuntime/OverlayHelpers.h>
 #include "helpers/TestHelpers.h"
 
 using namespace PlasmaZones;

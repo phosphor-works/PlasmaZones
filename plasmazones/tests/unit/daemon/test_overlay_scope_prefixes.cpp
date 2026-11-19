@@ -42,7 +42,7 @@
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorLayer/Role.h>
 
-#include "runtime/overlay/phosphor_roles.h"
+#include <PhosphorEngineRuntime/OverlayRoles.h>
 
 using namespace PlasmaZones;
 namespace PAL = PhosphorAnimationLayer;
@@ -59,7 +59,7 @@ std::unique_ptr<PAL::SurfaceAnimator> buildAnimatorMatchingDaemon(PhosphorAnimat
     auto anim = std::make_unique<PAL::SurfaceAnimator>(registry, PAL::SurfaceAnimator::Config{});
 
     // Explicit empty shader fields suppress -Wmissing-field-initializers; mirrors the
-    // pattern in src/runtime/overlay/overlayservice.cpp's buildXxxConfig() helpers.
+    // pattern in the engine runtime's overlay buildXxxConfig() helpers (animation_config.cpp).
     const PAL::SurfaceAnimator::Config osdConfig{.showProfile = QStringLiteral("osd.show"),
                                                  .hideProfile = QStringLiteral("osd.hide"),
                                                  .showScaleProfile = QStringLiteral("osd.show"),

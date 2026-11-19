@@ -363,12 +363,6 @@ set(plasmazones_daemon_SRCS
     daemon/bridgewatchdog.cpp
     daemon/plasmaworkspace.cpp
     runtime/engine/engineruntime.cpp
-    runtime/controllers/enginefactory.cpp
-    runtime/controllers/shortcutmanager_adhoc.cpp
-    runtime/controllers/shortcutmanager_catalog.cpp
-    runtime/controllers/shortcutmanager_ids.h
-    runtime/controllers/shortcutmanager_table.cpp
-    runtime/controllers/shortcutmanager_table.h
     runtime/engine/start.cpp
     runtime/engine/desktop_renumber.cpp
     runtime/engine/evacuees.cpp
@@ -405,40 +399,6 @@ set(plasmazones_daemon_SRCS
     runtime/engine/engineruntime_fwd.h
     runtime/engine/helpers.h
     runtime/engine/macros.h
-    # Concrete daemon-side adapters bridging the existing services
-    # (VirtualDesktopManager + ActivityManager + ScreenModeRouter + ISettings)
-    # to the LGPL PhosphorContext::IContextResolver triple. Owned by Daemon
-    # alongside m_contextResolver — see the wiring in runtime/engine/engineruntime.h.
-    runtime/controllers/contextresolverwiring.h
-    runtime/controllers/contextresolverwiring.cpp
-    runtime/overlay/overlayservice.cpp
-    runtime/overlay/animation_config.cpp
-    runtime/overlay/decoration.cpp
-    runtime/overlay/lifecycle.cpp
-    runtime/overlay/settings.cpp
-    runtime/overlay/overlay.cpp
-    runtime/overlay/overlay_data.cpp
-    runtime/overlay/osd.cpp
-    runtime/overlay/priming.cpp
-    runtime/overlay/rekey.cpp
-    runtime/overlay/cheatsheet.cpp
-    runtime/overlay/scrolldropindicator.cpp
-    runtime/overlay/screens.cpp
-    runtime/overlay/selector.cpp
-    runtime/overlay/selector_strip.cpp
-    runtime/overlay/shellhost_bridge.cpp
-    runtime/overlay/selector_update.cpp
-    runtime/overlay/shader.cpp
-    runtime/overlay/snapassist.cpp
-    runtime/overlay/overlayservice.h
-    runtime/overlay/overlayservice_types.h
-    runtime/overlay/internal.h
-    runtime/overlay/surfacepresentationhost.h
-    runtime/rendering/snapassistthumbnailprovider.cpp
-    runtime/rendering/snapassistthumbnailprovider.h
-    # Handle-normalisation + image:// URL composition shared by both thumbnail
-    # providers (pixel and dma-buf) so their key/URL discipline cannot drift.
-    runtime/rendering/thumbnailurlutil.h
     # Zero-copy GPU thumbnail path (PLASMAZONES_DMABUF_THUMBNAILS): imports
     # dma-bufs handed from the kwin-effect as Vulkan-backed QSGTextures. The
     # overlays reach it through the presentation host below.
@@ -452,16 +412,9 @@ set(plasmazones_daemon_SRCS
     # epoxy GL/EGL headers don't mix with the Vulkan + Qt RHI headers.
     daemon/rendering/dmabufglimport.cpp
     daemon/rendering/dmabufglimport.h
-    runtime/controllers/shortcutmanager.cpp
-    runtime/controllers/shortcutmanager.h
     runtime/controllers/shellcheatsheetbridge.cpp
     runtime/controllers/shellcheatsheetbridge.h
-    runtime/controllers/zoneselectorcontroller.cpp
-    runtime/controllers/zoneselectorcontroller.h
-    # Mode tracking and smart toggle (Unified Layout Model)
-    runtime/controllers/unifiedlayoutcontroller.cpp
-    runtime/controllers/unifiedlayoutcontroller.h
-    # Dynamic per-monitor workspaces
+    # Dynamic per-monitor workspaces: KWin's side
     daemon/host/kwinworkspacehost.cpp
     daemon/host/kwinworkspacehost.h
     daemon/host/plasmasystemosd.cpp
@@ -470,14 +423,7 @@ set(plasmazones_daemon_SRCS
     daemon/host/childprocessenvironment.h
     daemon/host/plasmazonesapps.cpp
     daemon/host/plasmazonesapps.h
-    runtime/controllers/workspacecontroller.cpp
-    runtime/controllers/workspacecontroller_verbs.cpp
-    runtime/controllers/workspacecontroller.h
-    # Shader rendering: ZoneShaderItem from phosphor-libs' PhosphorZoneRendering
 )
-
-# QML resources for the daemon overlay
-qt_add_resources(plasmazones_daemon_SRCS daemon/resources.qrc)
 
 add_executable(plasmazonesd ${plasmazones_daemon_SRCS})
 
@@ -510,7 +456,8 @@ target_link_libraries(plasmazonesd
         PhosphorAudio::PhosphorAudio  # audio spectrum provider (CAVA)
         PhosphorSurfaces::PhosphorSurfaces  # managed surface lifecycle (engine, keep-alive)
         # Named directly, not left to plasmazones_core's PUBLIC edge: daemon TUs
-        # include <PhosphorSurface/...> and runtime/overlay/decoration.cpp
+        # include <PhosphorSurface/...> and the engine runtime's overlay
+        # decoration.cpp
         # calls its exported chain-compose helpers, so a future demotion of that
         # edge to PRIVATE would break them. The other chain hosts (kwin-effect
         # and the settings app's decoration preview) both name it explicitly
@@ -525,7 +472,7 @@ target_link_libraries(plasmazonesd
         # The daemon owns a `ContextResolver` over three local adapters
         # (DaemonWorkspaceStateAdapter / DaemonScreenModeAdapter /
         # DaemonSettingsGateAdapter in
-        # runtime/controllers/contextresolverwiring.{h,cpp}) and lets D-Bus adaptors
+        # the engine runtime's ContextResolverWiring.h) and lets D-Bus adaptors
         # + OverlayService borrow it via `EngineRuntime::contextResolver()`.
         PhosphorContextResolver::PhosphorContextResolver
         # Daemon is headless: runs under QGuiApplication. No Qt6::Widgets

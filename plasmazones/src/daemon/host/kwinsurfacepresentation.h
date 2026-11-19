@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/engineruntimenamespace.h"
-#include "runtime/overlay/surfacepresentationhost.h"
+#include <PhosphorEngineRuntime/ISurfacePresentationHost.h>
 
 #include <QMetaObject>
 #include <QObject>

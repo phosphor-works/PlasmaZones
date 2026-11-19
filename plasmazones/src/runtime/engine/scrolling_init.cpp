@@ -23,7 +23,7 @@
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
 
-#include "runtime/controllers/shortcutmanager.h"
+#include <PhosphorEngineRuntime/ShortcutManager.h>
 #include <PhosphorEngineRuntime/ScreenModeRouter.h>
 
 #include <PhosphorScrollEngine/ScrollEngine.h>

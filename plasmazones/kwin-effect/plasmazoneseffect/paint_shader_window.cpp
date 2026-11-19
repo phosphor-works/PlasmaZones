@@ -181,7 +181,7 @@ PlasmaZonesEffect::ShaderBranchOutcome PlasmaZonesEffect::paintShaderTransitionW
         // one cycle agree on the timestamp.
         const qint64 nowMs = frameNowMs;
         // Cap the frame delta at Limits::MaxShaderTimeDeltaSeconds, matching
-        // the daemon's overlay push (runtime/overlay/shader.cpp) and the
+        // the daemon's overlay push (the engine runtime's overlay shader.cpp) and the
         // SurfaceAnimator. A transition can live up to MaxAnimationDurationMs,
         // so a compositor stall or a suspend/resume mid-transition would
         // otherwise hand the shader a multi-second dt in a single frame and
