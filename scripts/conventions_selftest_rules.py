@@ -688,74 +688,6 @@ def _remaining_rule_failures(partition_readable) -> list[str]:
     return bad
 
 
-def _runtime_firewall_failures(partition_readable) -> list[str]:
-    """runtime-firewall, in both directions. A tree that obeys it holds nothing for it to
-    report, so without probes a rule that matched nothing would pass forever."""
-    g = partition_readable.__globals__
-    rule = g["rule_runtime_firewall"]
-    bad: list[str] = []
-    with tempfile.TemporaryDirectory() as tmp:
-        d = Path(tmp)
-
-        def write(rel: str, text: str) -> str:
-            p = d / rel
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(text, encoding="utf-8")
-            return rel
-
-        rt = "plasmazones/src/runtime/x/"
-        cases = (
-            (write(rt + "qdbus.cpp", "#include <QDBusConnection>\n"), True, "a QtDBus header"),
-            (write(rt + "qtdbus.h", "#include <QtDBus/QDBusArgument>\n"), True, "a QtDBus/ path"),
-            (write(rt + "marshal.cpp", "#include <PhosphorProtocol/WindowMarshalling.h>\n"), True,
-             "a PhosphorProtocol marshalling header"),
-            (write(rt + "umbrella.cpp", "#include <PhosphorProtocol/PhosphorProtocol.h>\n"), True,
-             "the PhosphorProtocol umbrella, which includes the marshalling"),
-            (write(rt + "adaptor.cpp", '#include "dbus/windowtrackingadaptor.h"\n'), True, "a dbus/ header"),
-            (write(rt + "daemon.cpp", '#include "daemon/daemon.h"\n'), True, "a daemon/ header"),
-            (write(rt + "appi18n.cpp", '#include "phosphor_i18n.h"\n'), True, "PlasmaZones' translation context"),
-            (write(rt + "appqmli18n.cpp", '#include "phosphor_qml_i18n.h"\n'), True,
-             "PlasmaZones' QML translation context"),
-            (write(rt + "rti18n.cpp", '#include "runtime/common/runtimei18n.h"\n'), False,
-             "the runtime's own translation context"),
-            (write(rt + "wayland.cpp", "#include <PhosphorWayland/LayerSurface.h>\n"), True, "PhosphorWayland"),
-            (write(rt + "accel.cpp", "#include <KGlobalAccel>\n"), True, "KGlobalAccel"),
-            (write(rt + "kwin.cpp", "#include <effect/effecthandler.h>\n"), True, "a KWin header"),
-            (write(rt + "kwinvd.cpp", "#include <PhosphorWorkspaces/Plasma/Backends.h>\n"), True,
-             "KWin's and Plasma's workspace backends"),
-            (write(rt + "layershell.cpp", "#include <PhosphorLayer/defaults/PhosphorWaylandTransport.h>\n"), True,
-             "the wlr-layer-shell transport"),
-            (write(rt + "panels.cpp", "#include <PhosphorScreens/PlasmaPanelSource.h>\n"), True,
-             "Plasma's panel source"),
-            (write(rt + "neutral.cpp",
-                   "#include <PhosphorWorkspaces/IVirtualDesktopBackend.h>\n"
-                   "#include <PhosphorLayer/ILayerShellTransport.h>\n"
-                   "#include <PhosphorScreens/NoOpPanelSource.h>\n"), False,
-             "the platform interfaces and a neutral panel source"),
-            (write(rt + "types.cpp", "#include <PhosphorProtocol/WindowTypes.h>\n"), False,
-             "a PhosphorProtocol *Types.h header"),
-            (write(rt + "enum.cpp", "#include <PhosphorProtocol/WindowTypeEnum.h>\n"), False,
-             "a PhosphorProtocol *Enum.h header"),
-            (write(rt + "consts.cpp", "#include <PhosphorProtocol/ServiceConstants.h>\n"), False,
-             "PhosphorProtocol's service constants"),
-            (write(rt + "core.cpp", '#include "core/utils/utils.h"\n#include <QObject>\n'), False,
-             "a core/ header and a QtCore one"),
-            (write(rt + "comment.cpp", "// #include <QDBusConnection>\n"), False, "an include inside a comment"),
-            (write("plasmazones/src/dbus/outside.cpp", "#include <QDBusConnection>\n"), False,
-             "a QtDBus include outside the runtime tree"),
-        )
-        saved_repo = g["REPO"]
-        g["REPO"] = d
-        try:
-            reported = {v.path for v in rule([path for path, _, _ in cases])}
-        finally:
-            g["REPO"] = saved_repo
-        for path, want, why in cases:
-            if (path in reported) != want:
-                bad.append(f"rule_runtime_firewall {'missed' if want else 'reported'} {why}")
-    return bad
-
-
 def rule_coverage_failures(partition_readable) -> list[str]:
     """Every fake-tree arm in this module, in one call.
 
@@ -770,6 +702,5 @@ def rule_coverage_failures(partition_readable) -> list[str]:
             *_wiring_failures(partition_readable),
             *_license_tree_failures(partition_readable),
             *_remaining_rule_failures(partition_readable),
-            *_runtime_firewall_failures(partition_readable),
             *_dead_stanza_failures(),
             *_prose_extraction_failures(partition_readable)]

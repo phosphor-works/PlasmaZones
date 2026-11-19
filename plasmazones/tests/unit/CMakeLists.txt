@@ -840,49 +840,43 @@ target_link_libraries(test_snap_assist_thumbnail_provider
 add_test(NAME test_snap_assist_thumbnail_provider COMMAND test_snap_assist_thumbnail_provider)
 
 # Autotile seed-order filter (EngineRuntime::seedAutotileOrderForScreen's admission
-# predicate): minimized placeholders kept, live/durable floats dropped.
-# Compiles the daemon source directly because the filter lives in the
-# plasmazonesd executable, not plasmazones_core.
+# predicate): minimized placeholders kept, live/durable floats dropped. The
+# filter is the engine runtime's, reached through plasmazones_core.
 add_executable(test_autotile_seed_filter
     daemon/test_autotile_seed_filter.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/seedorderfilter.cpp
 )
 target_link_libraries(test_autotile_seed_filter PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core)
 add_test(NAME test_autotile_seed_filter COMMAND test_autotile_seed_filter)
 
 # Which engine owns a window (EngineRouting::windowEngineMode), the resolution
 # the float reader / writer, the autotile-mode predicate and the synthesized
-# slot id share. Compiles the daemon source directly, like the seed filter.
+# slot id share. The engine runtime's, like the seed filter.
 add_executable(test_engine_routing
     daemon/test_engine_routing.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/enginerouting.cpp
 )
 target_link_libraries(test_engine_routing PRIVATE Qt6::Test Qt6::Core plasmazones_core)
 add_test(NAME test_engine_routing COMMAND test_engine_routing)
 
 # The daemon's screen-reshape bookkeeping (ScreenReshapeTracker): when a
 # compositor pixel-size report applies, parks or is awaited, and the reshape
-# records that keep a verdict from being absorbed or applied twice. Compiles
-# the daemon source directly, like the seed filter. Links the
-# FakePhysicalScreenSource and plasmazones_core (for common/daemonscreenscale.h
-# and PhosphorScreens): the admit cases run admitPixelSizeReport over a real
+# records that keep a verdict from being absorbed or applied twice. The
+# tracker is the engine runtime's, reached through plasmazones_core, with the
+# FakePhysicalScreenSource: the admit cases run admitPixelSizeReport over a real
 # ScreenManager's pending and accepted reports.
 add_executable(test_screen_reshape_tracker
     daemon/test_screen_reshape_tracker.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/screenreshapetracker.cpp
 )
 target_link_libraries(test_screen_reshape_tracker PRIVATE pz_test_fake_screens Qt6::Test Qt6::Core Qt6::Gui plasmazones_core)
 add_test(NAME test_screen_reshape_tracker COMMAND test_screen_reshape_tracker)
 
 # The daemon's snapping gap-rule verdict record (SnapGapTracker): which screens
 # a verdict move restates, and that a context switch, a screen add or removal
-# and a repeat pass restate nothing. Compiles the daemon source directly, like
-# the reshape tracker.
+# and a repeat pass restate nothing. The engine runtime's, like the reshape
+# tracker.
 add_executable(test_snap_gap_tracker
     daemon/test_snap_gap_tracker.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/engine/snapgaptracker.cpp
 )
-target_link_libraries(test_snap_gap_tracker PRIVATE Qt6::Test Qt6::Core)
+target_link_libraries(test_snap_gap_tracker PRIVATE Qt6::Test Qt6::Core plasmazones_core)
 add_test(NAME test_snap_gap_tracker COMMAND test_snap_gap_tracker)
 
 # ShortcutManager is the engine runtime's, reached through plasmazones_core.

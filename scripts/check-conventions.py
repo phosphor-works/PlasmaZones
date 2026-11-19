@@ -851,75 +851,6 @@ def rule_dep_pins(files: list[str]) -> list[Violation]:
 # Driver
 # --------------------------------------------------------------------------
 
-# --------------------------------------------------------------------------
-# Rule: runtime-firewall
-# --------------------------------------------------------------------------
-
-# plasmazones/src/runtime/ is the code on its way into phosphor-libs as the
-# engine runtime library, which the Phosphor compositor links in process. It
-# may not reach the bus, KWin, Plasma or a Wayland client connection, so a
-# file there may not include any of them. Direct includes only: what core/
-# and config/ pull in transitively is closed when those trees move too.
-RUNTIME_TREE = "plasmazones/src/runtime/"
-RUNTIME_INCLUDE = re.compile(r'^\s*#\s*include\s*([<"])([^>"]+)[>"]', re.M)
-# PhosphorProtocol's D-Bus-free headers: the value types, the enums, the
-# service constants. Everything else in it (the marshalling, the umbrella,
-# the client helpers, the wire-type registration) brings in QtDBus.
-RUNTIME_PROTOCOL_OK = re.compile(r"^PhosphorProtocol/(\w+Types|\w+Enum|ServiceConstants|phosphorprotocoltypes_export)\.h$")
-RUNTIME_FORBIDDEN = (
-    (re.compile(r"^(QDBus\w*|QtDBus/.*)$"), "QtDBus"),
-    (re.compile(r"^PhosphorDBus/"), "PhosphorDBus"),
-    (re.compile(r"^PhosphorWayland/|^wayland-"), "a Wayland client"),
-    (re.compile(r"^(KGlobalAccel|KActivities|PlasmaActivities)\b"), "a KDE platform service"),
-    (re.compile(r"^(kwin|effect|core)/|^kwin\w*\.h$"), "KWin"),
-    # The host's own platform pieces, which reach the runtime through
-    # EngineRuntime::Platform and are chosen by whoever builds it.
-    (re.compile(r"^PhosphorWorkspaces/Plasma/"), "KWin's and Plasma's workspace backends"),
-    (re.compile(r"^PhosphorLayer/(defaults/PhosphorWaylandTransport|phosphorlayerwayland_export)\.h$"),
-     "the wlr-layer-shell transport"),
-    (re.compile(r"^PhosphorScreens/PlasmaPanelSource\.h$"), "Plasma's panel source"),
-)
-RUNTIME_PROJECT_FORBIDDEN = re.compile(r"^(dbus|daemon)/")
-# PlasmaZones' translation contexts, C++ and QML. The runtime translates under
-# its own (<PhosphorEngineRuntime/RuntimeI18n.h> for C++, qsTr() in the overlay QML),
-# into its own catalog.
-RUNTIME_APP_I18N = re.compile(r"^phosphor_(qml_)?i18n\.h$")
-
-
-def rule_runtime_firewall(files: list[str]) -> list[Violation]:
-    out = []
-    for f in files:
-        if Path(f).suffix not in CPP_SUFFIXES or not f.startswith(RUNTIME_TREE):
-            continue
-        code = strip_c_comments(read(f))
-        for m in RUNTIME_INCLUDE.finditer(code):
-            quote, target = m.group(1), m.group(2)
-            why = None
-            if quote == '"':
-                if RUNTIME_PROJECT_FORBIDDEN.match(target):
-                    why = f"the {target.split('/')[0]}/ tree, which stays in plasmazonesd"
-                elif RUNTIME_APP_I18N.match(target):
-                    why = "PlasmaZones' translation context (use RuntimeI18n::tr)"
-            elif target.startswith("PhosphorProtocol/"):
-                if not RUNTIME_PROTOCOL_OK.match(target):
-                    why = "PhosphorProtocol's D-Bus half (use its *Types.h headers)"
-            else:
-                for pattern, name in RUNTIME_FORBIDDEN:
-                    if pattern.match(target):
-                        why = name
-                        break
-            if why:
-                out.append(
-                    Violation(
-                        "runtime-firewall",
-                        f,
-                        line_of(code, m.start()),
-                        f"{target} reaches {why}; the engine runtime may not include it",
-                    )
-                )
-    return out
-
-
 RULES = {
     "spdx": (rule_spdx, "SPDX header present on every file whose format supports comments"),
     "license": (rule_license, "GPL-3 on the app trees (the LGPL libraries live in their own repositories)"),
@@ -929,7 +860,6 @@ RULES = {
     "dep5": (rule_dep5, "packaging/debian/copyright declares each file's real license and holders"),
     "js-pragma": (rule_js_pragma, f"QML .js libraries declare '.pragma library' in Qt's first {JS_PRAGMA_WINDOW} bytes"),
     "shared-param-text": (rule_shared_param_text, "a chain-resolved param's description matches on every pack"),
-    "runtime-firewall": (rule_runtime_firewall, "plasmazones/src/runtime/ includes nothing from the bus, KWin, Plasma or a Wayland client"),
     "dep-pins": (rule_dep_pins, "packaging recipes carry the archive pins from cmake/PlasmaZonesDependencies.cmake and the pinned phosphor-libs tree"),
 }
 

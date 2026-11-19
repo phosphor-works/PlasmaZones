@@ -29,7 +29,7 @@
 #include <functional>
 
 #include "common/daemonscreenscale.h"
-#include "runtime/engine/screenreshapetracker.h"
+#include <PhosphorEngineRuntime/ScreenReshapeTracker.h>
 
 using namespace PlasmaZones;
 using Action = ScreenReshapeTracker::ReportAction;

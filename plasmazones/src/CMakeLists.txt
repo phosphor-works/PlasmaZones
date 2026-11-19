@@ -215,10 +215,9 @@ install(TARGETS plasmazones_core
 # D-Bus adaptors (plasmazonesd's bus surface over the runtime's services)
 # ═══════════════════════════════════════════════════════════════════════════════
 # The QDBusAbstractAdaptor bindings in dbus/, apart from plasmazones_core so
-# that the core, which the engine runtime will be carved from, holds no bus
-# surface of its own. They depend on the runtime and never the reverse (the
-# runtime-firewall conventions rule refuses a dbus/ include under runtime/).
-# Only the daemon links this, and the unit tests that drive an adaptor.
+# that the core holds no bus surface of its own. They bind phosphor-libs'
+# engine runtime to the session bus, which knows nothing of them. Only the
+# daemon links this, and the unit tests that drive an adaptor.
 set(plasmazones_dbus_SRCS
     dbus/dbushelpers.cpp
     dbus/layoutadaptor.cpp
@@ -362,43 +361,6 @@ set(plasmazones_daemon_SRCS
     daemon/daemon.h
     daemon/bridgewatchdog.cpp
     daemon/plasmaworkspace.cpp
-    runtime/engine/engineruntime.cpp
-    runtime/engine/start.cpp
-    runtime/engine/desktop_renumber.cpp
-    runtime/engine/evacuees.cpp
-    runtime/engine/shortcuts_wiring.cpp
-    runtime/engine/autotile_init.cpp
-    runtime/engine/scrolling_init.cpp
-    runtime/engine/scrolling.cpp
-    runtime/engine/workspaces.cpp
-    runtime/engine/signals.cpp
-    runtime/engine/shader_warmup.cpp
-    runtime/engine/animation_profiles.cpp
-    runtime/engine/init_services.cpp
-    runtime/engine/init_adaptors.cpp
-    runtime/engine/init_engines.cpp
-    runtime/engine/init_assignment_apply.cpp
-    runtime/engine/init_service_wiring.cpp
-    runtime/engine/lifecycle.cpp
-    runtime/engine/idle.cpp
-    runtime/engine/navigation.cpp
-    runtime/engine/autotile.cpp
-    runtime/engine/engine_release.cpp
-    runtime/engine/seedorderfilter.cpp
-    runtime/engine/seedorderfilter.h
-    runtime/engine/enginerouting.cpp
-    runtime/engine/enginerouting.h
-    runtime/engine/screenreshapetracker.cpp
-    runtime/engine/screenreshapetracker.h
-    runtime/engine/snapgaptracker.cpp
-    runtime/engine/snapgaptracker.h
-    runtime/engine/osd.cpp
-    runtime/engine/cheatsheet.cpp
-    runtime/engine/stripzones.h
-    runtime/engine/engineruntime.h
-    runtime/engine/engineruntime_fwd.h
-    runtime/engine/helpers.h
-    runtime/engine/macros.h
     # Zero-copy GPU thumbnail path (PHOSPHOR_DMABUF_THUMBNAILS): imports
     # dma-bufs handed from the kwin-effect as Vulkan-backed QSGTextures. The
     # overlays reach it through the presentation host below.

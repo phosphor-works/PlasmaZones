@@ -90,7 +90,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 
 ## Architecture
 - Service-oriented with DI via constructor (the editor's `ILayoutService`, `ZoneManager`, `SnappingService` are the reference shape)
-- Placement runs in the engine runtime (`plasmazones/src/runtime/`) behind the three engines above, hosted by the daemon; the KWin effect draws overlays, decorations, and tab indicators
+- Placement runs in phosphor-libs' engine runtime (`EngineRuntime`) behind the three engines above, hosted by the daemon; the KWin effect draws overlays, decorations, and tab indicators
 - Business logic in C++, UI in QML; controllers bridge via `Q_PROPERTY`
 - Zone IDs everywhere, never indices
 - JSON persistence in `~/.local/share/phosphor-works/layouts/` with relative geometry (0.0–1.0)
@@ -306,8 +306,7 @@ The tree is one product tier plus repo-level support directories. The tier has i
 ```
 plasmazones/             — PlasmaZones
   src/core/              — PlasmaZones' app-side helpers (the engine core is phosphor-libs' engine runtime)
-  src/runtime/           — Engine runtime: the three placement engines' host, services, overlays (no bus, KWin or Wayland client; runtime-firewall rule)
-  src/daemon/            — plasmazonesd: the runtime bound to the session bus beside KWin and Plasma
+  src/daemon/            — plasmazonesd: the KWin host of phosphor-libs' engine runtime, its host interfaces, bound to the session bus beside KWin and Plasma
   src/editor/            — Layout editor (zone layouts + scrolling templates)
   src/settings/          — Standalone settings app
   src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services)

@@ -9,7 +9,7 @@
 #include "common/engineruntimenamespace.h"
 #include <QTest>
 
-#include "runtime/engine/enginerouting.h"
+#include <PhosphorEngineRuntime/EngineRouting.h>
 #include <PhosphorEngine/WindowPlacement.h>
 
 using namespace PlasmaZones;

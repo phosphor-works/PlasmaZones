@@ -10,7 +10,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorEngineRuntime/Logging.h>
-#include "runtime/engine/engineruntime.h"
+#include <PhosphorEngineRuntime/EngineRuntime.h>
 
 #include <QDBusConnection>
 #include <QDBusMessage>

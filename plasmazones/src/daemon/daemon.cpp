@@ -11,7 +11,7 @@
 
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/Settings.h>
-#include "runtime/engine/engineruntime.h"
+#include <PhosphorEngineRuntime/EngineRuntime.h>
 #include <PhosphorEngineRuntime/SettingsService.h>
 #include "daemon/host/kwinsurfacepresentation.h"
 #include "daemon/host/kwinworkspacehost.h"
