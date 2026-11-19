@@ -48,8 +48,6 @@ set(plasmazones_core_SRCS
     core/utils/utils.cpp
     core/resolve/daemongeometryresolver.h
     core/resolve/daemongeometryresolver.cpp
-    core/platform/platform.cpp
-    core/platform/platform.h
     core/utils/geometryutils.cpp
     core/utils/geometryutils.h
     core/types/spatialadjacency.h
@@ -76,6 +74,8 @@ set(plasmazones_core_SRCS
     common/screenidresolver.h
     common/engineruntimenamespace.h
     common/hostsettings.cpp
+    common/plasmazoneslogging.cpp
+    common/plasmazoneslogging.h
     common/hostsettings.h
     common/kwinperoutputdesktops.cpp
     common/kwinperoutputdesktops.h

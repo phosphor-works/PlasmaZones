@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "EditorLaunchController.h"
+#include "common/plasmazoneslogging.h"
 #include "common/engineruntimenamespace.h"
 
 #include "EditorAppAdaptor.h"

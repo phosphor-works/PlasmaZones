@@ -8,7 +8,7 @@
 
 /**
  * @file logging.h
- * @brief Centralized logging categories for PlasmaZones
+ * @brief The engine runtime's logging categories (a host declares its own)
  *
  * This file defines Qt logging categories that enable runtime filtering
  * of log messages. Use these categories instead of plain qDebug/qWarning.
@@ -24,7 +24,6 @@
  *   QT_LOGGING_RULES="plasmazones.*=true"                    # Enable all
  *   QT_LOGGING_RULES="plasmazones.*.debug=false"             # Disable debug only
  *   QT_LOGGING_RULES="plasmazones.dbus.*=true"               # Enable D-Bus only
- *   QT_LOGGING_RULES="plasmazones.editor.snapping=true"      # Enable snapping only
  *
  * Severity Guidelines:
  *   qCDebug    - Development tracing, disabled in release builds
@@ -41,37 +40,25 @@
 
 namespace PhosphorEngineRuntime {
 
-// Core module - layout, zone, detection, screen management
-PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcCore) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcLayout) PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcZone) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcScreen)
+// clang-format off
+// Core: layouts, screens and the shared helpers
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcCore)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcScreen)
 
-    // Daemon module - overlay, shortcuts, zone selector
-    PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDaemon) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcOverlay) PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcShortcuts)
+// The runtime: its lifecycle, overlays and shortcuts
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDaemon)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcOverlay)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcShortcuts)
 
-    // D-Bus module - all D-Bus adaptor communication
-    PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbus) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcDbusLayout) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcDbusWindow) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcDbusSettings) PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusRules)
-
-    // Editor module - controller, zones, undo, services
-    PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcEditor) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcEditorZone) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcEditorUndo) PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcSnapping)
-
-    // Autotile module - tiling algorithms, engine, registry
-    PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcAutotile)
-
-    // Autotile D-Bus adaptor
-    PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusAutotile) PLASMAZONES_EXPORT
-    Q_DECLARE_LOGGING_CATEGORY(lcDbusTiling) PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusScrolling)
-
-    // KWin effect module - snap visualization, navigation
-    PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcEffect)
-
-    // KCM module - System Settings integration
-    PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcKcm)
+// The runtime's services, by the interface each serves
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbus)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusLayout)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusWindow)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusSettings)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusRules)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusAutotile)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusTiling)
+PLASMAZONES_EXPORT Q_DECLARE_LOGGING_CATEGORY(lcDbusScrolling)
+// clang-format on
 
 } // namespace PhosphorEngineRuntime
