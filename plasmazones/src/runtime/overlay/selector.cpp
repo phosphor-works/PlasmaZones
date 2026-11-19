@@ -150,7 +150,7 @@ void OverlayService::showZoneSelector(const QString& targetScreenId)
             state->shell->shellSurface()->show();
         }
         slot->setVisible(true);
-        m_surfaceAnimator->beginShow(state->shell->shellSurface(), slot, PhosphorRoles::ZoneSelector, []() { });
+        m_surfaceAnimator->beginShow(state->shell->shellSurface(), slot, PhosphorRoles::ZoneSelector(), []() { });
         // Zone selector is purely visual during a drag (KWin owns the
         // drag stream and pushes cursor coords via D-Bus
         // updateSelectorPosition). Sync the input region so a stale
@@ -786,7 +786,7 @@ void OverlayService::showZoneSelectorSlotOnScreen(const QString& effectiveId, QS
         state->shell->shellSurface()->show();
     }
     slot->setVisible(true);
-    m_surfaceAnimator->beginShow(state->shell->shellSurface(), slot, PhosphorRoles::ZoneSelector, []() { });
+    m_surfaceAnimator->beginShow(state->shell->shellSurface(), slot, PhosphorRoles::ZoneSelector(), []() { });
     syncPassiveShellSurfaceState(effectiveId);
 }
 

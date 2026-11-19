@@ -124,7 +124,7 @@ void OverlayService::finishOsdShow(QQuickWindow* window, PhosphorLayer::Surface*
         surface->show();
     }
     osdSlot->setVisible(true);
-    m_surfaceAnimator->beginShow(surface, osdSlot, PhosphorRoles::Osd, []() { });
+    m_surfaceAnimator->beginShow(surface, osdSlot, PhosphorRoles::Osd(), []() { });
     // Force-hide any zone selector on this screen so a fading-out selector doesn't
     // stack translucently behind the incoming OSD. Slot-level animator hide.
     // AFTER the OSD slot is visible: with animations off the selector's hide

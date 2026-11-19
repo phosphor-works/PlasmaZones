@@ -3,7 +3,7 @@
 
 #include "dmabuftextureprovider.h"
 #include "dmabufglimport.h"
-#include "thumbnailurlutil.h"
+#include "runtime/rendering/thumbnailurlutil.h"
 #include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <QElapsedTimer>
@@ -26,7 +26,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcSnapAssistTrace)
 #include <functional>
 #include <unistd.h>
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 namespace {
 
@@ -41,7 +41,7 @@ constexpr uint32_t DrmFormatARGB8888 = drmFourcc('A', 'R', '2', '4');
 constexpr uint32_t DrmFormatABGR8888 = drmFourcc('A', 'B', '2', '4');
 constexpr uint32_t DrmFormatXRGB8888 = drmFourcc('X', 'R', '2', '4');
 constexpr uint32_t DrmFormatXBGR8888 = drmFourcc('X', 'B', '2', '4');
-// DrmFormatModInvalid is shared via dmabufthumbnail.h (PlasmaZones namespace).
+// DrmFormatModInvalid comes from the runtime's <PhosphorEngineRuntime/DmabufThumbnail.h>.
 
 struct FormatMapping
 {
@@ -719,4 +719,4 @@ void DmabufTextureProvider::clear()
     m_revealed.clear();
 }
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

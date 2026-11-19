@@ -321,7 +321,7 @@ void OverlayService::updateScrollDropIndicator(const QString& screenId, const QR
         shellSurface->show();
     }
     slot->setVisible(true);
-    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::ScrollDropIndicator, []() { });
+    m_surfaceAnimator->beginShow(shellSurface, slot, PhosphorRoles::ScrollDropIndicator(), []() { });
     // Re-derive the surface's input state now that the slot is visible. This
     // slot is not modal, so the sync keeps the shell click-through for the
     // rest of the drag unless a modal slot is up alongside it.

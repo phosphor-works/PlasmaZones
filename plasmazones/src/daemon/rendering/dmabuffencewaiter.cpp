@@ -9,7 +9,7 @@
 
 #include <unistd.h>
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 DmabufFenceWaiter::DmabufFenceWaiter(int fenceFd, int timeoutMs, QObject* parent)
     : QObject(parent)
@@ -53,4 +53,4 @@ void DmabufFenceWaiter::finish(bool signaled)
     deleteLater();
 }
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

@@ -3,11 +3,13 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <QObject>
 
 class QSocketNotifier;
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 /**
  * @brief Event-driven wait for a sync_file fence fd to signal.
@@ -47,4 +49,4 @@ private:
     bool m_done = false;
 };
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones

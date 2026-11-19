@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/engineruntimenamespace.h"
+
 #include <PhosphorEngineRuntime/DmabufThumbnail.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
@@ -13,7 +15,7 @@
 #include <QSet>
 #include <QString>
 
-namespace PhosphorEngineRuntime {
+namespace PlasmaZones {
 
 /**
  * @brief Texture-type QML image provider that imports DMA-BUF window thumbnails
@@ -154,4 +156,4 @@ private:
     quint32 m_generation = 0;
 };
 
-} // namespace PhosphorEngineRuntime
+} // namespace PlasmaZones
