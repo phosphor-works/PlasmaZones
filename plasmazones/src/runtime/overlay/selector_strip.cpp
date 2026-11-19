@@ -10,9 +10,9 @@
 
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
-#include "common/stripcardserialize.h"
-#include "core/platform/logging.h"
-#include "core/types/stripselectorhittest.h"
+#include <PhosphorEngineRuntime/StripCardSerialize.h>
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/StripSelectorHitTest.h>
 
 #include <QQuickItem>
 #include <QVector>

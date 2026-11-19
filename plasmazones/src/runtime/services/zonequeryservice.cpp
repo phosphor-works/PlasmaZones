@@ -3,15 +3,15 @@
 
 #include "zonequeryservice.h"
 #include "runtime/common/lookups.h"
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutComputeService.h>
 #include <PhosphorZones/Zone.h>
-#include "core/utils/geometryutils.h"
-#include "core/platform/logging.h"
-#include "core/types/spatialadjacency.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/SpatialAdjacency.h>
 #include <PhosphorGeometry/DirectionalNeighbor.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <QGuiApplication>
 #include <QScreen>
 #include <limits>

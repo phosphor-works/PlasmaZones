@@ -4,8 +4,8 @@
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include "phosphor_roles.h"
 #include "phosphor_slot_keys.h"
 #include "qml_property_names.h"

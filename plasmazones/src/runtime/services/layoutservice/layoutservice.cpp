@@ -3,15 +3,15 @@
 
 #include "layoutservice.h"
 #include "runtime/common/lookups.h"
-#include "runtime/common/runtimei18n.h"
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutFactory.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/LayoutUtils.h>
-#include "common/layoutpreviewserialize.h"
-#include "core/utils/unifiedlayoutlist.h"
+#include <PhosphorEngineRuntime/LayoutPreviewSerialize.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutList.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <PhosphorTiles/ITileAlgorithmRegistry.h>
@@ -22,10 +22,10 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ScrollingTemplateStore.h>
 #include <PhosphorZones/ZoneJsonKeys.h>
-#include "core/platform/logging.h"
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include <PhosphorScreens/Manager.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 
 #include <PhosphorLayoutApi/AlgorithmMetadata.h>
 #include <PhosphorLayoutApi/AspectRatioClass.h>

@@ -7,9 +7,9 @@
 #include <QUuid>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
-#include "core/interfaces/interfaces.h"
-#include "core/platform/logging.h"
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 
 /**
  * @file

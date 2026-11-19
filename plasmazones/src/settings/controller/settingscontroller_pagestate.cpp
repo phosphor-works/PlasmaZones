@@ -34,7 +34,7 @@
 
 #include <PhosphorEngineRuntime/ConfigMigration.h>
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorAnimation/ShaderProfileTree.h>
 #include <PhosphorSurface/DecorationProfileTree.h>

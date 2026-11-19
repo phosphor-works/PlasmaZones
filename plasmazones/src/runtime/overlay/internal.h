@@ -12,11 +12,11 @@
 // whose stated purpose is to depend on neither ConfigDefaults, ShaderRegistry nor
 // settings_interfaces, so that test TUs can include it directly. That header carries plenty
 // of Qt includes; what it does not carry is a reason for this one, and it no longer does.
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/SettingsInterfaces.h>
-#include "core/interfaces/interfaces.h"
-#include "core/interfaces/shaderregistry.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 
 #include <PhosphorLayer/Role.h>

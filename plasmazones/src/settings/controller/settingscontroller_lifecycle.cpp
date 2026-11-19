@@ -40,7 +40,7 @@
 // batch happens to pair it with a sibling that does.
 #include <PhosphorZones/ScrollingTemplateStore.h>
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QScopeGuard>
 #include <QStringList>

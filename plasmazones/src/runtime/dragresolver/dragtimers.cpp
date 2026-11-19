@@ -4,7 +4,7 @@
 #include "dragresolver.h"
 #include "dragactivation.h"
 #include <QTimer>
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 

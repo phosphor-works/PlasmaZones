@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/types/dmabufthumbnail.h"
+#include <PhosphorEngineRuntime/DmabufThumbnail.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
 

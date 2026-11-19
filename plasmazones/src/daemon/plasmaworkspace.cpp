@@ -9,7 +9,7 @@
 #include "daemon/daemon.h"
 #include "common/engineruntimenamespace.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/engine/engineruntime.h"
 
 #include <QDBusConnection>

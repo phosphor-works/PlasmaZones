@@ -4,8 +4,8 @@
 #include "unifiedlayoutcontroller.h"
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorLayoutApi/ILayoutSource.h>

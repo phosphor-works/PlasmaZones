@@ -18,7 +18,7 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "settings/stores/shadersetstore.h"
 
 #include <PhosphorSurface/DecorationProfile.h>

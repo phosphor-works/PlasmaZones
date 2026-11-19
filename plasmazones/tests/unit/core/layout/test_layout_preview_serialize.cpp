@@ -14,7 +14,7 @@
 #include <PhosphorLayoutApi/AlgorithmMetadata.h>
 #include <PhosphorLayoutApi/LayoutPreview.h>
 
-#include "common/layoutpreviewserialize.h"
+#include <PhosphorEngineRuntime/LayoutPreviewSerialize.h>
 
 using namespace PlasmaZones;
 

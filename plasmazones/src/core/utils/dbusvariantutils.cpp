@@ -3,7 +3,7 @@
 
 #include "dbusvariantutils.h"
 #include "common/engineruntimenamespace.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QDBusArgument>
 

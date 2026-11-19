@@ -23,7 +23,7 @@
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/ZoneDefaults.h> // zone-overlay border ceilings exposed to QML
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "undo/UndoController.h"
 #include "EditorGapsModel.h"
 #include "EditorTemplateModel.h"

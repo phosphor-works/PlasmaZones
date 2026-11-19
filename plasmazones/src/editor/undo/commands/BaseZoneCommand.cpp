@@ -5,7 +5,7 @@
 #include "common/plasmazoneslogging.h"
 #include "common/engineruntimenamespace.h"
 #include "../../services/ZoneManager.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 namespace PlasmaZones {
 

@@ -16,9 +16,9 @@
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "../../common/daemonscreenscale.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorLayoutApi/AspectRatioClass.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <QDBusConnection>

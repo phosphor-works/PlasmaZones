@@ -27,7 +27,7 @@
 // that form, in the same commit).
 
 #include "settingsservice.h"
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorEngineRuntime/Settings.h> // For concrete Settings type
 
 namespace PhosphorEngineRuntime {

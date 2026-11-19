@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "core/resolve/animationbootstrap.h"
+#include <PhosphorEngineRuntime/AnimationBootstrap.h>
 #include "common/engineruntimenamespace.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "core/platform/singleinstanceservice.h"
 #include "core/utils/translationloader.h"
 #include <PhosphorEngineRuntime/ConfigDefaults.h>

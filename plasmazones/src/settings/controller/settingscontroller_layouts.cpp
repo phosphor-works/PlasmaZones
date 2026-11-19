@@ -12,12 +12,12 @@
 #include "common/engineruntimenamespace.h"
 
 #include "common/daemonscreenscale.h"
-#include "common/layoutpreviewserialize.h"
+#include <PhosphorEngineRuntime/LayoutPreviewSerialize.h>
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "core/utils/geometryutils.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include "phosphor_i18n.h"
 #include "settings/rules/ruleauthoring.h"
 #include "settings/utils/dbusutils.h"

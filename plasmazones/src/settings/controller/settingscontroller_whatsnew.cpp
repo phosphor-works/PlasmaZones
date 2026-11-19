@@ -13,7 +13,7 @@
 #include "version.h"
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorFsLoader/SchemaValidator.h>
 

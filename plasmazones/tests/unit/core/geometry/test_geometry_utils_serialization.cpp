@@ -23,8 +23,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "core/utils/geometryutils.h"
-#include "core/types/types.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
+#include <PhosphorEngineRuntime/Types.h>
 
 #include <PhosphorEngine/GeometryUtils.h>
 

@@ -8,7 +8,7 @@
 
 #include "runtime/engine/engineruntime.h"
 #include "runtime/overlay/overlayservice.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/dragresolver/dragresolver.h"
 #include "runtime/windowtracker/windowtracker.h"

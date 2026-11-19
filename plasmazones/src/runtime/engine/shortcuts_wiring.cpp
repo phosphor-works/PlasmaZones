@@ -9,8 +9,8 @@
 
 #include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/host/ihostapps.h"
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/engine/helpers.h"

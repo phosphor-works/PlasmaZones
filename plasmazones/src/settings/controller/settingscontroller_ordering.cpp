@@ -17,7 +17,7 @@
 #include "settingscontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QDebug>
 #include <QSet>

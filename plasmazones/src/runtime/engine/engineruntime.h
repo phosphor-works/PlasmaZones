@@ -26,7 +26,7 @@
 
 #include "runtime/controllers/shortcutmanager.h"
 #include <PhosphorLayoutApi/LayoutSourceBundle.h>
-#include "core/types/types.h"
+#include <PhosphorEngineRuntime/Types.h>
 #include <PhosphorLayer/ILayerShellTransport.h>
 #include <PhosphorScreens/IPanelSource.h>
 #include <PhosphorWorkspaces/IActivityBackend.h>

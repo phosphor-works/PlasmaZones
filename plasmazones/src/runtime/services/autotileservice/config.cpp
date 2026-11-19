@@ -9,7 +9,7 @@
 
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorTiles/AutotileConstants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 namespace PhosphorEngineRuntime {
 

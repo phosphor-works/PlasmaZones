@@ -9,7 +9,7 @@
 #include <QProcess>
 #include <QTimer>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 
 namespace PlasmaZones {

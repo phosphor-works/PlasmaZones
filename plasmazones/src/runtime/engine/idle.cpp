@@ -10,7 +10,7 @@
 
 #include "runtime/engine/engineruntime.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 // Settings must be COMPLETE here: m_settings is a unique_ptr<Settings>, daemon.h only
 // forward-declares it, and this file connects to its signals and calls its accessors. It

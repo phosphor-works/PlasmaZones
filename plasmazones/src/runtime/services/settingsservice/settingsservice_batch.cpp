@@ -11,8 +11,8 @@
 // SettingsController multi-TU split, e.g. settingscontroller_pagestate.cpp).
 
 #include "settingsservice.h"
-#include "core/interfaces/interfaces.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <QMetaMethod>
 #include <QMetaProperty>

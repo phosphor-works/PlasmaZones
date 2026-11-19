@@ -24,8 +24,8 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorEngineRuntime/ConfigBackends.h>
-#include "core/interfaces/interfaces.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include "helpers/StubSettings.h"
 #include "helpers/StubZoneDetector.h"
 #include "helpers/IsolatedConfigGuard.h"

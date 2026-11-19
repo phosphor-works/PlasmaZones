@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "shaderservice.h"
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 
 namespace PhosphorEngineRuntime {
 

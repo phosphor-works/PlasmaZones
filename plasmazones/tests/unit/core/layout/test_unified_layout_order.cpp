@@ -12,7 +12,7 @@
 #include <QTest>
 #include "common/engineruntimenamespace.h"
 
-#include "core/utils/unifiedlayoutlist.h"
+#include <PhosphorEngineRuntime/UnifiedLayoutList.h>
 
 #include "helpers/StubSettings.h"
 

@@ -9,8 +9,8 @@
 
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 
 #include <PhosphorOverlay/ShellHost.h>
 #include <PhosphorOverlay/ShellState.h>

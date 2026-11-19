@@ -35,7 +35,7 @@
 #include "dbus/zonedetectionadaptor.h"
 
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorLayer/defaults/PhosphorWaylandTransport.h>
 #include <PhosphorProtocol/ServiceConstants.h>

@@ -17,11 +17,11 @@
 #include <PhosphorZones/Zone.h>
 #include <PhosphorContext/IContextResolver.h>
 #include <PhosphorZones/LayoutUtils.h>
-#include "common/layoutpreviewserialize.h"
-#include "core/utils/unifiedlayoutlist.h"
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/LayoutPreviewSerialize.h>
+#include <PhosphorEngineRuntime/UnifiedLayoutList.h>
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorScreens/Manager.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngineRuntime/Constants.h>
 
 #include <QCoreApplication>
@@ -36,7 +36,7 @@
 #include <QTimer>
 #include <QMutexLocker>
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/rendering/vulkansupport.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>

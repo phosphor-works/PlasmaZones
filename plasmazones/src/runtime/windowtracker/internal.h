@@ -17,7 +17,7 @@
 #include <optional>
 #include <PhosphorEngineRuntime/ISettings.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorEngine/PlacementEngineBase.h>
@@ -27,7 +27,7 @@
 #include <PhosphorRules/WindowQuery.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "plasmazones_export.h"
 
 namespace PhosphorSnapEngine {

@@ -18,7 +18,7 @@
 
 #include "animations_controller_detail.h"
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 
 #include <PhosphorAnimation/Profile.h>

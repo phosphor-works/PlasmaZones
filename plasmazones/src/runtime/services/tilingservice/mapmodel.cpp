@@ -10,7 +10,7 @@
 
 #include "tilingservice.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorProtocol/WindowTypes.h>

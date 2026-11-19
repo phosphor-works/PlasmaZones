@@ -3,7 +3,7 @@
 
 #include "vulkansupport.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QDir>
 #include <QFile>

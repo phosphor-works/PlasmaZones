@@ -29,7 +29,7 @@
 #include "settingscontroller_pagekeys.h"
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "settings/rules/rulepickeroptions.h"
 #include "settings/utils/dbusutils.h"

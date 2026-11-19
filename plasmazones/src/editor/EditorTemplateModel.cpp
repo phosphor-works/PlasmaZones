@@ -10,7 +10,7 @@
 #include "undo/commands/UpdateTemplateCommand.h"
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorZones/ScrollingTemplate.h>
 
 #include "phosphor_i18n.h"

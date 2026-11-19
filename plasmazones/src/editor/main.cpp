@@ -5,13 +5,13 @@
 #include "common/plasmazoneslogging.h"
 #include "common/engineruntimenamespace.h"
 #include "EditorLaunchController.h"
-#include "core/resolve/animationbootstrap.h"
+#include <PhosphorEngineRuntime/AnimationBootstrap.h>
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorEngineRuntime/ConfigMigration.h>
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorAnimation/PhosphorCurve.h>
 #include <PhosphorAnimation/QtQuickClockManager.h>

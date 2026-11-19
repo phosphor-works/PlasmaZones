@@ -14,7 +14,7 @@
  * map pushed, so a test can read what a drag left the overlay holding.
  */
 
-#include "core/interfaces/ioverlayservice.h"
+#include <PhosphorEngineRuntime/IOverlayService.h>
 
 namespace PlasmaZones::TestHelpers {
 

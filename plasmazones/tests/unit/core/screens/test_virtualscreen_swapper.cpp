@@ -21,7 +21,7 @@
 #include "common/engineruntimenamespace.h"
 #include <QSignalSpy>
 
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include <PhosphorScreens/Swapper.h>
 #include <PhosphorEngineRuntime/Settings.h>

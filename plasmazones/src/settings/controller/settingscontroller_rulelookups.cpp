@@ -12,7 +12,7 @@
 #include "settingscontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include "phosphor_i18n.h"
 #include "settings/rules/ruleauthoring.h"
 #include "settings/rules/rulepickeroptions.h"

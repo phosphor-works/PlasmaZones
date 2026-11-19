@@ -7,8 +7,8 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
-#include "runtime/common/runtimei18n.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
 #include "runtime/host/iworkspacehost.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>

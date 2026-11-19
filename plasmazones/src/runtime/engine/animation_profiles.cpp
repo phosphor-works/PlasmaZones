@@ -13,8 +13,8 @@
 #include "runtime/engine/engineruntime.h"
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
-#include "core/resolve/animationbootstrap.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/AnimationBootstrap.h>
 
 #include <PhosphorAnimation/CurveLoader.h>
 #include <PhosphorAnimation/CurveRegistry.h>

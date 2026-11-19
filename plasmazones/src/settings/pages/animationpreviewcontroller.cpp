@@ -5,8 +5,8 @@
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
-#include "core/types/cavaoptions.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/CavaOptions.h>
 #include "phosphor_i18n.h"
 
 #include <PhosphorAnimation/AnimationLimits.h>

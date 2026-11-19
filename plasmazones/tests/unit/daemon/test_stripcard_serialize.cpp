@@ -7,9 +7,9 @@
 // present key from an absent one), the active-column stamp, and the position
 // contract (no filtering, no reordering).
 
-#include "common/stripcardserialize.h"
+#include <PhosphorEngineRuntime/StripCardSerialize.h>
 #include "common/engineruntimenamespace.h"
-#include "core/types/zoneselectorlayout.h"
+#include <PhosphorEngineRuntime/ZoneSelectorLayout.h>
 
 #include <PhosphorScrollEngine/ScrollEngineTypes.h>
 

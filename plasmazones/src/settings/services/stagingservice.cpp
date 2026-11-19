@@ -9,7 +9,7 @@
 #include "settings/utils/dbusutils.h"
 #include "settings/utils/virtualscreenutils.h"
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorLayoutApi/LayoutId.h>
 #include <PhosphorScreens/ScreenIdentity.h>

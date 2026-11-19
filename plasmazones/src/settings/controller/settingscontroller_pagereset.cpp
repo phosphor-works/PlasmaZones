@@ -22,7 +22,7 @@
 #include "settings/utils/dbusutils.h"
 #include "settingscontroller_pagekeys.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorAnimation/ShaderProfileTree.h>
 #include <PhosphorScreens/VirtualScreen.h>

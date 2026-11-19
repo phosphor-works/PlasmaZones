@@ -6,7 +6,7 @@
 
 #include "settings/controller/settingscontroller.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QDebug>
 #include <QScopeGuard>

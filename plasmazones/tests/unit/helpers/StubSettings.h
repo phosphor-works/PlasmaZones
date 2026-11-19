@@ -7,7 +7,7 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/SettingsSchema.h>
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorEngineRuntime/OverlayShaderTree.h>
 
 #include <PhosphorConfig/Schema.h>

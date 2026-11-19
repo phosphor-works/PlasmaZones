@@ -44,7 +44,7 @@
 
 #include <PhosphorZones/LayoutRegistry.h>
 
-#include "core/types/dmabufthumbnail.h"
+#include <PhosphorEngineRuntime/DmabufThumbnail.h>
 #include "dbus/dbushelpers.h"
 #include "dbus/overlayadaptor.h"
 #include "runtime/services/overlaycontrolservice.h"

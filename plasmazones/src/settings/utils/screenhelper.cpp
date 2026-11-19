@@ -5,7 +5,7 @@
 #include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "screenprovider.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>

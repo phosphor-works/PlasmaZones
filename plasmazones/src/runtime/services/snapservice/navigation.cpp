@@ -3,7 +3,7 @@
 
 #include "snapservice.h"
 #include "runtime/windowtracker/windowtracker.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorEngine/EngineTypes.h>

@@ -28,7 +28,7 @@
 #include "settingscontroller.h"
 #include "common/engineruntimenamespace.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "settings/utils/dbusutils.h"
 
 #include <PhosphorProtocol/ClientHelpers.h>

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
 namespace PhosphorScreens {

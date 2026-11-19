@@ -9,7 +9,7 @@
 #include "evacueeledger.h"
 #include "lifecyclerelay.h"
 #include "internal.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorEngine/WindowPlacement.h>

@@ -4,7 +4,7 @@
 #include "plasmazonesapps.h"
 
 #include "daemon/host/childprocessenvironment.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QCoreApplication>
 #include <QFile>

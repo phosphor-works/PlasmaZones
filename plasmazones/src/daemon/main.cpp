@@ -8,8 +8,8 @@
 #include <PhosphorEngineRuntime/ConfigMigration.h>
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "runtime/common/runtimei18n.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include "core/utils/translationloader.h"
 #include "phosphor_i18n.h"
 #include "runtime/rendering/zoneshaderitem.h"

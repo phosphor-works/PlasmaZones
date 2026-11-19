@@ -6,7 +6,7 @@
 #include "zoneshadernoderhi.h"
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorZones/ZoneJsonKeys.h>
 

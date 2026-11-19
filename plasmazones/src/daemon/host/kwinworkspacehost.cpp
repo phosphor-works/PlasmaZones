@@ -7,7 +7,7 @@
 #include "common/hostsettings.h"
 #include "common/kwinperoutputdesktops.h"
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/controllers/shortcutmanager.h"
 
 #include <QDBusConnection>

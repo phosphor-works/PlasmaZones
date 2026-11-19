@@ -3,16 +3,16 @@
 
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
-#include "common/stripcardserialize.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/StripCardSerialize.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorZones/LayoutUtils.h>
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorScreens/Manager.h>
-#include "core/utils/utils.h"
-#include "core/types/zoneselectorlayout.h"
+#include <PhosphorEngineRuntime/Utils.h>
+#include <PhosphorEngineRuntime/ZoneSelectorLayout.h>
 #include <QScreen>
 #include <QQuickItem>
 #include <QQmlEngine>

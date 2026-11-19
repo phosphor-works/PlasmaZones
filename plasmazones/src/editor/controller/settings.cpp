@@ -7,7 +7,7 @@
 #include "../services/ZoneManager.h"
 #include "../services/SnappingService.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorProtocol/ClientHelpers.h>
 #include <PhosphorProtocol/ScrollAxisEnum.h>

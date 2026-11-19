@@ -25,7 +25,7 @@
 #include <PhosphorZones/LayoutRegistry.h>
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QSet>
 #include <QString>

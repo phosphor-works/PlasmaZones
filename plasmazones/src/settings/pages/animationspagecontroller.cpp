@@ -6,7 +6,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 #include "settings/utils/animationfileutils.h"
 #include "settings/stores/animationpresetlibrary.h"

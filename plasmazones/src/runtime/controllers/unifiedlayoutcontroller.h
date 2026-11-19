@@ -6,7 +6,7 @@
 #include <functional>
 #include <optional>
 
-#include "core/utils/unifiedlayoutlist.h"
+#include <PhosphorEngineRuntime/UnifiedLayoutList.h>
 // Complete type needed for the nested IPlacementEngine::LayoutSupport enum
 // consumed by setCurrentLayoutSupport below.
 #include <PhosphorEngine/IPlacementEngine.h>

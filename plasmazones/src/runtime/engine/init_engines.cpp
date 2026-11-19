@@ -10,7 +10,7 @@
 #include "runtime/engine/engineruntime.h"
 #include "enginerouting.h"
 #include "stripzones.h"
-#include "common/stripcardserialize.h"
+#include <PhosphorEngineRuntime/StripCardSerialize.h>
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/controllers/shortcutmanager.h"
@@ -18,10 +18,10 @@
 #include "runtime/controllers/contextresolverwiring.h"
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/resolve/crosssurfaceresolver.h"
-#include "core/resolve/animationbootstrap.h"
-#include "core/resolve/screenmoderouter.h"
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/CrossSurfaceResolver.h>
+#include <PhosphorEngineRuntime/AnimationBootstrap.h>
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "runtime/windowtracker/windowtracker.h"

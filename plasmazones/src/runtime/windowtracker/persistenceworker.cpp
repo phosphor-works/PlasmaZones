@@ -4,7 +4,7 @@
 #include "persistenceworker.h"
 
 #include <PhosphorEngineRuntime/ConfigBackends.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QThread>
 

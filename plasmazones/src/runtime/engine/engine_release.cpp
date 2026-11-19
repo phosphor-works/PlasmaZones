@@ -23,7 +23,7 @@
 #include <PhosphorZones/LayoutUtils.h>
 
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QRect>
 

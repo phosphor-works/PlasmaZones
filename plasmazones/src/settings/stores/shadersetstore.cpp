@@ -4,10 +4,10 @@
 #include "shadersetstore.h"
 #include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include "settings/utils/animationfileutils.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 
 #include <QDesktopServices>

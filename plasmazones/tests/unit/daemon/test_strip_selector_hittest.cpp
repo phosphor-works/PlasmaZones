@@ -7,7 +7,7 @@
 // the half split, the tabbed whole-card answer, and the un-laid-out-card
 // exclusions, without a QML scene.
 
-#include "core/types/stripselectorhittest.h"
+#include <PhosphorEngineRuntime/StripSelectorHitTest.h>
 #include "common/engineruntimenamespace.h"
 
 #include <QtTest>

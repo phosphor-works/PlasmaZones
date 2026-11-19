@@ -28,7 +28,7 @@
 #include <QString>
 #include <QHash>
 
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 
 #include <PhosphorIdentity/WindowId.h>
 
