@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "plasmazones_export.h"
 #include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/LayoutRegistry.h>
 
