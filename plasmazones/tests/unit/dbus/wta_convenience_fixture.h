@@ -36,7 +36,7 @@
 #include "runtime/windowtracker/internal.h"
 #include <PhosphorScreens/Manager.h>
 #include "FakePhysicalScreenSource.h"
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include "runtime/services/snapservice/snapservice.h"

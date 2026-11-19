@@ -35,7 +35,7 @@
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorEngineRuntime/ConfigBackends.h>
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include "helpers/AutotileTestHelpers.h"
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"

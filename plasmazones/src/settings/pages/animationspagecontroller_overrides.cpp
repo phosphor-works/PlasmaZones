@@ -32,7 +32,7 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "animations_controller_detail.h"
 
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>

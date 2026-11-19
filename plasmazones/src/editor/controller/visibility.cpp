@@ -6,8 +6,8 @@
 #include "../undo/UndoController.h"
 #include "../undo/commands/UpdateVisibilityCommand.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 
 #include <QGuiApplication>
 #include <QScreen>

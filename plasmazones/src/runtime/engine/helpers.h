@@ -10,9 +10,9 @@
 // issues in both unity and normal builds.
 
 #include <QScreen>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/SettingsInterfaces.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include "runtime/services/tilingservice/tilingservice.h"
 #include "runtime/windowtracker/windowtracker.h"
 #include <PhosphorScreens/Manager.h>

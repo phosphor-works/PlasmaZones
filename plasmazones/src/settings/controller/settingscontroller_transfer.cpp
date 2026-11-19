@@ -15,8 +15,8 @@
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/ConfigMigration.h>
 #include <PhosphorEngineRuntime/ConfigMigrationUtil.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include "phosphor_i18n.h"
 #include "settings/utils/dbusutils.h"
 #include "settings/utils/kzonesimporter.h"

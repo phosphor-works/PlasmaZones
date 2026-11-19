@@ -305,7 +305,7 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 The tree is one product tier plus repo-level support directories. The tier has its own `CMakeLists.txt` (entered from the root one) and its own `moon.yml` project. The libraries it builds on are the phosphor-libs repository (see phosphor-libs above).
 ```
 plasmazones/             — PlasmaZones
-  src/core/              — Domain models (Zone, Layout, ScreenManager)
+  src/core/              — PlasmaZones' app-side helpers (the engine core is phosphor-libs' engine runtime)
   src/runtime/           — Engine runtime: the three placement engines' host, services, overlays (no bus, KWin or Wayland client; runtime-firewall rule)
   src/daemon/            — plasmazonesd: the runtime bound to the session bus beside KWin and Plasma
   src/editor/            — Layout editor (zone layouts + scrolling templates)

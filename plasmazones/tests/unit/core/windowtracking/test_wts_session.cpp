@@ -37,11 +37,11 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorEngineRuntime/ConfigBackends.h>
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 

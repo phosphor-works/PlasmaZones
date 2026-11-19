@@ -47,7 +47,7 @@
 #include <PhosphorAnimation/CurveRegistry.h>
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorAnimation/Profile.h>
-#include "core/resolve/animationbootstrap.h"
+#include <PhosphorEngineRuntime/AnimationBootstrap.h>
 #include <PhosphorAnimation/ProfilePaths.h>
 
 #include <PhosphorEngineRuntime/Settings.h>

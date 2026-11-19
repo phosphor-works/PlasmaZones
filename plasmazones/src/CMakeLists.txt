@@ -26,37 +26,15 @@ add_subdirectory(shared)
 set(plasmazones_core_SRCS
     phosphor_qml_i18n.h
     phosphor_qml_i18n.cpp
-    core/types/screenscale.h
-    core/platform/logging.h
-    core/platform/logging.cpp
     core/utils/translationloader.h
     core/utils/translationloader.cpp
-    core/resolve/animationbootstrap.h
-    core/resolve/animationbootstrap.cpp
     # wallpaperprovider moved to PhosphorShaders
-    core/interfaces/interfaces.h
-    core/interfaces/interfaces.cpp
     # ilayoutmanager / izonedetector shims removed. Consumers include
     # <PhosphorZones/IZoneLayoutRegistry.h> and
     # <PhosphorZones/IZoneDetector.h> directly. (There is no
     # PhosphorZones/ILayoutManager.h; that name survives only in prose.)
-    core/interfaces/ioverlayservice.h
-    core/types/stripselectorhittest.h
-    core/types/types.h
-    core/types/zoneselectorlayout.h
-    core/utils/utils.h
-    core/utils/utils.cpp
-    core/resolve/daemongeometryresolver.h
-    core/resolve/daemongeometryresolver.cpp
-    core/utils/geometryutils.cpp
-    core/utils/geometryutils.h
-    core/types/spatialadjacency.h
     # virtualscreenswapper.{h,cpp} lifted to phosphor-libs/libs/phosphor-screens/Swapper.h -
     # callers include <PhosphorScreens/Swapper.h> directly.
-    core/resolve/screenmoderouter.cpp
-    core/resolve/screenmoderouter.h
-    core/resolve/crosssurfaceresolver.cpp
-    core/resolve/crosssurfaceresolver.h
     core/utils/dbusvariantutils.cpp
     core/utils/dbusvariantutils.h
     # zone, layout, layoututils, zonedetector, zonehighlighter, LayoutRegistry,
@@ -64,14 +42,6 @@ set(plasmazones_core_SRCS
     # consumers include <PhosphorZones/...> directly and construct the registry
     # with a borrowed PhosphorRules::RuleStore* + the
     # "plasmazones/layouts" subdir inline.
-    core/utils/unifiedlayoutlist.cpp
-    core/utils/unifiedlayoutlist.h
-    common/layoutpreviewserialize.cpp
-    common/layoutpreviewserialize.h
-    common/stripcardserialize.cpp
-    common/stripcardserialize.h
-    common/screenidresolver.cpp
-    common/screenidresolver.h
     common/engineruntimenamespace.h
     common/hostsettings.cpp
     common/plasmazoneslogging.cpp
@@ -79,8 +49,6 @@ set(plasmazones_core_SRCS
     common/hostsettings.h
     common/kwinperoutputdesktops.cpp
     common/kwinperoutputdesktops.h
-    common/layoutbundlebuilder.cpp
-    common/layoutbundlebuilder.h
     core/platform/supportreport.cpp
     core/platform/supportreport.h
     # layersurface moved to PhosphorWayland; shaderregistry/params moved to PhosphorShaders
@@ -92,7 +60,6 @@ set(plasmazones_core_SRCS
     # lifted to phosphor-libs/libs/phosphor-screens. Daemon consumers take
     # PhosphorScreens::ScreenManager* via constructor injection -
     # no service-locator intermediary.
-    core/interfaces/shaderregistry.h  # PlasmaZones subclass (singleton + paths)
     # shaderregistry.cpp + shaderincluderesolver moved to PhosphorShaders
     core/utils/modifierutils.cpp
     core/utils/modifierutils.h
@@ -100,8 +67,6 @@ set(plasmazones_core_SRCS
     config/settingsvaluelabels.h
     runtime/common/lookups.cpp
     runtime/common/lookups.h
-    runtime/common/runtimei18n.cpp
-    runtime/common/runtimei18n.h
     runtime/services/layoutservice/layoutservice.cpp
     runtime/services/layoutservice/assignment.cpp
     runtime/services/layoutservice/assignment_batch.cpp

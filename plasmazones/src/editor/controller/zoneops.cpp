@@ -16,7 +16,7 @@
 #include "../undo/commands/SplitZoneCommand.h"
 #include "../undo/commands/DividerResizeCommand.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include "phosphor_i18n.h"
 #include <QPointer>

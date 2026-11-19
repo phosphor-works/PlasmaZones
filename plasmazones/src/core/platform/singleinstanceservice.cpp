@@ -4,7 +4,7 @@
 #include "singleinstanceservice.h"
 #include "common/engineruntimenamespace.h"
 
-#include "logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>

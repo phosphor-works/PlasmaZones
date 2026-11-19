@@ -8,7 +8,7 @@
 // over every engine's state.
 
 #include "windowtracker.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorZones/LayoutRegistry.h>
 

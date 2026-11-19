@@ -19,11 +19,11 @@
 #include "helpers/ZoneSerialization.h"
 #include <PhosphorRules/RuleStore.h>
 #include <PhosphorRules/RuleStoreWatcher.h>
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/LayoutComputeService.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/ScrollingTemplateStore.h>
@@ -37,7 +37,7 @@
 #include <PhosphorScreens/ScreenIdentity.h>
 
 #include "../common/daemonscreenscale.h"
-#include "../common/screenidresolver.h"
+#include <PhosphorEngineRuntime/ScreenIdResolver.h>
 
 namespace PlasmaZones {
 

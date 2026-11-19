@@ -14,8 +14,8 @@
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutUtils.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 
 #include "phosphor_i18n.h"

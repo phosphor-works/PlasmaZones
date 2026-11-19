@@ -10,7 +10,7 @@
 #include "pointerpreviewcontroller.h"
 
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorPointer/PointerShaderRegistry.h>
 #include <PhosphorSurface/DecorationProfile.h>

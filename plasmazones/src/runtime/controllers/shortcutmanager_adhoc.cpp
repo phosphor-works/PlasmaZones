@@ -16,7 +16,7 @@
 #include "shortcutmanager.h"
 #include "shortcutmanager_ids.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorShortcuts/Registry.h>
 

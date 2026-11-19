@@ -4,8 +4,8 @@
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include <PhosphorEngineRuntime/Constants.h>
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/overlay/overlayservice.h"

@@ -10,7 +10,7 @@
 
 #include "windowtracker.h"
 #include "internal.h"
-#include "core/resolve/daemongeometryresolver.h"
+#include <PhosphorEngineRuntime/DaemonGeometryResolver.h>
 #include <PhosphorPlacement/PlacementConfig.h>
 #include <PhosphorSnapEngine/snapnavigationtargets.h>
 #include "persistenceworker.h"
@@ -18,17 +18,17 @@
 #include <PhosphorTileEngine/AutotileEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorEngineRuntime/ConfigBackends.h>
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorWorkspaces/ActivityManager.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
-#include "core/platform/logging.h"
-#include "core/resolve/screenmoderouter.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/VirtualScreen.h>
-#include "core/types/types.h"
+#include <PhosphorEngineRuntime/Types.h>
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorRules/RuleEvaluator.h>
 #include <PhosphorProtocol/ServiceConstants.h>

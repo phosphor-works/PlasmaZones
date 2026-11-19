@@ -3,13 +3,13 @@
 
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/utils/geometryutils.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include "runtime/rendering/zonelabeltexturebuilder.h"

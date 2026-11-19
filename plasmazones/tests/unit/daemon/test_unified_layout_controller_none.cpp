@@ -45,7 +45,7 @@
 #include <PhosphorZones/Zone.h>
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/utils/unifiedlayoutlist.h"
+#include <PhosphorEngineRuntime/UnifiedLayoutList.h>
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"

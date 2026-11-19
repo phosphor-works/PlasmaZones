@@ -24,7 +24,7 @@
 #include <PhosphorTiles/TilingState.h>
 
 #include "FakePhysicalScreenSource.h"
-#include "core/resolve/crosssurfaceresolver.h"
+#include <PhosphorEngineRuntime/CrossSurfaceResolver.h>
 
 #include "helpers/AutotileTestHelpers.h"
 #include "helpers/ScriptedAlgoTestSetup.h"

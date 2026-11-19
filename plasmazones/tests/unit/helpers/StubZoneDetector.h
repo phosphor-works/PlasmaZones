@@ -10,7 +10,7 @@
 #include <QRectF>
 #include <QVector>
 
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 

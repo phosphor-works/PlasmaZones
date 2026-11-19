@@ -30,7 +30,7 @@
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "phosphor_i18n.h"
 

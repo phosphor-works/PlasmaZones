@@ -11,9 +11,9 @@
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
-#include "core/resolve/crosssurfaceresolver.h"
+#include <PhosphorEngineRuntime/CrossSurfaceResolver.h>
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 
 namespace PhosphorEngineRuntime {
 

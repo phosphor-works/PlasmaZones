@@ -6,7 +6,7 @@
 
 #include "runtime/dragresolver/dragresolver.h"
 #include "runtime/windowtracker/windowtracker.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorIdentity/WindowId.h>
 #include <PhosphorScreens/Manager.h>

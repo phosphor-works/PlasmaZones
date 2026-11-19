@@ -3,7 +3,7 @@
 
 #include "lookups.h"
 
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>

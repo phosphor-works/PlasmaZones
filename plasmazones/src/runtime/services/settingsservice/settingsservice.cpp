@@ -6,11 +6,11 @@
 // lives in settingsservice_batch.cpp (same class, no API change).
 
 #include "settingsservice.h"
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorRules/ActionParams.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>

@@ -12,9 +12,9 @@
 
 #include "windowtracker.h"
 #include "internal.h"
-#include "core/interfaces/interfaces.h"
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <array>
 #include <PhosphorContext/IContextResolver.h>
 #include <PhosphorEngine/IPlacementEngine.h>

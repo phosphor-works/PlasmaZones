@@ -15,7 +15,7 @@
 #include "../undo/commands/UpdateZoneAppearanceCommand.h"
 #include "../undo/commands/BatchUpdateAppearanceCommand.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include "phosphor_i18n.h"
 #include <QMap>

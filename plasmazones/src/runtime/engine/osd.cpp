@@ -4,15 +4,15 @@
 #include "runtime/engine/engineruntime.h"
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/controllers/unifiedlayoutcontroller.h"
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorWorkspaces/ActivityManager.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorZones/ZoneDetector.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/IPlacementState.h>
@@ -33,7 +33,7 @@
 #include <QRegularExpression>
 #include <QScreen>
 #include <QTimer>
-#include "runtime/common/runtimei18n.h"
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 
 #include <utility>

@@ -8,7 +8,7 @@
 // or a tr() call left on another context compiles and simply stops
 // translating, so this loads the built German catalog and asks.
 
-#include "runtime/common/runtimei18n.h"
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
 
 #include <QCoreApplication>
 #include <QTest>

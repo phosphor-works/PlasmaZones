@@ -13,7 +13,7 @@
 
 #include "runtime/engine/engineruntime.h"
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 // Complete type needed for setScrollDropIndicatorOverrides — daemon.h forward
 // declares OverlayService only.
 #include "runtime/overlay/overlayservice.h"

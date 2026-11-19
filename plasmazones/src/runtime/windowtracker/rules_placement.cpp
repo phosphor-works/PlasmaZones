@@ -19,7 +19,7 @@
 #include "rules_admission.h"
 
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngine/GeometryUtils.h>
 #include <PhosphorEngine/WindowRegistry.h>
 #include <PhosphorIdentity/VirtualScreenId.h>

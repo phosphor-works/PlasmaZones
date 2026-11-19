@@ -44,7 +44,7 @@
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/StubSettings.h"
 #include "helpers/StubZoneDetector.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngine/GeometryUtils.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorEngine/NavigationContext.h>

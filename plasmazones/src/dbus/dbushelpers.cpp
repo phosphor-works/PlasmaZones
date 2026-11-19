@@ -4,7 +4,7 @@
 #include "dbushelpers.h"
 #include "common/engineruntimenamespace.h"
 #include "compositorbridgeadaptor.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <QDBusContext>
 #include <QDBusMessage>
 #include <QMetaClassInfo>

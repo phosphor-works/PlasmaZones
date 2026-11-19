@@ -3,11 +3,11 @@
 
 #include "zoneselectorcontroller.h"
 #include <PhosphorZones/Zone.h>
-#include "common/layoutpreviewserialize.h"
+#include <PhosphorEngineRuntime/LayoutPreviewSerialize.h>
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorZones/LayoutUtils.h>
-#include "core/utils/unifiedlayoutlist.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/UnifiedLayoutList.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorScreens/Manager.h>
 #include "runtime/overlay/internal.h"
@@ -15,7 +15,7 @@
 #include <QQuickItem>
 #include <QScreen>
 #include <QUuid>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorScreens/ScreenIdentity.h>
 
 namespace PhosphorEngineRuntime {

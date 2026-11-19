@@ -5,14 +5,14 @@
 #include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngineRuntime/ConfigKeys.h>
 #include <PhosphorEngineRuntime/ConfigMigration.h>
 #include <PhosphorEngineRuntime/ConfigMigrationUtil.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "config/settingsvaluelabels.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 
 #include <QCryptographicHash>

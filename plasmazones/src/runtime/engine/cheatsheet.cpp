@@ -13,12 +13,12 @@
 #include "runtime/engine/engineruntime.h"
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/controllers/shellcheatsheetbridge.h"
 #include "runtime/dragresolver/dragresolver.h"
 #include "helpers.h"
-#include "runtime/common/runtimei18n.h"
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
 
 #include <PhosphorZones/AssignmentEntry.h>
 #include <PhosphorScreens/ScreenIdentity.h>

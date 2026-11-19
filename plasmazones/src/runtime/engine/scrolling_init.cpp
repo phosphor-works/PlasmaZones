@@ -24,7 +24,7 @@
 #include "helpers.h"
 
 #include "runtime/controllers/shortcutmanager.h"
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorZones/AssignmentEntry.h>

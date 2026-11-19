@@ -3,7 +3,7 @@
 
 #include "screenreshapetracker.h"
 
-#include "core/types/screenscale.h"
+#include <PhosphorEngineRuntime/ScreenScale.h>
 
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/PhysicalScreen.h>

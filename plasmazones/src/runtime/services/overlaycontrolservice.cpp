@@ -3,15 +3,15 @@
 
 #include "overlaycontrolservice.h"
 #include "runtime/common/lookups.h"
-#include "core/interfaces/interfaces.h"
-#include "core/interfaces/ioverlayservice.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/IOverlayService.h>
 #include <PhosphorZones/IZoneLayoutRegistry.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorScreens/Manager.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include <QTimer>
 #include <QUuid>

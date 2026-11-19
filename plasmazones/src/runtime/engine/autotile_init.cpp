@@ -9,9 +9,9 @@
 #include "runtime/engine/engineruntime.h"
 #include "helpers.h"
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/unifiedlayoutcontroller.h"
 #include "runtime/overlay/overlayservice.h"

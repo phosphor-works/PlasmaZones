@@ -23,8 +23,8 @@
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/AnimationShaderSupportedPaths.h>
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include "phosphor_i18n.h"
 #include "settings/utils/animationfileutils.h"
 #include "animations_controller_detail.h"

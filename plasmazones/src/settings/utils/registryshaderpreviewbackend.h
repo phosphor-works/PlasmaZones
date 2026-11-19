@@ -6,7 +6,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "core/types/cavaoptions.h"
+#include <PhosphorEngineRuntime/CavaOptions.h>
 #include <PhosphorEngineRuntime/SettingsInterfaces.h>
 #include "shaderpreview/ishaderpreviewbackend.h"
 

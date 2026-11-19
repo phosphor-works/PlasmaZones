@@ -19,7 +19,7 @@
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/SettingsSchema.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/controllers/shortcutmanager.h"
 #include "runtime/controllers/shortcutmanager_ids.h"
 #include "runtime/controllers/workspacecontroller.h"
@@ -28,7 +28,7 @@
 #include "runtime/windowtracker/lifecyclerelay.h"
 #include "runtime/windowtracker/windowtracker.h"
 
-#include "runtime/common/runtimei18n.h"
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
 #include "runtime/host/iworkspacehost.h"
 
 #include <PhosphorEngine/PlacementEngineBase.h>

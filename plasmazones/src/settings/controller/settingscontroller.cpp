@@ -32,16 +32,16 @@
 #include <PhosphorEngineRuntime/SettingsSchema.h>
 #include "config/settingsvaluelabels.h"
 #include <PhosphorEngineRuntime/ConfigMigration.h>
-#include "common/layoutpreviewserialize.h"
-#include "common/screenidresolver.h"
-#include "common/layoutbundlebuilder.h"
+#include <PhosphorEngineRuntime/LayoutPreviewSerialize.h>
+#include <PhosphorEngineRuntime/ScreenIdResolver.h>
+#include <PhosphorEngineRuntime/LayoutBundleBuilder.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorZones/LayoutComputeService.h>
 #include <PhosphorZones/ScrollingTemplate.h>
 #include <PhosphorZones/ScrollingTemplateStore.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include "phosphor_i18n.h"
 #include "settings/utils/dbusutils.h"
 #include "pageadapter.h"
@@ -56,7 +56,7 @@
 #include <PhosphorRules/RuleStore.h>
 #include <PhosphorRules/RuleStoreWatcher.h>
 
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include "settings/pages/overlayspagecontroller.h"
 
 #include <PhosphorAnimation/AnimationShaderRegistry.h>

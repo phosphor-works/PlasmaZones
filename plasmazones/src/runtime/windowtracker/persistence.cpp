@@ -12,9 +12,9 @@
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorScreens/Manager.h>
-#include "core/interfaces/interfaces.h"
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>

@@ -50,23 +50,23 @@
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorWorkspaces/ActivityManager.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/resolve/crosssurfaceresolver.h"
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/CrossSurfaceResolver.h>
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorProtocol/ServiceConstants.h>
-#include "core/platform/logging.h"
-#include "core/resolve/animationbootstrap.h"
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/AnimationBootstrap.h>
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include "runtime/controllers/contextresolverwiring.h"
 
 #include <PhosphorContext/ContextResolver.h>
-#include "core/utils/utils.h"
-#include "runtime/common/runtimei18n.h"
+#include <PhosphorEngineRuntime/Utils.h>
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorScreens/DBusScreenAdaptor.h>
 #include <PhosphorScreens/Swapper.h>
 #include <PhosphorScreens/NoOpPanelSource.h>
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
@@ -88,8 +88,8 @@
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorScreens/ScreenIdentity.h>
-#include "common/screenidresolver.h"
-#include "common/layoutbundlebuilder.h"
+#include <PhosphorEngineRuntime/ScreenIdResolver.h>
+#include <PhosphorEngineRuntime/LayoutBundleBuilder.h>
 
 namespace PhosphorEngineRuntime {
 

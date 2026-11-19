@@ -33,7 +33,7 @@
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorEngineRuntime/ConfigBackends.h>
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorEngine/ICrossSurfaceResolver.h>
@@ -41,7 +41,7 @@
 #include <PhosphorSnapEngine/INavigationStateProvider.h>
 #include <PhosphorSnapEngine/IZoneAdjacencyResolver.h>
 #include <PhosphorZones/AssignmentEntry.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "FakePhysicalScreenSource.h"

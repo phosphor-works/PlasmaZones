@@ -4,7 +4,7 @@
 #include "dmabuftextureprovider.h"
 #include "dmabufglimport.h"
 #include "thumbnailurlutil.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <QElapsedTimer>
 

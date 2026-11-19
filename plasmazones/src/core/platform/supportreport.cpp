@@ -3,7 +3,7 @@
 
 #include "supportreport.h"
 #include "common/engineruntimenamespace.h"
-#include "logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorZones/Layout.h>
@@ -11,7 +11,7 @@
 #include "version.h"
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/ConfigKeys.h>
-#include "core/resolve/screenmoderouter.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
 #include <PhosphorEngine/IPlacementEngine.h>
 #include <PhosphorZones/AssignmentEntry.h>
 

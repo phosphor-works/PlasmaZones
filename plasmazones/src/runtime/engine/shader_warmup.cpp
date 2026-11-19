@@ -4,8 +4,8 @@
 #include "runtime/engine/engineruntime.h"
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/interfaces/shaderregistry.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include "runtime/overlay/overlayservice.h"
 #include "runtime/rendering/zoneentryscaffold.h"
 #include "runtime/rendering/zoneshadernoderhi.h"

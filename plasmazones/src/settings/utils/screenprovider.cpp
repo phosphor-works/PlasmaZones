@@ -5,7 +5,7 @@
 #include <PhosphorEngineRuntime/ConfigLogging.h>
 #include "common/engineruntimenamespace.h"
 #include "dbusutils.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <QDBusConnection>
 #include <QGuiApplication>
 #include <QJsonDocument>

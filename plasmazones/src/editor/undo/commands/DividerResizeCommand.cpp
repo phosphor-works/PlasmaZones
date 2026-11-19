@@ -3,7 +3,7 @@
 
 #include "DividerResizeCommand.h"
 #include "common/engineruntimenamespace.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 
 #include <utility>

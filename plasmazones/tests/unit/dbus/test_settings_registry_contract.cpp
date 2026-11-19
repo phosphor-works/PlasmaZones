@@ -57,7 +57,7 @@
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/SettingsFetchScraper.h"
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include "dbus/settingsadaptor.h"
 #include "runtime/services/settingsservice/settingsservice.h"
 

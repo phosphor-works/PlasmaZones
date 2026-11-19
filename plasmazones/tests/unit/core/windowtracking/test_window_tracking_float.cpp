@@ -26,7 +26,7 @@
 #include <QUuid>
 #include <QSignalSpy>
 
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 
 /**
  * @brief Mock/stub implementation of WindowTracker logic for isolated testing

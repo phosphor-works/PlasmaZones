@@ -14,7 +14,7 @@
 #include <QLatin1String>
 #include <QSet>
 #include <algorithm>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 
 using namespace PlasmaZones;

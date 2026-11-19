@@ -15,7 +15,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include "windowtracker.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngine/WindowRegistry.h>
 
 namespace PhosphorEngineRuntime {

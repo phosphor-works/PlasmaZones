@@ -6,8 +6,8 @@
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/interfaces/shaderregistry.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/OverlayShaderTree.h>
 #include "phosphor_i18n.h"
 #include "settings/services/shaderpackinstaller.h"

@@ -30,7 +30,7 @@
 // otherwise unchanged by the split itself.
 
 #include "settingsservice.h"
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorEngineRuntime/Settings.h> // For concrete Settings type
 #include <PhosphorEngineRuntime/ConfigDefaults.h> // ConfigDefaults range bounds + normalizeGpuDevice
 #include <PhosphorAnimation/PhosphorProfileRegistry.h>

@@ -38,13 +38,13 @@
 #include <PhosphorZones/LayoutRegistry.h>
 #include <PhosphorSnapEngine/SnapState.h>
 #include <PhosphorEngineRuntime/ConfigBackends.h>
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/Zone.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include <PhosphorScreens/Manager.h>
 #include "FakePhysicalScreenSource.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/StubZoneDetector.h"

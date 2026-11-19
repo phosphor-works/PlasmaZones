@@ -15,8 +15,8 @@
 
 #include "windowtracker.h"
 #include "internal.h"
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorEngine/WindowPlacement.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorScreens/Manager.h>

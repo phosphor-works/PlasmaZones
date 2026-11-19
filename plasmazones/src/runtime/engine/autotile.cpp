@@ -10,10 +10,10 @@
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>
 #include <PhosphorWorkspaces/ActivityManager.h>
-#include "core/utils/geometryutils.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorPlacement/WindowTrackingService.h>
 #include <PhosphorContext/ContextResolver.h>
 #include <PhosphorEngineRuntime/Settings.h>

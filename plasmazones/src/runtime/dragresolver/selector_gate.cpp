@@ -14,9 +14,9 @@
 #include <cmath>
 
 #include <PhosphorEngineRuntime/Settings.h>
-#include "core/interfaces/interfaces.h"
-#include "core/types/zoneselectorlayout.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/ZoneSelectorLayout.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include "runtime/windowtracker/internal.h"
 #include "runtime/windowtracker/windowtracker.h"
 

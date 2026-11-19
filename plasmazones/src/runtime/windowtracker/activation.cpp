@@ -9,8 +9,8 @@
 #include "windowtracker.h"
 #include "lifecyclerelay.h"
 #include "internal.h"
-#include "core/interfaces/interfaces.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/ScreenIdentity.h>

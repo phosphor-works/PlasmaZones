@@ -60,11 +60,11 @@
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/resolve/screenmoderouter.h"
-#include "core/utils/geometryutils.h"
-#include "core/utils/utils.h"
-#include "core/platform/logging.h"
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
+#include <PhosphorEngineRuntime/GeometryUtils.h>
+#include <PhosphorEngineRuntime/Utils.h>
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/windowtracker/windowtracker.h"
 #include "runtime/services/snapservice/snapservice.h"

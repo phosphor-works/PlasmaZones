@@ -24,8 +24,7 @@ find_package(Qt6LinguistTools QUIET)
 # extraction gap this file has had. plasmazones/src/daemon/daemon/lifecycle.cpp lost a
 # user-facing notification when the daemon.cpp split moved it out of a listed
 # file, and plasmazones/src/editor/EditorGapsModel.cpp, src/editor/helpers/
-# BatchOperationScope.h, plasmazones/src/config/settingsvaluelabels.cpp
-# and plasmazones/src/core/utils/unifiedlayoutlist.cpp were
+# BatchOperationScope.h and plasmazones/src/config/settingsvaluelabels.cpp were
 # each unreachable until someone happened to notice. Headers are included
 # because PhosphorI18n::tr() calls live in them too.
 #
@@ -58,16 +57,19 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-control/src/*.cpp"
 )
 # The engine runtime is NOT in PlasmaZones' catalog. Its C++ translates under
-# its own context (RuntimeI18n, runtime/common/runtimei18n.h), and its overlay
+# its own context (RuntimeI18n, <PhosphorEngineRuntime/RuntimeI18n.h>), and its overlay
 # QML (src/ui, loaded only by the runtime's overlay engine) through qsTr(), each
 # file's name its context, into its own catalog,
 # phosphor-engine-runtime_<lang>.ts, which goes with it into phosphor-libs.
 # lupdate reads qsTr() natively, so the overlay QML needs no stub step.
-# The engine runtime's sources: runtime/ and the library-bound part of core/
-# and config/. The app-side files in those two trees, which stay with
-# PlasmaZones when the runtime moves, translate in PlasmaZones' catalog.
+# The engine runtime's sources: the part already in phosphor-libs
+# (libs/phosphor-engine-runtime), and runtime/ with the library-bound part of
+# core/ and config/ still here. The app-side files in those two trees, which
+# stay with PlasmaZones, translate in PlasmaZones' catalog.
 set(_runtime_i18n_app_side "/plasmazones/src/(core/(platform/(supportreport|singleinstanceservice)|utils/(translationloader|modifierutils|dbusvariantutils))|config/settingsvaluelabels)\\.(cpp|h)$")
 file(GLOB_RECURSE PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES CONFIGURE_DEPENDS
+    "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/src/*.cpp"
+    "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/include/*.h"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.cpp"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/runtime/*.h"
     "${CMAKE_SOURCE_DIR}/plasmazones/src/core/*.cpp"
@@ -235,7 +237,7 @@ if(Qt6LinguistTools_FOUND AND TRANSLATION_TS_FILES)
 endif()
 
 # The engine runtime's catalog: phosphor-engine-runtime_<lang>.qm, which
-# loadRuntimeTranslations() (runtime/common/runtimei18n.cpp) finds by name.
+# loadRuntimeTranslations() (<PhosphorEngineRuntime/RuntimeI18n.h>) finds by name.
 if(Qt6LinguistTools_FOUND AND RUNTIME_TRANSLATION_TS_FILES)
     qt_add_lrelease(
         LRELEASE_TARGET phosphor_engine_runtime_translations

@@ -7,7 +7,7 @@
 
 #include "EditorAppAdaptor.h"
 #include "EditorController.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorProtocol/ServiceConstants.h>
 

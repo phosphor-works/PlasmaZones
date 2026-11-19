@@ -11,7 +11,7 @@
 #include <QJsonObject>
 #include <QUuid>
 
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 
 /// Mock with layout and desktop validation for restore logic testing
 class MockLayoutPersistence : public QObject

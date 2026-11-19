@@ -5,7 +5,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include "compositorbridgeadaptor.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "core/platform/supportreport.h"
 #include "runtime/services/controlservice.h"
 

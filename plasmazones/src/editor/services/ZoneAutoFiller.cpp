@@ -6,7 +6,7 @@
 #include "common/engineruntimenamespace.h"
 #include "ZoneManager.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <QSizeF>
 #include <QtMath>

@@ -4,8 +4,8 @@
 #include "contextresolverwiring.h"
 
 #include <PhosphorEngineRuntime/ISettings.h>
-#include "core/resolve/screenmoderouter.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
+#include <PhosphorEngineRuntime/Utils.h>
 
 #include <PhosphorZones/LayoutRegistry.h>
 

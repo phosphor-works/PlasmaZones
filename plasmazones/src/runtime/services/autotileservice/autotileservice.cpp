@@ -3,7 +3,7 @@
 
 #include "autotileservice.h"
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorEngine/PlacementEngineBase.h>
 #include <PhosphorTileEngine/AutotileEngine.h>

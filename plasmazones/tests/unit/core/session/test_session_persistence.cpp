@@ -22,7 +22,7 @@
 #include <QJsonArray>
 #include <QUuid>
 
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 
 /// Mock session persistence logic for isolated testing (no daemon/KConfig needed)
 class MockSessionPersistence : public QObject

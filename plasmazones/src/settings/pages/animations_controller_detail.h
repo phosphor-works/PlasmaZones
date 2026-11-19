@@ -19,7 +19,7 @@
 // gets its own copy without relying on unity-build TU merging for cross-TU
 // linkage.
 
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "settings/utils/animationfileutils.h"
 
 #include <PhosphorAnimation/AnimationShaderEffect.h>

@@ -14,7 +14,7 @@
 #include <QtTest/QtTest>
 #include "common/engineruntimenamespace.h"
 
-#include "core/resolve/daemongeometryresolver.h"
+#include <PhosphorEngineRuntime/DaemonGeometryResolver.h>
 #include "helpers/StubSettings.h"
 
 using namespace PlasmaZones;

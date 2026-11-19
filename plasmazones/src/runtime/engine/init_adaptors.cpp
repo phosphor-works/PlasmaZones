@@ -24,8 +24,8 @@
 #include <PhosphorEngineRuntime/SettingsConfigStore.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
-#include "core/interfaces/shaderregistry.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
 #include "runtime/services/layoutservice/layoutservice.h"
 #include "runtime/services/settingsservice/settingsservice.h"
 #include "runtime/services/overlaycontrolservice.h"

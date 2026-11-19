@@ -13,7 +13,7 @@
 
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorEngineRuntime/ISettings.h>
 #include "qml_property_names.h"
 

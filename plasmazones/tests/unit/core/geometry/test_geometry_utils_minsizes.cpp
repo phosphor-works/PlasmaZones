@@ -22,7 +22,7 @@
 #include <QVector>
 #include <QSize>
 
-#include "core/utils/geometryutils.h"
+#include <PhosphorEngineRuntime/GeometryUtils.h>
 #include <PhosphorEngineRuntime/Constants.h>
 
 using namespace PlasmaZones;

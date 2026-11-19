@@ -9,7 +9,7 @@
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 
 #include <PhosphorTiles/AlgorithmRegistry.h>

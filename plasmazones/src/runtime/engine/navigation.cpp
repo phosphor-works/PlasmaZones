@@ -12,9 +12,9 @@
 #include <PhosphorScrollEngine/ScrollEngine.h>
 #include <PhosphorSnapEngine/SnapEngine.h>
 #include <PhosphorEngineRuntime/Constants.h>
-#include "core/platform/logging.h"
-#include "core/resolve/screenmoderouter.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/ScreenModeRouter.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/Swapper.h>
 #include <PhosphorWorkspaces/VirtualDesktopManager.h>

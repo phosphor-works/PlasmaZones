@@ -9,8 +9,8 @@
 #include "snapservice.h"
 #include "runtime/windowtracker/windowtracker.h"
 #include "runtime/windowtracker/internal.h"
-#include "core/interfaces/interfaces.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
+#include <PhosphorEngineRuntime/Logging.h>
 
 #include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorPlacement/WindowTrackingService.h>

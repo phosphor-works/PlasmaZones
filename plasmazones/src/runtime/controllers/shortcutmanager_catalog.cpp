@@ -13,8 +13,8 @@
 #include "shortcutmanager.h"
 #include "shortcutmanager_ids.h"
 
-#include "core/platform/logging.h"
-#include "runtime/common/runtimei18n.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/RuntimeI18n.h>
 
 #include <PhosphorShortcuts/Registry.h>
 

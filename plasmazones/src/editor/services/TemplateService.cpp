@@ -9,7 +9,7 @@
 
 #include <QUuid>
 #include <QLatin1String>
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_i18n.h"
 
 using namespace PlasmaZones;

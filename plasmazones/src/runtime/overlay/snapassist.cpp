@@ -3,7 +3,7 @@
 
 #include "internal.h"
 #include "runtime/overlay/overlayservice.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/Logging.h>
 #include "phosphor_slot_keys.h"
 #include "qml_property_names.h"
 #include <PhosphorOverlay/ShellHost.h>
@@ -11,7 +11,7 @@
 #include <PhosphorSurfaces/SurfaceManager.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutUtils.h>
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorScreens/Manager.h>
 #include <PhosphorScreens/VirtualScreen.h>
 #include "runtime/rendering/snapassistthumbnailprovider.h"

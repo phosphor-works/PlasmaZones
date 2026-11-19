@@ -7,13 +7,13 @@
 #include <PhosphorAudio/IAudioSpectrumProvider.h>
 #include <PhosphorAnimation/SurfaceAnimator.h>
 #include <PhosphorRendering/ShaderCompiler.h>
-#include "core/types/cavaoptions.h"
-#include "core/platform/logging.h"
+#include <PhosphorEngineRuntime/CavaOptions.h>
+#include <PhosphorEngineRuntime/Logging.h>
 #include <PhosphorTiles/ITileAlgorithmRegistry.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/IZoneLayoutRegistry.h>
-#include "core/interfaces/shaderregistry.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/ShaderRegistry.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <QScreen>
 #include <QTimer>
 

@@ -3,7 +3,7 @@
 
 #include "layoutservice.h"
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include "core/interfaces/interfaces.h"
+#include <PhosphorEngineRuntime/Interfaces.h>
 #include <PhosphorLayoutApi/AspectRatioClass.h>
 #include <PhosphorZones/Layout.h>
 #include <PhosphorZones/LayoutFactory.h>
@@ -14,8 +14,8 @@
 // LayoutRegistry.h only forward-declares ScrollingTemplateStore; templateById()
 // below needs the complete type, and unity batching must not be what supplies it.
 #include <PhosphorZones/ScrollingTemplateStore.h>
-#include "core/platform/logging.h"
-#include "core/utils/utils.h"
+#include <PhosphorEngineRuntime/Logging.h>
+#include <PhosphorEngineRuntime/Utils.h>
 #include <PhosphorTiles/AlgorithmRegistry.h>
 #include <QJsonDocument>
 #include <QJsonObject>
