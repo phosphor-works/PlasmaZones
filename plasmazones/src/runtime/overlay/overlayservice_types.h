@@ -5,12 +5,14 @@
 
 #include <QMargins>
 #include <QMetaObject>
+#include <QObject>
 #include <QRect>
 #include <QSize>
 #include <QString>
 #include <QUrl>
 #include <QVariant>
 #include <optional>
+#include <utility>
 
 #include <PhosphorLayer/Role.h>
 
@@ -81,6 +83,18 @@ struct PerScreenOverlayState
     // glyph-tile payload rebuild AND the labelsTexture property write (with its
     // value compare) are skipped. 0 = never computed / cache invalid.
     quint64 labelsTextureHash = 0;
+
+    /// Drop the main overlay's hold on its screen: stop tracking the screen's
+    /// geometry and clear the screen, the geometry and the label-texture key.
+    /// A screen whose overlay surface never came up still holds these, and a
+    /// later recreate would otherwise take the entry for a live overlay.
+    void forgetMainOverlayScreen()
+    {
+        QObject::disconnect(std::exchange(overlayGeomConnection, QMetaObject::Connection{}));
+        overlayPhysScreen = nullptr;
+        overlayGeometry = QRect();
+        labelsTextureHash = 0;
+    }
     QScreen* zoneSelectorPhysScreen = nullptr;
     /// Intended geometry of the zone selector inside its shell. On
     /// Wayland LayerShell, QWindow::geometry() is unreliable until

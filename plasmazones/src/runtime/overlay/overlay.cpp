@@ -31,6 +31,7 @@
 #include "phosphor_roles.h"
 #include <PhosphorScreens/ScreenIdentity.h>
 
+#include <algorithm>
 #include <utility> // std::as_const
 
 namespace PhosphorEngineRuntime {
@@ -415,10 +416,9 @@ void OverlayService::initializeOverlay(QScreen* cursorScreen, const QPoint& curs
     // itself visible. The next drag tick asks for the overlay again
     // (prepareHandlerContext), and a screen that reconnects recreates its
     // surface (handleScreenAdded).
-    bool anySurfaceUp = false;
-    // std::as_const, because a range-for over a non-const QHash takes the MUTABLE begin() and
-    // detaches. It costs nothing today (this map's refcount is always 1, so the detach finds
-    // nothing to copy) but the spelling is what stops that being load-bearing.
+    // The const iterators, because the mutable begin() of a non-const QHash detaches. It costs
+    // nothing today (this map's refcount is always 1, so the detach finds nothing to copy) but
+    // the spelling is what stops that being load-bearing.
     //
     // The explicit begin()/end() loops elsewhere in this service are deliberately left alone, and
     // the reason is stated by SHAPE rather than by a count, because the first version of this
@@ -428,14 +428,11 @@ void OverlayService::initializeOverlay(QScreen* cursorScreen, const QPoint& curs
     // which does its OWN non-const find on this map — there the up-front detach is what stops that
     // callee detaching mid-iteration, so converting it would be a regression. The rest are
     // read-only with respect to the map and inert either way under the refcount-1 invariant.
-    for (const auto& state : std::as_const(m_screenStates)) {
-        if (state.overlayPhysScreen && state.shell && state.shell->shellWindow()) {
-            anySurfaceUp = true;
-            break;
-        }
-    }
-    m_visible = anySurfaceUp;
-    if (!anySurfaceUp) {
+    // Visible only if the transport brought up a surface on at least one screen.
+    m_visible = std::any_of(m_screenStates.cbegin(), m_screenStates.cend(), [](const PerScreenOverlayState& state) {
+        return state.overlayPhysScreen && state.shell && state.shell->shellWindow();
+    });
+    if (!m_visible) {
         qCWarning(lcOverlay) << "initializeOverlay: the layer-shell transport brought up no overlay surface; the "
                                 "overlay stays hidden";
         if (wasVisible) {
@@ -961,13 +958,8 @@ void OverlayService::dismissOverlayWindow(const QString& screenId)
     if (!slot) {
         qCDebug(lcOverlay) << "dismissOverlayWindow: no slot for" << screenId << "(shell creation may have failed)";
         // A screen whose surface never came up (no layer-shell transport)
-        // still carries its connection and screen pointer. Clear them, or a
-        // later recreate takes this entry for a live one.
-        QObject::disconnect(it->overlayGeomConnection);
-        it->overlayGeomConnection = {};
-        it->overlayPhysScreen = nullptr;
-        it->overlayGeometry = QRect();
-        it->labelsTextureHash = 0;
+        // still holds its screen.
+        it->forgetMainOverlayScreen();
         return;
     }
     // Post-shell-migration: there's no separate wl_surface to destroy.
