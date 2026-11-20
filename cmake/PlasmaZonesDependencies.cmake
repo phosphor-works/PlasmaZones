@@ -55,10 +55,10 @@ set(PLASMAZONES_DEPS phosphor-libs phosphor-components branding phosphor-surface
 # The phosphor-libs commit PlasmaZones builds against (LGPL-2.1-or-later,
 # phosphor-works/phosphor-libs): its placement engines, rendering, layer-shell
 # and config libraries. A commit, not a release, so VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-libs_VERSION "79ad6a9d29c8153a311fd4a155cf4da3170ada74")
-set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/79ad6a9d29c8153a311fd4a155cf4da3170ada74.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-79ad6a9d29c8153a311fd4a155cf4da3170ada74.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_SHA256 "5feebb740b8bc8ec5a77fa7e99cb3b3bd357dc76e33218b1f0a8586631e3c4a5")
+set(PLASMAZONES_DEP_phosphor-libs_VERSION "388a858e974424e30b4a3615ef776db9603089a3")
+set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/388a858e974424e30b4a3615ef776db9603089a3.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-388a858e974424e30b4a3615ef776db9603089a3.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_SHA256 "7503ff8c334673a5c5c092c0afcdd9c9e0253f08a3439765cb5f38f2a30cc762")
 
 # The phosphor-components commit (LGPL-2.1-or-later,
 # phosphor-works/phosphor-components): the Phosphor.Components QML module the
@@ -66,10 +66,10 @@ set(PLASMAZONES_DEP_phosphor-libs_SHA256 "5feebb740b8bc8ec5a77fa7e99cb3b3bd357dc
 # badges and the shader parameter editor with, and its catalog. Added as a
 # subproject after phosphor-libs, so it builds on this tree's phosphor-libs. A
 # commit, so VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-components_VERSION "e5639ede94313fca5380b4d5eded14b8e66efd40")
-set(PLASMAZONES_DEP_phosphor-components_URL "https://github.com/phosphor-works/phosphor-components/archive/e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz")
-set(PLASMAZONES_DEP_phosphor-components_FILE "phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz")
-set(PLASMAZONES_DEP_phosphor-components_SHA256 "a932243fdffe2b5c496558d322e2878d54f825469a6be3715179d427558940aa")
+set(PLASMAZONES_DEP_phosphor-components_VERSION "c434e5cdf3781a844e408e922afa0a3d88b4b026")
+set(PLASMAZONES_DEP_phosphor-components_URL "https://github.com/phosphor-works/phosphor-components/archive/c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz")
+set(PLASMAZONES_DEP_phosphor-components_FILE "phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz")
+set(PLASMAZONES_DEP_phosphor-components_SHA256 "e467912dc4dae79aee8a270fa846fa2a9fdea44daf62fba15510fcf2ae236cd5")
 
 # The suite's branding release (CC-BY-SA-4.0, phosphor-works/branding): the app
 # icons, installed from it with its cmake/PhosphorBranding.cmake. No app keeps
