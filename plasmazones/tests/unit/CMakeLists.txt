@@ -3243,6 +3243,7 @@ add_library(pz_test_pack_validators OBJECT
     ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_compositor.cpp)
 target_link_libraries(pz_test_pack_validators
     PUBLIC
+        PhosphorPaths::PhosphorPaths
         PhosphorZoneRendering::PhosphorZoneRendering
         PhosphorRendering::PhosphorRendering
         PhosphorShaders::PhosphorShaders

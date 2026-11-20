@@ -14,7 +14,7 @@
 
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
-#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorPaths/SuiteDirectories.h>
 #include <PhosphorEngineRuntime/Constants.h>
 #include <PhosphorEngineRuntime/SettingsInterfaces.h> // ZoneSelectorConfig struct tripwire
 
@@ -282,8 +282,8 @@ private Q_SLOTS:
     /// phosphor-works/<tree>, whatever the app is called.
     void testPathsFollowThePhosphorWorksLayout()
     {
-        QCOMPARE(appDirectoryName(), QString(AppDirectoryName));
-        setAppDirectoryName(QStringLiteral("enginehost"));
+        QCOMPARE(PhosphorPaths::appDirectoryName(), QString(AppDirectoryName));
+        PhosphorPaths::setAppDirectoryName(QStringLiteral("enginehost"));
         const QString appFolder = QStringLiteral("/phosphor-works/enginehost/");
         const QStringList configPaths{
             ConfigDefaults::configFilePath(),         ConfigDefaults::sessionFilePath(),
@@ -312,7 +312,7 @@ private Q_SLOTS:
         for (const QString& subdir : setSubdirs) {
             QVERIFY2(subdir.startsWith(QStringLiteral("/phosphor-works/")), qPrintable(subdir));
         }
-        setAppDirectoryName(AppDirectoryName);
+        PhosphorPaths::setAppDirectoryName(AppDirectoryName);
     }
 };
 

@@ -23,6 +23,8 @@
 #include <virtualdesktops.h>
 #include <workspace.h>
 
+#include <PhosphorPaths/SuiteDirectories.h>
+
 #include <QLoggingCategory>
 #include <QPointer>
 #include <QScopedValueRollback>
@@ -380,7 +382,7 @@ void PlasmaZonesEffect::initRenderingAndRegistries()
     // its whole directory on every save, here on the compositor thread, so the
     // overlay family the effect cannot consult was real work for no effect.
     m_shaderManager.presetStore().load(
-        PhosphorShaders::standardUserPresetRoot(QStringLiteral("phosphor-works/shaders/presets")),
+        PhosphorShaders::standardUserPresetRoot(PhosphorPaths::commonDataSubdir(QStringLiteral("shaders/presets"))),
         {PhosphorShaders::ShaderFamily::Animation, PhosphorShaders::ShaderFamily::Surface,
          PhosphorShaders::ShaderFamily::Pointer});
     {

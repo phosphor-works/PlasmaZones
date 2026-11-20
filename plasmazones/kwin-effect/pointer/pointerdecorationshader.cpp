@@ -28,6 +28,8 @@
 #include <opengl/glshadermanager.h>
 #include <opengl/gltexture.h>
 
+#include <PhosphorPaths/SuiteDirectories.h>
+
 #include <QByteArray>
 #include <QColor>
 #include <QDir>
@@ -179,7 +181,7 @@ void PointerDecorationPass::ensureRegistryPaths()
     std::reverse(bases.begin(), bases.end());
     paths.reserve(bases.size());
     for (const QString& base : bases) {
-        paths.append(base + QStringLiteral("/phosphor-works/shaders/pointer"));
+        paths.append(base + QLatin1Char('/') + PhosphorPaths::commonDataSubdir(QStringLiteral("shaders/pointer")));
     }
     if (!paths.isEmpty()) {
         m_registry.addSearchPaths(paths);

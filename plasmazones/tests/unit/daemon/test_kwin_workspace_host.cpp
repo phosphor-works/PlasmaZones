@@ -10,7 +10,7 @@
  *        takes nothing and keeps the backup for a pass that can.
  */
 
-#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorPaths/SuiteDirectories.h>
 #include <PhosphorEngineRuntime/ShortcutManager.h>
 #include "common/engineruntimenamespace.h"
 #include "daemon/host/kwinworkspacehost.h"
@@ -179,7 +179,7 @@ private:
     static QString backupPath()
     {
         // Where KWinWorkspaceHost keeps it: the app's state directory.
-        return PhosphorEngineRuntime::appStateDir() + QStringLiteral("/kwin-shortcut-backup.ini");
+        return PhosphorPaths::appStateDir() + QStringLiteral("/kwin-shortcut-backup.ini");
     }
 
     std::unique_ptr<IsolatedConfigGuard> m_guard;

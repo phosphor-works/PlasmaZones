@@ -288,6 +288,9 @@ set_source_files_properties(pointer/pointerdecorationpaint.cpp PROPERTIES SKIP_U
 # Link required libraries
 target_link_libraries(kwin_effect_plasmazones PRIVATE
     KWin::kwin
+    # The suite's shared shader trees and PlasmaZones' catalog, composed from
+    # the suite folder's name: the effect runs in KWin and names no folder.
+    PhosphorPaths::PhosphorPaths
     Qt6::Core
     Qt6::Gui
     Qt6::DBus

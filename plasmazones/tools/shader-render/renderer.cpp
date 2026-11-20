@@ -16,6 +16,8 @@
 
 #include <private/qquickitem_p.h>
 
+#include <PhosphorPaths/SuiteDirectories.h>
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -362,7 +364,7 @@ QStringList shaderIncludePaths()
     // and invisible to the preview, which is the same class of divergence the
     // source-tree-first ordering above exists to prevent.
     for (const QString& dir : QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
-        pushRoot(dir + QStringLiteral("/phosphor-works/shaders/overlays"));
+        pushRoot(dir + QLatin1Char('/') + PhosphorPaths::commonDataSubdir(QStringLiteral("shaders/overlays")));
     }
     // No explicit /usr/share entry: GenericDataLocation already ends with the
     // XDG_DATA_DIRS list, which includes it on a normal system.

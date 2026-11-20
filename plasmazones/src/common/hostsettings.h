@@ -6,6 +6,7 @@
 #include "common/engineruntimenamespace.h"
 
 #include "plasmazones_export.h"
+#include "version.h"
 
 #include <QLatin1String>
 #include <QObject>
@@ -30,15 +31,6 @@ namespace PlasmaZones {
  * the shipped descriptor and compares it with this constant.
  */
 inline constexpr QLatin1String PlacementHostId{"plasmazones"};
-
-/**
- * @brief PlasmaZones' directory under the XDG config and data roots.
- *
- * Every PlasmaZones executable hands it to setAppDirectoryName() through
- * initPlasmaZonesHost() at the top of main(), and the unit tests do the same
- * before main (tests/unit/helpers/appdirectoryname_init.cpp).
- */
-inline constexpr QLatin1String AppDirectoryName{"plasmazones"};
 
 /// Ready this process as a PlasmaZones host: its app directory name, the surface
 /// packs' data subdirectory, and the settings PlasmaZones adds to the engine's (HostSettings, installed as the

@@ -13,7 +13,7 @@
 
 #include <QCoreApplication>
 #include <QQmlEngine>
-#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorPaths/SuiteDirectories.h>
 
 #include <QVulkanInstance>
 
@@ -40,7 +40,7 @@ ISurfacePresentationHost::RenderBackend KWinSurfacePresentation::renderBackend()
 {
     RenderBackend backend;
     // The app's cache directory (~/.cache/phosphor-works/plasmazones).
-    backend.pipelineCachePath = appCacheDir() + QStringLiteral("/pipeline.cache");
+    backend.pipelineCachePath = PhosphorPaths::appCacheDir() + QStringLiteral("/pipeline.cache");
 #if QT_CONFIG(vulkan)
     // main() made the instance (createAndRegisterVulkanInstance) and parked it
     // on the application object.

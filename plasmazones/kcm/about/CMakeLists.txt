@@ -25,4 +25,7 @@ target_compile_definitions(kcm_plasmazones_about PRIVATE
 target_link_libraries(kcm_plasmazones_about
     PRIVATE
         KF6::KCMUtils
+        # PlasmaZones' catalog, composed from the suite folder's name: the KCM
+        # runs in System Settings and names no folder.
+        PhosphorPaths::PhosphorPaths
 )
