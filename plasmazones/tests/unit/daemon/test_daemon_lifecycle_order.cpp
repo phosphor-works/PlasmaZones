@@ -47,13 +47,26 @@
 
 namespace {
 
-QString readSource(const QString& relativePath)
+QString readFile(const QString& path)
 {
-    QFile file(QStringLiteral(P_SOURCE_DIR) + relativePath);
+    QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return {};
     }
     return QString::fromUtf8(file.readAll());
+}
+
+/// A file of this tree, relative to plasmazones/.
+QString readSource(const QString& relativePath)
+{
+    return readFile(QStringLiteral(P_SOURCE_DIR) + relativePath);
+}
+
+/// A file of the engine runtime in the pinned phosphor-libs tree, relative to
+/// libs/phosphor-engine-runtime.
+QString readRuntimeSource(const QString& relativePath)
+{
+    return readFile(QStringLiteral(P_RUNTIME_SOURCE_DIR) + relativePath);
 }
 
 /// The body of the free or member function whose definition starts with
@@ -93,7 +106,7 @@ class TestDaemonLifecycleOrder : public QObject
 private Q_SLOTS:
     void stopReleasesShortcutsBeforeTheServicesClose()
     {
-        const QString source = readSource(QStringLiteral("/src/runtime/engine/lifecycle.cpp"));
+        const QString source = readRuntimeSource(QStringLiteral("/src/runtime/engine/lifecycle.cpp"));
         QVERIFY2(!source.isEmpty(), "could not read runtime/engine/lifecycle.cpp");
         const QString stop = functionBody(source, QStringLiteral("void EngineRuntime::stop()"));
         QVERIFY2(!stop.isEmpty(), "EngineRuntime::stop() not found in lifecycle.cpp");
@@ -114,7 +127,7 @@ private Q_SLOTS:
 
     void stopTearsWorkspacesDownBeforeTheShortcutsAndTheServicesClose()
     {
-        const QString source = readSource(QStringLiteral("/src/runtime/engine/lifecycle.cpp"));
+        const QString source = readRuntimeSource(QStringLiteral("/src/runtime/engine/lifecycle.cpp"));
         QVERIFY2(!source.isEmpty(), "could not read runtime/engine/lifecycle.cpp");
         const QString stop = functionBody(source, QStringLiteral("void EngineRuntime::stop()"));
         QVERIFY2(!stop.isEmpty(), "EngineRuntime::stop() not found in lifecycle.cpp");

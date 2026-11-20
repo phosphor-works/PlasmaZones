@@ -16,7 +16,7 @@
 #include <QTest>
 #include <QVariantMap>
 
-#include "runtime/engine/snapgaptracker.h"
+#include <PhosphorEngineRuntime/SnapGapTracker.h>
 
 using namespace PlasmaZones;
 using Verdict = SnapGapTracker::Verdict;

@@ -13,7 +13,7 @@
 #include "common/engineruntimenamespace.h"
 #include <QTest>
 
-#include "runtime/engine/seedorderfilter.h"
+#include <PhosphorEngineRuntime/SeedOrderFilter.h>
 #include "helpers/IsolatedConfigGuard.h"
 #include "helpers/LayoutRegistryTestHelpers.h"
 #include "helpers/StubPlacementEngine.h"

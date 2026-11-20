@@ -14,7 +14,7 @@
 // presence, not by value — a value compare against a coercion default cannot
 // tell an absent key from a zero), and each carrying the engine's own value.
 
-#include "runtime/engine/stripzones.h"
+#include <PhosphorEngineRuntime/StripZones.h>
 #include "common/engineruntimenamespace.h"
 
 #include <PhosphorProtocol/ServiceConstants.h>

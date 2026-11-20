@@ -102,11 +102,11 @@ let
   # pin. Bump both forms together.
   depsArchives = linkFarm "plasmazones-deps-archives" [
     {
-      name = "phosphor-libs-45b5d1ad731fb783b7b58d02f5d97e4a709a3846.tar.gz";
+      name = "phosphor-libs-79ad6a9d29c8153a311fd4a155cf4da3170ada74.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-libs/archive/45b5d1ad731fb783b7b58d02f5d97e4a709a3846.tar.gz";
-        # sha256 583af5fc606c8c155db1914d58d4695a57225cc48d80c4d2fe0348364d060b60
-        hash = "sha256-WDr1/GBsjBVdsZFNWNRpWlciXMSNgMTS/gNINk0GC2A=";
+        url = "https://github.com/phosphor-works/phosphor-libs/archive/79ad6a9d29c8153a311fd4a155cf4da3170ada74.tar.gz";
+        # sha256 5feebb740b8bc8ec5a77fa7e99cb3b3bd357dc76e33218b1f0a8586631e3c4a5
+        hash = "sha256-X+67dAuLyOxad/p+mcs7O9NX3HbjMhix8KhYZjHjxKU=";
       };
     }
     {
