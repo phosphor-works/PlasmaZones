@@ -1989,8 +1989,9 @@ add_test(NAME test_compositor_bridge COMMAND test_compositor_bridge)
 # A second one placed next to a later connect silently severs its siblings.
 # Scrapes the source because no Daemon fixture exists to assert it behaviourally.
 add_executable(test_connect_sweep_ordering daemon/test_connect_sweep_ordering.cpp)
+# The files it scans are the engine runtime's, in the pinned phosphor-libs tree.
 target_compile_definitions(test_connect_sweep_ordering
-                           PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+                           PRIVATE "P_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
 target_link_libraries(test_connect_sweep_ordering PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_connect_sweep_ordering COMMAND test_connect_sweep_ordering)
 
@@ -2000,8 +2001,11 @@ add_test(NAME test_connect_sweep_ordering COMMAND test_connect_sweep_ordering)
 # backend after the config migration, and the not-served exit status is in the
 # unit's RestartPreventExitStatus=.
 add_executable(test_daemon_lifecycle_order daemon/test_daemon_lifecycle_order.cpp)
+# EngineRuntime::stop() is the engine runtime's, in the pinned phosphor-libs
+# tree; the daemon's main(), Daemon and its unit are this tree's.
 target_compile_definitions(test_daemon_lifecycle_order
-                           PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+                           PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\""
+                                   "P_RUNTIME_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
 target_link_libraries(test_daemon_lifecycle_order PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_daemon_lifecycle_order COMMAND test_daemon_lifecycle_order)
 
