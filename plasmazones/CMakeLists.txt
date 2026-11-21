@@ -101,62 +101,13 @@ install(FILES data/whatsnew.json
 # Install shared named curves. Profiles reference these by name
 # (e.g. `widget-out`) so a single edit to a curve file
 # retunes every profile that uses it, and users can drop their own
-# JSON under ~/.local/share/plasmazones/curves/ to override a shipped
+# JSON under ~/.local/share/phosphor-works/curves/ to override a shipped
 # curve system-wide. The daemon's CurveLoader scans this path first, so
 # every later consumer resolves curve names against the merged set.
 install(DIRECTORY data/curves/
     DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/curves
     FILES_MATCHING PATTERN "*.json"
 )
-
-# The bundled overlay packs no longer ship preview.png card screenshots (the
-# browser previews live shaders), but install(DIRECTORY) never removes a file
-# dropped from the tree, and ShaderRegistry still adopts a preview.png it
-# finds beside a pack's metadata.json into that pack's previewPath. A prefix
-# upgraded in place would keep the old screenshots.
-#
-# This removes preview.png from the installed directories of the BUNDLED packs
-# and from nowhere else. The pack list is taken at configure time: the source
-# directories under data/overlays/ that hold a metadata.json. That leaves out
-# shared/, and it leaves alone any pack a user or another package put under
-# the installed overlays directory.
-#
-# The installed path is put together when the install runs, from the prefix
-# and the DESTDIR in force then, so `cmake --install --prefix <other>` and a
-# staged install each clean the tree they write and no other. An absolute
-# KDE_INSTALL_DATADIR is used as it stands, the way install(DIRECTORY) treats
-# an absolute DESTINATION.
-#
-# It is declared ABOVE the install(DIRECTORY) rule for the overlays on
-# purpose. The install rules of one directory run in the order they are
-# declared, so a preview.png that a bundled pack does ship is copied after
-# this has run and survives it.
-file(GLOB _pz_overlay_pack_metadata CONFIGURE_DEPENDS
-    RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/data/overlays"
-    "${CMAKE_CURRENT_SOURCE_DIR}/data/overlays/*/metadata.json")
-set(_pz_bundled_overlay_packs "")
-foreach(_pz_overlay_metadata IN LISTS _pz_overlay_pack_metadata)
-    get_filename_component(_pz_overlay_pack "${_pz_overlay_metadata}" DIRECTORY)
-    # A dot-name is not bundled: the install(DIRECTORY) rule below excludes it.
-    if(NOT _pz_overlay_pack MATCHES "^\\.")
-        list(APPEND _pz_bundled_overlay_packs "${_pz_overlay_pack}")
-    endif()
-endforeach()
-if(IS_ABSOLUTE "${KDE_INSTALL_DATADIR}")
-    set(_pz_overlays_install_dir "${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/overlays")
-else()
-    set(_pz_overlays_install_dir "\${CMAKE_INSTALL_PREFIX}/${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/overlays")
-endif()
-install(CODE "
-    set(_pz_bundled_overlay_packs \"${_pz_bundled_overlay_packs}\")
-    foreach(_pz_overlay_pack IN LISTS _pz_bundled_overlay_packs)
-        set(_pz_stale_overlay_preview \"\$ENV{DESTDIR}${_pz_overlays_install_dir}/\${_pz_overlay_pack}/preview.png\")
-        if(EXISTS \"\${_pz_stale_overlay_preview}\")
-            message(STATUS \"Removing stale overlay preview: \${_pz_stale_overlay_preview}\")
-            file(REMOVE \"\${_pz_stale_overlay_preview}\")
-        endif()
-    endforeach()
-")
 
 # Install bundled RenderNode shaders (raw GLSL, no compilation needed).
 # Ship the whole pack tree so every asset a pack's metadata references

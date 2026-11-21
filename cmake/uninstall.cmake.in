@@ -47,7 +47,7 @@ endif()
 # Covers: bin, lib, share/applications, share/autostart, share/dbus-1/interfaces,
 # share/icons, share/kglobalaccel, share/phosphor-works/placement-hosts,
 # share/phosphor-works/shaders/surface (its empty directories only, in step 3),
-# share/plasmazones, lib/.../qml, lib/.../plugins
+# share/phosphor-works/plasmazones, lib/.../qml, lib/.../plugins
 # ═══════════════════════════════════════════════════════════════════════════════
 
 message(STATUS "")
@@ -179,7 +179,7 @@ endforeach()
 
 # Known directories (entire trees)
 set(KNOWN_DIRS
-    "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/plasmazones"
+    "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/@PHOSPHOR_SUITE_DIRECTORY_NAME@/@PLASMAZONES_APP_DIRECTORY_NAME@"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_DATADIR@/phosphorwayland"
     "$ENV{DESTDIR}@KDE_INSTALL_FULL_QMLDIR@/org/phosphor"
 )
