@@ -51,17 +51,6 @@ public:
     }
     void setSnapIntervalY(qreal interval);
 
-    // Backward compatibility: returns X interval
-    qreal snapInterval() const
-    {
-        return m_snapIntervalX;
-    }
-    void setSnapInterval(qreal interval)
-    {
-        setSnapIntervalX(interval);
-        setSnapIntervalY(interval);
-    }
-
     /**
      * @brief Snap geometry for move operations (all edges move together)
      *
@@ -86,7 +75,6 @@ Q_SIGNALS:
     void edgeSnappingEnabledChanged();
     void snapIntervalXChanged();
     void snapIntervalYChanged();
-    void snapIntervalChanged(); // For backward compatibility
 
 private:
     /**

@@ -43,7 +43,6 @@ void SnappingService::setSnapIntervalX(qreal interval)
     if (!qFuzzyCompare(m_snapIntervalX, interval)) {
         m_snapIntervalX = interval;
         Q_EMIT snapIntervalXChanged();
-        Q_EMIT snapIntervalChanged(); // For backward compatibility
     }
 }
 
@@ -53,7 +52,6 @@ void SnappingService::setSnapIntervalY(qreal interval)
     if (!qFuzzyCompare(m_snapIntervalY, interval)) {
         m_snapIntervalY = interval;
         Q_EMIT snapIntervalYChanged();
-        Q_EMIT snapIntervalChanged(); // For backward compatibility
     }
 }
 
