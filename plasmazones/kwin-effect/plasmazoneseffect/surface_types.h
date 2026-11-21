@@ -163,7 +163,6 @@ struct CompiledSurfacePack
     int uFrameSizeLoc = -1; ///< uSurfaceFrameSize — frame size excluding shadows, device px
     int uScaleLoc = -1; ///< uSurfaceScale — logical-to-device pixel scale
     int uFocusedLoc = -1; ///< uSurfaceFocused — 1.0 focused / 0.0 unfocused
-    int uOpacityLoc = -1; ///< uSurfaceOpacity — LEGACY, pushed as a constant 1.0 (retired rule feed)
     int uTimeLoc = -1; ///< iTime — continuous seconds; -1 ⟺ static pack (drives the repaint gate)
     /// uTexture0 — the input-surface sampler (unit 0). Every decorated window
     /// (one-pack chains included) folds through renderSurfaceChainComposite,

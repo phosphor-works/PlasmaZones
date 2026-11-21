@@ -102,8 +102,7 @@ Required `id`, `name`, `fragmentShader`, `parameters` (may be `[]`). Top level i
 `providesOpacityTint`, `needsBackdrop`, `interiorOpaque`, `multipass`, `bufferShaders` (max 8),
 `bufferScale` (0.0078125..1.0), `bufferScales` (per-pass, same bounds, one entry per
 `bufferShaders` entry, surface-only), `bufferFeedback`, `bufferWrap(s)`, `bufferFilter(s)`, `depthBuffer`,
-`halfFloatBuffers`, `paddingParam`, `textures` (max 3), `presets`, and the legacy `handlesOpacity`
-(accepted, ignored; do not write it). Max 48 params. No `slot` field (auto-slot by
+`halfFloatBuffers`, `paddingParam`, `textures` (max 3), and `presets`. Max 48 params. No `slot` field (auto-slot by
 declaration order). Param keys, and ONLY these, because the schema is
 `additionalProperties: false`: `id, name, description, group, type, default, min, max, step`.
 `type` is `float`, `int`, `bool` or `color`: a surface pack has no image params, the runtime
@@ -207,7 +206,7 @@ Uniforms (same names on both runtimes): `uTexture0` (previous chain stage's outp
 device), `uSurfaceFocused` (0/1), `iTime` (seconds, only for `animated`), `iAudioSpectrumSize`,
 `customParams[8]`, `customColors[16]`, `uHasBackdrop`, `uBackdropRect` (the capture's rect,
 used by `backdropTexel()`), `iChannelResolution[4]`, `iMouse` (xy device px top-down,
-`x < 0` = off surface), `uTexture1..3`, `iTextureResolution[4]`. `uSurfaceOpacity` is legacy 1.0.
+`x < 0` = off surface), `uTexture1..3`, `iTextureResolution[4]`.
 
 Every logical-px param is multiplied by `uSurfaceScale` at the call site, EXCEPT for the
 helpers documented as taking logical px: `standardBorderBandSplit` scales `borderWidth`,
