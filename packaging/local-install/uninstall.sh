@@ -85,14 +85,14 @@ rm -f "$HOME/.config/environment.d/10-plasmazones.conf"
 
 # Ask about config removal upfront
 echo ""
-read -p "Remove user configuration and layouts? [y/N] " -n 1 -r
+read -p "Remove PlasmaZones' user configuration and state? [y/N] " -n 1 -r
 echo
 REMOVE_CONFIG=false
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     REMOVE_CONFIG=true
-    echo "Will remove configuration and layouts."
+    echo "Will remove configuration and state."
 else
-    echo "Will preserve configuration and layouts."
+    echo "Will preserve configuration and state."
 fi
 echo ""
 
@@ -131,14 +131,15 @@ done
 
 # Remove config if user requested
 if [ "$REMOVE_CONFIG" = true ]; then
-    echo "Removing configuration and layouts..."
+    echo "Removing configuration and state..."
     rm -rf "$PREFIX/share/phosphor-works/plasmazones"
-    # The user's own layouts live under XDG data, not under $PREFIX.
-    # Those coincide only when PREFIX is the default $HOME/.local, so
-    # with a --prefix elsewhere this prompt used to delete the config
-    # directory while leaving every saved layout behind.
-    rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/plasmazones"
-    rm -rf "$HOME/.config/phosphor-works/plasmazones"
+    # PlasmaZones' own user directories. The shared trees beside them
+    # (layouts, shaders, curves and the other phosphor-works data) belong to
+    # every app of the suite and stay.
+    rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/phosphor-works/plasmazones"
+    rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/phosphor-works/plasmazones"
+    rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/phosphor-works/plasmazones"
+    rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/phosphor-works/plasmazones"
     # The record of which placement host last ran, which plasmazonesd writes
     # under the XDG state directory. Only that file goes: the phosphor-works
     # directory is shared with the suite's other apps, so it is removed only
