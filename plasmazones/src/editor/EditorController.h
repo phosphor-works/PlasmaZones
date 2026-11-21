@@ -98,8 +98,6 @@ class EditorController : public QObject
     Q_PROPERTY(qreal snapIntervalX READ snapIntervalX WRITE setSnapIntervalX NOTIFY snapIntervalXChanged)
     Q_PROPERTY(qreal snapIntervalY READ snapIntervalY WRITE setSnapIntervalY NOTIFY snapIntervalYChanged)
     Q_PROPERTY(
-        qreal snapInterval READ snapInterval WRITE setSnapInterval NOTIFY snapIntervalChanged) // Backward compatibility
-    Q_PROPERTY(
         bool gridOverlayVisible READ gridOverlayVisible WRITE setGridOverlayVisible NOTIFY gridOverlayVisibleChanged)
 
     // Keyboard shortcuts (app-specific configurable shortcuts only)
@@ -272,7 +270,6 @@ public:
     bool edgeSnappingEnabled() const;
     qreal snapIntervalX() const;
     qreal snapIntervalY() const;
-    qreal snapInterval() const; // Backward compatibility
     bool gridOverlayVisible() const;
     QString editorDuplicateShortcut() const;
     QString editorSplitHorizontalShortcut() const;
@@ -397,7 +394,6 @@ public:
     void setEdgeSnappingEnabled(bool enabled);
     void setSnapIntervalX(qreal interval);
     void setSnapIntervalY(qreal interval);
-    void setSnapInterval(qreal interval); // Backward compatibility: sets both X and Y
     void setGridOverlayVisible(bool visible);
     void setSnapOverrideModifier(int modifier);
     void setFillOnDropEnabled(bool enabled);
@@ -752,7 +748,6 @@ Q_SIGNALS:
     void edgeSnappingEnabledChanged();
     void snapIntervalXChanged();
     void snapIntervalYChanged();
-    void snapIntervalChanged(); // For backward compatibility
     void gridOverlayVisibleChanged();
     void editorDuplicateShortcutChanged();
     void editorSplitHorizontalShortcutChanged();

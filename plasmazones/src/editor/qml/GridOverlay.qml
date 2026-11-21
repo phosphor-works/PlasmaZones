@@ -85,10 +85,6 @@ Canvas {
             gridOverlay.requestPaint();
         }
 
-        function onSnapIntervalChanged() {
-            gridOverlay.requestPaint();
-        }
-
         function onGridSnappingEnabledChanged() {
             gridOverlay.requestPaint();
         }

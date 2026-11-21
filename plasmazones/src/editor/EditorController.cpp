@@ -295,8 +295,6 @@ EditorController::EditorController(QObject* parent)
             &EditorController::edgeSnappingEnabledChanged);
     connect(m_snappingService, &SnappingService::snapIntervalXChanged, this, &EditorController::snapIntervalXChanged);
     connect(m_snappingService, &SnappingService::snapIntervalYChanged, this, &EditorController::snapIntervalYChanged);
-    connect(m_snappingService, &SnappingService::snapIntervalChanged, this,
-            &EditorController::snapIntervalChanged); // For backward compatibility
 
     // Connect to clipboard changes for reactive canPaste updates
     QClipboard* clipboard = QGuiApplication::clipboard();
@@ -444,10 +442,6 @@ qreal EditorController::snapIntervalY() const
 {
     return m_snappingService->snapIntervalY();
 }
-qreal EditorController::snapInterval() const
-{
-    return snapIntervalX();
-} // Backward compatibility
 bool EditorController::gridOverlayVisible() const
 {
     return m_gridOverlayVisible;
@@ -623,13 +617,6 @@ void EditorController::setSnapIntervalY(qreal interval)
     if (!qFuzzyCompare(before, m_snappingService->snapIntervalY())) {
         saveEditorSettings(EditorOwnedConfig::Key::SnapIntervalY);
     }
-}
-
-void EditorController::setSnapInterval(qreal interval)
-{
-    // Backward compatibility: set both X and Y to the same value
-    setSnapIntervalX(interval);
-    setSnapIntervalY(interval);
 }
 
 void EditorController::setSnapOverrideModifier(int modifier)

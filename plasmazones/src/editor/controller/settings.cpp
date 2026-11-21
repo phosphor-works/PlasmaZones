@@ -383,8 +383,7 @@ void EditorController::saveEditorSettings(EditorOwnedConfig::Keys changed)
     // background opacity to Slider.onMoved), so writing here put a
     // whole-document rewrite, an fsync and a full daemon config reparse on
     // every tick of a drag. Restarting the timer on each call collapses the
-    // burst into one write once the value settles. setSnapInterval calls two
-    // setters for one logical change, which costs one write instead of two.
+    // burst into one write once the value settles.
     m_editorKeysEdited |= changed;
     m_editorSettingsWriteFailures = 0;
     m_editorSettingsSaveTimer.start(EditorSettingsSaveDebounceMs);
