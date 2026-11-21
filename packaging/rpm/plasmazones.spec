@@ -66,8 +66,8 @@ Source3:        https://github.com/phosphor-works/branding/releases/download/v0.
 Source4:        https://github.com/phosphor-works/phosphor-libs/archive/cf1cb7db625b774c6c3eb0da2776d75e1eba81c0.tar.gz#/phosphor-libs-cf1cb7db625b774c6c3eb0da2776d75e1eba81c0.tar.gz
 # The surface decoration packs commit, pinned in the same file. Shader source
 # and metadata the build installs as data, so no bundled() provide.
-# phosphor-surface-packs-e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz sha256 84797d7b6e2d6df96c4bbbc54f79001f3dac0f2fcaf79d39c601cfd51947890d
-Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive/e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz#/phosphor-surface-packs-e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz
+# phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz sha256 5cfdd51c5dd1f96f1d4da6637d25a5e3fdb11fb683b3b39a13095fc8a0db4090
+Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive/c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz#/phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz
 # The phosphor-components commit, pinned in the same file: the QML components
 # the overlays, settings app and editor draw with, built from it into the
 # executables, and its catalogs.

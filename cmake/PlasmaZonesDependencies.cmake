@@ -84,10 +84,10 @@ set(PLASMAZONES_DEP_branding_SHA256 "d6ec9261d4391148f5c21dfb02be410214d42ea675f
 # shadow, blur and glass packs PlasmaZones and Lambent draw, installed from it
 # with its cmake/PhosphorSurfacePacks.cmake. A commit, so VERSION is the commit
 # hash.
-set(PLASMAZONES_DEP_phosphor-surface-packs_VERSION "e3818dc174d6a47cde20e8c5188e38382890ef92")
-set(PLASMAZONES_DEP_phosphor-surface-packs_URL "https://github.com/phosphor-works/phosphor-surface-packs/archive/e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz")
-set(PLASMAZONES_DEP_phosphor-surface-packs_FILE "phosphor-surface-packs-e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz")
-set(PLASMAZONES_DEP_phosphor-surface-packs_SHA256 "84797d7b6e2d6df96c4bbbc54f79001f3dac0f2fcaf79d39c601cfd51947890d")
+set(PLASMAZONES_DEP_phosphor-surface-packs_VERSION "c897e15f899565740b3bd0ec05d16ac9cabe186c")
+set(PLASMAZONES_DEP_phosphor-surface-packs_URL "https://github.com/phosphor-works/phosphor-surface-packs/archive/c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz")
+set(PLASMAZONES_DEP_phosphor-surface-packs_FILE "phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz")
+set(PLASMAZONES_DEP_phosphor-surface-packs_SHA256 "5cfdd51c5dd1f96f1d4da6637d25a5e3fdb11fb683b3b39a13095fc8a0db4090")
 
 # glslang's prebuilt tools, a test-time program and not a source dependency, so
 # not in PLASMAZONES_DEPS: no packaging build runs the tests. Khronos publishes

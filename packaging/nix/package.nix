@@ -134,11 +134,11 @@ let
       };
     }
     {
-      name = "phosphor-surface-packs-e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz";
+      name = "phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-surface-packs/archive/e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz";
-        # sha256 84797d7b6e2d6df96c4bbbc54f79001f3dac0f2fcaf79d39c601cfd51947890d
-        hash = "sha256-hHl9e24tbflsS7vFT3kAHz2sDy/K9505xgHP1RlHiQ0=";
+        url = "https://github.com/phosphor-works/phosphor-surface-packs/archive/c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz";
+        # sha256 5cfdd51c5dd1f96f1d4da6637d25a5e3fdb11fb683b3b39a13095fc8a0db4090
+        hash = "sha256-XP3VHF3R+W8dTaZjfSWl4/2xH7aDs7OaEwlfyKDbQJA=";
       };
     }
     {

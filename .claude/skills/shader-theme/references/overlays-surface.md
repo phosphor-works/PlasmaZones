@@ -216,7 +216,7 @@ final PREMULTIPLIED colour; there is no clamp pass after `pSurface`.
 
 Helpers: `surfacePixel(uv)` (device px, runtime Y handled), `surfaceTexel(uv)`,
 `surfaceFrameDegenerate()`, `frameSdfSplit(p, topRadiusDevicePx, bottomRadiusDevicePx)`,
-`frameMask(d[, aaDevicePx])`, `focusDim(lo)`,
+`frameMask(d, aaDevicePx)`, `focusDim(lo)`,
 `standardBorderBandSplit(p, borderWidthLogical, cornerRadiusLogical, bottomRadiusLogical, aaDevicePx)` -> `{fs, insideMask, edge}`,
 `borderComposite(tex, bandColor, edge, insideMask)`,
 `surfaceSlabOpen(uv, topRadiusDevicePx, bottomRadiusDevicePx, aaDevicePx)`
@@ -228,11 +228,8 @@ gateCornerBottomDevicePx)`,
 `frameUv(px)`, `pxToUv(v)`, `framePerimeter(p, center, halfSize)` (-0.5..0.5 around the frame,
 for travelling gleams).
 
-The uniform-radius `standardBorderBand`, `frameSdf` and two-arg `surfaceSlabOpen`, and the
-six- and seven-arg `haloFalloff`, still exist as third-party compatibility overloads. Do NOT
-write a new pack against them: the seven-arg `haloFalloff` takes one radius for both ends and
-the six-arg form a square gate at both, and the rest take one radius for all four corners, so
-a pack that uses any of them cannot follow the chain's bottom-corner answer.
+There are no uniform-radius forms: every helper takes the top and bottom radii separately, so
+a pack follows the chain's bottom-corner answer.
 
 Derive the bottom radius with `surfaceBottomRadius`, which every bundled declarer calls:
 
