@@ -212,12 +212,11 @@ QString monitorNameOf(const QVariantMap& screen)
 
 QVariantList RuleController::sections() const
 {
-    // Canonical display order — Monitor & Layout first, then the user-authored
-    // sections, then the app-managed System defaults last. The enum values are
-    // emitted as data so QML never hardcodes them.
+    // Canonical display order — Monitor & Layout first, then the other
+    // sections. The enum values are emitted as data so QML never hardcodes them.
     static const QList<RuleModel::Section> kOrder = {
         RuleModel::Section::Monitor,   RuleModel::Section::Application, RuleModel::Section::Activity,
-        RuleModel::Section::Animation, RuleModel::Section::Advanced,    RuleModel::Section::System,
+        RuleModel::Section::Animation, RuleModel::Section::Advanced,
     };
     QVariantList out;
     for (RuleModel::Section s : kOrder) {
@@ -259,7 +258,6 @@ QVariantList RuleController::rulesSnapshot() const
         entry[QStringLiteral("validationIssueCount")] = m_model.data(idx, RuleModel::ValidationIssueCountRole);
         entry[QStringLiteral("inertAnimationActionCount")] =
             m_model.data(idx, RuleModel::InertAnimationActionCountRole);
-        entry[QStringLiteral("managed")] = m_model.data(idx, RuleModel::ManagedRole);
         out.append(entry);
     }
     return out;

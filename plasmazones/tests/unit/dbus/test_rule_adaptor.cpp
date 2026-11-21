@@ -266,7 +266,6 @@ private Q_SLOTS:
             QJsonDocument(makeRule(QStringLiteral("kate")).toJson()).toJson(QJsonDocument::Compact))));
         QVERIFY(!m_adaptor->removeRule(QUuid::createUuid().toString()));
         m_adaptor->reloadRules(); // must not crash
-        m_adaptor->resetManagedDefaults(); // must not crash
 
         // detach() also severs the relay, so a store that outlives the
         // adaptor's interest cannot keep pushing onto a dead wire.

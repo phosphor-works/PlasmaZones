@@ -23,7 +23,7 @@ import "../../js/MatchWireValue.js" as MatchWireValue
  * rules from any section and position alone decides who wins. There are no
  * priority bands in evaluation (the daemon only reads the priority integer); the
  * old section "bands" survive only as a default-seeding hint for newly added
- * rules. Managed System rules pin to the bottom (INT_MIN) and are non-draggable.
+ * rules.
  *
  * There is deliberately NO grouping/sorting on this page — precedence is only
  * meaningful in priority order, so a re-grouped/re-sorted view would fight the
@@ -186,10 +186,9 @@ SettingsFlickable {
 
     property string searchText: ""
     // Multi-select filter state: the set of filter KEYS the user has unchecked
-    // (empty = show everything). Keys are mixed across three groups — section
-    // values (ints), source ("src:system"/"src:user"), and status
-    // ("status:active"/"status:disabled"). The filter button owns this; the page
-    // reads it one-way.
+    // (empty = show everything). Keys are mixed across two groups — section
+    // values (ints) and status ("status:active"/"status:disabled"). The filter
+    // button owns this; the page reads it one-way.
     readonly property var excludedFilters: rulesFilterButton.excluded
     property string monitorFilter: ""
     // Ordered section descriptors — `[{ value: int, label }]` straight from
@@ -210,10 +209,8 @@ SettingsFlickable {
     /// This is the page's single view: precedence only has meaning in priority
     /// order, so there is no grouping/sorting UI — the list is always the
     /// drag-reorderable priority sequence. Search + the filter button (section /
-    /// source / status) + the monitor strip narrow it without changing order.
-    /// Managed System rules pin to the bottom for free (their priority is
-    /// INT_MIN). Reactive on searchText / excludedFilters / monitorFilter and
-    /// `modelRevision`.
+    /// status) + the monitor strip narrow it without changing order. Reactive
+    /// on searchText / excludedFilters / monitorFilter and `modelRevision`.
     /// The snapshot is hoisted into its own revision-only binding: building it
     /// is the expensive half (13 model reads per rule, and ActionSummaryRole
     /// recomputes through the C++→JS curve-label resolver), and folding it
@@ -232,9 +229,6 @@ SettingsFlickable {
             var entry = snapshot[i];
             // Section filter — hide entries whose category the user unchecked.
             if (excluded.indexOf(entry.section) >= 0)
-                continue;
-            // Source filter — built-in (managed) vs user-created.
-            if (excluded.indexOf(entry.managed === true ? "src:system" : "src:user") >= 0)
                 continue;
             // Status filter — active (enabled) vs disabled.
             if (excluded.indexOf(entry.enabled === true ? "status:active" : "status:disabled") >= 0)
@@ -265,10 +259,9 @@ SettingsFlickable {
             out.push(entry);
         }
         // Highest priority first. Qt's V4 sort is stable, so equal priorities keep
-        // snapshot (model) order — the only ties are the managed System rules,
-        // which all share INT_MIN and sort to the bottom. The global renormalize
-        // keeps model row order in sync with priority order, so display order ==
-        // model row order (the invariant the drag commit relies on).
+        // snapshot (model) order. The global renormalize keeps model row order in
+        // sync with priority order, so display order == model row order (the
+        // invariant the drag commit relies on).
         out.sort(function (a, b) {
             return (b.priority || 0) - (a.priority || 0);
         });
@@ -602,31 +595,14 @@ SettingsFlickable {
                 onTextChanged: page.searchText = text
             }
 
-            // Multi-select filter, modeled on the library pages' filter button —
-            // same group ORDER as their menus: source first (built-in before
-            // user), then the categories, then the status/type pair. Three groups:
-            // source (system vs user-created), category sections, status (active
-            // vs disabled). Section labels/order come from the controller (C++).
-            // System is dropped from the section group because a System rule is
-            // exactly a managed rule (sectionFor maps managed → System), so the
-            // Source group's "System" already covers it — listing it twice would
-            // be redundant.
+            // Multi-select filter, modeled on the library pages' filter button.
+            // Two groups: category sections, then status (active vs disabled).
+            // Section labels/order come from the controller (C++).
             FilterMenuButton {
                 id: rulesFilterButton
 
                 menuTitle: i18nc("@title:menu", "Filter Rules")
-                groups: [[
-                        {
-                            "key": "src:system",
-                            "label": i18nc("@option:check filter rules by source", "System")
-                        },
-                        {
-                            "key": "src:user",
-                            "label": i18nc("@option:check filter rules by source", "User-created")
-                        }
-                    ], page.sectionDescriptors.filter(function (s) {
-                        return s.value !== RuleModel.System;
-                    }).map(function (s) {
+                groups: [page.sectionDescriptors.map(function (s) {
                         return {
                             "key": s.value,
                             "label": s.label
@@ -686,8 +662,7 @@ SettingsFlickable {
                 spacing: 0
 
                 // A drop re-stamps the global priority sequence via the
-                // controller's `renormalizePriorities`; managed System rules pin
-                // to the bottom and are non-draggable (handled per-row).
+                // controller's `renormalizePriorities`.
                 RuleSectionList {
                     Layout.fillWidth: true
                     rules: page.filteredRules

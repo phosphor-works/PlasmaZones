@@ -53,13 +53,6 @@ bool RuleAdaptor::setRulePriority(const QString& ruleId, int priority)
     return m_service ? m_service->setRulePriority(ruleId, priority) : bool{};
 }
 
-void RuleAdaptor::resetManagedDefaults()
-{
-    if (m_service) {
-        m_service->resetManagedDefaults();
-    }
-}
-
 void RuleAdaptor::reloadRules()
 {
     if (m_service) {

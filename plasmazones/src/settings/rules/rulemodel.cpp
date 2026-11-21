@@ -205,7 +205,6 @@ QHash<int, QByteArray> RuleModel::roleNames() const
         {ScreenIdsRole, "screenIds"},
         {ValidationIssueCountRole, "validationIssueCount"},
         {InertAnimationActionCountRole, "inertAnimationActionCount"},
-        {ManagedRole, "managed"},
     };
 }
 
@@ -252,8 +251,6 @@ QVariant RuleModel::data(const QModelIndex& index, int role) const
         // Recomputed per query for the same reason as above, and cheaper still:
         // a scan of the rule's own action list against a ten-entry predicate.
         return inertAnimationActionCount(rule);
-    case ManagedRole:
-        return rule.managed;
     default:
         return {};
     }
@@ -351,12 +348,6 @@ bool RuleModel::removeRule(const QUuid& id)
     if (row < 0) {
         return false;
     }
-    // Managed rules (the baseline appearance rule) are app-owned and must stay
-    // present — refuse deletion. The UI hides the affordance via ManagedRole;
-    // this is the model-level backstop against a programmatic caller.
-    if (m_rules.at(row).managed) {
-        return false;
-    }
     beginRemoveRows(QModelIndex(), row, row);
     m_rules.removeAt(row);
     endRemoveRows();
@@ -368,12 +359,6 @@ bool RuleModel::moveRule(const QUuid& id, const QUuid& beforeId)
 {
     const int from = indexOf(id);
     if (from < 0) {
-        return false;
-    }
-    // Managed rules are pinned (their precedence comes from a fixed priority,
-    // not list position) — refuse to reorder them. The UI hides drag for
-    // managed rows; this is the model-level backstop.
-    if (m_rules.at(from).managed) {
         return false;
     }
     int dest = beforeId.isNull() ? m_rules.size() : indexOf(beforeId);
@@ -424,13 +409,6 @@ void RuleModel::setPriorities(const QList<int>& priorities)
 
 RuleModel::Section RuleModel::sectionFor(const Rule& rule)
 {
-    // App-managed baseline rules (the seeded Default borders / title bars / gaps)
-    // are System rules — grouped apart from user-authored ones regardless of
-    // their match/actions.
-    if (rule.managed) {
-        return Section::System;
-    }
-
     // Animation actions are decisive — a rule that touches an animation slot
     // belongs to the Animations group regardless of its match shape.
     if (hasAnimationAction(rule.actions)) {

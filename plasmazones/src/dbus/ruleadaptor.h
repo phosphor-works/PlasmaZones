@@ -48,7 +48,6 @@ public Q_SLOTS:
     bool removeRule(const QString& ruleId);
     bool setRuleEnabled(const QString& ruleId, bool enabled);
     bool setRulePriority(const QString& ruleId, int priority);
-    void resetManagedDefaults();
     void reloadRules();
 
 Q_SIGNALS:

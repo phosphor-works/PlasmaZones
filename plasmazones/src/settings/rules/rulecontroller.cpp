@@ -24,8 +24,6 @@
 #include <QSet>
 #include <QUuid>
 
-#include <limits>
-
 namespace PlasmaZones {
 
 namespace {
@@ -482,8 +480,8 @@ void RuleController::revert()
     fetchAndLoad(/*fromRevert=*/true);
 }
 
-// NOTE: the user-rule dirty check + global managed reset methods
-// (captureSavedSnapshot, userRulesDirty, resetManagedDefaults) live in
+// NOTE: the user-rule dirty check and profile staging methods
+// (captureSavedSnapshot, userRulesDirty, stageUserRules) live in
 // rulecontroller_baseline.cpp.
 
 int RuleController::bandBaseForSection(RuleModel::Section section)
@@ -498,11 +496,6 @@ int RuleController::bandBaseForSection(RuleModel::Section section)
         return kApplicationBandBase;
     case RuleModel::Section::Animation:
         return kAnimationBandBase;
-    case RuleModel::Section::System:
-        // Managed System rules keep their pinned INT_MIN priority — they are
-        // never renumbered by renormalizePriorities (the managed guard skips
-        // them). Report INT_MIN so a System rule seeds below every user rule.
-        return std::numeric_limits<int>::min();
     }
     return kAnimationBandBase;
 }
@@ -534,23 +527,8 @@ void RuleController::renormalizePriorities()
     // between two neighbours before the next reorder renumbers. Start from the
     // top (highest priority = first row) and step down.
     constexpr int kStep = 16;
-    int userCount = 0;
     for (int i = 0; i < n; ++i) {
-        if (!rules.at(i).managed)
-            ++userCount;
-    }
-    int rank = userCount;
-    for (int i = 0; i < n; ++i) {
-        // A managed rule (now only a stale appearance baseline from an older build,
-        // before appearance moved to config) carries a pinned priority (INT_MIN)
-        // that fixes it below every user rule regardless of list position — never
-        // re-stamp it, or it'd jump above user rules.
-        if (rules.at(i).managed) {
-            priorities[i] = rules.at(i).priority;
-            continue;
-        }
-        priorities[i] = rank * kStep;
-        --rank;
+        priorities[i] = (n - i) * kStep;
     }
     m_model.setPriorities(priorities);
 }
@@ -560,33 +538,18 @@ int RuleController::bandSeededInsertIndex(const Rule& rule) const
     // Seed the new rule's DEFAULT position by band so defaults stay sensible (a
     // new Advanced rule starts high, a new Animation rule starts low) even
     // though priority is now one free-form global sequence. Insert above the
-    // first existing rule of a strictly lower band, or above the managed block.
-    // Existing same-band rules are stepped over, so the new rule lands at the
-    // bottom of its own tier (just above the next lower band), keeping
+    // first existing rule of a strictly lower band, or at the end when there is
+    // none. Existing same-band rules are stepped over, so the new rule lands at
+    // the bottom of its own tier (just above the next lower band), keeping
     // earlier-added rules ahead of it within the tier. The user can drag it
     // anywhere afterwards.
     const int band = bandBaseForSection(RuleModel::sectionFor(rule));
     const QList<Rule>& rules = m_model.rules();
-    // Where the managed block starts, if there is one. Managed rules are SKIPPED
-    // by the band walk rather than ending it: they carry a pinned INT_MIN
-    // priority that puts them below every user rule whatever their list
-    // position, so their band says nothing about where a new rule belongs. The
-    // old early return meant a single managed rule dragged to row 0 made every
-    // new rule of every section insert at the top.
-    int firstManaged = -1;
     for (int i = 0; i < rules.size(); ++i) {
-        const Rule& r = rules.at(i);
-        if (r.managed) {
-            if (firstManaged < 0)
-                firstManaged = i;
-            continue;
-        }
-        if (bandBaseForSection(RuleModel::sectionFor(r)) < band)
+        if (bandBaseForSection(RuleModel::sectionFor(rules.at(i))) < band)
             return i;
     }
-    // No lower band among the user rules: land above the managed block if there
-    // is one (that was the point of the old early return), otherwise at the end.
-    return firstManaged >= 0 ? firstManaged : rules.size();
+    return rules.size();
 }
 
 QVariantMap RuleController::newEmptyRule(const QString& subject) const
@@ -637,22 +600,12 @@ QString RuleController::addRuleFromJson(const QVariantMap& ruleJson)
 
 bool RuleController::updateRuleFromJson(const QVariantMap& ruleJson)
 {
-    Rule rule = ruleFromVariant(ruleJson);
+    const Rule rule = ruleFromVariant(ruleJson);
     if (rule.id.isNull()) {
         // ruleFromVariant() yields a null-id rule when Rule::fromJson
         // rejects the payload (malformed map, missing/invalid id).
         qCWarning(lcConfig) << "RuleController::updateRuleFromJson: rejecting malformed rule payload";
         return false;
-    }
-    // A managed rule (now only a stale appearance baseline left by an older build
-    // until the daemon strips it) is app-owned: a save must never demote it to a
-    // user rule, retarget its catch-all match, or unpin its priority.
-    // Force-preserve those from the stored rule regardless of the payload.
-    const Rule existing = m_model.ruleById(rule.id);
-    if (existing.managed) {
-        rule.managed = true;
-        rule.priority = existing.priority;
-        rule.match = existing.match;
     }
     const RuleModel::UpdateResult result = m_model.updateRule(rule);
     switch (result) {
@@ -709,9 +662,6 @@ QString RuleController::duplicateRule(const QString& ruleId)
     }
     Rule clone = source;
     clone.id = QUuid::createUuid();
-    // A duplicate of a managed rule is an ordinary user rule — the managed flag
-    // (non-deletable, pinned priority) does not carry over.
-    clone.managed = false;
     // Auto-suffix the name when the source has one so the two rules don't
     // share an identical label in the list. An empty source name stays empty
     // — the matchSummary will distinguish the clone in that case (and the

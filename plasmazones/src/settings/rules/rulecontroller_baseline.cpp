@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: 2026 fuddlesworth
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Per-page dirty split + global managed reset for RuleController.
-// The controller's class definition spans this TU and rulecontroller.cpp.
+// User-rule dirty check, profile staging and the Restore Defaults rule reload
+// for RuleController. The controller's class definition spans this TU and
+// rulecontroller.cpp.
 //
 // Covers: the value-based user-rule dirty check (userRulesDirty against the last
-// daemon-synced snapshot) and the fire-and-forget global daemon reset
-// (resetManagedDefaults). Window appearance defaults moved to the config store,
-// so the per-page appearance-baseline reset/discard that used to live here is
-// gone — the Rules page carries only user-authored rules now.
+// daemon-synced snapshot), staging a profile's resolved rules (stageUserRules)
+// and the fire-and-forget daemon rule reload (reloadDaemonRules).
 
 #include "rulecontroller.h"
 #include <PhosphorEngineRuntime/ConfigLogging.h>
@@ -21,25 +20,9 @@
 #include <PhosphorRules/Rule.h>
 
 #include <QList>
-#include <QSet>
 #include <QString>
 
 namespace PlasmaZones {
-
-namespace {
-// The user rules (order preserved so the comparison catches reorders). No managed
-// rules are seeded now that appearance is config-backed, so every rule is a user
-// rule; this filter stays for the value-based dirty comparison.
-QList<PhosphorRules::Rule> userSubset(const QList<PhosphorRules::Rule>& rules)
-{
-    QList<PhosphorRules::Rule> out;
-    for (const PhosphorRules::Rule& r : rules) {
-        if (!r.managed)
-            out.append(r);
-    }
-    return out;
-}
-} // namespace
 
 void RuleController::captureSavedSnapshot()
 {
@@ -48,23 +31,16 @@ void RuleController::captureSavedSnapshot()
 
 bool RuleController::userRulesDirty() const
 {
-    return userSubset(m_model.rules()) != userSubset(m_savedRules);
+    return m_model.rules() != m_savedRules;
 }
 
 void RuleController::stageUserRules(const QList<PhosphorRules::Rule>& userRules)
 {
-    // Replace the user subset with the profile's resolved rules, keeping any
-    // managed rules the store owns. The incoming list already carries the
-    // desired order; renormalizePriorities re-stamps priority from list order
-    // (and pins managed rules to lowest precedence), exactly as the CRUD path.
-    QSet<QUuid> managedIds;
-    for (const PhosphorRules::Rule& r : m_model.rules()) {
-        if (r.managed)
-            managedIds.insert(r.id);
-    }
-
+    // Replace the model with the profile's resolved rules. The incoming list
+    // already carries the desired order; renormalizePriorities re-stamps
+    // priority from list order, exactly as the CRUD path.
     QList<PhosphorRules::Rule> next;
-    next.reserve(userRules.size() + m_model.rules().size());
+    next.reserve(userRules.size());
     for (const PhosphorRules::Rule& r : userRules) {
         // Boundary defense for this PUBLIC entry point, mirroring addRule:
         // one invalid rule in the model poisons the eventual Save whole
@@ -77,21 +53,7 @@ void RuleController::stageUserRules(const QList<PhosphorRules::Rule>& userRules)
             qCWarning(lcConfig) << "stageUserRules: dropping an invalid profile rule" << r.id;
             continue;
         }
-        // A hand-edited profile file could carry a rule whose id collides with
-        // a managed rule; appending it would put two rules with the same UUID
-        // in the set. Managed rules are daemon-owned, so the managed one wins.
-        if (managedIds.contains(r.id)) {
-            qCWarning(lcConfig) << "stageUserRules: dropping profile rule" << r.id
-                                << "— its id collides with a managed rule";
-            continue;
-        }
-        PhosphorRules::Rule copy = r;
-        copy.managed = false; // defensive: a profile only ever carries user rules
-        next.append(copy);
-    }
-    for (const PhosphorRules::Rule& r : m_model.rules()) {
-        if (r.managed)
-            next.append(r);
+        next.append(r);
     }
     m_model.setRules(next);
     renormalizePriorities();
@@ -114,14 +76,14 @@ void RuleController::stageUserRules(const QList<PhosphorRules::Rule>& userRules)
     }
 }
 
-void RuleController::resetManagedDefaults()
+void RuleController::reloadDaemonRules()
 {
     // Fire-and-forget: no out-args, and the model refresh comes from the daemon's
     // rulesChanged broadcast + the revert() the caller issues. Ordered before any
     // subsequent getAllRules on this connection, so a paired revert() sees the
-    // reset set.
+    // reloaded set.
     PhosphorProtocol::ClientHelpers::asyncCall(QString(PhosphorProtocol::Service::Interface::Rules),
-                                               QStringLiteral("resetManagedDefaults"));
+                                               QStringLiteral("reloadRules"));
 }
 
 } // namespace PlasmaZones

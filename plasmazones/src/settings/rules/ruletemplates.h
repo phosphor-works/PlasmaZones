@@ -15,8 +15,8 @@ namespace PlasmaZones::RuleTemplates {
 /// The `rule.priority` each builder below stamps is what the editor sheet's
 /// Priority row SHOWS while the rule is being created; it does not survive the
 /// commit, because `RuleController::addRuleFromJson` calls
-/// `renormalizePriorities()` unconditionally and that re-stamps every
-/// non-managed rule from its list position. Editing an EXISTING rule goes
+/// `renormalizePriorities()` unconditionally and that re-stamps every rule
+/// from its list position. Editing an EXISTING rule goes
 /// through `updateRuleFromJson` and does keep the value.
 ///
 /// What actually places a new rule is `RuleController::bandBaseForSection`,

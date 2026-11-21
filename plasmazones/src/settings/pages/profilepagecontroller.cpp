@@ -43,13 +43,8 @@ ProfilePageController::ProfilePageController(Settings& settings, RuleController&
         updateStagedActive(id);
     };
     config.currentUserRules = [this]() {
-        // The live non-managed user rules from the Rules page's staged model.
-        QList<PhosphorRules::Rule> out;
-        for (const PhosphorRules::Rule& r : m_rules.model()->rules()) {
-            if (!r.managed)
-                out.append(r);
-        }
-        return out;
+        // The live user rules from the Rules page's staged model.
+        return m_rules.model()->rules();
     };
     config.applyUserRules = [this](const QList<PhosphorRules::Rule>& userRules) {
         // Stage into the Rules page model; the global Save commits over D-Bus.

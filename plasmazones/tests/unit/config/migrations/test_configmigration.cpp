@@ -337,10 +337,9 @@ private Q_SLOTS:
 
         QJsonObject root = readJsonConfig(ConfigDefaults::configFilePath());
         QJsonObject snapping = root.value(QStringLiteral("Snapping")).toObject();
-        // The shared inner/outer gaps are no longer migrated to a stored group —
-        // the global default is rule-backed (the managed baseline appearance
-        // Rule), so the v1 Padding/OuterGap values are silently dropped and
-        // no top-level "Gaps" group is produced.
+        // The shared inner/outer gaps are not migrated to a stored group, so
+        // the v1 Padding/OuterGap values are silently dropped and no top-level
+        // "Gaps" group is produced.
         QVERIFY(!root.contains(QStringLiteral("Gaps")));
 
         // Zone-overlay groups land under Snapping.Zones.* after the v3→v4 rename.
@@ -1201,23 +1200,37 @@ private Q_SLOTS:
         const QUuid titleBar(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000003}"));
         const QUuid gap(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000004}"));
 
-        const auto ruleWith = [](const QUuid& id, const QString& name, bool managed) {
+        const auto ruleWith = [](const QUuid& id, const QString& name) {
             PhosphorRules::Rule rule;
             rule.id = id;
             rule.name = name;
-            rule.managed = managed;
             rule.actions.append(PhosphorRules::RuleAction{QString(PhosphorRules::ActionType::Exclude), {}});
             return rule;
         };
         const QUuid user = QUuid::createUuid();
         PhosphorRules::RuleSet seeded;
-        QCOMPARE(seeded.setRules({ruleWith(border, QStringLiteral("Border"), true),
-                                  ruleWith(titleBar, QStringLiteral("Title bar"), true),
-                                  ruleWith(gap, QStringLiteral("Hand-made"), false),
-                                  ruleWith(user, QStringLiteral("Mine"), false)}),
+        QCOMPARE(seeded.setRules({ruleWith(border, QStringLiteral("Border")),
+                                  ruleWith(titleBar, QStringLiteral("Title bar")),
+                                  ruleWith(gap, QStringLiteral("Hand-made")), ruleWith(user, QStringLiteral("Mine"))}),
                  4);
+        // Mark the first two the way an older build wrote its seeded rows: a
+        // raw "managed": true on the stored rule object.
+        QJsonObject seededJson = seeded.toJson();
+        QJsonArray seededRules = seededJson.value(QLatin1String("rules")).toArray();
+        int marked = 0;
+        for (qsizetype i = 0; i < seededRules.size(); ++i) {
+            QJsonObject ruleJson = seededRules.at(i).toObject();
+            const QUuid id = QUuid::fromString(ruleJson.value(QLatin1String("id")).toString());
+            if (id == border || id == titleBar) {
+                ruleJson.insert(QLatin1String("managed"), true);
+                seededRules.replace(i, ruleJson);
+                ++marked;
+            }
+        }
+        QCOMPARE(marked, 2);
+        seededJson.insert(QLatin1String("rules"), seededRules);
         QDir().mkpath(QFileInfo(ConfigDefaults::rulesFilePath()).absolutePath());
-        QVERIFY(seeded.saveToFile(ConfigDefaults::rulesFilePath()));
+        QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(ConfigDefaults::rulesFilePath(), seededJson));
 
         QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
         QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(

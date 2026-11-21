@@ -5504,11 +5504,6 @@
         <translation>დამატებითი / მორგებული</translation>
     </message>
     <message>
-        <location filename="../src/settings/rules/rulemodel_fieldtables.cpp" line="40"/>
-        <source>System</source>
-        <translation>სისტემა</translation>
-    </message>
-    <message>
         <location filename="../src/settings/rules/rulemodel_fieldtables.cpp" line="49"/>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleStartPicker.qml.cpp" line="52"/>
         <source>Application</source>
@@ -18539,12 +18534,6 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleRow.qml.cpp" line="295"/>
-        <source>Lowest priority</source>
-        <comment>Priority badge for a managed baseline rule that always sorts last</comment>
-        <translation>ყველაზე დაბალი პრიორიტეტი</translation>
-    </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleRow.qml.cpp" line="295"/>
         <source>Priority %1</source>
         <comment>Badge showing the rule&apos;s raw priority integer</comment>
         <translation>პრიორიტეტი %1</translation>
@@ -18568,11 +18557,6 @@
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleRow.qml.cpp" line="341"/>
         <source>Duplicate rule %1</source>
         <translation>წესის %1 დუბლირება</translation>
-    </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleRow.qml.cpp" line="352"/>
-        <source>System rules can&apos;t be deleted</source>
-        <translation>სისტემური წესების წაშლა შეუძლებელია</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RuleRow.qml.cpp" line="352"/>
@@ -18689,18 +18673,6 @@
         <source>Filter Rules</source>
         <comment>@title:menu</comment>
         <translation>წესების გაფილტვრა</translation>
-    </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RulesPage.qml.cpp" line="599"/>
-        <source>System</source>
-        <comment>@option:check filter rules by source</comment>
-        <translation>სისტემა</translation>
-    </message>
-    <message>
-        <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RulesPage.qml.cpp" line="603"/>
-        <source>User-created</source>
-        <comment>@option:check filter rules by source</comment>
-        <translation>მომხმარებლის შექმნილი</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/pages/rules/RulesPage.qml.cpp" line="615"/>

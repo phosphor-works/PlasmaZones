@@ -258,8 +258,8 @@ public:
     // current model to the last daemon-synced snapshot (`m_savedRules`) so
     // `SettingsController` can tell whether the staged rules differ.
 
-    /// True iff the (non-managed) user rules differ from the last synced
-    /// snapshot, including order (drives the Rules page's dirty state).
+    /// True iff the user rules differ from the last synced snapshot, including
+    /// order (drives the Rules page's dirty state).
     bool userRulesDirty() const;
 
     /// Snapshot the current staged model as the committed baseline that
@@ -270,18 +270,17 @@ public:
     void captureSavedSnapshot();
 
     /// Fire-and-forget D-Bus call for the GLOBAL Restore Defaults path
-    /// (org.phosphor_works.Placement.Rules.resetManagedDefaults): asks the
-    /// daemon to reload its rule store from disk, so it picks up the
-    /// settings side's reset of rules.json (the dropped per-mode disable
-    /// rules) instead of writing its stale copy back on its next save. It
-    /// creates and removes no rule. The daemon broadcasts rulesChanged only
-    /// when the reloaded set differs; SettingsController::defaults() pairs
-    /// this with revert() to reload the model.
-    void resetManagedDefaults();
+    /// (org.phosphor_works.Placement.Rules.reloadRules): asks the daemon to
+    /// reload its rule store from disk, so it picks up the settings side's
+    /// reset of rules.json (the dropped per-mode disable rules) instead of
+    /// writing its stale copy back on its next save. It creates and removes no
+    /// rule. The daemon broadcasts rulesChanged only when the reloaded set
+    /// differs; SettingsController::defaults() pairs this with revert() to
+    /// reload the model.
+    void reloadDaemonRules();
 
-    /// Stage a resolved USER rule subset (non-managed) into the live model,
-    /// preserving any managed rules, applying the given order, and
-    /// renormalizing priorities. Leaves the committed snapshot untouched so the
+    /// Replace the live model with a resolved user rule set, applying the
+    /// given order and renormalizing priorities. Leaves the committed snapshot untouched so the
     /// Rules page reports dirty and the normal Save commits it. Used by the
     /// settings-profiles feature when a profile is activated — the whole-set
     /// replacement matches the daemon's setAllRules D-Bus contract.
@@ -360,8 +359,8 @@ public:
     /// A snapshot of every rule as a map keyed by the model's role names
     /// (`ruleId`, `name`, `enabled`, `priority`, `section`, `sectionLabel`,
     /// `matchSummary`, `actionSummary`, `conditionCount`, `actionCount`,
-    /// `isComposite`, `screenIds`, `validationIssueCount`, `managed`). Lets the
-    /// page filter / sort rules without ever referencing raw `Qt.UserRole + N`
+    /// `isComposite`, `screenIds`, `validationIssueCount`). Lets the page
+    /// filter / sort rules without ever referencing raw `Qt.UserRole + N`
     /// integers.
     Q_INVOKABLE QVariantList rulesSnapshot() const;
 
@@ -592,22 +591,20 @@ private:
     /// Re-stamp every rule's priority as one global descending list-order
     /// sequence (earlier row ⇒ higher priority, spaced by a fixed step). There
     /// are no priority bands: a rule's precedence is purely its position in the
-    /// one flat list. Managed rules keep their pinned INT_MIN priority and are
-    /// skipped, so they never consume a rank and always sort below user rules.
+    /// one flat list.
     void renormalizePriorities();
 
     /// Priority-band base for a section — used now ONLY to seed a sensible
     /// DEFAULT position for a newly added rule (see `bandSeededInsertIndex`), so
     /// a new Advanced rule starts high and a new Animation rule starts low.
     /// Priority itself is a single global list-order sequence
-    /// (`renormalizePriorities`), no longer banded. Managed System rules are
-    /// pinned at INT_MIN, so System reports the lowest base.
+    /// (`renormalizePriorities`), no longer banded.
     static int bandBaseForSection(RuleModel::Section section);
 
     /// Row index at which a freshly added rule should be inserted so its default
     /// precedence reflects its section's band — above the first existing rule of
-    /// a lower band (or the first managed rule). Existing same-band rules are
-    /// stepped over, so the new rule lands at the bottom of its own tier. The
+    /// a lower band, or at the end when there is none. Existing same-band rules
+    /// are stepped over, so the new rule lands at the bottom of its own tier. The
     /// user can then freely drag it anywhere; this only seeds the default.
     int bandSeededInsertIndex(const PhosphorRules::Rule& rule) const;
 

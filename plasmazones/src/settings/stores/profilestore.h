@@ -55,8 +55,8 @@ namespace PlasmaZones {
 /// Discard.
 ///
 /// The config half is treated opaquely as key/value JSON. The rules half is an
-/// id-keyed delta against the parent-resolved user rule set (managed rules are
-/// daemon-owned and never carried); equality ignores the renormalized priority.
+/// id-keyed delta against the parent-resolved user rule set; equality ignores
+/// the renormalized priority.
 class ProfileStore : public QObject
 {
     Q_OBJECT
@@ -83,8 +83,8 @@ public:
     using ActiveGetFn = std::function<QString()>;
     using ActiveSetFn = std::function<void(const QString& /*id*/)>;
 
-    /// The current live USER rule subset (non-managed), and a sink that stages a
-    /// resolved user rule subset into the settings app's Rules page. Optional —
+    /// The current live user rules, and a sink that stages a resolved user rule
+    /// set into the settings app's Rules page. Optional —
     /// when unset the profile carries no rules (Phase 1 behaviour / config-only
     /// tests).
     using RulesFn = std::function<QList<PhosphorRules::Rule>()>;

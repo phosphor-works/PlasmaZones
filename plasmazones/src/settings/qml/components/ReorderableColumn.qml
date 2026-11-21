@@ -52,7 +52,7 @@ Item {
     property var idOf: function (item) {
         return (item && item.id !== undefined) ? item.id : "";
     }
-    /// Whether a given item may be reordered (managed/pinned rows return false).
+    /// Whether a given item may be reordered (pinned rows return false).
     property var reorderableOf: function (item) {
         return true;
     }

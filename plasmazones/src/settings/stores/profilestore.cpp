@@ -525,8 +525,8 @@ bool ProfileStore::rulesSemanticallyEqual(const PhosphorRules::Rule& a, const Ph
 {
     // Rule::operator== compares every field including the list-order-derived
     // `priority`, which renormalizePriorities re-stamps. Neutralise priority so
-    // two rules that differ only by re-stamped priority read as equal (id /
-    // managed already match by construction of the caller).
+    // two rules that differ only by re-stamped priority read as equal (the ids
+    // already match by construction of the caller).
     PhosphorRules::Rule normalized = a;
     normalized.priority = b.priority;
     return normalized == b;

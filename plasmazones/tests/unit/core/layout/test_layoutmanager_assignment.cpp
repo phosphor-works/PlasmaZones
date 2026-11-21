@@ -67,7 +67,7 @@ private Q_SLOTS:
     // ─── Mixed-rule survival through the assignment paths ────────────────
     //
     // A context assignment rule the user also edited in the Rules editor —
-    // a name, managed=true, and a non-assignment action (SetOpacity) — must
+    // a name and a non-assignment action (SetOpacity) — must
     // survive every assignment write shape: upsert, batch rebuild, the
     // clear's STRIP path, and a re-assign after the strip. Every rebuild
     // routes through makeAssignmentRule, which emits only the assignment
@@ -94,7 +94,6 @@ private Q_SLOTS:
         opacity.params.insert(QString(PWR::ActionParam::Value), 0.9);
         seeded->actions.append(opacity);
         seeded->name = QStringLiteral("Work monitor");
-        seeded->managed = true;
         QVERIFY(store->updateRule(*seeded));
 
         const auto ruleHasOpacity = [&](const std::optional<PWR::Rule>& r) {
@@ -115,7 +114,6 @@ private Q_SLOTS:
         QVERIFY(afterUpsert.has_value());
         QVERIFY2(ruleHasOpacity(afterUpsert), "upsert must carry the non-assignment action across");
         QCOMPARE(afterUpsert->name, QStringLiteral("Work monitor"));
-        QVERIFY(afterUpsert->managed);
 
         // BATCH: an "apply all" over the monitor axis.
         QHash<QString, QString> screenMap;
@@ -125,7 +123,6 @@ private Q_SLOTS:
         QVERIFY(afterBatch.has_value());
         QVERIFY2(ruleHasOpacity(afterBatch), "the batch rebuild must carry the non-assignment action across");
         QCOMPARE(afterBatch->name, QStringLiteral("Work monitor"));
-        QVERIFY2(afterBatch->managed, "the batch rebuild must not clear the managed flag");
 
         // CLEAR: strips the assignment slots, keeps the rule alive for the
         // opacity it still carries.

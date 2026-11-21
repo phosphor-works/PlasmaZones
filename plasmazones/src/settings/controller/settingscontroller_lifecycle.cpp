@@ -456,7 +456,7 @@ void SettingsController::defaults()
 
     // Nothing below may proceed on a reset that did not land. A failed commit
     // leaves the previous configuration on disk and in the store, so notifying
-    // the daemon, resetting its managed rules and clearing the staging would
+    // the daemon, reloading its rules and clearing the staging would
     // half-apply a factory reset the config itself never took.
     const bool resetWritten = m_settings.reset();
     if (!resetWritten) {
@@ -535,23 +535,20 @@ void SettingsController::defaults()
     // Notify daemon to reload — reset() wrote defaults to disk
     DaemonDBus::notifyReload();
 
-    // Reset the daemon's managed baseline rules to factory and drop any staged
-    // rule edits. resetManagedDefaults() asks the daemon to overwrite just the
-    // managed baselines (preserving user rules) and broadcast rulesChanged; the
-    // paired revert() reloads the model from the reset set (ordered after the
-    // reset on the same D-Bus connection). The window border / title bar / gap
-    // values are plain config now (reset by m_settings.reset() above), so this is
-    // purely about the daemon-side managed rules, not the Windows appearance page.
+    // Have the daemon reload rules.json, which m_settings.reset() above
+    // rewrote in this process (dropping the per-mode disable rules), and drop
+    // any staged rule edits. reloadDaemonRules() asks the daemon to re-read
+    // its rule store from disk so its next save does not write a stale set
+    // back; it broadcasts rulesChanged when the set changed. The paired
+    // revert() reloads the model, ordered after the reload on the same D-Bus
+    // connection.
     //
-    // m_localRuleStore is deliberately NOT reloaded here. resetManagedDefaults is
-    // fire-and-forget, so rules.json still holds the pre-reset content at this
-    // point and a load() now would re-read exactly what is already in memory. The
-    // daemon's rulesChanged broadcast is what carries the rewrite back, through
+    // m_localRuleStore is deliberately NOT reloaded here. The daemon's
+    // rulesChanged broadcast is what carries the rewrite back, through
     // reloadLocalRuleStore (wired in settingscontroller_dbuswire.cpp), and the
-    // RuleStoreWatcher covers the file for a session with no daemon at all — a
-    // session where this reset never reaches the daemon either.
+    // RuleStoreWatcher covers the file for a session with no daemon at all.
     if (m_rulesPage) {
-        m_rulesPage->resetManagedDefaults();
+        m_rulesPage->reloadDaemonRules();
         m_rulesPage->revert();
     }
 

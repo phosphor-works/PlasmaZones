@@ -63,9 +63,6 @@ Item {
         accessibleNameOf: function (item) {
             return item.name || item.ruleId;
         }
-        reorderableOf: function (item) {
-            return item.managed !== true;
-        }
         onMoveRequested: function (fromIndex, toIndex) {
             var snapshot = root.rules;
             if (fromIndex < 0 || fromIndex >= snapshot.length)
@@ -88,7 +85,6 @@ Item {
             validationIssueCount: _rule.validationIssueCount
             inertAnimationActionCount: _rule.inertAnimationActionCount
             priority: _rule.priority
-            managed: _rule.managed === true
             sectionLabel: root.showSectionBadge ? (_rule.sectionLabel || "") : ""
             controller: root.controller
             matchFieldOptions: root.matchFieldOptions

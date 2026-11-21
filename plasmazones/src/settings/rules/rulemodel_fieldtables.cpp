@@ -35,8 +35,6 @@ QString RuleModel::sectionLabel(Section section)
         return PhosphorI18n::tr("Animations");
     case Section::Advanced:
         return PhosphorI18n::tr("Advanced / Custom");
-    case Section::System:
-        return PhosphorI18n::tr("System");
     }
     return QString();
 }

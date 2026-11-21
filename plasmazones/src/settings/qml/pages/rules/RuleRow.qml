@@ -56,10 +56,6 @@ ExpandableRowDelegate {
     /// true precedence of (and gaps between) the rules still on screen. Matches
     /// the value the Advanced editor exposes and edits.
     required property int priority
-    /// True for app-managed System rules (the seeded baseline defaults). They
-    /// are non-deletable and pinned, so the delete affordance is shown but
-    /// disabled (kept visible to preserve column alignment).
-    property bool managed: false
     /// Localized section name shown as a small category badge, so category stays
     /// legible in the flat (ungrouped) list. Empty hides the badge.
     property string sectionLabel: ""
@@ -279,8 +275,7 @@ ExpandableRowDelegate {
 
     // Priority badge — kept on every row so precedence stays legible even
     // when the filter hides categories (the visible rows are then a subset,
-    // so position alone can't convey the true ordering). Managed System
-    // rules are pinned to INT_MIN, so show that intent, not the raw number.
+    // so position alone can't convey the true ordering).
     Rectangle {
         Layout.alignment: Qt.AlignVCenter
         implicitWidth: priorityLabel.implicitWidth + Kirigami.Units.largeSpacing
@@ -292,7 +287,7 @@ ExpandableRowDelegate {
             id: priorityLabel
 
             anchors.centerIn: parent
-            text: row.managed ? i18nc("Priority badge for a managed baseline rule that always sorts last", "Lowest priority") : i18nc("Badge showing the rule's raw priority integer", "Priority %1", row.priority)
+            text: i18nc("Badge showing the rule's raw priority integer", "Priority %1", row.priority)
             font: Kirigami.Theme.smallFont
             opacity: 0.7
         }
@@ -343,13 +338,9 @@ ExpandableRowDelegate {
     }
 
     ToolButton {
-        // Managed System rules (the seeded defaults) are non-deletable —
-        // shown but disabled, so the button keeps its column alignment
-        // with the deletable rows in other sections.
-        enabled: !row.managed
         icon.name: "edit-delete"
         Layout.alignment: Qt.AlignVCenter
-        ToolTip.text: row.managed ? i18n("System rules can't be deleted") : i18n("Delete rule")
+        ToolTip.text: i18n("Delete rule")
         ToolTip.visible: hovered
         Accessible.name: i18n("Delete rule %1", row.ruleName)
         onClicked: row.deleteRequested()

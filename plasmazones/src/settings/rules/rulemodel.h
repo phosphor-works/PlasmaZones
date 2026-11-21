@@ -79,7 +79,6 @@ public:
         Activity, ///< context-only rule pinned to an activity
         Animation, ///< carries an OverrideAnimation* action
         Advanced, ///< composite / mixed — graduated out of every section
-        System, ///< app-managed baseline rule (the seeded defaults)
     };
     Q_ENUM(Section)
 
@@ -111,9 +110,6 @@ public:
                                        ///< its own badge, matching the chip the
                                        ///< rule editor and the action summary
                                        ///< already show.
-        ManagedRole, ///< bool — true for built-in rules the app owns (the
-                     ///< baseline appearance rule). The row delegate hides the
-                     ///< delete and drag-reorder affordances when set.
     };
     Q_ENUM(Roles)
 
