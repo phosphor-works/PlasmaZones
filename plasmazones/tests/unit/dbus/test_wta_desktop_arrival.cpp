@@ -175,8 +175,7 @@ private:
         int x = 0, y = 0, w = 0, h = 0;
         bool shouldSnap = false;
         m_snapService->resolveWindowRestore(windowId, screenId.isEmpty() ? m_screenId : screenId, false,
-                                            static_cast<int>(PhosphorEngine::WindowKind::Normal),
-                                            static_cast<int>(reason), 0, 0, x, y, w, h, shouldSnap);
+                                            static_cast<int>(reason), x, y, w, h, shouldSnap);
         return {shouldSnap, QRect(x, y, w, h)};
     }
 

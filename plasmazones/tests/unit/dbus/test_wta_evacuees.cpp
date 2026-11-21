@@ -191,7 +191,7 @@ private Q_SLOTS:
         QVERIFY(snapOnA(w));
         QVERIFY(unplugA());
         QSignalSpy dropped(m_wta, &WindowTracker::parkDropped);
-        m_wta->windowClosed(w, 0, kB);
+        m_wta->windowClosed(w, kB);
         QVERIFY(!m_snapEngine->hasParked(w, QString()));
         QCOMPARE(dropped.count(), 1);
     }
@@ -461,7 +461,7 @@ private Q_SLOTS:
         QVERIFY(unplugA());
         m_wta->reportOutputSettle({unplugRow(w)});
         m_snapEngine->commitSnap(w, m_zoneIds[1], kB);
-        m_wta->windowClosed(w, 0, kB);
+        m_wta->windowClosed(w, kB);
         QCOMPARE(verdictOf(m_wta->reportOutputSettle({redockRow(w, 4)}), w), int(OutputSettleVerdict::UserMove));
     }
 

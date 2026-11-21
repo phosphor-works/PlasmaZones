@@ -42,8 +42,7 @@ inline PhosphorEngine::WindowPlacement makePlacement(const QString& windowId, co
     // (same-instance only) from a restorable float-back. Inserting an
     // invalid rect instead would create a third record shape that neither
     // hasRestorableContent nor the merge treats like an absent entry.
-    if ((state == PhosphorEngine::WindowPlacement::stateFree()
-         || state == PhosphorEngine::WindowPlacement::stateFloating())
+    if ((state == QStringLiteral("free") || state == PhosphorEngine::WindowPlacement::stateFloating())
         && rect.isValid()) {
         p.freeGeometryByScreen.insert(screen, rect);
     }

@@ -569,11 +569,15 @@ private Q_SLOTS:
         const QVariantMap raw = m_adaptor->getSettings(QStringList{QStringLiteral("windowBorderColorActiveRaw")});
         QCOMPARE(raw.value(QStringLiteral("windowBorderColorActiveRaw")).toString(), QStringLiteral("#ff123456"));
 
-        // The empty sentinel (and its legacy "accent" alias) un-pins.
+        // The empty sentinel un-pins. The pre-v6 "accent" token is no longer
+        // an alias for it: it is refused like any other non-colour and the
+        // pin stays.
         QVERIFY(m_adaptor->setSetting(QStringLiteral("windowBorderColorActive"), QDBusVariant(QString())));
         QCOMPARE(m_settings->windowBorderColorActive(), QString());
         QVERIFY(m_adaptor->setSetting(QStringLiteral("windowTintColor"), QDBusVariant(QStringLiteral("#ff222222"))));
-        QVERIFY(m_adaptor->setSetting(QStringLiteral("windowTintColor"), QDBusVariant(QStringLiteral("accent"))));
+        QVERIFY(!m_adaptor->setSetting(QStringLiteral("windowTintColor"), QDBusVariant(QStringLiteral("accent"))));
+        QCOMPARE(m_settings->windowTintColor(), QStringLiteral("#ff222222"));
+        QVERIFY(m_adaptor->setSetting(QStringLiteral("windowTintColor"), QDBusVariant(QString())));
         QCOMPARE(m_settings->windowTintColor(), QString());
     }
 

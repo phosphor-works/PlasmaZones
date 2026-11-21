@@ -7,7 +7,6 @@
 #include <PhosphorCompositor/DecorationDefaults.h>
 #include <PhosphorCompositor/DecorationManager.h>
 #include <PhosphorCompositor/ICompositorBridge.h>
-#include <PhosphorEngine/EngineTypes.h>
 #include <PhosphorProtocol/ClientHelpers.h>
 #include <PhosphorProtocol/DragMarshalling.h>
 #include <PhosphorProtocol/WindowMarshalling.h>
@@ -514,8 +513,8 @@ private:
      * Returns true when @p w is a structurally unmanageable window kind
      * (special/desktop/dock/fullscreen/skipSwitcher/bare override-redirect, or
      * the transient/dialog/menu/popup/tooltip family). Single source of truth behind
-     * shouldHandleWindow()'s structural clause, notifyWindowActivated()'s
-     * focus-tracking filter and classifyWindowKind(), so they can never drift
+     * shouldHandleWindow()'s structural clause and notifyWindowActivated()'s
+     * focus-tracking filter, so they can never drift
      * (discussion #461 item 11).
      *
      * The fullscreen term carves out windowed-fullscreen strip members (the
@@ -552,9 +551,6 @@ private:
     /// as the snapping twin. Engaged only when a cache miss forced the build.
     bool isExcludedByDecorationRule(KWin::EffectWindow* w,
                                     std::optional<PhosphorRules::WindowQuery>* sharedQuery = nullptr) const;
-
-    /// Classify a window's structural kind for the open and close wire calls.
-    PhosphorEngine::WindowKind classifyWindowKind(KWin::EffectWindow* w) const;
 
     /**
      * @brief Emit a full dump of a window's KWin properties plus the snap and

@@ -105,7 +105,7 @@ private Q_SLOTS:
     {
         QSignalSpy spy(m_wta->lifecycleRelay(), &WindowLifecycleRelay::windowClosed);
         const QString windowId = QStringLiteral("firefox|closed-1");
-        m_wta->windowClosed(windowId, 0);
+        m_wta->windowClosed(windowId, QString());
         QCOMPARE(spy.count(), 1);
         QCOMPARE(spy.first().at(0).toString(), windowId);
     }
@@ -135,7 +135,7 @@ private Q_SLOTS:
         const QString focused = QStringLiteral("firefox|focused-1");
         m_wta->windowActivated(focused, QStringLiteral("DP-1"));
         QCOMPARE(m_wta->lastActiveScreenName(), QStringLiteral("DP-1"));
-        m_wta->windowClosed(focused, 0);
+        m_wta->windowClosed(focused, QString());
         QVERIFY(m_wta->lastActiveScreenName().isEmpty());
 
         m_wta->windowActivated(focused, QStringLiteral("DP-1"));
@@ -149,7 +149,7 @@ private Q_SLOTS:
     void testClosingTheFocusedWindow_byAnotherCompositeOfItsInstance()
     {
         m_wta->windowActivated(QStringLiteral("app|inst-a"), QStringLiteral("DP-1"));
-        m_wta->windowClosed(QStringLiteral("renamed|inst-a"), 0);
+        m_wta->windowClosed(QStringLiteral("renamed|inst-a"), QString());
         QVERIFY(m_wta->lastActiveWindowId().isEmpty());
         QVERIFY(m_wta->lastActiveScreenName().isEmpty());
     }
@@ -165,7 +165,7 @@ private Q_SLOTS:
         m_wta->setFrameGeometry(w, 100, 100, 400, 300);
         QVERIFY(m_wta->frameGeometry(w).isValid());
 
-        m_wta->windowClosed(w, 0);
+        m_wta->windowClosed(w, QString());
 
         QVERIFY(!m_wta->service()->isSuspensionFloat(w));
         QVERIFY(!m_wta->frameGeometry(w).isValid());
@@ -423,7 +423,7 @@ private Q_SLOTS:
         QVERIFY(m_snapEngine->snapState()->isFloating(w1));
 
         // Close while floating → captures a floated placement for app "settings".
-        m_wta->windowClosed(w1, static_cast<int>(PhosphorEngine::WindowKind::Normal));
+        m_wta->windowClosed(w1, QString());
         QVERIFY(m_wta->service()->placementStore().contains(w1, QStringLiteral("settings")));
 
         // Reopen as a new instance of the same app.
@@ -431,9 +431,8 @@ private Q_SLOTS:
         QSignalSpy spy(m_wta, &WindowTracker::applyGeometryRequested);
         int x = 0, y = 0, wd = 0, h = 0;
         bool shouldSnap = true;
-        m_snapService->resolveWindowRestore(w2, m_screenId, false, static_cast<int>(PhosphorEngine::WindowKind::Normal),
-                                            static_cast<int>(PhosphorEngine::RestoreReason::Open), /*minWidth=*/0,
-                                            /*minHeight=*/0, x, y, wd, h, shouldSnap);
+        m_snapService->resolveWindowRestore(
+            w2, m_screenId, false, static_cast<int>(PhosphorEngine::RestoreReason::Open), x, y, wd, h, shouldSnap);
 
         QCOMPARE(shouldSnap, false); // float-restore is not a snap
         QCOMPARE(spy.count(), 1);
@@ -518,9 +517,8 @@ private Q_SLOTS:
         QSignalSpy spy(m_wta, &WindowTracker::applyGeometryRequested);
         int x = 0, y = 0, wd = 0, h = 0;
         bool shouldSnap = true;
-        m_snapService->resolveWindowRestore(w, m_screenId, false, static_cast<int>(PhosphorEngine::WindowKind::Normal),
-                                            static_cast<int>(PhosphorEngine::RestoreReason::Open), /*minWidth=*/0,
-                                            /*minHeight=*/0, x, y, wd, h, shouldSnap);
+        m_snapService->resolveWindowRestore(w, m_screenId, false, static_cast<int>(PhosphorEngine::RestoreReason::Open),
+                                            x, y, wd, h, shouldSnap);
 
         QCOMPARE(shouldSnap, false); // floated, NOT snapped despite the loaded assignment
         QCOMPARE(spy.count(), 1);

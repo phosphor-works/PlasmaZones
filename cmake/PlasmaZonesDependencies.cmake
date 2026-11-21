@@ -55,10 +55,10 @@ set(PLASMAZONES_DEPS phosphor-libs phosphor-components branding phosphor-surface
 # The phosphor-libs commit PlasmaZones builds against (LGPL-2.1-or-later,
 # phosphor-works/phosphor-libs): its placement engines, rendering, layer-shell
 # and config libraries. A commit, not a release, so VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-libs_VERSION "388a858e974424e30b4a3615ef776db9603089a3")
-set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/388a858e974424e30b4a3615ef776db9603089a3.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-388a858e974424e30b4a3615ef776db9603089a3.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_SHA256 "7503ff8c334673a5c5c092c0afcdd9c9e0253f08a3439765cb5f38f2a30cc762")
+set(PLASMAZONES_DEP_phosphor-libs_VERSION "cf1cb7db625b774c6c3eb0da2776d75e1eba81c0")
+set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/cf1cb7db625b774c6c3eb0da2776d75e1eba81c0.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-cf1cb7db625b774c6c3eb0da2776d75e1eba81c0.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_SHA256 "b166403a0c3b605c7c77e6597da3ae419a32b0474243ab31e5f872b09a4da0e6")
 
 # The phosphor-components commit (LGPL-2.1-or-later,
 # phosphor-works/phosphor-components): the Phosphor.Components QML module the
@@ -84,10 +84,10 @@ set(PLASMAZONES_DEP_branding_SHA256 "d6ec9261d4391148f5c21dfb02be410214d42ea675f
 # shadow, blur and glass packs PlasmaZones and Lambent draw, installed from it
 # with its cmake/PhosphorSurfacePacks.cmake. A commit, so VERSION is the commit
 # hash.
-set(PLASMAZONES_DEP_phosphor-surface-packs_VERSION "087bd740eb0650b5a4256566663d8332d00c7cd7")
-set(PLASMAZONES_DEP_phosphor-surface-packs_URL "https://github.com/phosphor-works/phosphor-surface-packs/archive/087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz")
-set(PLASMAZONES_DEP_phosphor-surface-packs_FILE "phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz")
-set(PLASMAZONES_DEP_phosphor-surface-packs_SHA256 "2b3244bbd1d198cc9361dea105b01bfbcd32bbe35843ddd392881208370b40e1")
+set(PLASMAZONES_DEP_phosphor-surface-packs_VERSION "e3818dc174d6a47cde20e8c5188e38382890ef92")
+set(PLASMAZONES_DEP_phosphor-surface-packs_URL "https://github.com/phosphor-works/phosphor-surface-packs/archive/e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz")
+set(PLASMAZONES_DEP_phosphor-surface-packs_FILE "phosphor-surface-packs-e3818dc174d6a47cde20e8c5188e38382890ef92.tar.gz")
+set(PLASMAZONES_DEP_phosphor-surface-packs_SHA256 "84797d7b6e2d6df96c4bbbc54f79001f3dac0f2fcaf79d39c601cfd51947890d")
 
 # glslang's prebuilt tools, a test-time program and not a source dependency, so
 # not in PLASMAZONES_DEPS: no packaging build runs the tests. Khronos publishes

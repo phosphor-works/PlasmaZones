@@ -654,7 +654,7 @@ private Q_SLOTS:
         rec.appId = QStringLiteral("app");
         rec.screenId = QStringLiteral("DP-1");
         PhosphorEngine::EngineSlot slot;
-        slot.state = PhosphorEngine::WindowPlacement::stateFree();
+        slot.state = QStringLiteral("free");
         rec.engines.insert(PhosphorEngine::WindowPlacement::snapEngineId(), slot);
         rec.freeGeometryByScreen.insert(QStringLiteral("DP-1"), dp1Geo);
         m_wts->placementStore().record(rec);
@@ -689,7 +689,7 @@ private Q_SLOTS:
         rec.appId = QStringLiteral("app");
         rec.screenId = QStringLiteral("DP-1");
         PhosphorEngine::EngineSlot slot;
-        slot.state = PhosphorEngine::WindowPlacement::stateFree();
+        slot.state = QStringLiteral("free");
         rec.engines.insert(PhosphorEngine::WindowPlacement::snapEngineId(), slot);
         rec.freeGeometryByScreen.insert(QStringLiteral("DP-1"), QRect(120, 80, 800, 600));
         m_wts->placementStore().record(rec);
@@ -766,7 +766,7 @@ private Q_SLOTS:
         rec.appId = QStringLiteral("app");
         rec.screenId = QStringLiteral("DP-1");
         PhosphorEngine::EngineSlot slot;
-        slot.state = PhosphorEngine::WindowPlacement::stateFree(); // legacy token
+        slot.state = QStringLiteral("free"); // legacy token
         rec.engines.insert(PhosphorEngine::WindowPlacement::snapEngineId(), slot);
         rec.freeGeometryByScreen.insert(QStringLiteral("DP-1"), dp1Geo);
         m_wts->placementStore().record(rec);
@@ -808,7 +808,7 @@ private Q_SLOTS:
         rec.appId = QStringLiteral("app");
         rec.screenId = QStringLiteral("DP-1");
         PhosphorEngine::EngineSlot slot;
-        slot.state = PhosphorEngine::WindowPlacement::stateFree();
+        slot.state = QStringLiteral("free");
         rec.engines.insert(PhosphorEngine::WindowPlacement::snapEngineId(), slot);
         rec.freeGeometryByScreen.insert(QStringLiteral("DP-1"), QRect(60, 40, 1024, 768));
         m_wts->placementStore().record(rec);
@@ -894,7 +894,7 @@ private Q_SLOTS:
         rec.appId = QStringLiteral("app");
         rec.screenId = QStringLiteral("DP-1"); // restoreScreen resolves to DP-1
         PhosphorEngine::EngineSlot slot;
-        slot.state = PhosphorEngine::WindowPlacement::stateFree();
+        slot.state = QStringLiteral("free");
         rec.engines.insert(PhosphorEngine::WindowPlacement::snapEngineId(), slot);
         // Geometry recorded on DP-3, NOT on the record's own screen DP-1.
         rec.freeGeometryByScreen.insert(QStringLiteral("DP-3"), QRect(10, 10, 800, 600));

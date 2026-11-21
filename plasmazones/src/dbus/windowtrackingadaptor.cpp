@@ -212,7 +212,7 @@ PhosphorProtocol::PreTileGeometryList WindowTrackingAdaptor::getPreTileGeometrie
     return m_tracker->getPreTileGeometries();
 }
 
-void WindowTrackingAdaptor::windowClosed(const QString& windowId, int windowKind, const QString& screenId)
+void WindowTrackingAdaptor::windowClosed(const QString& windowId, const QString& screenId)
 {
     if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__))) {
         return;
@@ -220,7 +220,7 @@ void WindowTrackingAdaptor::windowClosed(const QString& windowId, int windowKind
     if (!m_tracker) {
         return;
     }
-    m_tracker->windowClosed(windowId, windowKind, screenId);
+    m_tracker->windowClosed(windowId, screenId);
 }
 
 void WindowTrackingAdaptor::windowActivated(const QString& windowId, const QString& screenId)
