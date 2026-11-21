@@ -9,7 +9,7 @@
 // removal, first adoption by window location, and the strip stash of a
 // workspace moved to another monitor.
 
-#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorPaths/SuiteDirectories.h>
 #include <PhosphorEngineRuntime/WorkspaceController.h>
 #include "common/engineruntimenamespace.h"
 
@@ -124,7 +124,7 @@ private Q_SLOTS:
     {
         // The controller restores last session's map from this file and
         // writes it back on destruction; every case starts from no file.
-        QFile::remove(PhosphorEngineRuntime::appStateDir() + QStringLiteral("/workspaces.json"));
+        QFile::remove(PhosphorPaths::appStateDir() + QStringLiteral("/workspaces.json"));
     }
 
     /// With no per-output report at all the compositor is not there, nothing

@@ -6,6 +6,8 @@
 #include <PhosphorPointer/PointerShaderRegistry.h>
 #include <PhosphorRendering/ShaderEffect.h>
 
+#include <PhosphorPaths/SuiteDirectories.h>
+
 #include <QFile>
 #include <QFileInfo>
 #include <QUrl>
@@ -76,7 +78,7 @@ bool installPointerPack(PhosphorRendering::ShaderEffect& effect, const QString& 
     // The installed pointer packs' subdir, as the settings app passes it
     // (ConfigDefaults::pointerSubdir, which this tool does not link).
     effect.setShaderIncludePaths(
-        Registry::includePathsFor(eff.sourceDir, QStringLiteral("phosphor-works/shaders/pointer")));
+        Registry::includePathsFor(eff.sourceDir, PhosphorPaths::commonDataSubdir(QStringLiteral("shaders/pointer"))));
     effect.setShaderSource(QUrl::fromLocalFile(eff.fragmentShaderPath));
     effect.setParamPreamble(Registry::paramPreamble(eff));
     effect.setEntryScaffold(Registry::pointerEntryPrologue(), Registry::pointerEntryCandidates());

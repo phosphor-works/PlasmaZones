@@ -67,7 +67,7 @@ install(FILES
 
 # Install default layouts
 install(DIRECTORY data/layouts/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/layouts
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/layouts
     FILES_MATCHING PATTERN "*.json"
 )
 
@@ -79,13 +79,13 @@ install(DIRECTORY data/layouts/
 # descriptors at its top level that ship are the ones
 # scripts/validate-json-schemas.py checks and HostDirectory reads.
 install(DIRECTORY data/placement-hosts/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/placement-hosts
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/placement-hosts
     FILES_MATCHING PATTERN "*.json"
 )
 
 # Install bundled scrolling templates
 install(DIRECTORY data/scrolling-templates/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/scrolling-templates
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/scrolling-templates
     FILES_MATCHING PATTERN "*.json"
 )
 
@@ -95,7 +95,7 @@ install(DIRECTORY data/scrolling-templates/
 # are here in one file, rather than inside the settings binary's resource
 # bundle.
 install(FILES data/whatsnew.json
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/plasmazones
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/${PLASMAZONES_APP_DIRECTORY_NAME}
 )
 
 # Install shared named curves. Profiles reference these by name
@@ -105,7 +105,7 @@ install(FILES data/whatsnew.json
 # curve system-wide. The daemon's CurveLoader scans this path first, so
 # every later consumer resolves curve names against the merged set.
 install(DIRECTORY data/curves/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/curves
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/curves
     FILES_MATCHING PATTERN "*.json"
 )
 
@@ -143,9 +143,9 @@ foreach(_pz_overlay_metadata IN LISTS _pz_overlay_pack_metadata)
     endif()
 endforeach()
 if(IS_ABSOLUTE "${KDE_INSTALL_DATADIR}")
-    set(_pz_overlays_install_dir "${KDE_INSTALL_DATADIR}/phosphor-works/shaders/overlays")
+    set(_pz_overlays_install_dir "${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/overlays")
 else()
-    set(_pz_overlays_install_dir "\${CMAKE_INSTALL_PREFIX}/${KDE_INSTALL_DATADIR}/phosphor-works/shaders/overlays")
+    set(_pz_overlays_install_dir "\${CMAKE_INSTALL_PREFIX}/${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/overlays")
 endif()
 install(CODE "
     set(_pz_bundled_overlay_packs \"${_pz_bundled_overlay_packs}\")
@@ -164,7 +164,7 @@ install(CODE "
 # .luaurc-style linter configs, VCS dotfiles). An extension allowlist here
 # silently dropped any new asset type, or any JSON not named metadata.json.
 install(DIRECTORY data/overlays/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/shaders/overlays
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/overlays
     PATTERN ".*" EXCLUDE
     # plasmazones-shader-validate --emit-preamble writes this
     # gitignored editor aid for ALL FOUR pack families, not just the
@@ -179,7 +179,7 @@ install(DIRECTORY data/overlays/
 # Ship the whole pack tree (metadata, shaders, the shared/ GLSL includes,
 # and any texture a pack references) and exclude only hidden dev/OS files.
 install(DIRECTORY data/animations/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/shaders/animations
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/animations
     PATTERN ".*" EXCLUDE
     # plasmazones-shader-validate --emit-preamble writes this
     # gitignored editor aid for ALL FOUR pack families, not just the
@@ -203,14 +203,14 @@ phosphor_install_surface_packs()
 # Ship the whole pack tree (metadata, shaders, the shared/ GLSL includes,
 # and any texture a pack references) and exclude only hidden dev/OS files.
 install(DIRECTORY data/pointer/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/shaders/pointer
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/pointer
     PATTERN ".*" EXCLUDE
     PATTERN "p_generated.glsl" EXCLUDE
 )
 
 # Install bundled scripted tiling algorithms
 install(DIRECTORY data/algorithms/
-    DESTINATION ${KDE_INSTALL_DATADIR}/phosphor-works/algorithms
+    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/algorithms
     FILES_MATCHING
     PATTERN "*.luau"
 )

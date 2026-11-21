@@ -5,9 +5,20 @@
 
 #pragma once
 
+#include <QLatin1String>
 #include <QString>
 
 namespace PlasmaZones {
+
+/// PlasmaZones' folder inside the suite folder of each XDG root
+/// (~/.config/phosphor-works/plasmazones, share/phosphor-works/plasmazones).
+/// Every PlasmaZones executable hands it to PhosphorPaths::setAppDirectoryName()
+/// through initPlasmaZonesHost() at the top of main(), and the unit tests do the
+/// same before main (tests/unit/helpers/appdirectoryname_init.cpp). A plugin
+/// that runs in another program's process (the KWin effect, the KCM) composes
+/// its paths from it instead, and never names the process's folder.
+/// Set once, in the root CMakeLists.txt.
+inline constexpr QLatin1String AppDirectoryName{"@PLASMAZONES_APP_DIRECTORY_NAME@"};
 
 // Version components from CMake
 inline constexpr int VERSION_MAJOR = @PROJECT_VERSION_MAJOR@;

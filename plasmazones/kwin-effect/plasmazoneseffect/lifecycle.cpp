@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "plasmazoneseffect.h"
+#include "version.h"
 #include "compositor/effectlogging.h"
 
 #include <PhosphorAnimation/AnimationShaderEffect.h> // shaderEffectAppliesToEventPath (peek suppression gate)
@@ -19,6 +20,8 @@
 #include <core/output.h>
 #include <virtualdesktops.h>
 #include <workspace.h>
+
+#include <PhosphorPaths/SuiteDirectories.h>
 
 #include <QCoreApplication>
 #include <QDBusConnection>
@@ -109,7 +112,8 @@ PlasmaZonesEffect::PlasmaZonesEffect()
         const QStringList dataDirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
         for (const QString& dir : dataDirs) {
             if (translator->load(locale, QStringLiteral("plasmazones"), QStringLiteral("_"),
-                                 dir + QStringLiteral("/phosphor-works/plasmazones/translations"))) {
+                                 dir + QLatin1Char('/') + PhosphorPaths::suiteDirectoryName() + QLatin1Char('/')
+                                     + PlasmaZones::AppDirectoryName + QStringLiteral("/translations"))) {
                 QCoreApplication::installTranslator(translator);
                 break;
             }

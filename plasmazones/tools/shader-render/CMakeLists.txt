@@ -52,6 +52,7 @@ set(shader_render_SRCS
 add_executable(plasmazones-shader-render ${shader_render_SRCS})
 
 target_link_libraries(plasmazones-shader-render PRIVATE
+    PhosphorPaths::PhosphorPaths
     Qt6::Core
     Qt6::Gui
     Qt6::GuiPrivate

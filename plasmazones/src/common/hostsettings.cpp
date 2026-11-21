@@ -10,7 +10,7 @@
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/SettingsSchema.h>
 #include <PhosphorEngineRuntime/SettingsSchemaChoices.h>
-#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorPaths/SuiteDirectories.h>
 #include <PhosphorEngineRuntime/Constants.h>
 
 #include <PhosphorConfig/Schema.h>
@@ -96,7 +96,7 @@ QList<HostEnumLabels> hostEnumLabels()
 
 void initPlasmaZonesHost()
 {
-    setAppDirectoryName(AppDirectoryName);
+    PhosphorPaths::setAppDirectoryName(AppDirectoryName);
     // Before any QML or surface pack lookup: the surface packs are shared with
     // the other apps that draw them, and every lookup (SurfaceShaderItem's
     // include paths, the `builtin:` buffer fallback, the settings' user

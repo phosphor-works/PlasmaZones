@@ -24,6 +24,8 @@
 #include "audiomock.h"
 #include "encoder.h"
 
+#include <PhosphorPaths/SuiteDirectories.h>
+
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFileInfo>
@@ -79,7 +81,7 @@ QString resolveLayoutPath(const QString& layoutArg, const QString& layoutDir)
 // exists to avoid.
 QString xdgPhosphorWorksDir(const QString& subdir)
 {
-    const QString suffix = QStringLiteral("/phosphor-works/") + subdir;
+    const QString suffix = QLatin1Char('/') + PhosphorPaths::commonDataSubdir(subdir);
     const QStringList roots = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
     for (const QString& root : roots) {
         const QString candidate = root + suffix;

@@ -18,7 +18,7 @@
 #include <QFileInfo>
 #include <QKeySequence>
 #include <QSettings>
-#include <PhosphorEngineRuntime/AppDirectoryName.h>
+#include <PhosphorPaths/SuiteDirectories.h>
 
 #include <optional>
 
@@ -34,7 +34,7 @@ QString kwinShortcutBackupPath()
 {
     // The app's state directory (~/.local/state/phosphor-works/plasmazones).
     // .ini because every reader and writer opens it as QSettings::IniFormat.
-    return appStateDir() + QStringLiteral("/kwin-shortcut-backup.ini");
+    return PhosphorPaths::appStateDir() + QStringLiteral("/kwin-shortcut-backup.ini");
 }
 
 void askKWinToReconfigure()

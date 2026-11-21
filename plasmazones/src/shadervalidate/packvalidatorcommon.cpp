@@ -16,6 +16,8 @@
 #include <PhosphorShaders/ShaderIncludeResolver.h>
 #include <PhosphorShaders/ShaderParamPreamble.h>
 
+#include <PhosphorPaths/SuiteDirectories.h>
+
 #include <QColor>
 #include <QDir>
 #include <QFile>
@@ -173,9 +175,10 @@ void appendDidYouMean(QTextStream& out, const QString& diagnostic, const QString
 /// puts them, shared with the other apps that draw them.
 const QStringList& installedFamilyDirs()
 {
-    static const QStringList dirs{
-        QStringLiteral("phosphor-works/shaders/animations"), QStringLiteral("phosphor-works/shaders/overlays"),
-        QStringLiteral("phosphor-works/shaders/pointer"), QStringLiteral(PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR)};
+    static const QStringList dirs{PhosphorPaths::commonDataSubdir(QStringLiteral("shaders/animations")),
+                                  PhosphorPaths::commonDataSubdir(QStringLiteral("shaders/overlays")),
+                                  PhosphorPaths::commonDataSubdir(QStringLiteral("shaders/pointer")),
+                                  QStringLiteral(PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR)};
     return dirs;
 }
 

@@ -62,8 +62,8 @@ Source3:        https://github.com/phosphor-works/branding/releases/download/v0.
 # cmake/PlasmaZonesDependencies.cmake. Its libraries are built from it and
 # installed with the package. Luau and valijson above are the archives that
 # commit pins in its own cmake/PhosphorDependencies.cmake.
-# phosphor-libs-79ad6a9d29c8153a311fd4a155cf4da3170ada74.tar.gz sha256 5feebb740b8bc8ec5a77fa7e99cb3b3bd357dc76e33218b1f0a8586631e3c4a5
-Source4:        https://github.com/phosphor-works/phosphor-libs/archive/79ad6a9d29c8153a311fd4a155cf4da3170ada74.tar.gz#/phosphor-libs-79ad6a9d29c8153a311fd4a155cf4da3170ada74.tar.gz
+# phosphor-libs-388a858e974424e30b4a3615ef776db9603089a3.tar.gz sha256 7503ff8c334673a5c5c092c0afcdd9c9e0253f08a3439765cb5f38f2a30cc762
+Source4:        https://github.com/phosphor-works/phosphor-libs/archive/388a858e974424e30b4a3615ef776db9603089a3.tar.gz#/phosphor-libs-388a858e974424e30b4a3615ef776db9603089a3.tar.gz
 # The surface decoration packs commit, pinned in the same file. Shader source
 # and metadata the build installs as data, so no bundled() provide.
 # phosphor-surface-packs-087bd740eb0650b5a4256566663d8332d00c7cd7.tar.gz sha256 2b3244bbd1d198cc9361dea105b01bfbcd32bbe35843ddd392881208370b40e1
@@ -71,8 +71,8 @@ Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive
 # The phosphor-components commit, pinned in the same file: the QML components
 # the overlays, settings app and editor draw with, built from it into the
 # executables, and its catalogs.
-# phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz sha256 a932243fdffe2b5c496558d322e2878d54f825469a6be3715179d427558940aa
-Source6:        https://github.com/phosphor-works/phosphor-components/archive/e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz#/phosphor-components-e5639ede94313fca5380b4d5eded14b8e66efd40.tar.gz
+# phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz sha256 e467912dc4dae79aee8a270fa846fa2a9fdea44daf62fba15510fcf2ae236cd5
+Source6:        https://github.com/phosphor-works/phosphor-components/archive/c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz#/phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz
 Provides:       bundled(luau) = 0.745
 Provides:       bundled(valijson) = 1.1.3
 

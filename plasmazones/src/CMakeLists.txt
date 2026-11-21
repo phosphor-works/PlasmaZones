@@ -85,6 +85,9 @@ generate_export_header(plasmazones_core
 
 target_link_libraries(plasmazones_core
     PUBLIC
+        # PlasmaZones' folder of the suite (initPlasmaZonesHost(), the
+        # translation loader); the tests and executables name paths through it.
+        PhosphorPaths::PhosphorPaths
         Qt6::Core
         Qt6::Quick
         Qt6::Gui
@@ -746,6 +749,7 @@ add_executable(plasmazones-shader-validate
 )
 target_link_libraries(plasmazones-shader-validate
     PRIVATE
+        PhosphorPaths::PhosphorPaths
         # initPlasmaZonesHost() at the top of main(): the app directory name and
         # the surface packs' data subdirectory the pack lookups search.
         plasmazones_core

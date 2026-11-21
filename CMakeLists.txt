@@ -241,6 +241,12 @@ set(PHOSPHOR_LIBS_BUNDLED_PACKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plasmazones/dat
 plasmazones_fetch_dependency(phosphor-surface-packs)
 include(${phosphor-surface-packs_SOURCE_DIR}/cmake/PhosphorSurfacePacks.cmake)
 plasmazones_add_phosphor_libs()
+# Where PlasmaZones' files live: its own folder inside the suite folder every
+# Phosphor app shares, in each XDG root. phosphor-libs names the suite folder
+# (PHOSPHOR_SUITE_DIRECTORY_NAME); PlasmaZones' own name is set here once and
+# reaches the code through the generated version.h (AppDirectoryName).
+include("${PHOSPHOR_LIBS_CMAKE_DIR}/PhosphorSuite.cmake")
+set(PLASMAZONES_APP_DIRECTORY_NAME "plasmazones")
 # Phosphor.Components, on the phosphor-libs tree just added.
 plasmazones_add_phosphor_components()
 
