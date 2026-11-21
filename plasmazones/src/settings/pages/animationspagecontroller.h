@@ -673,7 +673,7 @@ public:
 
     /// The motion-set store — the `bridge` ShaderSetsPage binds to.
     /// A motion set is a file under
-    /// `~/.local/share/plasmazones/motionsets/<slug>.json` carrying both halves
+    /// `~/.local/share/phosphor-works/motionsets/<slug>.json` carrying both halves
     /// of each event it covers: the timing entry and the pack assignment.
     /// Applying merges, so paths NOT in the set keep what they had. Set files
     /// themselves are immediate CRUD, matching decoration; what a set APPLIES
@@ -711,9 +711,7 @@ public:
     /// event @p path. An effect that can't (e.g. the geometry-only window-morph
     /// on a window.appearance.open row, or a desktop effect on a window row) is
     /// omitted from the returned list, so the per-event shader picker only offers
-    /// compatible shaders. Each row still carries `dimmed` (always false) and
-    /// `dimReason` (always empty) for QML binding compatibility with @c
-    /// availableShaderEffects consumers.
+    /// compatible shaders.
     Q_INVOKABLE QVariantList availableShaderEffectsForPath(const QString& path) const;
 
     /// Just the parameters list for @p effectId — convenience for the

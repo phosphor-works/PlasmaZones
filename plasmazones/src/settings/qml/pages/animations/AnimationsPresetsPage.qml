@@ -11,7 +11,7 @@ import org.kde.kirigami as Kirigami
  *
  * Mirrors PR #291's two-pane layout (Easing / Spring × Built-in / User).
  * Built-ins live in the CurvePresets singleton; user presets are read
- * from `~/.local/share/plasmazones/profiles/` via
+ * from `~/.local/share/phosphor-works/profiles/` via
  * `AnimationsPageController.userPresets()` (file-per-preset, name field
  * disambiguates from per-event override files).
  *

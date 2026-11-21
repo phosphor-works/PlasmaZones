@@ -171,9 +171,7 @@ QVariantList runningWindows(const QString& json)
         const QString windowClass = obj[QLatin1String("windowClass")].toString();
         QVariantMap item;
         item[QStringLiteral("windowClass")] = windowClass;
-        item[QStringLiteral("rawWindowClass")] = obj.contains(QLatin1String("rawWindowClass"))
-            ? obj[QLatin1String("rawWindowClass")].toString()
-            : windowClass;
+        item[QStringLiteral("rawWindowClass")] = obj[QLatin1String("rawWindowClass")].toString();
         item[QStringLiteral("appName")] = obj[QLatin1String("appName")].toString();
         item[QStringLiteral("caption")] = obj[QLatin1String("caption")].toString();
         // An effect that sends no desktopFile leaves it empty, and the picker's

@@ -4,7 +4,7 @@
 // Decoration-set domain closures for the shared ShaderSetStore. A set is a
 // named snapshot of the decoration profile tree (per-surface direct
 // overrides), persisted as one JSON file under
-// ~/.local/share/plasmazones/decorationsets. Unlike motion sets (which
+// ~/.local/share/phosphor-works/decorationsets. Unlike motion sets (which
 // snapshot per-path override FILES), the decoration tree is config-backed, so
 // apply mutates ONE tree and persists it through
 // ISettings::setDecorationProfileTree — dirty / apply / discard ride the normal

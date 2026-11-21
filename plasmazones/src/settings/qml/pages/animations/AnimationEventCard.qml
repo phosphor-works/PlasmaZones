@@ -938,8 +938,7 @@ Item {
                 // Path-aware list: pre-filtered to the shaders that can drive
                 // this event, so the category picker only offers compatible
                 // shaders (e.g. the geometry-only window-morph is omitted on a
-                // show/hide event). `dimmed`/`dimReason` remain on each row as
-                // always-false QML-compat fields.
+                // show/hide event).
                 availableShaders: {
                     void (root._shaderRegistryRev);
                     return settingsController.animationsPage.availableShaderEffectsForPath(root.eventPath);

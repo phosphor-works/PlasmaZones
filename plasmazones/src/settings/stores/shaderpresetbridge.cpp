@@ -185,7 +185,7 @@ bool ShaderPresetBridge::commit(const PhosphorShaders::ShaderPreset& preset)
     // Guard the id here as well as at the parse boundary. The id reaching this
     // point came from the registry, which means it came from a file the user can
     // hand-edit, and the next line concatenates it into a filesystem path — so
-    // `"id": "../../../../.config/plasmazones/config"` would have written preset
+    // `"id": "../../../../.config/phosphor-works/plasmazones/config"` would have written preset
     // JSON over an arbitrary file the moment the user pressed Rename. The
     // library refuses such an id on load now, but this bridge must not depend on
     // an invariant it cannot see, the same reason acceptableShaderEffectId()

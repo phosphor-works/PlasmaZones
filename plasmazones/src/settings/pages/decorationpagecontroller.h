@@ -333,7 +333,7 @@ public:
 
     /// The decoration-set store — the `bridge` ShaderSetsPage binds to.
     /// Named snapshots of the decoration profile tree, persisted as JSON
-    /// under ~/.local/share/plasmazones/decorationsets/<slug>.json.
+    /// under ~/.local/share/phosphor-works/decorationsets/<slug>.json.
     /// Applying merges: every entry replaces the DIRECT profile at its
     /// path; surfaces the set
     /// does not cover keep their current overrides. APPLYING a set writes

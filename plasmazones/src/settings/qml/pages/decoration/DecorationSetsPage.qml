@@ -8,7 +8,7 @@ import QtQuick
  *
  * A decoration set is a snapshot of the decoration profile tree (every
  * per-surface override) persisted as one JSON file under
- * `~/.local/share/plasmazones/decorationsets/<slug>.json`. Applying a set
+ * `~/.local/share/phosphor-works/decorationsets/<slug>.json`. Applying a set
  * merges: surfaces it covers are replaced, surfaces it does not cover keep
  * their current chains.
  *
