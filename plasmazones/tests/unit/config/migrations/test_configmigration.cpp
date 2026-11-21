@@ -23,6 +23,7 @@
 
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorRules/ActionTypes.h>
+#include <PhosphorRules/ContextRuleBridge.h>
 #include <PhosphorRules/Rule.h>
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/RuleSet.h>
@@ -1191,7 +1192,10 @@ private Q_SLOTS:
     /// The managed appearance baseline rules an older build seeded into
     /// rules.json are stripped on start-up. A user rule survives, and so does
     /// an UNMANAGED rule that carries one of the baseline ids, because only
-    /// the seeded rows are ours to remove. A second run is a clean no-op.
+    /// the seeded rows are ours to remove. The store also holds the retired
+    /// provider-default rule, which another fix-up removes by rewriting
+    /// rules.json; that rewrite drops the raw `managed` key, so the strip has
+    /// to have read it first. A second run is a clean no-op.
     void testCleanup_stripsManagedAppearanceBaselineRules()
     {
         IsolatedConfigGuard guard;
@@ -1207,14 +1211,19 @@ private Q_SLOTS:
             rule.actions.append(PhosphorRules::RuleAction{QString(PhosphorRules::ActionType::Exclude), {}});
             return rule;
         };
+        namespace CRB = PhosphorRules::ContextRuleBridge;
+        const QUuid providerDefault = QUuid::createUuidV5(
+            CRB::detail::namespaceUuid(),
+            CRB::detail::contextIdentityKey(QLatin1StringView("provider-default"), QString(), 0, QString()));
         const QUuid user = QUuid::createUuid();
         PhosphorRules::RuleSet seeded;
-        QCOMPARE(seeded.setRules({ruleWith(border, QStringLiteral("Border")),
+        QCOMPARE(seeded.setRules({ruleWith(providerDefault, QStringLiteral("Provider default")),
+                                  ruleWith(border, QStringLiteral("Border")),
                                   ruleWith(titleBar, QStringLiteral("Title bar")),
                                   ruleWith(gap, QStringLiteral("Hand-made")), ruleWith(user, QStringLiteral("Mine"))}),
-                 4);
-        // Mark the first two the way an older build wrote its seeded rows: a
-        // raw "managed": true on the stored rule object.
+                 5);
+        // Mark the border and title bar rows the way an older build wrote its
+        // seeded rows: a raw "managed": true on the stored rule object.
         QJsonObject seededJson = seeded.toJson();
         QJsonArray seededRules = seededJson.value(QLatin1String("rules")).toArray();
         int marked = 0;
@@ -1241,6 +1250,7 @@ private Q_SLOTS:
 
         const auto after = PhosphorRules::RuleSet::loadFromFile(ConfigDefaults::rulesFilePath());
         QVERIFY(after.has_value());
+        QVERIFY(!after->ruleById(providerDefault).has_value());
         QVERIFY(!after->ruleById(border).has_value());
         QVERIFY(!after->ruleById(titleBar).has_value());
         QVERIFY(after->ruleById(gap).has_value());
