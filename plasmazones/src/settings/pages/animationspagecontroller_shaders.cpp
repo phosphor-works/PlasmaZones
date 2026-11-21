@@ -86,15 +86,11 @@ QVariantList AnimationsPageController::availableShaderEffectsForPath(const QStri
         // switch, would silently no-op. Filtering (rather than dimming) keeps
         // each picker to one coherent set: appearance shaders on the Appearance
         // page, the morph shaders on Movement, the drag-physics packs on the
-        // "Dragged" leaf, the two-texture packs on Virtual Desktops. `dimmed`
-        // is retained (always false) for QML compatibility.
+        // "Dragged" leaf, the two-texture packs on Virtual Desktops.
         if (!PhosphorAnimationShaders::shaderEffectAppliesToEventPath(effect, path)) {
             continue;
         }
-        QVariantMap m = effectToMap(effect);
-        m.insert(QLatin1String("dimmed"), false);
-        m.insert(QLatin1String("dimReason"), QString());
-        result.append(m);
+        result.append(effectToMap(effect));
     }
     return result;
 }

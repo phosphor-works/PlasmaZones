@@ -8,7 +8,7 @@ import QtQuick
  *
  * An overlay set is a snapshot of the zone-overlay shader assignments — the
  * global default plus every per-layout override — persisted as one JSON file
- * under `~/.local/share/plasmazones/overlaysets/<slug>.json`. Applying a set
+ * under `~/.local/share/phosphor-works/overlaysets/<slug>.json`. Applying a set
  * merges: what it covers is replaced, what it does not cover keeps its current
  * assignment.
  *

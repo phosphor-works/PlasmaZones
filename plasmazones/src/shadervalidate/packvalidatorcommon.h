@@ -69,10 +69,10 @@ std::optional<PackModel> detectPackModel(const QString& packDir);
 
 /// The `shared/` include roots for @p packDir, in resolution order.
 ///
-/// A pack in the INSTALLED layout, `<data root>/plasmazones/<family>/<id>`,
+/// A pack in the INSTALLED layout, `<data root>/phosphor-works/shaders/<family>/<id>`,
 /// gets its sibling `shared/` first (always listed, whether or not it exists)
 /// and then the XDG data chain for its family. That is what lets the tool
-/// work on an installed pack: one in `~/.local/share/plasmazones/<family>/<id>`
+/// work on an installed pack: one in `~/.local/share/phosphor-works/shaders/<family>/<id>`
 /// usually has no sibling `shared/` at all, since the helpers ship once into
 /// the system prefix, and when it has one it may be a partial user override of
 /// a header or two beside the system copy. The widened list is the same SET of

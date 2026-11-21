@@ -26,7 +26,7 @@ namespace PlasmaZones {
 /// QML as that controller's `bridge` property.
 ///
 /// A profile is a single JSON file `<uuid>.json` under
-/// `~/.config/plasmazones/profiles`, holding only what CHANGES from its parent
+/// `~/.config/phosphor-works/plasmazones/profiles`, holding only what CHANGES from its parent
 /// (another profile, or the schema defaults at the root). Profiles form an
 /// inheritance tree; resolving a profile walks the chain root → … → profile,
 /// overlaying each delta onto the schema-defaults blob to produce the full

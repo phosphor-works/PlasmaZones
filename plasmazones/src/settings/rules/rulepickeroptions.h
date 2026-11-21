@@ -39,9 +39,7 @@ QVariantList zoneMatchOptions(const QVector<PhosphorZones::Layout*>& layouts);
 /// Parse the running-windows JSON payload the KWin effect sends (relayed by the
 /// daemon) into `{ windowClass, rawWindowClass, appName, caption, desktopFile }`
 /// maps for the picker. A payload that is not a JSON array gives an empty list
-/// and a warning, and a row that is not an object is skipped. A row from an
-/// effect older than `rawWindowClass` gets its `windowClass` there instead, so
-/// Classes mode keeps working until the next login loads the new effect.
+/// and a warning, and a row that is not an object is skipped.
 QVariantList runningWindows(const QString& json);
 
 } // namespace PlasmaZones::RulePickerOptions

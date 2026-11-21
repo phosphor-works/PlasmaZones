@@ -8,7 +8,7 @@ import QtQuick
  *
  * A motion set is a snapshot of every per-event override active at a given
  * moment, persisted as one JSON file under
- * `~/.local/share/plasmazones/motionsets/<slug>.json`. Applying a set merges:
+ * `~/.local/share/phosphor-works/motionsets/<slug>.json`. Applying a set merges:
  * events it covers are replaced, events it does not cover are preserved.
  *
  * An override means BOTH halves of what the event card holds — the timing

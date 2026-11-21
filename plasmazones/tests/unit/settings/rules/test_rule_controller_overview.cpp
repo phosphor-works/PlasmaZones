@@ -470,7 +470,7 @@ void TestRuleControllerOverview::monitorOverviewIgnoresNonMonitorAxisDisableRule
 {
     // Mutation coverage for the DisableEngine narrowing gate
     // (rulecontroller_views.cpp: disableRuleMode + matchIsExactContextBase).
-    // Both rejected shapes must leave tilingEnabled TRUE while the rule
+    // Both rejected shapes must leave engineEnabled TRUE while the rule
     // still counts toward ruleCount — deleting either half of the gate
     // turns one of these tiles off and fails here.
     RuleController controller;
@@ -545,11 +545,11 @@ void TestRuleControllerOverview::monitorOverviewIgnoresNonMonitorAxisDisableRule
         if (screenId == QLatin1String("DP-A")) {
             sawA = true;
             QCOMPARE(tile.value(QStringLiteral("ruleCount")).toInt(), 2);
-            QCOMPARE(tile.value(QStringLiteral("tilingEnabled")).toBool(), true);
+            QCOMPARE(tile.value(QStringLiteral("engineEnabled")).toBool(), true);
         } else if (screenId == QLatin1String("DP-B")) {
             sawB = true;
             QCOMPARE(tile.value(QStringLiteral("ruleCount")).toInt(), 2);
-            QCOMPARE(tile.value(QStringLiteral("tilingEnabled")).toBool(), true);
+            QCOMPARE(tile.value(QStringLiteral("engineEnabled")).toBool(), true);
         }
     }
     QVERIFY(sawA);
@@ -608,10 +608,10 @@ void TestRuleControllerOverview::monitorOverviewLayoutComposesPerSlot()
 
 void TestRuleControllerOverview::monitorOverviewDisableEngineMatchesEffectiveMode()
 {
-    // Pin that `tilingEnabled` on the overview tile resolves the
+    // Pin that `engineEnabled` on the overview tile resolves the
     // DisableEngine action against the screen's EFFECTIVE engine mode,
     // not "any DisableEngine action present". A DisableEngine{snapping}
-    // rule on an Autotile-effective screen must NOT flip tilingEnabled
+    // rule on an Autotile-effective screen must NOT flip engineEnabled
     // off — the cascade resolution in the daemon would never treat that
     // rule as disabling autotile. The matching positive case
     // (DisableEngine{mode} == effective mode) must flip it off.
@@ -669,10 +669,10 @@ void TestRuleControllerOverview::monitorOverviewDisableEngineMatchesEffectiveMod
         const QString id = tile.value(QStringLiteral("screenId")).toString();
         if (id == QLatin1String("DP-A")) {
             sawA = true;
-            QCOMPARE(tile.value(QStringLiteral("tilingEnabled")).toBool(), false);
+            QCOMPARE(tile.value(QStringLiteral("engineEnabled")).toBool(), false);
         } else if (id == QLatin1String("DP-B")) {
             sawB = true;
-            QCOMPARE(tile.value(QStringLiteral("tilingEnabled")).toBool(), true);
+            QCOMPARE(tile.value(QStringLiteral("engineEnabled")).toBool(), true);
         }
     }
     QVERIFY(sawA);
@@ -712,7 +712,7 @@ void TestRuleControllerOverview::monitorOverviewDisableEngineUnionsEveryMode()
         controller.monitorOverview(QVariantList{QVariantMap{{QStringLiteral("name"), QStringLiteral("DP-1")}}});
     QCOMPARE(overview.size(), 1);
     const QVariantMap tile = overview.first().toMap();
-    QVERIFY2(!tile.value(QStringLiteral("tilingEnabled")).toBool(),
+    QVERIFY2(!tile.value(QStringLiteral("engineEnabled")).toBool(),
              "a disable for a different engine masked the one matching the screen's effective mode");
     QCOMPARE(tile.value(QStringLiteral("ruleCount")).toInt(), 2);
 }
@@ -732,7 +732,7 @@ void TestRuleControllerOverview::monitorOverviewDisableEngineFollowsDefaultMode(
 
     // Without a provider the base is Snapping, which the rule does not disable.
     QCOMPARE(tileFor(controller.monitorOverview(screens), QStringLiteral("DP-1"))
-                 .value(QStringLiteral("tilingEnabled"))
+                 .value(QStringLiteral("engineEnabled"))
                  .toBool(),
              true);
 
@@ -743,7 +743,7 @@ void TestRuleControllerOverview::monitorOverviewDisableEngineFollowsDefaultMode(
         return entry;
     });
     QCOMPARE(tileFor(controller.monitorOverview(screens), QStringLiteral("DP-1"))
-                 .value(QStringLiteral("tilingEnabled"))
+                 .value(QStringLiteral("engineEnabled"))
                  .toBool(),
              false);
 }

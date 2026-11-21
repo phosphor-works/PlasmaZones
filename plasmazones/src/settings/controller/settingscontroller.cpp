@@ -458,7 +458,7 @@ SettingsController::SettingsController(QObject* parent)
     // Load the user's layouts immediately so localLayoutPreviews() returns
     // a populated list on first call (before any QML query has had a
     // chance to trigger the legacy D-Bus loadLayoutsAsync path).
-    // PhosphorZones::LayoutRegistry scans ~/.local/share/plasmazones/layouts/
+    // PhosphorZones::LayoutRegistry scans ~/.local/share/phosphor-works/layouts/
     // only when loadLayouts() is called — it watches nothing, so an explicit
     // call is the sole reload trigger. This one covers startup;
     // loadLayoutsAsync() re-calls it off the daemon's D-Bus layout signals.

@@ -28,7 +28,7 @@ import QtQuick
  * `Spring::snappy()`, `::smooth()`, `::bouncy()` factories.
  *
  * User-saved presets live alongside built-ins on disk (one Profile JSON per
- * file under `~/.local/share/plasmazones/profiles/`); the AnimationsPage
+ * file under `~/.local/share/phosphor-works/profiles/`); the AnimationsPage
  * controller exposes them via `userPresets()` in Phase 5. This singleton
  * holds only the immutable built-ins.
  */

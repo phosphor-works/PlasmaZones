@@ -83,7 +83,7 @@ inline QVariantMap effectToMap(const PhosphorAnimationShaders::AnimationShaderEf
     // Declared event-class capability (empty = universal). Surfaced so the
     // shader gallery can show a capability badge; the per-event picker uses
     // the controller's path-aware `availableShaderEffectsForPath` instead,
-    // which folds this into ready-made `dimmed`/`dimReason` flags.
+    // which filters on it.
     m.insert(QLatin1String("appliesTo"), QVariant::fromValue(effect.appliesTo));
     m.insert(QLatin1String("isUserEffect"), effect.isUserEffect);
     // No `previewPath`: the browser previews live shaders now, and no QML

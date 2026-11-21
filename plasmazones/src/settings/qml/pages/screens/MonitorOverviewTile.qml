@@ -24,7 +24,7 @@ Rectangle {
     /// Full screen map from `settingsController.screens` (displayLabel,
     /// connectorName, isPrimary, width/height, etc.).
     required property var screenData
-    /// Rule-related data: `{ screenId, layoutName, tilingEnabled, ruleCount,
+    /// Rule-related data: `{ screenId, layoutName, engineEnabled, ruleCount,
     /// assigned, locked }` from `RuleController.monitorOverview(screens,
     /// screenStates)`, which emits a tile for every screen and describes what
     /// the staged rules do to it in its current state. A screen no rule
@@ -132,7 +132,7 @@ Rectangle {
             }
 
             Kirigami.Icon {
-                source: tile._assigned ? (tile.tileData.tilingEnabled ? "view-grid" : "dialog-cancel") : "edit-none"
+                source: tile._assigned ? (tile.tileData.engineEnabled ? "view-grid" : "dialog-cancel") : "edit-none"
                 Layout.preferredWidth: Kirigami.Units.iconSizes.small
                 Layout.preferredHeight: Kirigami.Units.iconSizes.small
                 opacity: 0.7
@@ -152,11 +152,11 @@ Rectangle {
                     if (!tile._assigned)
                         return i18nc("@label monitor caption", "%1 · %2", i18n("Not assigned"), countLabel);
 
-                    // `tilingEnabled` means "the screen's window-management
+                    // `engineEnabled` means "the screen's window-management
                     // engine is NOT disabled" for whatever engine it runs
                     // (snapping / autotile / scrolling), so the label stays
                     // engine-agnostic rather than saying "Tiling off".
-                    if (!tile.tileData.tilingEnabled)
+                    if (!tile.tileData.engineEnabled)
                         return i18nc("@label monitor caption", "%1 · %2", i18n("Engine off"), countLabel);
 
                     if (tile.tileData.layoutName && tile.tileData.layoutName.length > 0)

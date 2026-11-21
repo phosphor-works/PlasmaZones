@@ -147,10 +147,9 @@ private Q_SLOTS:
         QVERIFY(RulePickerOptions::zoneMatchOptions({nullptr}).isEmpty());
     }
 
-    // Every field is carried through, and a row from an effect older than
-    // rawWindowClass falls back to its windowClass so Classes mode keeps
-    // offering something. FAILS if the fallback is lost.
-    void runningWindows_parsesRowsAndFallsBack()
+    // Every field is carried through, and a row that is not an object is
+    // skipped.
+    void runningWindows_parsesRows()
     {
         QJsonObject current;
         current[QStringLiteral("windowClass")] = QStringLiteral("org.kde.konsole");
@@ -158,21 +157,17 @@ private Q_SLOTS:
         current[QStringLiteral("appName")] = QStringLiteral("konsole");
         current[QStringLiteral("caption")] = QStringLiteral("Shell");
         current[QStringLiteral("desktopFile")] = QStringLiteral("org.kde.konsole");
-        QJsonObject old;
-        old[QStringLiteral("windowClass")] = QStringLiteral("steam");
-        old[QStringLiteral("appName")] = QStringLiteral("steam");
-        old[QStringLiteral("caption")] = QStringLiteral("Steam");
         QJsonObject classless;
         classless[QStringLiteral("windowClass")] = QString();
         classless[QStringLiteral("rawWindowClass")] = QString();
         classless[QStringLiteral("appName")] = QString();
         classless[QStringLiteral("caption")] = QStringLiteral("Gamescope");
         classless[QStringLiteral("desktopFile")] = QString();
-        const QJsonArray rows{current, QJsonValue(42), old, classless};
+        const QJsonArray rows{current, QJsonValue(42), classless};
         const QVariantList parsed =
             RulePickerOptions::runningWindows(QString::fromUtf8(QJsonDocument(rows).toJson(QJsonDocument::Compact)));
 
-        QCOMPARE(parsed.size(), 3); // the non-object row is skipped
+        QCOMPARE(parsed.size(), 2); // the non-object row is skipped
         const QVariantMap first = parsed.at(0).toMap();
         QCOMPARE(first.value(QStringLiteral("rawWindowClass")).toString(), QStringLiteral("konsole org.kde.konsole"));
         QCOMPARE(first.value(QStringLiteral("windowClass")).toString(), QStringLiteral("org.kde.konsole"));
@@ -180,11 +175,8 @@ private Q_SLOTS:
         QCOMPARE(first.value(QStringLiteral("appName")).toString(), QStringLiteral("konsole"));
         QCOMPARE(first.value(QStringLiteral("caption")).toString(), QStringLiteral("Shell"));
         const QVariantMap second = parsed.at(1).toMap();
-        QCOMPARE(second.value(QStringLiteral("rawWindowClass")).toString(), QStringLiteral("steam"));
-        QCOMPARE(second.value(QStringLiteral("desktopFile")).toString(), QString());
-        const QVariantMap third = parsed.at(2).toMap();
-        QCOMPARE(third.value(QStringLiteral("rawWindowClass")).toString(), QString());
-        QCOMPARE(third.value(QStringLiteral("caption")).toString(), QStringLiteral("Gamescope"));
+        QCOMPARE(second.value(QStringLiteral("rawWindowClass")).toString(), QString());
+        QCOMPARE(second.value(QStringLiteral("caption")).toString(), QStringLiteral("Gamescope"));
     }
 
     // A payload that is not a JSON array gives an empty list and says why:

@@ -539,12 +539,10 @@ QVariantList RuleController::monitorOverview(const QVariantList& screens, const 
         // "Engine off" only when a disable rule targets the engine the screen
         // actually runs: a DisableEngine{scrolling} rule on a snapping screen
         // leaves the tile on. The mode is the resolved entry's, which is the
-        // global default's when no rule sets one. The QML reads this as
-        // `tilingEnabled` (kept for backwards-compatibility with the existing
-        // tile component); it means "the engine running on this screen is NOT
-        // disabled".
+        // global default's when no rule sets one. `engineEnabled` means "the
+        // engine running on this screen is NOT disabled".
         const bool engineDisabled = disabledEngineModes.contains(PhosphorZones::modeToWireString(entry.mode));
-        tile[QStringLiteral("tilingEnabled")] = !engineDisabled;
+        tile[QStringLiteral("engineEnabled")] = !engineDisabled;
         tile[QStringLiteral("ruleCount")] = ruleCount;
         tile[QStringLiteral("assigned")] = ruleCount > 0 || slots.has_value();
         // True when the winning LockContext rule locks this monitor's layout.
