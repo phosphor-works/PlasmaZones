@@ -172,7 +172,7 @@ float sdRoundedBox(vec2 p, vec2 b, float r) {
 }
 
 // Zone frame geometry + rounded-rect signed distance — the overlay counterpart
-// of the decoration side's frameSdf() (phosphor-surface-packs' shared/surface_lib.glsl).
+// of the decoration side's frameSdfSplit() (phosphor-surface-packs' shared/surface_lib.glsl).
 // One call replaces the centre / half-size / radius / SDF idiom every overlay
 // pack repeated inline, and fixes the three ways those inline copies diverged
 // from the decoration packs:
@@ -189,7 +189,7 @@ float sdRoundedBox(vec2 p, vec2 b, float r) {
 //     SMALL ZONE, not a large radius: the daemon bounds every radius it
 //     publishes against borderRadiusMax, including a per-zone one hand-edited
 //     into layout JSON, so the ceiling is the settings cap and a zone under
-//     twice it on its smaller side is what trips the clamp. frameSdf() has
+//     twice it on its smaller side is what trips the clamp. frameSdfSplit() has
 //     always clamped; the inline copies never did.
 //   * NO FLOOR. The inline copies each applied their own `max(params.x, N)`
 //     with N of 4, 6, or 8 depending on the pack, so a configured radius of 0
