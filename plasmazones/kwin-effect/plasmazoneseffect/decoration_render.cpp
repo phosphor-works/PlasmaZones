@@ -406,15 +406,6 @@ void PlasmaZonesEffect::pushBorderUniforms(KWin::EffectWindow* w, const WindowDe
         const bool focused = decorationFocused(w, wb);
         shader->setUniform(pack.uFocusedLoc, advanceFocusFade(windowId, focused));
     }
-    // uSurfaceOpacity is a LEGACY constant now: the retired handlesOpacity
-    // contract fed it the rule-resolved opacity; content dimming is a plain
-    // pack parameter today (frost/glass contentOpacity) and the plain layer
-    // folds SetOpacity into its own param. Pushed 1.0 whenever a pack still
-    // references the uniform so an old third-party pack keeps its content
-    // visible instead of getting GL's 0.0 default.
-    if (pack.uOpacityLoc >= 0) {
-        shader->setUniform(pack.uOpacityLoc, 1.0f);
-    }
     // Time for an animated pack. -1 (static pack, e.g. the border) pushes nothing;
     // postPaintScreen only drives the window to repaint when a pack actually
     // references iTime (windowSurfaceAnimates), so a static decoration neither pays
