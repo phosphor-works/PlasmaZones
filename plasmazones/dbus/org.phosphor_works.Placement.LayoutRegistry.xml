@@ -337,7 +337,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             <arg name="algorithm" type="s" direction="out"/>
         </method>
         <method name="setAllDesktopAssignments">
-            <annotation name="org.gtk.GDBus.DocString" value="Batch set all per-desktop assignments (saves once). Canonical key format: 'screenId|desktopNumber' ('screenId:desktopNumber' is accepted as a legacy fallback but misparses virtual-screen ids — do not emit it). Clears existing assignments of this family first: a key absent from the map is DELETED, so a partial map silently drops every assignment it omits."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Batch set all per-desktop assignments (saves once). Key format: 'screenId|desktopNumber'. Clears existing assignments of this family first: a key absent from the map is DELETED, so a partial map silently drops every assignment it omits."/>
             <arg name="assignments" type="a{sv}" direction="in">
                 <annotation name="org.gtk.GDBus.DocString" value="Map of 'screenId|desktop' keys to a plain layoutId string (a Scrolling context stays the bare 'scrolling:' sentinel; the reserved words &quot;none&quot; and &quot;autotile:none&quot; are accepted and store the explicit opt-out, so the values the matching getter emits round-trip). Only that string is read here. The matching getter's value is a wider {layoutId, scrollingTemplate} map, and the scrolling template is written through setScrollingTemplateLayout, never through the batch setters."/>
             </arg>
@@ -508,7 +508,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </arg>
         </method>
         <method name="setAllActivityAssignments">
-            <annotation name="org.gtk.GDBus.DocString" value="Batch set all per-activity assignments (saves once). Key format: 'screenId|activityId' (legacy ':' fallback accepted). Clears existing assignments of this family first: a key absent from the map is DELETED, so a partial map silently drops every assignment it omits."/>
+            <annotation name="org.gtk.GDBus.DocString" value="Batch set all per-activity assignments (saves once). Key format: 'screenId|activityId'. Clears existing assignments of this family first: a key absent from the map is DELETED, so a partial map silently drops every assignment it omits."/>
             <arg name="assignments" type="a{sv}" direction="in">
                 <annotation name="org.gtk.GDBus.DocString" value="Map of 'screenId|activityId' keys to a plain layoutId string (a Scrolling context stays the bare 'scrolling:' sentinel; the reserved words &quot;none&quot; and &quot;autotile:none&quot; are accepted and store the explicit opt-out, so the values the matching getter emits round-trip). Only that string is read here. The matching getter's value is a wider {layoutId, scrollingTemplate} map, and the scrolling template is written through setScrollingTemplateLayout, never through the batch setters."/>
             </arg>

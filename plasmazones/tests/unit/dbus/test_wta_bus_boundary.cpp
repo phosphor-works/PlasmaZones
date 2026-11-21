@@ -483,7 +483,7 @@ private Q_SLOTS:
         QVERIFY2(!f.snap->isWindowTracked(windowId) && !f.tiling.isWindowTracked(windowId),
                  "control: no engine captures, so the close falls back to the reported screen");
 
-        f.wta->windowClosed(windowId, 0, dead);
+        f.wta->windowClosed(windowId, dead);
 
         const auto rec = f.wta->service()->placementStore().peekExact(windowId);
         QVERIFY(rec);

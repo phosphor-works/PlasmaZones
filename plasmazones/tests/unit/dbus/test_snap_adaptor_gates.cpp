@@ -936,9 +936,8 @@ private:
     {
         int x = 0, y = 0, w = 0, h = 0;
         bool shouldSnap = false;
-        f.adaptor->resolveWindowRestore(windowId, screenId, false, static_cast<int>(PhosphorEngine::WindowKind::Normal),
-                                        static_cast<int>(PhosphorEngine::RestoreReason::Open), 0, 0, x, y, w, h,
-                                        shouldSnap);
+        f.adaptor->resolveWindowRestore(windowId, screenId, false,
+                                        static_cast<int>(PhosphorEngine::RestoreReason::Open), x, y, w, h, shouldSnap);
         return shouldSnap;
     }
 

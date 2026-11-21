@@ -473,11 +473,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
             <arg name="windowId" type="s" direction="in">
                 <annotation name="org.gtk.GDBus.DocString" value="Window identifier."/>
             </arg>
-            <arg name="windowKind" type="i" direction="in">
-                <annotation name="org.gtk.GDBus.DocString" value="Structural kind of the closing window (0=Unknown, 1=Normal, 2=Transient). Unused: it gated the pending-restore queue, which was removed. Kept so the signature does not change."/>
-            </arg>
             <arg name="screenId" type="s" direction="in">
-                <annotation name="org.gtk.GDBus.DocString" value="The window's authoritative current screen at close (the effect's getWindowScreenId). Used by the final placement capture to record the float-back on the screen the window actually closed on, even when a cross-screen move has torn down every engine's tracking. Empty opts out (legacy callers)."/>
+                <annotation name="org.gtk.GDBus.DocString" value="The window's authoritative current screen at close (the effect's getWindowScreenId). Used by the final placement capture to record the float-back on the screen the window actually closed on, even when a cross-screen move has torn down every engine's tracking. Empty when the compositor knows no screen for the window, and the capture then keeps the record's prior screen."/>
             </arg>
         </method>
         <method name="windowActivated">

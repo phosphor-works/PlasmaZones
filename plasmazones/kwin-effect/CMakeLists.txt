@@ -297,8 +297,8 @@ target_link_libraries(kwin_effect_plasmazones PRIVATE
     Qt6::Svg
     KF6::ColorScheme
     PhosphorCompositor::PhosphorCompositor
-    # `plasmazoneseffect.h` directly includes `<PhosphorEngine/EngineTypes.h>`
-    # for the WindowKind enum used by classifyWindowKind. Direct include →
+    # `handlers/snaphandler.h` and `daemon_bringup.cpp` directly include
+    # `<PhosphorEngine/EngineTypes.h>` for RestoreReason. Direct include →
     # direct link, matching the PhosphorAnimation rationale below.
     PhosphorEngine::PhosphorEngine
     PhosphorProtocol::PhosphorProtocol

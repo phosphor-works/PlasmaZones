@@ -130,7 +130,6 @@ private Q_SLOTS:
 
         QSignalSpy geoSpy(&engine, &PhosphorEngine::PlacementEngineBase::geometryRestoreRequested);
         engine.resolveWindowRestore(QStringLiteral("app|w"), QStringLiteral("DP-1"), /*sticky*/ false,
-                                    PhosphorEngine::WindowKind::Unknown,
                                     static_cast<PhosphorEngine::RestoreReason>(reason));
         QCOMPARE(geoSpy.count(), moves);
         m_wts->setSnapState(nullptr);
@@ -162,7 +161,6 @@ private Q_SLOTS:
 
         beginLogCapture();
         engine.resolveWindowRestore(QStringLiteral("app|w"), QStringLiteral("DP-1"), /*sticky*/ false,
-                                    PhosphorEngine::WindowKind::Unknown,
                                     static_cast<PhosphorEngine::RestoreReason>(reason));
         const QStringList lines = endLogCapture();
         QVERIFY2(captureIsNonEmpty(lines), "snap-engine log capture produced nothing");

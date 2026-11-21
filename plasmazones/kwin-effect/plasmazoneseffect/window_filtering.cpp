@@ -426,9 +426,8 @@ bool PlasmaZonesEffect::isStructurallyUnmanageableWindowType(KWin::EffectWindow*
                                                              bool exemptFullscreen) const
 {
     // Single source of truth for the window-TYPE rejection set shared by
-    // shouldHandleWindow() (snap/zone filter), notifyWindowActivated()
-    // (focus-tracking filter) and classifyWindowKind() (window_identity.cpp).
-    // They must reject the exact same structural
+    // shouldHandleWindow() (snap/zone filter) and notifyWindowActivated()
+    // (focus-tracking filter). They must reject the exact same structural
     // types: a window kind that can never legitimately be a snap/autotile
     // target must also never be reported as the active window, or the daemon's
     // focus tracking gets pinned to a popup. Discussion #461 item 11 (Steam

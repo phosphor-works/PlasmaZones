@@ -31,11 +31,11 @@ private Q_SLOTS:
         const QString earlier = QStringLiteral("firefox|earlier");
         const QString closing = QStringLiteral("firefox|closing");
 
-        store.record(makePlacement(persisted, appId, WindowPlacement::stateFree(), QStringLiteral("snap"),
+        store.record(makePlacement(persisted, appId, QStringLiteral("free"), QStringLiteral("snap"),
                                    QStringLiteral("DP-1"), QRect(10, 20, 300, 400)));
-        store.record(makePlacement(earlier, appId, WindowPlacement::stateFree(), QStringLiteral("snap"),
+        store.record(makePlacement(earlier, appId, QStringLiteral("free"), QStringLiteral("snap"),
                                    QStringLiteral("DP-1"), QRect(30, 40, 300, 400)));
-        store.record(makePlacement(closing, appId, WindowPlacement::stateFree(), QStringLiteral("snap"),
+        store.record(makePlacement(closing, appId, QStringLiteral("free"), QStringLiteral("snap"),
                                    QStringLiteral("DP-1"), QRect(50, 60, 300, 400)));
 
         QVERIFY(store.collapsePureFloatSiblings(appId, closing));
@@ -328,7 +328,6 @@ private Q_SLOTS:
                                           WindowPlacement::stateSnapped(), WindowPlacement::snapEngineId());
         p.virtualDesktop = 3;
         p.activity = QStringLiteral("act-1");
-        p.kind = PhosphorEngine::WindowKind::Normal;
         // A shared free geometry alongside the snapped slot (the float-back).
         p.freeGeometryByScreen.insert(QStringLiteral("DP-1"), QRect(11, 22, 333, 444));
         store.record(p);
@@ -345,7 +344,6 @@ private Q_SLOTS:
         QCOMPARE(snapSlot.zoneIds.size(), 1);
         QCOMPARE(got->virtualDesktop, 3);
         QCOMPARE(got->activity, QStringLiteral("act-1"));
-        QCOMPARE(got->kind, PhosphorEngine::WindowKind::Normal); // survives clampWindowKindFromWire
         QCOMPARE(got->freeGeometryFor(QStringLiteral("DP-1")), QRect(11, 22, 333, 444));
     }
 
@@ -642,8 +640,8 @@ private Q_SLOTS:
         // first and the window never returns to its zone. With it, the snapped
         // record wins even though it is newer AND on a different screen.
         WindowPlacementStore store;
-        store.record(makePlacement(QStringLiteral("ghastty|old"), QStringLiteral("ghastty"),
-                                   WindowPlacement::stateFree(), WindowPlacement::snapEngineId(),
+        store.record(makePlacement(QStringLiteral("ghastty|old"), QStringLiteral("ghastty"), QStringLiteral("free"),
+                                   WindowPlacement::snapEngineId(),
                                    QString())); // empty screen, older
         store.record(makePlacement(QStringLiteral("ghastty|snapped"), QStringLiteral("ghastty"),
                                    WindowPlacement::stateSnapped(), WindowPlacement::snapEngineId(),
@@ -676,9 +674,9 @@ private Q_SLOTS:
         // filters. Two records, so the ordering half of that claim is
         // actually exercised rather than asserted into a single-record store.
         WindowPlacementStore store;
-        store.record(makePlacement(QStringLiteral("app|1"), QStringLiteral("app"), WindowPlacement::stateFree(),
+        store.record(makePlacement(QStringLiteral("app|1"), QStringLiteral("app"), QStringLiteral("free"),
                                    WindowPlacement::snapEngineId(), QStringLiteral("DP-2")));
-        store.record(makePlacement(QStringLiteral("app|2"), QStringLiteral("app"), WindowPlacement::stateFree(),
+        store.record(makePlacement(QStringLiteral("app|2"), QStringLiteral("app"), QStringLiteral("free"),
                                    WindowPlacement::snapEngineId(), QStringLiteral("DP-2")));
         const auto accept = [](const WindowPlacement& p) {
             return p.screenId.isEmpty() || p.screenId == QStringLiteral("DP-2");
@@ -695,7 +693,7 @@ private Q_SLOTS:
     void testHasRestorableContent()
     {
         // Valid free/float geometry → content.
-        QVERIFY(makePlacement(QStringLiteral("a|1"), QStringLiteral("a"), WindowPlacement::stateFree(),
+        QVERIFY(makePlacement(QStringLiteral("a|1"), QStringLiteral("a"), QStringLiteral("free"),
                               WindowPlacement::snapEngineId())
                     .hasRestorableContent());
         QVERIFY(makePlacement(QStringLiteral("a|1"), QStringLiteral("a"), WindowPlacement::stateFloating(),
@@ -715,7 +713,7 @@ private Q_SLOTS:
         bare.windowId = QStringLiteral("a|1");
         bare.appId = QStringLiteral("a");
         EngineSlot freeSlot;
-        freeSlot.state = WindowPlacement::stateFree();
+        freeSlot.state = QStringLiteral("free");
         bare.engines.insert(WindowPlacement::snapEngineId(), freeSlot);
         QVERIFY(!bare.hasRestorableContent());
 
@@ -762,7 +760,7 @@ private Q_SLOTS:
         residue.windowId = QStringLiteral("kate|old");
         residue.appId = QStringLiteral("kate");
         EngineSlot freeSlot;
-        freeSlot.state = WindowPlacement::stateFree();
+        freeSlot.state = QStringLiteral("free");
         residue.engines.insert(WindowPlacement::snapEngineId(), freeSlot);
         store.record(residue);
         // Newer floating record carrying the resized geometry.
@@ -834,7 +832,7 @@ private Q_SLOTS:
         residue.windowId = QStringLiteral("noise|noise-instance");
         residue.appId = QStringLiteral("noise");
         EngineSlot freeSlot;
-        freeSlot.state = WindowPlacement::stateFree();
+        freeSlot.state = QStringLiteral("free");
         residue.engines.insert(WindowPlacement::snapEngineId(), freeSlot);
         store.record(residue);
 
@@ -874,7 +872,7 @@ private Q_SLOTS:
         store.record(makePlacement(QStringLiteral("term|keep1"), QStringLiteral("term"),
                                    WindowPlacement::stateSnapped(), WindowPlacement::snapEngineId()));
         // Contentless residue at index 2 (geometry-less free slot).
-        store.record(makePlacement(QStringLiteral("term|residue"), QStringLiteral("term"), WindowPlacement::stateFree(),
+        store.record(makePlacement(QStringLiteral("term|residue"), QStringLiteral("term"), QStringLiteral("free"),
                                    WindowPlacement::snapEngineId(), QStringLiteral("DP-1"), QRect()));
         // Fill to EXACTLY MaxPerApp (2 keeps + 1 residue + the fills) so the
         // eviction fires once, on the overflow record below.
@@ -1165,7 +1163,7 @@ private Q_SLOTS:
         QCOMPARE(third->windowId, QStringLiteral("dolphin|u3"));
     }
 
-    void testPendingCrossScreenSnapRestore_requiresDifferentScreen()
+    void testPendingCrossScreenManagedRestore_snapRequiresDifferentScreen()
     {
         // The defer/claim reciprocity predicate is CROSS-SCREEN only. A
         // snapped record whose recorded screen equals the opening screen
@@ -1178,37 +1176,40 @@ private Q_SLOTS:
         const auto alwaysSnapping = [](const QString&, int, const QString&) {
             return true;
         };
+        // The snap slot's form of the predicate: keyed on (snap, snapped).
+        const auto snapPending = [](const WindowPlacement& rec, const QString& screen, const auto& resolver) {
+            return PhosphorEngine::pendingCrossScreenManagedRestore(rec, WindowPlacement::snapEngineId(),
+                                                                    WindowPlacement::stateSnapped(), screen, resolver);
+        };
         WindowPlacement p =
             makePlacement(QStringLiteral("firefox|a"), QStringLiteral("firefox"), WindowPlacement::stateSnapped(),
                           WindowPlacement::snapEngineId(), QStringLiteral("DP-1"));
         p.virtualDesktop = 1;
 
         // Same screen: never a cross-screen restore, whatever the resolver says.
-        QVERIFY(!PhosphorEngine::pendingCrossScreenSnapRestore(p, QStringLiteral("DP-1"), alwaysSnapping));
+        QVERIFY(!snapPending(p, QStringLiteral("DP-1"), alwaysSnapping));
         // Unscreened record: nothing to restore across, same verdict.
         WindowPlacement unscreened = p;
         unscreened.screenId.clear();
-        QVERIFY(!PhosphorEngine::pendingCrossScreenSnapRestore(unscreened, QStringLiteral("DP-1"), alwaysSnapping));
+        QVERIFY(!snapPending(unscreened, QStringLiteral("DP-1"), alwaysSnapping));
         // Genuinely different screen: defers when the recorded context is
         // snapping, claims nothing when it is not.
-        QVERIFY(PhosphorEngine::pendingCrossScreenSnapRestore(p, QStringLiteral("DP-2"), alwaysSnapping));
-        QVERIFY(!PhosphorEngine::pendingCrossScreenSnapRestore(p, QStringLiteral("DP-2"),
-                                                               [](const QString&, int, const QString&) {
-                                                                   return false;
-                                                               }));
+        QVERIFY(snapPending(p, QStringLiteral("DP-2"), alwaysSnapping));
+        QVERIFY(!snapPending(p, QStringLiteral("DP-2"), [](const QString&, int, const QString&) {
+            return false;
+        }));
         // The resolver runs against the RECORD's context, not the opener's.
         bool sawRecordContext = false;
-        PhosphorEngine::pendingCrossScreenSnapRestore(
-            p, QStringLiteral("DP-2"), [&](const QString& screen, int desktop, const QString& activity) {
-                sawRecordContext = (screen == QStringLiteral("DP-1")) && desktop == 1 && activity.isEmpty();
-                return true;
-            });
+        snapPending(p, QStringLiteral("DP-2"), [&](const QString& screen, int desktop, const QString& activity) {
+            sawRecordContext = (screen == QStringLiteral("DP-1")) && desktop == 1 && activity.isEmpty();
+            return true;
+        });
         QVERIFY(sawRecordContext);
         // A non-snapped snap slot never defers.
         WindowPlacement floating =
             makePlacement(QStringLiteral("firefox|b"), QStringLiteral("firefox"), WindowPlacement::stateFloating(),
                           WindowPlacement::snapEngineId(), QStringLiteral("DP-1"));
-        QVERIFY(!PhosphorEngine::pendingCrossScreenSnapRestore(floating, QStringLiteral("DP-2"), alwaysSnapping));
+        QVERIFY(!snapPending(floating, QStringLiteral("DP-2"), alwaysSnapping));
     }
 
     void testPendingCrossScreenManagedRestore_perEngineSlotAndState()
@@ -1268,26 +1269,6 @@ private Q_SLOTS:
                 return true;
             });
         QVERIFY(sawRecordCtx);
-        // The snap specialization is the same predicate keyed on (snap,
-        // snapped). The BOTH-TRUE comparison is the discriminating one — a
-        // specialization mis-keyed on (snap, tiled) would answer false where
-        // the generalized form answers true. The false-side comparisons
-        // below are symmetry, not additional discrimination.
-        WindowPlacement snapRec =
-            makePlacement(QStringLiteral("kitty|c"), QStringLiteral("kitty"), WindowPlacement::stateSnapped(),
-                          WindowPlacement::snapEngineId(), QStringLiteral("DP-1"));
-        QCOMPARE(PhosphorEngine::pendingCrossScreenSnapRestore(snapRec, QStringLiteral("DP-2"), always),
-                 PhosphorEngine::pendingCrossScreenManagedRestore(snapRec, WindowPlacement::snapEngineId(),
-                                                                  WindowPlacement::stateSnapped(),
-                                                                  QStringLiteral("DP-2"), always));
-        QCOMPARE(PhosphorEngine::pendingCrossScreenSnapRestore(snapRec, QStringLiteral("DP-1"), always),
-                 PhosphorEngine::pendingCrossScreenManagedRestore(snapRec, WindowPlacement::snapEngineId(),
-                                                                  WindowPlacement::stateSnapped(),
-                                                                  QStringLiteral("DP-1"), always));
-        QCOMPARE(PhosphorEngine::pendingCrossScreenSnapRestore(floatRec, QStringLiteral("DP-2"), always),
-                 PhosphorEngine::pendingCrossScreenManagedRestore(floatRec, WindowPlacement::snapEngineId(),
-                                                                  WindowPlacement::stateSnapped(),
-                                                                  QStringLiteral("DP-2"), always));
     }
 
     void testRecordContextMatchesLive_honoursSentinels()
@@ -1381,46 +1362,6 @@ private Q_SLOTS:
         const auto own = store.peekForReclaim(QStringLiteral("term|a"), QStringLiteral("term"));
         QVERIFY(own.has_value());
         QCOMPARE(own->windowId, QStringLiteral("term|newer"));
-    }
-
-    void testRetiredReclaimCredit_isInert()
-    {
-        // The reclaim credit retired with the cross-screen reclaim: a close
-        // no longer hides a record from the claim's lookup, an open burns
-        // nothing, the move excuse does nothing, and the persisted field
-        // round-trips as the default a live capture always carried.
-        WindowPlacementStore store;
-        store.record(makePlacement(QStringLiteral("firefox|dead"), QStringLiteral("firefox"),
-                                   WindowPlacement::stateTiled(), WindowPlacement::autotileEngineId(),
-                                   QStringLiteral("DP-1")));
-        QVERIFY2(!store.markInstanceClosed(QStringLiteral("firefox|dead")), "there is no credit left to revoke");
-        QVERIFY(store.peekForReclaim(QStringLiteral("firefox|fresh"), QStringLiteral("firefox")).has_value());
-
-        store.markInstanceMovedLive(QStringLiteral("firefox|fresh"));
-        QVERIFY(!store.burnReclaimCredit(QStringLiteral("firefox|fresh"), QStringLiteral("firefox")));
-        QVERIFY(!store
-                     .takeForReopen(QString(WindowPlacement::autotileEngineId()), QStringLiteral("firefox|o1"),
-                                    QStringLiteral("firefox"), QStringLiteral("DP-1"))
-                     .has_value());
-        QVERIFY2(store.peekForReclaim(QStringLiteral("firefox|fresh"), QStringLiteral("firefox")).has_value(),
-                 "an open must not spend anything the lookup reads");
-
-        const QJsonObject saved = store.serialize();
-        const QJsonObject rec = saved.value(QStringLiteral("firefox")).toArray().first().toObject();
-        QCOMPARE(rec.value(QStringLiteral("liveAtSave")).toBool(false), true);
-        WindowPlacementStore next;
-        next.deserialize(saved);
-        QVERIFY(next.peekForReclaim(QStringLiteral("firefox|fresh"), QStringLiteral("firefox")).has_value());
-
-        // A record a file saved with its credit spent still answers the lookup and the claim.
-        QJsonObject spent = rec;
-        spent.insert(QStringLiteral("liveAtSave"), false);
-        QJsonObject spentFile = saved;
-        spentFile.insert(QStringLiteral("firefox"), QJsonArray{spent});
-        WindowPlacementStore older;
-        older.deserialize(spentFile);
-        QVERIFY(older.peekForReclaim(QStringLiteral("firefox|fresh"), QStringLiteral("firefox")).has_value());
-        QVERIFY(older.claimForOpen(QStringLiteral("firefox|fresh"), QStringLiteral("firefox")).has_value());
     }
 
     void testReleaseEngineSlot_downgradesOnlyThatEnginesSlot()

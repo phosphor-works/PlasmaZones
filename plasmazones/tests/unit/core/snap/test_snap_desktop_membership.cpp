@@ -1633,8 +1633,7 @@ private Q_SLOTS:
         m_engine->setCurrentDesktopForScreen(kScreen, 1);
 
         const PhosphorEngine::SnapResult result =
-            m_engine->resolveWindowRestore(kWindow, kScreen, false, PhosphorEngine::WindowKind::Unknown,
-                                           static_cast<PhosphorEngine::RestoreReason>(reason));
+            m_engine->resolveWindowRestore(kWindow, kScreen, false, static_cast<PhosphorEngine::RestoreReason>(reason));
 
         QVERIFY(!result.shouldSnap);
         if (seeded) {

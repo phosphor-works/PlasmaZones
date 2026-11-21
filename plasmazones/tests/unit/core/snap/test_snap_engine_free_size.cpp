@@ -323,7 +323,6 @@ private Q_SLOTS:
             return false;
         });
         (void)on.engine.resolveWindowRestore(QStringLiteral("app|restart"), kScreen, /*sticky*/ false,
-                                             PhosphorEngine::WindowKind::Unknown,
                                              PhosphorEngine::RestoreReason::DaemonRestartSweep);
         QCOMPARE(floatSpy.count(), 1);
         QCOMPARE(sizeSpy.count(), 0);
@@ -333,7 +332,6 @@ private Q_SLOTS:
             return id == QStringLiteral("app|unmin");
         });
         (void)on.engine.resolveWindowRestore(QStringLiteral("app|unmin"), kScreen, /*sticky*/ false,
-                                             PhosphorEngine::WindowKind::Unknown,
                                              PhosphorEngine::RestoreReason::Unminimize);
         QCOMPARE(floatSpy.count(), 2);
         QCOMPARE(sizeSpy.count(), 0);
@@ -342,7 +340,6 @@ private Q_SLOTS:
         // The pending sweep is a first placement: this window never got past
         // the readiness gate.
         (void)on.engine.resolveWindowRestore(QStringLiteral("app|swept"), kScreen, /*sticky*/ false,
-                                             PhosphorEngine::WindowKind::Unknown,
                                              PhosphorEngine::RestoreReason::PendingSweep);
         QCOMPARE(floatSpy.count(), 3);
         QCOMPARE(sizeSpy.count(), 1);

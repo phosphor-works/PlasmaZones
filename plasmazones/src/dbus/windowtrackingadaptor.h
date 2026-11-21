@@ -69,7 +69,7 @@ public Q_SLOTS:
     bool hasPreTileGeometry(const QString& windowId);
     void clearPreTileGeometry(const QString& windowId);
     PhosphorProtocol::PreTileGeometryList getPreTileGeometries();
-    void windowClosed(const QString& windowId, int windowKind, const QString& screenId = QString());
+    void windowClosed(const QString& windowId, const QString& screenId);
     void windowActivated(const QString& windowId, const QString& screenId);
     void setFrameGeometry(const QString& windowId, int x, int y, int width, int height);
     void notifyWindowResized(const QString& windowId, int oldX, int oldY, int oldWidth, int oldHeight, int newX,

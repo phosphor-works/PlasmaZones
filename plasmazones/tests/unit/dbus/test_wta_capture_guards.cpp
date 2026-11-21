@@ -914,7 +914,7 @@ private Q_SLOTS:
         // WindowTracking.windowClosed second (the capture with a screen).
         scroll->windowClosed(b);
         QVERIFY2(!scroll->isWindowTracked(b), "the engine must have dropped the slot");
-        wta->windowClosed(b, 0, screenId);
+        wta->windowClosed(b, screenId);
 
         const auto rec = wta->service()->placementStore().peek(b, appId);
         QVERIFY(rec);

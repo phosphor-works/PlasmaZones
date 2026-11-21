@@ -763,17 +763,15 @@ void PlasmaZonesEffect::notifyWindowClosed(KWin::EffectWindow* w, const QString&
         return;
     }
 
-    const int kindInt = static_cast<int>(classifyWindowKind(w));
     // Pass the caller-resolved screen (captured before the tiling teardown
     // dropped the scroll override). The daemon uses it as the
     // final-placement screen when a cross-screen move has left the window
     // untracked by both engines at close — otherwise its float-back records
     // the stale source screen and it reopens on the wrong monitor.
     const QString closeScreenId = preTeardownScreenId.isEmpty() ? getWindowScreenId(w) : preTeardownScreenId;
-    qCInfo(lcEffect) << "Notifying daemon: windowClosed" << windowId << "kind=" << kindInt
-                     << "screen=" << closeScreenId;
+    qCInfo(lcEffect) << "Notifying daemon: windowClosed" << windowId << "screen=" << closeScreenId;
     PhosphorProtocol::ClientHelpers::fireAndForget(this, PhosphorProtocol::Service::Interface::WindowTracking,
-                                                   QStringLiteral("windowClosed"), {windowId, kindInt, closeScreenId});
+                                                   QStringLiteral("windowClosed"), {windowId, closeScreenId});
 }
 
 void PlasmaZonesEffect::notifyWindowResized(KWin::EffectWindow* w, const QRect& oldGeometry, const QRect& newGeometry)

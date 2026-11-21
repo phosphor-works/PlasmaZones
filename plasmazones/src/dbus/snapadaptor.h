@@ -58,9 +58,8 @@ public Q_SLOTS:
                        int& snapWidth, int& snapHeight, bool& shouldSnap);
     void snapToEmptyZone(const QString& windowId, const QString& windowScreenId, bool sticky, int& snapX, int& snapY,
                          int& snapWidth, int& snapHeight, bool& shouldSnap);
-    void resolveWindowRestore(const QString& windowId, const QString& screenId, bool sticky, int windowKind,
-                              int restoreReason, int minWidth, int minHeight, int& snapX, int& snapY, int& snapWidth,
-                              int& snapHeight, bool& shouldSnap);
+    void resolveWindowRestore(const QString& windowId, const QString& screenId, bool sticky, int restoreReason,
+                              int& snapX, int& snapY, int& snapWidth, int& snapHeight, bool& shouldSnap);
     void resnapToNewLayout();
     void resnapCurrentAssignments(const QString& screenFilter = QString());
     void resnapFromAutotileOrder(const QStringList& autotileWindowOrder, const QString& screenId);

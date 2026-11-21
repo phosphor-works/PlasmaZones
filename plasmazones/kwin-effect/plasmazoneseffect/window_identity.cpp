@@ -545,15 +545,4 @@ bool PlasmaZonesEffect::isXdgDesktopPortalSurface(const QString& windowClass)
     return windowClass.contains(QLatin1String("xdg-desktop-portal"), Qt::CaseInsensitive);
 }
 
-PhosphorEngine::WindowKind PlasmaZonesEffect::classifyWindowKind(KWin::EffectWindow* w) const
-{
-    if (!w) {
-        return PhosphorEngine::WindowKind::Unknown;
-    }
-    if (isStructurallyUnmanageableWindowType(w) || !w->isNormalWindow()) {
-        return PhosphorEngine::WindowKind::Transient;
-    }
-    return PhosphorEngine::WindowKind::Normal;
-}
-
 } // namespace PlasmaZones

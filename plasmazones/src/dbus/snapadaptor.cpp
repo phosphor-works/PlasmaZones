@@ -105,9 +105,8 @@ void SnapAdaptor::snapToEmptyZone(const QString& windowId, const QString& window
     m_service->snapToEmptyZone(windowId, windowScreenId, sticky, snapX, snapY, snapWidth, snapHeight, shouldSnap);
 }
 
-void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& screenId, bool sticky, int windowKind,
-                                       int restoreReason, int minWidth, int minHeight, int& snapX, int& snapY,
-                                       int& snapWidth, int& snapHeight, bool& shouldSnap)
+void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& screenId, bool sticky, int restoreReason,
+                                       int& snapX, int& snapY, int& snapWidth, int& snapHeight, bool& shouldSnap)
 {
     // The out-arguments read as no snap on every refused or unanswered call.
     snapX = snapY = snapWidth = snapHeight = 0;
@@ -115,8 +114,8 @@ void SnapAdaptor::resolveWindowRestore(const QString& windowId, const QString& s
     if (!DbusHelpers::admitCompositorReport(this, QLatin1StringView(__func__)) || !m_service) {
         return;
     }
-    m_service->resolveWindowRestore(windowId, screenId, sticky, windowKind, restoreReason, minWidth, minHeight, snapX,
-                                    snapY, snapWidth, snapHeight, shouldSnap);
+    m_service->resolveWindowRestore(windowId, screenId, sticky, restoreReason, snapX, snapY, snapWidth, snapHeight,
+                                    shouldSnap);
 }
 
 void SnapAdaptor::resnapToNewLayout()

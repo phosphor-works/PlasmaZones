@@ -265,7 +265,6 @@ void SnapHandler::callResolveWindowRestore(KWin::EffectWindow* window, std::func
                 QStringLiteral("setFrameGeometry open-path seed"));
         }
     }
-    const int kindInt = static_cast<int>(m_effect->classifyWindowKind(window));
     // Thread the applied outcome to onComplete: onSnapSuccess fires only on the zone-applied branch of
     // tryAsyncSnapCall, and every branch calls onComplete afterwards, so the flag is always settled when it runs.
     // The completion is ALWAYS constructed, caller callback or not: it is also what retires the in-flight mark
@@ -293,11 +292,9 @@ void SnapHandler::callResolveWindowRestore(KWin::EffectWindow* window, std::func
             onComplete(*snapApplied);
         }
     };
-    // The trailing minimum-size pair is pinned by the v9 protocol and ignored
-    // by the daemon: no engine adopts a window through this call any more.
     m_effect->tryAsyncSnapCall(PhosphorProtocol::Service::Interface::Snap, QStringLiteral("resolveWindowRestore"),
-                               {windowId, screenId, sticky, kindInt, static_cast<int>(reason), 0, 0}, safeWindow,
-                               windowId, false, onMiss, markApplied,
+                               {windowId, screenId, sticky, static_cast<int>(reason)}, safeWindow, windowId, false,
+                               onMiss, markApplied,
                                /*skipAnimation=*/true, completeWithOutcome, releaseSuppression);
 }
 

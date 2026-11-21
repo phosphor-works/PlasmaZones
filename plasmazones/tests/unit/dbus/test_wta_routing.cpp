@@ -87,9 +87,8 @@ struct RouteToDp2Rig
         int width = 0;
         int height = 0;
         bool shouldSnap = false;
-        snapAdaptor->resolveWindowRestore(windowId, QStringLiteral("DP-1"), false,
-                                          static_cast<int>(PhosphorEngine::WindowKind::Unknown),
-                                          static_cast<int>(reason), 0, 0, x, y, width, height, shouldSnap);
+        snapAdaptor->resolveWindowRestore(windowId, QStringLiteral("DP-1"), false, static_cast<int>(reason), x, y,
+                                          width, height, shouldSnap);
     }
     /// How many placements so far sent the window to DP-2.
     qsizetype routedToDp2() const
@@ -431,8 +430,7 @@ private Q_SLOTS:
             int h = 0;
             bool shouldSnap = false;
             m_snapService->resolveWindowRestore(QStringLiteral("deskapp|") + instance, QStringLiteral("DP-1"), false,
-                                                static_cast<int>(PhosphorEngine::WindowKind::Unknown),
-                                                static_cast<int>(reason), 0, 0, x, y, w, h, shouldSnap);
+                                                static_cast<int>(reason), x, y, w, h, shouldSnap);
             return desktopSpy.count();
         };
         QCOMPARE(drive(RestoreReason::Open, QStringLiteral("open")), 1);
@@ -446,8 +444,7 @@ private Q_SLOTS:
         // same open, so it moves nothing. Closing the window drops the latch,
         // and a reused window id routes again on its next open.
         QCOMPARE(drive(RestoreReason::PendingSweep, QStringLiteral("open")), 0);
-        m_wta->windowClosed(QStringLiteral("deskapp|open"), static_cast<int>(PhosphorEngine::WindowKind::Unknown),
-                            QStringLiteral("DP-1"));
+        m_wta->windowClosed(QStringLiteral("deskapp|open"), QStringLiteral("DP-1"));
         QCOMPARE(drive(RestoreReason::Open, QStringLiteral("open")), 1);
     }
 
@@ -518,8 +515,7 @@ private Q_SLOTS:
         int h = 0;
         bool shouldSnap = false;
         m_snapService->resolveWindowRestore(
-            opener, m_screenId, false, static_cast<int>(PhosphorEngine::WindowKind::Unknown),
-            static_cast<int>(PhosphorEngine::RestoreReason::Open), 0, 0, x, y, w, h, shouldSnap);
+            opener, m_screenId, false, static_cast<int>(PhosphorEngine::RestoreReason::Open), x, y, w, h, shouldSnap);
 
         QVERIFY(!shouldSnap);
         QVERIFY2(m_snapEngine->isFloating(opener), "the opening screen's snap float default places the window");
@@ -1353,7 +1349,7 @@ private Q_SLOTS:
                  "the second pass re-reports the latched match");
         QCOMPARE(desktopSpy.count(), 1);
 
-        m_wta->windowClosed(w, static_cast<int>(PhosphorEngine::WindowKind::Unknown), QStringLiteral("DP-1"));
+        m_wta->windowClosed(w, QStringLiteral("DP-1"));
         m_wta->setWindowMetadata(QStringLiteral("once"), QStringLiteral("deskapp"), QString(), QString(), QString(), 0,
                                  0, QString(), 0, QVariantMap());
         QVERIFY(m_wta->applyOpenDesktopRouting(w, QStringLiteral("DP-1")));
