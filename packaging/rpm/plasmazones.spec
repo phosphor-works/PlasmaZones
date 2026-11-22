@@ -23,8 +23,9 @@ Summary:        Window snapping, tiling and scrolling for KDE Plasma
 # GPL-3.0-or-later covers the app and daemon, LGPL-2.1-or-later the Phosphor
 # component libraries. MIT and BSL-1.0 come from the vendored Luau runtime and
 # jsoncons headers, which are compiled into the shipped objects (see the bundled()
-# provides below). jsoncons is BSL-1.0, apart from the grisu3 float printer it
-# carries (MIT, Florian Loitsch), which the MIT above also names. CC0-1.0 covers
+# provides below). jsoncons is BSL-1.0, apart from the grisu3 float printer
+# (Florian Loitsch) and the a5hash hash (Aleksey Vaneev) it carries, both MIT,
+# which the MIT above also names. Their notices ship in LICENSE.jsoncons. CC0-1.0 covers
 # the two AppStream metainfo files installed under %{_datadir}/metainfo, which carry it in their own SPDX headers: the usual licence
 # for distro metadata, so downstreams can redistribute and translate it freely.
 #

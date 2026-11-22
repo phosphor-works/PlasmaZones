@@ -13,7 +13,12 @@ pkgrel=1
 pkgdesc="Window snapping, tiling and scrolling for KDE Plasma (git version)"
 arch=('x86_64')
 url="https://github.com/phosphor-works/PlasmaZones"
-license=('GPL-3.0-or-later' 'LGPL-2.1-or-later')
+# GPL-3.0-or-later for PlasmaZones, LGPL-2.1-or-later for the Phosphor
+# libraries built in, and the third-party code built in or installed, as the
+# RPM spec lists it: Luau and jsoncons' grisu3 and a5hash (MIT), jsoncons
+# (BSL-1.0), a block of the surface packs' shared GLSL (BSD-3-Clause) and the
+# AppStream metainfo (CC0-1.0).
+license=('GPL-3.0-or-later' 'LGPL-2.1-or-later' 'MIT' 'BSL-1.0' 'BSD-3-Clause' 'CC0-1.0')
 
 # KWin: minimum version, NOT an exact pin. The kwin-effect plugin's IID embeds
 # KWin's exact upstream version string and KWin refuses to load an effect whose
