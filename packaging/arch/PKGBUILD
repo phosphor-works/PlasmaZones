@@ -64,14 +64,14 @@ conflicts=('plasmazones-bin' 'plasmazones-git')
 # hash and unpacks it itself, so the build never reaches the network.
 source=(
     "$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
-    "phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz::https://github.com/phosphor-works/phosphor-libs/archive/05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz"
+    "phosphor-libs-e6e4322929b103b3dd08febd51a2a616c477187b.tar.gz::https://github.com/phosphor-works/phosphor-libs/archive/e6e4322929b103b3dd08febd51a2a616c477187b.tar.gz"
     "luau-0.745.tar.gz::https://github.com/luau-lang/luau/archive/refs/tags/0.745.tar.gz"
     "jsoncons-1.10.0.tar.gz::https://github.com/danielaparker/jsoncons/archive/refs/tags/v1.10.0.tar.gz"
     "phosphor-branding-0.3.1.tar.gz::https://github.com/phosphor-works/branding/releases/download/v0.3.1/phosphor-branding-0.3.1.tar.gz"
     "phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz::https://github.com/phosphor-works/phosphor-surface-packs/archive/c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz"
     "phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz::https://github.com/phosphor-works/phosphor-components/archive/c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz"
 )
-noextract=('phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz' 'luau-0.745.tar.gz' 'jsoncons-1.10.0.tar.gz' 'phosphor-branding-0.3.1.tar.gz' 'phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz' 'phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz')
+noextract=('phosphor-libs-e6e4322929b103b3dd08febd51a2a616c477187b.tar.gz' 'luau-0.745.tar.gz' 'jsoncons-1.10.0.tar.gz' 'phosphor-branding-0.3.1.tar.gz' 'phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz' 'phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz')
 # The first entry is 'SKIP' so local `makepkg -p PKGBUILD` doesn't fail its
 # integrity check on the placeholder pkgver. release.yml templates the real
 # sha256 into that entry, and only that one, when publishing to AUR (see the
@@ -79,7 +79,7 @@ noextract=('phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz' 'luau
 # line with the release tarball's first: that rewrite relies on both.
 sha256sums=(
     'SKIP'
-    'b7c5f99b0b2a22d1e0deb678c82daaa268eb6bd9002bab500fff2fe26b423936' # phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz
+    '508b16cb46a133b9bc1d9d3c48c7793df78441a1bbcf19dda68274a2823d9ae6' # phosphor-libs-e6e4322929b103b3dd08febd51a2a616c477187b.tar.gz
     '53c22773bace6cabbabaead576fbc08d11a0317fce11a3dbf9d027dda6849248' # luau-0.745.tar.gz
     'c829350a2eece662beb378143e2ab1c1cbb07d703687bf168626665a8a7d8bc1' # jsoncons-1.10.0.tar.gz
     'd6ec9261d4391148f5c21dfb02be410214d42ea675f1558a826042d63f495094' # phosphor-branding-0.3.1.tar.gz
