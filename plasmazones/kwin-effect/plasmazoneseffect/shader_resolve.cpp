@@ -195,15 +195,11 @@ PhosphorAnimation::Profile resolveAnimationMotionProfile(const PhosphorRules::Ru
         return base;
     }
     PhosphorAnimation::Profile out = base;
-    // Curve cascade: prefer the dedicated `anim-curve:` slot. Fall through to
-    // the legacy `anim-timing:` slot's curve field so rules authored before
-    // the curve/timing split (including those produced by the v3→v4
-    // migration in configmigration.cpp::animationAppRuleToRule) still
-    // resolve.
-    QString curve = curveAction ? curveAction->params.value(ActionParam::Curve).toString() : QString();
-    if (curve.isEmpty() && timingAction) {
-        curve = timingAction->params.value(ActionParam::Curve).toString();
-    }
+    // The curve comes from the `anim-curve:` slot alone and the duration from
+    // the `anim-timing:` slot alone. A timing action no longer carries a curve:
+    // stored rules that did are split onto a curve action by the config
+    // migration's rules.json fix-up before anything loads them.
+    const QString curve = curveAction ? curveAction->params.value(ActionParam::Curve).toString() : QString();
     if (!curve.isEmpty()) {
         // tryCreate (NOT create) — a malformed curve string stays on the
         // base curve rather than silently coercing to OutCubic and swapping

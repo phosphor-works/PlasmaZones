@@ -736,6 +736,13 @@ target_link_libraries(test_migration_v7_to_v8
     PRIVATE Qt6::Test Qt6::Core plasmazones_core PhosphorRules::PhosphorRules)
 add_test(NAME test_migration_v7_to_v8 COMMAND test_migration_v7_to_v8)
 
+# v8→v9: JSON-encoded strings in structured keys become native objects and arrays.
+# Qt6::Gui for the QTEST_MAIN QGuiApplication the settings model reads under.
+add_executable(test_migration_v8_to_v9 config/migrations/test_migration_v8_to_v9.cpp)
+target_link_libraries(test_migration_v8_to_v9
+    PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core PhosphorRules::PhosphorRules)
+add_test(NAME test_migration_v8_to_v9 COMMAND test_migration_v8_to_v9)
+
 # Retired provider-default rule pruned from rules.json (finalizeV4Conversion cleanup).
 add_executable(test_provider_default_cleanup config/test_provider_default_cleanup.cpp)
 target_link_libraries(test_provider_default_cleanup

@@ -871,7 +871,11 @@ private Q_SLOTS:
         // v8's other half, the overlay-shader sidecar lift, has no chain step
         // at all — it runs from the finalize pass and never sees a profile
         // delta (see olderProfileV7FileMigratesForward).
-        QCOMPARE(ConfigSchemaVersion, 8);
+        // v9 qualifies: migrateV8ToV9 only replaces a structured key's
+        // JSON-encoded string with the native value in place, and touches no
+        // key that is absent, so a sparse delta keeps every inherit-from-parent
+        // gap (see olderProfileV8FileMakesStructuredStringsNative).
+        QCOMPARE(ConfigSchemaVersion, 9);
     }
 
     // The two below are FIXTURE HELPERS, not tests, and they live in a private
@@ -1006,6 +1010,43 @@ private Q_SLOTS:
         QVERIFY(store.activateProfile(id.toString()));
         QCOMPARE(m_lastApplied.value(QStringLiteral("GroupA")).toObject().value(QStringLiteral("k1")).toInt(), 42);
         QCOMPARE(m_lastApplied.value(QStringLiteral("_version")).toInt(), ConfigSchemaVersion);
+    }
+
+    /// The v9 arm of the version-pin policy in
+    /// profileFormatTracksConfigSchemaVersion: a v8-stamped profile whose FLAT
+    /// delta holds a structured key as a JSON-encoded string (an object under a
+    /// top-level group, an array under a dot-path group) is served with the
+    /// native value, since the store no longer parses such strings.
+    void olderProfileV8FileMakesStructuredStringsNative()
+    {
+        const QUuid id = QUuid::createUuid();
+        QJsonObject delta;
+        delta.insert(QStringLiteral("Animations"),
+                     QJsonObject{{QStringLiteral("Profile"), QStringLiteral("{\"duration\":300}")}});
+        delta.insert(QStringLiteral("Snapping.Behavior"),
+                     QJsonObject{{QStringLiteral("Triggers"), QStringLiteral("[{\"modifier\":2,\"mouseButton\":0}]")}});
+        QVERIFY(writeProfileFileFixture(id, 8, delta));
+
+        auto config = makeCurrentVersionConfig();
+        config.defaultConfig = []() {
+            QJsonObject defaults = baseDefaults();
+            defaults[QStringLiteral("Animations")] = QJsonObject{{QStringLiteral("Profile"), QJsonObject()}};
+            defaults[QStringLiteral("Snapping.Behavior")] = QJsonObject{{QStringLiteral("Triggers"), QJsonArray()}};
+            defaults[QStringLiteral("_version")] = ConfigSchemaVersion;
+            return defaults;
+        };
+        ProfileStore store(config);
+        QVERIFY(store.activateProfile(id.toString()));
+
+        const QJsonValue profile =
+            m_lastApplied.value(QStringLiteral("Animations")).toObject().value(QStringLiteral("Profile"));
+        QVERIFY2(profile.isObject(), "the v8 profile's string-encoded Animations/Profile was not made native");
+        QCOMPARE(profile.toObject().value(QStringLiteral("duration")).toInt(), 300);
+        const QJsonValue triggers =
+            m_lastApplied.value(QStringLiteral("Snapping.Behavior")).toObject().value(QStringLiteral("Triggers"));
+        QVERIFY2(triggers.isArray(), "the v8 profile's string-encoded trigger list was not made native");
+        QCOMPARE(triggers.toArray().size(), 1);
+        QCOMPARE(triggers.toArray().first().toObject().value(QStringLiteral("modifier")).toInt(), 2);
     }
 
     /// A settings profile must never acquire the LOADING machine's own

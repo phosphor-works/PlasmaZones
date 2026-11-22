@@ -21,7 +21,6 @@
 
 #include <QSignalSpy>
 #include "common/engineruntimenamespace.h"
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QTest>
 
@@ -114,8 +113,7 @@ private Q_SLOTS:
             PhosphorAnimationShaders::ShaderProfile profile;
             profile.effectId = QStringLiteral("pixelate");
             tree.setOverride(kPath, profile);
-            const QString json = QString::fromUtf8(QJsonDocument(tree.toJson()).toJson(QJsonDocument::Compact));
-            animations->writeString(ConfigDefaults::shaderProfileTreeKey(), json);
+            animations->writeJson(ConfigDefaults::shaderProfileTreeKey(), tree.toJson());
         }
 
         // Step 2: open Settings, run save() — purgeStaleKeys runs and
@@ -261,8 +259,7 @@ private Q_SLOTS:
             PhosphorAnimationShaders::ShaderProfile slide;
             slide.effectId = QStringLiteral("slide");
             tree.setOverride(QStringLiteral("osd.show"), slide);
-            const QString json = QString::fromUtf8(QJsonDocument(tree.toJson()).toJson(QJsonDocument::Compact));
-            animations->writeString(ConfigDefaults::shaderProfileTreeKey(), json);
+            animations->writeJson(ConfigDefaults::shaderProfileTreeKey(), tree.toJson());
         }
 
         // Settings::shaderProfileTree() must return the pruned view.
@@ -381,8 +378,7 @@ private Q_SLOTS:
     {
         auto backend = PlasmaZones::createDefaultConfigBackend();
         auto animations = backend->group(ConfigDefaults::animationsGroup());
-        const QString json = QString::fromUtf8(QJsonDocument(tree.toJson()).toJson(QJsonDocument::Compact));
-        animations->writeString(ConfigDefaults::shaderProfileTreeKey(), json);
+        animations->writeJson(ConfigDefaults::shaderProfileTreeKey(), tree.toJson());
     }
 
     void testShaderTreeSanitizerBoundsAHandEditedBlob()

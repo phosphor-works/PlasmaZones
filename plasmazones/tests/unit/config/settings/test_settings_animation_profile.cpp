@@ -473,11 +473,12 @@ private Q_SLOTS:
             QJsonObject seedBlob;
             seedBlob.insert(QLatin1String("duration"), 200);
             seedBlob.insert(QLatin1String("_pluginField"), QLatin1String("custom"));
-            const QString seedString = QString::fromUtf8(QJsonDocument(seedBlob).toJson(QJsonDocument::Compact));
 
+            // Native object, the shape the store reads: a JSON-encoded
+            // string here would read as a malformed blob.
             auto backend = PlasmaZones::createDefaultConfigBackend();
             auto animations = backend->group(ConfigDefaults::animationsGroup());
-            animations->writeString(ConfigDefaults::animationProfileKey(), seedString);
+            animations->writeJson(ConfigDefaults::animationProfileKey(), seedBlob);
             animations.reset();
             backend->sync();
         }
@@ -520,19 +521,16 @@ private Q_SLOTS:
 
         // Seed disk with a blob whose curve field references a curve
         // name that no registered factory in this process knows about.
-        // Build via `QJsonDocument::toJson(Compact)` so the on-disk
-        // byte-string matches the shape the setter emits when it
-        // re-serialises (QJsonObject sorts keys alphabetically) — the
-        // byte-compare short-circuit relies on round-trip stability.
+        // Stored as a native object, the shape the setter writes, so the
+        // merged-equals-stored short-circuit sees the same value back.
         {
             QJsonObject seed;
             seed.insert(QLatin1String("duration"), 275);
             seed.insert(QLatin1String("curve"), QLatin1String("nonexistent-plugin-curve"));
             seed.insert(QLatin1String("minDistance"), 7);
-            const QString seedBlob = QString::fromUtf8(QJsonDocument(seed).toJson(QJsonDocument::Compact));
             auto backend = PlasmaZones::createDefaultConfigBackend();
             auto animations = backend->group(ConfigDefaults::animationsGroup());
-            animations->writeString(ConfigDefaults::animationProfileKey(), seedBlob);
+            animations->writeJson(ConfigDefaults::animationProfileKey(), seed);
             animations.reset();
             backend->sync();
         }

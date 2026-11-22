@@ -69,21 +69,13 @@ private Q_SLOTS:
         QVERIFY(animations.contains(QStringLiteral("Enabled")));
         QCOMPARE(animations.value(QStringLiteral("Enabled")).toBool(), true);
 
-        // The migration writes the Profile blob as a STRING containing a
-        // compact JSON object, even though the live schema stores the
-        // profile as a nested object (settings.cpp reads it via
-        // readProfileObject as a QVariantMap). The stringified form is a
-        // deliberate migration artifact — it keeps Animations/Profile a
-        // single scalar leaf for the schema/migration cross-check (see the
-        // rationale comment at the profile write in migrateV1ToV2,
-        // configmigration.cpp) — and the Store's legacy-string fallback
-        // parses it on first load, normalising to a nested object on the
-        // next save.
-        const QString profileString = animations.value(QStringLiteral("Profile")).toString();
-        QVERIFY2(!profileString.isEmpty(), "Migration did not produce Animations/Profile blob from v1 per-field keys");
-        const QJsonDocument profileDoc = QJsonDocument::fromJson(profileString.toUtf8());
-        QVERIFY2(profileDoc.isObject(), "Animations/Profile must be a JSON object string");
-        const QJsonObject profile = profileDoc.object();
+        // migrateV1ToV2 writes the Profile blob as a STRING holding a compact
+        // JSON object, and migrateV8ToV9 turns it into the nested object the
+        // store reads, so the end of the chain holds it natively.
+        const QJsonValue profileValue = animations.value(QStringLiteral("Profile"));
+        QVERIFY2(profileValue.isObject(), "Animations/Profile must end the chain as a native JSON object");
+        const QJsonObject profile = profileValue.toObject();
+        QVERIFY2(!profile.isEmpty(), "Migration did not produce Animations/Profile blob from v1 per-field keys");
 
         // Every v1 value MUST be preserved through to the v2 blob,
         // EXCEPT for unresolved curve specs which are intentionally
@@ -146,10 +138,8 @@ private Q_SLOTS:
 
         const QJsonObject root = readJsonConfig(ConfigDefaults::configFilePath());
         const QJsonObject animations = root.value(QStringLiteral("Animations")).toObject();
-        const QString profileString = animations.value(QStringLiteral("Profile")).toString();
-        QVERIFY(!profileString.isEmpty());
-
-        const QJsonObject profile = QJsonDocument::fromJson(profileString.toUtf8()).object();
+        QVERIFY(animations.value(QStringLiteral("Profile")).isObject());
+        const QJsonObject profile = animations.value(QStringLiteral("Profile")).toObject();
         const QString storedCurve = profile.value(QStringLiteral("curve")).toString();
 
         // The stored curve MUST be the canonical wire form with two
@@ -172,10 +162,8 @@ private Q_SLOTS:
 
         const QJsonObject root = readJsonConfig(ConfigDefaults::configFilePath());
         const QJsonObject animations = root.value(QStringLiteral("Animations")).toObject();
-        const QString profileString = animations.value(QStringLiteral("Profile")).toString();
-        QVERIFY(!profileString.isEmpty());
-
-        const QJsonObject profile = QJsonDocument::fromJson(profileString.toUtf8()).object();
+        QVERIFY(animations.value(QStringLiteral("Profile")).isObject());
+        const QJsonObject profile = animations.value(QStringLiteral("Profile")).toObject();
         const QString storedCurve = profile.value(QStringLiteral("curve")).toString();
 
         // Spring::toString uses two-decimal precision.
@@ -199,14 +187,13 @@ private Q_SLOTS:
         const QJsonObject root = readJsonConfig(ConfigDefaults::configFilePath());
         const QJsonObject animations = root.value(QStringLiteral("Animations")).toObject();
         QCOMPARE(animations.value(QStringLiteral("Enabled")).toBool(), true);
-        // Blob is absent OR an empty object-string — either shape is
-        // acceptable as "no stored override"; both parse through
-        // Profile::fromJson to a default-constructed Profile.
-        const QString profileString = animations.value(QStringLiteral("Profile")).toString();
-        if (!profileString.isEmpty()) {
-            const QJsonDocument doc = QJsonDocument::fromJson(profileString.toUtf8());
-            QVERIFY(doc.isObject());
-            QVERIFY(doc.object().isEmpty());
+        // Blob is absent OR an empty object — either shape is acceptable as
+        // "no stored override"; both parse through Profile::fromJson to a
+        // default-constructed Profile.
+        const QJsonValue profileValue = animations.value(QStringLiteral("Profile"));
+        if (!profileValue.isUndefined()) {
+            QVERIFY(profileValue.isObject());
+            QVERIFY(profileValue.toObject().isEmpty());
         }
     }
 
@@ -231,10 +218,9 @@ private Q_SLOTS:
 
         const QJsonObject root = readJsonConfig(ConfigDefaults::configFilePath());
         const QJsonObject animations = root.value(QStringLiteral("Animations")).toObject();
-        const QString profileString = animations.value(QStringLiteral("Profile")).toString();
-        QVERIFY2(!profileString.isEmpty(),
+        QVERIFY2(animations.value(QStringLiteral("Profile")).isObject(),
                  "Migration did not produce a Profile blob for a single-field v1 customisation");
-        const QJsonObject profile = QJsonDocument::fromJson(profileString.toUtf8()).object();
+        const QJsonObject profile = animations.value(QStringLiteral("Profile")).toObject();
 
         // The only set field is duration; every other Profile field must
         // be absent from the blob.
@@ -271,9 +257,8 @@ private Q_SLOTS:
 
         const QJsonObject root = readJsonConfig(ConfigDefaults::configFilePath());
         const QJsonObject animations = root.value(QStringLiteral("Animations")).toObject();
-        const QString profileString = animations.value(QStringLiteral("Profile")).toString();
-        QVERIFY(!profileString.isEmpty());
-        const QJsonObject profile = QJsonDocument::fromJson(profileString.toUtf8()).object();
+        QVERIFY(animations.value(QStringLiteral("Profile")).isObject());
+        const QJsonObject profile = animations.value(QStringLiteral("Profile")).toObject();
 
         // Duration: below-min → clamp to min.
         const int durationStored = profile.value(QStringLiteral("duration")).toInt(-1);
@@ -325,11 +310,11 @@ private Q_SLOTS:
         profileBlob[QStringLiteral("sequenceMode")] = 1;
         profileBlob[QStringLiteral("staggerInterval")] = 42;
         profileBlob[QStringLiteral("curve")] = QStringLiteral("0.42,0.00,0.58,1.00");
-        const QString profileString = QString::fromUtf8(QJsonDocument(profileBlob).toJson(QJsonDocument::Compact));
 
         QJsonObject animations;
         animations[QStringLiteral("Enabled")] = true;
-        animations[QStringLiteral("Profile")] = profileString;
+        // The current version's shape: a native object (v9 made it so).
+        animations[QStringLiteral("Profile")] = profileBlob;
 
         QJsonObject root;
         root[QStringLiteral("_version")] = PlasmaZones::ConfigSchemaVersion;
@@ -366,7 +351,7 @@ private Q_SLOTS:
         QCOMPARE(afterRoot.value(QStringLiteral("_version")).toInt(), PlasmaZones::ConfigSchemaVersion);
         const QJsonObject afterAnimations = afterRoot.value(QStringLiteral("Animations")).toObject();
         QCOMPARE(afterAnimations.value(QStringLiteral("Enabled")).toBool(), true);
-        QCOMPARE(afterAnimations.value(QStringLiteral("Profile")).toString(), profileString);
+        QCOMPARE(afterAnimations.value(QStringLiteral("Profile")).toObject(), profileBlob);
     }
 };
 
