@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "urn:plasmazones:schema:scrolling-template",
     "title": "PlasmaZones Scrolling Template",
     "description": "A scrolling-mode template: identity metadata, the blueprint columns the first windows form, the shape later columns open at, and the width and height preset vocabularies the cycling shortcuts step through. Author-time contract only. ScrollingTemplate::fromJson tolerates missing and out-of-range values by normalizing them, so this schema exists to catch typos and wrong shapes in bundled data before they are silently repaired.",
@@ -23,23 +23,23 @@
             "type": "array",
             "maxItems": 16,
             "description": "Blueprint columns seeded as the first windows open, in strip order. An empty array means the template only shapes the columns that open afterwards. The engine truncates the pushed blueprint at 16 entries, so longer lists carry entries nothing can seed from.",
-            "items": { "$ref": "#/definitions/column" }
+            "items": { "$ref": "#/$defs/column" }
         },
-        "defaultColumnWidth": { "$ref": "#/definitions/columnWidth" },
+        "defaultColumnWidth": { "$ref": "#/$defs/columnWidth" },
         "defaultColumnDisplay": {
-            "$ref": "#/definitions/display",
+            "$ref": "#/$defs/display",
             "description": "Display mode a column opens in when the blueprint has run out."
         },
         "presetColumnWidths": {
-            "$ref": "#/definitions/fractionList",
+            "$ref": "#/$defs/fractionList",
             "description": "Widths the column-width cycling shortcut steps through, as fractions of the work area along the strip."
         },
         "presetWindowHeights": {
-            "$ref": "#/definitions/fractionList",
+            "$ref": "#/$defs/fractionList",
             "description": "Heights the window-height cycling shortcut steps through, as fractions of the column across the strip."
         }
     },
-    "definitions": {
+    "$defs": {
         "display": {
             "type": "integer",
             "enum": [0, 1],
@@ -53,7 +53,7 @@
         },
         "fractionList": {
             "type": "array",
-            "items": { "$ref": "#/definitions/fraction" },
+            "items": { "$ref": "#/$defs/fraction" },
             "maxItems": 16,
             "description": "Normalization sorts the entries ascending, drops any entry within 0.01 of the one before it, then keeps the smallest 16 that survive. A longer authored list loses its widest entries silently, so the same 16-entry cap as columns is asserted here to make that visible up front."
         },
@@ -62,8 +62,8 @@
             "required": ["width"],
             "additionalProperties": false,
             "properties": {
-                "width": { "$ref": "#/definitions/fraction" },
-                "display": { "$ref": "#/definitions/display" }
+                "width": { "$ref": "#/$defs/fraction" },
+                "display": { "$ref": "#/$defs/display" }
             }
         },
         "columnWidth": {

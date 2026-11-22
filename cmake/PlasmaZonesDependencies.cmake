@@ -5,7 +5,7 @@
 # one archive by version, URL and SHA-256: the phosphor-libs commit it builds
 # against, the phosphor-components commit whose QML components it draws with,
 # the suite's branding release and the surface decoration packs commit. This file is the only place these pins live. The phosphor-libs tree pins its own third-party sources (Luau,
-# valijson) in its cmake/PhosphorDependencies.cmake, at the commit pinned here.
+# jsoncons) in its cmake/PhosphorDependencies.cmake, at the commit pinned here.
 # The packaging recipes repeat the URL and hash of every archive they fetch,
 # both these and the library tree's, and scripts/check-conventions.py (the
 # dep-pins rule) fails when one of them no longer matches its pin.
@@ -55,10 +55,10 @@ set(PLASMAZONES_DEPS phosphor-libs phosphor-components branding phosphor-surface
 # The phosphor-libs commit PlasmaZones builds against (LGPL-2.1-or-later,
 # phosphor-works/phosphor-libs): its placement engines, rendering, layer-shell
 # and config libraries. A commit, not a release, so VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-libs_VERSION "d652b2e06424fba0e692a3f045c7c125fa04da8c")
-set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/d652b2e06424fba0e692a3f045c7c125fa04da8c.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-d652b2e06424fba0e692a3f045c7c125fa04da8c.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_SHA256 "3378eac1d5760230c5d3fe79dc3d0911741bfbcdcac24c7d84bd1be16c77fef3")
+set(PLASMAZONES_DEP_phosphor-libs_VERSION "05c411aab54f7771e5f50f1639ac118be6b15876")
+set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_SHA256 "b7c5f99b0b2a22d1e0deb678c82daaa268eb6bd9002bab500fff2fe26b423936")
 
 # The phosphor-components commit (LGPL-2.1-or-later,
 # phosphor-works/phosphor-components): the Phosphor.Components QML module the

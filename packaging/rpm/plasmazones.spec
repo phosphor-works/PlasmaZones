@@ -21,21 +21,22 @@ Summary:        Window snapping, tiling and scrolling for KDE Plasma
 
 # Every licence this package INSTALLS, not only the ones in its binaries.
 # GPL-3.0-or-later covers the app and daemon, LGPL-2.1-or-later the Phosphor
-# component libraries. MIT and BSD-2-Clause come from the vendored Luau runtime and
-# valijson headers, which are compiled into the shipped objects (see the bundled()
-# provides below). CC0-1.0 covers the two AppStream metainfo files installed under
-# %{_datadir}/metainfo, which carry it in their own SPDX headers: the usual licence
+# component libraries. MIT and BSL-1.0 come from the vendored Luau runtime and
+# jsoncons headers, which are compiled into the shipped objects (see the bundled()
+# provides below). jsoncons is BSL-1.0, apart from the grisu3 float printer it
+# carries (MIT, Florian Loitsch), which the MIT above also names. CC0-1.0 covers
+# the two AppStream metainfo files installed under %{_datadir}/metainfo, which carry it in their own SPDX headers: the usual licence
 # for distro metadata, so downstreams can redistribute and translate it freely.
 #
 # BSD-3-Clause covers the Hyprland vibrancy block in the surface packs'
 # shared/surface_color.glsl (Source5), which is installed as source and declares
 # LGPL-2.1-or-later AND BSD-3-Clause. 0BSD is absent because
 # packaging/arch/LICENSE is not installed.
-License:        GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT AND BSD-2-Clause AND BSD-3-Clause AND CC0-1.0
+License:        GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT AND BSL-1.0 AND BSD-3-Clause AND CC0-1.0
 URL:            https://github.com/phosphor-works/PlasmaZones
 Source0:        %{url}/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
 
-# Luau and valijson: the release archives pinned (version, URL and SHA-256) by
+# Luau and jsoncons: the release archives pinned (version, URL and SHA-256) by
 # the phosphor-libs commit below, in its cmake/PhosphorDependencies.cmake,
 # fetched as sources of their own and built
 # into the shipped objects. The #/ fragment stores each under the file name
@@ -48,22 +49,22 @@ Source0:        %{url}/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
 #
 # Both are bundled copies, so declare the bundled provides per Fedora's
 # bundled-library policy, which lets security tooling track CVEs against them.
-# valijson is header-only, which does not exempt it: its code still lands in
+# jsoncons is header-only, which does not exempt it: its code still lands in
 # libPhosphorFsLoader. Keep both versions in step with the pins.
 # luau-0.745.tar.gz sha256 53c22773bace6cabbabaead576fbc08d11a0317fce11a3dbf9d027dda6849248
 Source1:        https://github.com/luau-lang/luau/archive/refs/tags/0.745.tar.gz#/luau-0.745.tar.gz
-# valijson-1.1.3.tar.gz sha256 887b53b1a924f6fe0b35fa3bbc9bbbe5ae8c72097b7f0f7c17b45f4cfa646029
-Source2:        https://github.com/tristanpenman/valijson/archive/refs/tags/v1.1.3.tar.gz#/valijson-1.1.3.tar.gz
+# jsoncons-1.10.0.tar.gz sha256 c829350a2eece662beb378143e2ab1c1cbb07d703687bf168626665a8a7d8bc1
+Source2:        https://github.com/danielaparker/jsoncons/archive/refs/tags/v1.10.0.tar.gz#/jsoncons-1.10.0.tar.gz
 # The suite's branding release, whose icons the build installs. Not code, so no
 # bundled() provide.
 # phosphor-branding-0.3.1.tar.gz sha256 d6ec9261d4391148f5c21dfb02be410214d42ea675f1558a826042d63f495094
 Source3:        https://github.com/phosphor-works/branding/releases/download/v0.3.1/phosphor-branding-0.3.1.tar.gz#/phosphor-branding-0.3.1.tar.gz
 # The phosphor-libs commit PlasmaZones builds against, pinned in
 # cmake/PlasmaZonesDependencies.cmake. Its libraries are built from it and
-# installed with the package. Luau and valijson above are the archives that
+# installed with the package. Luau and jsoncons above are the archives that
 # commit pins in its own cmake/PhosphorDependencies.cmake.
-# phosphor-libs-d652b2e06424fba0e692a3f045c7c125fa04da8c.tar.gz sha256 3378eac1d5760230c5d3fe79dc3d0911741bfbcdcac24c7d84bd1be16c77fef3
-Source4:        https://github.com/phosphor-works/phosphor-libs/archive/d652b2e06424fba0e692a3f045c7c125fa04da8c.tar.gz#/phosphor-libs-d652b2e06424fba0e692a3f045c7c125fa04da8c.tar.gz
+# phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz sha256 b7c5f99b0b2a22d1e0deb678c82daaa268eb6bd9002bab500fff2fe26b423936
+Source4:        https://github.com/phosphor-works/phosphor-libs/archive/05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz#/phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz
 # The surface decoration packs commit, pinned in the same file. Shader source
 # and metadata the build installs as data, so no bundled() provide.
 # phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz sha256 5cfdd51c5dd1f96f1d4da6637d25a5e3fdb11fb683b3b39a13095fc8a0db4090
@@ -74,7 +75,7 @@ Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive
 # phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz sha256 e467912dc4dae79aee8a270fa846fa2a9fdea44daf62fba15510fcf2ae236cd5
 Source6:        https://github.com/phosphor-works/phosphor-components/archive/c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz#/phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz
 Provides:       bundled(luau) = 0.745
-Provides:       bundled(valijson) = 1.1.3
+Provides:       bundled(jsoncons) = 1.10.0
 
 # Plasma 6 / Wayland only
 ExclusiveArch:  x86_64 aarch64
@@ -339,13 +340,13 @@ echo ""
 %files
 %license LICENSE
 %license COPYING.LESSER
-# MIT licence of the bundled Luau runtime (Source1) and BSD-2-Clause licence of
-# the bundled valijson headers (Source2), copied out of the unpacked archives
+# MIT licence of the bundled Luau runtime (Source1) and BSL-1.0 licence of
+# the bundled jsoncons headers (Source2), copied out of the unpacked archives
 # and installed by the phosphor-scripting / phosphor-fsloader CMake whenever it
 # builds them, rather than a system copy. The library tree installs them in
 # its own licence directory, not the app's.
 %license %{_datadir}/licenses/phosphor-libs/LICENSE.Luau
-%license %{_datadir}/licenses/phosphor-libs/LICENSE.valijson
+%license %{_datadir}/licenses/phosphor-libs/LICENSE.jsoncons
 %doc README.md
 
 # Executables — globbed by the plasmazones prefix (plasmazonesd plus
