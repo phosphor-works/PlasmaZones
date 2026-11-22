@@ -647,18 +647,16 @@ QStringList presetLints(const QString& packDir, const QMap<QString, QVariantMap>
         const QString& presetName = it.key();
         const QVariantMap& values = it.value();
 
-        // A pack-declared preset's key IS its id, and the settings app builds a
-        // filename from an id when the user duplicates the preset into an
-        // editable one. The runtime refuses an unusable id on load, which drops
-        // the preset with a log line the pack author will never see.
+        // A pack-declared preset's key IS its id.
         //
         // Checked HERE rather than in the metadata schema. The schemas once
         // carried a `propertyNames` rule for this, and the schema validator the
-        // runtime used then rejected every name under it, valid ones included —
+        // runtime used then rejected every name under it, valid ones included,
         // so on the one family whose gate actually applied the rule it refused
         // legitimate packs, and on the others it was never consulted at all.
-        // One predicate, shared with the runtime, beats a schema keyword that
+        // One predicate, ShaderPreset::isUsableId, beats a schema keyword that
         // has to agree with it from a second engine.
+        //
         // An AUTHORING rule, and this is the ONLY place it is enforced. Said plainly
         // because the previous wording claimed "the runtime will refuse it" and the
         // runtime does not: `parsePackPresets` deliberately keeps a key it cannot
