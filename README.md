@@ -129,7 +129,7 @@ systemctl --user enable --now plasmazones.service
 kbuildsycoca6 --noincremental    # KDE only — refresh the service cache
 ```
 
-Requirements: KDE Plasma 6.7+ on Wayland — the integration runs as a KWin effect, and KWin must be compositing with OpenGL — plus Qt 6.10+, CMake 3.16+, and a C++20 compiler. Kirigami is required for the settings app in every build. Optional: the rest of KDE Frameworks 6.26+ for the settings KCM and KGlobalAccel shortcuts, PlasmaActivities for activity-based layouts. The portable build (`-DUSE_KDE_FRAMEWORKS=OFF`) drops those optional framework deps.
+Requirements: KDE Plasma 6.7+ on Wayland — the integration runs as a KWin effect, and KWin must be compositing with OpenGL — plus Qt 6.10+, CMake 3.23+, and a C++20 compiler. Kirigami is required for the settings app in every build. Optional: the rest of KDE Frameworks 6.26+ for the settings KCM and KGlobalAccel shortcuts, PlasmaActivities for activity-based layouts. The portable build (`-DUSE_KDE_FRAMEWORKS=OFF`) drops those optional framework deps.
 
 ### Nix / NixOS
 

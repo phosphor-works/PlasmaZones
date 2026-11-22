@@ -89,7 +89,7 @@ ExclusiveArch:  x86_64 aarch64
 # wayland-scanner binary and wayland-scanner.pc on Fedora and openSUSE, so
 # the pkgconfig capability resolves everywhere and pulls in the executable.
 BuildRequires:  pkgconfig(wayland-scanner)
-BuildRequires:  cmake >= 3.16
+BuildRequires:  cmake >= 3.23
 BuildRequires:  extra-cmake-modules >= 6.26.0
 BuildRequires:  gcc-c++
 %if 0%{?suse_version}
