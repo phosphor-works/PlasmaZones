@@ -15,7 +15,7 @@ Shared placement policy lives in `libs/phosphor-engine` in phosphor-libs. A verd
 ### phosphor-libs
 The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc, ...) live in their own repository, [phosphor-works/phosphor-libs](https://github.com/phosphor-works/phosphor-libs), checked out beside this one as `../phosphor-libs`. PlasmaZones builds them from source, from the one commit `cmake/PlasmaZonesDependencies.cmake` pins, added with CPM as a subproject (`plasmazones_add_phosphor_libs()`), and installs them with the package as before.
 - A change to a library is a phosphor-libs PR. Build PlasmaZones against your checkout of it with `-DCPM_phosphor-libs_SOURCE=../phosphor-libs` (an absolute path is safest), or against a branch with `-DPHOSPHOR_LIBS_GIT_REF=<ref>`.
-- Once the library change is merged, bump the pin: the commit, URL, FILE and SHA-256 together, then the same archive in every recipe the dep-pins rule names. A bump can move the library tree's own Luau and valijson pins too, and the rule reports those.
+- Once the library change is merged, bump the pin: the commit, URL, FILE and SHA-256 together, then the same archive in every recipe the dep-pins rule names. A bump can move the library tree's own Luau and jsoncons pins too, and the rule reports those. It also reports a recipe that still fetches an archive no pin names, which is what a bump that replaces a dependency leaves behind.
 - The scripts that read library files without a build (the JSON schema gate, the dep-pins rule) find the pinned tree with `scripts/pinned_phosphor_libs.py`, which unpacks the pinned archive into `.cache/phosphor-libs/`. `PHOSPHOR_LIBS_DIR=<checkout>` points them at a local tree instead.
 - In CMake the library tree is `${phosphor-libs_SOURCE_DIR}` and its build tree `${phosphor-libs_BINARY_DIR}`. Its shared helper modules (`PhosphorTestIsolation`, `PhosphorLibTesting`, `PhosphorTestPch`) are in `${PHOSPHOR_LIBS_CMAKE_DIR}`, which is also on `CMAKE_MODULE_PATH`.
 - The surface decoration packs (borders, glows, shadows, blur and glass) are [phosphor-works/phosphor-surface-packs](https://github.com/phosphor-works/phosphor-surface-packs), shared with the other apps that draw them and checked out as `../phosphor-surface-packs`. PlasmaZones pins one commit of it in `cmake/PlasmaZonesDependencies.cmake`, fetches it like the branding release and installs its packs to `share/phosphor-works/shaders/surface` with its `cmake/PhosphorSurfacePacks.cmake`. User packs go in `~/.local/share/phosphor-works/shaders/surface`. In CMake the packs are `${PHOSPHOR_SURFACE_PACKS_DIR}` and the install subdir `${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}`, which each process hands to `PhosphorSurfaceShaders::setSurfacePackDataSubdir()` at startup. A pack change is a phosphor-surface-packs PR followed by a pin bump here, and `scripts/pinned_surface_packs.py` finds the pinned packs for the scripts that read them without a build (`PHOSPHOR_SURFACE_PACKS_DIR=<packs dir>` points them at a local checkout).
@@ -211,7 +211,7 @@ On Linux (native):
 #
 # PINNED SOURCES: phosphor-libs, the branding release and the surface packs
 # are pinned archives in cmake/PlasmaZonesDependencies.cmake (version, URL,
-# SHA-256), and the phosphor-libs tree pins its own Luau and valijson the same
+# SHA-256), and the phosphor-libs tree pins its own Luau and jsoncons the same
 # way. None of them
 # is committed here. The first configure downloads them with CPM into
 # .cache/cpm, which every build dir shares. An offline build passes
