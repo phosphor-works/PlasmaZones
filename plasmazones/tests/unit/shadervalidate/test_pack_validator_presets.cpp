@@ -218,9 +218,9 @@ private Q_SLOTS:
         // ship green with nothing but a log line no author reads.
         //
         // This lived in the metadata schema as a `propertyNames` rule, where it
-        // worked on no family: the vendored JSON-schema validator rejects every
-        // name under that keyword, so on the one arm that applies it the rule
-        // refused legitimate packs, and the animation gate never consulted it at
+        // worked on no family: the JSON-schema validator the runtime used then
+        // rejected every name under that keyword, so on the one arm that applied
+        // it the rule refused legitimate packs, and the animation gate never consulted it at
         // all — a `"../escape"` preset id shipped clean.
         QTemporaryDir tmp;
         REQUIRE_ANIMATION_FIXTURE(tmp);

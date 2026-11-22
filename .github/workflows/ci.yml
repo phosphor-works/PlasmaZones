@@ -586,7 +586,7 @@ jobs:
   # plasmazones/data/schemas/. The script fetches both pinned trees itself
   # (scripts/pinned_phosphor_libs.py, scripts/pinned_surface_packs.py). Runtime
   # validation compiles some of these schema files too (phosphor-fsloader's
-  # SchemaValidator via valijson); the others are an author-time contract that
+  # SchemaValidator via jsoncons); the others are an author-time contract that
   # no runtime loader compiles. Either way it keeps malformed layouts (and future
   # document types) out of the tree. Mirrors the lefthook `json-schema` hook,
   # and is a hard gate in both places: the hook uses a jsonschema its python3

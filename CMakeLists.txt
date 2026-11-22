@@ -3,7 +3,9 @@
 #
 # PlasmaZones - Window snapping, tiling and scrolling for KDE Plasma
 
-cmake_minimum_required(VERSION 3.16)
+# 3.23: the phosphor-libs tree this builds (cmake/PlasmaZonesDependencies.cmake)
+# requires it, for phosphor-identity's target_sources(FILE_SET).
+cmake_minimum_required(VERSION 3.23)
 
 project(PlasmaZones VERSION 3.5.5 LANGUAGES C CXX)
 

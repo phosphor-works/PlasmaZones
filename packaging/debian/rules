@@ -8,7 +8,8 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 %:
 	dh $@ --buildsystem=cmake+ninja
 
-# PHOSPHOR_DEPS_ARCHIVES: the phosphor-libs, Luau, valijson and branding archives pinned in
+# PHOSPHOR_DEPS_ARCHIVES: the phosphor-libs, phosphor-components, branding, surface
+# packs, Luau and jsoncons archives pinned in
 # cmake/PlasmaZonesDependencies.cmake and the pinned phosphor-libs tree, which CMake checks against their hashes and
 # unpacks, so the build never reaches the network. packaging/deps is filled in
 # both places this package is built: the OBS source package carries the

@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "urn:plasmazones:schema:whatsnew",
     "title": "PlasmaZones What's New",
     "description": "The release history browsed in the settings What's New page, derived from CHANGELOG.md. Every highlight carries a New/Changed/Fixed prefix, which the page turns into a badge and a filter, so the text after the prefix has to read as a complete sentence on its own. Releases are listed newest first: the page reads the first entry as the newest, seeds the version rail from it, and does not re-sort, so a release appended to the end would open the dialog on the oldest one. Entries newer than the running build are dropped by the loader, which is how the file can carry the next release while it is still unreleased.",
@@ -10,10 +10,10 @@
         "releases": {
             "type": "array",
             "minItems": 1,
-            "items": { "$ref": "#/definitions/release" }
+            "items": { "$ref": "#/$defs/release" }
         }
     },
-    "definitions": {
+    "$defs": {
         "release": {
             "type": "object",
             "required": ["version", "date", "highlights"],

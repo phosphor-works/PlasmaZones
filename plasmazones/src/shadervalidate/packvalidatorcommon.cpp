@@ -652,13 +652,13 @@ QStringList presetLints(const QString& packDir, const QMap<QString, QVariantMap>
         // editable one. The runtime refuses an unusable id on load, which drops
         // the preset with a log line the pack author will never see.
         //
-        // Checked HERE rather than in the metadata schema. The schemas carried a
-        // `propertyNames` rule for this, and the vendored valijson rejects every
-        // name under it, valid ones included — so on the one family whose gate
-        // actually applies the rule it refused legitimate packs, and on the
-        // others it was never consulted at all. One predicate, shared with the
-        // runtime that enforces it, beats a schema keyword that works on neither
-        // path.
+        // Checked HERE rather than in the metadata schema. The schemas once
+        // carried a `propertyNames` rule for this, and the schema validator the
+        // runtime used then rejected every name under it, valid ones included —
+        // so on the one family whose gate actually applied the rule it refused
+        // legitimate packs, and on the others it was never consulted at all.
+        // One predicate, shared with the runtime, beats a schema keyword that
+        // has to agree with it from a second engine.
         // An AUTHORING rule, and this is the ONLY place it is enforced. Said plainly
         // because the previous wording claimed "the runtime will refuse it" and the
         // runtime does not: `parsePackPresets` deliberately keeps a key it cannot

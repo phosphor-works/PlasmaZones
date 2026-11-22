@@ -15,7 +15,7 @@ scripts/pinned_surface_packs.py (PHOSPHOR_SURFACE_PACKS_DIR overrides it). The
 packs are validated here, against the pinned schema, because that pair is what
 this checkout ships together. Some are the
 single source of truth shared with runtime validation: phosphor-fsloader's
-SchemaValidator (valijson) compiles the same schema file at load time. The
+SchemaValidator (jsoncons) compiles the same schema file at load time. The
 others are an author-time-only contract, because their document types
 validate their content directly in C++ rather than through a runtime schema.
 Which kind a schema is shows in whether a target embeds it as a Qt resource,
@@ -32,8 +32,9 @@ Infinity and -Infinity, a number too large to be finite, and an object that
 repeats a key. QJsonDocument refuses a file holding either kind of number at
 run time, and a repeated key silently loses its earlier value there.
 
-The schema dialect is Draft 7 (what valijson supports), validated here
-with the `jsonschema` package's Draft7Validator so the two engines agree.
+The schema dialect is JSON Schema 2020-12, the only one SchemaValidator
+accepts, validated here with the `jsonschema` package's Draft202012Validator
+so the two engines agree.
 
 Usage:
     validate-json-schemas.py [--root DIR] [FILE ...]
@@ -93,7 +94,7 @@ SCHEMA_MAP: dict[str, list[str]] = {
 # The directories the mapped schemas live in, derived from SCHEMA_MAP so the two
 # cannot drift. main() fails on a *.schema.json in one of them that has no entry
 # above: nothing would be validated against it, and it would never be checked
-# for being a well-formed draft-07 schema.
+# for being a well-formed 2020-12 schema.
 SCHEMA_DIRS: list[str] = sorted({posixpath.dirname(schema_rel) for schema_rel in SCHEMA_MAP})
 
 # The SCHEMA_MAP key prefix for a schema in the pinned phosphor-libs tree.
@@ -131,10 +132,10 @@ def data_label(root: Path, packs: Path, path: Path) -> str:
     except ValueError:
         return path.relative_to(root).as_posix()
 
-# The one dialect this gate speaks. Draft7Validator is used unconditionally
-# below, so every mapped schema has to declare the matching $schema or it
-# would be validated under rules it did not ask for.
-DRAFT7_URI = "http://json-schema.org/draft-07/schema#"
+# The one dialect this gate speaks. Draft202012Validator is used
+# unconditionally below, so every mapped schema has to declare the matching
+# $schema or it would be validated under rules it did not ask for.
+DRAFT202012_URI = "https://json-schema.org/draft/2020-12/schema"
 
 
 def fail(msg: str) -> None:
@@ -203,8 +204,9 @@ _INSTANCE_KEYWORDS = frozenset({"default", "const", "examples", "enum"})
 # Keywords whose value is a map of subschemas keyed by arbitrary names. Those
 # names can collide with _INSTANCE_KEYWORDS (e.g. a property literally named
 # "default"), so recurse into the map's values directly rather than applying the
-# instance-keyword skip to the arbitrary keys.
-_SUBSCHEMA_MAP_KEYWORDS = frozenset({"properties", "patternProperties", "definitions", "$defs", "dependencies"})
+# instance-keyword skip to the arbitrary keys. These are the 2020-12 names: the
+# draft-07 `definitions` and `dependencies` are not keywords there.
+_SUBSCHEMA_MAP_KEYWORDS = frozenset({"properties", "patternProperties", "$defs", "dependentSchemas"})
 
 
 def formats_used(node: object) -> set[str]:
@@ -290,8 +292,11 @@ def ensure_jsonschema() -> None:
     treats "validator unavailable" as a hard failure rather than silently
     skipping validation.
     """
+    # The validator class is the probe, not the bare package: a system
+    # jsonschema older than 4.0 imports fine but has no 2020-12 validator, and
+    # has to fall through to the venv like a missing one.
     try:
-        import jsonschema  # noqa: F401
+        from jsonschema import Draft202012Validator  # noqa: F401
         return
     except ImportError:
         pass
@@ -468,11 +473,12 @@ def main() -> int:
     # Guarantee the validator is present (bootstraps a cached venv on first use
     # if needed, or exits non-zero if it cannot). Never silently skips.
     ensure_jsonschema()
-    from jsonschema import Draft7Validator, FormatChecker
+    from jsonschema import Draft202012Validator, FormatChecker
 
     # Enforce string `format` (e.g. "date") so this author-time gate matches
-    # runtime: valijson checks date/date-time/time formats, and jsonschema
-    # only does so when handed a FormatChecker. Keeps the two engines aligned.
+    # runtime: SchemaValidator asserts `format` (jsoncons with format
+    # validation on), and jsonschema only does so when handed a
+    # FormatChecker. Keeps the two engines aligned.
     format_checker = FormatChecker()
 
     root: Path = args.root.resolve()
@@ -528,20 +534,20 @@ def main() -> int:
 
         try:
             schema = load_json(schema_path)
-            Draft7Validator.check_schema(schema)
+            Draft202012Validator.check_schema(schema)
         except Exception as exc:  # noqa: BLE001 - report any schema defect (parse or schema error)
             fail(f"invalid schema {schema_rel}: {exc}")
             failures += 1
             continue
 
-        # check_schema() above validates against draft-07 whatever the schema
+        # check_schema() above validates against 2020-12 whatever the schema
         # declares, so a schema that names a different draft would be checked
         # and then validated under rules it never asked for. Pin the dialect.
-        # A bare `true` or `false` is a valid draft-07 schema and passes
+        # A bare `true` or `false` is a valid 2020-12 schema and passes
         # check_schema(), but it has no "$schema" to declare the dialect with.
         declared = schema.get("$schema") if isinstance(schema, dict) else None
-        if declared != DRAFT7_URI:
-            fail(f"{schema_rel}: $schema must be {DRAFT7_URI} (found {declared!r})")
+        if declared != DRAFT202012_URI:
+            fail(f"{schema_rel}: $schema must be {DRAFT202012_URI} (found {declared!r})")
             failures += 1
             continue
 
@@ -557,7 +563,7 @@ def main() -> int:
             failures += 1
             continue
 
-        validator = Draft7Validator(schema, format_checker=format_checker)
+        validator = Draft202012Validator(schema, format_checker=format_checker)
 
         # In full-set mode (no explicit files), a mapped glob that matches
         # nothing means a data directory was renamed/emptied out from under the

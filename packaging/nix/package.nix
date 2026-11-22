@@ -38,7 +38,7 @@
   lib,
   stdenv,
   fetchFromGitHub,       # Used when building from a pinned upstream release
-  fetchurl,              # The pinned Luau and valijson archives (see `depsArchives`)
+  fetchurl,              # The pinned Luau and jsoncons archives (see `depsArchives`)
   linkFarm,              # Gathers them into one directory under their file names
   cmake,
   pkg-config,
@@ -87,7 +87,7 @@
 let
   # ── Source archives ──────────────────────────────────────────────────────
   # The phosphor-libs commit, the branding release and the surface packs commit
-  # pinned (version, URL and SHA-256) in cmake/PlasmaZonesDependencies.cmake, and Luau and valijson,
+  # pinned (version, URL and SHA-256) in cmake/PlasmaZonesDependencies.cmake, and Luau and jsoncons,
   # pinned by that phosphor-libs commit in its cmake/PhosphorDependencies.cmake. The build
   # runs in the sandbox with no network, so they are fetched here as fixed-output
   # derivations and handed to CMake as one directory (PHOSPHOR_DEPS_ARCHIVES in
@@ -102,11 +102,11 @@ let
   # pin. Bump both forms together.
   depsArchives = linkFarm "plasmazones-deps-archives" [
     {
-      name = "phosphor-libs-d652b2e06424fba0e692a3f045c7c125fa04da8c.tar.gz";
+      name = "phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-libs/archive/d652b2e06424fba0e692a3f045c7c125fa04da8c.tar.gz";
-        # sha256 3378eac1d5760230c5d3fe79dc3d0911741bfbcdcac24c7d84bd1be16c77fef3
-        hash = "sha256-M3jqwdV2AjDF0/553D0JEXQb+83Kwkx9hL0b4Wx3/vM=";
+        url = "https://github.com/phosphor-works/phosphor-libs/archive/05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz";
+        # sha256 b7c5f99b0b2a22d1e0deb678c82daaa268eb6bd9002bab500fff2fe26b423936
+        hash = "sha256-t8X5mwsqItHg3rZ4yC2qomjra9kAK6tQD/8v4mtCOTY=";
       };
     }
     {
@@ -118,11 +118,11 @@ let
       };
     }
     {
-      name = "valijson-1.1.3.tar.gz";
+      name = "jsoncons-1.10.0.tar.gz";
       path = fetchurl {
-        url = "https://github.com/tristanpenman/valijson/archive/refs/tags/v1.1.3.tar.gz";
-        # sha256 887b53b1a924f6fe0b35fa3bbc9bbbe5ae8c72097b7f0f7c17b45f4cfa646029
-        hash = "sha256-iHtTsakk9v4LNfo7vJu75a6Mcgl7fw98F7RfTPpkYCk=";
+        url = "https://github.com/danielaparker/jsoncons/archive/refs/tags/v1.10.0.tar.gz";
+        # sha256 c829350a2eece662beb378143e2ab1c1cbb07d703687bf168626665a8a7d8bc1
+        hash = "sha256-yCk1Ci7s5mK+s3gUPiqxwcuwfXA2h78WhiZmWop9i8E=";
       };
     }
     {
@@ -291,7 +291,7 @@ stdenv.mkDerivation (finalAttrs: {
     # NixOS plugin layout — the same approach quickshell uses for its QML/plugins.
     "-DKDE_INSTALL_QTPLUGINDIR=${placeholder "out"}/${qt6.qtbase.qtPluginPrefix}"
 
-    # The pinned Luau and valijson archives (`depsArchives` above), for the
+    # The pinned Luau and jsoncons archives (`depsArchives` above), for the
     # offline build the sandbox requires.
     "-DPHOSPHOR_DEPS_ARCHIVES=${depsArchives}"
   ];
@@ -333,12 +333,12 @@ stdenv.mkDerivation (finalAttrs: {
     homepage = "https://github.com/phosphor-works/PlasmaZones";
     # GPL-3.0-or-later for the app, daemon, editor, settings and KCM;
     # LGPL-2.1-or-later for the bundled Phosphor component libraries.
-    # MIT and BSD-2-Clause for the bundled Luau runtime and valijson headers, which
+    # MIT and BSL-1.0 for the bundled Luau runtime and jsoncons headers, which
     # are compiled into the shipped objects, BSD-3-Clause for the vibrancy block in
     # the installed surface packs' shared/surface_color.glsl, and CC0-1.0 for the
     # two AppStream metainfo files the package installs. Same set the RPM spec's
     # License tag names, and for the same reason it records there.
-    license = with licenses; [ gpl3Plus lgpl21Plus mit bsd2 bsd3 cc0 ];
+    license = with licenses; [ gpl3Plus lgpl21Plus mit boost bsd3 cc0 ];
     maintainers = [ ];   # Add your nixpkgs handle here when submitting upstream
     platforms = [ "x86_64-linux" "aarch64-linux" ];
 

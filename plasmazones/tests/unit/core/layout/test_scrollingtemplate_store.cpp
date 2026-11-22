@@ -291,7 +291,7 @@ private Q_SLOTS:
         const QJsonObject schema = doc.object();
 
         const QJsonObject fraction =
-            schema.value(QLatin1String("definitions")).toObject().value(QLatin1String("fraction")).toObject();
+            schema.value(QLatin1String("$defs")).toObject().value(QLatin1String("fraction")).toObject();
         QCOMPARE(fraction.value(QLatin1String("minimum")).toDouble(), PhosphorZones::MinTemplateFraction);
         QCOMPARE(fraction.value(QLatin1String("maximum")).toDouble(), 1.0);
 
@@ -301,7 +301,7 @@ private Q_SLOTS:
 
         // The preset vocabularies share the same cap through fractionList.
         const QJsonObject fractionList =
-            schema.value(QLatin1String("definitions")).toObject().value(QLatin1String("fractionList")).toObject();
+            schema.value(QLatin1String("$defs")).toObject().value(QLatin1String("fractionList")).toObject();
         QCOMPARE(fractionList.value(QLatin1String("maxItems")).toInt(), PhosphorZones::MaxTemplateColumns);
 
         // The per-kind arms of defaultColumnWidth live under allOf (a second
@@ -310,7 +310,7 @@ private Q_SLOTS:
         // the shared fraction definition above on its own. Walk the arms by
         // their kind const instead of by position so reordering cannot make
         // this leg read the wrong branch.
-        const QJsonArray kindArms = schema.value(QLatin1String("definitions"))
+        const QJsonArray kindArms = schema.value(QLatin1String("$defs"))
                                         .toObject()
                                         .value(QLatin1String("columnWidth"))
                                         .toObject()

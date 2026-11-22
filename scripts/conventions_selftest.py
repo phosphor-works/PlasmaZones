@@ -310,7 +310,11 @@ def _dep_pins_failures() -> list[str]:
                       f"        inner-1.0.tar.gz::https://example.invalid/inner-1.0.tar.gz)\n"
                       f"sha256sums=('{libs_sha}' '{inner_sha}')\n")
 
-    def run(pin_text, recipe_text, recipes=("recipe",), name="recipe", libs_text=None) -> list[str]:
+    # `override` is what PHOSPHOR_LIBS_DIR holds during the call: None unsets it, so
+    # a value in the caller's environment cannot reach the other cases, "tree" names
+    # the tree the rule reads, and "elsewhere" a directory it does not read.
+    def run(pin_text, recipe_text, recipes=("recipe",), name="recipe", libs_text=None,
+            override=None) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
             (d / "cmake").mkdir()
@@ -323,11 +327,17 @@ def _dep_pins_failures() -> list[str]:
             if libs_text is not None:
                 (libs_root / mod.LIBS_PIN_FILE).write_text(libs_text, encoding="utf-8")
             saved = mod.PIN_RECIPES
+            saved_env = os.environ.pop(mod.LIBS_OVERRIDE_ENV, None)
+            if override is not None:
+                os.environ[mod.LIBS_OVERRIDE_ENV] = str(libs_root if override == "tree" else d / "elsewhere")
             mod.PIN_RECIPES = recipes
             try:
                 return [m for _, m in mod.dep_pin_problems(d, libs_tree=lambda _repo: libs_root)]
             finally:
                 mod.PIN_RECIPES = saved
+                os.environ.pop(mod.LIBS_OVERRIDE_ENV, None)
+                if saved_env is not None:
+                    os.environ[mod.LIBS_OVERRIDE_ENV] = saved_env
 
     def expect(label, found, needle):
         if needle is None and found:
@@ -348,6 +358,36 @@ def _dep_pins_failures() -> list[str]:
     expect("a recipe with a stale library-tree hash",
            run(app_with_libs, good_with_libs.replace(inner_sha, "e" * 64), libs_text=libs_pin), "SHA-256")
     expect("a library tree with no pin file", run(app_with_libs, good_with_libs), "so its pins were not checked")
+    expect("the pinned library tree with no pin file", run(app_with_libs, good_with_libs),
+           f"of the pinned {mod.LIBS_DEP} tree")
+    # An archive no pin names any more, as a bump that replaces a dependency leaves
+    # behind, while the pins themselves are all still carried.
+    leftover = good_with_libs + "        old-0.9.tar.gz::https://example.invalid/old-0.9.tar.gz\n"
+    expect("a recipe still fetching an archive no pin names",
+           run(app_with_libs, leftover, libs_text=libs_pin), "old-0.9.tar.gz, which no pin names")
+    # Unless a pin file could not be read: its archives would all look unpinned,
+    # which is not the cause, and the read failure is reported on its own.
+    found = run(app_with_libs, good_with_libs)
+    if any("which no pin names" in m for m in found):
+        bad.append(f"dep_pin_problems called the archives of an unread pin file unpinned: {found}")
+    # Where a library-tree pin was read from. The pinned commit is named only when
+    # its tree is the one read; a PHOSPHOR_LIBS_DIR checkout read in its place is
+    # named as that, so a finding against a local tree is not reported as one
+    # about the pinned commit.
+    stale_inner = good_with_libs.replace(inner_sha, "e" * 64)
+    pinned_label = f"{mod.LIBS_DEP} 1.0: {mod.LIBS_PIN_FILE}"
+    override_label = f"({mod.LIBS_OVERRIDE_ENV}, in place of the pinned 1.0): {mod.LIBS_PIN_FILE}"
+    for label, override, want, unwanted in (
+            ("the pinned tree", None, pinned_label, override_label),
+            (f"a tree {mod.LIBS_OVERRIDE_ENV} names", "tree", override_label, pinned_label),
+            (f"the pinned tree while {mod.LIBS_OVERRIDE_ENV} names another", "elsewhere",
+             pinned_label, override_label)):
+        found = run(app_with_libs, stale_inner, libs_text=libs_pin, override=override)
+        expect(f"a stale library-tree hash read from {label}", found, want)
+        if any(unwanted in m for m in found):
+            bad.append(f"dep_pin_problems named {label} as {unwanted!r}: {found}")
+    expect(f"a {mod.LIBS_OVERRIDE_ENV} tree with no pin file",
+           run(app_with_libs, good_with_libs, override="tree"), f"tree {mod.LIBS_OVERRIDE_ENV} names")
     expect("a pin reformatted out of the one-line shape",
            run(pin.replace(f'set({mod.APP_PREFIX}_demo_SHA256 "', f'set({mod.APP_PREFIX}_demo_SHA256\n    "'), good),
            "no SHA256")

@@ -39,7 +39,7 @@ Priority: optional
 Maintainer: fuddlesworth <fuddlesworth@users.noreply.github.com>
 Build-Depends:
  debhelper-compat (= 13),
- cmake (>= 3.16),
+ cmake (>= 3.23),
  ninja-build,
  extra-cmake-modules (>= 6.26.0),
  pkg-kde-tools,
