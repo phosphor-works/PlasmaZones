@@ -23,11 +23,15 @@
 
 #include <PhosphorConfig/Schema.h>
 #include <PhosphorRules/ActionTypes.h>
+#include <PhosphorRules/MatchExpression.h>
+#include <PhosphorRules/MatchTypes.h>
 #include <PhosphorRules/Rule.h>
 #include <PhosphorRules/RuleAction.h>
 #include <PhosphorRules/RuleSet.h>
 
+#include <QHash>
 #include <QSet>
+#include <QUuid>
 
 using namespace PlasmaZones;
 using PlasmaZones::TestHelpers::IsolatedConfigGuard;
@@ -1243,6 +1247,183 @@ private Q_SLOTS:
         QVERIFY(ConfigMigration::stripManagedAppearanceBaselineRules(ConfigDefaults::configFilePath()));
         QVERIFY(rulesFile.open(QIODevice::ReadOnly));
         QCOMPARE(rulesFile.readAll(), firstPass);
+    }
+
+    /// A curve stored on a timing action moves onto a curve action for the
+    /// same event. Written as raw JSON with the key spellings spelled out here,
+    /// because the rule types can no longer hold a timing curve. The store
+    /// also carries a managed baseline rule and a rule on a retired event, so
+    /// the RuleSet fix-ups rewrite the file in the same start. Had they run
+    /// first, every timing action still carrying a curve would have been
+    /// dropped on that round-trip.
+    void testCleanup_splitsTimingActionCurves()
+    {
+        IsolatedConfigGuard guard;
+        const auto action = [](const QString& type, const QString& event, const QJsonObject& extra = {}) {
+            QJsonObject a = extra;
+            a.insert(QStringLiteral("type"), type);
+            a.insert(QStringLiteral("event"), event);
+            return a;
+        };
+        const QString timing = QStringLiteral("overrideAnimationTiming");
+        const QString curve = QStringLiteral("overrideAnimationCurve");
+        const QString shader = QStringLiteral("overrideAnimationShader");
+        const QString open = QStringLiteral("window.appearance.open");
+        const QString close = QStringLiteral("window.appearance.close");
+        const QJsonObject match =
+            PhosphorRules::MatchExpression::makeLeaf(PhosphorRules::Field::WindowClass,
+                                                     PhosphorRules::Operator::Contains, QStringLiteral("kitty"))
+                .toJson();
+        const auto rule = [&match](const QUuid& id, const QJsonArray& actions, bool managed = false) {
+            QJsonObject r{{QStringLiteral("id"), id.toString()}, {QStringLiteral("name"), QStringLiteral("rule")},
+                          {QStringLiteral("enabled"), true},     {QStringLiteral("priority"), 150},
+                          {QStringLiteral("match"), match},      {QStringLiteral("actions"), actions}};
+            if (managed) {
+                r.insert(QStringLiteral("managed"), true);
+            }
+            return r;
+        };
+
+        // Timing with a duration and a curve: the curve gets its own action.
+        const QUuid moved = QUuid::createUuid();
+        // A curve action for the event already there wins over the timing curve.
+        const QUuid existingWins = QUuid::createUuid();
+        // A curve action for the event with no curve takes the timing curve,
+        // which is the one the compositor fell back to.
+        const QUuid emptyFilled = QUuid::createUuid();
+        // A curve-only timing action stays, empty of a duration.
+        const QUuid curveOnly = QUuid::createUuid();
+        // An empty curve was "inherit": dropped, with no curve action made.
+        const QUuid emptyCurve = QUuid::createUuid();
+        // No curve anywhere: left exactly as it was.
+        const QUuid untouched = QUuid::createUuid();
+        // A retired event, so the rename fix-up rewrites the store too.
+        const QUuid retiredEvent = QUuid::createUuid();
+        const QUuid baseline(QStringLiteral("{0a5e1b00-0000-4000-8000-000000000002}"));
+
+        const QJsonArray untouchedActions{
+            action(timing, open, {{QStringLiteral("durationMs"), 150}}),
+            action(shader, open, {{QStringLiteral("effectId"), QStringLiteral("dissolve")}})};
+        QJsonArray rules{
+            rule(moved,
+                 {action(
+                      timing, open,
+                      {{QStringLiteral("durationMs"), 200}, {QStringLiteral("curve"), QStringLiteral("0.4,0,0.2,1")}}),
+                  action(shader, open, {{QStringLiteral("effectId"), QStringLiteral("dissolve")}})}),
+            rule(existingWins,
+                 {action(curve, close, {{QStringLiteral("curve"), QStringLiteral("ease")}}),
+                  action(timing, close,
+                         {{QStringLiteral("durationMs"), 300},
+                          {QStringLiteral("curve"), QStringLiteral("0.9,0,0.1,1")}})}),
+            rule(emptyFilled,
+                 {action(timing, open, {{QStringLiteral("curve"), QStringLiteral("spring:14,0.6")}}),
+                  action(curve, open)}),
+            rule(curveOnly, {action(timing, close, {{QStringLiteral("curve"), QStringLiteral("spring:10,0.5")}})}),
+            rule(emptyCurve,
+                 {action(timing, open, {{QStringLiteral("durationMs"), 120}, {QStringLiteral("curve"), QString()}})}),
+            rule(untouched, untouchedActions),
+            rule(retiredEvent,
+                 {action(timing, QStringLiteral("window.movement.snapIn"),
+                         {{QStringLiteral("durationMs"), 250}, {QStringLiteral("curve"), QStringLiteral("ease")}})}),
+            rule(baseline, {QJsonObject{{QStringLiteral("type"), QStringLiteral("exclude")}}}, true),
+        };
+        QDir().mkpath(QFileInfo(ConfigDefaults::rulesFilePath()).absolutePath());
+        QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(
+            ConfigDefaults::rulesFilePath(),
+            QJsonObject{{QStringLiteral("_version"), 4}, {QStringLiteral("rules"), rules}}));
+        QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
+        QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(
+            ConfigDefaults::configFilePath(),
+            QJsonObject{{QStringLiteral("_version"), PlasmaZones::ConfigSchemaVersion}}));
+
+        QVERIFY(ConfigMigration::ensureJsonConfig());
+
+        QHash<QString, QJsonArray> actionsById;
+        for (const QJsonValue& v :
+             readJsonConfig(ConfigDefaults::rulesFilePath()).value(QStringLiteral("rules")).toArray()) {
+            const QJsonObject r = v.toObject();
+            actionsById.insert(r.value(QStringLiteral("id")).toString(), r.value(QStringLiteral("actions")).toArray());
+        }
+        // The baseline strip ran in the same start, so the RuleSet fix-ups did
+        // round-trip the file after the split.
+        QVERIFY(!actionsById.contains(baseline.toString()));
+        QCOMPARE(actionsById.size(), 7);
+
+        QCOMPARE(actionsById.value(moved.toString()),
+                 (QJsonArray{action(timing, open, {{QStringLiteral("durationMs"), 200}}),
+                             action(curve, open, {{QStringLiteral("curve"), QStringLiteral("0.4,0,0.2,1")}}),
+                             action(shader, open, {{QStringLiteral("effectId"), QStringLiteral("dissolve")}})}));
+        QCOMPARE(actionsById.value(existingWins.toString()),
+                 (QJsonArray{action(curve, close, {{QStringLiteral("curve"), QStringLiteral("ease")}}),
+                             action(timing, close, {{QStringLiteral("durationMs"), 300}})}));
+        QCOMPARE(actionsById.value(emptyFilled.toString()),
+                 (QJsonArray{action(timing, open),
+                             action(curve, open, {{QStringLiteral("curve"), QStringLiteral("spring:14,0.6")}})}));
+        QCOMPARE(actionsById.value(curveOnly.toString()),
+                 (QJsonArray{action(timing, close),
+                             action(curve, close, {{QStringLiteral("curve"), QStringLiteral("spring:10,0.5")}})}));
+        QCOMPARE(actionsById.value(emptyCurve.toString()),
+                 (QJsonArray{action(timing, open, {{QStringLiteral("durationMs"), 120}})}));
+        QCOMPARE(actionsById.value(untouched.toString()), untouchedActions);
+        const QString placeIn = QStringLiteral("window.movement.placeIn");
+        QCOMPARE(actionsById.value(retiredEvent.toString()),
+                 (QJsonArray{action(timing, placeIn, {{QStringLiteral("durationMs"), 250}}),
+                             action(curve, placeIn, {{QStringLiteral("curve"), QStringLiteral("ease")}})}));
+
+        // Every rewritten rule loads with all of its actions.
+        const auto loaded = PhosphorRules::RuleSet::loadFromFile(ConfigDefaults::rulesFilePath());
+        QVERIFY(loaded.has_value());
+        QCOMPARE(loaded->rules().size(), 7);
+        for (const PhosphorRules::Rule& r : loaded->rules()) {
+            QCOMPARE(r.actions.size(), actionsById.value(r.id.toString()).size());
+        }
+
+        // Nothing left to split: a second pass reports success and leaves the
+        // file as the first one wrote it.
+        QFile rulesFile(ConfigDefaults::rulesFilePath());
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        const QByteArray firstPass = rulesFile.readAll();
+        rulesFile.close();
+        QVERIFY(ConfigMigration::splitTimingActionCurves(ConfigDefaults::configFilePath()));
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        QCOMPARE(rulesFile.readAll(), firstPass);
+    }
+
+    /// A timing action whose curve already failed to load (not a string) is
+    /// left exactly as found rather than repaired into one that loads, and a
+    /// store with no timing curves is not written at all.
+    void testCleanup_splitTimingActionCurvesLeavesUnloadableCurveAlone()
+    {
+        IsolatedConfigGuard guard;
+        const QJsonObject match =
+            PhosphorRules::MatchExpression::makeLeaf(PhosphorRules::Field::WindowClass,
+                                                     PhosphorRules::Operator::Contains, QStringLiteral("kitty"))
+                .toJson();
+        const QJsonObject store{
+            {QStringLiteral("_version"), 4},
+            {QStringLiteral("rules"),
+             QJsonArray{QJsonObject{
+                 {QStringLiteral("id"), QUuid::createUuid().toString()},
+                 {QStringLiteral("match"), match},
+                 {QStringLiteral("actions"),
+                  QJsonArray{QJsonObject{{QStringLiteral("type"), QStringLiteral("overrideAnimationTiming")},
+                                         {QStringLiteral("event"), QStringLiteral("window.appearance.open")},
+                                         {QStringLiteral("durationMs"), 200},
+                                         {QStringLiteral("curve"), 7}}}}}}}};
+        QDir().mkpath(QFileInfo(ConfigDefaults::rulesFilePath()).absolutePath());
+        QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(ConfigDefaults::rulesFilePath(), store));
+        QDir().mkpath(QFileInfo(ConfigDefaults::configFilePath()).absolutePath());
+        QVERIFY(PhosphorConfig::JsonBackend::writeJsonAtomically(
+            ConfigDefaults::configFilePath(),
+            QJsonObject{{QStringLiteral("_version"), PlasmaZones::ConfigSchemaVersion}}));
+
+        QFile rulesFile(ConfigDefaults::rulesFilePath());
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        const QByteArray before = rulesFile.readAll();
+        rulesFile.close();
+        QVERIFY(ConfigMigration::splitTimingActionCurves(ConfigDefaults::configFilePath()));
+        QVERIFY(rulesFile.open(QIODevice::ReadOnly));
+        QCOMPARE(rulesFile.readAll(), before);
     }
 };
 

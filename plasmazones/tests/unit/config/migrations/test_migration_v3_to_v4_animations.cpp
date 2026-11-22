@@ -5,7 +5,7 @@
  * @file test_migration_v3_to_v4_animations.cpp
  * @brief v3 → v4 migration tests for the animation folds — the
  *        `Animations.AnimationAppRules` array folding into
- *        `OverrideAnimation{Shader,Timing}` rules, and the
+ *        `OverrideAnimation{Shader,Timing,Curve}` rules, and the
  *        `Animations.WindowFiltering.{Applications,WindowClasses}` lists
  *        folding into `ExcludeAnimations` rules.
  *
@@ -45,7 +45,8 @@ class TestMigrationV3ToV4Animations : public QObject, public MigrationV3V4Fixtur
     // ─── Animation App Rules → Rules ────────────────────────────────
     //
     // The v3 `Animations.AnimationAppRules` array folds into rules.json
-    // as `OverrideAnimation{Shader,Timing}` actions on a
+    // as `OverrideAnimation{Shader,Timing}` actions (a timing entry's curve
+    // as an `OverrideAnimationCurve` action beside its timing action) on a
     // `WindowClass Contains <pattern>` matcher. Below covers the conversion
     // shape, the drop-on-malformed contract, the engaged-blocking / inherit
     // sentinels, and idempotent rule-id derivation.
@@ -209,7 +210,7 @@ private Q_SLOTS:
         QVERIFY(!shaderRule.isEmpty());
         QVERIFY(!timingRule.isEmpty());
 
-        // Action wire shape: `event`, `effectId`, `curve`, `durationMs`
+        // Action wire shape: `event`, `effectId`, `durationMs`, `curve`
         // live FLAT on the action object alongside `type` — there is no
         // outer wrapper named `params`. The shader case carries an INNER
         // `params` object that holds the effect-specific tunables
@@ -233,10 +234,46 @@ private Q_SLOTS:
                  QStringLiteral("Code"));
         QCOMPARE(timingRule.value(QStringLiteral("enabled")).toBool(), true);
         QVERIFY(timingRule.value(QStringLiteral("priority")).toInt() > 0);
-        const QJsonObject timingAction = animationAction(timingRule);
+        // The legacy entry's curve lands on its own curve action for the same
+        // event, right after the timing action, which keeps only the duration.
+        // (actionTypes sorts, so the order is checked by index below.)
+        QCOMPARE(actionTypes(timingRule),
+                 (QStringList{QStringLiteral("overrideAnimationCurve"), QStringLiteral("overrideAnimationTiming")}));
+        const QJsonArray timingRuleActions = timingRule.value(QStringLiteral("actions")).toArray();
+        const QJsonObject timingAction = timingRuleActions.at(0).toObject();
         QCOMPARE(timingAction.value(QStringLiteral("event")).toString(), QStringLiteral("window.close"));
-        QCOMPARE(timingAction.value(QStringLiteral("curve")).toString(), QStringLiteral("0.2,0.0,0.2,1.0"));
         QCOMPARE(timingAction.value(QStringLiteral("durationMs")).toInt(), 250);
+        QVERIFY2(!timingAction.contains(QStringLiteral("curve")), "the timing action no longer carries a curve");
+        const QJsonObject curveAction = timingRuleActions.at(1).toObject();
+        QCOMPARE(curveAction.value(QStringLiteral("event")).toString(), QStringLiteral("window.close"));
+        QCOMPARE(curveAction.value(QStringLiteral("curve")).toString(), QStringLiteral("0.2,0.0,0.2,1.0"));
+    }
+
+    void testAnimationAppRules_curveOnlyTimingEntryKeepsItsTimingAction()
+    {
+        // A legacy timing entry with a curve and no duration still produces
+        // its timing action, now empty of a duration, followed by the curve
+        // action. The engaged timing slot is what the legacy entry filled, and
+        // it shadows a lower-priority rule's duration for the same event.
+        IsolatedConfigGuard guard;
+        QJsonArray src;
+        src.append(
+            makeTimingRule(QStringLiteral("Code"), QStringLiteral("window.open"), QStringLiteral("spring:14,0.6"), 0));
+        writeJson(ConfigDefaults::configFilePath(), makeV3ConfigWithAnimationRules(src));
+
+        QVERIFY(ConfigMigration::ensureJsonConfig());
+
+        const QList<QJsonObject> animRules = animationRulesFromRules();
+        QCOMPARE(animRules.size(), 1);
+        const QJsonArray actions = animRules.first().value(QStringLiteral("actions")).toArray();
+        QCOMPARE(actions.size(), 2);
+        QCOMPARE(actions.at(0).toObject(),
+                 (QJsonObject{{QStringLiteral("type"), QStringLiteral("overrideAnimationTiming")},
+                              {QStringLiteral("event"), QStringLiteral("window.open")}}));
+        QCOMPARE(actions.at(1).toObject(),
+                 (QJsonObject{{QStringLiteral("type"), QStringLiteral("overrideAnimationCurve")},
+                              {QStringLiteral("event"), QStringLiteral("window.open")},
+                              {QStringLiteral("curve"), QStringLiteral("spring:14,0.6")}}));
     }
 
     void testAnimationAppRules_priorityIsDescendingByListOrder()
@@ -339,6 +376,7 @@ private Q_SLOTS:
                      "(verified for absent-key, explicit 0, and explicit negative shapes)");
             QVERIFY2(!action.contains(QStringLiteral("curve")),
                      "empty curve is the inherit sentinel — must be absent from the migrated params");
+            QCOMPARE(actionTypes(rule), QStringList{QStringLiteral("overrideAnimationTiming")});
         }
     }
 

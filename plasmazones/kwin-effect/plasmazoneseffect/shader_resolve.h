@@ -99,9 +99,10 @@ ResolvedShaderProfile resolveAnimationShaderProfile(const PhosphorRules::RuleEva
                                                     const QString& eventPath);
 
 /**
- * @brief Motion-profile cascade: per-window timing rule → base profile.
+ * @brief Motion-profile cascade: per-window curve and timing rules → base profile.
  *
- * Returns @p base with its `curve` / `duration` replaced when a timing rule
+ * Returns @p base with its `curve` replaced when a curve rule fills the
+ * `anim-curve:<eventPath>` slot, and its `duration` replaced when a timing rule
  * fills the `anim-timing:<eventPath>` slot. A non-empty curve is parsed via
  * @p curveRegistry's `tryCreate` (a malformed curve keeps the base curve); a
  * `durationMs > 0` overrides the duration, clamped into the animation envelope
