@@ -392,8 +392,8 @@ private Q_SLOTS:
     ///
     /// `ensureJsonConfig` reaches the version chain only for a config that
     /// exists, parses, and is stamped below current. A config lost to
-    /// corruption, or emptied, skips it — and the Store then stamps `_version =
-    /// 8` on the file it writes, so the next launch short-circuits and the
+    /// corruption, or emptied, skips it — and the Store then stamps the current
+    /// `_version` on the file it writes, so the next launch short-circuits and the
     /// chain never runs. Every step before v8 only rewrites config, so skipping
     /// them costs nothing. v8 IMPORTS external state, so skipping it silently
     /// strands the user's timing files on disk forever.
@@ -411,15 +411,18 @@ private Q_SLOTS:
             QStringLiteral("osd.show"),
             QJsonObject{{QStringLiteral("name"), QStringLiteral("osd.show")}, {QStringLiteral("duration"), 265}}));
 
-        // A config already stamped v8 and carrying no tree — exactly what the
-        // Store leaves behind on the exits that bypass the chain.
+        // A config already stamped with the CURRENT version and carrying no
+        // tree — exactly what the Store leaves behind on the exits that bypass
+        // the chain. Not a literal 8: once the chain grew past v8 the Store
+        // stamps the newer version, and the recovery has to fire on that.
         QTemporaryDir tmp;
         QVERIFY(tmp.isValid());
         const QString jsonPath = tmp.path() + QStringLiteral("/config.json");
         {
             QFile f(jsonPath);
             QVERIFY(f.open(QIODevice::WriteOnly));
-            const QByteArray payload = QJsonDocument(QJsonObject{{QStringLiteral("_version"), 8}}).toJson();
+            const QByteArray payload =
+                QJsonDocument(QJsonObject{{QStringLiteral("_version"), ConfigSchemaVersion}}).toJson();
             QCOMPARE(f.write(payload), static_cast<qint64>(payload.size()));
         }
 

@@ -1064,9 +1064,15 @@ private Q_SLOTS:
             }
         }
 
-        // Walk the migrated JSON tree, collecting every scalar leaf as
+        // Walk the migrated JSON tree, collecting every leaf as
         // "Group.Path/Key". Migration-only reserved keys (_version,
         // PerScreen container — resolver-owned) are filtered out.
+        //
+        // An object is a leaf, not a sub-group, when the schema declares it
+        // as a key: a structured (QVariantMap) value such as
+        // Animations/Profile, which the chain ends with as a native object
+        // (migrateV8ToV9). Descending into it would report its fields as
+        // undeclared keys.
         //
         // Some root keys live outside the schema by design:
         //   - Updates: managed outside Settings.
@@ -1075,13 +1081,13 @@ private Q_SLOTS:
         QStringList stack; // path prefix as dot-path segments
         std::function<void(const QJsonObject&)> collect = [&](const QJsonObject& obj) {
             for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
-                if (it.value().isObject()) {
+                const QString leafPath = stack.join(QLatin1Char('.')) + QLatin1Char('/') + it.key();
+                if (it.value().isObject() && !declared.contains(leafPath)) {
                     stack.append(it.key());
                     collect(it.value().toObject());
                     stack.removeLast();
                 } else {
-                    const QString groupPath = stack.join(QLatin1Char('.'));
-                    produced.insert(groupPath + QLatin1Char('/') + it.key());
+                    produced.insert(leafPath);
                 }
             }
         };
