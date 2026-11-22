@@ -6,14 +6,20 @@ Two files pin the archives a PlasmaZones build needs (version, URL, file name,
 SHA-256). cmake/PlasmaZonesDependencies.cmake pins PlasmaZones' own: the
 phosphor-libs commit it builds against and the branding release. That phosphor-libs
 commit's cmake/PhosphorDependencies.cmake pins the library tree's third-party
-sources (Luau, valijson), and this rule reads it from the pinned tree itself
+sources (Luau, jsoncons), and this rule reads it from the pinned tree itself
 (scripts/pinned_phosphor_libs.py), so a phosphor-libs bump that moves one of those
-pins is checked too. An offline packaging build cannot download, so each recipe in
-PIN_RECIPES lists every one of these archives as an extra source of its own, and in
-doing so repeats the URL and the hash. Nothing else ties those copies to the pins, so
-a bump that missed one recipe would only surface when that distro's build failed its
-hash check, or worse, built from whatever the recipe still named. This rule fails the
-gate instead, naming the recipe and the dependency.
+pins is checked too. With PHOSPHOR_LIBS_DIR set, that tree is the checkout it names
+instead, and the messages say so rather than naming the pinned commit. An offline
+packaging build cannot download, so each recipe in PIN_RECIPES lists every one of
+these archives as an extra source of its own, and in doing so repeats the URL and the
+hash. Nothing else ties those copies to the pins, so a bump that missed one recipe
+would only surface when that distro's build failed its hash check, or worse, built
+from whatever the recipe still named. This rule fails the gate instead, naming the
+recipe and the dependency. It also fails a recipe that still fetches an archive no
+pin names any more, which is what a bump that replaces one dependency with another
+leaves behind: every literal https URL of a .tar.gz in a recipe has to be some pin's
+URL. The recipes' own release tarball is spelled through a variable (`$url`,
+`%{url}`, fetchFromGitHub), so it is not such a literal.
 
 The jobs that stage the archives with the fetch script (the Debian and OBS paths in
 release.yml) read the pin files themselves and carry no copy, so they are not listed.
@@ -24,6 +30,7 @@ files cannot form a cycle, the same shape as conventions_shared_text.py.
 from __future__ import annotations
 
 import base64
+import os
 import re
 from pathlib import Path
 from typing import Callable
@@ -33,6 +40,8 @@ PIN_FILE = "cmake/PlasmaZonesDependencies.cmake"
 LIBS_PIN_FILE = "cmake/PhosphorDependencies.cmake"
 # The PlasmaZones pin naming the phosphor-libs commit, whose own pins are checked too.
 LIBS_DEP = "phosphor-libs"
+# The environment variable scripts/pinned_phosphor_libs.py takes a local tree from.
+LIBS_OVERRIDE_ENV = "PHOSPHOR_LIBS_DIR"
 
 # Every recipe that fetches the archives itself and so must repeat each pin.
 PIN_RECIPES = (
@@ -50,6 +59,9 @@ PIN_RECIPES = (
 APP_PREFIX = "PLASMAZONES_DEP"
 LIBS_PREFIX = "PHOSPHOR_DEP"
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+# A literal archive URL in a recipe. Stops at the quote, whitespace or `#/` fragment
+# that ends one in the PKGBUILD, spec and Nix spellings.
+_ARCHIVE_URL = re.compile(r"""https://[^\s"'#)]+?\.tar\.gz""")
 
 
 def read_pins(text: str, prefix: str = APP_PREFIX) -> tuple[dict[str, dict[str, str]], list[str]]:
@@ -82,6 +94,21 @@ def _pinned_tree(repo: Path) -> Path:
     return tree(repo)
 
 
+def _libs_label(root: Path, pinned_version: str) -> str:
+    """Name the library tree whose pin file was read, for the messages.
+
+    The pinned commit names it only when that is the tree read. A tree that
+    PHOSPHOR_LIBS_DIR put in its place is named by its path, with the commit it
+    stands in for, so a finding reported against a local checkout is not passed
+    off as one about the commit this repository pins.
+    """
+    override = os.environ.get(LIBS_OVERRIDE_ENV)
+    if override and Path(override).resolve() == root.resolve():
+        return (f"{LIBS_DEP} at {root} ({LIBS_OVERRIDE_ENV}, in place of the pinned "
+                f"{pinned_version}): {LIBS_PIN_FILE}")
+    return f"{LIBS_DEP} {pinned_version}: {LIBS_PIN_FILE}"
+
+
 def dep_pin_problems(repo: Path,
                      libs_tree: Callable[[Path], Path] = _pinned_tree) -> list[tuple[str, str]]:
     """Return (path, message) for each recipe that drifted from a pin.
@@ -102,16 +129,25 @@ def dep_pin_problems(repo: Path,
     # Where each pin was read, for the messages: a stale Luau hash is fixed by
     # copying it from the library tree's file, not from this repository's.
     source = {dep: PIN_FILE for dep in pins}
+    # Whether every pin was read, so the URLs they name are the whole set of
+    # archives a recipe may fetch. Without that, the check for an archive no pin
+    # names would report every archive of a pin file it could not read, under a
+    # cause that is not the real one, which is already reported.
+    all_pins_read = not problems
     if LIBS_DEP in pins:
         try:
             root = libs_tree(repo)
             libs_text = (root / LIBS_PIN_FILE).read_text(encoding="utf-8")
         except (OSError, RuntimeError) as e:
-            out.append((PIN_FILE, f"cannot read {LIBS_PIN_FILE} of the pinned {LIBS_DEP} tree ({e}), "
+            which = (f"the {LIBS_DEP} tree {LIBS_OVERRIDE_ENV} names" if os.environ.get(LIBS_OVERRIDE_ENV)
+                     else f"the pinned {LIBS_DEP} tree")
+            out.append((PIN_FILE, f"cannot read {LIBS_PIN_FILE} of {which} ({e}), "
                                   f"so its pins were not checked"))
+            all_pins_read = False
         else:
             libs_pins, libs_problems = read_pins(libs_text, LIBS_PREFIX)
-            label = f"{LIBS_DEP} {pins[LIBS_DEP].get('VERSION', '?')}: {LIBS_PIN_FILE}"
+            all_pins_read = all_pins_read and not libs_problems
+            label = _libs_label(root, pins[LIBS_DEP].get("VERSION", "?"))
             out.extend((label, p) for p in libs_problems)
             for dep, got in libs_pins.items():
                 if dep in pins:
@@ -147,4 +183,9 @@ def dep_pin_problems(repo: Path,
                 if sri not in body:
                     out.append((recipe, f"does not carry {dep}'s pinned hash in the SRI form Nix "
                                         f"checks ({sri})"))
+        if all_pins_read:
+            pinned_urls = {got["URL"] for got in pins.values()}
+            for url in sorted(set(_ARCHIVE_URL.findall(body)) - pinned_urls):
+                out.append((recipe, f"fetches {url}, which no pin names; remove it, or pin it in "
+                                    f"{PIN_FILE}"))
     return out
