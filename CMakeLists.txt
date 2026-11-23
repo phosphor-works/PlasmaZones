@@ -357,11 +357,11 @@ include_directories("${PROJECT_BINARY_DIR}/generated")
 
 add_subdirectory(plasmazones)
 
-# One precompiled header shared by every test target, attached after all tiers
-# are declared because it walks the tree for them (cmake/PhosphorTestPch.cmake).
-# Only at the top level, as phosphor-libs does: a tree that adds PlasmaZones as
-# a subproject makes the one call itself, after every project in it.
-if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND ENABLE_PCH)
+# One precompiled header shared by every test target in this tree and the
+# library trees it adds, attached after all of them are declared because it
+# walks this directory for them (cmake/PhosphorTestPch.cmake). Also inside a
+# superbuild, where each app makes its own call so the PCH has its flags.
+if(BUILD_TESTING AND ENABLE_PCH)
     include(PhosphorTestPch)
     phosphor_share_test_pch()
 endif()
