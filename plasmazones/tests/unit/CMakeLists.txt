@@ -298,23 +298,23 @@ add_test(NAME test_placement_engine_base COMMAND test_placement_engine_base)
 # autotile/ - Tiling Algorithm Tests (split by algorithm family)
 # ═══════════════════════════════════════════════════════════════════════════════
 p_add_test(test_tiling_algo_masterstack autotile/algorithms/test_tiling_algo_masterstack.cpp)
-target_compile_definitions(test_tiling_algo_masterstack PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_masterstack PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_spiral_monocle autotile/algorithms/test_tiling_algo_spiral_monocle.cpp)
-target_compile_definitions(test_tiling_algo_spiral_monocle PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_spiral_monocle PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_grid_threecolumn autotile/algorithms/test_tiling_algo_grid_threecolumn.cpp)
-target_compile_definitions(test_tiling_algo_grid_threecolumn PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_grid_threecolumn PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_wide_centered autotile/algorithms/test_tiling_algo_wide_centered.cpp)
-target_compile_definitions(test_tiling_algo_wide_centered PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_wide_centered PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_cascade_stair_spread autotile/algorithms/test_tiling_algo_cascade_stair_spread.cpp)
-target_compile_definitions(test_tiling_algo_cascade_stair_spread PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_cascade_stair_spread PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_lshape autotile/algorithms/test_tiling_algo_lshape.cpp)
-target_compile_definitions(test_tiling_algo_lshape PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_lshape PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_deck_zen autotile/algorithms/test_tiling_algo_deck_zen.cpp)
-target_compile_definitions(test_tiling_algo_deck_zen PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_deck_zen PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_edge_cases autotile/algorithms/test_tiling_algo_edge_cases.cpp)
-target_compile_definitions(test_tiling_algo_edge_cases PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_edge_cases PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_tiling_algo_bsp autotile/algorithms/test_tiling_algo_bsp.cpp)
-target_compile_definitions(test_tiling_algo_bsp PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algo_bsp PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # core/ - PhosphorLayoutApi LayoutSourceBundle + FactoryContext
@@ -330,11 +330,11 @@ p_add_test(test_unified_layout_order core/layout/test_unified_layout_order.cpp)
 # autotile/ - Algorithm Registry Tests
 # ═══════════════════════════════════════════════════════════════════════════════
 p_add_test(test_algorithm_registry autotile/algorithms/test_algorithm_registry.cpp)
-target_compile_definitions(test_algorithm_registry PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_algorithm_registry PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_algorithm_registry_custom autotile/algorithms/test_algorithm_registry_custom.cpp)
-target_compile_definitions(test_algorithm_registry_custom PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_algorithm_registry_custom PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_split_tree autotile/state/test_split_tree.cpp)
-target_compile_definitions(test_split_tree PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_split_tree PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_scripted_algorithm_loader autotile/algorithms/test_scripted_algorithm_loader.cpp)
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -361,24 +361,24 @@ add_test(NAME test_luau_tile_algorithm COMMAND test_luau_tile_algorithm)
 # Golden parity harness: ported Luau algorithms vs the committed golden fixture
 # (originally captured from the JS engine's byte-identical output).
 add_executable(test_luau_parity scripting/test_luau_parity.cpp)
-target_compile_definitions(test_luau_parity PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_luau_parity PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_luau_parity PRIVATE Qt6::Test Qt6::Core PhosphorTiles::PhosphorTiles)
 add_test(NAME test_luau_parity COMMAND test_luau_parity)
 
 # Aligned resize-aware grid: loads the real bundled algorithm and proves the
 # interactive-resize scripting hook + persistent state bag work end-to-end.
 add_executable(test_luau_aligned_grid scripting/test_luau_aligned_grid.cpp)
-target_compile_definitions(test_luau_aligned_grid PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_luau_aligned_grid PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_luau_aligned_grid PRIVATE Qt6::Test Qt6::Core PhosphorTiles::PhosphorTiles)
 add_test(NAME test_luau_aligned_grid COMMAND test_luau_aligned_grid)
 
 add_executable(test_luau_ratio_reflow scripting/test_luau_ratio_reflow.cpp)
-target_compile_definitions(test_luau_ratio_reflow PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_luau_ratio_reflow PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_luau_ratio_reflow PRIVATE Qt6::Test Qt6::Core PhosphorTiles::PhosphorTiles)
 add_test(NAME test_luau_ratio_reflow COMMAND test_luau_ratio_reflow)
 
 add_executable(test_luau_theater scripting/test_luau_theater.cpp)
-target_compile_definitions(test_luau_theater PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_luau_theater PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_luau_theater PRIVATE Qt6::Test Qt6::Core PhosphorTiles::PhosphorTiles)
 add_test(NAME test_luau_theater COMMAND test_luau_theater)
 
@@ -387,10 +387,10 @@ add_test(NAME test_luau_theater COMMAND test_luau_theater)
 # ═══════════════════════════════════════════════════════════════════════════════
 p_add_test(test_autotile_engine_core autotile/engine/test_autotile_engine_core.cpp)
 target_link_libraries(test_autotile_engine_core PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_autotile_engine_core PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_engine_core PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_autotile_engine_master autotile/engine/test_autotile_engine_master.cpp)
 target_link_libraries(test_autotile_engine_master PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_autotile_engine_master PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_engine_master PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 # helpers/AutotileFakes.h declares a Q_OBJECT fake — listing it as a source is
 # what makes AUTOMOC generate its metaobject (a merely #included header is not
 # scanned), and the IAutotileSettings qobject_cast needs it.
@@ -404,17 +404,17 @@ p_add_test(test_autotile_engine_retry autotile/engine/test_autotile_engine_retry
 target_link_libraries(test_autotile_engine_retry PRIVATE PhosphorTileEngine::PhosphorTileEngine)
 p_add_test(test_autotile_engine_order_cycling autotile/engine/test_autotile_engine_order_cycling.cpp)
 target_link_libraries(test_autotile_engine_order_cycling PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_autotile_engine_order_cycling PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_engine_order_cycling PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_autotile_engine_class_mutation autotile/engine/test_autotile_engine_class_mutation.cpp)
 target_link_libraries(test_autotile_engine_class_mutation PRIVATE PhosphorTileEngine::PhosphorTileEngine)
 p_add_test(test_autotile_drag_insert autotile/behavior/test_autotile_drag_insert.cpp)
 target_link_libraries(test_autotile_drag_insert PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_autotile_drag_insert PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_drag_insert PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_autotile_layer_switch autotile/behavior/test_autotile_layer_switch.cpp)
 target_link_libraries(test_autotile_layer_switch PRIVATE PhosphorTileEngine::PhosphorTileEngine)
 p_add_test(test_autotile_handoff autotile/behavior/test_autotile_handoff.cpp)
 target_link_libraries(test_autotile_handoff PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_autotile_handoff PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_handoff PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 # Producer-side validator guard - ensures the JSON emitted by
 # AutotileEngine::applyTiling round-trips through TileRequestEntry
 # parsing and passes validationError(). Would have caught PR #326 C1.
@@ -437,7 +437,7 @@ target_link_libraries(test_autotile_virtual PRIVATE pz_test_fake_screens)
 target_link_libraries(test_autotile_virtual PRIVATE Qt6::Test Qt6::Core plasmazones_core
                                                     PhosphorTileEngine::PhosphorTileEngine)
 add_test(NAME test_autotile_virtual COMMAND test_autotile_virtual)
-target_compile_definitions(test_autotile_virtual PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_virtual PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # autotile/ - Autotile Engine Extended Tests (startup, float, algoswitch,
@@ -450,10 +450,10 @@ target_link_libraries(test_autotile_ext_startup_float PRIVATE PhosphorTileEngine
                                                               PhosphorZones::PhosphorZones)
 p_add_test(test_autotile_ext_algoswitch autotile/behavior/test_autotile_ext_algoswitch.cpp)
 target_link_libraries(test_autotile_ext_algoswitch PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_autotile_ext_algoswitch PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_ext_algoswitch PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 p_add_test(test_autotile_script_state_stash autotile/state/test_autotile_script_state_stash.cpp)
 target_link_libraries(test_autotile_script_state_stash PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_autotile_script_state_stash PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_script_state_stash PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 # The split-tree case needs a screen with real geometry: the restore hangs off
 # recalculateLayout, which bails before it without one. Same fake provider
 # test_autotile_virtual uses.
@@ -666,8 +666,8 @@ add_test(NAME test_settings_perscreen_scrolling COMMAND test_settings_perscreen_
 # plasmazones_core's PUBLIC link.
 add_executable(test_page_owned_config_keys
     settings/test_page_owned_config_keys.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/controller/settingscontroller_pagetopology.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/controller/settingscontroller_pagekeys.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/controller/settingscontroller_pagetopology.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/controller/settingscontroller_pagekeys.cpp
 )
 target_link_libraries(test_page_owned_config_keys PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core
     PhosphorControl::PhosphorControl PhosphorRules::PhosphorRules
@@ -678,7 +678,7 @@ add_test(NAME test_page_owned_config_keys COMMAND test_page_owned_config_keys)
 add_executable(test_settingsvaluelabels config/settings/test_settingsvaluelabels.cpp)
 target_link_libraries(test_settingsvaluelabels
     PRIVATE Qt6::Test Qt6::Core plasmazones_core)
-target_compile_definitions(test_settingsvaluelabels PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_settingsvaluelabels PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_settingsvaluelabels COMMAND test_settingsvaluelabels)
 
 # v3 → v4 window-rule consolidation migration.
@@ -909,7 +909,7 @@ add_test(NAME test_cheatsheet_compression COMMAND test_cheatsheet_compression)
 
 qt_add_executable(test_shell_cheatsheet_bridge
     daemon/test_shell_cheatsheet_bridge.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/host/shellcheatsheetbridge.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/daemon/host/shellcheatsheetbridge.cpp
 )
 target_link_libraries(test_shell_cheatsheet_bridge PRIVATE Qt6::Test Qt6::Core Qt6::Network plasmazones_core)
 add_test(NAME test_shell_cheatsheet_bridge COMMAND test_shell_cheatsheet_bridge)
@@ -1003,7 +1003,7 @@ endif()
 
 add_executable(test_kwin_workspace_host
     daemon/test_kwin_workspace_host.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/daemon/host/kwinworkspacehost.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/daemon/host/kwinworkspacehost.cpp
 )
 target_link_libraries(test_kwin_workspace_host PRIVATE pz_test_shortcut_manager)
 target_link_libraries(test_kwin_workspace_host
@@ -1034,7 +1034,7 @@ p_add_test(test_scrollingtemplate_store core/layout/test_scrollingtemplate_store
 # plasmazones_core.
 target_link_libraries(test_scrollingtemplate_store PRIVATE PhosphorFsLoader::PhosphorFsLoader
                                                            PhosphorZones::PhosphorZones)
-target_compile_definitions(test_scrollingtemplate_store PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_scrollingtemplate_store PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # data/whatsnew.json is consumed at runtime through the Qt resource, but the
 # ordering invariant the settings dialog relies on (newest release first) is
@@ -1043,7 +1043,7 @@ target_compile_definitions(test_scrollingtemplate_store PRIVATE "P_SOURCE_DIR=\"
 # scrolling-template schema test above.
 p_add_test(test_whatsnew_data data/test_whatsnew_data.cpp)
 target_link_libraries(test_whatsnew_data PRIVATE PhosphorFsLoader::PhosphorFsLoader)
-target_compile_definitions(test_whatsnew_data PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_whatsnew_data PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # data/placement-hosts/plasmazones.json is installed for a settings module to
 # read through PhosphorConfig::HostDirectory. It repeats by hand the host id the
@@ -1057,7 +1057,7 @@ target_compile_definitions(test_whatsnew_data PRIVATE "P_SOURCE_DIR=\"${CMAKE_SO
 p_add_test(test_placement_host_descriptor data/test_placement_host_descriptor.cpp)
 target_link_libraries(test_placement_host_descriptor PRIVATE PhosphorConfig::PhosphorConfig
                                                              PhosphorProtocol::PhosphorProtocol)
-target_compile_definitions(test_placement_host_descriptor PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_placement_host_descriptor PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # The other direction of the same contract. validate-json-schemas.py checks DATA
 # against the shader schemas; nothing checked the schemas' own numeric bounds
@@ -1219,7 +1219,7 @@ add_test(NAME test_zone_detection_service COMMAND test_zone_detection_service)
 # ═══════════════════════════════════════════════════════════════════════════════
 p_add_test(test_per_screen_config autotile/engine/test_per_screen_config.cpp)
 target_link_libraries(test_per_screen_config PRIVATE PhosphorTileEngine::PhosphorTileEngine)
-target_compile_definitions(test_per_screen_config PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_per_screen_config PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # autotile/ - Navigation Controller Tests
@@ -1259,7 +1259,7 @@ add_test(NAME test_navigation_cross_surface COMMAND test_navigation_cross_surfac
 add_executable(test_navigation_retile
                autotile/navigation/test_navigation_retile.cpp)
 target_link_libraries(test_navigation_retile PRIVATE pz_test_fake_screens)
-target_compile_definitions(test_navigation_retile PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_navigation_retile PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_navigation_retile PRIVATE Qt6::Test Qt6::Core plasmazones_core
                                                      PhosphorTileEngine::PhosphorTileEngine)
 add_test(NAME test_navigation_retile COMMAND test_navigation_retile)
@@ -1267,7 +1267,7 @@ add_test(NAME test_navigation_retile COMMAND test_navigation_retile)
 add_executable(test_autotile_focus_retile
                autotile/behavior/test_autotile_focus_retile.cpp)
 target_link_libraries(test_autotile_focus_retile PRIVATE pz_test_fake_screens)
-target_compile_definitions(test_autotile_focus_retile PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_autotile_focus_retile PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_autotile_focus_retile PRIVATE Qt6::Test Qt6::Core plasmazones_core
                                                          PhosphorTileEngine::PhosphorTileEngine)
 add_test(NAME test_autotile_focus_retile COMMAND test_autotile_focus_retile)
@@ -1281,7 +1281,7 @@ add_executable(test_engine_settings autotile/engine/test_engine_settings.cpp)
 target_link_libraries(test_engine_settings PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core
                                                    PhosphorTileEngine::PhosphorTileEngine)
 add_test(NAME test_engine_settings COMMAND test_engine_settings)
-target_compile_definitions(test_engine_settings PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_engine_settings PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ui/ - Zone Shader Item Tests - need Qt6::Quick + PhosphorZoneRendering::PhosphorZoneRendering
@@ -1307,7 +1307,7 @@ target_link_libraries(test_zone_preview_highlight PRIVATE Qt6::Test Qt6::Core Qt
 # to that one file without a rebuild would be checked against a stale
 # Phosphor.Components. Running ctest after a build, which is the only
 # supported flow, cannot hit that.
-target_compile_definitions(test_zone_preview_highlight PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_zone_preview_highlight PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_zone_preview_highlight COMMAND test_zone_preview_highlight)
 
 # Component-load canary for the shared QML modules PlasmaZones links:
@@ -1352,7 +1352,7 @@ target_link_libraries(test_shader_item_qml_bindings PRIVATE Qt6::Test Qt6::Core 
 # silent-Binding regression this test exists for actually lived in. A read of
 # another tier's QML, recorded as a test input in plasmazones/moon.yml rather
 # than a dependency, which is what CLAUDE.md prescribes for a cross-tier read.
-target_compile_definitions(test_shader_item_qml_bindings PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\""
+target_compile_definitions(test_shader_item_qml_bindings PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\""
                                                                  "P_SURFACE_QUICK_QML_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-surface-quick/qml\"")
 add_test(NAME test_shader_item_qml_bindings COMMAND test_shader_item_qml_bindings)
 
@@ -1363,7 +1363,7 @@ target_link_libraries(test_zone_uniform_extension PRIVATE Qt6::Test Qt6::Core Qt
 # layout_matchesGlslUboDeclaration parses the real data/overlays/shared/common.glsl,
 # so the C++ struct is pinned to the declaration the packs actually compile against
 # rather than only to itself.
-target_compile_definitions(test_zone_uniform_extension PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_zone_uniform_extension PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_zone_uniform_extension COMMAND test_zone_uniform_extension)
 
 # Bake-check the VERTEX stage of every animation pack (plus
@@ -1380,7 +1380,7 @@ add_test(NAME test_zone_uniform_extension COMMAND test_zone_uniform_extension)
 # lives in test_animation_shader_preamble_bake.
 add_executable(test_animation_shader_bake ui/shaders/test_animation_shader_bake.cpp)
 target_link_libraries(test_animation_shader_bake PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorAnimation::PhosphorAnimation PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_animation_shader_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animation_shader_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animation_shader_bake COMMAND test_animation_shader_bake)
 
 # Pins ShaderIncludeResolver's #line bracketing + source-string legend so a
@@ -1404,7 +1404,7 @@ add_test(NAME test_shader_entry_point COMMAND test_shader_entry_point)
 # phosphor-engine-libs' own test_zone_entry_scaffold for the scaffold alone.
 add_executable(test_zone_entry_scaffold_bake ui/zones/test_zone_entry_scaffold_bake.cpp)
 target_link_libraries(test_zone_entry_scaffold_bake PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorZoneRendering::PhosphorZoneRendering PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_zone_entry_scaffold_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_zone_entry_scaffold_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_zone_entry_scaffold_bake COMMAND test_zone_entry_scaffold_bake)
 
 # Pins the source transforms in PhosphorShaders/ShaderParamPreamble.h:
@@ -1428,7 +1428,7 @@ add_test(NAME test_shader_param_preamble COMMAND test_shader_param_preamble)
 # context exists (it QSKIPs headless).
 add_executable(test_animation_shader_preamble_bake ui/shaders/test_animation_shader_preamble_bake.cpp)
 target_link_libraries(test_animation_shader_preamble_bake PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorAnimation::PhosphorAnimation PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_animation_shader_preamble_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animation_shader_preamble_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animation_shader_preamble_bake COMMAND test_animation_shader_preamble_bake)
 
 # Bakes the KWIN-PATH variant (#define PHOSPHOR_KWIN) of every animation pack
@@ -1441,7 +1441,7 @@ add_test(NAME test_animation_shader_preamble_bake COMMAND test_animation_shader_
 # (headless CI).
 add_executable(test_animation_shader_kwin_bake ui/shaders/test_animation_shader_kwin_bake.cpp)
 target_link_libraries(test_animation_shader_kwin_bake PRIVATE Qt6::Test Qt6::Core Qt6::Gui PhosphorAnimation::PhosphorAnimation PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_animation_shader_kwin_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animation_shader_kwin_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animation_shader_kwin_bake COMMAND test_animation_shader_kwin_bake)
 
 # The pointer twin: bakes the KWIN-PATH variant of every pointer pack (main
@@ -1452,7 +1452,7 @@ add_test(NAME test_animation_shader_kwin_bake COMMAND test_animation_shader_kwin
 # desktop-GL >= 4.5 context is available; an empty pack discovery FAILS.
 add_executable(test_pointer_shader_kwin_bake ui/shaders/test_pointer_shader_kwin_bake.cpp)
 target_link_libraries(test_pointer_shader_kwin_bake PRIVATE Qt6::Test Qt6::Core Qt6::Gui PhosphorPointer::PhosphorPointer PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_pointer_shader_kwin_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_pointer_shader_kwin_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_pointer_shader_kwin_bake COMMAND test_pointer_shader_kwin_bake)
 
 # DRAWS every bundled strip pack through the KWin-path variant the strip
@@ -1467,9 +1467,9 @@ add_test(NAME test_pointer_shader_kwin_bake COMMAND test_pointer_shader_kwin_bak
 # generate time, so the later creation is fine).
 if(USE_KDE_FRAMEWORKS AND BUILD_KWIN_EFFECT)
     add_executable(test_strip_pack_contract ui/shaders/test_strip_pack_contract.cpp)
-    target_include_directories(test_strip_pack_contract PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+    target_include_directories(test_strip_pack_contract PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
     target_link_libraries(test_strip_pack_contract PRIVATE Qt6::Test Qt6::Core Qt6::Gui PhosphorAnimation::PhosphorAnimation PhosphorShaders::PhosphorShaders PkgConfig::TestEpoxy)
-    target_compile_definitions(test_strip_pack_contract PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+    target_compile_definitions(test_strip_pack_contract PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
     add_test(NAME test_strip_pack_contract COMMAND test_strip_pack_contract)
 endif()
 
@@ -1478,7 +1478,7 @@ endif()
 # real animation UBO; lone pIn falls through; traditional main() passes (T1.5).
 add_executable(test_animation_entry_scaffold ui/shaders/test_animation_entry_scaffold.cpp)
 target_link_libraries(test_animation_entry_scaffold PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorAnimation::PhosphorAnimation PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
-target_compile_definitions(test_animation_entry_scaffold PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animation_entry_scaffold PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animation_entry_scaffold COMMAND test_animation_entry_scaffold)
 
 # Cross-checks that every animation shader's `#define <paramId>
@@ -1490,7 +1490,7 @@ add_test(NAME test_animation_entry_scaffold COMMAND test_animation_entry_scaffol
 # can't ship and silently deliver wrong values.
 add_executable(test_animation_shader_param_wiring ui/shaders/test_animation_shader_param_wiring.cpp)
 target_link_libraries(test_animation_shader_param_wiring PRIVATE Qt6::Test Qt6::Core)
-target_compile_definitions(test_animation_shader_param_wiring PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animation_shader_param_wiring PRIVATE "PLASMAZONES_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animation_shader_param_wiring COMMAND test_animation_shader_param_wiring)
 
 # Pure-geometry test for the kwin-effect's anchor-uniform branch
@@ -1500,7 +1500,7 @@ add_executable(test_anchor_uniforms ui/effect/test_anchor_uniforms.cpp)
 target_link_libraries(test_anchor_uniforms PRIVATE Qt6::Test Qt6::Core Qt6::Gui PhosphorAnimation::PhosphorAnimation)
 # Resolve <plasmazoneseffect/shader_internal.h> without a brittle relative
 # path, and let CMake track the header as a dependency of the test.
-target_include_directories(test_anchor_uniforms PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_anchor_uniforms PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_anchor_uniforms COMMAND test_anchor_uniforms)
 
 # Pure-timing test for the compositor's shader clock
@@ -1510,7 +1510,7 @@ add_test(NAME test_anchor_uniforms COMMAND test_anchor_uniforms)
 # deliberate overshoot passthrough. Same header-only reach as the anchor test.
 add_executable(test_shader_timing ui/effect/test_shader_timing.cpp)
 target_link_libraries(test_shader_timing PRIVATE Qt6::Test Qt6::Core Qt6::Gui PhosphorAnimation::PhosphorAnimation)
-target_include_directories(test_shader_timing PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_shader_timing PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_shader_timing COMMAND test_shader_timing)
 
 # Pure-logic test for the scroll-managed window decision helpers
@@ -1527,7 +1527,7 @@ add_test(NAME test_shader_timing COMMAND test_shader_timing)
 # the anchor test.
 add_executable(test_scroll_decisions ui/effect/test_scroll_decisions.cpp)
 target_link_libraries(test_scroll_decisions PRIVATE Qt6::Test Qt6::Core PhosphorProtocol::PhosphorProtocol)
-target_include_directories(test_scroll_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_scroll_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_scroll_decisions COMMAND test_scroll_decisions)
 
 # Pure-logic test for the scrolling strip keys (tilinghandler/stripkeys.h): a
@@ -1535,7 +1535,7 @@ add_test(NAME test_scroll_decisions COMMAND test_scroll_decisions)
 # and a strip's edges are its own screen's rect. Same header-only reach.
 add_executable(test_strip_keys ui/effect/test_strip_keys.cpp)
 target_link_libraries(test_strip_keys PRIVATE Qt6::Test Qt6::Core PhosphorIdentity::PhosphorIdentity)
-target_include_directories(test_strip_keys PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_strip_keys PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_strip_keys COMMAND test_strip_keys)
 
 # Pure-logic test for the desktop-switch pre-autotile restore decision
@@ -1547,7 +1547,7 @@ add_test(NAME test_strip_keys COMMAND test_strip_keys)
 # reach as the scroll test.
 add_executable(test_pretile_decisions ui/effect/test_pretile_decisions.cpp)
 target_link_libraries(test_pretile_decisions PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_pretile_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_pretile_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_pretile_decisions COMMAND test_pretile_decisions)
 
 # Pure-logic test for the instant snap-restore pick
@@ -1556,7 +1556,7 @@ add_test(NAME test_pretile_decisions COMMAND test_pretile_decisions)
 # on an engine-managed screen. Same header-only reach.
 add_executable(test_instant_restore_decisions ui/effect/test_instant_restore_decisions.cpp)
 target_link_libraries(test_instant_restore_decisions PRIVATE Qt6::Test Qt6::Core PhosphorIdentity::PhosphorIdentity)
-target_include_directories(test_instant_restore_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_instant_restore_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_instant_restore_decisions COMMAND test_instant_restore_decisions)
 
 # Pure-logic test for the end of an interactive resize
@@ -1565,7 +1565,7 @@ add_test(NAME test_instant_restore_decisions COMMAND test_instant_restore_decisi
 # neighbour-reflow report is sent. Same header-only reach.
 add_executable(test_gesture_end_decisions ui/effect/test_gesture_end_decisions.cpp)
 target_link_libraries(test_gesture_end_decisions PRIVATE Qt6::Test Qt6::Core PhosphorIdentity::PhosphorIdentity)
-target_include_directories(test_gesture_end_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_gesture_end_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_gesture_end_decisions COMMAND test_gesture_end_decisions)
 
 # The rows the rule editor's window picker is offered
@@ -1574,7 +1574,7 @@ add_test(NAME test_gesture_end_decisions COMMAND test_gesture_end_decisions)
 # Same header-only reach.
 add_executable(test_running_windows_decisions ui/effect/test_running_windows_decisions.cpp)
 target_link_libraries(test_running_windows_decisions PRIVATE Qt6::Test Qt6::Core PhosphorIdentity::PhosphorIdentity)
-target_include_directories(test_running_windows_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_running_windows_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_running_windows_decisions COMMAND test_running_windows_decisions)
 
 # The absolute rect of a virtual screen (plasmazoneseffect/virtualscreengeometry.h):
@@ -1583,7 +1583,7 @@ add_test(NAME test_running_windows_decisions COMMAND test_running_windows_decisi
 # which the cut is compared against.
 add_executable(test_virtual_screen_geometry ui/effect/test_virtual_screen_geometry.cpp)
 target_link_libraries(test_virtual_screen_geometry PRIVATE Qt6::Test Qt6::Core PhosphorScreens::Core)
-target_include_directories(test_virtual_screen_geometry PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_virtual_screen_geometry PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_virtual_screen_geometry COMMAND test_virtual_screen_geometry)
 
 # Which output pixel sizes the effect owes the daemon, and when the shape
@@ -1592,7 +1592,7 @@ add_test(NAME test_virtual_screen_geometry COMMAND test_virtual_screen_geometry)
 # header-only reach.
 add_executable(test_pixel_size_decisions ui/effect/test_pixel_size_decisions.cpp)
 target_link_libraries(test_pixel_size_decisions PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_pixel_size_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_pixel_size_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_pixel_size_decisions COMMAND test_pixel_size_decisions)
 
 # Pure-logic test for the screen of a window filling a split output
@@ -1600,7 +1600,7 @@ add_test(NAME test_pixel_size_decisions COMMAND test_pixel_size_decisions)
 # the last stamp, and only a live virtual screen. Same header-only reach.
 add_executable(test_window_screen_decisions ui/effect/test_window_screen_decisions.cpp)
 target_link_libraries(test_window_screen_decisions PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_window_screen_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_window_screen_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_window_screen_decisions COMMAND test_window_screen_decisions)
 
 # The effect's per-window command stamps (plasmazoneseffect/effect_state.h): a
@@ -1609,7 +1609,7 @@ add_test(NAME test_window_screen_decisions COMMAND test_window_screen_decisions)
 # Header-only reach.
 add_executable(test_command_stamps ui/effect/test_command_stamps.cpp)
 target_link_libraries(test_command_stamps PRIVATE Qt6::Test Qt6::Core PhosphorCompositor::PhosphorCompositor)
-target_include_directories(test_command_stamps PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_command_stamps PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_command_stamps COMMAND test_command_stamps)
 
 # Pure-logic test for a tile batch's overlap restack
@@ -1618,25 +1618,25 @@ add_test(NAME test_command_stamps COMMAND test_command_stamps)
 # replayed for the context a batch belongs to. Same header-only reach.
 add_executable(test_stack_decisions ui/effect/test_stack_decisions.cpp)
 target_link_libraries(test_stack_decisions PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_stack_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_stack_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_stack_decisions COMMAND test_stack_decisions)
 
 # The effect's pure placement-statement decisions (placementstatement.h).
 add_executable(test_placement_statement ui/effect/test_placement_statement.cpp)
 target_link_libraries(test_placement_statement PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_placement_statement PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_placement_statement PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_placement_statement COMMAND test_placement_statement)
 
 # The effect's untile-diff jurisdiction (untiledecisions.h).
 add_executable(test_untile_decisions ui/effect/test_untile_decisions.cpp)
 target_link_libraries(test_untile_decisions PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_untile_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_untile_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_untile_decisions COMMAND test_untile_decisions)
 
 # The effect's centring-pass witness (centringdecisions.h).
 add_executable(test_centring_decisions ui/effect/test_centring_decisions.cpp)
 target_link_libraries(test_centring_decisions PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_centring_decisions PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_centring_decisions PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_centring_decisions COMMAND test_centring_decisions)
 
 # Pure-logic test for the drag-policy transition
@@ -1645,7 +1645,7 @@ add_test(NAME test_centring_decisions COMMAND test_centring_decisions)
 # the keyboard grab following the daemon's answer. Same header-only reach.
 add_executable(test_drag_policy_transition ui/effect/test_drag_policy_transition.cpp)
 target_link_libraries(test_drag_policy_transition PRIVATE Qt6::Test Qt6::Core PhosphorProtocol::PhosphorProtocol)
-target_include_directories(test_drag_policy_transition PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_drag_policy_transition PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_drag_policy_transition COMMAND test_drag_policy_transition)
 
 # Pure-logic test for the window flag edges (plasmazoneseffect/windowflagedges.h):
@@ -1653,7 +1653,7 @@ add_test(NAME test_drag_policy_transition COMMAND test_drag_policy_transition)
 # flags-settle re-evaluation. Same header-only reach.
 add_executable(test_window_flag_edges ui/effect/test_window_flag_edges.cpp)
 target_link_libraries(test_window_flag_edges PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_window_flag_edges PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_window_flag_edges PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_window_flag_edges COMMAND test_window_flag_edges)
 
 # Pure-logic test for the minimize-float qualifiers
@@ -1661,7 +1661,7 @@ add_test(NAME test_window_flag_edges COMMAND test_window_flag_edges)
 # can still be the tile it is about to get. Same header-only reach.
 add_executable(test_minimize_float_marks ui/effect/test_minimize_float_marks.cpp)
 target_link_libraries(test_minimize_float_marks PRIVATE Qt6::Test Qt6::Core)
-target_include_directories(test_minimize_float_marks PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_minimize_float_marks PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 add_test(NAME test_minimize_float_marks COMMAND test_minimize_float_marks)
 
 # Pure-geometry test for per-VS wallpaper cropping (PR #333). Pins the C++
@@ -2012,7 +2012,7 @@ add_executable(test_daemon_lifecycle_order daemon/test_daemon_lifecycle_order.cp
 # phosphor-engine-libs tree; the daemon's main(), Daemon and its unit are this
 # tree's.
 target_compile_definitions(test_daemon_lifecycle_order
-                           PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\""
+                           PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\""
                                    "P_RUNTIME_SOURCE_DIR=\"${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
 target_link_libraries(test_daemon_lifecycle_order PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_daemon_lifecycle_order COMMAND test_daemon_lifecycle_order)
@@ -2034,7 +2034,7 @@ add_test(NAME test_preset_registry_wiring COMMAND test_preset_registry_wiring)
 # properties) against its XML so drift fails CI instead of shipping.
 add_executable(test_dbus_contract_sync dbus/test_dbus_contract_sync.cpp)
 target_compile_definitions(test_dbus_contract_sync
-                           PRIVATE PLASMAZONES_DBUS_XML_DIR="${CMAKE_SOURCE_DIR}/plasmazones/dbus")
+                           PRIVATE PLASMAZONES_DBUS_XML_DIR="${PROJECT_SOURCE_DIR}/plasmazones/dbus")
 target_link_libraries(test_dbus_contract_sync PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME test_dbus_contract_sync COMMAND test_dbus_contract_sync)
 
@@ -2046,8 +2046,8 @@ add_test(NAME test_dbus_contract_sync COMMAND test_dbus_contract_sync)
 # effect's own source rather than duplicated, so the test cannot drift.
 add_executable(test_settings_registry_contract dbus/test_settings_registry_contract.cpp)
 target_compile_definitions(test_settings_registry_contract
-                           PRIVATE PLASMAZONES_EFFECT_SRC_DIR="${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect"
-                                   PLASMAZONES_EDITOR_SRC_DIR="${CMAKE_SOURCE_DIR}/plasmazones/src/editor"
+                           PRIVATE PLASMAZONES_EFFECT_SRC_DIR="${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect"
+                                   PLASMAZONES_EDITOR_SRC_DIR="${PROJECT_SOURCE_DIR}/plasmazones/src/editor"
                                    PLASMAZONES_PROTOCOL_INC_DIR="${phosphor-libs_SOURCE_DIR}/libs/phosphor-protocol/include")
 # PhosphorAnimation: the fixture builds a real PhosphorProfileRegistry, because
 # initializeRegistry() gates the motionProfileTree getter behind a non-null one — with
@@ -2180,7 +2180,7 @@ add_test(NAME test_windowdrag_drop_proxy COMMAND test_windowdrag_drop_proxy)
 # behavior-controller suites below link it from this OBJECT library rather
 # than each compiling it.
 add_library(pz_test_trigger_utils OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/utils/triggerutils.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/utils/triggerutils.cpp
 )
 target_link_libraries(pz_test_trigger_utils PUBLIC Qt6::Core plasmazones_core)
 
@@ -2193,7 +2193,7 @@ target_link_libraries(pz_test_trigger_utils PUBLIC Qt6::Core plasmazones_core)
 # plasmazones_core, and links triggerutils from pz_test_trigger_utils.
 add_executable(test_snapping_behavior_controller
     settings/pages/test_snapping_behavior_controller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/snappingbehaviorcontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/snappingbehaviorcontroller.cpp
 )
 target_link_libraries(test_snapping_behavior_controller PRIVATE pz_test_trigger_utils Qt6::Test Qt6::Core
     plasmazones_core PhosphorControl::PhosphorControl)
@@ -2202,7 +2202,7 @@ add_test(NAME test_snapping_behavior_controller COMMAND test_snapping_behavior_c
 # The scrolling twin, same compile-the-sources-directly reason as above.
 add_executable(test_scrolling_behavior_controller
     settings/pages/test_scrolling_behavior_controller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/scrollingbehaviorcontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/scrollingbehaviorcontroller.cpp
 )
 target_link_libraries(test_scrolling_behavior_controller PRIVATE pz_test_trigger_utils Qt6::Test Qt6::Core
     plasmazones_core PhosphorControl::PhosphorControl)
@@ -2212,7 +2212,7 @@ add_test(NAME test_scrolling_behavior_controller COMMAND test_scrolling_behavior
 # Q_PROPERTY on Settings. Same compile-the-source-directly reason as above.
 add_executable(test_editor_page_controller
     settings/pages/test_editor_page_controller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/editorpagecontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/editorpagecontroller.cpp
 )
 target_link_libraries(test_editor_page_controller PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core
     PhosphorControl::PhosphorControl)
@@ -2230,7 +2230,7 @@ add_test(NAME test_editor_page_controller COMMAND test_editor_page_controller)
 # beyond the include path. Linking PhosphorTiles rather than hand-listing paths
 # lets its interface carry the transitive PhosphorLayoutApi include it needs.
 add_library(pz_test_algorithm_scaffold OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/services/algorithmscaffold.cpp)
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/services/algorithmscaffold.cpp)
 target_link_libraries(pz_test_algorithm_scaffold PUBLIC Qt6::Core PhosphorTiles::PhosphorTiles)
 
 add_executable(test_algorithm_scaffold
@@ -2238,7 +2238,7 @@ add_executable(test_algorithm_scaffold
 )
 target_link_libraries(test_algorithm_scaffold PRIVATE Qt6::Test Qt6::Core PhosphorTiles::PhosphorTiles
     pz_test_algorithm_scaffold)
-target_compile_definitions(test_algorithm_scaffold PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_algorithm_scaffold PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_algorithm_scaffold COMMAND test_algorithm_scaffold)
 
 # The one AlgorithmService surface that feeds the scaffold's
@@ -2248,7 +2248,7 @@ add_test(NAME test_algorithm_scaffold COMMAND test_algorithm_scaffold)
 # plasmazones-settings executable) plus PhosphorTiles for the Luau loader.
 add_executable(test_algorithm_copy_suffix
     settings/services/test_algorithm_copy_suffix.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/services/algorithmservice.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/services/algorithmservice.cpp
 )
 target_link_libraries(test_algorithm_copy_suffix PRIVATE Qt6::Test Qt6::Core plasmazones_core
     PhosphorTiles::PhosphorTiles pz_test_algorithm_scaffold)
@@ -2285,7 +2285,7 @@ add_test(NAME test_layoutadaptor_nameclamp COMMAND test_layoutadaptor_nameclamp)
 
 add_executable(test_window_appearance_controller
     settings/pages/test_window_appearance_controller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/windowappearancecontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/windowappearancecontroller.cpp
 )
 target_link_libraries(test_window_appearance_controller PRIVATE Qt6::Test Qt6::Core plasmazones_core
     PhosphorControl::PhosphorControl PhosphorRules::PhosphorRules)
@@ -2293,11 +2293,11 @@ add_test(NAME test_window_appearance_controller COMMAND test_window_appearance_c
 
 add_executable(test_tiling_algorithm_controller
     settings/pages/test_tiling_algorithm_controller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/tilingalgorithmcontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/tilingalgorithmcontroller.cpp
 )
 target_link_libraries(test_tiling_algorithm_controller PRIVATE Qt6::Test Qt6::Core plasmazones_core
     PhosphorControl::PhosphorControl PhosphorRules::PhosphorRules)
-target_compile_definitions(test_tiling_algorithm_controller PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_tiling_algorithm_controller PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_tiling_algorithm_controller COMMAND test_tiling_algorithm_controller)
 
 # The shader-set store and the files it reads and installs, which the
@@ -2305,9 +2305,9 @@ add_test(NAME test_tiling_algorithm_controller COMMAND test_tiling_algorithm_con
 # once (see pz_test_fake_screens at the top of this file); every test that
 # links one of those controllers links this too.
 add_library(pz_test_shader_sets OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/stores/shadersetstore.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/utils/animationfileutils.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/services/shaderpackinstaller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/stores/shadersetstore.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/utils/animationfileutils.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/services/shaderpackinstaller.cpp
 )
 target_link_libraries(pz_test_shader_sets PUBLIC Qt6::Core plasmazones_core)
 
@@ -2317,17 +2317,17 @@ target_link_libraries(pz_test_shader_sets PUBLIC Qt6::Core plasmazones_core)
 # params). One library so a new controller source file cannot silently miss one
 # of them; each links it together with pz_test_shader_sets.
 add_library(pz_test_animations_ctrl OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationpreviewcontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationpreviewcontroller.cpp
     # The preview controller's move simulation drives the kwin-effect's
     # wobble spring integrator (see animationpreviewcontroller.h).
-    ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/plasmazoneseffect/mesh_sim.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_shaders.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_overrides.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_groupwrites.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_paths.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/stores/animationpresetlibrary.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/services/motionsetdomain.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/plasmazoneseffect/mesh_sim.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_shaders.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_overrides.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_groupwrites.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationspagecontroller_paths.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/stores/animationpresetlibrary.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/services/motionsetdomain.cpp
 )
 target_link_libraries(pz_test_animations_ctrl
     PUBLIC
@@ -2408,11 +2408,11 @@ add_test(NAME test_animations_suppression_mirror COMMAND test_animations_suppres
 # the source tree.
 add_executable(test_animations_qml_contracts
     settings/pages/test_animations_qml_contracts.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationpagescope.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationpagescope.cpp
 )
 target_link_libraries(test_animations_qml_contracts PRIVATE pz_test_animations_ctrl pz_test_shader_sets)
 target_compile_definitions(test_animations_qml_contracts
-    PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\""
+    PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\""
 )
 target_link_libraries(test_animations_qml_contracts
     PRIVATE
@@ -2501,7 +2501,7 @@ target_link_libraries(test_animations_motion_sets
 )
 # The shader-half round-trip tests use AnimationsControllerFixture, whose
 # PopulatedControllerFixture::dataDir() names the bundled pack tree.
-target_compile_definitions(test_animations_motion_sets PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animations_motion_sets PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animations_motion_sets COMMAND test_animations_motion_sets)
 
 # Companion test executable: the user-preset library (AnimationPresetLibrary).
@@ -2538,7 +2538,7 @@ target_link_libraries(test_animations_shader_overrides
         PhosphorControl::PhosphorControl
         plasmazones_core
 )
-target_compile_definitions(test_animations_shader_overrides PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animations_shader_overrides PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animations_shader_overrides COMMAND test_animations_shader_overrides)
 
 # Params-only shader writer + the group readers that answer what a path owns.
@@ -2558,7 +2558,7 @@ target_link_libraries(test_animations_shader_param_writes
         PhosphorControl::PhosphorControl
         plasmazones_core
 )
-target_compile_definitions(test_animations_shader_param_writes PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animations_shader_param_writes PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animations_shader_param_writes COMMAND test_animations_shader_param_writes)
 
 # The orphaned-parameter surface. Its own TU rather than more slots in the
@@ -2579,7 +2579,7 @@ target_link_libraries(test_animations_stale_params
         PhosphorControl::PhosphorControl
         plasmazones_core
 )
-target_compile_definitions(test_animations_stale_params PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_animations_stale_params PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_animations_stale_params COMMAND test_animations_stale_params)
 
 # Decoration page (per-surface DecorationProfileTree editor): reader /
@@ -2593,7 +2593,7 @@ add_test(NAME test_animations_stale_params COMMAND test_animations_stale_params)
 # The two preview controllers, each also tested on its own below
 # (test_decorationpreviewcontroller, test_pointer_qml_contracts).
 add_library(pz_test_decoration_preview OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpreviewcontroller.cpp)
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpreviewcontroller.cpp)
 target_link_libraries(pz_test_decoration_preview
     PUBLIC
         Qt6::Core
@@ -2604,7 +2604,7 @@ target_link_libraries(pz_test_decoration_preview
         plasmazones_core
 )
 add_library(pz_test_pointer_preview OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/pointerpreviewcontroller.cpp)
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/pointerpreviewcontroller.cpp)
 target_link_libraries(pz_test_pointer_preview
     PUBLIC
         Qt6::Core
@@ -2624,10 +2624,10 @@ target_link_libraries(pz_test_pointer_preview
 # since the pointer became another decoration surface, so omitting either is
 # a link error in each of the three, not a silent degradation.
 add_library(pz_test_decoration_ctrl OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_paths.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_browser.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_sets.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_paths.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_browser.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_sets.cpp
 )
 target_link_libraries(pz_test_decoration_ctrl
     PUBLIC
@@ -2648,7 +2648,7 @@ target_link_libraries(pz_test_decoration_ctrl
 # compiles it here, and a Release+LTO build would re-emit the GCC 16
 # std::optional maybe-uninitialized false positive from the test build.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set_source_files_properties(${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_sets.cpp PROPERTIES
+    set_source_files_properties(${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagecontroller_sets.cpp PROPERTIES
         COMPILE_OPTIONS "-fno-lto;-Wno-maybe-uninitialized")
 endif()
 add_executable(test_decorationpagecontroller
@@ -2671,7 +2671,7 @@ target_link_libraries(test_decorationpagecontroller
 # P_SOURCE_DIR: the previewKind slot pins the controller's route token against
 # the QML that compares literally against it. The QML side falls back to the
 # zone pane when the token does not match, so a drift is silent otherwise.
-target_compile_definitions(test_decorationpagecontroller PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_decorationpagecontroller PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_decorationpagecontroller COMMAND test_decorationpagecontroller)
 
 # The overlays page controller, shared by test_overlays_page_controller,
@@ -2681,8 +2681,8 @@ add_test(NAME test_decorationpagecontroller COMMAND test_decorationpagecontrolle
 # forwards into the shared installer, so omitting it is a link error, not a
 # silent degradation, even though the suites do not exercise the installer.
 add_library(pz_test_overlays_ctrl OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/overlayspagecontroller.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/overlayspagecontroller_sets.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/overlayspagecontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/overlayspagecontroller_sets.cpp
 )
 target_link_libraries(pz_test_overlays_ctrl
     PUBLIC
@@ -2722,7 +2722,7 @@ add_executable(test_overlays_qml_contracts
     settings/pages/test_overlays_qml_contracts.cpp
 )
 target_link_libraries(test_overlays_qml_contracts PRIVATE pz_test_overlays_ctrl pz_test_shader_sets)
-target_compile_definitions(test_overlays_qml_contracts PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_overlays_qml_contracts PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_overlays_qml_contracts
     PRIVATE
         Qt6::Test
@@ -2778,7 +2778,7 @@ target_link_libraries(test_decorationpreviewcontroller
 # metaobject. The animations route has the same guard for its `bridge.*`
 # surface, but it only ever instantiates AnimationsPageController, so it cannot
 # speak for this route's controllers.
-target_compile_definitions(test_decorationpreviewcontroller PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_decorationpreviewcontroller PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_decorationpreviewcontroller COMMAND test_decorationpreviewcontroller)
 
 # The pointer route's counterpart to the guard above. The decoration sweep
@@ -2801,8 +2801,8 @@ target_link_libraries(test_pointer_qml_contracts
         PhosphorShaders::PhosphorShaders
         plasmazones_core
 )
-target_include_directories(test_pointer_qml_contracts PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/src/settings)
-target_compile_definitions(test_pointer_qml_contracts PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_include_directories(test_pointer_qml_contracts PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/src/settings)
+target_compile_definitions(test_pointer_qml_contracts PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_pointer_qml_contracts COMMAND test_pointer_qml_contracts)
 
 # Companion test executable: decoration-set CRUD over the shared
@@ -2858,7 +2858,7 @@ add_test(NAME test_decoration_sets_validation COMMAND test_decoration_sets_valid
 # the logging categories the bridge uses; the test never builds a config store.
 add_executable(test_shaderpresetbridge
     settings/stores/test_shaderpresetbridge.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/stores/shaderpresetbridge.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/stores/shaderpresetbridge.cpp
 )
 target_link_libraries(test_shaderpresetbridge
     PRIVATE
@@ -2871,7 +2871,7 @@ target_link_libraries(test_shaderpresetbridge
 # P_SOURCE_DIR for the presetBridge QML-reachability guard, which scrapes the
 # settings QML tree the way the decoration preview's previewController guard
 # scrapes its own.
-target_compile_definitions(test_shaderpresetbridge PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_shaderpresetbridge PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_shaderpresetbridge COMMAND test_shaderpresetbridge)
 
 # Settings profiles: the ProfileStore delta / inheritance-resolution engine
@@ -2879,9 +2879,9 @@ add_test(NAME test_shaderpresetbridge COMMAND test_shaderpresetbridge)
 # links only the store itself (no PhosphorConfig::Store needed).
 add_executable(test_profilestore
     settings/stores/test_profilestore.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/stores/profilestore.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/stores/profilestore_diff.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/stores/profilestore_revert.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/stores/profilestore.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/stores/profilestore_diff.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/stores/profilestore_revert.cpp
 )
 target_link_libraries(test_profilestore
     PRIVATE
@@ -2902,33 +2902,33 @@ add_test(NAME test_profilestore COMMAND test_profilestore)
 # controller's multi-file class definition cannot be forgotten in one copy.
 # A controller test links both: the controller is built on the model.
 add_library(pz_test_rule_model OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel.cpp
     # Label tables + summaries, split from rulemodel.cpp for file-size; the
     # match-side labels split again into rulemodel_matchlabels.cpp.
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel_labels.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel_matchlabels.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel_fieldtables.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel_labels.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel_matchlabels.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulemodel_fieldtables.cpp
     # rulemodel's action summary shares its boolean polarity phrasing with
     # the editor via RuleAuthoring::boolActionStateLabel.
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring_actiondescriptions.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring_actiondescriptions.cpp
     # Per-param labels, hints, schema, and defaultPayloadFor, split from
     # ruleauthoring_actions.cpp for file-size.
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring_actionparams.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring_actions.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring_actionparams.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/ruleauthoring_actions.cpp
 )
 target_link_libraries(pz_test_rule_model PUBLIC Qt6::Core PhosphorRules::PhosphorRules plasmazones_core)
 add_library(pz_test_rule_controller OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller.cpp
     # Read-only / projection methods (sections, rulesSnapshot, monitorOverview,
     # author surfaces, validation). The controller's class definition spans
     # this TU and rulecontroller.cpp.
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller_views.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller_views.cpp
     # Label-lookup setters + wiring-completion gate. The controller's class
     # definition spans this TU and rulecontroller.cpp.
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller_lookups.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller_baseline.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/ruletemplates.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller_lookups.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulecontroller_baseline.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/ruletemplates.cpp
 )
 target_link_libraries(pz_test_rule_controller
     PUBLIC
@@ -2984,7 +2984,7 @@ target_link_libraries(test_rule_controller_overview
 )
 # rulesSnapshotFeedsEveryRuleRowRequiredProperty scrapes RuleRow.qml from the
 # source tree to check the snapshot carries every property the row requires.
-target_compile_definitions(test_rule_controller_overview PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_rule_controller_overview PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 add_test(NAME test_rule_controller_overview COMMAND test_rule_controller_overview)
 
 # Vocabulary half of the controller suite (engine-mode picker tokens, input
@@ -3010,7 +3010,7 @@ add_test(NAME test_rule_controller_vocabulary COMMAND test_rule_controller_vocab
 # running-windows rows.
 add_executable(test_rule_picker_options
     settings/rules/test_rule_picker_options.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/rules/rulepickeroptions.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/rules/rulepickeroptions.cpp
 )
 target_link_libraries(test_rule_picker_options
     PRIVATE
@@ -3123,8 +3123,8 @@ add_test(NAME test_tiling_state COMMAND test_tiling_state)
 # headers, and the include path is the effect tree so its own "compositor/..."
 # include resolves.
 add_executable(test_strip_view_animator compositor-common/test_strip_view_animator.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/compositor/stripviewanimator.cpp)
-target_include_directories(test_strip_view_animator PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+               ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/compositor/stripviewanimator.cpp)
+target_include_directories(test_strip_view_animator PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_strip_view_animator PRIVATE Qt6::Test PhosphorAnimation::PhosphorAnimation
                                                        PhosphorProtocol::Types)
 add_test(NAME test_strip_view_animator COMMAND test_strip_view_animator)
@@ -3133,13 +3133,13 @@ add_test(NAME test_strip_view_animator COMMAND test_strip_view_animator)
 # extracted from TilingHandler exactly so this suite exists — its three-way
 # absent/malformed/valid contract fails silently on screen.
 add_executable(test_scroll_behaviour_parse compositor-common/test_scroll_behaviour_parse.cpp)
-target_include_directories(test_scroll_behaviour_parse PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_scroll_behaviour_parse PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_scroll_behaviour_parse PRIVATE Qt6::Test Qt6::DBus)
 add_test(NAME test_scroll_behaviour_parse COMMAND test_scroll_behaviour_parse)
 
 # The desktop-arrival park's cause bookkeeping (desktoparrivalparks.h, F415).
 add_executable(test_desktop_arrival_parks compositor-common/test_desktop_arrival_parks.cpp)
-target_include_directories(test_desktop_arrival_parks PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_desktop_arrival_parks PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_desktop_arrival_parks PRIVATE Qt6::Test)
 add_test(NAME test_desktop_arrival_parks COMMAND test_desktop_arrival_parks)
 
@@ -3147,22 +3147,22 @@ add_test(NAME test_desktop_arrival_parks COMMAND test_desktop_arrival_parks)
 # the suite includes it straight from the effect tree and drives it with a
 # hand-rolled clock — the same shape as test_strip_view_animator above.
 add_executable(test_strip_motion_sampler compositor-common/test_strip_motion_sampler.cpp)
-target_include_directories(test_strip_motion_sampler PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_strip_motion_sampler PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_strip_motion_sampler PRIVATE Qt6::Test)
 add_test(NAME test_strip_motion_sampler COMMAND test_strip_motion_sampler)
 
 add_executable(test_window_context_edge compositor-common/test_window_context_edge.cpp)
-target_include_directories(test_window_context_edge PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_window_context_edge PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_window_context_edge PRIVATE Qt6::Test)
 add_test(NAME test_window_context_edge COMMAND test_window_context_edge)
 
 add_executable(test_window_context_hold compositor-common/test_window_context_hold.cpp)
-target_include_directories(test_window_context_hold PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_window_context_hold PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_window_context_hold PRIVATE Qt6::Test)
 add_test(NAME test_window_context_hold COMMAND test_window_context_hold)
 
 add_executable(test_desktop_move_stash compositor-common/test_desktop_move_stash.cpp)
-target_include_directories(test_desktop_move_stash PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+target_include_directories(test_desktop_move_stash PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_desktop_move_stash PRIVATE Qt6::Test PhosphorIdentity::PhosphorIdentity)
 add_test(NAME test_desktop_move_stash COMMAND test_desktop_move_stash)
 
@@ -3180,7 +3180,7 @@ if(USE_KDE_FRAMEWORKS AND BUILD_KWIN_EFFECT)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(TestEpoxy REQUIRED IMPORTED_TARGET epoxy)
     add_executable(test_transition_pass_pure compositor-common/test_transition_pass_pure.cpp)
-    target_include_directories(test_transition_pass_pure PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+    target_include_directories(test_transition_pass_pure PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
     target_link_libraries(test_transition_pass_pure PRIVATE Qt6::Test PkgConfig::TestEpoxy)
     add_test(NAME test_transition_pass_pure COMMAND test_transition_pass_pure)
 endif()
@@ -3241,14 +3241,14 @@ add_test(NAME test_decoration_manager COMMAND test_decoration_manager)
 # gates, which fail instead: the gates are what must never silently lose
 # coverage, while these targets are also a developer's inner-loop tests.
 add_library(pz_test_pack_validators OBJECT
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_overlay.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_animation.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_surface.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_surface_lints.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_surface_buffer_lints.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_pointer.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidatorcommon.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_compositor.cpp)
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_overlay.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_animation.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_surface.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_surface_lints.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_surface_buffer_lints.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_pointer.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidatorcommon.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/shadervalidate/packvalidator_compositor.cpp)
 target_link_libraries(pz_test_pack_validators
     PUBLIC
         PhosphorPaths::PhosphorPaths
@@ -3267,7 +3267,7 @@ foreach(_pv_test IN ITEMS test_pack_validators test_pack_validator_presets test_
     add_executable(${_pv_test} shadervalidate/${_pv_test}.cpp
                    shadervalidate/packvalidatortesthelpers.h)
     target_link_libraries(${_pv_test} PRIVATE Qt6::Test pz_test_pack_validators)
-    target_compile_definitions(${_pv_test} PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+    target_compile_definitions(${_pv_test} PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
     # No isolation call here on purpose: the directory-wide loop at the bottom of
     # this file picks up every add_test registered above it, these included.
     add_test(NAME ${_pv_test} COMMAND ${_pv_test})
@@ -3293,16 +3293,16 @@ endforeach()
 # executable rather than a library, so their TUs are compiled into the test
 # directly.
 add_executable(test_zone_zorder editor/test_zone_zorder.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/helpers/ZoneSerialization.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/services/ZoneManager.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/services/ZoneAutoFiller.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/services/zonemanager/divider.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/services/zonemanager/zorder.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/services/zonemanager/serialization.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/undo/commands/BaseZoneCommand.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/undo/commands/DeleteZoneCommand.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/undo/commands/DividerResizeCommand.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/undo/commands/FillZoneCommand.cpp)
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/helpers/ZoneSerialization.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/services/ZoneManager.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/services/ZoneAutoFiller.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/services/zonemanager/divider.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/services/zonemanager/zorder.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/services/zonemanager/serialization.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/undo/commands/BaseZoneCommand.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/undo/commands/DeleteZoneCommand.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/undo/commands/DividerResizeCommand.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/undo/commands/FillZoneCommand.cpp)
 # Qt6::Gui is explicit: DeleteZoneCommand derives from QUndoCommand. It arrives
 # transitively via plasmazones_core today, but that is not a contract.
 target_link_libraries(test_zone_zorder PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core)
@@ -3321,9 +3321,9 @@ add_test(NAME test_zone_zorder COMMAND test_zone_zorder)
 # it unreached. Qt6::Gui is explicit for QUndoCommand, same rationale as
 # test_zone_zorder above.
 add_executable(test_editor_template_model editor/test_editor_template_model.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/EditorTemplateModel.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/undo/UndoController.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/undo/commands/UpdateTemplateCommand.cpp)
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/EditorTemplateModel.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/undo/UndoController.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/undo/commands/UpdateTemplateCommand.cpp)
 target_link_libraries(test_editor_template_model PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core
                                                          PhosphorZones::PhosphorZones)
 add_test(NAME test_editor_template_model COMMAND test_editor_template_model)
@@ -3341,8 +3341,8 @@ add_test(NAME test_editor_template_model COMMAND test_editor_template_model)
 # in the header, so it is listed explicitly: AUTOMOC has to see it to emit the
 # base's metaobject.
 add_executable(test_dbus_layout_service_replies editor/test_dbus_layout_service_replies.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/services/DBusLayoutService.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/services/ILayoutService.h)
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/services/DBusLayoutService.cpp
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/services/ILayoutService.h)
 target_link_libraries(test_dbus_layout_service_replies
                       PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core
                               PhosphorProtocol::PhosphorProtocol)
@@ -3353,7 +3353,7 @@ add_test(NAME test_dbus_layout_service_replies COMMAND test_dbus_layout_service_
 # masks) and write only the keys it changed. EditorOwnedConfig lives in the
 # editor executable, so its TU is compiled into the test directly.
 add_executable(test_editor_owned_config editor/test_editor_owned_config.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/src/editor/helpers/EditorOwnedConfig.cpp)
+               ${PROJECT_SOURCE_DIR}/plasmazones/src/editor/helpers/EditorOwnedConfig.cpp)
 target_link_libraries(test_editor_owned_config PRIVATE Qt6::Test Qt6::Core Qt6::Gui plasmazones_core)
 add_test(NAME test_editor_owned_config COMMAND test_editor_owned_config)
 
@@ -3364,7 +3364,7 @@ add_test(NAME test_editor_owned_config COMMAND test_editor_owned_config)
 # controller construction needed.
 add_executable(test_decoration_page_scope
     settings/pages/test_decoration_page_scope.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagescope.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/decorationpagescope.cpp
 )
 
 target_link_libraries(test_decoration_page_scope
@@ -3383,7 +3383,7 @@ add_test(NAME test_decoration_page_scope COMMAND test_decoration_page_scope)
 # tree.
 add_executable(test_animation_page_scope
     settings/pages/test_animation_page_scope.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/pages/animationpagescope.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/pages/animationpagescope.cpp
 )
 target_link_libraries(test_animation_page_scope
     PRIVATE
@@ -3399,8 +3399,8 @@ add_test(NAME test_animation_page_scope COMMAND test_animation_page_scope)
 # D-Bus dependency, so the test drives it directly.
 add_executable(test_screen_states_cache
     settings/test_screen_states_cache.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/controller/screenstatescache.h
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/settings/controller/screenstatescache.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/controller/screenstatescache.h
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/settings/controller/screenstatescache.cpp
 )
 target_link_libraries(test_screen_states_cache
     PRIVATE
@@ -3416,7 +3416,7 @@ add_test(NAME test_screen_states_cache COMMAND test_screen_states_cache)
 add_executable(test_search_catalog_tiers
     settings/test_search_catalog_tiers.cpp
 )
-target_compile_definitions(test_search_catalog_tiers PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
+target_compile_definitions(test_search_catalog_tiers PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 target_link_libraries(test_search_catalog_tiers
     PRIVATE
         Qt6::Test
@@ -3438,7 +3438,7 @@ add_executable(test_surface_decoration_orientation
     rendering/test_surface_decoration_orientation.cpp
 )
 target_compile_definitions(test_surface_decoration_orientation PRIVATE
-    PLASMAZONES_SOURCE_ROOT="${CMAKE_SOURCE_DIR}/plasmazones")
+    PLASMAZONES_SOURCE_ROOT="${PROJECT_SOURCE_DIR}/plasmazones")
 target_link_libraries(test_surface_decoration_orientation
     PRIVATE
         Qt6::Test
@@ -3468,11 +3468,11 @@ set_tests_properties(test_surface_decoration_orientation PROPERTIES SKIP_RETURN_
 # plasmazones/kwin-effect/CMakeLists.txt (its file-local helpers carry generic names);
 # source-file properties are directory-scoped, so the effect tree's exclusion
 # does not reach this consuming target.
-set_source_files_properties(${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/compositor/scrolltabindicatorpainter_raster.cpp
+set_source_files_properties(${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/compositor/scrolltabindicatorpainter_raster.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 add_executable(test_scroll_tab_layout compositor-common/test_scroll_tab_layout.cpp
-               ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/compositor/scrolltabindicatorpainter_raster.cpp)
-target_include_directories(test_scroll_tab_layout PRIVATE ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect)
+               ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/compositor/scrolltabindicatorpainter_raster.cpp)
+target_include_directories(test_scroll_tab_layout PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
 target_link_libraries(test_scroll_tab_layout PRIVATE Qt6::Test Qt6::Gui)
 add_test(NAME test_scroll_tab_layout COMMAND test_scroll_tab_layout)
 

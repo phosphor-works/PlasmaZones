@@ -157,7 +157,7 @@ set(plasmazones_settings_SRCS
     # simulation drives — compiled from the kwin-effect tree so the preview
     # and the compositor run the SAME solver and can never drift in feel.
     # Both trees are GPL-3.0, so no license boundary is crossed.
-    ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/plasmazoneseffect/mesh_sim.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/plasmazoneseffect/mesh_sim.cpp
     # Surface-taxonomy helper (parentChain) in a sibling TU. Same class,
     # separate TU.
     pages/decorationpagecontroller_paths.cpp
@@ -252,8 +252,8 @@ set(plasmazones_settings_SRCS
     settingsappadaptor.h
     settingsappadaptor.cpp
     # DaemonController — daemon lifecycle management (start/stop/status)
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/common/daemoncontroller.h
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/common/daemoncontroller.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/common/daemoncontroller.h
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/common/daemoncontroller.cpp
     # LayoutPreview ↔ JSON/QVariantMap: provided by plasmazones_core
     # (was duplicated here previously; consolidated to avoid ODR drift).
     # Qt-only utilities (standalone-only, no KDE Framework deps)
@@ -289,8 +289,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_include_directories(plasmazones-settings PRIVATE
-    ${CMAKE_BINARY_DIR}/generated
-    ${CMAKE_SOURCE_DIR}/plasmazones/src
+    ${PROJECT_BINARY_DIR}/generated
+    ${PROJECT_SOURCE_DIR}/plasmazones/src
     ${CMAKE_CURRENT_SOURCE_DIR}
     # qt_add_qml_module's generated type registration includes QML_ELEMENT
     # headers by bare basename (__has_include(<rulemodel.h>)), so the
@@ -616,10 +616,10 @@ qt_add_qml_module(plasmazones-settings
 # :/schemas/whatsnew.schema.json, so SettingsController can validate it on load.
 qt_add_resources(plasmazones-settings "whatsnew_data"
     PREFIX "/"
-    BASE "${CMAKE_SOURCE_DIR}/plasmazones/data"
+    BASE "${PROJECT_SOURCE_DIR}/plasmazones/data"
     FILES
-        ${CMAKE_SOURCE_DIR}/plasmazones/data/whatsnew.json
-        ${CMAKE_SOURCE_DIR}/plasmazones/data/schemas/whatsnew.schema.json
+        ${PROJECT_SOURCE_DIR}/plasmazones/data/whatsnew.json
+        ${PROJECT_SOURCE_DIR}/plasmazones/data/schemas/whatsnew.schema.json
 )
 
 target_link_libraries(plasmazones-settings
