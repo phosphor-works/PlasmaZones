@@ -12,8 +12,9 @@ project:
   description: 'Window snapping, tiling and scrolling for KDE Plasma. Covers the daemon, editor, settings, KCM, KWin effect, bundled data and tests.'
 
 tasks:
-  # Tests in this tier read files of the phosphor-libs tree: test_pluau_helpers
-  # opens phosphor-tiles' pluau.luau from disk (PHOSPHOR_SOURCE_DIR),
+  # Tests in this tier read files of the phosphor-libs and phosphor-engine-libs
+  # trees: test_pluau_helpers opens phosphor-tiles' pluau.luau from disk
+  # (PHOSPHOR_SOURCE_DIR, the phosphor-engine-libs tree),
   # test_shader_schema_bounds reads the shader-family metadata schemas
   # (P_SHADER_SCHEMA_DIR), test_shader_item_qml_bindings sweeps
   # phosphor-surface-quick's shipped QML, and the shader gates compile every

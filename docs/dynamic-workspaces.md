@@ -12,7 +12,7 @@ file records the user-visible policy decisions a support answer needs.
 
 Each monitor owns an ordered list of virtual desktops ("its workspaces") layered
 over KWin's single shared desktop pool. The daemon's ownership map
-(`phosphor-libs/libs/phosphor-workspaces`) is the authority on which monitor
+(`phosphor-engine-libs/libs/phosphor-workspaces`) is the authority on which monitor
 owns which desktop, and KWin remains the authority on which desktops exist.
 Occupying a monitor's last empty workspace appends a new one. A workspace
 emptied in the middle of the list is removed once the monitor leaves it, unless

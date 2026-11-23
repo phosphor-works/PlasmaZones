@@ -62,7 +62,7 @@ QString readSource(const QString& relativePath)
     return readFile(QStringLiteral(P_SOURCE_DIR) + relativePath);
 }
 
-/// A file of the engine runtime in the pinned phosphor-libs tree, relative to
+/// A file of the engine runtime in the pinned phosphor-engine-libs tree, relative to
 /// libs/phosphor-engine-runtime.
 QString readRuntimeSource(const QString& relativePath)
 {

@@ -63,8 +63,8 @@ Source3:        https://github.com/phosphor-works/branding/releases/download/v0.
 # cmake/PlasmaZonesDependencies.cmake. Its libraries are built from it and
 # installed with the package. Luau and jsoncons above are the archives that
 # commit pins in its own cmake/PhosphorDependencies.cmake.
-# phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz sha256 b7c5f99b0b2a22d1e0deb678c82daaa268eb6bd9002bab500fff2fe26b423936
-Source4:        https://github.com/phosphor-works/phosphor-libs/archive/05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz#/phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz
+# phosphor-libs-21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz sha256 66470df999e19aca1627c8d840100cd5b9163c25b9e425996541b681f1e48ed1
+Source4:        https://github.com/phosphor-works/phosphor-libs/archive/21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz#/phosphor-libs-21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz
 # The surface decoration packs commit, pinned in the same file. Shader source
 # and metadata the build installs as data, so no bundled() provide.
 # phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz sha256 5cfdd51c5dd1f96f1d4da6637d25a5e3fdb11fb683b3b39a13095fc8a0db4090
@@ -74,6 +74,11 @@ Source5:        https://github.com/phosphor-works/phosphor-surface-packs/archive
 # executables, and its catalogs.
 # phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz sha256 e467912dc4dae79aee8a270fa846fa2a9fdea44daf62fba15510fcf2ae236cd5
 Source6:        https://github.com/phosphor-works/phosphor-components/archive/c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz#/phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz
+# The phosphor-engine-libs commit, pinned in the same file: the placement
+# engines, their models and the engine runtime, built from it on the
+# phosphor-libs tree above and installed with the package.
+# phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz sha256 f40919b64d055bc314809df29b902c0d95468b7607e9eed1651c08337ee43e55
+Source7:        https://github.com/phosphor-works/phosphor-engine-libs/archive/21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz#/phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz
 Provides:       bundled(luau) = 0.745
 Provides:       bundled(jsoncons) = 1.10.0
 
@@ -276,7 +281,7 @@ Features:
 # changing the KWin floor: this is the path that compiles against Fedora's and
 # openSUSE's KWin, so it proves the build rather than the behaviour.
 #
-# %%autosetup above unpacks Source0 only. Source1 to Source6 stay archives in
+# %%autosetup above unpacks Source0 only. Source1 to Source7 stay archives in
 # the source directory, where PHOSPHOR_DEPS_ARCHIVES points CMake.
 %cmake \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \

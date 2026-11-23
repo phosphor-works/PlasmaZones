@@ -60,15 +60,15 @@ file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
 # its own context (RuntimeI18n, <PhosphorEngineRuntime/RuntimeI18n.h>), and its overlay
 # QML (the library's qml/, loaded only by the runtime's overlay engine) through qsTr(), each
 # file's name its context, into its own catalog,
-# phosphor-engine-runtime_<lang>.ts, which goes with it into phosphor-libs.
+# phosphor-engine-runtime_<lang>.ts, which goes with it into phosphor-engine-libs.
 # lupdate reads qsTr() natively, so the overlay QML needs no stub step.
-# The engine runtime's sources are all phosphor-libs' (libs/phosphor-engine-runtime);
+# The engine runtime's sources are all phosphor-engine-libs' (libs/phosphor-engine-runtime);
 # everything still in plasmazones/src is PlasmaZones' own and translates in its
 # catalog.
 file(GLOB_RECURSE PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES CONFIGURE_DEPENDS
-    "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/src/*.cpp"
-    "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/include/*.h"
-    "${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/qml/*.qml"
+    "${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/src/*.cpp"
+    "${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/include/*.h"
+    "${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/qml/*.qml"
 )
 file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/plasmazones/src/*.qml"
