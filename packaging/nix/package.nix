@@ -102,11 +102,11 @@ let
   # pin. Bump both forms together.
   depsArchives = linkFarm "plasmazones-deps-archives" [
     {
-      name = "phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz";
+      name = "phosphor-libs-21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-libs/archive/05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz";
-        # sha256 b7c5f99b0b2a22d1e0deb678c82daaa268eb6bd9002bab500fff2fe26b423936
-        hash = "sha256-t8X5mwsqItHg3rZ4yC2qomjra9kAK6tQD/8v4mtCOTY=";
+        url = "https://github.com/phosphor-works/phosphor-libs/archive/21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz";
+        # sha256 66470df999e19aca1627c8d840100cd5b9163c25b9e425996541b681f1e48ed1
+        hash = "sha256-ZkcN+ZnhmsoWJ8jYQBAM1bkWPCW55CWZZUG2gfHkjtE=";
       };
     }
     {
@@ -147,6 +147,14 @@ let
         url = "https://github.com/phosphor-works/phosphor-components/archive/c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz";
         # sha256 e467912dc4dae79aee8a270fa846fa2a9fdea44daf62fba15510fcf2ae236cd5
         hash = "sha256-5GeRLcTa55ruiicPqEb6Kp/epE2vYvuhVRD88q4jbNU=";
+      };
+    }
+    {
+      name = "phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz";
+      path = fetchurl {
+        url = "https://github.com/phosphor-works/phosphor-engine-libs/archive/21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz";
+        # sha256 f40919b64d055bc314809df29b902c0d95468b7607e9eed1651c08337ee43e55
+        hash = "sha256-9AkZtk0FW8MUgJ3ym5AsDZVGi3YH6e7RZRwIM37kPlU=";
       };
     }
   ];
@@ -242,7 +250,7 @@ stdenv.mkDerivation (finalAttrs: {
 
     # ── Optional KDE extras ───────────────────────────────────────────────────
     # PlasmaActivities enables per-activity zone layouts. Only
-    # phosphor-libs/libs/phosphor-workspaces searches for it, with QUIET, so
+    # phosphor-engine-libs/libs/phosphor-workspaces searches for it, with QUIET, so
     # the build succeeds without it.
     kdePackages.plasma-activities  # was: kactivities in KF5
   ];

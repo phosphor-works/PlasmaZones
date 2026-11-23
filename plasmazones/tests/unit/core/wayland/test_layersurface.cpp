@@ -12,6 +12,8 @@
 #include <QPointer>
 #include <QWindow>
 
+#include <memory>
+
 using namespace PhosphorWayland;
 
 class TestLayerSurface : public QObject
@@ -605,8 +607,11 @@ private Q_SLOTS:
         // without needing a real Wayland compositor. We drive dispatch
         // via the public `fireGlobalRemovedCallbacks` entry point so
         // the test isn't sensitive to which manager id-field happens to
-        // alias with a sentinel value inside `registryRemoveHandler`.
-        LayerShellIntegration integration;
+        // alias with a sentinel value inside `registryRemoveHandler`. Only
+        // create() allocates one (it keeps the class's size inside the
+        // library), and the test owns what it returns.
+        const std::unique_ptr<LayerShellIntegration> integrationOwner(LayerShellIntegration::create());
+        LayerShellIntegration& integration = *integrationOwner;
 
         bool called1 = false;
         bool called2 = false;
@@ -641,7 +646,8 @@ private Q_SLOTS:
 
     void testGlobalRemovedCallback_deregisterPreventsUAF()
     {
-        LayerShellIntegration integration;
+        const std::unique_ptr<LayerShellIntegration> integrationOwner(LayerShellIntegration::create());
+        LayerShellIntegration& integration = *integrationOwner;
 
         // Simulate a callback that would UAF if not deregistered
         bool called = false;

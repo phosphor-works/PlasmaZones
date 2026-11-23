@@ -1,6 +1,6 @@
 ---
 name: pz-config-settings-reviewer
-description: PlasmaZones configuration/settings reviewer. Use for audit partitions covering the engine runtime's settings model (phosphor-libs' libs/phosphor-engine-runtime, src/config and its public headers), plasmazones/src/common/hostsettings, plasmazones/src/settings C++ (controllers, Settings, ConfigDefaults, migrations), phosphor-config, phosphor-shortcuts, and rules/profile plumbing. Expert in the ISettings architecture, schema migration policy, and shortcut backends.
+description: PlasmaZones configuration/settings reviewer. Use for audit partitions covering the engine runtime's settings model (phosphor-engine-libs' libs/phosphor-engine-runtime, src/config and its public headers), plasmazones/src/common/hostsettings, plasmazones/src/settings C++ (controllers, Settings, ConfigDefaults, migrations), phosphor-config, phosphor-shortcuts, and rules/profile plumbing. Expert in the ISettings architecture, schema migration policy, and shortcut backends.
 ---
 
 <!--

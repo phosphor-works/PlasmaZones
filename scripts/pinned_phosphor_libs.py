@@ -23,8 +23,10 @@ Run as a script it prints the tree's path, for shell callers:
 
     tree=$(python3 scripts/pinned_phosphor_libs.py)
 
-pinned_tree() does the same for any archive the pin file pins, and
-scripts/pinned_surface_packs.py finds the surface packs with it.
+engine_tree() finds the phosphor-engine-libs tree the same way, with
+PHOSPHOR_ENGINE_LIBS_DIR as its override, and pinned_tree() does the same for
+any archive the pin file pins: scripts/pinned_surface_packs.py finds the
+surface packs with it.
 
 Stdlib only.
 """
@@ -42,6 +44,7 @@ from pathlib import Path
 
 PIN_FILE = "cmake/PlasmaZonesDependencies.cmake"
 LIBS_DEP = "phosphor-libs"
+ENGINE_LIBS_DEP = "phosphor-engine-libs"
 
 
 class PinnedTreeError(RuntimeError):
@@ -132,6 +135,17 @@ def tree(repo: Path) -> Path:
             raise PinnedTreeError(f"PHOSPHOR_LIBS_DIR is {override}, which is not a phosphor-libs tree")
         return root
     return pinned_tree(repo, LIBS_DEP, "PHOSPHOR_LIBS_DIR")
+
+
+def engine_tree(repo: Path) -> Path:
+    """The phosphor-engine-libs tree for the checkout at `repo`."""
+    override = os.environ.get("PHOSPHOR_ENGINE_LIBS_DIR")
+    if override:
+        root = Path(override).resolve()
+        if not (root / "cmake" / "PhosphorEngineLibsDependencies.cmake").is_file():
+            raise PinnedTreeError(f"PHOSPHOR_ENGINE_LIBS_DIR is {override}, which is not a phosphor-engine-libs tree")
+        return root
+    return pinned_tree(repo, ENGINE_LIBS_DEP, "PHOSPHOR_ENGINE_LIBS_DIR")
 
 
 def main() -> int:

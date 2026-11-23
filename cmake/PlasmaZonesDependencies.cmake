@@ -3,7 +3,8 @@
 #
 # What PlasmaZones builds from that is not in this repository, each pinned to
 # one archive by version, URL and SHA-256: the phosphor-libs commit it builds
-# against, the phosphor-components commit whose QML components it draws with,
+# against, the phosphor-engine-libs commit whose placement engines it runs, the
+# phosphor-components commit whose QML components it draws with,
 # the suite's branding release and the surface decoration packs commit. This file is the only place these pins live. The phosphor-libs tree pins its own third-party sources (Luau,
 # jsoncons) in its cmake/PhosphorDependencies.cmake, at the commit pinned here.
 # The packaging recipes repeat the URL and hash of every archive they fetch,
@@ -28,7 +29,10 @@
 #
 # CPM's own override applies to 2 and 3: -DCPM_phosphor-libs_SOURCE=<dir> builds
 # a local checkout, such as the sibling ../phosphor-libs, in place of either.
-# That is how a change spanning both repositories is developed.
+# That is how a change spanning both repositories is developed. phosphor-engine-libs
+# and phosphor-components come from their pinned archives the same way, with
+# -DCPM_phosphor-engine-libs_SOURCE=<dir> (and its phosphor-components twin) for
+# a local checkout.
 #
 # Script mode, for packagers and CI:
 #
@@ -50,15 +54,26 @@ include_guard(GLOBAL)
 # ─── Pins ────────────────────────────────────────────────────────────────────
 # PLASMAZONES_DEPS lists them all, for the fetch script and for the dep-pins
 # rule.
-set(PLASMAZONES_DEPS phosphor-libs phosphor-components branding phosphor-surface-packs)
+set(PLASMAZONES_DEPS phosphor-libs phosphor-engine-libs phosphor-components branding phosphor-surface-packs)
 
 # The phosphor-libs commit PlasmaZones builds against (LGPL-2.1-or-later,
-# phosphor-works/phosphor-libs): its placement engines, rendering, layer-shell
-# and config libraries. A commit, not a release, so VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-libs_VERSION "05c411aab54f7771e5f50f1639ac118be6b15876")
-set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-05c411aab54f7771e5f50f1639ac118be6b15876.tar.gz")
-set(PLASMAZONES_DEP_phosphor-libs_SHA256 "b7c5f99b0b2a22d1e0deb678c82daaa268eb6bd9002bab500fff2fe26b423936")
+# phosphor-works/phosphor-libs): its rendering, layer-shell, config, screen and
+# rule libraries. A commit, not a release, so VERSION is the commit hash.
+set(PLASMAZONES_DEP_phosphor-libs_VERSION "21407e173fc64a08679b0009ac8927a9e9c34a4d")
+set(PLASMAZONES_DEP_phosphor-libs_URL "https://github.com/phosphor-works/phosphor-libs/archive/21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_FILE "phosphor-libs-21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz")
+set(PLASMAZONES_DEP_phosphor-libs_SHA256 "66470df999e19aca1627c8d840100cd5b9163c25b9e425996541b681f1e48ed1")
+
+# The phosphor-engine-libs commit (LGPL-2.1-or-later,
+# phosphor-works/phosphor-engine-libs): the placement engines PlasmaZones runs,
+# their zone, tiling-algorithm and workspace models, the zone overlays and the
+# engine runtime the daemon embeds. Added as a subproject after phosphor-libs, so
+# it builds on this tree's phosphor-libs and its own pin is not used. A commit, so
+# VERSION is the commit hash.
+set(PLASMAZONES_DEP_phosphor-engine-libs_VERSION "21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68")
+set(PLASMAZONES_DEP_phosphor-engine-libs_URL "https://github.com/phosphor-works/phosphor-engine-libs/archive/21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz")
+set(PLASMAZONES_DEP_phosphor-engine-libs_FILE "phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz")
+set(PLASMAZONES_DEP_phosphor-engine-libs_SHA256 "f40919b64d055bc314809df29b902c0d95468b7607e9eed1651c08337ee43e55")
 
 # The phosphor-components commit (LGPL-2.1-or-later,
 # phosphor-works/phosphor-components): the Phosphor.Components QML module the
@@ -294,6 +309,34 @@ macro(plasmazones_add_phosphor_libs)
     # The library tree's helper modules (PhosphorTestIsolation, PhosphorTestPch),
     # reachable by name from here on.
     list(APPEND CMAKE_MODULE_PATH "${PHOSPHOR_LIBS_CMAKE_DIR}")
+endmacro()
+
+# plasmazones_add_phosphor_engine_libs()
+#
+# Adds the phosphor-engine-libs tree as a subproject, after phosphor-libs, which
+# it then builds on rather than fetching its own: its pin is not used here. The
+# engine QML firewall runs inside it, next to the engines it guards. Leaves
+# phosphor-engine-libs_SOURCE_DIR and phosphor-engine-libs_BINARY_DIR set in the
+# caller's scope for the tests and translations that reach into the tree. A
+# macro, like plasmazones_add_phosphor_libs.
+macro(plasmazones_add_phosphor_engine_libs)
+    if(NOT TARGET PhosphorIpc)
+        message(FATAL_ERROR "plasmazones_add_phosphor_engine_libs() needs phosphor-libs added first "
+                            "(plasmazones_add_phosphor_libs)")
+    endif()
+    if(PHOSPHOR_DEPS_ARCHIVES)
+        plasmazones_fetch_dependency(phosphor-engine-libs)
+        set(phosphor-engine-libs_BINARY_DIR "${CMAKE_BINARY_DIR}/_deps/phosphor-engine-libs-build")
+        add_subdirectory("${phosphor-engine-libs_SOURCE_DIR}" "${phosphor-engine-libs_BINARY_DIR}")
+    else()
+        CPMAddPackage(NAME phosphor-engine-libs
+                      URL "${PLASMAZONES_DEP_phosphor-engine-libs_URL}"
+                      URL_HASH SHA256=${PLASMAZONES_DEP_phosphor-engine-libs_SHA256})
+    endif()
+    if(NOT TARGET PhosphorEngineRuntime::PhosphorEngineRuntime)
+        message(FATAL_ERROR "phosphor-engine-libs at ${phosphor-engine-libs_SOURCE_DIR} defines no "
+                            "PhosphorEngineRuntime::PhosphorEngineRuntime")
+    endif()
 endmacro()
 
 # plasmazones_add_phosphor_components()

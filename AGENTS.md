@@ -6,14 +6,14 @@ PlasmaZones: window snapping, tiling and scrolling for KDE Plasma. Qt6, KF6, Kir
 
 ### Placement Modes
 Three mutually exclusive modes. Each screen runs exactly one, resolved per (screen, desktop, activity):
-- **Snapping** — drag a window with a modifier held, drop it into a user-drawn zone. Engine: `libs/phosphor-snap-engine` in phosphor-libs. Artifacts: layouts (`plasmazones/data/layouts`, user copies in `~/.local/share/phosphor-works/layouts/`).
-- **Tiling** — windows place themselves via a scripted algorithm. Engine: `libs/phosphor-tile-engine` in phosphor-libs, running Luau through `phosphor-tiles` / `phosphor-scripting`. Artifacts: algorithms (`plasmazones/data/algorithms/*.luau`).
-- **Scrolling** — windows form columns on an endless strip, modeled on niri. Engine: `libs/phosphor-scroll-engine` in phosphor-libs. Artifacts: templates (`plasmazones/data/scrolling-templates`).
+- **Snapping** — drag a window with a modifier held, drop it into a user-drawn zone. Engine: `libs/phosphor-snap-engine` in phosphor-engine-libs. Artifacts: layouts (`plasmazones/data/layouts`, user copies in `~/.local/share/phosphor-works/layouts/`).
+- **Tiling** — windows place themselves via a scripted algorithm. Engine: `libs/phosphor-tile-engine` in phosphor-engine-libs, running Luau through `phosphor-tiles` / `phosphor-scripting`. Artifacts: algorithms (`plasmazones/data/algorithms/*.luau`).
+- **Scrolling** — windows form columns on an endless strip, modeled on niri. Engine: `libs/phosphor-scroll-engine` in phosphor-engine-libs. Artifacts: templates (`plasmazones/data/scrolling-templates`).
 
-Shared placement policy lives in `libs/phosphor-engine` in phosphor-libs. A verdict from one mode never gates another — see the float-is-per-mode invariant, written up at `libs/phosphor-engine/include/PhosphorEngine/WindowPlacement.h` there (each engine keeps its own float slot and state, independent of the others). When adding a cross-cutting feature, check whether all three modes need an arm before calling it done.
+Shared placement policy lives in `libs/phosphor-engine` in phosphor-engine-libs. A verdict from one mode never gates another — see the float-is-per-mode invariant, written up at `libs/phosphor-engine/include/PhosphorEngine/WindowPlacement.h` there (each engine keeps its own float slot and state, independent of the others). When adding a cross-cutting feature, check whether all three modes need an arm before calling it done.
 
 ### phosphor-libs
-The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc, ...) live in their own repository, [phosphor-works/phosphor-libs](https://github.com/phosphor-works/phosphor-libs), checked out beside this one as `../phosphor-libs`. PlasmaZones builds them from source, from the one commit `cmake/PlasmaZonesDependencies.cmake` pins, added with CPM as a subproject (`plasmazones_add_phosphor_libs()`), and installs them with the package as before.
+The Phosphor libraries (rendering, layer-shell, animation, config, screens, rules, ipc, ...) live in their own repository, [phosphor-works/phosphor-libs](https://github.com/phosphor-works/phosphor-libs), checked out beside this one as `../phosphor-libs`. The placement engines, their models (zones, tiles, workspaces, placement) and the engine runtime live in [phosphor-works/phosphor-engine-libs](https://github.com/phosphor-works/phosphor-engine-libs), checked out as `../phosphor-engine-libs`, which builds on phosphor-libs. PlasmaZones builds both from source, each from the one commit `cmake/PlasmaZonesDependencies.cmake` pins, added with CPM as subprojects (`plasmazones_add_phosphor_libs()`, then `plasmazones_add_phosphor_engine_libs()`), and installs them with the package as before. Everything below about phosphor-libs applies to phosphor-engine-libs the same way: `-DCPM_phosphor-engine-libs_SOURCE=<dir>` for a local checkout, `PHOSPHOR_ENGINE_LIBS_DIR=<checkout>` for the scripts, `${phosphor-engine-libs_SOURCE_DIR}` in CMake.
 - A change to a library is a phosphor-libs PR. Build PlasmaZones against your checkout of it with `-DCPM_phosphor-libs_SOURCE=../phosphor-libs` (an absolute path is safest), or against a branch with `-DPHOSPHOR_LIBS_GIT_REF=<ref>`.
 - Once the library change is merged, bump the pin: the commit, URL, FILE and SHA-256 together, then the same archive in every recipe the dep-pins rule names. A bump can move the library tree's own Luau and jsoncons pins too, and the rule reports those. It also reports a recipe that still fetches an archive no pin names, which is what a bump that replaces a dependency leaves behind.
 - The scripts that read library files without a build (the JSON schema gate, the dep-pins rule) find the pinned tree with `scripts/pinned_phosphor_libs.py`, which unpacks the pinned archive into `.cache/phosphor-libs/`. `PHOSPHOR_LIBS_DIR=<checkout>` points them at a local tree instead.
@@ -47,7 +47,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 - SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt. JSON is such a format, so no `.json` file needs a header wherever it sits. The usual cases are `plasmazones/data/**/*.json`, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
 - License identifier depends on the tree:
   - **App tiers** (`plasmazones/**` except its `data/` trees, `scripts/**`): `GPL-3.0-or-later`
-  - **Reusable libraries, including their own tests** (everything in phosphor-libs): `LGPL-2.1-or-later`
+  - **Reusable libraries, including their own tests** (everything in phosphor-libs and phosphor-engine-libs): `LGPL-2.1-or-later`
   - A library's own `tests/` follow the library (LGPL), NOT the app-tier GPL rule: test code that links and ships inside an LGPL lib must not taint that lib's build tree with GPL. The GPL `plasmazones/tests/**` rule means only the top-level app test tree.
   - **Bundled animation and pointer shader packs** (`plasmazones/data/animations/**` and `plasmazones/data/pointer/**` shader source: `.frag`, `.vert`, `.glsl`): `LGPL-2.1-or-later` for PlasmaZones-original shaders, so a third-party pack or tool can build on them. The exception is incorporated upstream copyleft. A shader that copies verbatim or ports GPL-3.0 upstream code (the Burn-My-Windows ports and their `shared/bmw_compat.glsl` shim, the niri `honeycomb` port) MUST stay `GPL-3.0-or-later` and carries a second `SPDX-FileCopyrightText` crediting the upstream author, because PlasmaZones is not the copyright holder of those bodies and cannot relicense them. The license follows the incorporated content and is never a per-directory blanket, so a pack's `.frag` and `.vert` may legitimately differ (a GPL-derived `.frag` beside a PlasmaZones-original LGPL `.vert`). Ports of permissively-licensed upstreams such as the MIT gl-transitions `desktop-*` frags may be LGPL. Generated editor aids like `p_generated.glsl` are gitignored and carry no SPDX header. (`plasmazones/data/overlays/**` is currently GPL and has not been normalized, so follow the existing header in that tree. The surface packs carry their own REUSE licensing in phosphor-surface-packs.)
   - Rationale: the shell is GPL; libraries are LGPL so third-party plugins / tools can link them without inheriting GPL. Never "fix" a lib header to GPL-3 without understanding the split.
@@ -90,7 +90,7 @@ The Phosphor libraries (engines, rendering, layer-shell, animation, config, ipc,
 
 ## Architecture
 - Service-oriented with DI via constructor (the editor's `ILayoutService`, `ZoneManager`, `SnappingService` are the reference shape)
-- Placement runs in phosphor-libs' engine runtime (`EngineRuntime`) behind the three engines above, hosted by the daemon; the KWin effect draws overlays, decorations, and tab indicators
+- Placement runs in phosphor-engine-libs' engine runtime (`EngineRuntime`) behind the three engines above, hosted by the daemon; the KWin effect draws overlays, decorations, and tab indicators
 - Business logic in C++, UI in QML; controllers bridge via `Q_PROPERTY`
 - Zone IDs everywhere, never indices
 - JSON persistence in `~/.local/share/phosphor-works/layouts/` with relative geometry (0.0–1.0)
@@ -122,7 +122,7 @@ User-facing strings MUST read like plain, human-written prose with no LLM tics. 
 - Editor settings: separate, in `EditorController` (separate process)
 
 ### Adding a Setting
-Use the `pz-add-setting` skill, which carries the full worked example. An engine setting lives in phosphor-libs' engine runtime (`libs/phosphor-engine-runtime`, the settings model PlasmaZones links), so adding one is a phosphor-libs PR followed by a pin bump here (see phosphor-libs above). Summary, with paths in that library:
+Use the `pz-add-setting` skill, which carries the full worked example. An engine setting lives in phosphor-engine-libs' engine runtime (`libs/phosphor-engine-runtime`, the settings model PlasmaZones links), so adding one is a phosphor-engine-libs PR followed by a pin bump here (see phosphor-libs above). Summary, with paths in that library:
 
 1. `include/PhosphorEngineRuntime/ConfigDefaults<Area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `ConfigDefaults.h` is split by area (`Appearance`, `Gaps`, `Limits`, `Screens`, `Scrolling`, `ScrollingBehavior`, `ScrollingShortcuts`, `Shaders`, `Workspaces`).
 2. `include/PhosphorEngineRuntime/ConfigKeys.h` — group and `xxxKey()` accessors, if new (`ConfigKeysScrolling.h` for a scrolling group, `ConfigKeysWorkspaces.h` for a workspaces group). NOT `ConfigDefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
@@ -204,7 +204,7 @@ On Linux (native):
 # so nothing needs installing. Anywhere else install your distro's glslang
 # package before running ctest. Not needed with BUILD_TESTING=OFF.
 #
-# PINNED SOURCES: phosphor-libs, the branding release and the surface packs
+# PINNED SOURCES: phosphor-libs, phosphor-engine-libs, the branding release and the surface packs
 # are pinned archives in cmake/PlasmaZonesDependencies.cmake (version, URL,
 # SHA-256), and the phosphor-libs tree pins its own Luau and jsoncons the same
 # way. None of them
@@ -297,7 +297,7 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 - CMake with `CMAKE_AUTOMOC/AUTORCC/AUTOUIC ON`
 - `qt_add_qml_module()` — ALL QML files must be listed (missing = runtime "not a type" error)
 - `cmake -DUSE_KDE_FRAMEWORKS=ON` (default) or `OFF` for a portable build without the KWin effect, the KCM and dynamic workspaces (compiled out under the `USE_KDE_FRAMEWORKS` define). `OFF` is not Qt-only: the settings app requires KF6 `Kirigami` in both modes
-- KF6 deps: `Kirigami` always (`plasmazones/src/settings/CMakeLists.txt`); when ON also `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme), `Config` (KConfig reads kwinrc and makes the consented `PerOutputVirtualDesktops` write for dynamic workspaces); optional in either mode: `Activities`, which only phosphor-libs' `phosphor-workspaces` looks up and links
+- KF6 deps: `Kirigami` always (`plasmazones/src/settings/CMakeLists.txt`); when ON also `KCMUtils`, `GlobalAccel`, `ColorScheme` (the KWin effect's KColorScheme), `Config` (KConfig reads kwinrc and makes the consented `PerOutputVirtualDesktops` write for dynamic workspaces); optional in either mode: `Activities`, which only phosphor-engine-libs' `phosphor-workspaces` looks up and links
 - Pluggable backends: `PhosphorConfig::IBackend`, `PhosphorShortcuts::IBackend`, `IWallpaperProvider`
 - Standalone settings app (`plasmazones-settings`) + minimal KCM launcher
 
@@ -305,12 +305,12 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 The tree is one product tier plus repo-level support directories. The tier has its own `CMakeLists.txt` (entered from the root one) and its own `moon.yml` project. The libraries it builds on are the phosphor-libs repository (see phosphor-libs above).
 ```
 plasmazones/             — PlasmaZones
-  src/core/              — PlasmaZones' app-side helpers (the engine core is phosphor-libs' engine runtime)
-  src/daemon/            — plasmazonesd: the KWin host of phosphor-libs' engine runtime, its host interfaces, bound to the session bus beside KWin and Plasma
+  src/core/              — PlasmaZones' app-side helpers (the engine core is phosphor-engine-libs' engine runtime)
+  src/daemon/            — plasmazonesd: the KWin host of phosphor-engine-libs' engine runtime, its host interfaces, bound to the session bus beside KWin and Plasma
   src/editor/            — Layout editor (zone layouts + scrolling templates)
   src/settings/          — Standalone settings app
   src/dbus/              — D-Bus adaptors (thin bindings of the runtime's services)
-  src/config/            — PlasmaZones' settings labels (the settings model itself is phosphor-libs' engine runtime)
+  src/config/            — PlasmaZones' settings labels (the settings model itself is phosphor-engine-libs' engine runtime)
   src/common/            — Cross-target helpers
   src/shaderpreview/     — Shader preview host
   src/shadervalidate/    — plasmazones-shader-validate pack validator

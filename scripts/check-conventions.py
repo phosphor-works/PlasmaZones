@@ -397,7 +397,7 @@ CONFIG_DOTPATH = re.compile(
     r'|Shortcuts|Animations|Decorations|Shaders)\.[A-Za-z0-9.]+)"\s*\)'
 )
 # The accessor definitions, which are the one place a literal may spell a v2
-# group, live in phosphor-libs' engine runtime (ConfigKeys.h, ConfigDefaults.h
+# group, live in phosphor-engine-libs' engine runtime (ConfigKeys.h, ConfigDefaults.h
 # and the migrations) since the settings model moved there, so no file in this
 # tree is exempt.
 CONFIG_KEY_DEFS: tuple[str, ...] = ()

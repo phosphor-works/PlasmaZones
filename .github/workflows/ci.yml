@@ -676,10 +676,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # The Luau pin and the pluau prelude both live in the phosphor-libs tree,
-      # at the commit cmake/PlasmaZonesDependencies.cmake pins. Fetched with
-      # curl and checked against the pin's SHA-256, because this step runs
-      # before "Sync packages" and the fallback image has no cmake yet.
+      # The Luau pin lives in the phosphor-libs tree and the pluau prelude in
+      # the phosphor-engine-libs tree (phosphor-tiles), each at the commit
+      # cmake/PlasmaZonesDependencies.cmake pins. Fetched with curl and checked
+      # against the pin's SHA-256, because these steps run before "Sync
+      # packages" and the fallback image has no cmake yet.
       - name: Fetch the pinned phosphor-libs tree
         id: libs
         run: |
@@ -696,6 +697,23 @@ jobs:
           mkdir -p phosphor-libs-src
           tar xzf phosphor-libs.tar.gz -C phosphor-libs-src --strip-components=1
           echo "tree=$PWD/phosphor-libs-src" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch the pinned phosphor-engine-libs tree
+        id: engine
+        run: |
+          set -euo pipefail
+          pins=cmake/PlasmaZonesDependencies.cmake
+          pin() { sed -n "s/^set(PLASMAZONES_DEP_phosphor-engine-libs_$1 \"\(.*\)\")\$/\1/p" "$pins"; }
+          url=$(pin URL); sha=$(pin SHA256)
+          if [ -z "$url" ] || [ -z "$sha" ]; then
+            echo "::error::no phosphor-engine-libs URL or SHA256 pin found in $pins"
+            exit 1
+          fi
+          curl -fsSL --retry 3 -o phosphor-engine-libs.tar.gz "$url"
+          echo "$sha  phosphor-engine-libs.tar.gz" | sha256sum -c -
+          mkdir -p phosphor-engine-libs-src
+          tar xzf phosphor-engine-libs.tar.gz -C phosphor-engine-libs-src --strip-components=1
+          echo "tree=$PWD/phosphor-engine-libs-src" >> "$GITHUB_OUTPUT"
 
       # The analyzer only changes when the Luau pin does, so it is built once
       # per pin rather than on every run (two to three minutes each). The key
@@ -752,7 +770,7 @@ jobs:
           # are advisory (lintErrors:false in .luaurc) but still printed.
           ./luau-cli/luau-analyze \
             plasmazones/data/algorithms/*.luau \
-            "${{ steps.libs.outputs.tree }}/libs/phosphor-tiles/src/pluau/pluau.luau"
+            "${{ steps.engine.outputs.tree }}/libs/phosphor-tiles/src/pluau/pluau.luau"
 
       - name: Analyze the pluau type stubs
         run: |
@@ -782,7 +800,7 @@ jobs:
           # An all-declare file would strip to nothing; grep exits 1 on no
           # match, so `set -e` fails the step rather than analyzing an empty
           # file and passing.
-          pluau="${{ steps.libs.outputs.tree }}/libs/phosphor-tiles/src/pluau"
+          pluau="${{ steps.engine.outputs.tree }}/libs/phosphor-tiles/src/pluau"
           stub_copy="$pluau/pluau-stub-check.luau"
           trap 'rm -f "$stub_copy"' EXIT
           grep -v '^declare ' "$pluau/pluau.d.luau" > "$stub_copy"

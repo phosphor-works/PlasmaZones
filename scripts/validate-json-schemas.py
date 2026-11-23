@@ -3,11 +3,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Validate bundled data JSON against the committed JSON Schemas.
 
-The schemas live in two trees: data/schemas/ in phosphor-libs holds the shared
-contracts and plasmazones/data/schemas/ the app-only ones. The phosphor-libs
-tree is the commit cmake/PlasmaZonesDependencies.cmake pins, found by
-scripts/pinned_phosphor_libs.py (PHOSPHOR_LIBS_DIR overrides it with a local
-checkout), and a SCHEMA_MAP key written `phosphor-libs:<path>` is relative to it.
+The schemas live in three trees: data/schemas/ in phosphor-libs holds the
+shared contracts, data/schemas/ in phosphor-engine-libs the layout file's, and
+plasmazones/data/schemas/ the app-only ones. Both library trees are the commits
+cmake/PlasmaZonesDependencies.cmake pins, found by
+scripts/pinned_phosphor_libs.py (PHOSPHOR_LIBS_DIR and PHOSPHOR_ENGINE_LIBS_DIR
+override them with local checkouts), and a SCHEMA_MAP key written
+`phosphor-libs:<path>` or `phosphor-engine-libs:<path>` is relative to its tree.
 The surface decoration packs are data of their own repository,
 phosphor-surface-packs, at the commit the same file pins: a data glob written
 `surface-packs:<glob>` is relative to its packs directory, found by
@@ -72,15 +74,15 @@ _BOOTSTRAP_ENV = "PZ_JSONSCHEMA_BOOTSTRAPPED"
 JSONSCHEMA_VERSION = "4.26.0"
 JSONSCHEMA_REQUIREMENT = f"jsonschema[format]=={JSONSCHEMA_VERSION}"
 
-# Maps a schema (relative to the source root, or to the pinned phosphor-libs
-# tree when it starts with LIBS_PREFIX) to the glob(s) of data files it governs,
+# Maps a schema (relative to the source root, or to a pinned library tree when
+# it starts with one of LIB_PREFIXES) to the glob(s) of data files it governs,
 # which are relative to the source root, or to the pinned surface packs when
 # they start with PACKS_PREFIX. Add an entry here when a new document type gets a
 # schema. Some schemas are also embedded via RCC and compiled by the
 # runtime SchemaValidator; the others are validated only here, where the
 # runtime checks those document types in C++ directly.
 SCHEMA_MAP: dict[str, list[str]] = {
-    "phosphor-libs:data/schemas/layout.schema.json": ["plasmazones/data/layouts/*.json"],
+    "phosphor-engine-libs:data/schemas/layout.schema.json": ["plasmazones/data/layouts/*.json"],
     "plasmazones/data/schemas/scrolling-template.schema.json": ["plasmazones/data/scrolling-templates/*.json"],
     "phosphor-libs:data/schemas/curve.schema.json": ["plasmazones/data/curves/*.json"],
     "phosphor-libs:data/schemas/animation-metadata.schema.json": ["plasmazones/data/animations/*/metadata.json"],
@@ -97,25 +99,32 @@ SCHEMA_MAP: dict[str, list[str]] = {
 # for being a well-formed 2020-12 schema.
 SCHEMA_DIRS: list[str] = sorted({posixpath.dirname(schema_rel) for schema_rel in SCHEMA_MAP})
 
-# The SCHEMA_MAP key prefix for a schema in the pinned phosphor-libs tree.
+# The SCHEMA_MAP key prefixes for a schema in a pinned library tree, each the
+# name of its dependency in the pin file.
 LIBS_PREFIX = "phosphor-libs:"
+ENGINE_LIBS_PREFIX = "phosphor-engine-libs:"
+LIB_PREFIXES = (LIBS_PREFIX, ENGINE_LIBS_PREFIX)
 # The SCHEMA_MAP glob prefix for data in the pinned surface packs.
 PACKS_PREFIX = "surface-packs:"
 
 
-def schema_location(root: Path, libs: Path, rel: str) -> Path:
-    """The file a SCHEMA_MAP key or SCHEMA_DIRS entry names."""
-    if rel.startswith(LIBS_PREFIX):
-        return libs / rel[len(LIBS_PREFIX):]
+def schema_location(root: Path, libs: dict[str, Path], rel: str) -> Path:
+    """The file a SCHEMA_MAP key or SCHEMA_DIRS entry names. `libs` maps each
+    of LIB_PREFIXES to its tree."""
+    for prefix, tree in libs.items():
+        if rel.startswith(prefix):
+            return tree / rel[len(prefix):]
     return root / rel
 
 
-def schema_key(root: Path, libs: Path, path: Path) -> str:
+def schema_key(root: Path, libs: dict[str, Path], path: Path) -> str:
     """The SCHEMA_MAP key spelling of a schema file, inverse of schema_location."""
-    try:
-        return LIBS_PREFIX + path.relative_to(libs).as_posix()
-    except ValueError:
-        return path.relative_to(root).as_posix()
+    for prefix, tree in libs.items():
+        try:
+            return prefix + path.relative_to(tree).as_posix()
+        except ValueError:
+            continue
+    return path.relative_to(root).as_posix()
 
 
 def data_files(root: Path, packs: Path, pattern: str) -> list[Path]:
@@ -483,10 +492,15 @@ def main() -> int:
 
     root: Path = args.root.resolve()
     try:
-        from pinned_phosphor_libs import PinnedTreeError, tree
-        libs: Path = tree(root)
+        from pinned_phosphor_libs import PinnedTreeError, engine_tree, tree
+        libs: dict[str, Path] = {LIBS_PREFIX: tree(root)}
     except PinnedTreeError as exc:
         fail(f"cannot find the phosphor-libs tree its shared schemas live in: {exc}")
+        return 2
+    try:
+        libs[ENGINE_LIBS_PREFIX] = engine_tree(root)
+    except PinnedTreeError as exc:
+        fail(f"cannot find the phosphor-engine-libs tree the layout schema lives in: {exc}")
         return 2
     try:
         import pinned_surface_packs

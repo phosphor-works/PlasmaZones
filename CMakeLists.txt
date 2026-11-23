@@ -243,6 +243,9 @@ set(PHOSPHOR_LIBS_BUNDLED_PACKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plasmazones/dat
 plasmazones_fetch_dependency(phosphor-surface-packs)
 include(${phosphor-surface-packs_SOURCE_DIR}/cmake/PhosphorSurfacePacks.cmake)
 plasmazones_add_phosphor_libs()
+# The placement engines, their models and the engine runtime, on the phosphor-libs
+# tree just added (cmake/PlasmaZonesDependencies.cmake pins the commit).
+plasmazones_add_phosphor_engine_libs()
 # Where PlasmaZones' files live: its own folder inside the suite folder every
 # Phosphor app shares, in each XDG root. phosphor-libs names the suite folder
 # (PHOSPHOR_SUITE_DIRECTORY_NAME); PlasmaZones' own name is set here once and
@@ -334,8 +337,8 @@ include_directories("${CMAKE_BINARY_DIR}/generated")
 # ═══════════════════════════════════════════════════════════════════════════════
 # The tree is one product tier, plasmazones/: the PlasmaZones daemon, editor,
 # settings, KCM, KWin effect, bundled data and tests. It builds on
-# phosphor-libs, added above. The engine QML firewall runs inside
-# phosphor-libs, next to the engines it guards.
+# phosphor-libs and phosphor-engine-libs, added above. The engine QML firewall
+# runs inside phosphor-engine-libs, next to the engines it guards.
 
 add_subdirectory(plasmazones)
 

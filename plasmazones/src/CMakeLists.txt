@@ -33,7 +33,7 @@ set(plasmazones_core_SRCS
     core/utils/dbusvariantutils.cpp
     core/utils/dbusvariantutils.h
     # zone, layout, layoututils, zonedetector, zonehighlighter, LayoutRegistry,
-    # AssignmentEntry, LayoutAssignmentKey live in phosphor-libs/libs/phosphor-zones/ -
+    # AssignmentEntry, LayoutAssignmentKey live in phosphor-engine-libs/libs/phosphor-zones/ -
     # consumers include <PhosphorZones/...> directly and construct the registry
     # with a borrowed PhosphorRules::RuleStore* + the
     # ConfigKeys::layoutsSubdir() subdir.
@@ -60,12 +60,12 @@ set(plasmazones_core_SRCS
     core/utils/modifierutils.h
     config/settingsvaluelabels.cpp
     config/settingsvaluelabels.h
-    # snapnavigationtargets moved to phosphor-libs/libs/phosphor-snap-engine/
+    # snapnavigationtargets moved to phosphor-engine-libs/libs/phosphor-snap-engine/
     # TilingAlgorithm, TilingState, SplitTree, AlgorithmRegistry, scripted-algo
-    # machinery live in phosphor-libs/libs/phosphor-tiles/. Consumers include canonical
+    # machinery live in phosphor-engine-libs/libs/phosphor-tiles/. Consumers include canonical
     # <PhosphorTiles/...> headers directly; no forwarding shims remain.
-    # AutotileEngine + supporting files moved to phosphor-libs/libs/phosphor-tile-engine/.
-    # SnapEngine + SnapState + supporting files moved to phosphor-libs/libs/phosphor-snap-engine/.
+    # AutotileEngine + supporting files moved to phosphor-engine-libs/libs/phosphor-tile-engine/.
+    # SnapEngine + SnapState + supporting files moved to phosphor-engine-libs/libs/phosphor-snap-engine/.
 )
 
 # Create core library

@@ -289,7 +289,7 @@ add_executable(test_placement_engine_base core/test_placement_engine_base.cpp)
 # The scroll engine's tracker stub (header-only over PhosphorEngine) drives the
 # shared free-size restore without any engine fixture; PhosphorIdentity for the
 # builders' probe helper.
-target_include_directories(test_placement_engine_base PRIVATE ${phosphor-libs_SOURCE_DIR}/libs/phosphor-scroll-engine/tests)
+target_include_directories(test_placement_engine_base PRIVATE ${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-scroll-engine/tests)
 target_link_libraries(test_placement_engine_base PRIVATE Qt6::Test Qt6::Core PhosphorEngine::PhosphorEngine
                                                          PhosphorIdentity::PhosphorIdentity)
 add_test(NAME test_placement_engine_base COMMAND test_placement_engine_base)
@@ -349,7 +349,7 @@ add_test(NAME test_luau_engine COMMAND test_luau_engine)
 # Shared pluau helpers (guardArea/stripLayout/clamp/…): loads the real pluau.luau
 # prelude into a sandboxed VM and exercises each helper directly.
 add_executable(test_pluau_helpers scripting/test_pluau_helpers.cpp)
-target_compile_definitions(test_pluau_helpers PRIVATE "PHOSPHOR_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}\"")
+target_compile_definitions(test_pluau_helpers PRIVATE "PHOSPHOR_SOURCE_DIR=\"${phosphor-engine-libs_SOURCE_DIR}\"")
 target_link_libraries(test_pluau_helpers PRIVATE Qt6::Test Qt6::Core PhosphorScripting::PhosphorScripting)
 add_test(NAME test_pluau_helpers COMMAND test_pluau_helpers)
 
@@ -1401,7 +1401,7 @@ add_test(NAME test_shader_entry_point COMMAND test_shader_entry_point)
 # assembles through the harness scaffold and bakes against the real zone UBO,
 # and a traditional main() pack is passed through unchanged (T1.4 scope B).
 # Named _bake: it bakes against PlasmaZones' bundled overlay packs, beside
-# phosphor-libs' own test_zone_entry_scaffold for the scaffold alone.
+# phosphor-engine-libs' own test_zone_entry_scaffold for the scaffold alone.
 add_executable(test_zone_entry_scaffold_bake ui/zones/test_zone_entry_scaffold_bake.cpp)
 target_link_libraries(test_zone_entry_scaffold_bake PRIVATE Qt6::Test Qt6::Core Qt6::GuiPrivate Qt6::ShaderToolsPrivate PhosphorZoneRendering::PhosphorZoneRendering PhosphorRendering::PhosphorRendering PhosphorShaders::PhosphorShaders)
 target_compile_definitions(test_zone_entry_scaffold_bake PRIVATE "PLASMAZONES_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\"")
@@ -1996,9 +1996,9 @@ add_test(NAME test_compositor_bridge COMMAND test_compositor_bridge)
 # A second one placed next to a later connect silently severs its siblings.
 # Scrapes the source because no Daemon fixture exists to assert it behaviourally.
 add_executable(test_connect_sweep_ordering daemon/test_connect_sweep_ordering.cpp)
-# The files it scans are the engine runtime's, in the pinned phosphor-libs tree.
+# The files it scans are the engine runtime's, in the pinned phosphor-engine-libs tree.
 target_compile_definitions(test_connect_sweep_ordering
-                           PRIVATE "P_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
+                           PRIVATE "P_SOURCE_DIR=\"${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
 target_link_libraries(test_connect_sweep_ordering PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_connect_sweep_ordering COMMAND test_connect_sweep_ordering)
 
@@ -2008,11 +2008,12 @@ add_test(NAME test_connect_sweep_ordering COMMAND test_connect_sweep_ordering)
 # backend after the config migration, and the not-served exit status is in the
 # unit's RestartPreventExitStatus=.
 add_executable(test_daemon_lifecycle_order daemon/test_daemon_lifecycle_order.cpp)
-# EngineRuntime::stop() is the engine runtime's, in the pinned phosphor-libs
-# tree; the daemon's main(), Daemon and its unit are this tree's.
+# EngineRuntime::stop() is the engine runtime's, in the pinned
+# phosphor-engine-libs tree; the daemon's main(), Daemon and its unit are this
+# tree's.
 target_compile_definitions(test_daemon_lifecycle_order
                            PRIVATE "P_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/plasmazones\""
-                                   "P_RUNTIME_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
+                                   "P_RUNTIME_SOURCE_DIR=\"${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
 target_link_libraries(test_daemon_lifecycle_order PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_daemon_lifecycle_order COMMAND test_daemon_lifecycle_order)
 
@@ -2021,9 +2022,9 @@ add_test(NAME test_daemon_lifecycle_order COMMAND test_daemon_lifecycle_order)
 # pins — setPresetRegistry applying at set time, not only subscribing — fires only on a
 # second init(), so the suite could not see it either way. The file states that limitation.
 add_executable(test_preset_registry_wiring daemon/test_preset_registry_wiring.cpp)
-# OverlayService is the engine runtime's, in the pinned phosphor-libs tree.
+# OverlayService is the engine runtime's, in the pinned phosphor-engine-libs tree.
 target_compile_definitions(test_preset_registry_wiring
-                           PRIVATE "P_RUNTIME_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
+                           PRIVATE "P_RUNTIME_SOURCE_DIR=\"${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime\"")
 target_link_libraries(test_preset_registry_wiring PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME test_preset_registry_wiring COMMAND test_preset_registry_wiring)
 

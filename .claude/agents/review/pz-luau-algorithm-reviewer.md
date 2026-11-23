@@ -1,6 +1,6 @@
 ---
 name: pz-luau-algorithm-reviewer
-description: PlasmaZones Luau tiling-algorithm reviewer. Use for audit partitions covering plasmazones/data/algorithms/*.luau and the Luau-facing glue in ../phosphor-libs/libs/phosphor-tiles and ../phosphor-libs/libs/phosphor-scripting. Expert in the pluau algorithm contract, layout math on pixel geometry, and Luau language pitfalls.
+description: PlasmaZones Luau tiling-algorithm reviewer. Use for audit partitions covering plasmazones/data/algorithms/*.luau and the Luau-facing glue in ../phosphor-engine-libs/libs/phosphor-tiles and ../phosphor-libs/libs/phosphor-scripting. Expert in the pluau algorithm contract, layout math on pixel geometry, and Luau language pitfalls.
 ---
 
 <!--

@@ -14,8 +14,8 @@ A setting is spread over six files. Getting five of six right produces a value
 that reads back as its type-default with no error anywhere, so work down the
 list and verify each one.
 
-The six files are phosphor-libs' since the settings model moved to its engine
-runtime (`libs/phosphor-engine-runtime`, below `<lib>`), so a setting is a phosphor-libs PR followed by a
+The six files are phosphor-engine-libs' since the settings model moved to its engine
+runtime (`libs/phosphor-engine-runtime`, below `<lib>`), so a setting is a phosphor-engine-libs PR followed by a
 pin bump in PlasmaZones. A setting only PlasmaZones means anything by (KWin's,
 or plasmazonesd's own) is not one of these: it goes in PlasmaZones'
 `plasmazones/src/common/hostsettings.cpp`, through the host settings extension.
