@@ -79,7 +79,7 @@ target_link_libraries(plasmazones-shader-render PRIVATE
 # working tree instead of silently falling back to the installed packs, or
 # failing with "layout not found" when nothing is installed.
 target_compile_definitions(plasmazones-shader-render PRIVATE
-    PZ_SHADER_RENDER_SOURCE_DATA_DIR="${CMAKE_SOURCE_DIR}/plasmazones/data"
+    PZ_SHADER_RENDER_SOURCE_DATA_DIR="${PROJECT_SOURCE_DIR}/plasmazones/data"
 )
 
 target_compile_features(plasmazones-shader-render PRIVATE cxx_std_20)

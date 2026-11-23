@@ -39,15 +39,15 @@ find_package(Qt6LinguistTools QUIET)
 # CONFIGURE_DEPENDS makes the build re-run the glob, so a newly-added file is
 # extractable without a manual `cmake` invocation.
 file(GLOB_RECURSE PLASMAZONES_I18N_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/plasmazones/src/*.cpp"
-    "${CMAKE_SOURCE_DIR}/plasmazones/src/*.h"
-    "${CMAKE_SOURCE_DIR}/plasmazones/kcm/*.cpp"
-    "${CMAKE_SOURCE_DIR}/plasmazones/kcm/*.h"
+    "${PROJECT_SOURCE_DIR}/plasmazones/src/*.cpp"
+    "${PROJECT_SOURCE_DIR}/plasmazones/src/*.h"
+    "${PROJECT_SOURCE_DIR}/plasmazones/kcm/*.cpp"
+    "${PROJECT_SOURCE_DIR}/plasmazones/kcm/*.h"
     # The KWin effect carries user-facing text of its own since the scrolling
     # tab indicators moved into it (the untitled-tab placeholder); it loads
     # the same "plasmazones" catalog at construction.
-    "${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.cpp"
-    "${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.h"
+    "${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/*.cpp"
+    "${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/*.h"
     # phosphor-control's C++ carries user-facing text too: the async
     # Save/Discard errors ApplicationController reports through tr(), and
     # the built-in category names ModuleHost marks with
@@ -71,7 +71,7 @@ file(GLOB_RECURSE PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES CONFIGURE_DEPENDS
     "${phosphor-engine-libs_SOURCE_DIR}/libs/phosphor-engine-runtime/qml/*.qml"
 )
 file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/plasmazones/src/*.qml"
+    "${PROJECT_SOURCE_DIR}/plasmazones/src/*.qml"
     # phosphor-control extracts nothing HERE today — its chrome calls qsTr(),
     # which lupdate reads natively via the qsTr glob below, and the one `i18n`
     # string in that tree is inside a code comment (Sidebar.qml). Listed anyway
@@ -102,7 +102,7 @@ file(GLOB_RECURSE PLASMAZONES_I18N_QML CONFIGURE_DEPENDS
 # link against plasmazones_core.
 file(GLOB_RECURSE PLASMAZONES_I18N_QML_QSTR CONFIGURE_DEPENDS
     "${phosphor-libs_SOURCE_DIR}/libs/phosphor-control/qml/*.qml"
-    "${CMAKE_SOURCE_DIR}/plasmazones/kcm/*.qml"
+    "${PROJECT_SOURCE_DIR}/plasmazones/kcm/*.qml"
 )
 
 # QML is NOT handed to lupdate directly. lupdate's QML parser only recognizes
@@ -119,11 +119,11 @@ file(GLOB_RECURSE PLASMAZONES_I18N_QML_QSTR CONFIGURE_DEPENDS
 # The stub filenames mirror the real .qml paths (translations/.qml-stubs/
 # src/.../Foo.qml.cpp, same line numbers), so the mapping back to the real
 # source is mechanical.
-set(_qml_stub_dir "${CMAKE_SOURCE_DIR}/plasmazones/translations/.qml-stubs")
+set(_qml_stub_dir "${PROJECT_SOURCE_DIR}/plasmazones/translations/.qml-stubs")
 
 # Collect all .ts files once (en template + per-language); the compile list
 # below filters the template back out.
-file(GLOB _all_ts_files CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/plasmazones/translations/plasmazones_*.ts")
+file(GLOB _all_ts_files CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/plasmazones/translations/plasmazones_*.ts")
 
 # Per-language .ts files (plasmazones_de.ts, plasmazones_fr.ts, etc.)
 # Flat layout: translations/plasmazones_<lang>.ts → plasmazones_<lang>.qm
@@ -136,7 +136,7 @@ list(FILTER TRANSLATION_TS_FILES EXCLUDE REGEX "plasmazones_en\\.ts$")
 # English plural forms of the overlay's qsTr() calls that pass a count, which
 # the source text alone cannot give.
 file(GLOB _runtime_ts_files CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/plasmazones/translations/phosphor-engine-runtime_*.ts")
+    "${PROJECT_SOURCE_DIR}/plasmazones/translations/phosphor-engine-runtime_*.ts")
 set(RUNTIME_TRANSLATION_TS_FILES ${_runtime_ts_files})
 
 # --- update-ts target ---
@@ -149,8 +149,8 @@ if(Qt6LinguistTools_FOUND AND Python3_Interpreter_FOUND)
     add_custom_target(update-ts
         COMMENT "Updating .ts translation files from source (lupdate)"
         COMMAND ${CMAKE_COMMAND} -E rm -rf ${_qml_stub_dir}
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/qml-i18n-stubs.py
-            --source-root ${CMAKE_SOURCE_DIR}
+        COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/qml-i18n-stubs.py
+            --source-root ${PROJECT_SOURCE_DIR}
             --out-dir ${_qml_stub_dir}
             --list ${_qml_stub_dir}/stubs.txt
             ${PLASMAZONES_I18N_QML}
@@ -175,7 +175,7 @@ if(Qt6LinguistTools_FOUND AND Python3_Interpreter_FOUND)
         # context its tr() looks strings up under at runtime.
         COMMAND Qt6::lupdate
             -no-obsolete
-            -I ${CMAKE_SOURCE_DIR}/plasmazones/src
+            -I ${PROJECT_SOURCE_DIR}/plasmazones/src
             -I ${phosphor-libs_SOURCE_DIR}/libs/phosphor-control/include
             ${PLASMAZONES_I18N_SOURCES}
             ${PLASMAZONES_I18N_QML_QSTR}
@@ -184,10 +184,10 @@ if(Qt6LinguistTools_FOUND AND Python3_Interpreter_FOUND)
         # The engine runtime's catalog, from its own sources only.
         COMMAND Qt6::lupdate
             -no-obsolete
-            -I ${CMAKE_SOURCE_DIR}/plasmazones/src
+            -I ${PROJECT_SOURCE_DIR}/plasmazones/src
             ${PHOSPHOR_ENGINE_RUNTIME_I18N_SOURCES}
             -ts ${_runtime_ts_files}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
 elseif(Qt6LinguistTools_FOUND)
     add_custom_target(update-ts

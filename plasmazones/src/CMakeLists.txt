@@ -792,13 +792,13 @@ install(TARGETS plasmazones-shader-validate DESTINATION ${KDE_INSTALL_BINDIR})
 # QShaderBaker alone and needs no such tool.
 if(BUILD_TESTING)
     add_test(NAME shader_validate_bundled
-             COMMAND plasmazones-shader-validate --overlay ${CMAKE_SOURCE_DIR}/plasmazones/data/overlays)
+             COMMAND plasmazones-shader-validate --overlay ${PROJECT_SOURCE_DIR}/plasmazones/data/overlays)
     add_test(NAME shader_validate_animations
-             COMMAND plasmazones-shader-validate --animation ${CMAKE_SOURCE_DIR}/plasmazones/data/animations)
+             COMMAND plasmazones-shader-validate --animation ${PROJECT_SOURCE_DIR}/plasmazones/data/animations)
     add_test(NAME shader_validate_surface
              COMMAND plasmazones-shader-validate --surface ${PHOSPHOR_SURFACE_PACKS_DIR})
     add_test(NAME shader_validate_pointer
-             COMMAND plasmazones-shader-validate --pointer ${CMAKE_SOURCE_DIR}/plasmazones/data/pointer)
+             COMMAND plasmazones-shader-validate --pointer ${PROJECT_SOURCE_DIR}/plasmazones/data/pointer)
 
     # The XDG half of the standard isolation, applied by hand — NOT a stray copy
     # that should have used the shared helper. These tests have no target of
@@ -819,7 +819,7 @@ if(BUILD_TESTING)
     # `../shared/` copy is missing — never the case for the bundled packs
     # today, so this is a belt-and-braces pin rather than a live-failure fix.
     # The bus half is not needed: the validator never touches D-Bus.
-    set(_pz_shader_validate_xdg "${CMAKE_BINARY_DIR}/test-xdg/shader_validate")
+    set(_pz_shader_validate_xdg "${PROJECT_BINARY_DIR}/test-xdg/shader_validate")
     file(MAKE_DIRECTORY "${_pz_shader_validate_xdg}/config" "${_pz_shader_validate_xdg}/data"
                         "${_pz_shader_validate_xdg}/state" "${_pz_shader_validate_xdg}/cache")
     foreach(_pz_sv shader_validate_bundled shader_validate_animations shader_validate_surface

@@ -21,7 +21,7 @@ target_link_libraries(plasmazones-settings-schema-dump PRIVATE
 # through plasmazones_core); PlasmaZones' own headers are reached by their
 # in-tree paths, as the daemon's translation units reach them.
 target_include_directories(plasmazones-settings-schema-dump PRIVATE
-    ${CMAKE_SOURCE_DIR}/plasmazones/src
+    ${PROJECT_SOURCE_DIR}/plasmazones/src
 )
 
 # Developer tool, not a shipped binary — deliberately not install()ed. The

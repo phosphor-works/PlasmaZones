@@ -268,44 +268,47 @@ include(KDEClangFormat)
 # and silently drop files directly under each root (e.g. plasmazones/src/phosphor_qml_i18n.cpp,
 # any top-level kwin-effect/.cpp).
 file(GLOB_RECURSE ALL_CLANG_FORMAT_SOURCE_FILES
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/*.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/*.h
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/*.hpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/kcm/*.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/kcm/*.h
-    ${CMAKE_SOURCE_DIR}/plasmazones/kcm/*.hpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.h
-    ${CMAKE_SOURCE_DIR}/plasmazones/kwin-effect/*.hpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/tests/*.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/tests/*.h
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/*.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/*.h
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/*.hpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/kcm/*.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/kcm/*.h
+    ${PROJECT_SOURCE_DIR}/plasmazones/kcm/*.hpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/*.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/*.h
+    ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect/*.hpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/tests/*.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/tests/*.h
     # Built only with -DBUILD_TOOLS=ON, but this glob is filesystem-based
     # rather than target-based, so the entry is unconditional. Without it
     # the clang-format target skipped shader-render and
     # settings-schema-dump entirely; only lefthook reached them.
-    ${CMAKE_SOURCE_DIR}/plasmazones/tools/*.cpp
-    ${CMAKE_SOURCE_DIR}/plasmazones/tools/*.h
-    ${CMAKE_SOURCE_DIR}/plasmazones/tools/*.hpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/tools/*.cpp
+    ${PROJECT_SOURCE_DIR}/plasmazones/tools/*.h
+    ${PROJECT_SOURCE_DIR}/plasmazones/tools/*.hpp
 )
 kde_clang_format(${ALL_CLANG_FORMAT_SOURCE_FILES})
 
 # QML: qmlformat (from qt6-tools, optional)
 # Same `**`-vs-recursion rationale as the clang-format glob above.
+# Repository tooling: only for a build of this repository on its own. A tree
+# that adds PlasmaZones as a subproject (the workspace superbuild) has its own,
+# and two targets of one name stop its configure.
 find_program(QMLFORMAT qmlformat)
 file(GLOB_RECURSE ALL_QML_FILES
-    ${CMAKE_SOURCE_DIR}/plasmazones/src/*.qml
-    ${CMAKE_SOURCE_DIR}/plasmazones/kcm/*.qml
+    ${PROJECT_SOURCE_DIR}/plasmazones/src/*.qml
+    ${PROJECT_SOURCE_DIR}/plasmazones/kcm/*.qml
 )
-if(QMLFORMAT AND ALL_QML_FILES)
+if(PROJECT_IS_TOP_LEVEL AND QMLFORMAT AND ALL_QML_FILES)
     # Run qmlformat via helper script; per-file failures are ignored (one bad QML won't fail target)
     add_custom_target(format-qml
         COMMAND ${CMAKE_COMMAND}
             -DQMLFORMAT=${QMLFORMAT}
             -DFILES="${ALL_QML_FILES}"
-            -P ${CMAKE_SOURCE_DIR}/cmake/format-qml.cmake
+            -P ${PROJECT_SOURCE_DIR}/cmake/format-qml.cmake
         COMMENT "Formatting QML files with qmlformat"
     )
-else()
+elseif(PROJECT_IS_TOP_LEVEL)
     add_custom_target(format-qml
         COMMAND ${CMAKE_COMMAND} -E echo "qmlformat not found or no QML files; install qt6-tools for QML formatting"
     )
@@ -326,11 +329,11 @@ include(cmake/PhosphorTranslations.cmake)
 
 # Generate version header with compile-time version info
 configure_file(
-    "${CMAKE_SOURCE_DIR}/plasmazones/src/core/version.h.in"
-    "${CMAKE_BINARY_DIR}/generated/version.h"
+    "${PROJECT_SOURCE_DIR}/plasmazones/src/core/version.h.in"
+    "${PROJECT_BINARY_DIR}/generated/version.h"
     @ONLY
 )
-include_directories("${CMAKE_BINARY_DIR}/generated")
+include_directories("${PROJECT_BINARY_DIR}/generated")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Tiers
@@ -344,40 +347,45 @@ add_subdirectory(plasmazones)
 
 # One precompiled header shared by every test target, attached after all tiers
 # are declared because it walks the tree for them (cmake/PhosphorTestPch.cmake).
-if(BUILD_TESTING AND ENABLE_PCH)
+# Only at the top level, as phosphor-libs does: a tree that adds PlasmaZones as
+# a subproject makes the one call itself, after every project in it.
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND ENABLE_PCH)
     include(PhosphorTestPch)
     phosphor_share_test_pch()
 endif()
 
-# Custom uninstall target that cleans up directories properly.
-# QT6_INSTALL_PLUGINS repeats phosphor-wayland's QPA install-path derivation
-# (a subdirectory-scope variable there, so re-derived here for the configure
-# below). The fallback there spells the libdir relative and here absolute,
-# which resolves to the same place: install() roots a relative DESTINATION at
-# the prefix, and the absolute branch below prepends the prefix itself.
-if(NOT DEFINED QT6_INSTALL_PLUGINS)
-    get_target_property(QT6_INSTALL_PLUGINS Qt6::Core QT_INSTALL_PLUGINS)
-    if(NOT QT6_INSTALL_PLUGINS)
-        set(QT6_INSTALL_PLUGINS "${KDE_INSTALL_FULL_LIBDIR}/qt6/plugins")
+# Custom uninstall target that cleans up directories properly. Top level only,
+# like the other repository tooling above: it reads this build's install manifest.
+if(PROJECT_IS_TOP_LEVEL)
+    # QT6_INSTALL_PLUGINS repeats phosphor-wayland's QPA install-path derivation
+    # (a subdirectory-scope variable there, so re-derived here for the configure
+    # below). The fallback there spells the libdir relative and here absolute,
+    # which resolves to the same place: install() roots a relative DESTINATION at
+    # the prefix, and the absolute branch below prepends the prefix itself.
+    if(NOT DEFINED QT6_INSTALL_PLUGINS)
+        get_target_property(QT6_INSTALL_PLUGINS Qt6::Core QT_INSTALL_PLUGINS)
+        if(NOT QT6_INSTALL_PLUGINS)
+            set(QT6_INSTALL_PLUGINS "${KDE_INSTALL_FULL_LIBDIR}/qt6/plugins")
+        endif()
     endif()
-endif()
-# The Qt property can be prefix-relative; the uninstall script needs an
-# absolute path (matching how install() resolves relative DESTINATIONs).
-if(IS_ABSOLUTE "${QT6_INSTALL_PLUGINS}")
-    set(PZ_UNINSTALL_QT_PLUGINS "${QT6_INSTALL_PLUGINS}")
-else()
-    set(PZ_UNINSTALL_QT_PLUGINS "${CMAKE_INSTALL_PREFIX}/${QT6_INSTALL_PLUGINS}")
-endif()
-configure_file(
-    "${CMAKE_SOURCE_DIR}/cmake/uninstall.cmake.in"
-    "${CMAKE_BINARY_DIR}/cmake_uninstall.cmake"
-    @ONLY
-)
+    # The Qt property can be prefix-relative; the uninstall script needs an
+    # absolute path (matching how install() resolves relative DESTINATIONs).
+    if(IS_ABSOLUTE "${QT6_INSTALL_PLUGINS}")
+        set(PZ_UNINSTALL_QT_PLUGINS "${QT6_INSTALL_PLUGINS}")
+    else()
+        set(PZ_UNINSTALL_QT_PLUGINS "${CMAKE_INSTALL_PREFIX}/${QT6_INSTALL_PLUGINS}")
+    endif()
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/cmake/uninstall.cmake.in"
+        "${PROJECT_BINARY_DIR}/cmake_uninstall.cmake"
+        @ONLY
+    )
 
-add_custom_target(uninstall
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/cmake_uninstall.cmake
-    COMMENT "Uninstalling PlasmaZones..."
-)
+    add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P ${PROJECT_BINARY_DIR}/cmake_uninstall.cmake
+        COMMENT "Uninstalling PlasmaZones..."
+    )
+endif()
 
 # Build/install only installs files. Enabling the daemon, refreshing sycoca/KWin,
 # and user-facing messages are handled by packaging (Arch .install, Debian postinst, RPM %post).
