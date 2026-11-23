@@ -21,8 +21,20 @@ set(CMAKE_AUTOUIC ON)
 
 # Unity builds - combine multiple source files into larger translation units
 # This significantly reduces compilation time by reducing header parsing overhead
-option(CMAKE_UNITY_BUILD "Enable unity builds for faster compilation" ON)
-set(CMAKE_UNITY_BUILD_BATCH_SIZE 16 CACHE STRING "Number of sources per unity batch")
+#
+# As the top-level project the switch is the CMAKE_UNITY_BUILD cache entry
+# (-DCMAKE_UNITY_BUILD=OFF for a non-unity build). Inside a superbuild a cache
+# entry would reach every project in the tree, including third-party code that
+# does not build as unity, so there the switch is PLASMAZONES_UNITY_BUILD and the
+# setting is a directory variable: this tree and the libraries it adds only.
+if(PROJECT_IS_TOP_LEVEL)
+    option(CMAKE_UNITY_BUILD "Enable unity builds for faster compilation" ON)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 16 CACHE STRING "Number of sources per unity batch")
+else()
+    option(PLASMAZONES_UNITY_BUILD "Build PlasmaZones and the libraries it adds as unity builds" ON)
+    set(CMAKE_UNITY_BUILD ${PLASMAZONES_UNITY_BUILD})
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 16)
+endif()
 
 # Precompiled headers - reuse expensive header compilation
 option(ENABLE_PCH "Enable precompiled headers" ON)
