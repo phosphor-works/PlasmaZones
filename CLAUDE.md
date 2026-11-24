@@ -274,7 +274,7 @@ python3 scripts/check-conventions.py --list-rules
 ```
 
 ### Presets
-Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests and the tools on. `cmake --preset release && cmake --build --preset release` builds the release tree. CI configures from the `debug` preset in its Presets job, so a broken preset turns CI red.
+Configurations come from `CMakePresets.json`, the shared presets of every phosphor-works repository (written by `workspace/tools/sync`, never edited here): `dev` (Debug) configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/` and `asan` (ASan and UBSan at `-O1`) into `build-asan/`. Every preset turns the tests and the tools on, and each has a workflow preset: `cmake --workflow --preset dev` configures, builds and tests. CI configures from the `dev` preset in its Presets job, so a broken preset turns CI red. The `Makefile` keeps only what the presets do not cover: install, post-install, uninstall, run-editor, run-daemon and format.
 
 Install is whole-tree: none of the install rules declares a `COMPONENT`. `DESTDIR=/tmp/stage cmake --install build` stages it without root. After a real install (the user runs it), `make post-install` refreshes the KDE service cache.
 

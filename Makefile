@@ -1,25 +1,28 @@
 # SPDX-FileCopyrightText: 2026 fuddlesworth
 # SPDX-License-Identifier: GPL-3.0-or-later
-# PlasmaZones Build System
-# Simple Makefile wrapper for CMake
+#
+# PlasmaZones: the tasks the CMake presets do not cover. Configure, build and
+# test with the presets (CMakePresets.json, shared by every phosphor-works
+# repository):
+#
+#   cmake --workflow --preset dev      configure, build and test (Debug, build/)
+#   cmake --workflow --preset release  the same in build-release/
+#   cmake --workflow --preset asan     with ASan and UBSan, in build-asan/
 #
 # Usage:
-#   make              - Configure and build (Debug)
-#   make release      - Configure and build (Release)
-#   make install      - Install to system (requires sudo)
-#   make uninstall    - Uninstall from system (requires sudo)
-#   make clean        - Remove build directory
-#   make test         - Build and run tests
-#   make editor       - Build only the editor
-#   make daemon       - Build only the daemon
+#   make              - Configure and build with the dev preset
+#   make install      - Install build/ to the system (requires sudo)
+#   make post-install - Refresh the KDE service cache after an install
+#   make uninstall    - Uninstall from the system (requires sudo)
 #   make run-editor   - Build and run the editor
 #   make run-daemon   - Build and run the daemon
+#   make format       - Format C++ and QML
 
-# Configuration
+# The dev preset's build directory.
 BUILD_DIR := build
-BUILD_TYPE ?= Debug
-JOBS ?= $(shell nproc 2>/dev/null || echo 4)
-CMAKE_FLAGS ?=
+# Parallel jobs for the build. Empty: CMake's default.
+JOBS ?=
+JOBS_FLAG := $(if $(JOBS),-j$(JOBS))
 
 # Auto-detect color support
 ifneq ($(TERM),)
@@ -32,44 +35,19 @@ ifneq ($(TERM),)
   endif
 endif
 
-.PHONY: all configure build release rebuild install post-install uninstall clean test \
-        editor daemon run-editor run-daemon help format format-cpp format-qml
+.PHONY: all configure install post-install uninstall run-editor run-daemon help format format-cpp format-qml
 
-# Default target
-all: build
+# Default target: configure and build with the dev preset.
+all: configure
+	@echo "$(BLUE)>>> Building...$(NC)"
+	@cmake --build --preset dev $(JOBS_FLAG)
+	@echo "$(GREEN)>>> Build complete. Binaries in: $(BUILD_DIR)/bin/$(NC)"
 
-# Configure the build.
-#
-# -G Ninja and the two ON flags are not optional here, they are what keeps this
-# target compatible with CMakePresets.json. The `debug` preset also binaries
-# into build/, with Ninja and BUILD_TESTING/BUILD_TOOLS both ON. Configuring the same directory without them gives it the platform default
-# generator, and CMake then refuses every later `cmake --preset debug` with
-# "does not match the generator used previously" until
-# someone deletes build/.
 configure:
-	@echo "$(BLUE)>>> Configuring $(BUILD_TYPE) build...$(NC)"
-	@cmake -B $(BUILD_DIR) -S . -G Ninja \
-		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-		-DBUILD_TESTING=ON \
-		-DBUILD_TOOLS=ON \
-		$(CMAKE_FLAGS)
-	@echo "$(GREEN)>>> Configuration complete$(NC)"
-
-# Build everything
-build: configure
-	@echo "$(BLUE)>>> Building with $(JOBS) jobs...$(NC)"
-	@cmake --build $(BUILD_DIR) -j$(JOBS)
-	@echo "$(GREEN)>>> Build complete$(NC)"
-	@echo "Binaries in: $(BUILD_DIR)/bin/"
-
-# Release build. Uses build-release/, matching the `release` preset in
-# CMakePresets.json, so a release build never flips build/ between build types
-# and forces a full reconfigure of the debug tree.
-release:
-	@$(MAKE) BUILD_TYPE=Release BUILD_DIR=build-release build
+	@cmake --preset dev
 
 # Install to system (only installs files; packaging handles sycoca/service enable).
-# Deliberately does NOT depend on `build`: the documented invocation is
+# Deliberately does NOT depend on a build: the documented invocation is
 # `sudo make install`, and building under sudo leaves root-owned objects in
 # build/ that break the user's next unprivileged make. Build first, then install.
 install:
@@ -102,98 +80,53 @@ uninstall:
 		exit 1; \
 	fi
 
-# Clean build directory
-clean:
-	@echo "$(YELLOW)>>> Cleaning build directory...$(NC)"
-	@rm -rf $(BUILD_DIR)
-	@echo "$(GREEN)>>> Clean complete$(NC)"
-
-# Build and run tests
-test: build
-	@echo "$(BLUE)>>> Running tests...$(NC)"
-	@cd $(BUILD_DIR) && ctest --output-on-failure --no-tests=error
-	@echo "$(GREEN)>>> Tests complete$(NC)"
-
-# Build only the editor
-editor: configure
-	@echo "$(BLUE)>>> Building editor...$(NC)"
-	@cmake --build $(BUILD_DIR) --target plasmazones-editor -j$(JOBS)
-	@echo "$(GREEN)>>> Editor built: $(BUILD_DIR)/bin/plasmazones-editor$(NC)"
-
-# Build only the daemon
-daemon: configure
-	@echo "$(BLUE)>>> Building daemon...$(NC)"
-	@cmake --build $(BUILD_DIR) --target plasmazonesd -j$(JOBS)
-	@echo "$(GREEN)>>> Daemon built: $(BUILD_DIR)/bin/plasmazonesd$(NC)"
-
 # Build and run the editor
-run-editor: editor
+run-editor: configure
+	@cmake --build --preset dev --target plasmazones-editor $(JOBS_FLAG)
 	@echo "$(BLUE)>>> Running editor...$(NC)"
 	@$(BUILD_DIR)/bin/plasmazones-editor --new
 
 # Build and run the daemon
-run-daemon: daemon
+run-daemon: configure
+	@cmake --build --preset dev --target plasmazonesd $(JOBS_FLAG)
 	@echo "$(BLUE)>>> Running daemon...$(NC)"
 	@$(BUILD_DIR)/bin/plasmazonesd
 
-# Rebuild from scratch
-rebuild: clean build
-
 # Format C++ (clang-format) and QML (qmlformat, if available)
-format: configure
-	@echo "$(BLUE)>>> Formatting C++...$(NC)"
-	@cmake --build $(BUILD_DIR) --target clang-format
-	@echo "$(BLUE)>>> Formatting QML...$(NC)"
-	@cmake --build $(BUILD_DIR) --target format-qml
-	@echo "$(GREEN)>>> Format complete$(NC)"
+format: format-cpp format-qml
 
 # Format C++ only
 format-cpp: configure
 	@echo "$(BLUE)>>> Formatting C++...$(NC)"
-	@cmake --build $(BUILD_DIR) --target clang-format
+	@cmake --build --preset dev --target clang-format
 	@echo "$(GREEN)>>> C++ format complete$(NC)"
 
 # Format QML only (requires qt6-tools: qmlformat)
 format-qml: configure
 	@echo "$(BLUE)>>> Formatting QML...$(NC)"
-	@cmake --build $(BUILD_DIR) --target format-qml
+	@cmake --build --preset dev --target format-qml
 	@echo "$(GREEN)>>> QML format complete$(NC)"
 
 # Help
 help:
-	@echo "$(BLUE)PlasmaZones Build System$(NC)"
+	@echo "$(BLUE)PlasmaZones: the tasks the CMake presets do not cover$(NC)"
 	@echo ""
-	@echo "$(GREEN)Build targets:$(NC)"
-	@echo "  make              - Configure and build (Debug)"
-	@echo "  make release      - Configure and build (Release)"
-	@echo "  make editor       - Build only the layout editor"
-	@echo "  make daemon       - Build only the daemon"
-	@echo "  make rebuild      - Clean and rebuild everything"
+	@echo "$(GREEN)Build with the presets:$(NC)"
+	@echo "  cmake --workflow --preset dev      - Configure, build and test (Debug, build/)"
+	@echo "  cmake --workflow --preset release  - The same in build-release/"
+	@echo "  cmake --workflow --preset asan     - With ASan and UBSan, in build-asan/"
 	@echo ""
-	@echo "$(GREEN)Run targets:$(NC)"
+	@echo "$(GREEN)Targets:$(NC)"
+	@echo "  make              - Configure and build with the dev preset"
 	@echo "  make run-editor   - Build and run the editor"
 	@echo "  make run-daemon   - Build and run the daemon"
-	@echo ""
-	@echo "$(GREEN)Install targets:$(NC)"
-	@echo "  make install      - Install files to system (may need sudo)"
+	@echo "  make install      - Install build/ to the system (may need sudo)"
 	@echo "  make post-install - Refresh KDE sycoca after install (optional; packaging does this)"
-	@echo "  make uninstall    - Uninstall from system (may need sudo)"
-	@echo ""
-	@echo "$(GREEN)Other targets:$(NC)"
-	@echo "  make test         - Build and run tests"
+	@echo "  make uninstall    - Uninstall from the system (may need sudo)"
 	@echo "  make format       - Format C++ and QML (clang-format, qmlformat)"
 	@echo "  make format-cpp   - Format C++ only"
 	@echo "  make format-qml   - Format QML only (needs qt6-tools)"
-	@echo "  make clean        - Remove build directory"
 	@echo "  make help         - Show this help"
 	@echo ""
 	@echo "$(GREEN)Variables:$(NC)"
-	@echo "  BUILD_TYPE=Debug|Release  - Build type (default: Debug)"
-	@echo "  JOBS=N                    - Parallel jobs (default: nproc)"
-	@echo "  CMAKE_FLAGS='...'         - Extra CMake flags"
-	@echo ""
-	@echo "$(GREEN)Examples:$(NC)"
-	@echo "  make                      - Debug build"
-	@echo "  make release              - Release build"
-	@echo "  make JOBS=4 editor        - Build editor with 4 jobs"
-	@echo "  sudo make install         - Install to system"
+	@echo "  JOBS=N            - Parallel build jobs (default: CMake's)"

@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-License-Identifier: CC0-1.0
+#
+# The editor settings every phosphor-works repository shares. workspace/tools/sync
+# writes this file into each repository: change it in workspace/sync/editorconfig,
+# never in a repository. clang-format and qmlformat decide the layout of C++ and
+# QML, so this sets only what they do not.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cpp,cc,cxx,h,hpp,qml,js,py,sh,cmake,glsl,frag,vert,luau,lua}]
+indent_size = 4
+
+[{CMakeLists.txt,*.cmake.in}]
+indent_size = 4
+
+[*.{yml,yaml,nix}]
+indent_size = 2
+
+[{Makefile,*.mk}]
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false
