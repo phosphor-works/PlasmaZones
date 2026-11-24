@@ -97,15 +97,9 @@
             ./.moon
             ./moon.yml
             ./plasmazones/moon.yml
-            ./AGENTS.md
-            # .agents holds only symlinks INTO .claude/skills, so excluding it
-            # alone achieved nothing: .gitignore un-ignores 22 tracked files
-            # under .claude/ (agents/review, agents/shader-theme, five skills
-            # trees, settings.json) plus 2 under .codex/, and editing any of
-            # them changed the src hash and forced a full rebuild.
-            ./.agents
+            # Claude Code settings: editing it must not change the src hash
+            # and force a full rebuild.
             ./.claude
-            ./.codex
           ]
         );
       };
