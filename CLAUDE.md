@@ -1,6 +1,11 @@
 # PlasmaZones — Claude Code Configuration
 # KDE/Plasma Window Placement — Qt6/C++20/QML/Kirigami
 
+The rules every phosphor-works repository follows come from the workspace repository, imported below. This file adds
+PlasmaZones' own.
+
+@../workspace/claude/conventions.md
+
 ## Project
 PlasmaZones: window snapping, tiling and scrolling for KDE Plasma. Qt6, KF6, Kirigami, C++20, Wayland-only.
 
@@ -22,16 +27,11 @@ The Phosphor libraries (rendering, layer-shell, animation, config, screens, rule
 
 ## Behavioral Rules (Always Enforced)
 - NEVER question or doubt what the user says they did (installed, restarted, tested, etc.) — trust them and focus on the code
-- Do what has been asked; nothing more, nothing less
 - NEVER create files unless absolutely necessary; prefer editing existing files
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
 - NEVER save working files, text/mds, or tests to the root folder
-- ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
-- ALWAYS run tests after making code changes
-- ALWAYS verify build succeeds before committing
-- NEVER run `cmake --install` or `sudo` — the user handles installation
-- NEVER use temporary workarounds, TODOs, "for now" hacks, or deferred fixes — solve the root cause properly the first time
+- NEVER run `cmake --install` into the system — the user handles installation
 
 ## File Organization
 - NEVER save to the root folder — use the directories below
@@ -101,16 +101,11 @@ The Phosphor libraries (rendering, layer-shell, animation, config, screens, rule
 - QML: `i18n()` / `i18nc()` (via `PhosphorLocalizedContext`)
 - Extract: `cmake --build build --target update-ts`
 
-## User-Facing Text (Plain Prose)
-User-facing strings MUST read like plain, human-written prose with no LLM tics. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
+## User-Facing Text
+User-facing text follows the writing rules of the conventions file: controlled English, with no em dash, semicolon or spaced hyphen joining clauses. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
 
-`README.md` is deliberately OUT of scope, along with the other developer-facing repo docs (`CLAUDE.md`, `AGENTS.md`, `docs/**`, `plasmazones/tools/**/README.md`). The README uses em-dashes structurally throughout and pulling it under this rule would need a full punctuation rewrite first. Do not "fix" README em-dashes to satisfy the bullets below.
+`README.md` is deliberately OUT of scope, along with the other developer-facing repo docs (`CLAUDE.md`, `docs/**`, `plasmazones/tools/**/README.md`). The README uses em-dashes structurally throughout and pulling it under this rule would need a full punctuation rewrite first. Do not "fix" README em-dashes to satisfy these rules.
 
-- NEVER use an em-dash (`—`, or the `—` escape) to splice clauses or tack on an appositive. Write two sentences, or join with a plain word (and, with, where, so, because).
-- NEVER use a clause-splicing semicolon to join two independent clauses. Split into sentences or use "and". Semicolons inside backticked code, and semicolons separating genuine comma-bearing list items, are fine.
-- NEVER use a spaced hyphen (` - `) as a stand-in dash. Rewrite the sentence.
-- NEVER use a dramatic "Label: payload" colon for effect. The Keep-a-Changelog `**Term**: description` lead-in and real field labels are fine.
-- AVOID rule-of-three triads and "not just X, but Y" constructions used for flourish.
 - A literal typographic separator between two nouns is acceptable (e.g. the `%1 — %2` Layout/Zone display format) and so are settings-path breadcrumbs (e.g. `Settings → Snapping`).
 - These rules do NOT apply to code comments, log/`qCWarning` messages, or other non-user-facing text.
 
@@ -123,7 +118,7 @@ User-facing strings MUST read like plain, human-written prose with no LLM tics. 
 - Editor settings: separate, in `EditorController` (separate process)
 
 ### Adding a Setting
-Use the `pz-add-setting` skill, which carries the full worked example. An engine setting lives in phosphor-engine-libs' engine runtime (`libs/phosphor-engine-runtime`, the settings model PlasmaZones links), so adding one is a phosphor-engine-libs PR followed by a pin bump here (see phosphor-libs above). Summary, with paths in that library:
+Use the `plasmazones:add-setting` skill, which carries the full worked example. An engine setting lives in phosphor-engine-libs' engine runtime (`libs/phosphor-engine-runtime`, the settings model PlasmaZones links), so adding one is a phosphor-engine-libs PR followed by a pin bump here (see phosphor-libs above). Summary, with paths in that library:
 
 1. `include/PhosphorEngineRuntime/ConfigDefaults<Area>.h` — static default accessor (plus `constexpr` Min/Max for a clamped numeric). `ConfigDefaults.h` is split by area (`Appearance`, `Gaps`, `Limits`, `Screens`, `Scrolling`, `ScrollingBehavior`, `ScrollingShortcuts`, `Shaders`, `Workspaces`).
 2. `include/PhosphorEngineRuntime/ConfigKeys.h` — group and `xxxKey()` accessors, if new (`ConfigKeysScrolling.h` for a scrolling group, `ConfigKeysWorkspaces.h` for a workspaces group). NOT `ConfigDefaults.h`, which declares none of them; the call is still spelled `ConfigDefaults::` because ConfigDefaults inherits the chain.
@@ -163,19 +158,19 @@ An unclamped setter compares, early-returns, writes, then emits. A **clamped** s
 - Register via `ShortcutManager`; dynamic updates via settings signals
 
 ## Skills
-In-repo skills under `.claude/skills/` (symlinked into `.agents/skills/`). Invoke them rather than reconstructing the procedure:
-- `pz-build` — configure, build and test. Carries the two `OFF`-by-default flags that make a suite silently run nothing, the warning-vs-error grep, the ctest D-Bus isolation, and the non-unity gate.
-- `pz-add-setting` — the six files a setting touches, in the store-backed shape.
-- `pz-verify-live` — nested-KWin harness for verifying placement and effect changes against a real compositor.
-- `pz-algorithm-api` — extend the Luau tiling-algorithm API (ctx inputs, outputs, pluau helpers, metadata and capabilities), including the keys `LuauTileAlgorithm` silently drops.
-- `pz-shader-pack` — write, change or preview one shader pack, or change the uniform contract packs read.
-- `code-audit` — audit-then-remediate loop: read-only Phase A passes, then one Phase B fix with confirmation rounds.
-- `shader-theme` — build a cohesive shader theme.
-- `record-lesson` — put what a session learned where the next session will read it.
+The skills and agents come from Claude Code plugins in the workspace repository: `plasmazones` for PlasmaZones' own, `phosphor-works` for the shared ones. `.claude/settings.json` enables both, and `workspace/tools/setup` installs them. Change them in the `workspace` checkout. Invoke them rather than reconstructing the procedure:
+- `plasmazones:build` — configure, build and test. Carries the two `OFF`-by-default flags that make a suite silently run nothing, the warning-vs-error grep, the ctest D-Bus isolation, and the non-unity gate.
+- `plasmazones:add-setting` — the six files a setting touches, in the store-backed shape.
+- `plasmazones:verify-live` — nested-KWin harness for verifying placement and effect changes against a real compositor.
+- `plasmazones:algorithm-api` — extend the Luau tiling-algorithm API (ctx inputs, outputs, pluau helpers, metadata and capabilities), including the keys `LuauTileAlgorithm` silently drops.
+- `plasmazones:shader-pack` — write, change or preview one shader pack, or change the uniform contract packs read.
+- `phosphor-works:code-audit` — audit-then-remediate loop: read-only Phase A passes, then one Phase B fix with confirmation rounds.
+- `plasmazones:shader-theme` — build a cohesive shader theme.
+- `phosphor-works:record-lesson` — put what a session learned where the next session will read it.
 
-Agents under `.claude/agents/`: the `review/pz-*-reviewer` domain reviewers the audit dispatches, the `shader-theme/` art and critique agents, `triage/pz-crash-triage` (core or hang to mechanism) and `triage/pz-kwin-scout` (what a KWin or Qt API actually does, from the installed version's source), and `experts/pz-perf-expert`.
+The `plasmazones` plugin's agents: the `plasmazones:*-reviewer` domain reviewers the audit dispatches, the shader-theme art and critique agents (`plasmazones:shader-art-director`, `plasmazones:shader-material-reviewer`, `plasmazones:shader-motion-reviewer`), `plasmazones:crash-triage` (core or hang to mechanism), `plasmazones:kwin-scout` (what a KWin or Qt API actually does, from the installed version's source), and `plasmazones:perf-expert`.
 
-A PreToolUse hook (`.claude/hooks/guard.py`, cases in `test_guard.py`) blocks the commands these rules forbid: `sudo`, installs outside a `/tmp` stage, `pkill`/`killall`, D-Bus calls to PlasmaZones' names (`org.phosphor_works.*`) on the user's own session bus, restarting the user's KWin, plasmashell or daemon, force pushes, pushes to `main`, broad `git add`, and edits inside build trees. Run `python3 .claude/hooks/test_guard.py` after changing it.
+The `phosphor-works` plugin's PreToolUse guard (`workspace/plugins/phosphor-works/hooks/guard/`, with PlasmaZones' rules in `repos/plasmazones.py`) blocks the commands these rules forbid: `sudo`, installs outside a `/tmp` stage, `pkill`/`killall`, D-Bus calls to PlasmaZones' names (`org.phosphor_works.*`) on the user's own session bus, restarting the user's KWin, plasmashell or daemon, force pushes, pushes to `main`, broad `git add`, and edits inside build trees. Run `python3 -I test_guard.py` there after changing it.
 
 ## Build & Test
 
@@ -231,7 +226,7 @@ On Linux (native):
 cmake -B build -DBUILD_TESTING=ON
 
 # Build
-cmake --build build --parallel 6   # literal 6, not $(nproc): see the pz-build skill
+cmake --build build --parallel 6   # literal 6, not $(nproc): see the plasmazones:build skill
 
 # Test
 ctest --test-dir build --output-on-failure
@@ -354,7 +349,7 @@ Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazon
 - `QDBusConnection::sessionBus()`; keep methods simple; `QVariantMap` for complex data
 
 ## Git
-- Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`
+- Commits follow the conventions file (Conventional Commits)
 - Atomic commits; don't commit build artifacts; SPDX headers required
 
 ## Concurrency: 1 MESSAGE = ALL RELATED OPERATIONS
