@@ -1,46 +1,176 @@
 {
-  "version": 3,
-  "cmakeMinimumRequired": { "major": 3, "minor": 23, "patch": 0 },
-  "configurePresets": [
-    {
-      "name": "base",
-      "hidden": true,
-      "generator": "Ninja",
-      "cacheVariables": {
-        "BUILD_TESTING": "ON",
-        "BUILD_TOOLS": "ON"
-      }
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
     },
-    {
-      "name": "debug",
-      "displayName": "Debug (build/)",
-      "inherits": "base",
-      "binaryDir": "${sourceDir}/build",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
-    },
-    {
-      "name": "release",
-      "displayName": "Release (build-release/)",
-      "inherits": "base",
-      "binaryDir": "${sourceDir}/build-release",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
-    },
-    {
-      "name": "relwithdebinfo",
-      "displayName": "Optimized with debug info (build-relwithdebinfo/)",
-      "inherits": "base",
-      "binaryDir": "${sourceDir}/build-relwithdebinfo",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
-    }
-  ],
-  "buildPresets": [
-    { "name": "debug", "configurePreset": "debug" },
-    { "name": "release", "configurePreset": "release" },
-    { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
-  ],
-  "testPresets": [
-    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true }, "execution": { "jobs": 6 } },
-    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true }, "execution": { "jobs": 6 } },
-    { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo", "output": { "outputOnFailure": true }, "execution": { "jobs": 6 } }
-  ]
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-${presetName}",
+            "cacheVariables": {
+                "BUILD_TESTING": "ON",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "BUILD_TOOLS": "ON"
+            }
+        },
+        {
+            "name": "dev",
+            "displayName": "Debug, with tests",
+            "inherits": "base",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release, with tests",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "relwithdebinfo",
+            "displayName": "RelWithDebInfo, with tests",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "asan",
+            "displayName": "ASan and UBSan at -O1, with tests",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_FLAGS": "-O1 -fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized",
+                "CMAKE_CXX_FLAGS": "-O1 -fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        },
+        {
+            "name": "relwithdebinfo",
+            "configurePreset": "relwithdebinfo"
+        },
+        {
+            "name": "asan",
+            "configurePreset": "asan"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error"
+            }
+        },
+        {
+            "name": "dev",
+            "inherits": "base",
+            "configurePreset": "dev"
+        },
+        {
+            "name": "release",
+            "inherits": "base",
+            "configurePreset": "release"
+        },
+        {
+            "name": "relwithdebinfo",
+            "inherits": "base",
+            "configurePreset": "relwithdebinfo"
+        },
+        {
+            "name": "asan",
+            "inherits": "base",
+            "configurePreset": "asan"
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "dev",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "dev"
+                },
+                {
+                    "type": "build",
+                    "name": "dev"
+                },
+                {
+                    "type": "test",
+                    "name": "dev"
+                }
+            ]
+        },
+        {
+            "name": "release",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "release"
+                },
+                {
+                    "type": "build",
+                    "name": "release"
+                },
+                {
+                    "type": "test",
+                    "name": "release"
+                }
+            ]
+        },
+        {
+            "name": "relwithdebinfo",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "relwithdebinfo"
+                },
+                {
+                    "type": "build",
+                    "name": "relwithdebinfo"
+                },
+                {
+                    "type": "test",
+                    "name": "relwithdebinfo"
+                }
+            ]
+        },
+        {
+            "name": "asan",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "asan"
+                },
+                {
+                    "type": "build",
+                    "name": "asan"
+                },
+                {
+                    "type": "test",
+                    "name": "asan"
+                }
+            ]
+        }
+    ]
 }

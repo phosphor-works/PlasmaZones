@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: 2026 fuddlesworth
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# KDE-style clang-format for PlasmaZones (C++20, Qt/KDE conventions).
+# KDE-style clang-format for every phosphor-works repository (C++20, Qt/KDE
+# conventions). workspace/tools/sync writes this file into each repository: change
+# it in workspace/sync/clang-format, never in a repository.
 # See: https://community.kde.org/Policies/Frameworks_Coding_Style
 #      https://clang.llvm.org/docs/ClangFormatStyleOptions.html
 

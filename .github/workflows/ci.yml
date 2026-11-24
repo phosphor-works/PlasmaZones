@@ -426,8 +426,8 @@ jobs:
       - name: Sync packages
         run: bash .github/ci/sync-packages.sh
 
-      - name: Configure from the debug preset
-        run: cmake --preset debug
+      - name: Configure from the dev preset
+        run: cmake --preset dev
 
   # ─── Lint: clang-format + qmlformat mirror the lefthook hooks so a
   # contributor who skipped them can't merge unformatted code. Only

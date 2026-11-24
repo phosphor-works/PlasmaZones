@@ -49,6 +49,12 @@ Files: plasmazones/src/editor/org.phosphor_works.PlasmaZones.Editor.metainfo.xml
 Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
 License: CC0-1.0
 
+# The editor settings every phosphor-works repository shares, written by the
+# workspace repository's tools/sync with a CC0-1.0 header.
+Files: .editorconfig
+Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+License: CC0-1.0
+
 # Bundled shader packs. PlasmaZones-original shaders are LGPL so a third-party
 # pack or tool can build on them; data/overlays is still GPL throughout and is
 # covered by the Files: * stanza above. DEP-5 is last-match-wins, so the
