@@ -114,8 +114,8 @@ pre-commit:
         - "*.md"
         # YAML at any depth, for the same two rules. The prose rule reaches
         # .github/workflows/*.yml for the generated pkgdesc strings, and dep5
-        # reads the header on any YAML, wherever it lives (this file and the
-        # moon configs among them). Without an entry either arm is CI-only,
+        # reads the header on any YAML, wherever it lives (this file among
+        # them). Without an entry either arm is CI-only,
         # which is the same gap the js entry above exists to close. Both
         # suffixes, because rule_prose accepts .yml AND .yaml and a glob for
         # one of them reopens the gap for the other.

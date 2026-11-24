@@ -51,7 +51,7 @@ srpm: $(SPEC)
 	mkdir -p /tmp/$(NAME)-srpm
 	tar czf /tmp/$(NAME)-srpm/$(NAME)-$(VERSION).tar.gz \
 		--transform 's,^\.,PlasmaZones-$(VERSION),' \
-		--exclude=.git --exclude='build*' --exclude=.moon/cache --exclude=.claude \
+		--exclude=.git --exclude='build*' --exclude=.claude \
 		--exclude=./.cache --exclude=./packaging/deps .
 
 	# The spec's Source1 to Source4, the dependency archives pinned in

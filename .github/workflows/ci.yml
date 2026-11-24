@@ -403,17 +403,13 @@ jobs:
           echo "=== Installed files ==="
           find install -type f | sort
 
-  # ─── Presets and tier graph. Nothing else in CI touches CMakePresets.json
-  # or the moon workspace: the build jobs hand-write their `cmake -B build -G
-  # Ninja -D...` line. So the presets, the moon.yml projects and the
-  # phosphor_tier_target() aggregates could all break without turning CI red,
-  # while CLAUDE.md documents `moon run <tier>:build` and `cmake --preset
-  # release` as first-class entry points.
-  #
-  # Configure only, no build: this gate is about the tier graph existing, and
-  # the `build` job above already compiles the tree.
+  # ─── Presets. Nothing else in CI touches CMakePresets.json: the build jobs
+  # hand-write their `cmake -B build -G Ninja -D...` line. So the presets could
+  # break without turning CI red, while CLAUDE.md documents `cmake --preset` as
+  # the way to build. Configure only, no build: the `build` job above already
+  # compiles the tree.
   presets:
-    name: Presets and tier graph
+    name: Presets
     needs: changes
     if: needs.changes.outputs.code == 'true' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -432,18 +428,6 @@ jobs:
 
       - name: Configure from the debug preset
         run: cmake --preset debug
-
-      - name: Every tier declares its aggregate target
-        run: |
-          set -euo pipefail
-          ninja -C build -t targets all > targets.txt
-          for tier in plasmazones; do
-            if ! grep -q "^${tier}-tier:" targets.txt; then
-              echo "missing aggregate target: ${tier}-tier" >&2
-              exit 1
-            fi
-            echo "ok: ${tier}-tier"
-          done
 
   # ─── Lint: clang-format + qmlformat mirror the lefthook hooks so a
   # contributor who skipped them can't merge unformatted code. Only

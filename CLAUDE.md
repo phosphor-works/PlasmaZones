@@ -218,11 +218,10 @@ On Linux (native):
 #
 # SECOND TEST-TIME DEPENDENCY: `appstreamcli` (distro package `appstream`).
 # ECM registers the `appstreamtest` test only when it finds appstreamcli AT
-# CONFIGURE TIME, and otherwise just prints a STATUS line. `moon run repo:test`
-# is `ctest --test-dir build -R ^appstreamtest$ --no-tests=error`, so on a
-# machine without it that task fails with "no tests were found" rather than
-# skipping. Install appstream before running repo:test, or reconfigure after
-# installing it.
+# CONFIGURE TIME, and otherwise just prints a STATUS line. On a machine
+# without it, `ctest --test-dir build -R ^appstreamtest$ --no-tests=error`
+# fails with "no tests were found" rather than skipping. Install appstream
+# before you configure, or reconfigure after installing it.
 cmake -B build -DBUILD_TESTING=ON
 
 # Build
@@ -271,28 +270,12 @@ python3 scripts/check-conventions.py
 python3 scripts/check-conventions.py --list-rules
 ```
 
-### Per-tier builds with moon
-The repo is a [moon](https://moonrepo.dev) workspace. CMake still does every compile; moon adds the tier graph on top: one command per tier, dependency ordering, and affected-only runs locally (CI still drives CMake directly). The one tier is the project `plasmazones`, plus `repo` for the whole-tree checks. phosphor-libs is not a project: it is the pinned repository above, and the pin file is a test input of every tier. Install moon from the AUR (`moon-bin`) or with `proto install moon`.
+### Presets
+Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests and the tools on. `cmake --preset release && cmake --build --preset release` builds the release tree. CI configures from the `debug` preset in its Presets job, so a broken preset turns CI red.
 
-```bash
-moon run plasmazones:build          # build that tier and its upstream tiers (configure runs first each time)
-moon run plasmazones:test           # ctest --test-dir build/plasmazones
-moon run :test --affected           # every tier touched by the working-tree diff
-moon run repo:check                 # conventions + JSON schema gates
-moon run repo:install               # whole-tree install (needs root at the default prefix)
-DESTDIR=/tmp/stage moon run repo:install   # staged install, no root
-moon run plasmazones:build-release  # same, from the release preset into build-release/
-moon run plasmazones:test-release   # ctest --test-dir build-release/plasmazones
-moon query projects --affected      # which tiers a change reaches
-```
+Install is whole-tree: none of the install rules declares a `COMPONENT`. `DESTDIR=/tmp/stage cmake --install build` stages it without root. After a real install (the user runs it), `make post-install` refreshes the KDE service cache.
 
-Configurations come from `CMakePresets.json`: `debug` configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/`, and every preset turns tests and the tools on. The moon tasks are the debug ones by default. Each tier's `build` and `test` and the `repo:configure` step have a `-release` twin; `repo:test` and `repo:install` have none and act on `build/`. Plain CMake users get the same trees with `cmake --preset release && cmake --build --preset release`.
-
-How it maps onto CMake (see `.moon/tasks/cmake.yml`): every tier task runs from the workspace root against the build directory its preset names. `build` invokes the tier's aggregate target, `<tier>-tier`, declared by `phosphor_tier_target()` near the end of each tier CMakeLists (the plasmazones one attaches its translations target after the call); `test` runs ctest scoped to `build/<tier>`. Because the build directory is shared, moon does not cache build outputs and ccache remains the compile cache. A tier gets its own build directory, and with it a moon-cached output, once it can be configured standalone against an installed upstream tier.
-
-Install is a whole-tree verb on the `repo` project, not a per-tier one, because CMake cannot install a subset here: none of the install rules declares a `COMPONENT`, so `cmake --install build --component <tier>` would install nothing. Per-tier install verbs need every rule tagged with a component first. Follow an install with `moon run repo:post-install` to refresh the KDE service cache, the same step `make post-install` runs.
-
-Layer enforcement is on (`.moon/workspace.yml`): an application tier may not depend on another application tier. plasmazones is the only one.
+To build PlasmaZones against unreleased library changes, use the workspace superbuild (`cmake --workflow --preset plasmazones` in `../workspace`), or point CPM at a checkout with `-DCPM_phosphor-libs_SOURCE=<dir>`.
 
 - CMake with `CMAKE_AUTOMOC/AUTORCC/AUTOUIC ON`
 - `qt_add_qml_module()` — ALL QML files must be listed (missing = runtime "not a type" error)
@@ -302,7 +285,7 @@ Layer enforcement is on (`.moon/workspace.yml`): an application tier may not dep
 - Standalone settings app (`plasmazones-settings`) + minimal KCM launcher
 
 ### Directory Structure
-The tree is one product tier plus repo-level support directories. The tier has its own `CMakeLists.txt` (entered from the root one) and its own `moon.yml` project. The libraries it builds on are the phosphor-libs repository (see phosphor-libs above).
+The tree is one product tier plus repo-level support directories. The tier has its own `CMakeLists.txt` (entered from the root one). The libraries it builds on are the phosphor-libs repository (see phosphor-libs above).
 ```
 plasmazones/             — PlasmaZones
   src/core/              — PlasmaZones' app-side helpers (the engine core is phosphor-engine-libs' engine runtime)
@@ -329,7 +312,6 @@ plasmazones/             — PlasmaZones
   data/schemas/          — Schemas for plasmazones-only documents (whatsnew, scrolling templates)
 cmake/                   — Shared CMake modules, including the pins (PlasmaZonesDependencies.cmake)
 scripts/                 — Repo-level checks and dev harnesses
-.moon/                   — moon workspace config (see Build & Test)
 ```
 Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. App icons are not in the tree: they install from the pinned branding release (`cmake/PlasmaZonesDependencies.cmake`). Neither are the surface decoration packs, which install from the pinned phosphor-surface-packs commit.
 

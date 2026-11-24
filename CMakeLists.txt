@@ -331,12 +331,10 @@ endif()
 # and included in this scope. Other self-contained blocks can be extracted the
 # same way. See that file for the update-ts / lrelease detail.
 # ---------------------------------------------------------------------------
-# Must stay ABOVE add_subdirectory(plasmazones): that tier's CMakeLists reads
-# the plasmazones_translations and update-ts targets and the
-# Qt6LinguistTools_FOUND and TRANSLATION_TS_FILES variables this module leaves
-# behind, to attach the .qm catalogs to plasmazones-tier. Moved below it, none
-# of them exists there yet, and plasmazones/CMakeLists.txt stops the configure
-# on the missing `update-ts`, which this module declares in every branch.
+# Must stay ABOVE add_subdirectory(plasmazones): the unit tests there make
+# test_runtime_translations depend on phosphor_engine_runtime_translations,
+# which this module declares, behind an if(TARGET). Moved below it, the target
+# does not exist yet and the test silently loses the dependency.
 include(cmake/PhosphorTranslations.cmake)
 
 # Generate version header with compile-time version info

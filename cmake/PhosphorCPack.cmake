@@ -28,9 +28,6 @@ set(CPACK_SOURCE_IGNORE_FILES
     "/dist/"
     "/node_modules/"
     "/\\\\.cache/"
-    # moon's runtime cache. /\\.cache/ above does not match it,
-    # and it appears after any moon invocation.
-    "/\\\\.moon/cache/"
     "/\\\\.idea/"
     "/\\\\.vscode/"
     "/\\\\.DS_Store"

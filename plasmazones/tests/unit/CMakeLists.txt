@@ -1349,9 +1349,8 @@ target_link_libraries(test_shader_item_qml_bindings PRIVATE Qt6::Test Qt6::Core 
 # P_SURFACE_QUICK_QML_DIR as well as P_SOURCE_DIR: the guarded properties are
 # declared on ShaderEffect and their hosts are spread across tiers, so a sweep
 # scoped to plasmazones/src misses SurfaceDecoration.qml — which is the file the
-# silent-Binding regression this test exists for actually lived in. A read of
-# another tier's QML, recorded as a test input in plasmazones/moon.yml rather
-# than a dependency, which is what CLAUDE.md prescribes for a cross-tier read.
+# silent-Binding regression this test exists for actually lived in. It reads
+# phosphor-libs' QML from the pinned tree, without a build dependency on it.
 target_compile_definitions(test_shader_item_qml_bindings PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\""
                                                                  "P_SURFACE_QUICK_QML_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-surface-quick/qml\"")
 add_test(NAME test_shader_item_qml_bindings COMMAND test_shader_item_qml_bindings)
@@ -3061,8 +3060,8 @@ add_executable(bench_dbus_adaptors dbus/bench_dbus_adaptors.cpp)
 target_link_libraries(bench_dbus_adaptors PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
 add_test(NAME bench_dbus_adaptors COMMAND bench_dbus_adaptors)
 # LABELS=bench so `ctest -L bench` can select it for a perf-regression run.
-# Note that nothing currently passes `-LE bench`: CI and every
-# `moon run <tier>:test` run this benchmark like any other test.
+# Note that nothing currently passes `-LE bench`: CI and a plain
+# ctest run this benchmark like any other test.
 #
 # TIMEOUT 900, set explicitly rather than left to the directory sweep's 120s
 # default (phosphor_apply_directory_test_isolation only supplies that when a
