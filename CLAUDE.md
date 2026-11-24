@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2026 fuddlesworth -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
 # PlasmaZones — Claude Code Configuration
 # KDE/Plasma Window Placement — Qt6/C++20/QML/Kirigami
 
@@ -159,7 +162,7 @@ An unclamped setter compares, early-returns, writes, then emits. A **clamped** s
 
 ## Skills
 The skills and agents come from Claude Code plugins in the workspace repository: `plasmazones` for PlasmaZones' own, `phosphor-works` for the shared ones. `.claude/settings.json` enables both, and `workspace/tools/setup` installs them. Change them in the `workspace` checkout. Invoke them rather than reconstructing the procedure:
-- `plasmazones:build` — configure, build and test. Carries the two `OFF`-by-default flags that make a suite silently run nothing, the warning-vs-error grep, the ctest D-Bus isolation, and the non-unity gate.
+- `phosphor-works:build`, then `plasmazones:build` for PlasmaZones' extras — configure, build and test. Carries the two `OFF`-by-default flags that make a suite silently run nothing, the warning-vs-error grep, the ctest D-Bus isolation, and the non-unity gate.
 - `plasmazones:add-setting` — the six files a setting touches, in the store-backed shape.
 - `plasmazones:verify-live` — nested-KWin harness for verifying placement and effect changes against a real compositor.
 - `plasmazones:algorithm-api` — extend the Luau tiling-algorithm API (ctx inputs, outputs, pluau helpers, metadata and capabilities), including the keys `LuauTileAlgorithm` silently drops.
@@ -168,7 +171,7 @@ The skills and agents come from Claude Code plugins in the workspace repository:
 - `plasmazones:shader-theme` — build a cohesive shader theme.
 - `phosphor-works:record-lesson` — put what a session learned where the next session will read it.
 
-The `plasmazones` plugin's agents: the `plasmazones:*-reviewer` domain reviewers the audit dispatches, the shader-theme art and critique agents (`plasmazones:shader-art-director`, `plasmazones:shader-material-reviewer`, `plasmazones:shader-motion-reviewer`), `plasmazones:crash-triage` (core or hang to mechanism), `plasmazones:kwin-scout` (what a KWin or Qt API actually does, from the installed version's source), and `plasmazones:perf-expert`.
+The `plasmazones` plugin's agents: `plasmazones:kwin-compositor-reviewer` and the shader-theme art and critique agents (`plasmazones:shader-art-director`, `plasmazones:shader-material-reviewer`, `plasmazones:shader-motion-reviewer`). The shared `phosphor-works` agents cover the rest and read PlasmaZones' notes for their domain (`plasmazones:review-notes`): the `cpp-qt`, `qml`, `wayland`, `build`, `config`, `shader` and `luau` reviewers the audit dispatches, `phosphor-works:crash-triage` (core or hang to mechanism), `phosphor-works:source-scout` (what a KWin or Qt API actually does, from the installed version's source) and `phosphor-works:perf-expert`. `phosphor-works:debug` is the debugging procedure.
 
 The `phosphor-works` plugin's PreToolUse guard (`workspace/plugins/phosphor-works/hooks/guard/`, with PlasmaZones' rules in `repos/plasmazones.py`) blocks the commands these rules forbid: `sudo`, installs outside a `/tmp` stage, `pkill`/`killall`, D-Bus calls to PlasmaZones' names (`org.phosphor_works.*`) on the user's own session bus, restarting the user's KWin, plasmashell or daemon, force pushes, pushes to `main`, broad `git add`, and edits inside build trees. Run `python3 -I test_guard.py` there after changing it.
 
@@ -351,15 +354,7 @@ Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazon
 - Keep QML for UI, C++ for logic
 
 ## Lessons that cost a session
-Cross-cutting traps that each cost audit passes or a whole session. A trap owned by one domain lives in that reviewer's "Known past-bug shapes" instead (see the `record-lesson` skill).
-- **An absence is evidence only if the instrument ran.** A zero grep count, a build with no errors and a suite with no failures look the same when the target, binary or test did not exist (a mistyped `--target`, a stale binary, a `BUILD_TESTING=OFF` dir). Check the exit code and that the thing you measured exists before you trust a clean result.
-- **A test written with its fix proves the fix's premise.** Vacuous assertions have shipped green again and again. Before you count a test as coverage, revert the guard it pins and watch the test fail.
-- **Comments name symbols, never line numbers or counts.** "The other eleven" and "three sub-groups" went stale within a commit and misled the next fix. When a comment's claim has been wrong twice, delete the claim.
-- **A guard below a substitution cannot fire.** If a caller already swapped in a plausible fallback, the callee cannot tell the value is not real. Put the guard where the information still exists, check what every caller actually passes, and delete a guard that cannot fire.
-- **`QHash::value(key, f())` evaluates `f()` on every call.** The default is an ordinary argument, so if `f` inserts into the same container the lookup returns what `f` just wrote. Use `constFind` and resolve only on a miss.
-- **Agents sharing one working tree undo each other.** `git stash`, `reset --hard` and `checkout` run to check a pre-existing failure once wiped other agents' uncommitted work. Mutation checks run in a separate worktree or scratch copy, and nobody runs checkout, restore, stash or reset in a shared tree.
-- **Fractional scale hides one-pixel defects.** `QRectF::toRect()` and `qRound(logical * scale)` move an edge by a pixel at 1.15 or 1.25, which broke exact rect compares in the scroll engine, the snap engine and the editor. Check rect compares and scale-derived sizes at a fractional scale (the nested harness at 1.25).
-- **A new validation gate turns a producer/consumer disagreement into lost data.** Before adding a schema check or gate, check every producer against it. One gate rejected saves that clients still reported as successful.
+The traps that cost a session are in the workspace lesson index (`workspace/plugins/phosphor-works/lessons/`), not here. A prompt hook adds the ones that fit each prompt, `phosphor-works:lessons` searches them, and `phosphor-works:record-lesson` adds one.
 
 ## Support
 - Documentation: https://phosphor-works.org/plasmazones/
