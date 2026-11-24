@@ -156,7 +156,7 @@ jobs:
           printf '%s\n' "$changed"
           # Anything but documentation, agent instructions and licence texts
           # is something the build or its tests read.
-          if grep -qvE '\.md$|^docs/|^\.claude/|^\.agents/|^LICENSE$|^COPYING' <<<"$changed"; then
+          if grep -qvE '\.md$|^docs/|^\.claude/|^LICENSE$|^COPYING' <<<"$changed"; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"

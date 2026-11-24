@@ -35,13 +35,11 @@ def dep5_head(rel: str, repo) -> str | None:
     text head. This rule is the one that walks EVERY tracked path rather than a
     suffix-filtered subset, so it meets what the others never see: binary assets.
 
-    It does NOT meet the symlinked skill directories under .agents/, which an
-    earlier version of this docstring claimed. tracked_files() filters on
-    is_file(), and every tracked symlink there points at a directory, so none
-    reach this function by either route — whole-tree or the widened one, which
-    also goes through tracked_files(). The is_file() guard below is therefore
-    defensive on every production path. Reading a bounded slice keeps a
-    whole-tree run cheap."""
+    tracked_files() filters on is_file(), so a tracked symlink to a directory
+    never reaches this function, by either route: whole-tree or the widened
+    one, which also goes through tracked_files(). The is_file() guard below is
+    therefore defensive on every production path. Reading a bounded slice keeps
+    a whole-tree run cheap."""
     p = repo / rel
     try:
         if not p.is_file():

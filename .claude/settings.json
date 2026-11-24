@@ -1,28 +1,14 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
-            "timeout": 10
-          }
-        ]
+  "enabledPlugins": {
+    "phosphor-works@phosphor-works": true,
+    "plasmazones@phosphor-works": true
+  },
+  "extraKnownMarketplaces": {
+    "phosphor-works": {
+      "source": {
+        "source": "github",
+        "repo": "phosphor-works/workspace"
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/audit-stop.sh\"",
-            "timeout": 10,
-            "statusMessage": "Checking audit loop state..."
-          }
-        ]
-      }
-    ]
+    }
   }
 }
