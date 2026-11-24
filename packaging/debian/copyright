@@ -38,7 +38,6 @@ License: GPL-3.0-or-later
 # post-install-sycoca.sh and uninstall.cmake.in are GPL-3 and must keep
 # resolving to the catch-all.
 Files: cmake/PlasmaZonesDependencies.cmake
-       cmake/PhosphorTier.cmake
 Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
 License: LGPL-2.1-or-later
 

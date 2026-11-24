@@ -90,13 +90,6 @@
             ./lefthook.yml
             ./flake.nix
             ./flake.lock
-            # Build-orchestration and agent tooling. None of it is read by
-            # the CMake build, and moon.yml in particular is edited often
-            # enough that leaving it in invalidated the whole build hash on
-            # every tier-graph tweak.
-            ./.moon
-            ./moon.yml
-            ./plasmazones/moon.yml
             # Claude Code settings: editing it must not change the src hash
             # and force a full rebuild.
             ./.claude

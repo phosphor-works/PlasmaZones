@@ -383,7 +383,3 @@ packaging/obs/plasmazones.dsc
 # build reads through debian/rules. The release workflow fetches them there, or
 # puts them in the OBS orig tarball, from the pins, so they are never tracked.
 packaging/deps/
-
-# moon workspace runtime state (hashes, run reports). The config under
-# .moon/*.yml and .moon/tasks/ is tracked; only the cache is not.
-.moon/cache/
