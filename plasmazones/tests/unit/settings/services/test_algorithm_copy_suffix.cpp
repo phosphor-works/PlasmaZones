@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 Phosphor Works Team
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
@@ -78,7 +78,7 @@ public:
 QString sourceScript()
 {
     return QStringLiteral(
-        "-- SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+        "-- SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
         "-- SPDX-License-Identifier: GPL-3.0-or-later\n"
         "\n"
         "local pluau = pluau\n"

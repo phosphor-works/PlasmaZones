@@ -4,7 +4,7 @@ Upstream-Contact: fuddlesworth <fuddlesworth@users.noreply.github.com>
 Source: https://github.com/phosphor-works/PlasmaZones
 
 Files: *
-Copyright: 2024-2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2024-2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 # Files whose own SPDX-FileCopyrightText names a holder the catch-all above
@@ -17,7 +17,7 @@ License: GPL-3.0-or-later
 Files: plasmazones/kwin-effect/plasmazoneseffect/mesh_sim.h
        plasmazones/kwin-effect/plasmazoneseffect/mesh_sim.cpp
 Copyright: 2008 Cédric Borgese <cedric.borgese@gmail.com>
-           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+           2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 # Contributed by abirkel, whose header is the sole copyright line on all three.
@@ -38,7 +38,7 @@ License: GPL-3.0-or-later
 # post-install-sycoca.sh and uninstall.cmake.in are GPL-3 and must keep
 # resolving to the catch-all.
 Files: cmake/PlasmaZonesDependencies.cmake
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: LGPL-2.1-or-later
 
 # AppStream metadata. Both files declare CC0-1.0 in their own headers, which is
@@ -46,13 +46,13 @@ License: LGPL-2.1-or-later
 # translate it freely.
 Files: plasmazones/src/editor/org.phosphor_works.PlasmaZones.Editor.metainfo.xml
        plasmazones/src/settings/org.phosphor_works.Facet.metainfo.xml
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: CC0-1.0
 
 # The editor settings every phosphor-works repository shares, written by the
 # workspace repository's tools/sync with a CC0-1.0 header.
 Files: .editorconfig
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: CC0-1.0
 
 # Bundled shader packs. PlasmaZones-original shaders are LGPL so a third-party
@@ -61,7 +61,7 @@ License: CC0-1.0
 # incorporated-upstream stanza below deliberately follows this one.
 Files: plasmazones/data/animations/*
        plasmazones/data/pointer/*
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: LGPL-2.1-or-later
 
 # Ports of upstream copyleft work. PlasmaZones is not the copyright holder of
@@ -78,7 +78,7 @@ Files: plasmazones/data/animations/broken-glass/effect.frag
        plasmazones/data/animations/wisps/effect.frag
        plasmazones/data/animations/shared/bmw_compat.glsl
 Copyright: 2021-2024 Simon Schneegans (Burn-My-Windows)
-           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+           2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 # matrix's own header credits 2021 alone, not the 2021-2024 range the other
@@ -87,7 +87,7 @@ License: GPL-3.0-or-later
 # this one for it.
 Files: plasmazones/data/animations/matrix/effect.frag
 Copyright: 2021 Simon Schneegans (Burn-My-Windows)
-           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+           2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 # focus is the only Burn-My-Windows port that also carries Justin Garza, so he
@@ -96,12 +96,12 @@ License: GPL-3.0-or-later
 Files: plasmazones/data/animations/focus/effect.frag
 Copyright: 2021-2024 Simon Schneegans (Burn-My-Windows)
            2021-2024 Justin Garza
-           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+           2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 Files: plasmazones/data/animations/honeycomb/effect.frag
 Copyright: 2025 arch-disciple (niri-shader-collection)
-           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+           2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 # Ports of MIT gl-transitions upstreams. The licence stays LGPL (CLAUDE.md
@@ -114,7 +114,7 @@ Files: plasmazones/data/animations/desktop-crosszoom/effect.frag
        plasmazones/data/animations/desktop-pixelate/effect.frag
        plasmazones/data/animations/desktop-slide/effect.frag
 Copyright: gl-transitions contributors
-           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+           2026 Phosphor Works Team
 License: LGPL-2.1-or-later
 
 # Credits the Shadertoy author named in this file's own header. The file
@@ -124,7 +124,7 @@ License: LGPL-2.1-or-later
 # sole authorship of work the source says is someone else's.
 Files: plasmazones/data/overlays/neon-city/buffer.frag
 Copyright: 2026 nikitamashchenko (https://www.shadertoy.com/)
-           2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+           2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 # Third-party sources built into the package: the Luau and jsoncons release
@@ -153,13 +153,13 @@ License: BSL-1.0 and MIT and Apache-2.0
 # cmake/PlasmaZonesDependencies.cmake. Its libraries are built from it and
 # installed with the package, and its schemas are compiled into them.
 Files: packaging/deps/phosphor-libs-*.tar.gz
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: LGPL-2.1-or-later
 
 # The suite's branding release, pinned beside them, which supplies the icons
 # the package installs. Artwork, not GPL.
 Files: packaging/deps/phosphor-branding-*.tar.gz
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: CC-BY-SA-4.0
 
 # The surface decoration packs commit, pinned beside them. The package installs
@@ -173,20 +173,20 @@ License: CC-BY-SA-4.0
 # shader source is. The retained notice is the BSD-3-Clause paragraph at the
 # foot of this file.
 Files: packaging/deps/phosphor-surface-packs-*.tar.gz
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
            kwin-effects-glass contributors
            Hyprland contributors
 License: LGPL-2.1-or-later and GPL-3.0-or-later and BSD-3-Clause
 
 Files: debian/*
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: GPL-3.0-or-later
 
 # The Arch packaging's own licence file, which is 0BSD rather than GPL-3 and
 # carries no SPDX header, so the conventions gate's dep5 rule cannot see it and
 # the Files: * catch-all was declaring it GPL-3.
 Files: packaging/arch/LICENSE
-Copyright: 2026 fuddlesworth <fuddlesworth@users.noreply.github.com>
+Copyright: 2026 Phosphor Works Team
 License: 0BSD
 
 # The two FSF licence texts we SHIP (the RPM spec lists both under %license).

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 Phosphor Works Team
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "settings/services/algorithmscaffold.h"
@@ -15,7 +15,7 @@ namespace {
 // A template shaped like the bundled algorithms: SPDX header, module local,
 // metadata with capability flags and a nested customParams table whose
 // entries carry their own `name` keys, then the tile function.
-const QString kTemplate = QStringLiteral(R"(-- SPDX-FileCopyrightText: 2026 fuddlesworth
+const QString kTemplate = QStringLiteral(R"(-- SPDX-FileCopyrightText: 2026 Phosphor Works Team
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
 local pluau = pluau
@@ -101,7 +101,7 @@ void TestAlgorithmScaffold::spliceRewritesNameAndId()
     QCOMPARE(out.count(QStringLiteral("SPDX-FileCopyrightText")), 2);
     QVERIFY(
         out.startsWith(QStringLiteral("-- SPDX-FileCopyrightText: 2026 <your name>\n"
-                                      "-- SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+                                      "-- SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
                                       "-- SPDX-License-Identifier: GPL-3.0-or-later\n"
                                       "\n")));
 }
@@ -189,13 +189,13 @@ void TestAlgorithmScaffold::spliceDoesNotRepeatOwnCopyright()
 void TestAlgorithmScaffold::spliceCarriesEveryUpstreamCopyright()
 {
     QString coAuthored = kTemplate;
-    coAuthored.replace(QStringLiteral("-- SPDX-FileCopyrightText: 2026 fuddlesworth"),
-                       QStringLiteral("-- SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+    coAuthored.replace(QStringLiteral("-- SPDX-FileCopyrightText: 2026 Phosphor Works Team"),
+                       QStringLiteral("-- SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
                                       "-- SPDX-FileCopyrightText: 2026 someone else"));
     const QString out = spliceTemplate(coAuthored, kCopyright, QStringLiteral("My Copy"), QStringLiteral("my-copy"));
     QVERIFY(
         out.startsWith(QStringLiteral("-- SPDX-FileCopyrightText: 2026 <your name>\n"
-                                      "-- SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+                                      "-- SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
                                       "-- SPDX-FileCopyrightText: 2026 someone else\n"
                                       "-- SPDX-License-Identifier: GPL-3.0-or-later\n")));
 }
@@ -203,7 +203,7 @@ void TestAlgorithmScaffold::spliceCarriesEveryUpstreamCopyright()
 void TestAlgorithmScaffold::spliceHandlesTemplateWithoutCopyright()
 {
     QString noCopyright = kTemplate;
-    noCopyright.replace(QStringLiteral("-- SPDX-FileCopyrightText: 2026 fuddlesworth\n"), QString());
+    noCopyright.replace(QStringLiteral("-- SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"), QString());
     const QString out = spliceTemplate(noCopyright, kCopyright, QStringLiteral("My Copy"), QStringLiteral("my-copy"));
     QCOMPARE(out.count(QStringLiteral("SPDX-FileCopyrightText")), 1);
     QVERIFY(
@@ -233,7 +233,7 @@ void TestAlgorithmScaffold::spliceNeverInventsALicense()
     QCOMPARE(out.count(QStringLiteral("SPDX-FileCopyrightText")), 2);
     QVERIFY(
         out.startsWith(QStringLiteral("-- SPDX-FileCopyrightText: 2026 <your name>\n"
-                                      "-- SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+                                      "-- SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
                                       "\n")));
     QVERIFY(out.contains(QStringLiteral("        name = \"My Copy\",")));
     QVERIFY(out.contains(QStringLiteral("        id = \"my-copy\",")));
@@ -875,7 +875,7 @@ void TestAlgorithmScaffold::rewriteUsesFirstMetadataTable()
 void TestAlgorithmScaffold::splicePreservesLeadingDocComment()
 {
     const QString documented = QStringLiteral(
-        "-- SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+        "-- SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
         "-- SPDX-License-Identifier: LGPL-2.1-or-later\n"
         "\n"
         "-- How this layout works, in two lines\n"

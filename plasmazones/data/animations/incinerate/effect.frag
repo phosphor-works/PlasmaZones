@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 Phosphor Works Team
 // SPDX-FileCopyrightText: 2021-2024 Simon Schneegans (Burn-My-Windows)
 // SPDX-License-Identifier: GPL-3.0-or-later
 //

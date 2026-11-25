@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 Phosphor Works Team
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The shapes rewriteMetadataNameId() / spliceTemplate() refuse.
@@ -30,7 +30,7 @@ namespace {
 
 // A template shaped like the bundled algorithms, used where a case needs a
 // well-formed script to vary one thing about.
-const QString kTemplate = QStringLiteral(R"(-- SPDX-FileCopyrightText: 2026 fuddlesworth
+const QString kTemplate = QStringLiteral(R"(-- SPDX-FileCopyrightText: 2026 Phosphor Works Team
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
 return pluau.algorithm {

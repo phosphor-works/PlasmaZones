@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Self-test for check-conventions.py's two pure detectors, its two split rules and its
 readability precondition.
@@ -678,12 +678,12 @@ def _dep5_failures() -> list[str]:
     stanza = (
         "# a comment the parser must skip\n"
         "Files: *\n"
-        "Copyright: 2024-2026 fuddlesworth <fuddlesworth@users.noreply.github.com>\n"
+        "Copyright: 2024-2026 Phosphor Works Team\n"
         "License: GPL-3.0-or-later\n"
         "\n"
         "Files: libs/*\n"
         "  libs/extra/*\n"
-        "Copyright: 2024-2026 fuddlesworth <fuddlesworth@users.noreply.github.com>\n"
+        "Copyright: 2024-2026 Phosphor Works Team\n"
         "  2008 Cedric Borgese <cedric@example.invalid>\n"
         "License: LGPL-2.1-or-later\n"
     )
@@ -706,7 +706,7 @@ def _dep5_failures() -> list[str]:
                 targets, repo=d, line_of=line_of,
                 tracked_files=lambda: list(files) + ["packaging/debian/copyright"])]
 
-    def hdr(year="2026", who="fuddlesworth", lic="GPL-3.0-or-later"):
+    def hdr(year="2026", who="Phosphor Works Team", lic="GPL-3.0-or-later"):
         return f"// SPDX-FileCopyrightText: {year} {who}\n// SPDX-License-Identifier: {lic}\n"
 
     # THE YEAR BOMB. A DEP-5 range covers every file it matches, so a header's single
@@ -718,11 +718,11 @@ def _dep5_failures() -> list[str]:
         if got:
             bad.append(f"dep5_problems fired on a header dated {year} against a 2024-2026 stanza: {got}")
     # THE RANGE AND PREFIX SPELLINGS, against a stanza naming the holder with NO year. The
-    # loop above cannot pin them: its stanza blob is "2024-2026 fuddlesworth", so a regex
-    # that strips only the first year leaves "-2026 fuddlesworth", which is still a
+    # loop above cannot pin them: its stanza blob is "2024-2026 Phosphor Works Team", so a regex
+    # that strips only the first year leaves "-2026 Phosphor Works Team", which is still a
     # substring of that blob and the row passes anyway. Four regex mutations survived on
     # exactly that accident. With a year-less blob, any leftover year text fails the test.
-    bare = "Files: *\nCopyright: fuddlesworth\nLicense: GPL-3.0-or-later\n"
+    bare = "Files: *\nCopyright: Phosphor Works Team\nLicense: GPL-3.0-or-later\n"
     for spelling in ("2024-2026", "2024\u20132026", "2024-present", "2026, 2027",
                      "(c) 2026", "\u00a9 2026", "Copyright 2026", "(c)", "\u00a9", "Copyright"):
         got = run({"src/a.cpp": hdr(year=spelling)}, dep5=bare)
@@ -827,14 +827,14 @@ def _dep5_failures() -> list[str]:
     # so relaxing `!=` to `not in` left the suite green.
     if not any("declares" in m for m in
                run({"src/a.cpp": hdr(lic="GPL-3.0-or-later")},
-                   dep5="Files: *\nCopyright: 2026 fuddlesworth\nLicense: GPL-3.0\n")):
+                   dep5="Files: *\nCopyright: 2026 Phosphor Works Team\nLicense: GPL-3.0\n")):
         bad.append("dep5_problems missed a stanza licence that is a substring of the header's")
     # THE MIRROR, because one direction of a substring pair is not the pair. Header inside
     # stanza is the other real defect: the HEADER under-declares. Pinning only the first
     # direction left `got not in s["license"]` passing.
     if not any("declares" in m for m in
                run({"src/a.cpp": hdr(lic="GPL-3.0")},
-                   dep5="Files: *\nCopyright: 2026 fuddlesworth\nLicense: GPL-3.0-or-later\n")):
+                   dep5="Files: *\nCopyright: 2026 Phosphor Works Team\nLicense: GPL-3.0-or-later\n")):
         bad.append("dep5_problems missed a header licence that is a substring of the stanza's")
     if run({"libs/phosphor-x/a.cpp": hdr(lic="LGPL-2.1-or-later")}):
         bad.append("dep5_problems ignored last-match-wins and used the first matching stanza")
@@ -860,7 +860,7 @@ def _dep5_failures() -> list[str]:
     # open a bogus stanza and swallow every following line.
     commented = ("# Files: not-a-real-stanza\n"
                  "Files: *\n"
-                 "Copyright: 2026 fuddlesworth\n"
+                 "Copyright: 2026 Phosphor Works Team\n"
                  "License: GPL-3.0-or-later\n")
     got = run({"src/a.cpp": hdr()}, dep5=commented)
     if got:
@@ -877,7 +877,7 @@ def _dep5_failures() -> list[str]:
     # the line a continuation, comment marker or not, so absorbing it is correct and the
     # skip is not meant to catch it.
     field_like = ("Files: *\n"
-                  "Copyright: 2026 fuddlesworth\n"
+                  "Copyright: 2026 Phosphor Works Team\n"
                   "#Note: a comment the parser must not read as a field\n"
                   "  Some Stranger\n"
                   "License: GPL-3.0-or-later\n")
@@ -886,7 +886,7 @@ def _dep5_failures() -> list[str]:
         bad.append(f"a comment that looks like a field broke the continuation after it: {got}")
     # A STANZA WITH NO TRAILING NEWLINE, which is the only shape the final flush handles:
     # with one, the blank-line arm appends the stanza and the flush is dead code.
-    noeol = "Files: *\nCopyright: 2026 fuddlesworth\nLicense: GPL-3.0-or-later"
+    noeol = "Files: *\nCopyright: 2026 Phosphor Works Team\nLicense: GPL-3.0-or-later"
     got = run({"src/a.cpp": hdr()}, dep5=noeol)
     if got:
         bad.append(f"the last stanza was dropped when the file had no trailing newline: {got}")
@@ -894,7 +894,7 @@ def _dep5_failures() -> list[str]:
     # with `*/`, which the strip covers as forward cover for a C block comment. No probe
     # produced any of the three, so the strip that removes them was unpinned.
     for tail in (" -->", " */", '",'):
-        body = f"<!-- SPDX-FileCopyrightText: 2026 fuddlesworth{tail}\n// SPDX-License-Identifier: GPL-3.0-or-later\n"
+        body = f"<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team{tail}\n// SPDX-License-Identifier: GPL-3.0-or-later\n"
         got = run({"src/a.cpp": body})
         if got:
             bad.append(f"a header whose holder ends in {tail!r} was not stripped before comparison: {got}")
