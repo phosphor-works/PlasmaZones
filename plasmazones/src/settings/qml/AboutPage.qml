@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 Phosphor Works Team
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import QtQuick
@@ -18,7 +18,7 @@ PhosphorUi.AboutPageShell {
     appVersion: Qt.application.version.length > 0 ? i18n("Version %1", Qt.application.version) : i18n("Version unknown")
     description: i18n("Window snapping, tiling and scrolling for Wayland compositors. Snap windows into zones you draw, let an algorithm tile them for you, or scroll them along an endless strip. Every monitor picks its own mode.")
     // Not translated: a copyright notice is a legal attribution, not UI prose.
-    copyright: "© 2026 fuddlesworth"
+    copyright: "© 2026 Phosphor Works Team"
     license: i18n("PlasmaZones is free software licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).")
     homepageUrl: "https://github.com/phosphor-works/PlasmaZones"
     // ── Extras: Links / Credits cards rendered below the homepage URL ──

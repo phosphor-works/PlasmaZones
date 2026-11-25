@@ -1,4 +1,4 @@
-<!-- SPDX-FileCopyrightText: 2026 fuddlesworth -->
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 # PlasmaZones — Claude Code Configuration
@@ -47,7 +47,7 @@ The Phosphor libraries (rendering, layer-shell, animation, config, screens, rule
   authoritative one.
 
 ## License
-- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 fuddlesworth`. Data assets in formats with no comment syntax are exempt. JSON is such a format, so no `.json` file needs a header wherever it sits. The usual cases are `plasmazones/data/**/*.json`, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
+- SPDX headers on every file whose format supports comments: `// SPDX-FileCopyrightText: 2026 Phosphor Works Team`. Data assets in formats with no comment syntax are exempt. JSON is such a format, so no `.json` file needs a header wherever it sits. The usual cases are `plasmazones/data/**/*.json`, and every `metadata.json` (the ones Qt and KWin plugins embed, such as `plasmazones/kwin-effect/metadata.json` and the plugin demo's `plugins/cpu-meter/metadata.json`, and test fixtures such as wallpaper package metadata) — never add a header to those, it makes the file invalid.
 - License identifier depends on the tree:
   - **App tiers** (`plasmazones/**` except its `data/` trees, `scripts/**`): `GPL-3.0-or-later`
   - **Reusable libraries, including their own tests** (everything in phosphor-libs and phosphor-engine-libs): `LGPL-2.1-or-later`

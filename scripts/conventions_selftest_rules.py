@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Rule-COVERAGE arms of the gate self-test: each one drives a real rule over a fake tree.
 
@@ -43,9 +43,9 @@ def _precondition_failures(partition_readable) -> list[str]:
     bad: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
-        (d / "ok.cpp").write_text("// SPDX-FileCopyrightText: 2026 fuddlesworth\n", encoding="utf-8")
+        (d / "ok.cpp").write_text("// SPDX-FileCopyrightText: 2026 Phosphor Works Team\n", encoding="utf-8")
         locked = d / "locked.cpp"
-        locked.write_text("// SPDX-FileCopyrightText: 2026 fuddlesworth\n", encoding="utf-8")
+        locked.write_text("// SPDX-FileCopyrightText: 2026 Phosphor Works Team\n", encoding="utf-8")
         locked.chmod(0o000)
         try:
             locked.read_text(encoding="utf-8")
@@ -113,12 +113,12 @@ def _spdx_suffix_failures(partition_readable) -> list[str]:
         # them entirely left the arm green, because read() answers "" for a missing file and a
         # headerless read is indistinguishable from an unreadable one.
         good = "good.sh"
-        (d / good).write_text("# SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+        (d / good).write_text("# SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
                               "# SPDX-License-Identifier: GPL-3.0-or-later\n", encoding="utf-8")
         # A copyright line with NO identifier must be reported, which pins the primary arm
         # separately from the FileCopyrightText one. Disabling either used to leave both green.
         idless = "idless.sh"
-        (d / idless).write_text("# SPDX-FileCopyrightText: 2026 fuddlesworth\n", encoding="utf-8")
+        (d / idless).write_text("# SPDX-FileCopyrightText: 2026 Phosphor Works Team\n", encoding="utf-8")
         # And the mirror, an identifier with no copyright line, which is the only shape that
         # reaches the SECOND arm. Without it, deleting that arm left the suite green.
         copyless = "copyless.sh"
@@ -130,7 +130,7 @@ def _spdx_suffix_failures(partition_readable) -> list[str]:
         # only failed from 8 up and left 7 resting on nothing.
         toodeep = "toodeep.sh"
         (d / toodeep).write_text("#\n" * 5
-                                 + "# SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+                                 + "# SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
                                    "# SPDX-License-Identifier: GPL-3.0-or-later\n", encoding="utf-8")
         # And the LOWER edge, with the tags on the last two lines the window admits. good.sh
         # only pins 2, so narrowing SPDX_HEAD_LINES to 4 or 5 left the selftest green and the
@@ -139,7 +139,7 @@ def _spdx_suffix_failures(partition_readable) -> list[str]:
         # stop reporting toodeep, and only 6 passes both.
         deep_ok = "deep_ok.sh"
         (d / deep_ok).write_text("#\n" * 4
-                                 + "# SPDX-FileCopyrightText: 2026 fuddlesworth\n"
+                                 + "# SPDX-FileCopyrightText: 2026 Phosphor Works Team\n"
                                    "# SPDX-License-Identifier: GPL-3.0-or-later\n", encoding="utf-8")
         # Data JSON is exempt by FORMAT. .json is added to the set for this call on purpose, so
         # SPDX_EXEMPT is the thing that skips it — a bare probe.json is skipped by the suffix
@@ -315,19 +315,19 @@ def _dead_stanza_failures() -> list[str]:
             "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n"
             "\n"
             "Files: *\n"
-            "Copyright: 2026 fuddlesworth\n"
+            "Copyright: 2026 Phosphor Works Team\n"
             "License: GPL-3.0-or-later\n"
             "\n"
             "Files: src/live.cpp\n"
-            "Copyright: 2026 fuddlesworth\n"
+            "Copyright: 2026 Phosphor Works Team\n"
             "License: MIT\n"
             "\n"
             "Files: src/typo.cpp\n"
-            "Copyright: 2026 fuddlesworth\n"
+            "Copyright: 2026 Phosphor Works Team\n"
             "License: MIT\n"
             "\n"
             "Files: debian/rules\n"
-            "Copyright: 2026 fuddlesworth\n"
+            "Copyright: 2026 Phosphor Works Team\n"
             "License: GPL-3.0-or-later\n",
             encoding="utf-8")
         stanzas = parse_dep5(dep5)
@@ -394,7 +394,7 @@ def _wiring_failures(partition_readable) -> list[str]:
         # partition_readable itself real, which is what this arm is about: whether main()
         # still CALLS it.
         unreadable = d / "unreadable.cpp"
-        unreadable.write_text("// SPDX-FileCopyrightText: 2026 fuddlesworth\n", encoding="utf-8")
+        unreadable.write_text("// SPDX-FileCopyrightText: 2026 Phosphor Works Team\n", encoding="utf-8")
         # A dep5 file whose one non-catch-all stanza matches nothing tracked. Reported only
         # if dep5_problems still CALLS the dead-stanza check.
         dep5 = d / "packaging" / "debian" / "copyright"
@@ -403,11 +403,11 @@ def _wiring_failures(partition_readable) -> list[str]:
             "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n"
             "\n"
             "Files: *\n"
-            "Copyright: 2026 fuddlesworth\n"
+            "Copyright: 2026 Phosphor Works Team\n"
             "License: GPL-3.0-or-later\n"
             "\n"
             "Files: src/gone.cpp\n"
-            "Copyright: 2026 fuddlesworth\n"
+            "Copyright: 2026 Phosphor Works Team\n"
             "License: MIT\n",
             encoding="utf-8")
 
@@ -491,7 +491,7 @@ def _license_tree_failures(partition_readable) -> list[str]:
     gpl3 = "GPL-3.0-or-later"
 
     def header(ident: str) -> str:
-        return f"// SPDX-FileCopyrightText: 2026 fuddlesworth\n// SPDX-License-Identifier: {ident}\n"
+        return f"// SPDX-FileCopyrightText: 2026 Phosphor Works Team\n// SPDX-License-Identifier: {ident}\n"
 
     # (path, identifier in the header, must it be reported?)
     cases = [

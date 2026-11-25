@@ -1,7 +1,7 @@
 #!/bin/bash
 # Update AUR PKGBUILD with new version and hash
 # Usage: ./update-aur.sh <version> <sha256> [PKGBUILD] [pkgrel]
-# SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 set -euo pipefail

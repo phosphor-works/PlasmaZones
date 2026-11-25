@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 fuddlesworth
+# SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # COPR SRPM build instructions
 # Called by COPR build system: make -f .copr/Makefile srpm outdir=<path>
 # Also usable locally: make -f .copr/Makefile srpm outdir=./results

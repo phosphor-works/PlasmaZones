@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2025 arch-disciple (niri-shader-collection)
-// SPDX-FileCopyrightText: 2026 fuddlesworth
+// SPDX-FileCopyrightText: 2026 Phosphor Works Team
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Honeycomb wipe — a hexagonal-grid radial mask that reveals/hides the
