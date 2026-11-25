@@ -60,8 +60,12 @@ permissions:
 # requests: a superseded PR push is genuinely dead work, whereas a push to a
 # release branch or a tag is a result worth keeping even when another lands
 # behind it.
+# A labeled event runs only the Draft Arch package job (for the build-draft
+# label) and skips the rest, so it gets a group of its own, named for the
+# label. In the shared group, adding any label cancelled the real run of the
+# pull request and left only skipped checks.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'labeled' && format('-label-{0}', github.event.label.name) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
