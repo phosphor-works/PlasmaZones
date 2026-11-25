@@ -109,10 +109,9 @@ The Phosphor libraries (rendering, layer-shell, animation, config, screens, rule
 ## User-Facing Text
 User-facing text follows the writing rules of the conventions file: controlled English, with no em dash, semicolon or spaced hyphen joining clauses. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader and curve metadata) and in the bundled layouts and scrolling templates of phosphor-engine-libs, `plasmazones/data/whatsnew.json` highlights, the `description` fields of the bundled `.luau` algorithms (in phosphor-engine-libs, checked from here by `engine-data-prose`), `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
 
-`README.md` is deliberately OUT of scope, along with the other developer-facing repo docs (`CLAUDE.md`, `docs/**`, `plasmazones/tools/**/README.md`). The README uses em-dashes structurally throughout and pulling it under this rule would need a full punctuation rewrite first. Do not "fix" README em-dashes to satisfy these rules.
+The surfaces above are the ones `check-conventions.py` reaches. The rest of the text follows the same rules through review, as the conventions say: `README.md`, `CLAUDE.md`, `docs/**`, code comments and log messages. `README.md` and older documents still use em dashes as structure. Correct the text that a change edits, and do not rewrite unrelated sections in bulk.
 
 - A literal typographic separator between two nouns is acceptable (e.g. the `%1 — %2` Layout/Zone display format) and so are settings-path breadcrumbs (e.g. `Settings → Snapping`).
-- These rules do NOT apply to code comments, log/`qCWarning` messages, or other non-user-facing text.
 
 ## Settings
 
