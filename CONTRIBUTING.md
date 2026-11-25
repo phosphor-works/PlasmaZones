@@ -1,10 +1,14 @@
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
 # Contributing to PlasmaZones
 
-Thanks for considering contributing. This document covers the basics of how to get involved.
+This page tells contributors how to build PlasmaZones, which code style and license headers to use, how to test a
+change, how to send it, and how to update the translations.
 
-## Getting Started
+## Build for development
 
-Clone the repo and build it locally first. The README has build instructions, but the short version:
+Clone the repository and build it locally first. The README has the build steps. This is the short version:
 
 ```bash
 mkdir build && cd build
@@ -12,70 +16,77 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
 cmake --build . -j$(nproc)
 ```
 
-Debug builds are slower but give you better error messages and assert failures actually fire.
+Debug builds are slower. They give better error messages, and failed asserts stop the program.
 
-## Code Style
+## Code style
 
-We follow KDE coding conventions. There's a `.clang-format` in the repo root - run it on your changes before submitting:
+PlasmaZones follows the KDE coding conventions. The repository root has a `.clang-format` file. Run it on your
+changes before you send them:
 
 ```bash
 clang-format -i plasmazones/src/path/to/your/file.cpp
 ```
 
-The highlights:
-- 4 spaces, no tabs
-- Braces on their own line for functions and classes, same line for control flow
-- Pointer asterisk goes with the type: `int* foo` not `int *foo`
-- 120 character line limit
+| Item | Rule |
+| --- | --- |
+| Indentation | 4 spaces, no tabs |
+| Braces | On their own line for functions and classes. On the same line for control flow. |
+| Pointer asterisk | With the type: `int* foo`, not `int *foo` |
+| Line length | 120 characters maximum |
 
-If you're not sure about something, look at the existing code and match what's already there.
+If you are not sure about a rule, look at the code near your change and do the same.
 
-## License Headers
+## License headers
 
-Every source file needs an SPDX header at the top. Use this format:
+Every source file starts with an SPDX header in this format:
 
 ```cpp
 // SPDX-FileCopyrightText: 2026 Your Name
 // SPDX-License-Identifier: GPL-3.0-or-later
 ```
 
-If you're modifying an existing file, add your name to the copyright line or add a new line below the existing ones.
+If you change a file that exists, add your name to the copyright line, or add a new line below the lines that are
+there.
 
-## Submitting Changes
+## Send a change
 
-1. Fork the repo
-2. Create a branch for your work
-3. Make your changes
-4. Test them (at minimum, make sure it builds and runs)
-5. Open a pull request
+1. Fork the repository.
+2. Create a branch for your work.
+3. Make your changes.
+4. Test your changes. At a minimum, make sure that the project builds and runs.
+5. Open a pull request.
 
-Keep commits focused. One logical change per commit is easier to review than a massive dump of unrelated changes.
+Keep each commit to one logical change. Small commits are easier to review than one large commit with unrelated
+changes.
 
-Write decent commit messages. First line should be a short summary, then a blank line, then more detail if needed. No need to write a novel, but "fix bug" tells reviewers nothing useful.
+Write a clear commit message. The first line is a short summary in the Conventional Commits format. The commit hook
+checks this format. Then add a blank line and more detail if necessary. A message such as "fix bug" does not tell
+the reviewers anything.
 
-## Testing
+## Tests
 
-The test suites live in `plasmazones/tests/`, plus the libraries' own, which build and run with PlasmaZones. Run them all with:
+The test suites are in `plasmazones/tests/`. The suites of the libraries also build and run with PlasmaZones. To run
+all of them:
 
 ```bash
 cd build
 ctest --output-on-failure --no-tests=error
 ```
 
-If you're adding new functionality, add tests for it. If you're fixing a bug, a test that would have caught it is appreciated.
+If you add a function, add tests for it. If you fix a bug, a test that finds the bug is welcome.
 
 ## Translations
 
-PlasmaZones uses Qt Linguist (`.ts`/`.qm`) for all translations. C++ uses `PhosphorI18n::tr()`; QML uses `i18n()` via `PhosphorLocalizedContext`.
+PlasmaZones uses Qt Linguist (`.ts`/`.qm`) for all translations. C++ uses `PhosphorI18n::tr()`. QML uses `i18n()`
+through `PhosphorLocalizedContext`.
 
-- **Extract strings** after changing user-visible text:
+- **Extract strings** after you change text that users see:
   `cmake --build build --target update-ts`
   This runs `lupdate` and updates `plasmazones/translations/*.ts`. Commit the results.
-
-- **Add or update a translation**: see `plasmazones/translations/README.md`.
-
-- **Build/install**: `.ts` files are compiled to `.qm` and installed automatically.
+- **Add or update a translation**: see [`plasmazones/translations/README.md`](plasmazones/translations/README.md).
+- **Build and install**: the build compiles the `.ts` files to `.qm` and installs them.
 
 ## Questions
 
-Open an issue if you're stuck or want to discuss something. There's no mailing list or chat channel at the moment.
+If you are stuck or want to discuss a change, open an issue or ask on the [Discord](https://discord.gg/9CQzAptdJ5).
+There is no mailing list.

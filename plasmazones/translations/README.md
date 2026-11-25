@@ -1,23 +1,31 @@
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
 # Translations
 
-PlasmaZones uses Qt Linguist for all internationalization (daemon,
-editor, and KCM).  C++ code calls `PhosphorI18n::tr()`; QML code calls
-`i18n()` via `PhosphorLocalizedContext`.
+This directory holds the translation catalogs of PlasmaZones. PlasmaZones uses Qt Linguist for all translations
+(daemon, editor and KCM). C++ code calls `PhosphorI18n::tr()`. QML code calls `i18n()` through
+`PhosphorLocalizedContext`.
 
-There are two catalogs. `plasmazones_<lang>.ts` is the application's.
-`phosphor-engine-runtime_<lang>.ts` is the engine runtime's
-(`plasmazones/src/runtime/`): its C++ calls `RuntimeI18n::tr()` and its
-shortcut names are marked `QT_TRANSLATE_NOOP("PhosphorEngineRuntime", ...)`,
-under the `PhosphorEngineRuntime` context. It installs to
-`share/phosphor-works/translations`, the daemon loads it with
-`loadRuntimeTranslations()`, and it goes with the runtime into phosphor-libs.
-The overlay QML (the runtime library's `qml/overlay`, which only its overlay
-engine loads) is in it too: it calls `qsTr()`, so each file's name is its context and
-lupdate reads it directly. Its English catalog is compiled, unlike the
-application's, because it holds the English plural forms of the `qsTr()` calls
-that pass a count. `update-ts` refreshes both catalogs.
+## Contents
 
-## File layout
+There are two catalogs:
+
+| Catalog | Owner | Notes |
+| --- | --- | --- |
+| `plasmazones_<lang>.ts` | The application | The code in `plasmazones/src`. |
+| `phosphor-engine-runtime_<lang>.ts` | The engine runtime (`libs/phosphor-engine-runtime` in phosphor-engine-libs) | See below. |
+
+The C++ code of the engine runtime calls `RuntimeI18n::tr()`. Its shortcut names are marked
+`QT_TRANSLATE_NOOP("PhosphorEngineRuntime", ...)`, under the `PhosphorEngineRuntime` context. The catalog installs to
+`share/phosphor-works/translations`, the daemon loads it with `loadRuntimeTranslations()`, and it goes with the
+runtime into phosphor-engine-libs.
+
+The overlay QML (the `qml/overlay` of the runtime library, which only its overlay engine loads) is in the runtime
+catalog too. It calls `qsTr()`, so the name of each file is its context, and lupdate reads the files directly. The
+English runtime catalog is compiled, but the English application catalog is not. The reason is that the English
+runtime catalog holds the English plural forms of the `qsTr()` calls that pass a count. `update-ts` refreshes both
+catalogs.
 
 ```
 translations/
@@ -32,45 +40,50 @@ translations/
   README.md
 ```
 
-Files are named `plasmazones_<lang>.ts`.  At build time, `lrelease`
-compiles each to `plasmazones_<lang>.qm`.  At runtime,
-`QTranslator::load(locale, "plasmazones", "_", dir)` finds the `.qm`
-matching the user's locale.
+The runtime catalog has the same languages, in `phosphor-engine-runtime_<lang>.ts` files.
 
-`plasmazones_en.ts` is the source template and is excluded from
-`lrelease` compilation.  The CMake glob in `cmake/PhosphorTranslations.cmake`
-picks up every `plasmazones_*.ts` automatically, so a new language file
-ships as soon as CMake is reconfigured.
+The files are named `plasmazones_<lang>.ts`. At build time, `lrelease` compiles each file to
+`plasmazones_<lang>.qm`. At runtime, `QTranslator::load(locale, "plasmazones", "_", dir)` finds the `.qm` file for
+the locale of the user.
 
-## Extracting strings
+`plasmazones_en.ts` is the source template, and `lrelease` does not compile it. The CMake glob in
+`cmake/PhosphorTranslations.cmake` finds each `plasmazones_*.ts` file. Thus a new language file ships after you
+configure CMake again.
 
-After changing translatable strings in C++ or QML:
+## Extract strings
+
+After you change translatable strings in C++ or QML, run:
 
 ```bash
 cmake --build build --target update-ts
 ```
 
-This runs `lupdate` on all source files and updates every `.ts` file.
+This runs `lupdate` on all source files and updates each `.ts` file.
 
-## Adding a new language
+## Add a language
+
+Copy the English template:
 
 ```bash
 cp translations/plasmazones_en.ts translations/plasmazones_fr.ts
 # Edit with Qt Linguist, set language="fr" in the <TS> tag
 ```
 
-Then reconfigure CMake so it picks up the new file.
+Then configure CMake again, so that it finds the new file.
 
-Plural forms: every `%n` message needs one `<numerusform>` per plural
-category of the target language (2 for German, Dutch or Brazilian
-Portuguese, 3 for Polish or Russian, and so on). Qt Linguist fills in
-the right number of slots once the `<TS>` language is set, so open the
-file in Linguist after copying it rather than editing the numerus
-blocks by hand.
+Each `%n` message needs one `<numerusform>` for each plural category of the target language:
 
-## Testing translations
+| Language | Plural forms |
+| --- | --- |
+| German, Dutch, Brazilian Portuguese | 2 |
+| Polish, Russian | 3 |
 
-Test without changing your system locale:
+Qt Linguist adds the correct number of slots after you set the `<TS>` language. Thus open the file in Linguist after
+you copy it. Do not edit the numerus blocks by hand.
+
+## Test a translation
+
+You can test a translation without a change to your system locale:
 
 ```bash
 LANGUAGE=de build/bin/plasmazones-editor --help

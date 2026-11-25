@@ -1,36 +1,30 @@
-<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team
-     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-# Kirigami Color Usage — Ruleset
+# Kirigami color rules
 
-Which Kirigami theme role to reach for when painting QML in `plasmazones/src/settings/qml`,
-`plasmazones/src/editor/qml`, and `phosphor/libs/phosphor-control`. The shell
-libraries (`phosphor-shell*`, `phosphor-popout`, `phosphor-theme`) have their own
-token system and are out of scope; `phosphor-control` is in scope because it
-paints the settings app's own sidebar and footer chrome with `Kirigami.Theme`.
+This page tells developers which Kirigami theme role to use when they paint QML in
+`plasmazones/src/settings/qml`, `plasmazones/src/editor/qml` and `libs/phosphor-control` of phosphor-libs. The
+shell libraries (`phosphor-shell*`, `phosphor-popout`, `phosphor-theme`) have their own token system, and these
+rules do not apply to them. The rules apply to `phosphor-control`, because it paints the sidebar and footer of the
+settings app with `Kirigami.Theme`.
 
-This started as a remediation map for a full-tree colour audit. The audit and its
-fixes landed on `fix/theme-color-pipeline`; the per-file inventory tables have
-been dropped as a spent pre-remediation snapshot. What survives below is the
-guidance that still governs new code.
+## Why the rules exist
 
-## Why this exists
+The app made most surfaces by putting `Kirigami.Theme.textColor` with a low alpha over the window background
+(`Qt.rgba(textColor, 0.03–0.4)`). On a dark scheme, textColor is almost white. Thus every card, tile and inactive
+zone showed as flat gray, and the theme colors made from the wallpaper could not reach them.
 
-The app used to fabricate most surfaces by compositing `Kirigami.Theme.textColor`
-at low alpha over the window background (`Qt.rgba(textColor, 0.03–0.4)`).
-On a dark scheme textColor is near-white, so every card, tile, and inactive
-zone rendered as flat grey-slate and the wallpaper-generated theme colors
-could not reach them. Separately, focus/hover ring code assumed
-highlight/focus/hover share a hue (they deliberately don't in the desktop
-scheme), and status colors (active/positive/neutral) were used as a
-decorative palette.
+Two more errors occurred. The focus and hover ring code assumed that highlight, focus and hover have the same hue.
+In the desktop scheme, they have different hues on purpose. The code also used the status colors (active, positive,
+neutral) as decoration.
 
-## The ruleset (what each thing SHOULD be)
+## Rules
 
 | If the code paints… | Use | Never |
 |---|---|---|
 | a card/tile/list surface | `Kirigami.Theme.backgroundColor` / `alternateBackgroundColor` under `Kirigami.Theme.colorSet: Kirigami.Theme.View` | `Qt.rgba(textColor, α)` |
-| a subtle border / separator | `Kirigami.ColorUtils.linearInterpolation(backgroundColor, textColor, frameContrast)` — **`Kirigami.Theme.separatorColor` DOES NOT EXIST** (verified against installed Kirigami; it evaluates undefined and broke 84 call sites before being swept) | `Qt.rgba(textColor, 0.08–0.3)` |
+| a subtle border / separator | `Kirigami.ColorUtils.linearInterpolation(backgroundColor, textColor, frameContrast)`. `Kirigami.Theme.separatorColor` does not exist (see "Known errors"). | `Qt.rgba(textColor, 0.08–0.3)` |
 | a strong border / stroke | `alternateBackgroundColor` | `Qt.rgba(textColor, 0.9)` |
 | a selection tint / selected fill | `highlightColor` (full or @α ≤ 0.25) | — |
 | text on a highlight fill | `highlightedTextColor` | plain `textColor` |
@@ -44,61 +38,77 @@ decorative palette.
 | tooltips / toasts | `colorSet: Kirigami.Theme.Tooltip` | hand-inverted colors |
 | an overlay scrim over arbitrary desktop content (compositor OSDs) | self-contained `Qt.rgba(0,0,0,α)` is sanctioned | textColor-derived scrims (invert on light themes) |
 
-KDE→Kirigami source mapping for reference: `highlightColor` ←
-`[Colors:Selection] BackgroundNormal`; `focusColor`/`hoverColor` ←
-`DecorationFocus`/`DecorationHover`; `activeTextColor` ← `ForegroundActive`
-(**attention** semantics, not "active item"); Header colorSet ←
-`[Colors:Header]`. In the wallpaper-generated scheme, Selection+Header carry
-the wallpaper's second hue, Decoration* the primary hue, active/positive the
-tertiary accent, which is exactly why the misuses above render in
-"wrong-looking" colors.
+## KDE color sources
 
-## In-tree exemplars (copy these)
+| Kirigami role | KDE source |
+| --- | --- |
+| `highlightColor` | `[Colors:Selection] BackgroundNormal` |
+| `focusColor`/`hoverColor` | `DecorationFocus`/`DecorationHover` |
+| `activeTextColor` | `ForegroundActive`. This means **attention**, not "active item". |
+| Header colorSet | `[Colors:Header]` |
 
-- `EasingPreview.qml` / `SpringPreview.qml` — correct `View` colorSet
-- `ShaderBrowserCard.qml`, `ParameterRow.qml` — correct `focusColor`
-- `DimensionTooltip.qml` — correct `Tooltip` colorSet
-- `UnsavedChangesFooter.qml` — correct `Window` pin with `inherit: false`
+In the scheme made from the wallpaper, Selection and Header have the second hue of the wallpaper. Decoration* has
+the primary hue, and active and positive have the tertiary accent. This is why the incorrect uses in the "Never"
+column show in colors that look wrong.
 
-## Standing findings
+## Examples in the tree
 
-- **`Kirigami.Theme.separatorColor` is not a real property.** The original
-  inventory saw two "uses" and every remediation pass propagated it (84
-  occurrences), all of which evaluated to `undefined` at runtime. Verified
-  against the installed Kirigami with a runtime probe: the ONLY fake property
-  among the 21 the remediation used. Canonical replacement (what Kirigami
-  itself does): `Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor,
-  Kirigami.Theme.textColor, Kirigami.Theme.frameContrast)`. LESSON: verify
-  theme API against the runtime before prescribing it in a ruleset.
+Copy these files:
 
-- **The zone-color pipeline overrides QML theming.** Zone fills and borders are
-  user-configurable Settings stored as theme-fallback strings: an EMPTY value
-  (the shipped default) means "follow the system palette", resolved on READ by
-  `Settings::resolvedSystemColor(SystemColorRole)`
-  (`plasmazones/src/config/settings/systemcolors.cpp`), and nothing is ever written back
-  into config on a palette change. The daemon cascades the resolved colors
-  into every overlay/popup slot (`overlay_data.cpp`: zone-custom → rule
-  override → global). QML-side defaults (`ZoneColorDefaults`) only apply
-  where the plumbing doesn't push. History: the retired
-  `applySystemColorScheme()` write-path originally mapped inactive fill AND
-  border to `QPalette::Text` @ alpha, the same textColor fabrication
-  expressed in C++; the resolver keeps its successors, `AlternateBase` /
-  `Mid`. Any future zone-color work must start at `resolvedSystemColor`, not
-  in QML.
+| File | Correct use |
+| --- | --- |
+| `EasingPreview.qml` / `SpringPreview.qml` | `View` colorSet |
+| `ShaderBrowserCard.qml`, `ParameterRow.qml` | `focusColor` |
+| `DimensionTooltip.qml` | `Tooltip` colorSet |
+| `UnsavedChangesFooter.qml` | `Window` pin with `inherit: false` |
 
-- **ZoneColorDefaults flavor rule:** panel-hosted zone cards (PopupFrame
-  contents, settings previews) use the opaque `preview*` flavor; only
-  zones drawn naked over the desktop use the alpha overlay flavor.
+`ParameterRow.qml` is in phosphor-components, and `UnsavedChangesFooter.qml` is in `libs/phosphor-control` of
+phosphor-libs. The other files are in this repository.
 
-- **The settings app links the shared QML plugins.** It used to embed a
-  hand-listed copy of the shared module with a hand-written qmldir, which
-  drifted and broke LayoutThumbnail→LayoutCard ("X is not a type" only in
-  settings, while the daemon and tests worked). Settings now links the
-  generated static plugins (`PhosphorComponentsQmlplugin`,
-  `PhosphorZoneRenderingQmlplugin`) + `Q_IMPORT_QML_PLUGIN` exactly like the
-  daemon. Two build notes: `Q_IMPORT_QML_PLUGIN` must sit at FILE scope
-  (inside an anonymous namespace the extern symbol binds internally →
-  undefined reference), and the importing .cpp must be excluded from unity
-  builds (`SKIP_UNITY_BUILD_INCLUSION`). To debug the settings app past its
-  single-instance guard: `dbus-run-session -- env QT_QPA_PLATFORM=offscreen
-  ./build/bin/plasmazones-settings`.
+## Known errors
+
+**`Kirigami.Theme.separatorColor` is not a real property.** At runtime, each use of it evaluates to `undefined`. The
+code once had 84 uses of it. A runtime probe against the installed Kirigami showed that it was the only property that
+does not exist, of the 21 properties that the color fixes used. Use the replacement that Kirigami itself uses:
+`Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, Kirigami.Theme.frameContrast)`.
+Before you add a theme API to these rules, make sure at runtime that it exists.
+
+## Zone colors
+
+**The zone-color pipeline overrides the QML theme.** Zone fills and borders are settings that the user can change.
+The settings keep them as strings with a theme fallback:
+
+- An EMPTY value (the default) means "follow the system palette".
+- `Settings::resolvedSystemColor(SystemColorRole)` resolves the value when it is read
+  (`libs/phosphor-engine-runtime/src/config/settings/systemcolors.cpp` in phosphor-engine-libs).
+- Nothing writes a value back into the configuration when the palette changes.
+
+The daemon sends the resolved colors to every overlay and popup slot in this order: zone-custom, then rule override,
+then global (`overlay_data.cpp`, also in `libs/phosphor-engine-runtime` of phosphor-engine-libs). The QML defaults
+(`ZoneColorDefaults`) apply only where the daemon does not send a color. Start all zone-color work at
+`resolvedSystemColor`, not in QML.
+
+The `applySystemColorScheme()` write path that came before the resolver is removed. It set the inactive fill and
+border to `QPalette::Text` @ alpha, which is the same textColor error in C++. The resolver uses `AlternateBase` and
+`Mid` for these roles.
+
+**ZoneColorDefaults flavors:** zone cards in a panel (PopupFrame contents, settings previews) use the opaque
+`preview*` flavor. Only zones drawn directly over the desktop use the alpha overlay flavor.
+
+## Shared QML plugins in the settings app
+
+The settings app links the shared QML plugins. Before, it included a copy of the shared module with a hand-written
+file list and qmldir. The copy changed differently from the source and broke LayoutThumbnail→LayoutCard. The error
+"X is not a type" occurred only in the settings app, and the daemon and the tests worked. Now the settings app links
+the generated static plugins (`PhosphorComponentsQmlplugin`, `PhosphorZoneRenderingQmlplugin`) with
+`Q_IMPORT_QML_PLUGIN`, the same as the daemon.
+
+| Build rule | Reason |
+| --- | --- |
+| Put `Q_IMPORT_QML_PLUGIN` at FILE scope. | In an anonymous namespace, the extern symbol binds internally, and the link gives an undefined reference. |
+| Exclude the importing .cpp from unity builds (`SKIP_UNITY_BUILD_INCLUSION`). | — |
+
+## Troubleshooting
+
+To debug the settings app past its single-instance guard, start it like this:
+`dbus-run-session -- env QT_QPA_PLATFORM=offscreen ./build/bin/plasmazones-settings`.

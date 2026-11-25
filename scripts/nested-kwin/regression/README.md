@@ -1,22 +1,14 @@
-<!--
-SPDX-FileCopyrightText: 2026 Phosphor Works Team
-SPDX-License-Identifier: GPL-3.0-or-later
--->
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 # Nested-KWin regression probes
 
-Live checks of placement, tiling, scrolling and effect fixes against a real compositor. Each probe
-stages a scene in a fresh nested KWin session (`../run-nested.sh`, `../daemon.sh`) and asserts the
-current behaviour. The probes started as the PR #1125 audit's live probes. Each one kept here showed
-the defect on the old build and not on the fix, except the few the table calls a control, a smoke
-check or regression rows, which guard a fix without telling the two builds apart.
+The probes check placement, tiling, scrolling and effect fixes live, against a real compositor. Each probe sets up
+a scene in a new nested KWin session (`../run-nested.sh`, `../daemon.sh`) and asserts the current behavior. Each
+probe showed the defect on the old build and not on the build with the fix. The exceptions are the rows that the
+table calls a control, a smoke check or a regression row. They guard a fix but do not tell the two builds apart.
 
-A probe's number is the audit finding it came from (F1151) or, for the later ones, the issue it
-covers (#1151, #1153, #1155), so two probes can share one: f1151-touch-forgets-claim is audit
-finding F1151 and f1151-scroll-visit-back-to-zone is issue #1151. A probe named f followed by a
-word (fdrag, fresize, fscale, fsplash) is named for the behaviour it covers instead.
-
-## Running
+## Use
 
 ```bash
 scripts/nested-kwin/regression/run.sh --list                  # the probe table
@@ -25,44 +17,76 @@ scripts/nested-kwin/regression/run.sh all                     # every probe, a f
 scripts/nested-kwin/regression/run.sh --out DIR --build build-nounity all
 ```
 
-- One fresh session per probe, on socket `pzregress` and state dir `$XDG_RUNTIME_DIR/pz-regress-nest`,
-  so an interactive nested session is left alone. `PZR_SETTLE` (default 15 s) is the pause between
-  sessions.
-- Logs go to `--out DIR` (default `$XDG_RUNTIME_DIR/pz-regression/<date>-<time>`): `NAME.out`,
-  `NAME.kwin.log`, `NAME.daemon.log`, `NAME.session.log`, and `summary.txt`.
-- Exit status: 0 all passed, 1 a probe failed, 2 none failed but one or more could not stage.
-- Needs the build tree (`build/bin`), `qdbus6`, `gdbus`, `dbus-monitor`, `kscreen-doctor`, python3 with
-  GTK4 bindings (PyGObject), PySide6 for `f345-caption-push`, `f1154`, `f1156`, `f1157` (with
-  its xcb platform plugin for `f1157`) and `f1182`, and Xwayland for flag X. Flag F probes
-  use `fakeinput/`, which run.sh builds into `<build>/regression-fakeinput` (Qt6 Gui and KWayland).
+- Each probe gets a new session, on socket `pzregress` and state dir `$XDG_RUNTIME_DIR/pz-regress-nest`. Thus an
+  interactive nested session is not touched. `PZR_SETTLE` (default 15 s) is the pause between sessions.
+- The logs go to `--out DIR` (default `$XDG_RUNTIME_DIR/pz-regression/<date>-<time>`): `NAME.out`, `NAME.kwin.log`,
+  `NAME.daemon.log`, `NAME.session.log` and `summary.txt`.
 
-Flags in the table: X Xwayland, N KWin's permission checks off, F the fakeinput tool (implies N),
-S every output 1600x900, K keep the previous probe's state home (`after=NAME` runs NAME first).
-A row's `kenv=KEY=VALUE` goes into the nested compositor's environment, where the effect reads it
-(the thumbnail trace switch, for one); a plain `KEY=VALUE` goes into the probe's.
+The exit status of run.sh:
+
+| Status | Meaning |
+| --- | --- |
+| 0 | All probes passed. |
+| 1 | A probe failed. |
+| 2 | No probe failed, but one or more could not set up their scene. |
+
+## Requirements
+
+- The build tree (`build/bin`), `qdbus6`, `gdbus`, `dbus-monitor` and `kscreen-doctor`.
+- python3 with the GTK4 bindings (PyGObject).
+- PySide6 for `f345-caption-push`, `f1154`, `f1156`, `f1157` (with its xcb platform plugin for `f1157`) and `f1182`.
+- Xwayland for flag X.
+- Flag F probes use `fakeinput/`. run.sh builds it into `<build>/regression-fakeinput` (Qt6 Gui and KWayland).
+
+## Probe names and flags
+
+The number in a probe name is the audit finding that the probe came from (F1151). For the later probes, it is the
+issue that the probe covers (#1151, #1153, #1155). Thus two probes can have the same number.
+f1151-touch-forgets-claim is audit finding F1151, and f1151-scroll-visit-back-to-zone is issue #1151. A probe named
+with f and a word (fdrag, fresize, fscale, fsplash) has the name of the behavior that it covers.
+
+The flags in the tables:
+
+| Flag | Meaning |
+| --- | --- |
+| X | Xwayland |
+| N | The permission checks of KWin are off. |
+| F | The fakeinput tool (includes N) |
+| S | Each output is 1600x900. |
+| K | Keep the state home of the previous probe (`after=NAME` runs NAME first). |
+
+A `kenv=KEY=VALUE` in a row goes into the environment of the nested compositor, where the effect reads it (for
+example, the thumbnail trace switch). A plain `KEY=VALUE` goes into the environment of the probe.
 
 ## Results
 
-A probe ends with `RESULT: PASS`, `RESULT: FAIL` or `RESULT: STAGING-FAILED` and exits 0, 1 or 2.
-STAGING-FAILED means the scene did not hold (a window never mapped, a race did not fire, the KWin
-scripting flake), so the verdict does not count. Rerun it. A dead nested daemon at the end is a FAIL.
-Some probes depend on timing (f1013, f1147, f1149, f625-rules-burst-refetch) and stage-fail now and
-then by design.
+A probe ends with `RESULT: PASS`, `RESULT: FAIL` or `RESULT: STAGING-FAILED`, and exits with 0, 1 or 2.
 
-## Writing a probe
+- STAGING-FAILED means that the scene did not hold (a window did not map, a race did not occur, the KWin scripting
+  flake). The verdict does not count. Run the probe again.
+- A dead nested daemon at the end is a FAIL.
+- Some probes depend on timing (f1013, f1147, f1149, f625-rules-burst-refetch). By design, their scene setup fails
+  from time to time.
 
-Copy `probes/f1022-new-desktop-move.sh`: SPDX header, a comment with Runner, Staging and Asserts,
-then `NEST="$1"`, `LOG="$2"`, `. "$(dirname "$0")/../lib.sh"`. Stage with the lib helpers, gate the
-staging with `stage_fail`, assert with `check DESC ACTUAL OP WANT` and end with `finish`. Add a row
-to `TABLE` in run.sh. `lib.sh` documents every helper. The daemon is only ever signalled through its
-gated pid (`dpid`: the owner of org.phosphor_works.Placement on the nested bus, with comm plasmazonesd and a
-dbus-run-session bus in its environment), never by name.
+## Write a probe
 
-run.sh blocks D-Bus activation on the nested bus before it starts the daemon with `daemon.sh`, and
-keeps it blocked until the session ends. Otherwise the effect can activate a second daemon that
-takes the bus name first, logs into the compositor's output and leaves `daemon.log` empty. lib.sh
-stage-fails a probe whose running daemon is not the one `daemon.sh` started, and `finish` fails
-one whose daemon died or was replaced.
+1. Copy `probes/f1022-new-desktop-move.sh`. It has the SPDX header and a comment with Runner, Staging and Asserts.
+   It then has `NEST="$1"`, `LOG="$2"` and `. "$(dirname "$0")/../lib.sh"`.
+2. Set up the scene with the lib helpers.
+3. Gate the scene setup with `stage_fail`.
+4. Assert with `check DESC ACTUAL OP WANT`.
+5. End with `finish`.
+6. Add a row to `TABLE` in run.sh.
+
+`lib.sh` documents each helper. Signal the daemon only through its gated pid, never by name. The gated pid
+(`dpid`) is the owner of org.phosphor_works.Placement on the nested bus, with comm plasmazonesd and a
+dbus-run-session bus in its environment.
+
+run.sh blocks D-Bus activation on the nested bus before it starts the daemon with `daemon.sh`, and keeps it blocked
+until the session ends. If activation is not blocked, the effect can activate a second daemon. That daemon takes the
+bus name first, writes its log into the output of the compositor and leaves `daemon.log` empty. lib.sh fails the
+scene setup of a probe if the running daemon is not the one that `daemon.sh` started. `finish` fails a probe if its
+daemon died or was replaced.
 
 ## Probes
 
@@ -193,10 +217,10 @@ one whose daemon died or was replaced.
 | fresize-then-width-verbs | 1, FS | after a Meta+right drag widens one of two columns and pushes the other part way past the edge, equalize puts the widened one back at the even split and brings the other back inside the output; the scrolling reset doing the same is the control |
 | fscale-fixed-device-pixels | 1, S | at scale 1.25, a layout whose fixed zones count device pixels snaps a window to the zone divided by the scale; the same zones counted in logical pixels are the control |
 
-## Follow-up probes (pr1125-followups)
+## Follow-up probes
 
-Each probe's header also says what main (8ca183308) prints instead, so a run on both builds shows
-the change.
+The header of each follow-up probe also tells what main (8ca183308) prints instead. Thus a run on the two builds
+shows the change.
 
 | Probe | Outputs, flags | Asserts |
 |---|---|---|
@@ -218,39 +242,10 @@ the change.
 | fu-dbusctx-settings-errors | 1 | bad Settings requests get an InvalidArgs error at once |
 | fu-dbusctx-drop-proxy-owner | 1, F | a drop proxy is retired when the process that registered it exits |
 
-Not staged: optout's outline step 3 checks a screen_changed WindowStateEntry with floating false,
-which dbus-monitor's struct dump cannot be parsed for reliably; the probe asserts the log line and
-the float state instead. dbusctx part A (the Plasma session's kwin_wayland_wrapper and a KWin
-restart under it) needs the host session and is not a nested probe.
+## Limits
 
-## Dropped audit probes
-
-| Audit probe | Reason |
-|---|---|
-| v18e4, v18e4b | superseded by v18e4c (f751) |
-| v18t7a, v18t7b (F536, F606) | not reproduced: the old build read the same |
-| v18t8b, v18t8bm (F889) | not reproduced (t8b superseded by t8bm) |
-| v18t8d (F310) | folded into f310-overflow-float-half |
-| v18t11a, v18t11am, v18t11b | superseded by t11amm and t11bm |
-| v18t11amm (F745) | not reproduced |
-| v18t12a, v18t12b, v18t12c (F793, F213, F722) | not reproduced |
-| v18t13, v18t13m (F723) | never exercised: the strip took the window as a column |
-| v18t15a (F807), v18a9 (F627) | not reproduced |
-| v18a10dbg | debug variant of v18a10 |
-| v18d5 | superseded by v18w6d5 (f800) |
-| v18p20b (F648 restart fold) | the old build read the same |
-| v18w6e12 (F675), v18w6f947, v18w6t14d (F775) | not reproduced |
-| v18w6d5 B, C | controls, never run on the old build |
-| v18w6d5 D | the old build read the same |
-| v18w7e17 (F759) | the race never fired in eight tries on either build |
-| v18w7e21 (E.21) | not stageable: KWin refuses to disable its last output |
-| v18w7f735 | the old build read the same |
-| v18w7f989 refusal variant | same on both builds |
-| v19f1017 off variant, v19f1019, v19f1027, v19f1031, v19f1076, v19f1091 | same on both builds |
-| v19f1025 | no verdict (a unit row covers it) |
-| v19f1063 | the path is not reachable in a nested session |
-| v20f1110, v20f1120, v21f1128 | the staging did not hold |
-| v20f1113 | same on both builds |
-| v21f1122 none variant, v21f1122inview | the autotile:none float-owner decision reverses what they recorded |
-| v22f1139 touch variant | the staging did not hold (f1151 covers a touch after a return) |
-| v22f1140 b, c | same on both builds (f1130 covers the F1130 order) |
+- The probes do not set up step 3 of the optout outline. That step checks a screen_changed WindowStateEntry with
+  floating false, and the struct dump of dbus-monitor cannot be parsed reliably for it. The probe asserts the log
+  line and the float state instead.
+- Part A of dbusctx (the kwin_wayland_wrapper of the Plasma session, and a KWin restart under it) needs the host
+  session. It is not a nested probe.

@@ -1,44 +1,46 @@
-<div align="center">
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 # PlasmaZones
 
-<img src="https://raw.githubusercontent.com/phosphor-works/branding/v0.1.0/svg/square/dark/plasmazones.svg" alt="PlasmaZones" width="96">
+PlasmaZones puts windows in place on KDE Plasma. One daemon gives three placement modes. You snap windows into
+zones that you draw, an algorithm tiles them, or they scroll along an endless strip. Each monitor uses its own mode.
 
-**Window snapping, tiling and scrolling for KDE Plasma**
-
-Three placement modes in one daemon. Snap windows into zones you drew, let an algorithm tile them for you, or scroll them along an endless strip. Every monitor picks its own.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/phosphor-works/branding/v0.1.0/svg/square/dark/plasmazones.svg" alt="PlasmaZones" width="96">
+</p>
 
 [![CI](https://github.com/phosphor-works/PlasmaZones/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/phosphor-works/PlasmaZones/actions/workflows/ci.yml)
 [![GitHub release](https://img.shields.io/github/v/release/phosphor-works/PlasmaZones)](https://github.com/phosphor-works/PlasmaZones/releases/latest)
 [![AUR](https://img.shields.io/aur/version/plasmazones-bin)](https://aur.archlinux.org/packages/plasmazones-bin)
 [![COPR](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dfuddlesworth%26projectname%3DPlasmaZones%26packagename%3Dplasmazones%26with_latest_succeeded_build%3Dtrue&query=%24.builds.latest_succeeded.source_package.version&label=COPR&color=blue)](https://copr.fedorainfracloud.org/coprs/fuddlesworth/PlasmaZones/package/plasmazones/)
-<br>
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
 [![Wayland](https://img.shields.io/badge/Wayland-native-blue.svg)](https://wayland.freedesktop.org/)
 
-**Docs and screenshots: [phosphor-works.org/plasmazones](https://phosphor-works.org/plasmazones/)**
+## Features
 
-**Questions, ideas or bug reports: [join the Discord](https://discord.gg/9CQzAptdJ5)**
-
-</div>
-
----
-
-## Three Placement Modes
-
-Each monitor runs one mode, chosen per virtual desktop and per activity, so a widescreen can scroll while the laptop panel tiles. `Meta+Shift+T` cycles the focused screen through the enabled modes, and any mode can be turned off entirely.
+Each monitor runs one mode. You choose the mode for each virtual desktop and each activity, so a widescreen
+monitor can scroll while the laptop panel tiles. `Meta+Shift+T` cycles the focused screen through the enabled
+modes. You can turn off each mode completely.
 
 ### Snapping
 
-Hold **Alt** (or your configured modifier) while dragging a window. The zones light up. Drop the window into one and it resizes to fill that zone.
+Hold **Alt** (or the modifier that you set) while you drag a window. The zones show. Drop the window into a zone,
+and the window resizes to fill that zone.
 
 <p align="center">
   <img src="docs/media/videos/snapping.gif" alt="Drag and Snap" />
 </p>
 
-Zones are named regions you draw yourself, in a visual editor with drag-to-resize, snap-to-grid, and mirroring. A library of layouts ships built in (grids, BSP, master and stack, fibonacci, plus portrait, ultrawide, and super-ultrawide variants), and after a snap the remaining zones show as thumbnails so the next window is one click away. Zones can span, and keyboard users can skip the drag entirely with `Meta+Ctrl+1` through `Meta+Ctrl+9`.
+Zones are named regions that you draw in a visual editor. The editor has drag-to-resize, snap-to-grid and mirroring.
+PlasmaZones includes a library of layouts: grids, BSP, master and stack, fibonacci, and portrait, ultrawide and
+super-ultrawide variants. After a snap, the remaining zones show as thumbnails, so you can put the next window with
+one click. A window can span zones. From the keyboard, `Meta+Ctrl+1` through `Meta+Ctrl+9` snap a window with no
+drag. The snapping mode is inspired by [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones)
+from PowerToys.
 
-[Layouts gallery →](https://phosphor-works.org/plasmazones/layouts/) · [Coming from FancyZones →](https://phosphor-works.org/plasmazones/from-fancyzones/)
+[Layouts gallery](https://phosphor-works.org/plasmazones/layouts/) ·
+[Coming from FancyZones](https://phosphor-works.org/plasmazones/from-fancyzones/)
 
 ### Tiling
 
@@ -46,9 +48,12 @@ Zones are named regions you draw yourself, in a visual editor with drag-to-resiz
   <img src="docs/media/videos/tiling.gif" alt="Automatic tiling" />
 </p>
 
-Windows place themselves as they open, with no drag and no zones to draw. The bundled algorithms are written in Luau and run in a sandbox, covering the usual master-and-stack, BSP, columns, grid, spiral, and monocle families along with less common ones. Write your own in the same language and the daemon hot-reloads it from disk while you edit.
+Windows put themselves in place when they open. You do not drag and you do not draw zones. The included algorithms
+are written in Luau and run in a sandbox. They cover master and stack, BSP, columns, grid, spiral, monocle and
+other families. You can write your own algorithm in Luau. The daemon reloads it from disk while you edit it.
 
-[Autotile gallery →](https://phosphor-works.org/plasmazones/autotile/) · [Authoring guide →](https://phosphor-works.org/guides/tiling/)
+[Autotile gallery](https://phosphor-works.org/plasmazones/autotile/) ·
+[Authoring guide](https://phosphor-works.org/guides/tiling/)
 
 ### Scrolling
 
@@ -56,232 +61,83 @@ Windows place themselves as they open, with no drag and no zones to draw. The bu
   <img src="docs/media/videos/scrolling.gif" alt="Scrolling strip" />
 </p>
 
-Modeled on the [niri](https://github.com/YaLTeR/niri) compositor. Windows form columns on an endless strip and the screen is a window onto it, so opening a window never resizes the ones you already have. The strip slides them aside and scrolls the view instead.
+The scrolling mode is modeled on the [niri](https://github.com/YaLTeR/niri) compositor. Windows make columns on an
+endless strip, and the screen shows one part of the strip. When a window opens, the other windows keep their size.
+The strip moves them to the side and scrolls the view.
 
-Columns cycle through width presets or take any width you give them. Windows inside a column share it or show one at a time as tabs, with a configurable indicator alongside. A window can be consumed into its neighbor's column or expelled into its own, columns center on demand, and the strip runs side to side or top to bottom to match the shape of the monitor. Hold **Meta** and scroll the wheel to move along it. Templates set the starting columns and the presets each screen cycles through.
+A column cycles through width presets or takes a width that you give it. The windows in a column share it, or show
+one at a time as tabs with an indicator that you can configure. A column can take a window from the column next to
+it, or move a window out into its own column. A column can move to the center when you ask. The strip goes from
+side to side or from top to bottom, to agree with the shape of the monitor. To move along the strip, hold **Meta**
+and turn the mouse wheel. Templates set the first columns and the width presets of each screen.
 
-A shortcut family on `Meta+Alt` covers the whole vocabulary: [Keyboard shortcuts →](https://phosphor-works.org/plasmazones/shortcuts/)
+A shortcut family on `Meta+Alt` controls the strip. See
+[Keyboard shortcuts](https://phosphor-works.org/plasmazones/shortcuts/).
 
----
+### More
 
-## Beyond Placement
-
-<!-- SHOWCASE GIF PLACEHOLDER — record the layout editor dragging zone boundaries. Produce with
-     docs/media/videos/convert.sh and commit as docs/media/videos/editor.gif, then uncomment:
-<p align="center">
-  <img src="docs/media/videos/editor.gif" alt="Layout editor" />
-</p>
--->
-
-<!-- SHOWCASE GIF PLACEHOLDER — record a shader overlay running during a drag. Produce with
-     docs/media/videos/convert.sh and commit as docs/media/videos/shaders.gif, then uncomment:
-<p align="center">
-  <img src="docs/media/videos/shaders.gif" alt="Shader overlays" />
-</p>
--->
-
-- **Appearance** — GLSL shader overlays for zones (audio-reactive, procedural, distro-themed) with up to 4 image textures each, window decoration packs, and animation packs for open, close, minimize, and desktop switching — [Shader gallery →](https://phosphor-works.org/plasmazones/shaders/) · [authoring guide →](https://phosphor-works.org/guides/shaders/)
-- **Per-monitor, per-desktop, per-activity** — layouts, algorithms, templates, and mode assignments are all scoped, and virtual screens subdivide a physical monitor into independent logical workspaces with their own everything
-- **Window rules** — match on class, title, active layout, screen orientation, and more, then act on placement, floating, opacity, borders, animations, scroll speed, and per-app behavior in every mode
-- **Scriptable** — a D-Bus API on `org.phosphor_works.Placement` covering every mode — [scripting guide →](https://phosphor-works.org/plasmazones/dbus/)
-
----
+- **Appearance**: GLSL shader overlays for zones (audio-reactive, procedural and distribution themes) with up to 4
+  image textures each, window decoration packs, and animation packs for open, close, minimize and desktop
+  switching. See the [shader gallery](https://phosphor-works.org/plasmazones/shaders/) and the
+  [authoring guide](https://phosphor-works.org/guides/shaders/).
+- **Scopes for each monitor, desktop and activity**: layouts, algorithms, templates and mode assignments have a
+  scope. Virtual screens divide a physical monitor into independent logical workspaces with their own settings.
+- **Window rules**: a rule matches on class, title, active layout, screen orientation and more. It then sets
+  placement, floating, opacity, borders, animations, scroll speed and the behavior of each app in every mode.
+- **Scripting**: a D-Bus API on `org.phosphor_works.Placement` covers every mode. See [D-Bus API](docs/DBUS.md).
 
 ## Install
 
-Arch (AUR, prebuilt):
+On Arch Linux, install the prebuilt package from the AUR:
 
 ```bash
 yay -S plasmazones-bin
 ```
 
-Fedora (COPR):
+On Fedora, install from COPR:
 
 ```bash
 sudo dnf copr enable fuddlesworth/PlasmaZones && sudo dnf install plasmazones
 ```
 
-Fedora Atomic (Kinoite), layering the same COPR package (replace 44 with your Fedora release):
-
-```bash
-sudo curl -fsSL -o /etc/yum.repos.d/plasmazones.repo https://copr.fedorainfracloud.org/coprs/fuddlesworth/PlasmaZones/repo/fedora-44/fuddlesworth-PlasmaZones-fedora-44.repo
-rpm-ostree install plasmazones && systemctl reboot
-```
-
-Debian testing/unstable (apt):
-
-```bash
-sudo curl -fsSL https://download.opensuse.org/repositories/home:fuddlesworth/Debian_Unstable/Release.key -o /etc/apt/keyrings/plasmazones.asc
-echo 'deb [signed-by=/etc/apt/keyrings/plasmazones.asc] https://download.opensuse.org/repositories/home:/fuddlesworth/Debian_Unstable/ /' | sudo tee /etc/apt/sources.list.d/plasmazones.list
-sudo apt update && sudo apt install plasmazones
-```
-
-`signed-by` scopes the key to this repository, so it cannot sign anything from the Debian archive itself. apt reads the armored key as it comes, so there is no `gpg --dearmor` step and nothing to install first. The two URL spellings are both correct: the repository line uses `home:/fuddlesworth/` and the key uses `home:fuddlesworth/`, which is how OBS lays them out.
-
-On Debian testing, swap `Debian_Unstable` for `Debian_Testing` in both lines. Packages are built for x86_64 only. The same repository works on Debian-derived rolling distributions such as PikaOS.
-
-The release tarball is built on Arch and only runs where KWin matches Arch's at release time and Qt is the same or newer, so it is not a route for Fedora, Debian or SteamOS. openSUSE Tumbleweed, the tarball, and source-build instructions (including the `-DUSE_KDE_FRAMEWORKS=OFF` portable build): **[Install page →](https://phosphor-works.org/plasmazones/#install)**.
-
-After install, enable the daemon:
+After the install, enable the daemon:
 
 ```bash
 systemctl --user enable --now plasmazones.service
 kbuildsycoca6 --noincremental    # KDE only — refresh the service cache
 ```
 
-Requirements: KDE Plasma 6.7+ on Wayland — the integration runs as a KWin effect, and KWin must be compositing with OpenGL — plus Qt 6.10+, CMake 3.23+, and a C++20 compiler. Kirigami is required for the settings app in every build. Optional: the rest of KDE Frameworks 6.26+ for the settings KCM and KGlobalAccel shortcuts, PlasmaActivities for activity-based layouts. The portable build (`-DUSE_KDE_FRAMEWORKS=OFF`) drops those optional framework deps.
+For Fedora Atomic, Debian, Nix and NixOS, and for the requirements, see [Install](docs/INSTALL.md).
 
-### Nix / NixOS
-
-#### NixOS (recommended)
-
-Add to your flake inputs:
-
-```nix
-plasmazones.url = "github:phosphor-works/PlasmaZones";
-```
-
-Import the module and enable it in your NixOS configuration:
-
-```nix
-imports = [ inputs.plasmazones.nixosModules.default ];
-programs.plasmazones.enable = true;
-```
-
-After rebuilding, enable the daemon and refresh KDE:
+## Build
 
 ```bash
-systemctl --user enable --now plasmazones.service
-kbuildsycoca6 --noincremental
+cmake -B build
+cmake --build build -j3
+sudo cmake --install build
 ```
 
-Then log out and back in.
+The first configure downloads the pinned phosphor-libs and phosphor-engine-libs sources. For the tests and the
+other build options, see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Install page](https://phosphor-works.org/plasmazones/#install).
 
----
+## Documentation
 
-#### Nix profile (without NixOS)
-
-```bash
-nix profile install github:phosphor-works/PlasmaZones
-```
-
-> **Note:** This pins the package to the flake's nixpkgs. If your system's KWin
-> updates, the effect plugin may stop loading until you reinstall. The NixOS
-> module method above avoids this by always building against your system's KWin.
-
----
-
-## Quick Start
-
-1. Enable the daemon: `systemctl --user enable --now plasmazones.service`
-2. Open the settings app: `plasmazones-settings` (or **System Settings → Apps → PlasmaZones** on KDE)
-3. Check that the effect is ticked in **System Settings → Window Management → Desktop Effects → PlasmaZones**. It is enabled by default, so this is usually just a confirmation. PlasmaZones runs as a KWin effect and needs KWin on OpenGL compositing, so the entry is unavailable under QPainter compositing.
-4. **Drag any window while holding Alt** — zones appear, drop to snap.
-5. To try the other modes, open **Overview** in the settings app and assign Tiling or Scrolling to a screen, or press `Meta+Shift+T` to cycle the focused one through the enabled modes.
-
-Full first-run tour: **[Getting started →](https://phosphor-works.org/plasmazones/getting-started/)**.
-
----
-
-## Shortcuts
-
-| Action | Default |
-|---|---|
-| Open editor | `Meta+Shift+E` |
-| Open settings | `Meta+Shift+P` |
-| Cycle placement mode (snapping / tiling / scrolling) | `Meta+Shift+T` |
-| Toggle floating | `Meta+F` |
-| Restore window size | `Meta+Alt+Escape` |
-| Snapping: snap window to zone 1–9 | `Meta+Ctrl+1` … `Meta+Ctrl+9` |
-| Previous / next layout | `Meta+Alt+[` / `Meta+Alt+]` |
-| Open layout picker | `Meta+Alt+Space` |
-| Scrolling: consume / expel window | `Meta+Alt+I` / `Meta+Alt+Shift+I` |
-| Scrolling: cycle column width forward / back | `Meta+Alt+PgUp` / `Meta+Alt+PgDown` |
-| Scrolling: windowed fullscreen | `Meta+Alt+Shift+F` |
-| Open shortcut cheatsheet | `Meta+Alt+/` |
-
-Full reference, across core actions, zone movement, snap, layouts, autotile, scrolling, virtual screens, and the editor: **[Keyboard shortcuts →](https://phosphor-works.org/plasmazones/shortcuts/)**.
-
-All bindings are rebindable in **System Settings → Shortcuts → PlasmaZones** (KDE). The PlasmaZones settings app rebinds only the layout editor's own shortcuts.
-
----
-
-## Configuration
-
-Settings live in `~/.config/phosphor-works/plasmazones/config.json`. Layouts live in `~/.local/share/phosphor-works/layouts/`. Everything is edited through the settings app:
-
-```bash
-plasmazones-settings                           # overview
-plasmazones-settings -p snapping-layouts       # jump straight to the snapping layout library
-plasmazones-settings --page tiling-behavior
-plasmazones-settings --page scrolling-templates
-```
-
-The app is single-instance — launching it again while running raises the existing window and switches to the requested page.
-
----
-
-## Troubleshooting
-
-Daemon startup, verbose logging, KWin minimum-size rules, and the full support-report flow: **[Troubleshooting →](https://phosphor-works.org/plasmazones/troubleshooting/)**.
-
-**Better Blur DX:** the force-blur mode blurs every window not on its allowlist, which catches PlasmaZones' overlay surfaces and makes the screen look blurred all the time. To fix it, open System Settings → Window Management → Desktop Effects → Better Blur DX → Configure → **Force blur** tab, select **"Blur all except matching"**, then add this line:
-
-```text
-/^plasmazones/
-```
-
-The slashes are required, they put the parser into regex mode. One entry covers the daemon, editor, and settings. The "Blur all except matching" toggle is the important part. The default mode treats the list as a whitelist instead of an exclusion list.
-
-When filing a bug, attach a support report:
-
-```bash
-plasmazones-report
-```
-
-The archive lands in `/tmp` by default with home paths redacted, so it's safe to attach to a public issue.
-
----
-
-## D-Bus API
-
-The daemon exposes its whole surface on `org.phosphor_works.Placement` for scripting and integration. Interface inventory, scripting recipes, and signal watching: **[D-Bus scripting guide →](https://phosphor-works.org/plasmazones/dbus/)**.
-
----
-
-## Project Structure
-
-Directory tree and data locations: [Project Structure](https://github.com/phosphor-works/PlasmaZones/wiki/Project-Structure) on the wiki.
-
----
+- [phosphor-works.org/plasmazones](https://phosphor-works.org/plasmazones/) has the user documentation and screenshots.
+- [docs/README.md](docs/README.md) lists the pages in this repository: install, use, troubleshooting and the D-Bus API.
+- [Project Structure](https://github.com/phosphor-works/PlasmaZones/wiki/Project-Structure) on the wiki shows the
+  directory tree and the data locations.
+- For questions, ideas or bug reports, [join the Discord](https://discord.gg/9CQzAptdJ5) or open a
+  [GitHub issue](https://github.com/phosphor-works/PlasmaZones/issues).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on code style, license headers, testing, and translations.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the code style, the license headers, the tests and the translations.
 
----
-
-## Support
-
-If PlasmaZones is useful to you, consider supporting development:
-
-- [Ko-fi](https://ko-fi.com/fuddlesworth)
-- [GitHub Sponsors](https://github.com/sponsors/fuddlesworth)
-
-Bug reports and feature requests: [GitHub Issues](https://github.com/phosphor-works/PlasmaZones/issues)
-
----
+To support the development, use [Ko-fi](https://ko-fi.com/fuddlesworth) or
+[GitHub Sponsors](https://github.com/sponsors/fuddlesworth).
 
 ## License
 
-GPL-3.0-or-later
-
----
-
-<div align="center">
-
-Snapping is inspired by [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones) from PowerToys. Scrolling is inspired by [niri](https://github.com/YaLTeR/niri).
-
-**Built for KDE Plasma 6 on Wayland.**
-
-</div>
+PlasmaZones is GPL-3.0-or-later. The license text is in [LICENSE](LICENSE). PlasmaZones is made for KDE Plasma 6 on
+Wayland.

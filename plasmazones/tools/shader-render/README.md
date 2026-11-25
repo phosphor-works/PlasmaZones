@@ -1,52 +1,32 @@
-<!--
-SPDX-FileCopyrightText: 2026 Phosphor Works Team
-SPDX-License-Identifier: GPL-3.0-or-later
--->
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 # plasmazones-shader-render
 
-Headless offscreen renderer for PlasmaZones shaders. Reproducible
-shader previews without a compositor, display, or screen-capture
-tool. Used by the documentation site at
-[phosphor-works.org/plasmazones/shaders/](https://phosphor-works.org/plasmazones/shaders/)
-and anyone else who needs a stable image of a built-in shader.
+`plasmazones-shader-render` renders PlasmaZones shaders offscreen, with no compositor, display or screen-capture
+tool. It makes shader previews that you can reproduce. The documentation site at
+[phosphor-works.org/plasmazones/shaders/](https://phosphor-works.org/plasmazones/shaders/) uses it, and anyone who
+needs a stable image of a built-in shader can use it.
 
-## What it does
+## Contents
 
-1. Loads `plasmazones/data/overlays/<id>/metadata.json` plus the shader's GLSL
-   files exactly the way the daemon does. With `--pointer` it loads a
-   `plasmazones/data/pointer/<id>/` pack instead and drives a synthetic
-   pointer through the canvas so the pointer uniform tail is populated.
-2. Loads `<id>.json` from the layouts of phosphor-engine-libs' data to get a real zone arrangement,
-   so the shader has actual zones to draw rather than a single
-   mock rect.
-3. Boots a Qt Quick scene under `QQuickRenderControl` (offscreen,
-   no window manager required) with a `ShaderEffect` filling the
-   surface and phosphor-rendering's `ZoneUniformExtension` attached so the
-   `zoneRects[64]` / `zoneFillColors[64]` / etc. UBO arrays match
-   the runtime byte-for-byte.
-4. Renders N frames, advancing `iTime` and feeding a synthetic
-   audio spectrum on every frame for audio-reactive shaders.
-5. Pipes raw RGBA into `ffmpeg` to encode VP9 / H.264, or saves a
-   PNG sequence directly.
+The tool does these steps:
 
-## Build
+1. It loads `plasmazones/data/overlays/<id>/metadata.json` and the GLSL files of the shader, the same as the daemon.
+   With `--pointer`, it loads a `plasmazones/data/pointer/<id>/` pack instead. Then a synthetic pointer moves
+   through the canvas, so the pointer uniform tail has values.
+2. It loads `<id>.json` from the layouts in the data of phosphor-engine-libs. Thus the shader draws real zones, not
+   one mock rectangle.
+3. It starts a Qt Quick scene under `QQuickRenderControl` (offscreen, with no window manager). A `ShaderEffect` fills
+   the surface. The `ZoneUniformExtension` of phosphor-rendering is attached, so the `zoneRects[64]` /
+   `zoneFillColors[64]` / etc. UBO arrays are the same as at runtime, byte for byte.
+4. It renders N frames. For each frame, it advances `iTime` and gives a synthetic audio spectrum to audio-reactive
+   shaders.
+5. It sends raw RGBA to `ffmpeg` to encode VP9 / H.264, or it saves a PNG sequence directly.
 
-The tool is opt-in. Configure with `-DBUILD_TOOLS=ON`:
+The metadata and layout loaders cover the full schema that the daemon reads.
 
-```bash
-cmake -B build -DBUILD_TOOLS=ON
-cmake --build build --target plasmazones-shader-render
-```
-
-It links `Qt6::Quick` plus `PhosphorRendering`, `PhosphorShaders`,
-`PhosphorWayland`, `PhosphorAudio`, `PhosphorPointer`, and phosphor-libs'
-`PhosphorZoneRendering` (the zone entry scaffold the daemon assembles packs with).
-For headless CI it works under software Vulkan
-(`VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json)`),
-or fall back to OpenGL with `QSG_RHI_BACKEND=opengl`.
-
-## Run
+## Use
 
 ```bash
 plasmazones-shader-render \
@@ -57,8 +37,6 @@ plasmazones-shader-render \
     --fps 30 \
     --out neon-city.webm
 ```
-
-Common flags:
 
 | Flag | Default | Purpose |
 |------|---------|---------|
@@ -83,46 +61,63 @@ Common flags:
 | `--no-cursor-sprite` | off | leave the cursor sprite unbound so a `needsCursor` pack renders its fallback |
 | `--cursor-size` | `24` | drawn size of the synthetic cursor sprite in logical px |
 
-Shared GLSL (`shared/common.glsl`, `audio.glsl`, `zone.vert`) resolves from the
-source tree first, then the XDG data dirs (which include `/usr/share` on a
-normal system). That is the
-opposite of the daemon's order, on purpose. The daemon is the installed program
-and should prefer installed data. This tool exists to check the tree you are
-editing, so an installed copy taking precedence would mean previewing the last
-install instead of your working copy. It was that way round, and a helper added
-to `shared/common.glsl` but not yet installed made every pack that called it
-fail to compile against a function plainly present in the file on screen.
+## Build
 
-Output formats are picked by extension:
+The tool is optional. Configure with `-DBUILD_TOOLS=ON`:
 
-- `.webm` — VP9 via `ffmpeg` (`-c:v libvpx-vp9 -b:v 0 -crf 28 -row-mt 1 -deadline good`)
-- `.mp4` — H.264 via `ffmpeg` (`-c:v libx264 -crf 23`)
-- `.png` — numbered sequence (`out_000001.png`, `out_000002.png`, ...)
+```bash
+cmake -B build -DBUILD_TOOLS=ON
+cmake --build build --target plasmazones-shader-render
+```
+
+It links `Qt6::Quick`, `PhosphorRendering`, `PhosphorShaders`, `PhosphorWayland`, `PhosphorAudio`,
+`PhosphorPointer`, and `PhosphorZoneRendering` of phosphor-libs (the zone entry scaffold that the daemon uses to
+assemble packs). For headless CI, it works under software Vulkan
+(`VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json)`). As an alternative, use OpenGL with
+`QSG_RHI_BACKEND=opengl`.
+
+## Output formats
+
+The extension of `--out` selects the format:
+
+| Extension | Output |
+| --- | --- |
+| `.webm` | VP9 via `ffmpeg` (`-c:v libvpx-vp9 -b:v 0 -crf 28 -row-mt 1 -deadline good`) |
+| `.mp4` | H.264 via `ffmpeg` (`-c:v libx264 -crf 23`) |
+| `.png` | numbered sequence (`out_000001.png`, `out_000002.png`, ...) |
 
 `ffmpeg` must be on `PATH` for the video formats.
 
+## Shared GLSL search order
+
+The tool finds the shared GLSL (`shared/common.glsl`, `audio.glsl`, `zone.vert`) in the source tree first, then in
+the XDG data dirs (which include `/usr/share` on a normal system). This order is the opposite of the daemon order,
+on purpose:
+
+- The daemon is the installed program, so it uses the installed data first.
+- This tool checks the tree that you edit. If an installed copy came first, you would see the last install, not your
+  working copy.
+
+The order was once the same as the daemon order. Then a helper added to `shared/common.glsl` but not installed made
+every pack that called it fail to compile, though the function was in the file on screen.
+
 ## Audio modes
 
-Audio-reactive shaders (everything tagged `audio-reactive` in the
-shader gallery) sample `uAudioSpectrum`. To get representative
-output, the renderer feeds a synthetic spectrum:
+Audio-reactive shaders (each shader with the `audio-reactive` tag in the shader gallery) sample `uAudioSpectrum`.
+To give representative output, the renderer supplies a synthetic spectrum:
 
-- `silent` — all zeros. Audio shaders render in their idle state.
-  Use only when you want to see the dormant geometry.
-- `sine` — every bar follows a slow phased sine. Default — looks
-  like steady mid-tempo music.
-- `noise` — deterministic per-frame noise. Looks like a flat-
-  spectrum noise bed.
-- `sweep` — a peak walks bass → treble → bass on a 4-second loop.
-  Useful to verify that low / mid / high buckets light up the
-  expected visual elements.
+| Mode | Spectrum | Use |
+| --- | --- | --- |
+| `silent` | All zeros. Audio shaders show their idle state. | Only to see the dormant geometry. |
+| `sine` | Each bar follows a slow phased sine. This is the default. | Looks like steady music at a medium tempo. |
+| `noise` | Deterministic noise for each frame. | Looks like a noise bed with a flat spectrum. |
+| `sweep` | A peak moves bass → treble → bass in a 4-second loop. | Shows that the low, mid and high buckets light the expected visual elements. |
 
-The bar count matches the runtime default (64).
+The bar count is the same as the runtime default (64).
 
-## Batch wrapper
+## Render all overlays
 
-A shell loop over the overlays.json list is the typical site-update
-flow:
+The usual site update is a shell loop over the overlays.json list:
 
 ```bash
 for id in $(jq -r '.[].id' src/data/plasmazones/overlays.json); do
@@ -135,62 +130,33 @@ for id in $(jq -r '.[].id' src/data/plasmazones/overlays.json); do
 done
 ```
 
-Run on a developer machine once per release; commit the resulting
-`.webm` files to the docs repo. Or run it as a CI step against
-PRs that touch `plasmazones/data/overlays/`.
+Run it on a developer machine once for each release, and commit the `.webm` files to the docs repository. As an
+alternative, run it as a CI step for pull requests that change `plasmazones/data/overlays/`.
 
-## Status / known limitations
+## Shared code with the daemon
 
-Working today:
+The tool assembles a pack that defines `pZone` or `pImage` with the same entry-point scaffold as the daemon. If the
+assembly is different, the preview renders a different program than the runtime. That is the failure that this tool
+must prevent. The scaffold (`zoneentryscaffold.h`) comes from the linked `PhosphorZoneRendering` target.
 
-- CLI argument parsing and input resolution
-- Metadata + layout loaders (covers the full schema the daemon
-  reads)
-- Audio mock generators (silent / sine / noise / sweep)
-- Frame-grab and PNG / VP9 / H.264 output
-- phosphor-rendering's ZoneUniformExtension attached so zone arrays in the UBO match
-  the runtime exactly. The tool reports the render target's
-  device-pixel ratio to the extension the same way the daemon
-  item does; that ratio is pinned to 1.0 here, so a corner radius
-  or border width comes out in the units you asked for, which is
-  what a preview wants. Raising
-  `--resolution` does NOT stand in for a scaled display: the zone
-  rects grow with `iResolution` while the radius stays fixed, so
-  the corners get relatively smaller. A real scaled display scales
-  the radius too, so corners keep their relative size. The tool
-  cannot preview a non-1.0 scale today.
+`ZoneUniformExtension` and the `ZoneShaderUniforms` UBO struct are in
+`phosphor-libs/libs/phosphor-rendering/`. They come through the linked `PhosphorRendering::PhosphorRendering` target,
+the same as other library headers.
 
-Known gaps to verify on first run:
+## Limits
 
-- **Multipass + buffer-feedback shaders** (neon-city, voxel-
-  terrain, paper, ...) — the frame loop issues polishItems /
-  `beginFrame()` / sync / `render()`, and the matching
-  `endFrame()` lands in `captureFrame` after the readback, so the
-  ping-pong ordering between the buffer textures stays explicit.
-  The offscreen targets are built in `buildOffscreenTarget` and
-  the loop lives in `Renderer::render`.
-- **Depth-buffered shaders** — `useDepthBuffer = true` flag is
-  forwarded; the corresponding offscreen depth attachment is
-  set up by `ShaderNodeRhi`, but verify visually against a real
-  daemon render before trusting CI output.
-- **Layout zone defaults** — the loader pulls per-zone fill /
-  border colors from the layout JSON if present, otherwise
-  cycles through the Phosphor brand palette. Some layout JSONs
-  ship without color overrides; if a shader's preview reads
-  unexpectedly flat, check the layout file.
-
-## Tech debt
-
-`plasmazones/tools/shader-render/CMakeLists.txt` still adds
-`plasmazones/src/runtime/rendering/` to the include path, now only for
-`zoneentryscaffold.h`. The tool needs the daemon's entry-point
-scaffold so a pack that defines `pZone` or `pImage` is assembled
-the same way the daemon assembles it. Get that wrong and the
-preview renders a different program than the runtime does, which
-is the failure this whole tool exists to avoid.
-
-`ZoneUniformExtension` and the `ZoneShaderUniforms` UBO struct no
-longer contribute to that coupling. They live in
-`phosphor-libs/libs/phosphor-rendering/` and arrive through the linked
-`PhosphorRendering::PhosphorRendering` target like any other
-library header.
+- **Display scale:** the tool gives the device-pixel ratio of the render target to `ZoneUniformExtension` in the
+  same way as the daemon item. Here the ratio is always 1.0, so a corner radius or border width has the units that
+  you asked for. A larger `--resolution` is NOT the same as a scaled display. The zone rectangles grow with
+  `iResolution`, but the radius stays the same, so the corners become relatively smaller. A real scaled display
+  also scales the radius, so the corners keep their relative size. The tool cannot preview a scale other than 1.0.
+- **Multipass and buffer-feedback shaders** (neon-city, voxel-terrain, paper, ...): the frame loop calls
+  polishItems / `beginFrame()` / sync / `render()`. The matching `endFrame()` is in `captureFrame` after the
+  readback, so the ping-pong order between the buffer textures stays explicit. `buildOffscreenTarget` makes the
+  offscreen targets, and `Renderer::render` has the loop. Compare the output with a real daemon render on the first
+  run.
+- **Depth-buffered shaders:** the tool forwards the `useDepthBuffer = true` flag, and `ShaderNodeRhi` sets up the
+  offscreen depth attachment. Compare the output with a real daemon render before you trust CI output.
+- **Layout zone colors:** the loader takes the fill and border colors of each zone from the layout JSON. If the JSON
+  has no colors, the loader cycles through the Phosphor brand palette. Some layout JSONs have no color overrides. If
+  the preview of a shader looks flat, check the layout file.

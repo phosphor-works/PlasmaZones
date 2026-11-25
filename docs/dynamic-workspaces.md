@@ -1,129 +1,125 @@
-<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team
-     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 # Dynamic per-monitor workspaces
 
-Feature notes for the dynamic-workspaces layer from PR #990, which is not in a
-release yet. The original design is in `docs/dynamic-workspaces-plan.md`, a
-historical record with a list of where the shipped code drifted from it. This
-file records the user-visible policy decisions a support answer needs.
+This page tells how dynamic per-monitor workspaces behave, and which user-visible policy decisions apply. It is for
+developers and for people who answer support questions. The feature came in PR #990.
 
 ## Model
 
-Each monitor owns an ordered list of virtual desktops ("its workspaces") layered
-over KWin's single shared desktop pool. The daemon's ownership map
-(`phosphor-engine-libs/libs/phosphor-workspaces`) is the authority on which monitor
-owns which desktop, and KWin remains the authority on which desktops exist.
-Occupying a monitor's last empty workspace appends a new one. A workspace
-emptied in the middle of the list is removed once the monitor leaves it, unless
-it is named or is waiting for its monitor to come back.
+Each monitor has an ordered list of virtual desktops, its "workspaces", on top of the one shared desktop pool of
+KWin. The ownership map of the daemon (`phosphor-engine-libs/libs/phosphor-workspaces`) decides which monitor owns
+which desktop. KWin decides which desktops exist.
 
-Named workspaces (Settings → Workspaces → Named Workspaces) persist while empty
-and can be pinned to an output. Each one carries a persistent id, so a rename,
-made on that page or in KWin itself, keeps the same desktop, and the quick
-slots and "Open on workspace" rules that point at it follow the rename. A
-desktop PlasmaZones treats as unnamed gets a positional label ("Desktop 3"),
-which is refreshed when a desktop is created or removed earlier in the list.
+- When a window goes onto the last empty workspace of a monitor, the monitor gets a new workspace at the end.
+- When a workspace in the middle of the list becomes empty, the daemon removes it after the monitor leaves it. This
+  does not apply to a named workspace or to a workspace that waits for its monitor to come back.
 
-On unplug, a monitor's workspaces foster onto a surviving screen and migrate
-home on replug. A fostered workspace keeps its home stamp while it is away and
-is exempt from empty-workspace cleanup, so it comes home intact even when it
-was empty.
+Named workspaces (Settings → Workspaces → Named Workspaces) stay while they are empty, and you can pin each one to
+an output. Each named workspace has a persistent id. Thus a rename on that page or in KWin keeps the same desktop,
+and the quick slots and "Open on workspace" rules that point at it follow the rename. A desktop that PlasmaZones
+treats as unnamed gets a label from its position ("Desktop 3"). The label changes when a desktop is created or
+removed earlier in the list.
 
-A desktop created outside PlasmaZones (System Settings' desktop count, the
-Pager's add button, a script) joins the focused monitor's list first. Once KWin
-settles, a desktop that exactly one other monitor is showing moves to that
-monitor's list, and one a monitor is showing stays. An empty one that no
-monitor is showing is removed again, the way niri drops a stray empty
-workspace, so such a desktop lasts only once a window is on it or a monitor
-shows it.
+When you disconnect a monitor, its workspaces go to a monitor that stays connected. When you connect the monitor
+again, they go back. A workspace that is away keeps the mark of its home monitor, and the empty-workspace cleanup
+does not remove it. Thus it comes back complete, also when it was empty.
 
-The daemon keeps its runtime state under `~/.local/state/phosphor-works/plasmazones/`:
+A desktop created outside PlasmaZones (the desktop count in System Settings, the add button of the Pager, a script)
+first goes into the list of the focused monitor. After KWin settles, these rules apply:
 
-- `workspaces.json`, the ownership map, so monitors get their workspaces back
-  after a restart.
-- `kwin-shortcut-backup.ini`, the stock KWin chords taken over while the
-  feature is on, restored from here on disable.
+| Desktop | Result |
+| --- | --- |
+| Exactly one other monitor shows it | It moves to the list of that monitor. |
+| A monitor shows it | It stays. |
+| It is empty and no monitor shows it | The daemon removes it again, the same as niri removes a stray empty workspace. |
 
-A named workspace renamed or deleted while the daemon was down does not leave
-its old chord registered. At start the daemon drops every PlasmaZones shortcut
-record that is not one of its fixed shortcuts, then binds the chords of the
-named workspaces as they are now.
+Thus such a desktop stays only when a window is on it or a monitor shows it.
 
-## Desktop limit
+The daemon keeps its runtime state in `~/.local/state/phosphor-works/plasmazones/`:
 
-KWin caps the number of virtual desktops (25 in KWin 6.8), and the cap covers
-every monitor's list together. At the cap, occupying a monitor's last empty
-workspace no longer appends another, an OSD says "Workspace limit reached" once
-per episode, and Settings → Workspaces → Behavior shows a warning while the
-limit holds. A named workspace
-that cannot be created at the cap waits until there is room. Emptying any
-workspace makes room again. When KWin refuses creates below 25, PlasmaZones
-learns the lower ceiling at runtime and forgets it once a create succeeds.
+| File | Contents |
+| --- | --- |
+| `workspaces.json` | The ownership map. Monitors get their workspaces back after a restart. |
+| `kwin-shortcut-backup.ini` | The stock KWin key combinations that the feature takes while it is on. The daemon restores them from this file when you disable the feature. |
+
+If you rename or delete a named workspace while the daemon is stopped, its old key combination does not stay
+registered. At start, the daemon removes each PlasmaZones shortcut record that is not one of its fixed shortcuts.
+Then it binds the key combinations of the named workspaces as they are now.
 
 ## Requirements and consent
 
-The feature requires KWin's per-output virtual desktops
-(`PerOutputVirtualDesktops` in kwinrc, Plasma 6.7). Enabling it with that off
-asks for consent, then writes the key and reconfigures KWin, which applies it
-immediately. Consent is asked once. If the key is turned off again later, from
-System Settings or by hand, PlasmaZones takes that as the user's choice. The
-feature goes dormant and the Behavior page offers the consent banner again
-instead of rewriting the key. PlasmaZones never writes the key silently and
-never reverts it when the feature is disabled.
+The feature needs the per-output virtual desktops of KWin (`PerOutputVirtualDesktops` in kwinrc, Plasma 6.7).
 
-The consent is machine-scoped. A settings profile or a full settings import
-does not carry it, so a machine never gets kwinrc written on the strength of
-consent given on another one. The takeover toggle below does ride profiles.
+1. If that key is off when you enable the feature, PlasmaZones asks for consent.
+2. After you give consent, PlasmaZones writes the key and reconfigures KWin.
 
-The feature needs KDE Frameworks (KConfig reads and writes kwinrc). The
-portable `-DUSE_KDE_FRAMEWORKS=OFF` build compiles it out.
+KWin applies the key immediately. PlasmaZones asks for consent once. If the key is turned off again later, from
+System Settings or by hand, PlasmaZones takes that as your choice. The feature becomes dormant, and the Behavior page
+shows the consent banner again. PlasmaZones does not write the key again. It never writes the key without consent,
+and it never reverts the key when you disable the feature.
 
-The Behavior and Named Workspaces pages show in the settings app's simple mode,
-so the enable toggle is reachable there. Quick Shortcuts is advanced-only.
+The consent applies to one machine. A settings profile or a full settings import does not carry it. Thus no machine
+gets kwinrc written because of consent given on another machine. The takeover setting (see "The Pager and the stock
+desktop navigation") does go with profiles.
+
+The feature needs KDE Frameworks, because KConfig reads and writes kwinrc. The portable `-DUSE_KDE_FRAMEWORKS=OFF`
+build does not include the feature.
+
+The Behavior and Named Workspaces pages show in the simple mode of the settings app, so you can find the enable
+switch there. Quick Shortcuts shows only in the advanced mode.
 
 ## Window rules
 
-"Open on workspace" sends a window to a named workspace wherever that
-workspace currently lives. The rule stores the workspace's id and resolves it by
-id, falling back to the stored name when the id is gone. When it realizes, it
-wins over "Open on monitor" in the same rule set, because the workspace already
-decides the monitor. "Open on desktop" still takes a desktop number, and with
-dynamic workspaces on those numbers shift as workspaces come and go, so the
-rule editor points at the named-workspace action instead.
+"Open on workspace" sends a window to a named workspace, on the monitor where that workspace is now. The rule keeps
+the id of the workspace and finds the workspace by that id. When no workspace has that id, the rule uses the stored
+name. When the rule applies, it has priority over "Open on monitor" in the same rule set, because the workspace
+already sets the monitor.
 
-## The Pager and stock desktop navigation are unsupported-by-policy
+"Open on desktop" still takes a desktop number. With dynamic workspaces on, those numbers change as workspaces come
+and go. Thus the rule editor tells you to use the named-workspace action.
 
-Plasma's Pager and the stock Overview render KWin's whole desktop pool and know
-nothing about per-monitor ownership. They will show every monitor's workspaces
-as one flat list. The Task Manager's current-desktop filter already follows the
-desktop each monitor shows. Switching to another
-monitor's workspace through them triggers the owner-wins snap-back: the
-switching monitor returns to a workspace of its own, with an OSD hint that
-Settings → Workspaces → Behavior can turn off. Hide the Pager widget when using
-dynamic workspaces. A desktop added from the Pager follows the external-desktop
-rule in the Model section above: it survives only once a window is on it or a
-monitor shows it, and an empty one nobody is looking at is removed again.
+## The Pager and the stock desktop navigation
 
-KWin's stock desktop-stepping shortcuts walk the same global pool: the four
-"Switch One Desktop" actions (Up, Down, to the Left, to the Right) and the two
-"Walk Through Desktops" actions (forward and Reverse). While the feature is on
-they are taken over by default (backed up and restored on
-disable, toggleable in Settings → Workspaces → Behavior). With the takeover on,
-the PlasmaZones workspace shortcuts (`Meta+Ctrl+Up/Down` and friends) walk only
-the current monitor's own workspace list. With the takeover off, the stock
-chords stay KWin's, and PlasmaZones parks its own focus pair while it still
-sits on those stock chords, so KWin's global switch keeps working and the
-cheat sheet does not list a binding that would never fire.
+By policy, PlasmaZones does not support the Pager and the stock desktop navigation with this feature. The Pager and
+the stock Overview of Plasma show the full desktop pool of KWin and do not know which monitor owns which desktop.
+They show the workspaces of all monitors as one flat list. The current-desktop filter of the Task Manager already
+follows the desktop that each monitor shows.
 
-Two more stock paths walk the global pool and are not taken over:
+If you use them to switch to a workspace of another monitor, the owner-wins snap-back occurs. The monitor that
+switched goes back to one of its own workspaces and shows an OSD hint. You can turn off the hint in Settings →
+Workspaces → Behavior. Hide the Pager widget when you use dynamic workspaces. A desktop added from the Pager follows
+the rule for desktops created outside PlasmaZones (see "Model"). It stays only when a window is on it or a monitor
+shows it. The daemon removes an empty one that no monitor shows.
 
-- KWin's "Switch to Desktop N" (`Meta+F1` to `Meta+F4` and `Ctrl+F1` to
-  `Ctrl+F4` by default) switches the active monitor to global desktop N, which
-  usually belongs to another monitor, so it snaps back. The per-monitor
-  replacement is the focus slots on Settings → Workspaces → Quick Shortcuts,
-  where slot N focuses the Nth workspace of the acting monitor's own list.
-  They ship unbound.
-- Touchpad and touchscreen desktop-switch gestures step KWin's global grid.
-  They are gestures rather than global shortcuts, so the takeover cannot reach
-  them, and a step onto another monitor's workspace snaps back.
+The stock desktop-step shortcuts of KWin also go through the global pool. These are the four "Switch One Desktop"
+actions (Up, Down, to the Left, to the Right) and the two "Walk Through Desktops" actions (forward and Reverse).
+
+- While the feature is on, PlasmaZones takes these shortcuts by default. It makes a backup of them and restores them
+  when you disable the feature. You can turn the takeover on and off in Settings → Workspaces → Behavior.
+- With the takeover on, the PlasmaZones workspace shortcuts (`Meta+Ctrl+Up/Down` and the related shortcuts) go only
+  through the workspace list of the current monitor.
+- With the takeover off, the stock key combinations stay with KWin. If the PlasmaZones focus pair is on those stock
+  key combinations, PlasmaZones parks the pair. Thus the global switch of KWin continues to work, and the cheat sheet
+  does not show a binding that never operates.
+
+Two more stock paths go through the global pool, and PlasmaZones does not take them:
+
+| Path | Behavior | Replacement |
+| --- | --- | --- |
+| "Switch to Desktop N" of KWin (`Meta+F1` to `Meta+F4` and `Ctrl+F1` to `Ctrl+F4` by default) | It switches the active monitor to global desktop N. That desktop usually belongs to another monitor, so a snap-back occurs. | The focus slots on Settings → Workspaces → Quick Shortcuts. Slot N focuses the Nth workspace in the list of the active monitor. The slots have no binding by default. |
+| Touchpad and touchscreen desktop-switch gestures | They step through the global grid of KWin. They are gestures, not global shortcuts, so the takeover cannot change them. A step onto a workspace of another monitor snaps back. | None |
+
+## Limits
+
+KWin has a maximum number of virtual desktops (25 in KWin 6.8). The maximum applies to the lists of all monitors
+together. At the maximum:
+
+- When a window goes onto the last empty workspace of a monitor, the monitor gets no new workspace.
+- An OSD shows "Workspace limit reached" one time for each occurrence.
+- Settings → Workspaces → Behavior shows a warning while the limit applies.
+- A named workspace that cannot be created waits until there is space.
+
+When any workspace becomes empty, there is space again. If KWin refuses to create a desktop below 25, PlasmaZones
+learns the lower limit at runtime. It forgets that limit after a create succeeds.
