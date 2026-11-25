@@ -70,10 +70,10 @@ set(PLASMAZONES_DEP_phosphor-libs_SHA256 "66470df999e19aca1627c8d840100cd5b9163c
 # engine runtime the daemon embeds. Added as a subproject after phosphor-libs, so
 # it builds on this tree's phosphor-libs and its own pin is not used. A commit, so
 # VERSION is the commit hash.
-set(PLASMAZONES_DEP_phosphor-engine-libs_VERSION "21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68")
-set(PLASMAZONES_DEP_phosphor-engine-libs_URL "https://github.com/phosphor-works/phosphor-engine-libs/archive/21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz")
-set(PLASMAZONES_DEP_phosphor-engine-libs_FILE "phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz")
-set(PLASMAZONES_DEP_phosphor-engine-libs_SHA256 "f40919b64d055bc314809df29b902c0d95468b7607e9eed1651c08337ee43e55")
+set(PLASMAZONES_DEP_phosphor-engine-libs_VERSION "c9f2c55f8b87af6c256fb2cc568a9eacea560107")
+set(PLASMAZONES_DEP_phosphor-engine-libs_URL "https://github.com/phosphor-works/phosphor-engine-libs/archive/c9f2c55f8b87af6c256fb2cc568a9eacea560107.tar.gz")
+set(PLASMAZONES_DEP_phosphor-engine-libs_FILE "phosphor-engine-libs-c9f2c55f8b87af6c256fb2cc568a9eacea560107.tar.gz")
+set(PLASMAZONES_DEP_phosphor-engine-libs_SHA256 "06350c086505e8efd19b2c12ad9a4edba40891ee2a28e013bc83ff5be425d99b")
 
 # The phosphor-components commit (LGPL-2.1-or-later,
 # phosphor-works/phosphor-components): the Phosphor.Components QML module the
