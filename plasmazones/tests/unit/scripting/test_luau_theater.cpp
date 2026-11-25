@@ -4,7 +4,7 @@
 // Geometry and resize behavior for the Theater widescreen layout: the focused
 // window sits in a centered spotlight at a width you set per monitor, and the
 // rest line up on rails in the margins on both sides. Loads the REAL bundled
-// script from data/algorithms/.
+// script from phosphor-engine-libs' data/algorithms/.
 
 #include <QtTest>
 
@@ -30,7 +30,7 @@ private:
 
     static QString algoPath()
     {
-        return QStringLiteral(P_SOURCE_DIR "/data/algorithms/theater.luau");
+        return QStringLiteral(P_ENGINE_DATA_DIR "/algorithms/theater.luau");
     }
 
     static TilingParams params(TilingState* state, int count, int focusedIndex = -1)

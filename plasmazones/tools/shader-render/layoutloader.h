@@ -37,7 +37,7 @@ struct Zone
 };
 
 /**
- * @brief Parse data/layouts/<id>.json into normalized 0-1 zones.
+ * @brief Parse a layouts/<id>.json of phosphor-engine-libs' data into normalized 0-1 zones.
  *
  * Layout JSON stores zones in normalized [0,1] coords (so the same layout
  * works at any monitor size). Coordinates pass through unchanged — the

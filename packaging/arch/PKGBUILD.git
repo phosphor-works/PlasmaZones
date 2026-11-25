@@ -75,9 +75,9 @@ source=(
     "phosphor-branding-0.3.1.tar.gz::https://github.com/phosphor-works/branding/releases/download/v0.3.1/phosphor-branding-0.3.1.tar.gz"
     "phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz::https://github.com/phosphor-works/phosphor-surface-packs/archive/c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz"
     "phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz::https://github.com/phosphor-works/phosphor-components/archive/c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz"
-    "phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz::https://github.com/phosphor-works/phosphor-engine-libs/archive/21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz"
+    "phosphor-engine-libs-c9f2c55f8b87af6c256fb2cc568a9eacea560107.tar.gz::https://github.com/phosphor-works/phosphor-engine-libs/archive/c9f2c55f8b87af6c256fb2cc568a9eacea560107.tar.gz"
 )
-noextract=('phosphor-libs-21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz' 'luau-0.745.tar.gz' 'jsoncons-1.10.0.tar.gz' 'phosphor-branding-0.3.1.tar.gz' 'phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz' 'phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz' 'phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz')
+noextract=('phosphor-libs-21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz' 'luau-0.745.tar.gz' 'jsoncons-1.10.0.tar.gz' 'phosphor-branding-0.3.1.tar.gz' 'phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz' 'phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz' 'phosphor-engine-libs-c9f2c55f8b87af6c256fb2cc568a9eacea560107.tar.gz')
 sha256sums=(
     'SKIP'
     '66470df999e19aca1627c8d840100cd5b9163c25b9e425996541b681f1e48ed1' # phosphor-libs-21407e173fc64a08679b0009ac8927a9e9c34a4d.tar.gz
@@ -86,7 +86,7 @@ sha256sums=(
     'd6ec9261d4391148f5c21dfb02be410214d42ea675f1558a826042d63f495094' # phosphor-branding-0.3.1.tar.gz
     '5cfdd51c5dd1f96f1d4da6637d25a5e3fdb11fb683b3b39a13095fc8a0db4090' # phosphor-surface-packs-c897e15f899565740b3bd0ec05d16ac9cabe186c.tar.gz
     'e467912dc4dae79aee8a270fa846fa2a9fdea44daf62fba15510fcf2ae236cd5' # phosphor-components-c434e5cdf3781a844e408e922afa0a3d88b4b026.tar.gz
-    'f40919b64d055bc314809df29b902c0d95468b7607e9eed1651c08337ee43e55' # phosphor-engine-libs-21aca62890a1cbb34f4ab782a0fb1ab7d0fb2e68.tar.gz
+    '06350c086505e8efd19b2c12ad9a4edba40891ee2a28e013bc83ff5be425d99b' # phosphor-engine-libs-c9f2c55f8b87af6c256fb2cc568a9eacea560107.tar.gz
 )
 install=plasmazones.install
 

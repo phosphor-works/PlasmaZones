@@ -919,7 +919,7 @@ void TestAlgorithmScaffold::spliceAllBundledAlgorithms_data()
     // single loop would stop at the first bad file and report nothing about the
     // other 26. Row-per-file means every algorithm is checked and named on its
     // own, however many of them fail.
-    const QDir dir(QStringLiteral(P_SOURCE_DIR "/data/algorithms"));
+    const QDir dir(QStringLiteral(P_ENGINE_DATA_DIR "/algorithms"));
     const QStringList files = dir.entryList({QStringLiteral("*.luau")}, QDir::Files);
     QVERIFY(!files.isEmpty());
     for (const QString& fileName : files) {

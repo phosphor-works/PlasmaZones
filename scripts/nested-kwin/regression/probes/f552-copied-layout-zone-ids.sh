@@ -4,7 +4,7 @@
 #
 # f552-copied-layout-zone-ids: zone ids are unique across layouts, so a copied layout's zones get
 # new ids. Runner: 1 output, flag S. Restarts the nested daemon itself.
-# Staging: the repo's columns-3.json (COLS3) is copied into the nested user layouts directory as
+# Staging: phosphor-engine-libs' columns-3.json (the pinned tree) (COLS3) is copied into the nested user layouts directory as
 #   p13-copy.json with a new layout id and name AND its zone numbers 1 and 3 swapped (each zone keeps
 #   its geometry), so a merged id map's last write would show in a layout switch. The daemon is
 #   restarted (step 2), then restarted again (step 4). Step 5: quick slots 1 = COLS3, 2 = the copy;
@@ -68,7 +68,7 @@ for z in d["zones"]:
 c["zones"] = zones
 json.dump(c, open(copy, "w"), indent=2)
 json.dump(dict(d, id=impid, name="P13 Import"), open(imp, "w"), indent=2)
-' "$PZR_REPO/plasmazones/data/layouts/columns-3.json" "$COPY" "$IMPORT" "$COPYID" "$IMPID" \
+' "$(python3 "$PZR_REPO/scripts/pinned_phosphor_libs.py" --engine)/data/layouts/columns-3.json" "$COPY" "$IMPORT" "$COPYID" "$IMPID" \
     || stage_fail "could not write the copy and the import file"
 drestart
 sleep 4

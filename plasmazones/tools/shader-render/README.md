@@ -17,7 +17,7 @@ and anyone else who needs a stable image of a built-in shader.
    files exactly the way the daemon does. With `--pointer` it loads a
    `plasmazones/data/pointer/<id>/` pack instead and drives a synthetic
    pointer through the canvas so the pointer uniform tail is populated.
-2. Loads `plasmazones/data/layouts/<id>.json` to get a real zone arrangement,
+2. Loads `<id>.json` from the layouts of phosphor-engine-libs' data to get a real zone arrangement,
    so the shader has actual zones to draw rather than a single
    mock rect.
 3. Boots a Qt Quick scene under `QQuickRenderControl` (offscreen,

@@ -22,11 +22,11 @@ namespace PlasmaZones {
 namespace TestHelpers {
 
 /**
- * @brief RAII helper that loads the Luau-scripted algorithms from data/algorithms/
+ * @brief RAII helper that loads the bundled Luau-scripted algorithms
  *
- * Creates a temporary XDG data directory with a symlink to the project's
- * data/algorithms/ directory, sets XDG env vars, and runs the PhosphorTiles::ScriptedAlgorithmLoader.
- * Restores the original environment on destruction via XdgEnvGuard.
+ * Creates a temporary XDG data directory with a symlink to the algorithms/
+ * directory of phosphor-engine-libs' data tree (P_ENGINE_DATA_DIR), sets XDG env vars, and runs the
+ * PhosphorTiles::ScriptedAlgorithmLoader. Restores the original environment on destruction via XdgEnvGuard.
  *
  * Loads into the test-process-wide registry returned by
  * PlasmaZones::TestHelpers::testRegistry(), which @ref registry() exposes.
@@ -36,7 +36,7 @@ namespace TestHelpers {
  *
  * Usage in test class:
  *   ScriptedAlgoTestSetup m_scriptSetup;
- *   void initTestCase() { QVERIFY(m_scriptSetup.init(QStringLiteral(P_SOURCE_DIR))); }
+ *   void initTestCase() { QVERIFY(m_scriptSetup.init()); }
  *   // then: m_scriptSetup.registry()->algorithm(id);
  */
 class ScriptedAlgoTestSetup
@@ -52,17 +52,16 @@ public:
 
     /**
      * @brief Set up XDG environment and load scripted algorithms
-     * @param sourceDir Project source directory (P_SOURCE_DIR)
      * @return true if setup succeeded
      */
-    bool init(const QString& sourceDir)
+    bool init()
     {
         if (!m_xdgRoot.isValid())
             return false;
 
         if (!QDir().mkpath(m_xdgRoot.path() + QStringLiteral("/phosphor-works")))
             return false;
-        const QString sourceAlgoDir = sourceDir + QStringLiteral("/data/algorithms");
+        const QString sourceAlgoDir = QStringLiteral(P_ENGINE_DATA_DIR "/algorithms");
         const QString algoLink = m_xdgRoot.path() + QStringLiteral("/phosphor-works/algorithms");
         if (!QFile::link(sourceAlgoDir, algoLink)) {
             // Symlink failed (Windows, restricted FS) — fall back to recursive copy

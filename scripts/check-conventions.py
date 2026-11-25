@@ -686,7 +686,7 @@ def rule_prose(files: list[str]) -> list[Violation]:
                                              f"{p} -> {para.strip()[:80]!r}"))
             continue
 
-        if f.startswith("plasmazones/data/algorithms/") and suffix == ".luau":
+        if re.search(r"(^|/)data/algorithms/", f) and suffix == ".luau":
             code = strip_c_comments(read(f))
             for m in re.finditer(r'description\s*=\s*"((?:[^"\\]|\\.)*)"', code):
                 for p in prose_problems(m.group(1)):
@@ -832,6 +832,33 @@ def rule_shared_param_text(files: list[str]) -> list[Violation]:
     return [Violation("shared-param-text", f"surface-packs:{p}", 0, m) for p, m in shared_param_problems(packs)]
 
 
+# Rule: engine-data-prose — the prose rule over the data this checkout ships from the
+# pinned phosphor-engine-libs tree: the layouts and scrolling templates (data JSON) and
+# the Luau algorithms' description fields. They moved there from plasmazones/data/, and
+# are still user-facing text of this package. PHOSPHOR_ENGINE_LIBS_DIR points it at a
+# local checkout.
+def rule_engine_data_prose(files: list[str]) -> list[Violation]:
+    # `files` is unused for the reason rule_shared_param_text gives: the files are in
+    # another tree, which a staged subset of this one never names.
+    del files
+    _add_script_dir_to_path()
+    from pinned_phosphor_libs import PinnedTreeError, engine_tree
+
+    try:
+        tree = engine_tree(REPO)
+    except PinnedTreeError as e:
+        return [Violation("engine-data-prose", "cmake/PlasmaZonesDependencies.cmake", 0,
+                          f"cannot find the pinned phosphor-engine-libs tree ({e}), so its data was not checked")]
+    data = tree / "data"
+    paths = sorted([*data.glob("layouts/*.json"), *data.glob("scrolling-templates/*.json"),
+                    *data.glob("algorithms/*.luau")])
+    out = []
+    for v in rule_prose([str(p) for p in paths]):
+        out.append(Violation("engine-data-prose", "phosphor-engine-libs:" + str(Path(v.path).relative_to(tree)),
+                             v.line, v.message))
+    return out
+
+
 # Rule: dep-pins — every packaging recipe that fetches the third-party archives
 # itself carries each pin from cmake/PlasmaZonesDependencies.cmake, and from the pinned
 # phosphor-libs tree's cmake/PhosphorDependencies.cmake, exactly. The data and
@@ -857,6 +884,8 @@ RULES = {
     "i18n-cpp": (rule_i18n_cpp, "C++ uses PhosphorI18n::tr(), never i18n()/KLocalizedString"),
     "config-keys": (rule_config_keys, "config group/key strings go through ConfigDefaults:: accessors"),
     "prose": (rule_prose, "user-facing strings carry no em-dash splice, clause semicolon or spaced hyphen"),
+    "engine-data-prose": (rule_engine_data_prose,
+                          "the same prose rule over the layouts, templates and algorithms of the pinned engine tree"),
     "dep5": (rule_dep5, "packaging/debian/copyright declares each file's real license and holders"),
     "js-pragma": (rule_js_pragma, f"QML .js libraries declare '.pragma library' in Qt's first {JS_PRAGMA_WINDOW} bytes"),
     "shared-param-text": (rule_shared_param_text, "a chain-resolved param's description matches on every pack"),

@@ -644,8 +644,9 @@ jobs:
   # deterministic across CI runs and only changes when we deliberately bump
   # that pin.
   #
-  # The bundled algorithms consume `pluau` as an injected global; plasmazones/data/algorithms/
-  # .luaurc declares it so the analyzer resolves it (pluau.luau itself *defines*
+  # The bundled algorithms are phosphor-engine-libs' data (data/algorithms/ at the
+  # pinned commit), and they consume `pluau` as an injected global; the
+  # .luaurc beside them declares it so the analyzer resolves it (pluau.luau itself *defines*
   # the global and is analyzed under the default config, which luau-analyze
   # picks per-file from the nearest .luaurc).
   luau-analyze:
@@ -664,8 +665,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # The Luau pin lives in the phosphor-libs tree and the pluau prelude in
-      # the phosphor-engine-libs tree (phosphor-tiles), each at the commit
+      # The Luau pin lives in the phosphor-libs tree, and the pluau prelude
+      # (phosphor-tiles) and the bundled algorithms in the phosphor-engine-libs
+      # tree, each at the commit
       # cmake/PlasmaZonesDependencies.cmake pins. Fetched with curl and checked
       # against the pin's SHA-256, because these steps run before "Sync
       # packages" and the fallback image has no cmake yet.
@@ -757,7 +759,7 @@ jobs:
           # Non-zero exit on any parse/type error fails the job. Lint findings
           # are advisory (lintErrors:false in .luaurc) but still printed.
           ./luau-cli/luau-analyze \
-            plasmazones/data/algorithms/*.luau \
+            "${{ steps.engine.outputs.tree }}"/data/algorithms/*.luau \
             "${{ steps.engine.outputs.tree }}/libs/phosphor-tiles/src/pluau/pluau.luau"
 
       - name: Analyze the pluau type stubs
@@ -779,8 +781,8 @@ jobs:
           # agreement is reviewed by hand.
           # The stripped copy sits next to the file it is a copy of, so any
           # .luaurc that would govern the real stub in this tree governs the
-          # copy too. No such config exists today (the repo's only .luaurc is
-          # plasmazones/data/algorithms/.luaurc, which is out of this path's lookup), so
+          # copy too. No such config exists today (the tree's only .luaurc is
+          # data/algorithms/.luaurc, which is out of this path's lookup), so
           # right now this resolves the same default config /tmp would. The
           # trap clears the copy on the failing path too, where `set -e` would
           # otherwise leave it behind.

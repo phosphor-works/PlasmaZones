@@ -22,6 +22,7 @@ In order:
 Run as a script it prints the tree's path, for shell callers:
 
     tree=$(python3 scripts/pinned_phosphor_libs.py)
+    engine=$(python3 scripts/pinned_phosphor_libs.py --engine)
 
 engine_tree() finds the phosphor-engine-libs tree the same way, with
 PHOSPHOR_ENGINE_LIBS_DIR as its override, and pinned_tree() does the same for
@@ -151,7 +152,7 @@ def engine_tree(repo: Path) -> Path:
 def main() -> int:
     repo = Path(__file__).resolve().parent.parent
     try:
-        print(tree(repo))
+        print(engine_tree(repo) if sys.argv[1:] == ["--engine"] else tree(repo))
     except PinnedTreeError as e:
         print(f"pinned_phosphor_libs: {e}", file=sys.stderr)
         return 1

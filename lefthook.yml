@@ -25,8 +25,6 @@ pre-commit:
       # before it lands. A single `data/**/*.json` does
       # NOT match reliably in lefthook's matcher, so the paths are enumerated.
       glob:
-        - "plasmazones/data/layouts/*.json"
-        - "plasmazones/data/scrolling-templates/*.json"
         - "plasmazones/data/curves/*.json"
         - "plasmazones/data/animations/*/metadata.json"
         - "plasmazones/data/overlays/*/metadata.json"

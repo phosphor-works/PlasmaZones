@@ -141,8 +141,10 @@ QString defaultPointerDir()
 
 QString defaultLayoutDir()
 {
-    const QString inTree = sourceTreeDataDir(QStringLiteral("layouts"));
-    if (!inTree.isEmpty())
+    // The bundled layouts are phosphor-engine-libs' data: the tree this binary
+    // was built against first, then the installed copies.
+    const QString inTree = QStringLiteral(PZ_SHADER_RENDER_ENGINE_DATA_DIR "/layouts");
+    if (QDir(inTree).exists())
         return inTree;
     // No hardcoded /usr/share tier: GenericDataLocation already ends with the
     // XDG_DATA_DIRS list, which contains it. A second spelling of a path the

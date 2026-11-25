@@ -4,12 +4,14 @@
 """Validate bundled data JSON against the committed JSON Schemas.
 
 The schemas live in three trees: data/schemas/ in phosphor-libs holds the
-shared contracts, data/schemas/ in phosphor-engine-libs the layout file's, and
-plasmazones/data/schemas/ the app-only ones. Both library trees are the commits
+shared contracts, data/schemas/ in phosphor-engine-libs the layout and
+scrolling-template files', and plasmazones/data/schemas/ the app-only ones. Both library trees are the commits
 cmake/PlasmaZonesDependencies.cmake pins, found by
 scripts/pinned_phosphor_libs.py (PHOSPHOR_LIBS_DIR and PHOSPHOR_ENGINE_LIBS_DIR
 override them with local checkouts), and a SCHEMA_MAP key written
 `phosphor-libs:<path>` or `phosphor-engine-libs:<path>` is relative to its tree.
+A data glob written the same way is too: the bundled layouts and scrolling
+templates are phosphor-engine-libs' data, which this checkout ships.
 The surface decoration packs are data of their own repository,
 phosphor-surface-packs, at the commit the same file pins: a data glob written
 `surface-packs:<glob>` is relative to its packs directory, found by
@@ -76,14 +78,17 @@ JSONSCHEMA_REQUIREMENT = f"jsonschema[format]=={JSONSCHEMA_VERSION}"
 
 # Maps a schema (relative to the source root, or to a pinned library tree when
 # it starts with one of LIB_PREFIXES) to the glob(s) of data files it governs,
-# which are relative to the source root, or to the pinned surface packs when
-# they start with PACKS_PREFIX. Add an entry here when a new document type gets a
+# which are relative to the source root, to a pinned library tree when they
+# start with one of LIB_PREFIXES, or to the pinned surface packs when they
+# start with PACKS_PREFIX. Add an entry here when a new document type gets a
 # schema. Some schemas are also embedded via RCC and compiled by the
 # runtime SchemaValidator; the others are validated only here, where the
 # runtime checks those document types in C++ directly.
 SCHEMA_MAP: dict[str, list[str]] = {
-    "phosphor-engine-libs:data/schemas/layout.schema.json": ["plasmazones/data/layouts/*.json"],
-    "plasmazones/data/schemas/scrolling-template.schema.json": ["plasmazones/data/scrolling-templates/*.json"],
+    "phosphor-engine-libs:data/schemas/layout.schema.json": ["phosphor-engine-libs:data/layouts/*.json"],
+    "phosphor-engine-libs:data/schemas/scrolling-template.schema.json": [
+        "phosphor-engine-libs:data/scrolling-templates/*.json"
+    ],
     "phosphor-libs:data/schemas/curve.schema.json": ["plasmazones/data/curves/*.json"],
     "phosphor-libs:data/schemas/animation-metadata.schema.json": ["plasmazones/data/animations/*/metadata.json"],
     "phosphor-libs:data/schemas/shader-metadata.schema.json": ["plasmazones/data/overlays/*/metadata.json"],
@@ -127,19 +132,24 @@ def schema_key(root: Path, libs: dict[str, Path], path: Path) -> str:
     return path.relative_to(root).as_posix()
 
 
-def data_files(root: Path, packs: Path, pattern: str) -> list[Path]:
+def data_files(root: Path, libs: dict[str, Path], packs: Path, pattern: str) -> list[Path]:
     """The data files a SCHEMA_MAP glob matches."""
     if pattern.startswith(PACKS_PREFIX):
         return sorted(packs.glob(pattern[len(PACKS_PREFIX):]))
+    for prefix, tree in libs.items():
+        if pattern.startswith(prefix):
+            return sorted(tree.glob(pattern[len(prefix):]))
     return sorted(root.glob(pattern))
 
 
-def data_label(root: Path, packs: Path, path: Path) -> str:
+def data_label(root: Path, libs: dict[str, Path], packs: Path, path: Path) -> str:
     """A data file's name in messages, spelled the way its SCHEMA_MAP glob is."""
-    try:
-        return PACKS_PREFIX + path.relative_to(packs).as_posix()
-    except ValueError:
-        return path.relative_to(root).as_posix()
+    for prefix, tree in [(PACKS_PREFIX, packs), *libs.items()]:
+        try:
+            return prefix + path.relative_to(tree).as_posix()
+        except ValueError:
+            continue
+    return path.relative_to(root).as_posix()
 
 # The one dialect this gate speaks. Draft202012Validator is used
 # unconditionally below, so every mapped schema has to declare the matching
@@ -500,7 +510,7 @@ def main() -> int:
     try:
         libs[ENGINE_LIBS_PREFIX] = engine_tree(root)
     except PinnedTreeError as exc:
-        fail(f"cannot find the phosphor-engine-libs tree the layout schema lives in: {exc}")
+        fail(f"cannot find the phosphor-engine-libs tree the layout and template schemas and data live in: {exc}")
         return 2
     try:
         import pinned_surface_packs
@@ -531,7 +541,7 @@ def main() -> int:
     for schema_rel, globs in sorted(SCHEMA_MAP.items()):
         targets: list[Path] = []
         for pattern in globs:
-            targets.extend(data_files(root, packs, pattern))
+            targets.extend(data_files(root, libs, packs, pattern))
 
         # Recorded here, ahead of every schema-level `continue` below. A
         # requested file whose schema is missing or invalid is then reported
@@ -593,7 +603,7 @@ def main() -> int:
             if requested is not None and target.resolve() not in requested:
                 continue
             checked += 1
-            rel = data_label(root, packs, target)
+            rel = data_label(root, libs, packs, target)
             try:
                 document = load_json(target)
             except ValueError as exc:
