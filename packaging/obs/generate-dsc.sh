@@ -105,7 +105,7 @@ Source: plasmazones
 Binary: plasmazones
 Architecture: any
 Version: $VERSION-$REVISION
-Maintainer: fuddlesworth <fuddlesworth@users.noreply.github.com>
+Maintainer: Phosphor Works Team <fuddlesworth@users.noreply.github.com>
 Homepage: https://github.com/phosphor-works/PlasmaZones
 Standards-Version: 4.6.2
 Build-Depends: $BUILD_DEPENDS

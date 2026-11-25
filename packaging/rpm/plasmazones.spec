@@ -442,5 +442,5 @@ echo ""
 # Do not edit manually — entries below are overwritten on release.
 # Seed entry so `rpmbuild -bs` against this spec without CI tooling
 # produces a valid SRPM (the generator script replaces it on release).
-* Mon Jan 01 1970 fuddlesworth - 0.0.0-1
+* Mon Jan 01 1970 Phosphor Works Team <fuddlesworth@users.noreply.github.com> - 0.0.0-1
 - placeholder

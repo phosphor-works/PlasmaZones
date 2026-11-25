@@ -13686,8 +13686,8 @@
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/AboutPage.qml.cpp" line="129"/>
-        <source>Created by fuddlesworth</source>
-        <translation>Erstellt von fuddlesworth</translation>
+        <source>Created by the Phosphor Works Team</source>
+        <translation>Erstellt vom Phosphor Works Team</translation>
     </message>
     <message>
         <location filename=".qml-stubs/plasmazones/src/settings/qml/AboutPage.qml.cpp" line="139"/>

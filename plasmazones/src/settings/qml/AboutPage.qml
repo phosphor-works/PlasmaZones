@@ -126,7 +126,7 @@ PhosphorUi.AboutPageShell {
                     Layout.preferredWidth: 0
                     Layout.leftMargin: Kirigami.Units.largeSpacing
                     Layout.rightMargin: Kirigami.Units.largeSpacing
-                    text: i18n("Created by fuddlesworth")
+                    text: i18n("Created by the Phosphor Works Team")
                     font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap
                 }

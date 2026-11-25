@@ -10,8 +10,8 @@
 # at the very end of the root configure.
 set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_VENDOR "fuddlesworth")
-set(CPACK_PACKAGE_CONTACT "fuddlesworth <fuddlesworth@users.noreply.github.com>")
+set(CPACK_PACKAGE_VENDOR "Phosphor Works Team")
+set(CPACK_PACKAGE_CONTACT "Phosphor Works Team <fuddlesworth@users.noreply.github.com>")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Window snapping, tiling and scrolling for KDE Plasma")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_SOURCE_GENERATOR "TXZ;TGZ")

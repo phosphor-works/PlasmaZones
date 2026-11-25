@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: PlasmaZones
-Upstream-Contact: fuddlesworth <fuddlesworth@users.noreply.github.com>
+Upstream-Contact: Phosphor Works Team <fuddlesworth@users.noreply.github.com>
 Source: https://github.com/phosphor-works/PlasmaZones
 
 Files: *
