@@ -36,7 +36,7 @@
 Source: plasmazones
 Section: kde
 Priority: optional
-Maintainer: fuddlesworth <fuddlesworth@users.noreply.github.com>
+Maintainer: Phosphor Works Team <fuddlesworth@users.noreply.github.com>
 Build-Depends:
  debhelper-compat (= 13),
  cmake (>= 3.23),

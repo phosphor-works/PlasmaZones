@@ -17,7 +17,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CHANGELOG="$PROJECT_DIR/CHANGELOG.md"
-MAINTAINER="fuddlesworth <fuddlesworth@users.noreply.github.com>"
+MAINTAINER="Phosphor Works Team <fuddlesworth@users.noreply.github.com>"
 
 if [[ ! -f "$CHANGELOG" ]]; then
     echo "Error: CHANGELOG.md not found at $CHANGELOG" >&2
@@ -180,7 +180,7 @@ generate_rpm() {
                 entry_revision="$revision"
                 current_version_seen=1
             fi
-            echo "* $(iso_to_rpm "$date") fuddlesworth - $version-$entry_revision"
+            echo "* $(iso_to_rpm "$date") Phosphor Works Team <fuddlesworth@users.noreply.github.com> - $version-$entry_revision"
         fi
 
         # Escape RPM macros: a bare % in changelog text is expanded by

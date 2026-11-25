@@ -59,8 +59,8 @@
   <url type="bugtracker">https://github.com/phosphor-works/PlasmaZones/issues</url>
   <url type="vcs-browser">https://github.com/phosphor-works/PlasmaZones</url>
 
-  <developer id="io.github.fuddlesworth">
-    <name>fuddlesworth</name>
+  <developer id="org.phosphor_works">
+    <name>Phosphor Works Team</name>
   </developer>
 
   <content_rating type="oars-1.1" />
