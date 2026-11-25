@@ -52,7 +52,7 @@ public:
     }
 
     // The master-stack layout (1 master + 3-stack, mirroring
-    // data/layouts/master-stack.json) as a representative zone arrangement
+    // phosphor-engine-libs' data/layouts/master-stack.json) as a representative zone arrangement
     // for the live preview — the same shape tools/shader-render renders
     // with. Relative geometry
     // (fractional 0–1); the controller scales to preview pixels and applies the

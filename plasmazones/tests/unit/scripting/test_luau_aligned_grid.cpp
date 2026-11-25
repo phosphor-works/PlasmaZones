@@ -29,7 +29,7 @@ private:
 
     static QString gridPath()
     {
-        return QStringLiteral(P_SOURCE_DIR "/data/algorithms/aligned-grid.luau");
+        return QStringLiteral(P_ENGINE_DATA_DIR "/algorithms/aligned-grid.luau");
     }
 
     // A 1000x1000 screen (ctx.area, no outer gaps), 10px inner gap → the grid's

@@ -18,6 +18,16 @@
 # to every target here, so no target repeats them. A target names only the
 # extra roots it needs (the effect tree, a library's tests directory).
 
+# The bundled layouts, Luau algorithms and scrolling templates are
+# phosphor-engine-libs' data. That tree names its data/ directory in
+# PHOSPHOR_ENGINE_LIBS_DATA_DIR when it is added, and the tests that load the
+# bundled files read them there through P_ENGINE_DATA_DIR.
+if(NOT PHOSPHOR_ENGINE_LIBS_DATA_DIR)
+    message(FATAL_ERROR "PHOSPHOR_ENGINE_LIBS_DATA_DIR is not set: the phosphor-engine-libs tree this build adds "
+                        "has no data/ tree. Move the pin in cmake/PlasmaZonesDependencies.cmake forward.")
+endif()
+add_compile_definitions("P_ENGINE_DATA_DIR=\"${PHOSPHOR_ENGINE_LIBS_DATA_DIR}\"")
+
 # Simple tests get Qt6::Test, Qt6::Core, and plasmazones_core. Tests using other
 # components must declare them explicitly with target_link_libraries; transitive
 # core dependencies are not a contract. QTEST_MAIN tests needing QGuiApplication
@@ -1027,14 +1037,13 @@ add_test(NAME test_layoutmanager_persistence COMMAND test_layoutmanager_persiste
 p_add_test(test_layoutmanager_cycling core/layout/test_layoutmanager_cycling.cpp)
 p_add_test(test_scrollingtemplate_store core/layout/test_scrollingtemplate_store.cpp)
 # The scrolling-template schema is author-time only (no loader compiles it), so
-# this target reads it straight out of the source tree and runs it through the
+# this target reads it straight out of phosphor-engine-libs' data tree and runs it through the
 # same validator engine the runtime-gated schemas use. PhosphorZones is named
 # per this file's convention: the test constructs ScrollingTemplate and drives
 # ScrollingTemplateStore directly rather than reaching them through
 # plasmazones_core.
 target_link_libraries(test_scrollingtemplate_store PRIVATE PhosphorFsLoader::PhosphorFsLoader
                                                            PhosphorZones::PhosphorZones)
-target_compile_definitions(test_scrollingtemplate_store PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
 
 # data/whatsnew.json is consumed at runtime through the Qt resource, but the
 # ordering invariant the settings dialog relies on (newest release first) is

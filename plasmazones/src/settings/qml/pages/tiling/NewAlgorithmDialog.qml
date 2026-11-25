@@ -44,7 +44,7 @@ Kirigami.Dialog {
     readonly property real screenAspectRatio: WizardUtils.clampedScreenAspectRatio(dialogContent.Screen.width, dialogContent.Screen.height)
     // Which bundled algorithms the wizard offers as a starting point, the
     // wizard-facing name for each, and a short fallback description. This is a
-    // curated subset: data/algorithms ships far more than these, and putting
+    // curated subset: the bundled algorithms are far more than these, and putting
     // all of them in a three-column grid would run a Luau tile pass per card on
     // open. The curation and the naming are the wizard's own.
     //

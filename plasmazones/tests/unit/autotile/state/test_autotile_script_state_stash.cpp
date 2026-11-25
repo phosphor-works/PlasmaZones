@@ -114,7 +114,7 @@ private Q_SLOTS:
 
     void initTestCase()
     {
-        QVERIFY(m_scriptSetup.init(QStringLiteral(P_SOURCE_DIR)));
+        QVERIFY(m_scriptSetup.init());
     }
 
     /// A memory algorithm's split tree is the same class of per-context state as

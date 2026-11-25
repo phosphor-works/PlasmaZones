@@ -10,9 +10,9 @@
  * id overrides it; deleting the user file resurfaces the bundled original),
  * and the delete refusal for pure system templates.
  *
- * Also the author-time schema contract. data/schemas/scrolling-template.schema.json
- * is not compiled at runtime, so nothing but this file keeps it honest against
- * the C++ that produces and normalizes the documents it describes.
+ * Also the author-time schema contract. phosphor-engine-libs'
+ * data/schemas/scrolling-template.schema.json is not compiled at runtime, so nothing but this file keeps it honest
+ * against the C++ that produces and normalizes the documents it describes.
  */
 
 #include <PhosphorEngineRuntime/ConfigDefaults.h>
@@ -42,7 +42,7 @@ Q_LOGGING_CATEGORY(testSchema, "plasmazones.test.scrollingtemplate.schema")
 
 QString schemaPath()
 {
-    return QStringLiteral(P_SOURCE_DIR "/data/schemas/scrolling-template.schema.json");
+    return QStringLiteral(P_ENGINE_DATA_DIR "/schemas/scrolling-template.schema.json");
 }
 } // namespace
 
@@ -370,7 +370,7 @@ private Q_SLOTS:
         const QString serializedReport = errors.has_value() ? describe(errors.value()) : QStringLiteral("(no errors)");
         QVERIFY2(!errors.has_value(), qPrintable(serializedReport));
 
-        const QDir bundledDir(QStringLiteral(P_SOURCE_DIR "/data/scrolling-templates"));
+        const QDir bundledDir(QStringLiteral(P_ENGINE_DATA_DIR "/scrolling-templates"));
         const QStringList bundled = bundledDir.entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
         // An empty directory would make every assertion below vacuous, and the
         // starter set is what the picker shows on a fresh profile.

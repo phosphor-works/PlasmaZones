@@ -14,9 +14,11 @@ PlasmaZones: window snapping, tiling and scrolling for KDE Plasma. Qt6, KF6, Kir
 
 ### Placement Modes
 Three mutually exclusive modes. Each screen runs exactly one, resolved per (screen, desktop, activity):
-- **Snapping** — drag a window with a modifier held, drop it into a user-drawn zone. Engine: `libs/phosphor-snap-engine` in phosphor-engine-libs. Artifacts: layouts (`plasmazones/data/layouts`, user copies in `~/.local/share/phosphor-works/layouts/`).
-- **Tiling** — windows place themselves via a scripted algorithm. Engine: `libs/phosphor-tile-engine` in phosphor-engine-libs, running Luau through `phosphor-tiles` / `phosphor-scripting`. Artifacts: algorithms (`plasmazones/data/algorithms/*.luau`).
-- **Scrolling** — windows form columns on an endless strip, modeled on niri. Engine: `libs/phosphor-scroll-engine` in phosphor-engine-libs. Artifacts: templates (`plasmazones/data/scrolling-templates`).
+- **Snapping** — drag a window with a modifier held, drop it into a user-drawn zone. Engine: `libs/phosphor-snap-engine` in phosphor-engine-libs. Artifacts: layouts (`data/layouts` in phosphor-engine-libs, user copies in `~/.local/share/phosphor-works/layouts/`).
+- **Tiling** — windows place themselves via a scripted algorithm. Engine: `libs/phosphor-tile-engine` in phosphor-engine-libs, running Luau through `phosphor-tiles` / `phosphor-scripting`. Artifacts: algorithms (`data/algorithms/*.luau` in phosphor-engine-libs).
+- **Scrolling** — windows form columns on an endless strip, modeled on niri. Engine: `libs/phosphor-scroll-engine` in phosphor-engine-libs. Artifacts: templates (`data/scrolling-templates` in phosphor-engine-libs).
+
+The bundled layouts, algorithms and templates are phosphor-engine-libs' data, which that tree installs when PlasmaZones adds it. A change to one is a phosphor-engine-libs PR followed by a pin bump here. The tests read them through `P_ENGINE_DATA_DIR`, the schema gate and the `engine-data-prose` rule from the pinned tree (`PHOSPHOR_ENGINE_LIBS_DIR=<checkout>` for a local one), and CI's `luau-analyze` job checks the pinned algorithms.
 
 Shared placement policy lives in `libs/phosphor-engine` in phosphor-engine-libs. A verdict from one mode never gates another — see the float-is-per-mode invariant, written up at `libs/phosphor-engine/include/PhosphorEngine/WindowPlacement.h` there (each engine keeps its own float slot and state, independent of the others). When adding a cross-cutting feature, check whether all three modes need an arm before calling it done.
 
@@ -105,7 +107,7 @@ The Phosphor libraries (rendering, layer-shell, animation, config, screens, rule
 - Extract: `cmake --build build --target update-ts`
 
 ## User-Facing Text
-User-facing text follows the writing rules of the conventions file: controlled English, with no em dash, semicolon or spaced hyphen joining clauses. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader, layout, and scrolling-template metadata), `plasmazones/data/whatsnew.json` highlights, `plasmazones/data/algorithms/*.luau` `description` fields, `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
+User-facing text follows the writing rules of the conventions file: controlled English, with no em dash, semicolon or spaced hyphen joining clauses. This applies to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader and curve metadata) and in the bundled layouts and scrolling templates of phosphor-engine-libs, `plasmazones/data/whatsnew.json` highlights, the `description` fields of the bundled `.luau` algorithms (in phosphor-engine-libs, checked from here by `engine-data-prose`), `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
 
 `README.md` is deliberately OUT of scope, along with the other developer-facing repo docs (`CLAUDE.md`, `docs/**`, `plasmazones/tools/**/README.md`). The README uses em-dashes structurally throughout and pulling it under this rule would need a full punctuation rewrite first. Do not "fix" README em-dashes to satisfy these rules.
 
@@ -304,15 +306,12 @@ plasmazones/             — PlasmaZones
   kwin-effect/           — KWin effect (C++)
   tests/                 — Unit tests (Qt Test)
   tools/                 — Developer tools; built with -DBUILD_TOOLS=ON
-  data/layouts/          — Default layout templates (JSON) — snapping
-  data/algorithms/       — Bundled Luau tiling algorithms — tiling
-  data/scrolling-templates/ — Bundled strip templates — scrolling
   data/animations/       — Window animation shader packs
   data/overlays/         — Zone overlay shader packs
   data/pointer/          — Pointer shader packs
   data/curves/           — Animation easing curves
   data/placement-hosts/  — Host descriptor for the placement settings API
-  data/schemas/          — Schemas for plasmazones-only documents (whatsnew, scrolling templates)
+  data/schemas/          — Schemas for plasmazones-only documents (whatsnew)
 cmake/                   — Shared CMake modules, including the pins (PlasmaZonesDependencies.cmake)
 scripts/                 — Repo-level checks and dev harnesses
 ```

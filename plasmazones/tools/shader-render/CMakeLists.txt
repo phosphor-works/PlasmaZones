@@ -78,8 +78,11 @@ target_link_libraries(plasmazones-shader-render PRIVATE
 # absolute path next, so a run from build/ or the scratchpad still renders the
 # working tree instead of silently falling back to the installed packs, or
 # failing with "layout not found" when nothing is installed.
+# The layouts are phosphor-engine-libs' data, so the tool also names that
+# tree's data directory.
 target_compile_definitions(plasmazones-shader-render PRIVATE
     PZ_SHADER_RENDER_SOURCE_DATA_DIR="${PROJECT_SOURCE_DIR}/plasmazones/data"
+    PZ_SHADER_RENDER_ENGINE_DATA_DIR="${PHOSPHOR_ENGINE_LIBS_DATA_DIR}"
 )
 
 target_compile_features(plasmazones-shader-render PRIVATE cxx_std_20)

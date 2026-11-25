@@ -66,7 +66,7 @@ private:
 
     static QString luaPath(const QString& name)
     {
-        return QStringLiteral(P_SOURCE_DIR "/data/algorithms/") + name + QStringLiteral(".luau");
+        return QStringLiteral(P_ENGINE_DATA_DIR "/algorithms/") + name + QStringLiteral(".luau");
     }
 
     // Record (generate mode) or compare (normal mode) a case's zones.

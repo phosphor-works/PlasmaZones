@@ -65,11 +65,10 @@ install(FILES
     DESTINATION ${KDE_INSTALL_DBUSINTERFACEDIR}
 )
 
-# Install default layouts
-install(DIRECTORY data/layouts/
-    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/layouts
-    FILES_MATCHING PATTERN "*.json"
-)
+# The default layouts, the Luau tiling algorithms and the scrolling templates
+# are phosphor-engine-libs' data (its data/ tree). That tree installs them to
+# the same suite folders when it is added as a subproject, so this package
+# still ships them.
 
 # PlasmaZones' host descriptor for the placement settings API. It declares
 # that on KDE the placement settings live in PlasmaZones' config file, for a
@@ -80,12 +79,6 @@ install(DIRECTORY data/layouts/
 # scripts/validate-json-schemas.py checks and HostDirectory reads.
 install(DIRECTORY data/placement-hosts/
     DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/placement-hosts
-    FILES_MATCHING PATTERN "*.json"
-)
-
-# Install bundled scrolling templates
-install(DIRECTORY data/scrolling-templates/
-    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/scrolling-templates
     FILES_MATCHING PATTERN "*.json"
 )
 
@@ -157,13 +150,6 @@ install(DIRECTORY data/pointer/
     DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/shaders/pointer
     PATTERN ".*" EXCLUDE
     PATTERN "p_generated.glsl" EXCLUDE
-)
-
-# Install bundled scripted tiling algorithms
-install(DIRECTORY data/algorithms/
-    DESTINATION ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SUITE_DIRECTORY_NAME}/algorithms
-    FILES_MATCHING
-    PATTERN "*.luau"
 )
 
 # Install support report script

@@ -27,7 +27,7 @@ private:
 
     static QString algoPath(const QString& file)
     {
-        return QStringLiteral(P_SOURCE_DIR "/data/algorithms/") + file;
+        return QStringLiteral(P_ENGINE_DATA_DIR "/algorithms/") + file;
     }
 
     static TilingParams params(TilingState* state, int count)
