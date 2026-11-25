@@ -41,12 +41,12 @@ If you are not sure about a rule, look at the code near your change and do the s
 Every source file starts with an SPDX header in this format:
 
 ```cpp
-// SPDX-FileCopyrightText: 2026 Your Name
+// SPDX-FileCopyrightText: 2026 Phosphor Works Team
 // SPDX-License-Identifier: GPL-3.0-or-later
 ```
 
-If you change a file that exists, add your name to the copyright line, or add a new line below the lines that are
-there.
+Phosphor Works Team is the only copyright holder of the project's own work. Do not add your name to the copyright
+line. A file that you port from another project also keeps the copyright line of that project.
 
 ## Send a change
 

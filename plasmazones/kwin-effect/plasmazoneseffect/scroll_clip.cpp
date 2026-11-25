@@ -314,7 +314,7 @@ bool PlasmaZonesEffect::scrollParkedOffscreen(KWin::EffectWindow* w, const QStri
     // it (scrollStripPaintRegion).
     const bool parked = !visual.intersects(QRectF(managed.stripRect));
 
-    // Seam diagnostics (docs/strip-identity-seam-plan.md, stage 0). This is the
+    // Seam diagnostics (phosphor-works/workspace#29). This is the
     // one place both halves of a parked column's drawn position are in hand at
     // once: the m_scrollVisualDelta entry (candidate C) and the animator's view
     // offset (candidate B). Reporting them anywhere else would re-derive them

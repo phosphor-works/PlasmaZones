@@ -37,7 +37,7 @@ Q_LOGGING_CATEGORY(lcEffect, "plasmazones.effect", QtInfoMsg)
 Q_LOGGING_CATEGORY(lcEffectDiag, "plasmazones.effect.diag", QtWarningMsg)
 
 // Opt-in scrolling-strip diagnostics, for the daemon/compositor identity seam
-// (docs/strip-identity-seam-plan.md). Defaults to QtWarningMsg; enable with
+// (phosphor-works/workspace#29). Defaults to QtWarningMsg; enable with
 // QT_LOGGING_RULES="plasmazones.effect.strip.debug=true".
 //
 // Four KINDS of site report under it, and they are meant to be read together

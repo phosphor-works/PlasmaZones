@@ -3,7 +3,7 @@
 
 # PlasmaZones
 
-PlasmaZones puts windows in place on KDE Plasma. One daemon gives three placement modes. You snap windows into
+PlasmaZones puts windows in place on KDE Plasma 6 on Wayland. One daemon gives three placement modes. You snap windows into
 zones that you draw, an algorithm tiles them, or they scroll along an endless strip. Each monitor uses its own mode.
 
 <p align="center">
@@ -139,5 +139,4 @@ To support the development, use [Ko-fi](https://ko-fi.com/fuddlesworth) or
 
 ## License
 
-PlasmaZones is GPL-3.0-or-later. The license text is in [LICENSE](LICENSE). PlasmaZones is made for KDE Plasma 6 on
-Wayland.
+PlasmaZones is GPL-3.0-or-later. The license text is in [LICENSE](LICENSE).

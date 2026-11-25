@@ -3060,8 +3060,8 @@ add_test(NAME test_layout_adaptor_scrolling_template COMMAND test_layout_adaptor
 # Micro-benchmarks for D-Bus adaptor hot paths. Drives the
 # refactor/dbus-performance branch (SettingsAdaptor value-equality guard,
 # LayoutAdaptor signal split, JSON cache reuse). Run with
-# `ctest -R bench_dbus_adaptors` to capture numbers against
-# docs/perf/dbus-baseline.md. NOTE: add_test() puts it in the directory
+# `ctest -R bench_dbus_adaptors` to capture numbers. Compare the ratio between
+# two runs on the same machine. NOTE: add_test() puts it in the directory
 # TESTS property, so a bare `ctest` run DOES include it (and its verbose
 # benchmark output); use `ctest -LE bench` to exclude it — the LABELS
 # property below exists exactly for that.
