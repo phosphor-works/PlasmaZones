@@ -5,22 +5,24 @@
  * @file bench_dbus_adaptors.cpp
  * @brief Micro-benchmarks for D-Bus adaptor hot paths.
  *
- * These benchmarks drive the D-Bus performance refactor on branch
- * refactor/dbus-performance. Each benchmark targets a specific phase
- * of the refactor so before/after numbers can be captured:
+ * The benchmarks measure these paths:
  *
- *   - SettingsAdaptor::setSetting unchanged-value writes (Phase 1.1)
- *   - SettingsAdaptor::getSettings batch vs N×getSetting (baseline)
- *   - LayoutAdaptor::setLayoutHidden signal emission path (Phase 1.2/4)
+ *   - SettingsAdaptor::setSetting with an unchanged value
+ *   - SettingsAdaptor::getSettings as one batch against N getSetting calls
+ *   - The signal path of LayoutAdaptor::setLayoutHidden
  *
- * Results are captured in docs/perf/dbus-baseline.md. Run with:
+ * Run them with:
  *
  *   ctest --test-dir build -R bench_dbus_adaptors --output-on-failure
  *
- * or directly:
+ * or directly, with the offscreen platform:
  *
- *   ./build/tests/unit/bench_dbus_adaptors -callgrind
- *   ./build/tests/unit/bench_dbus_adaptors -tickcounter
+ *   QT_QPA_PLATFORM=offscreen ./build/bin/bench_dbus_adaptors | grep -A1 RESULT
+ *   QT_QPA_PLATFORM=offscreen ./build/bin/bench_dbus_adaptors -callgrind
+ *   QT_QPA_PLATFORM=offscreen ./build/bin/bench_dbus_adaptors -tickcounter
+ *
+ * The numbers change from host to host. Compare the ratio between two runs
+ * on the same machine.
  *
  * Stored in tests/unit/dbus/ (not a separate bench/ dir) so the
  * existing headless-QPA fixture and IsolatedConfigGuard can be reused.

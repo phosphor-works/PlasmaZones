@@ -578,7 +578,7 @@ void PlasmaZonesEffect::connectWindowAndScreenSignals()
     // than a desktop one. Same queued shape and the same drain.
     connect(KWin::effects, &KWin::EffectsHandler::currentActivityChanged, this, queueArrivalDrain);
 
-    // Seam diagnostics (docs/strip-identity-seam-plan.md, stage 0). The zero
+    // Seam diagnostics (phosphor-works/workspace#29). The zero
     // point for the other lcStripDiag sites: everything they report is read as
     // "how long after the switch, if ever". Deliberately a separate connection
     // rather than folded into a neighbouring lambda, so removing the

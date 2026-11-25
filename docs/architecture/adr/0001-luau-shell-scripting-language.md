@@ -1,69 +1,58 @@
 <!-- SPDX-FileCopyrightText: 2026 Phosphor Works Team -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-# ADR-0001 — Adopt Luau as the shell scripting & configuration language
+# ADR-0001: Luau as the shell scripting and configuration language
+
+This page records the decision to use Luau as the scripting and configuration language of the shell, and the
+reasons for it. It is the first architecture decision record (ADR) of PlasmaZones. Developers read it before they
+change a scripting surface.
 
 | | |
 |---|---|
-| **Status** | Implemented (2026-05-30) — tiling increment shipped; see follow-ups |
-| **Date** | 2026-05-30 |
 | **Deciders** | Nathan (fuddlesworth) |
 | **Scope** | Shell/compositor scripting surface; first increment = scripted autotiling |
 | **Supersedes** | — |
 | **Spike** | `spike/luau-autotile-embed` (throwaway, `spikes/luau-autotile-embed/`) |
 
-> This is the first ADR in the PlasmaZones series. The `ADR-001…ADR-026`
-> references elsewhere in the tree belong to the bundled claude-flow tooling and
-> are unrelated to this series.
-
 ## Context
 
-PlasmaZones is evolving from a window-tiling tool into a full **shell +
-compositor** (a Qt/QML shell has already been started). A shell needs a
-user-facing scripting and configuration surface far larger than tiling:
-keybindings, rules, widgets, IPC/automation, and compositor plugins. The
-language for that surface is a foundational decision — it gets ~10× more
-expensive to change after those surfaces exist.
+PlasmaZones grows from a window-tiling tool into a full **shell and compositor**, and a Qt/QML shell exists. A shell
+needs a scripting and configuration surface for users that is much larger than tiling. It includes keybindings,
+rules, widgets, IPC and automation, and compositor plugins. The language for that surface is a basic decision. After
+those surfaces exist, a change of language costs approximately 10 times more.
 
-Today, scripted autotiling runs on Qt's **QJSEngine** (JavaScript):
+Before this decision, scripted autotiling ran on the **QJSEngine** (JavaScript) of Qt:
 
-- ~3,285 LOC of C++ glue in `libs/phosphor-tiles` — loader, a **225-line
-  sandbox** (`scriptedalgorithmsandbox.cpp`), an interrupt watchdog, builtins
-  injection, split-tree handling.
-- **25 algorithms / ~2,157 LOC of JS** in `data/algorithms/`.
-- QJSEngine ships *inside Qt6*: zero extra dependencies, native `QJSValue`↔Qt
-  marshalling. But it provides **no true sandbox** ("JavaScript can do anything
-  the C++ can") and **no per-script memory cap** — the latter is structural.
+- Approximately 3,285 LOC of C++ glue in `libs/phosphor-tiles`: a loader, a **225-line sandbox**
+  (`scriptedalgorithmsandbox.cpp`), an interrupt watchdog, builtins injection and split-tree handling.
+- **25 algorithms in approximately 2,157 LOC of JS** in `data/algorithms/`.
+- QJSEngine is part of Qt6. It adds no dependencies and marshals `QJSValue` to Qt natively. But it has **no true
+  sandbox** ("JavaScript can do anything the C++ can") and **no memory limit for each script**. The second gap is
+  structural.
 
-**Ecosystem convergence.** Lua is the config/scripting lingua franca of the
-Wayland tiling niche: AwesomeWM, Neovim, WezTerm, WirePlumber. **Hyprland fully
-moved its config to Lua**, and **Noctalia v5 (Quickshell) is moving to Lua**.
-Our target users already speak Lua for shell scripting; JavaScript is the
-QML/web language, not the WM-config language.
+**The ecosystem uses Lua.** Lua is the configuration and scripting language of the Wayland tiling niche: AwesomeWM,
+Neovim, WezTerm and WirePlumber use it. **Hyprland moved its full configuration to Lua**, and **Noctalia v5
+(Quickshell) moves to Lua**. The target users already use Lua for shell scripting. JavaScript is the language of QML
+and the web, not of window-manager configuration.
 
 ## Decision
 
-Adopt **Luau** ([luau.org](https://luau.org), MIT) as the **shell-wide scripting
-and configuration language**.
+Use **Luau** ([luau.org](https://luau.org), MIT) as the **scripting and configuration language of the full shell**.
 
-1. Luau is the language for **new** shell scripting surfaces (config, keybinds,
-   rules, widgets, plugins).
-2. The scripted autotiling engine migrates from QJSEngine to Luau as the **first
-   concrete increment** — but as part of the shell-wide rollout, **not before
-   it**. Tiling follows the shell-level decision; it does not drive it.
-3. Target architecture: **C++ compositor core + QML for first-party UI + Luau for
-   user config/scripting/plugins.** The **QML↔Luau boundary is an explicit,
-   owned interface**, designed up front.
-4. **Library factoring:** a new generic **`libs/phosphor-scripting`** (LGPL-2.1)
-   owns the Luau host (engine, sandbox, watchdog, compile/load, marshalling
-   core) with no tiling knowledge, so future shell surfaces reuse it.
-   `libs/phosphor-tiles` depends on it and implements the tiling binding
-   (`LuauTileAlgorithm`, the `pluau` stdlib + `.d.luau`, params/state/tree
-   marshalling). **Luau is vendored** as a committed source tarball by default
-   (opt-in `-DPLASMAZONES_SYSTEM_LUAU=ON`) because it is packaged for only Arch
-   and Nix — not Debian, Fedora, or openSUSE — and has no stable ABI.
+1. Luau is the language for **new** shell scripting surfaces: configuration, keybindings, rules, widgets and
+   plugins.
+2. The scripted autotiling engine moves from QJSEngine to Luau as the **first increment**. Tiling follows the
+   decision for the shell. It does not drive that decision.
+3. The target architecture is a **C++ compositor core, QML for the first-party UI, and Luau for user configuration,
+   scripts and plugins.** The **QML↔Luau boundary is an explicit interface with an owner**, designed first.
+4. **Library split:** a generic library, **`libs/phosphor-scripting`** (LGPL-2.1), owns the Luau host. The host has
+   the engine, sandbox, watchdog, compile and load, and the marshalling core, and it knows nothing about tiling.
+   Thus future shell surfaces can use it again. `libs/phosphor-tiles` depends on it and implements the tiling
+   binding: `LuauTileAlgorithm`, the `pluau` stdlib and `.d.luau`, and the marshalling of params, state and tree.
+5. **Luau is built from a pinned source archive by default**, with a system Luau as an option. The reason is that
+   Luau is packaged only for Arch and Nix (not Debian, Fedora or openSUSE) and has no stable ABI.
 
-### Why Luau specifically
+### Why Luau
 
 | Need | Luau | Stock Lua 5.x / LuaJIT | QJSEngine (status quo) |
 |---|---|---|---|
@@ -74,125 +63,96 @@ and configuration language**.
 | Ecosystem fit (Wayland WMs) | ✅ where it converged | ⚠️ partial | ❌ |
 | License / deps | MIT, zero deps, CMake | MIT | bundled w/ Qt |
 
-## Evidence — embedding spike
+## Evidence from the embedding spike
 
-A throwaway standalone binary (`spikes/luau-autotile-embed/`, pinned Luau 0.723,
-Qt6::Core) proved the path end-to-end. **All green:**
+A throwaway standalone binary (`spikes/luau-autotile-embed/`, pinned Luau 0.723, Qt6::Core) proved the full path.
+**All checks passed:**
 
-- **Build:** FetchContent Luau + Qt6 link in **30s**, one `cmake` command. Static
-  binary **2.8M**; precompiling algorithms to bytecode lets the runtime ship only
-  `Luau.VM` (**1.4M**), dropping the compiler+ast.
-- **Sandbox is free:** `luaL_sandbox` + readonly globals **replaces the entire
-  225-line `scriptedalgorithmsandbox.cpp` plus the freeze machinery**. An escape
-  probe confirmed: `io` absent, `os` restricted (no `execute`/`exit`/`getenv`),
-  no `loadstring`/`load`, stdlib read-only. **Note:** `getfenv`/`setfenv` are
-  *not* removed, but the sandbox makes their environment read-only so a
-  `getfenv(0).x = 1` write **fails** — the guarantee holds for a subtler reason
-  than "removed."
-- **Watchdog is safer:** an atomic flag + interrupt callback + `luaL_error` abort
-  kills `while true do end` in ~150ms and the host recovers. The watchdog
-  **never touches the `lua_State`** — eliminating the use-after-free lock
-  discipline the QJSEngine watchdog requires.
-- **Marshalling cost measured: 57 LOC** (35 in / 22 out) — the honest net-new
-  burden replacing free `QJSValue::setProperty`.
-- **Ergonomics:** `master-stack` is **~14 LOC** against a typed `pluau` Rect API,
-  versus the JS version delegating to a ~100-line injected helper.
+- **Build:** FetchContent Luau and the Qt6 link took **30s** with one `cmake` command. The static binary was
+  **2.8M**. When the algorithms are precompiled to bytecode, the runtime ships only `Luau.VM` (**1.4M**), without
+  the compiler and the AST.
+- **The sandbox costs no code:** `luaL_sandbox` with readonly globals **replaces all of the 225-line
+  `scriptedalgorithmsandbox.cpp` and the freeze machinery**. An escape probe showed these results: `io` is absent,
+  `os` is restricted (no `execute`/`exit`/`getenv`), there is no `loadstring`/`load`, and the stdlib is read-only.
+  **Note:** the sandbox does *not* remove `getfenv`/`setfenv`. But it makes their environment read-only, so a
+  `getfenv(0).x = 1` write **fails**. The guarantee holds for a different reason than removal.
+- **The watchdog is safer:** an atomic flag, an interrupt callback and a `luaL_error` abort stop
+  `while true do end` in approximately 150ms, and the host recovers. The watchdog **never touches the `lua_State`**.
+  Thus it does not need the use-after-free lock discipline of the QJSEngine watchdog.
+- **The marshalling cost is 57 LOC** (35 in, 22 out). This is the new code that replaces the free
+  `QJSValue::setProperty`.
+- **Ergonomics:** `master-stack` is **approximately 14 LOC** against a typed `pluau` Rect API. The JS version used
+  an injected helper of approximately 100 lines.
 
 ## Consequences
 
 ### Positive
 
-- Deletes ~400 LOC of the **most dangerous, highest-maintenance C++** (sandbox +
-  per-helper freeze + the `eval`/`Function`-escape IIFE hack), every line of
-  which is security-critical and rot-prone.
-- Gains a **real sandbox + memory cap + author-time typing** — the correct
-  foundation for an untrusted-plugin ecosystem.
-- **One scripting language** across the shell, aligned with user and ecosystem
-  expectations.
-- Watchdog becomes simpler and safer.
+- The change deletes approximately 400 LOC of the **most dangerous C++ with the most maintenance**: the sandbox,
+  the freeze for each helper, and the IIFE workaround for the `eval`/`Function` escape. Each of these lines is
+  critical for security and decays easily.
+- PlasmaZones gets a **real sandbox, a memory limit and typing at authoring time**. This is the correct base for an
+  ecosystem of untrusted plugins.
+- The shell has **one scripting language**, as users and the ecosystem expect.
+- The watchdog is simpler and safer.
 
-### Negative / costs
+### Negative
 
-- A **new vendored third-party dependency** (was zero — QJSEngine is in Qt):
-  build complexity, version pinning, the compile-to-bytecode step.
-- **~57 LOC of manual C↔Lua marshalling** replaces free `QJSValue::setProperty`
-  (plus similar for hooks/metadata).
-- One-time **rewrite**: ~25 algorithms (~2,157 LOC JS → Luau) + redirecting the
+- A **new third-party dependency**. Before, there was none, because QJSEngine is in Qt. It adds build complexity,
+  version pins and the compile-to-bytecode step.
+- **Approximately 57 LOC of manual C↔Lua marshalling** replace the free `QJSValue::setProperty`, with similar code
+  for hooks and metadata.
+- A one-time **rewrite**: approximately 25 algorithms (approximately 2,157 LOC of JS to Luau), and changes to the
   C++ glue.
-- A **permanent QML↔Luau bridge** to design and maintain — QML is JS-native, so
-  Luau is a *second* language in the stack (the cost Hyprland does not have).
-- Luau's C API has **no formal stability guarantee** — pin a version, expect
-  occasional additive/breaking churn.
+- A **permanent QML↔Luau bridge** to design and maintain. QML uses JS natively, so Luau is a *second* language in
+  the stack. Hyprland does not have this cost.
+- The C API of Luau has **no formal stability guarantee**. Pin a version, and expect some additive or breaking
+  changes.
 
-**Net C++ glue diff ≈ −350 LOC** (≈ −400 security ceremony, +~150
-marshalling/setup); watchdog ≈ wash but safer.
+**The net change of C++ glue is approximately −350 LOC**: approximately −400 of security code and approximately
++150 of marshalling and setup. The watchdog size stays approximately the same, but the watchdog is safer.
 
-## Migration & sequencing
+## Order of the work
 
-The work shipped as one `feat/luau-scripting` branch off `v3.1`, with per-phase
-commits and PRs targeting `v3.1`. The phases:
+The first proposal was to start with "new shell surfaces first". The decision changed to start with **tiling as the
+first consumer of `phosphor-scripting`**, for these reasons:
 
-1. **Decide & document** — this ADR.
-2. **Build `phosphor-scripting`** — the generic Luau host (engine, sandbox,
-   watchdog, compile/load, marshalling core), graduating the spike's `LuauHost`
-   into a tested LGPL library.
-3. **Migrate autotiling as the first consumer** — the tiling binding in
-   `phosphor-tiles` (`LuauTileAlgorithm`, `pluau` stdlib, params/state/tree
-   marshalling), port the 25 algorithms under a golden parity test, swap the
-   loader backend, keep the `TilingAlgorithm` interface stable.
-4. **Remove the QJSEngine scripted path** once parity + tests pass.
+- Tiling has a contained contract and a test suite.
+- Its path is pure **C++↔Luau with no QML bridge**.
 
-**Sequencing refinement.** This ADR originally proposed rolling out "new shell
-surfaces first." We now lead with **tiling as `phosphor-scripting`'s first
-consumer**: it has a contained contract and an existing test suite, and its path
-is pure **C++↔Luau with no QML bridge** — so it validates the embedding core
-without entangling the harder QML↔Luau UI boundary. The QML↔Luau bridge remains
-separate future work for actual shell UI surfaces.
+Thus tiling validates the embedding core without the more difficult QML↔Luau UI boundary. The QML↔Luau bridge is
+separate work for the shell UI surfaces. The tiling increment kept the `TilingAlgorithm` interface stable and ported
+the 25 algorithms under a golden parity test.
 
-## Alternatives considered
+## Alternatives
 
-- **Stay on QJSEngine (JS).** Zero new deps, consistent with the QML UI — but no
-  sandbox, no memory cap, JS is not the ecosystem's config language, and the
-  security ceremony stays forever. Rejected: wrong foundation for a plugin
-  ecosystem.
-- **Stock Lua 5.x / LuaJIT.** Smaller embedding effort, full stdlib — but no
-  built-in untrusted-code sandbox, no gradual typing, and not where the
-  ecosystem (esp. Hyprland) converged. Rejected: Luau's sandbox + typing are the
-  whole point.
-- **All-Lua UI (AwesomeWM-style, drop QML).** Removes the dual-language bridge —
-  but discards the QML head start and means a far larger rewrite. Rejected:
-  throws away existing investment.
+| Alternative | Advantages | Why rejected |
+| --- | --- | --- |
+| Stay on QJSEngine (JS) | No new dependencies. The same language as the QML UI. | No sandbox, no memory limit, JS is not the configuration language of the ecosystem, and the security code stays. It is the wrong base for a plugin ecosystem. |
+| Stock Lua 5.x / LuaJIT | Less embedding work. The full stdlib. | No built-in sandbox for untrusted code, no gradual typing, and not where the ecosystem (Hyprland in particular) went. The sandbox and the typing of Luau are the reason for the decision. |
+| All-Lua UI (as AwesomeWM, without QML) | No bridge between two languages. | It discards the QML work that exists and needs a much larger rewrite. |
 
-## Open follow-ups
+## Current state
 
-**Done.** The full tiling increment shipped — impl-plan phases 0–7 are complete:
-`phosphor/libs/phosphor-scripting` (LGPL Luau host: engine, `luaL_sandbox`, interrupt
-watchdog, a per-script **heap cap** via a custom capped `lua_Alloc` enforced
-once sandboxed, compile/load, QVariant marshalling), `phosphor/libs/phosphor-tiles`
-(`LuauTileAlgorithm` + the `pluau` stdlib), all 25 algorithms ported under a
-golden-snapshot parity test, the loader swapped to `.luau`, the QJSEngine path
-deleted, and a CI **`luau-analyze` gate** over the bundled algorithms + `pluau`
-stdlib. Vendoring landed as a **committed source tarball**
-(`phosphor/extern/luau-0.737.tar.gz`, extracted at configure time from that local file
-via `file(ARCHIVE_EXTRACT)`) rather than a submodule or the unpacked tree, so source
-tarballs stay self-contained for every distro with no network, while the repo
-carries one ~2 MB blob instead of ~950 files;
-`-DPLASMAZONES_SYSTEM_LUAU=ON` still links a system Luau. An end-user
-[Luau algorithm authoring guide](https://phosphor-works.org/guides/tiling/)
-ships with it.
+The tiling increment is complete:
 
-**Remaining:**
+- `phosphor/libs/phosphor-scripting`, now `libs/phosphor-scripting` in phosphor-libs, is the LGPL Luau host. It has
+  the engine, `luaL_sandbox`, the interrupt watchdog, a **heap limit** for each script, compile and load, and
+  QVariant marshalling. It came from the `LuauHost` of the spike. The heap limit is a custom capped `lua_Alloc`, enforced after the sandbox is on.
+- `phosphor/libs/phosphor-tiles`, now `libs/phosphor-tiles` in phosphor-libs, has `LuauTileAlgorithm` and the `pluau`
+  stdlib.
+- All 25 algorithms are ported under a golden-snapshot parity test, and the loader reads `.luau` files.
+- The QJSEngine path is deleted.
+- A CI **`luau-analyze` gate** checks the bundled algorithms and the `pluau` stdlib.
+- An end-user [Luau algorithm authoring guide](https://phosphor-works.org/guides/tiling/) is available.
 
-- **QML↔Luau bridge design** — deferred to the eventual shell-UI surfaces; not
-  needed for the tiling migration, which is pure C++↔Luau.
+The two safety nets from the spike are both built. The interrupt watchdog limits CPU *time*, and the capped allocator
+limits the *heap*. The heap limit is 64 MiB by default, and each engine can set its own. Enforcement starts at
+`sandbox()`, so trusted init and preludes do not get a false out-of-memory stop. A runaway allocation gives a Luau
+out-of-memory error that the host can catch. It does not crash the host.
 
-Both spike-designed safety nets are now built: the interrupt watchdog bounds CPU
-*time*, and the capped allocator bounds *heap* (default 64 MiB, configurable per
-engine; enforcement starts at `sandbox()` so trusted init/preludes can't be
-spuriously OOM-killed). A runaway allocation surfaces as a catchable Luau OOM,
-not a host crash.
-
-A competitor-architecture study (how Hyprland / Noctalia-Quickshell structure
-their Lua and QML↔Lua boundaries) was considered and **deliberately skipped** —
-the QML↔Luau bridge will be validated directly via the incremental rollout, not
-by pre-studying other projects.
+At first, Luau was a committed source tarball (`phosphor/extern/luau-0.737.tar.gz`), extracted at configure time with
+`file(ARCHIVE_EXTRACT)`, and `-DPLASMAZONES_SYSTEM_LUAU=ON` linked a system Luau. Now `cmake/PhosphorDependencies.cmake`
+of phosphor-libs pins the Luau source archive (version, URL and SHA-256). An offline packaging build reads it from
+the `PHOSPHOR_DEPS_ARCHIVES` directory, and other builds download it with CPM. `-DPHOSPHOR_SYSTEM_LUAU=ON` links a
+system Luau.

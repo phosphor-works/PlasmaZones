@@ -78,7 +78,7 @@ void TilingHandler::slotWindowsTileRequested(const PhosphorProtocol::TileRequest
         return;
     }
 
-    // Seam diagnostics (docs/strip-identity-seam-plan.md, stage 0). The
+    // Seam diagnostics (phosphor-works/workspace#29). The
     // ARRIVAL of a batch is itself the evidence: the engine emits on change,
     // plus one forced emit per strip-context switch (m_forceEmitScreens, the
     // candidate-A fix), so if this line does NOT appear after a desktop switch
