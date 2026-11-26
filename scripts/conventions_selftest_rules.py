@@ -185,7 +185,7 @@ def _prose_extraction_failures(partition_readable) -> list[str]:
 
     The detector itself is well pinned (every arm of prose_problems has a probe), but the
     code that decides WHICH text reaches it was covered for `iter_json_prose` alone.
-    Breaking DEB_DESC, RPM_DESC, PKG_DESC, the `packaging/` prefix gate or the
+    Breaking DEB_DESC, RPM_DESC, PKG_DESC, the recipe prefix gate or the
     CHANGELOG.md name gate all left the suite green, so those surfaces each worked and
     none could be kept working.
 
@@ -203,14 +203,16 @@ def _prose_extraction_failures(partition_readable) -> list[str]:
     bad: list[str] = []
     splice = "Blurs the pane — and lifts saturation."
 
-    files = {
+    # The recipes of the packaging repository are not files of this tree, so they reach
+    # recipe_prose() directly, the way rule_recipe_prose hands them over.
+    recipes = {
         # deb822: a one-line synopsis then a space-indented continuation block.
         # deb822: the bullets are indented TWICE — one space for the continuation and one for
-        # the indent — exactly as packaging/debian/control writes them, so this probe pins the
+        # the indent — exactly as debian/control of the recipes writes them, so this probe pins the
         # deb822 half of the bullet strip the way the .spec probe below pins the RPM half.
         # The live file does pin this one as well, because its own bullets are indented too;
         # the probe is here so the pin does not depend on nobody ever reflowing that file.
-        "packaging/debian/control": (
+        "packaging/plasmazones/debian/control": (
             "Source: plasmazones\n"
             "\n"
             "Package: plasmazones\n"
@@ -228,12 +230,20 @@ def _prose_extraction_failures(partition_readable) -> list[str]:
         # with a green selftest AND a green tree before this probe existed. The splice is
         # still here, so the arm is asserted to find EXACTLY the planted violation and not
         # the bullets.
-        "packaging/rpm/x.spec": (f"Name: x\nSummary: Fine\n\n%description\n{splice}\n"
-                                 "  - first feature\n  - second feature\n  * third feature\n\n%files\n"),
-        # Nix: description and longDescription.
-        "packaging/nix/x.nix": f'{{\n  meta = {{\n    description = "{splice}";\n  }};\n}}\n',
+        "packaging/plasmazones/rpm/x.spec": (f"Name: x\nSummary: Fine\n\n%description\n{splice}\n"
+                                             "  - first feature\n  - second feature\n  * third feature\n\n%files\n"),
         # Arch: pkgdesc, which the line-oriented PKG_DESC arm reads.
-        "packaging/arch/PKGBUILD": f'pkgdesc="{splice}"\n',
+        "packaging/plasmazones/arch/PKGBUILD": f'pkgdesc="{splice}"\n',
+    }
+    for rel, text in recipes.items():
+        found = g["recipe_prose"](rel, text)
+        if len(found) != 1:
+            bad.append(f"recipe_prose reported {len(found)} findings for {rel}, not just the planted "
+                       f"splice: {[v.message for v in found]}")
+
+    files = {
+        # Nix: description and longDescription, in the recipe beside the flake.
+        "nix/x.nix": f'{{\n  meta = {{\n    description = "{splice}";\n  }};\n}}\n',
         # CHANGELOG entry BODY, after the Keep-a-Changelog bold lead-in.
         "CHANGELOG.md": f"## [1.0.0]\n\n- **Thing**: {splice}\n",
         # .desktop Name/GenericName/Comment.
@@ -242,7 +252,7 @@ def _prose_extraction_failures(partition_readable) -> list[str]:
         "x.metainfo.xml": f"<component>\n  <summary>{splice}</summary>\n</component>\n",
         # Nix longDescription, the multi-line body the line-oriented PKG_DESC arm cannot
         # reach. Its own arm, separate from `description` above.
-        "packaging/nix/y.nix": f'{{\n  meta = {{\n    longDescription = \'\'\n      {splice}\n    \'\';\n  }};\n}}\n',
+        "nix/y.nix": f'{{\n  meta = {{\n    longDescription = \'\'\n      {splice}\n    \'\';\n  }};\n}}\n',
         # The BIGGEST surface in the tree, and it was unpinned: every translatable literal
         # in C++ and QML, through PhosphorI18n::tr() and QML i18n()/i18nc().
         "src/a.cpp": f'void f() {{ label = PhosphorI18n::tr("{splice}"); }}\n',
@@ -262,7 +272,7 @@ def _prose_extraction_failures(partition_readable) -> list[str]:
         # A bundled Luau algorithm's description field. The arm gates on the full
         # plasmazones/data/algorithms/ prefix, so the probe has to sit there.
         "plasmazones/data/algorithms/probe.luau": f'local algorithm = {{\n  description = "{splice}",\n}}\n',
-        # The draft pkgdesc generated in CI, outside packaging/ and reached only by the
+        # The draft pkgdesc generated in CI, outside nix/ and reached only by the
         # .github/workflows arm.
         ".github/workflows/probe.yml": f'jobs:\n  b:\n    run: |\n      pkgdesc="{splice}"\n',
         # And the data-JSON gate itself. iter_json_prose has four dedicated assertions, but
@@ -431,6 +441,7 @@ def _wiring_failures(partition_readable) -> list[str]:
         # license arm runs after this one, which makes the leak an order dependency rather
         # than only untidiness.
         saved_selected = set(g["_SELECTED_RULES"])
+        saved_staged, saved_whole = g["_STAGED"], g["_WHOLE_TREE"]
         g["REPO"] = d
         g["read_error"] = lambda path, *, repo=None: (
             "Permission denied" if path.endswith("unreadable.cpp") else saved_read_error(path, repo=repo))
@@ -462,12 +473,13 @@ def _wiring_failures(partition_readable) -> list[str]:
             # what widens `targets` to the tracked list, which is the gate that call sits
             # behind.
             messages = [m for _p, _l, m in dep5_problems(
-                ["packaging/debian/copyright"], repo=d, line_of=g["line_of"],
+                ["packaging/debian/copyright"], repo=d, dep5=dep5, line_of=g["line_of"],
                 tracked_files=lambda: ["src/here.cpp"])]
         finally:
             g["REPO"] = saved_repo
             g["read_error"] = saved_read_error
             g["_SELECTED_RULES"] = saved_selected
+            g["_STAGED"], g["_WHOLE_TREE"] = saved_staged, saved_whole
             conventions_dep5._dead_stanza_problems = saved_dead
 
         if not any("src/gone.cpp" in m for m in messages):
@@ -688,10 +700,69 @@ def _remaining_rule_failures(partition_readable) -> list[str]:
     return bad
 
 
+def _recipe_rules_failures(partition_readable) -> list[str]:
+    """The rules that read the packaging repository's recipes, END TO END.
+
+    rule_recipe_prose has to find the checkout, list its tracked recipes and hand each
+    one to recipe_prose(). The extraction arm above pins recipe_prose() alone, so this one
+    pins the rest: a planted splice in a tracked recipe of a fake checkout is reported, and
+    a checkout that is not there is a finding on a whole-tree run and a note on a
+    pre-commit run, never a silent pass.
+    """
+    import os
+    import subprocess
+
+    import conventions_packaging
+
+    g = partition_readable.__globals__
+    rule = g["rule_recipe_prose"]
+    bad: list[str] = []
+    env = conventions_packaging.ENV
+    saved_env = os.environ.get(env)
+    saved_staged = g["_STAGED"]
+    saved_note = g["_RECIPES_NOTE_PRINTED"]
+    with tempfile.TemporaryDirectory() as tmp:
+        checkout = Path(tmp) / "packaging"
+        control = checkout / conventions_packaging.SUBDIR / "debian" / "control"
+        control.parent.mkdir(parents=True)
+        control.write_text("Package: plasmazones\nDescription: Fine\n Blurs the pane — and lifts saturation.\n",
+                           encoding="utf-8")
+        # Without the GIT_* variables of the caller: a pre-commit hook sets GIT_INDEX_FILE
+        # and others, and git would then write this repository's index and config.
+        git_env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        try:
+            subprocess.run(["git", "init", "-q"], cwd=checkout, check=True, env=git_env)
+            subprocess.run(["git", "add", "."], cwd=checkout, check=True, env=git_env)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            return [f"the recipe-rules arm could not make a git checkout to test against ({exc})"]
+        try:
+            os.environ[env] = str(checkout)
+            g["_STAGED"] = False
+            found = rule([])
+            if not any(v.path.endswith("debian/control") and v.rule == "recipe-prose" for v in found):
+                bad.append(f"rule_recipe_prose did not report the splice in a tracked recipe: "
+                           f"{[v.format() for v in found]}")
+            os.environ[env] = str(Path(tmp) / "absent")
+            if not any("cannot find the PlasmaZones recipes" in v.message for v in rule([])):
+                bad.append("rule_recipe_prose passed in silence with no packaging checkout")
+            g["_STAGED"] = True
+            g["_RECIPES_NOTE_PRINTED"] = True
+            if rule([]):
+                bad.append("rule_recipe_prose blocked a pre-commit run that has no packaging checkout")
+        finally:
+            g["_STAGED"] = saved_staged
+            g["_RECIPES_NOTE_PRINTED"] = saved_note
+            if saved_env is None:
+                os.environ.pop(env, None)
+            else:
+                os.environ[env] = saved_env
+    return bad
+
+
 def rule_coverage_failures(partition_readable) -> list[str]:
     """Every fake-tree arm in this module, in one call.
 
-    One entry point rather than seven imports, so conventions_selftest.py names this module
+    One entry point rather than eight imports, so conventions_selftest.py names this module
     once and adding an arm here needs no edit there. Order reads cheapest-first — the
     precondition and the SPDX window, then the wiring, then the rules — but it is only a
     reading order: no arm depends on running before or after another, which was checked by
@@ -703,4 +774,5 @@ def rule_coverage_failures(partition_readable) -> list[str]:
             *_license_tree_failures(partition_readable),
             *_remaining_rule_failures(partition_readable),
             *_dead_stanza_failures(),
-            *_prose_extraction_failures(partition_readable)]
+            *_prose_extraction_failures(partition_readable),
+            *_recipe_rules_failures(partition_readable)]

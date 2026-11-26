@@ -8,7 +8,7 @@
 # built with it before the image is rebuilt.
 #
 # One package per line; `#` starts a comment. The draft-PKGBUILD job does not
-# read this: makepkg resolves the real dependencies from packaging/.
+# read this: makepkg resolves the real dependencies from its PKGBUILD.
 
 # Toolchain
 base-devel

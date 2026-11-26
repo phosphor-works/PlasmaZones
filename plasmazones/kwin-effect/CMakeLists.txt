@@ -17,12 +17,13 @@
 # The 6.7 half comes OUT once every channel the release pipeline builds for
 # (Debian unstable, Fedora, openSUSE Tumbleweed) and nixpkgs carries KWin 6.8.
 # For the release channels that is answered by
-# .github/workflows/kwin-rebuild-watch.yml, which queries each one's current
-# KWin on a schedule (arch, debian-unstable, fedora-<N>, opensuse-tumbleweed).
+# .github/workflows/plasmazones-rebuild-watch.yml of the packaging repository,
+# which queries each one's current KWin on a schedule (arch, debian-unstable, fedora-<N>, opensuse-tumbleweed).
 # It does not probe nixpkgs; for that, read the `nix` jobs' configure line below
 # ("bool paint API selected" once the locked nixpkgs has moved to 6.8). When
 # none of them still reports 6.7, delete kwincompat.h, fold the *Impl bodies
-# back into the overrides, and raise the floor here and in packaging/ to 6.8.
+# back into the overrides, and raise the floor here and in the recipes of the
+# packaging repository to 6.8.
 #
 # Only included via add_subdirectory() from the top-level project; the
 # parent provides cmake_minimum_required, project(), ECM, and Qt. Calling

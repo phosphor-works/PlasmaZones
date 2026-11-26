@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # flake.nix — PlasmaZones. Thin wiring only. The build recipe lives in
-# packaging/nix/package.nix and the package is defined once in
-# packaging/nix/overlays.nix; see that file for the KWin-IID rationale and why
+# nix/package.nix and the package is defined once in
+# nix/overlays.nix; see that file for the KWin-IID rationale and why
 # consumers must build against their own pkgs.
 #
 # Outputs:
@@ -97,8 +97,8 @@
         );
       };
 
-      # Single source of truth for the package (see packaging/nix/overlays.nix).
-      overlay = import ./packaging/nix/overlays.nix { inherit src version; };
+      # Single source of truth for the package (see nix/overlays.nix).
+      overlay = import ./nix/overlays.nix { inherit src version; };
 
       # The flake's pinned nixpkgs with our overlay applied, per system. Every
       # package / devShell / check / formatter is derived from this, so the
@@ -120,12 +120,12 @@
       });
 
       devShells = forAllSystems (system: {
-        default = pkgsFor.${system}.callPackage ./packaging/nix/devShell.nix { };
+        default = pkgsFor.${system}.callPackage ./nix/devShell.nix { };
       });
 
-      formatter = forAllSystems (system: pkgsFor.${system}.callPackage ./packaging/nix/formatter.nix { });
+      formatter = forAllSystems (system: pkgsFor.${system}.callPackage ./nix/formatter.nix { });
 
-      nixosModules.default = import ./packaging/nix/module.nix { inherit src version; };
-      homeManagerModules.default = import ./packaging/nix/hm-module.nix { inherit src version; };
+      nixosModules.default = import ./nix/module.nix { inherit src version; };
+      homeManagerModules.default = import ./nix/hm-module.nix { inherit src version; };
     };
 }

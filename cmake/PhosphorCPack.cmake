@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # CPack: source tarball generation (`cpack --config CPackSourceConfig.cmake`
-# or `make package_source`). Distro builds in release.yml still hand-roll
+# or `make package_source`). Distro builds in the release workflow of the
+# packaging repository still hand-roll
 # tarballs for filename-control reasons; this exists so a release engineer
 # can also bootstrap a tarball locally without the workflow.
 #

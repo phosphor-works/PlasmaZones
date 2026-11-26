@@ -214,8 +214,8 @@ private Q_SLOTS:
         const QString nixForm = QStringLiteral("^\\s*RestartPreventExitStatus = \"([^\"]*)\";$");
         const QList<std::pair<QString, QString>> units{
             {QStringLiteral("/src/daemon/plasmazones.service.in"), systemdForm},
-            {QStringLiteral("/../packaging/nix/module.nix"), nixForm},
-            {QStringLiteral("/../packaging/nix/hm-module.nix"), nixForm},
+            {QStringLiteral("/../nix/module.nix"), nixForm},
+            {QStringLiteral("/../nix/hm-module.nix"), nixForm},
         };
         for (const auto& [path, pattern] : units) {
             const QString unit = readSource(path);

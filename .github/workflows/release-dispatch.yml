@@ -1,0 +1,51 @@
+# Start the release of a pushed tag in the packaging repository
+# SPDX-FileCopyrightText: 2026 Phosphor Works Team
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The release recipes and the release workflow are in phosphor-works/packaging
+# (.github/workflows/plasmazones-release.yml). A push of a v* tag here sends a
+# repository_dispatch of type `plasmazones-release` there, with the tag in
+# client_payload.tag. That workflow checks the tag shape, builds every package
+# from this repository at the tag, and makes the GitHub release here.
+#
+# A revision tag (v<version>-r<N>) is sent too. The rebuild watch of the
+# packaging repository cuts it and starts the run that ships it, and the gate
+# of plasmazones-release.yml makes the run that this dispatch starts a no-op.
+#
+# The Actions token of this repository cannot dispatch to another repository,
+# so this uses RELEASE_TAG_TOKEN, the organization secret that the release
+# uses too. Its token has Contents write on phosphor-works/packaging, which is
+# what the dispatches endpoint needs.
+
+name: Release dispatch
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Start the release in the packaging repository
+    # A fork has no token for the packaging repository.
+    if: github.repository == 'phosphor-works/PlasmaZones'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send repository_dispatch
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TAG_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+              echo "::error::The RELEASE_TAG_TOKEN secret is not set, so $TAG was not sent to phosphor-works/packaging. Set it, then run plasmazones-release.yml there with tag=$TAG."
+              exit 1
+          fi
+          # The tag goes in as a JSON string through jq, never through the
+          # shell or the URL, so its characters cannot change the request.
+          jq -n --arg tag "$TAG" '{event_type: "plasmazones-release", client_payload: {tag: $tag}}' \
+              | gh api -X POST repos/phosphor-works/packaging/dispatches --input -
+          echo "Sent $TAG to phosphor-works/packaging (plasmazones-release)."

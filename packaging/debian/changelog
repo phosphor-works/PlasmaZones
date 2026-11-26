@@ -1,6 +1,0 @@
-plasmazones (0.0.0-1) unstable; urgency=medium
-
-  * Generated from CHANGELOG.md by packaging/generate-changelog.sh during CI.
-  * Do not edit manually -- this file is overwritten on release.
-
- -- Phosphor Works Team <fuddlesworth@users.noreply.github.com>  Thu, 01 Jan 1970 00:00:00 +0000

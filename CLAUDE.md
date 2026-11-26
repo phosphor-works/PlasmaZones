@@ -81,7 +81,7 @@ plasmazones/             — PlasmaZones
 cmake/                   — Shared CMake modules, including the pins (PlasmaZonesDependencies.cmake)
 scripts/                 — Repo-level checks and dev harnesses
 ```
-Not exhaustive: `scripts/`, `packaging/` and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. App icons are not in the tree: they install from the pinned branding release (`cmake/PlasmaZonesDependencies.cmake`). Neither are the surface decoration packs, which install from the pinned phosphor-surface-packs commit.
+Not exhaustive: `scripts/`, `nix/` (the Nix recipe and modules that `flake.nix` imports) and `docs/` sit at the root; `plasmazones/translations/`, `plasmazones/dbus/` and `plasmazones/scripts/` (the installed support script) live inside their tiers. App icons are not in the tree: they install from the pinned branding release (`cmake/PlasmaZonesDependencies.cmake`). Neither are the surface decoration packs, which install from the pinned phosphor-surface-packs commit.
 
 ### Targets and build options
 - CMake with `CMAKE_AUTOMOC/AUTORCC/AUTOUIC ON`
@@ -163,17 +163,24 @@ Install is whole-tree: none of the install rules declares a `COMPONENT`. `DESTDI
 # PhosphorI18n::tr() over i18n() in C++, ConfigDefaults:: accessors over inline
 # config paths, `.pragma library` inside Qt's 128-byte window in QML .js
 # libraries (see Code), the plain-prose rules on the user-facing strings it
-# can reach, that packaging/debian/copyright still declares every file's real
-# license and copyright holders, that a chain-resolved shader param's
+# can reach, that debian/copyright of the recipes still declares every file's
+# real license and copyright holders, that a chain-resolved shader param's
 # DESCRIPTION reads identically on every pack that offers it (the twenty
 # roundBottomCorners copies in the pinned surface packs; the check and its data
 # live in scripts/conventions_shared_text.py), and that every packaging recipe repeats
 # the archive pins of cmake/PlasmaZonesDependencies.cmake and of the pinned
 # phosphor-libs tree exactly (the dep-pins
-# rule, in scripts/conventions_dep_pins.py). Stdlib only, spread over seven
+# rule, in scripts/conventions_dep_pins.py). Stdlib only, spread over eight
 # files: the entry point plus conventions_dep5.py, conventions_dep_pins.py,
-# conventions_prose.py, conventions_shared_text.py, conventions_selftest.py and
-# conventions_selftest_rules.py.
+# conventions_packaging.py, conventions_prose.py, conventions_shared_text.py,
+# conventions_selftest.py and conventions_selftest_rules.py.
+#
+# The release recipes are in plasmazones/ of the packaging repository. The
+# dep5, dep-pins and recipe-prose rules read them from the checkout at
+# PLASMAZONES_PACKAGING_DIR, or else from ../packaging. A whole-tree run without
+# one reports a finding. The pre-commit run prints a note and skips them, and CI
+# checks out phosphor-works/packaging (the branch of the same name when there
+# is one) and runs them.
 #
 # It also enforces one PRECONDITION that is not a rule and that --rules cannot
 # switch off: every path handed to a rule must be readable as text. An unreadable
@@ -182,8 +189,8 @@ Install is whole-tree: none of the install rules declares a `COMPONENT`. `DESTDI
 # ("malformed JSON" on well-formed JSON, "missing SPDX" on a file that has one).
 #
 # The prose rule reaches data JSON, tr()/i18n(), settings-schema descriptions,
-# .desktop, AppStream, packaging, .github/workflows/*.yml (through the pkgdesc
-# arm), algorithm .luau, and CHANGELOG.md entry BODIES (the text after the
+# .desktop, AppStream, the Nix recipe, .github/workflows/*.yml (through the
+# pkgdesc arm), the recipes of the packaging repository (as recipe-prose), algorithm .luau, and CHANGELOG.md entry BODIES (the text after the
 # `**Term**:` lead-in; the bold lead-in itself and the trailing reference link
 # are skipped, and an indented sub-bullet is reached like any other entry). Four
 # things stay review-only even where it does reach: an entry's bold title; the
@@ -216,7 +223,7 @@ python3 scripts/check-conventions.py --list-rules
   - Rationale: the shell is GPL; libraries are LGPL so third-party plugins / tools can link them without inheriting GPL. Never "fix" a lib header to GPL-3 without understanding the split.
 
 ### User-facing text
-The writing rules of the conventions apply to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader and curve metadata) and in the bundled layouts and scrolling templates of phosphor-engine-libs, `plasmazones/data/whatsnew.json` highlights, the `description` fields of the bundled `.luau` algorithms (in phosphor-engine-libs, checked from here by `engine-data-prose`), `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (`packaging/**` pkgdesc / Summary / %description / Debian Description / Nix meta), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
+The writing rules of the conventions apply to every surface a user reads: `description`/`name` fields in `plasmazones/data/**/*.json` (animation, shader and curve metadata) and in the bundled layouts and scrolling templates of phosphor-engine-libs, `plasmazones/data/whatsnew.json` highlights, the `description` fields of the bundled `.luau` algorithms (in phosphor-engine-libs, checked from here by `engine-data-prose`), `CHANGELOG.md` entries, the `.desktop` `Name`/`GenericName`/`Comment` fields, AppStream `.metainfo.xml` summaries and descriptions, packaging descriptions (pkgdesc / Summary / %description / Debian Description in `plasmazones/` of the packaging repository, through `recipe-prose`, and Nix meta in `nix/`), and every translatable string (`PhosphorI18n::tr()`, QML `i18n()`/`i18nc()`). App icons live in the branding repo, which checks their `<desc>` prose itself (`scripts/check.py`).
 
 The surfaces above are the ones `check-conventions.py` reaches. The rest of the text goes through review. `README.md` and older documents still use em dashes as structure.
 
@@ -343,3 +350,4 @@ The Phosphor libraries (rendering, layer-shell, animation, config, screens, rule
 - The scripts that read library files without a build (the JSON schema gate, the dep-pins rule) find the pinned tree with `scripts/pinned_phosphor_libs.py`, which unpacks the pinned archive into `.cache/phosphor-libs/`. `PHOSPHOR_LIBS_DIR=<checkout>` points them at a local tree instead.
 - In CMake the library tree is `${phosphor-libs_SOURCE_DIR}` and its build tree `${phosphor-libs_BINARY_DIR}`. Its shared helper modules (`PhosphorTestIsolation`, `PhosphorLibTesting`, `PhosphorTestPch`) are in `${PHOSPHOR_LIBS_CMAKE_DIR}`, which is also on `CMAKE_MODULE_PATH`.
 - The surface decoration packs (borders, glows, shadows, blur and glass) are [phosphor-works/phosphor-surface-packs](https://github.com/phosphor-works/phosphor-surface-packs), shared with the other apps that draw them and checked out as `../phosphor-surface-packs`. PlasmaZones pins one commit of it in `cmake/PlasmaZonesDependencies.cmake`, fetches it like the branding release and installs its packs to `share/phosphor-works/shaders/surface` with its `cmake/PhosphorSurfacePacks.cmake`. User packs go in `~/.local/share/phosphor-works/shaders/surface`. In CMake the packs are `${PHOSPHOR_SURFACE_PACKS_DIR}` and the install subdir `${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}`, which each process hands to `PhosphorSurfaceShaders::setSurfacePackDataSubdir()` at startup. A pack change is a phosphor-surface-packs PR followed by a pin bump here, and `scripts/pinned_surface_packs.py` finds the pinned packs for the scripts that read them without a build (`PHOSPHOR_SURFACE_PACKS_DIR=<packs dir>` points them at a local checkout).
+- The release recipes (Arch, Debian, RPM and OBS), the release workflow (`plasmazones-release.yml`) and the KWin rebuild watch (`plasmazones-rebuild-watch.yml`) live in [phosphor-works/packaging](https://github.com/phosphor-works/packaging), in `plasmazones/` and `.github/workflows/`, checked out as `../packaging`. A push of a `v*` tag here starts the release there through `.github/workflows/release-dispatch.yml`. The release builds this tree at the tag with the recipes of the packaging repository, and makes the GitHub release here. The Nix recipe and modules stay in `nix/` here, beside the flake. A change that touches a recipe and this tree is a change set: the same branch name in both repositories. CI here reads the packaging branch of the same name when there is one, and the packaging repository's CI reads the PlasmaZones branch of the same name.

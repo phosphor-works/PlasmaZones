@@ -12,18 +12,19 @@ name: CI
 on:
   push:
     branches: [main, develop, v3, v3.1, v3.2, v3.3, v3.4]
-    # Release tags too. Every build job in release.yml configures with
-    # -DBUILD_TESTING=OFF and release.yml has no test job, so without this a
+    # Release tags too. The release workflow (plasmazones-release.yml of the
+    # packaging repository, started by release-dispatch.yml) configures every
+    # build with -DBUILD_TESTING=OFF and has no test job, so without this a
     # tag pushed at a commit that never landed on one of the branches above
     # shipped to GitHub Releases, the AUR and OBS with no test evidence at all.
     #
-    # This is evidence, NOT a gate. release.yml does not depend on this
-    # workflow, so the two run concurrently on a tag push and a red CI run does
-    # not stop the release from publishing; it just means the failure is on the
-    # record next to the tag. The workflow_dispatch release path is not covered
-    # at all, since dispatching against an existing tag pushes nothing. Making
-    # it a real gate means adding a test job inside release.yml that the
-    # `release` job needs.
+    # This is evidence, NOT a gate. The release workflow does not depend on
+    # this workflow, so the two run concurrently on a tag push and a red CI run
+    # does not stop the release from publishing; it just means the failure is
+    # on the record next to the tag. The workflow_dispatch release path is not
+    # covered at all, since dispatching against an existing tag pushes nothing.
+    # Making it a real gate means adding a test job to the release workflow
+    # that its `release` job needs.
     tags: ["v*"]
   pull_request:
     branches: [main, v3, v3.1, v3.2, v3.3, v3.4]
@@ -40,7 +41,8 @@ on:
 permissions:
   contents: read
 
-# One in-flight run per ref, matching kwin-rebuild-watch.yml and release.yml.
+# One in-flight run per ref, matching the release and rebuild-watch workflows of
+# the packaging repository.
 # Without this every push to a PR ran the whole matrix (the container jobs'
 # builds and ctest) to completion, including the
 # runs whose results nobody will ever read. Cancellation is limited to pull
@@ -135,6 +137,30 @@ jobs:
         with:
           python-version: "3.x"
 
+      # The dep5, dep-pins and recipe-prose rules read the release recipes in
+      # phosphor-works/packaging (scripts/conventions_packaging.py). A change set
+      # has one branch name in each repository, so a pull request reads the
+      # packaging branch of its own name when there is one, and main otherwise.
+      - name: Pick the packaging branch
+        id: packaging-ref
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          ref=main
+          if [[ -n "${HEAD_REF:-}" ]] && git ls-remote --exit-code --heads https://github.com/phosphor-works/packaging "refs/heads/$HEAD_REF" >/dev/null; then
+              ref="$HEAD_REF"
+          fi
+          echo "Reading the recipes from phosphor-works/packaging at $ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the recipes
+        uses: actions/checkout@v7
+        with:
+          repository: phosphor-works/packaging
+          ref: ${{ steps.packaging-ref.outputs.ref }}
+          path: .packaging
+
       # BEFORE the whole-tree run, because a rule that has stopped being able to
       # see what it governs reports a CLEAN tree. The prose rule shipped unable to
       # read data/whatsnew.json's highlights and this job passed the whole time.
@@ -142,6 +168,8 @@ jobs:
         run: python3 scripts/check-conventions.py --selftest
 
       - name: Check CLAUDE.md conventions
+        env:
+          PLASMAZONES_PACKAGING_DIR: ${{ github.workspace }}/.packaging
         run: python3 scripts/check-conventions.py
 
   # ─── Luau static analysis: type-check + lint the bundled tiling algorithms
@@ -406,6 +434,30 @@ jobs:
           # workflow_dispatch where no PR exists.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      # The pacman install file, hook and hook script come from the Arch
+      # recipe in phosphor-works/packaging: the packaging branch of this pull
+      # request's name when there is one (a change set), and main otherwise.
+      - name: Pick the packaging branch
+        id: packaging-ref
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          ref=main
+          if [[ -n "${HEAD_REF:-}" ]] && git ls-remote --exit-code --heads https://github.com/phosphor-works/packaging "refs/heads/$HEAD_REF" >/dev/null; then
+              ref="$HEAD_REF"
+          fi
+          echo "Reading the Arch recipe from phosphor-works/packaging at $ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the Arch recipe
+        uses: actions/checkout@v7
+        with:
+          repository: phosphor-works/packaging
+          ref: ${{ steps.packaging-ref.outputs.ref }}
+          path: .packaging
+          sparse-checkout: plasmazones/arch
+
       - name: Resolve build metadata
         id: meta
         # Route every attacker-controllable input (branch ref) through env
@@ -477,7 +529,7 @@ jobs:
       - name: Generate draft PKGBUILD (local-source, CI build)
         # The PKGBUILD makepkg consumes inside CI builds from the
         # already-checked-out tree so we don't pay a second clone. Mirrors
-        # release.yml's PKGBUILD.ci pattern but with the PR-aware pkgname,
+        # the PKGBUILD.ci pattern of the release workflow but with the PR-aware pkgname,
         # version, and provides/conflicts so a tester can install on top
         # of stable cleanly.
         run: |
@@ -523,9 +575,9 @@ jobs:
           package() {
               cd "$startdir/.."
               DESTDIR="$pkgdir" cmake --install build
-              install -Dm644 packaging/arch/kbuildsycoca.hook \
+              install -Dm644 "$startdir/kbuildsycoca.hook" \
                   "$pkgdir/usr/share/libalpm/hooks/plasmazones-kbuildsycoca.hook"
-              install -Dm755 packaging/arch/plasmazones-refresh-sycoca \
+              install -Dm755 "$startdir/plasmazones-refresh-sycoca" \
                   "$pkgdir/usr/share/libalpm/scripts/plasmazones-refresh-sycoca"
               install -Dm644 LICENSE        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
               install -Dm644 COPYING.LESSER "$pkgdir/usr/share/licenses/$pkgname/COPYING.LESSER"
@@ -541,9 +593,11 @@ jobs:
               -e "s|__SHORT_SHA__|${{ steps.meta.outputs.short_sha }}|" \
               ci-pkgbuild/PKGBUILD
 
-          # The pacman install hook is reused verbatim from the stable
-          # packaging tree.
-          cp packaging/arch/plasmazones.install ci-pkgbuild/
+          # The pacman install file, hook and hook script are reused
+          # verbatim from the stable Arch recipe.
+          cp .packaging/plasmazones/arch/plasmazones.install \
+             .packaging/plasmazones/arch/kbuildsycoca.hook \
+             .packaging/plasmazones/arch/plasmazones-refresh-sycoca ci-pkgbuild/
 
       - name: Build .pkg.tar.zst
         run: |
@@ -574,6 +628,10 @@ jobs:
           set -euo pipefail
           mkdir -p draft-pkgbuild
           BRANCH="${{ steps.meta.outputs.branch_ref }}"
+          # The hook and its script are local sources beside the PKGBUILD,
+          # because the PlasmaZones tree does not contain them.
+          HOOK_SUM="$(sha256sum .packaging/plasmazones/arch/kbuildsycoca.hook | cut -d' ' -f1)"
+          SCRIPT_SUM="$(sha256sum .packaging/plasmazones/arch/plasmazones-refresh-sycoca | cut -d' ' -f1)"
           cat > draft-pkgbuild/PKGBUILD <<PKGBUILD_EOF
           # PlasmaZones — draft build for PR #${{ steps.meta.outputs.pr_number }}
           # Pulls the branch directly from GitHub. To rebuild against new
@@ -601,8 +659,10 @@ jobs:
                       'hwdata: readable GPU names in the rendering device picker')
           provides=("plasmazones=\$pkgver")
           conflicts=('plasmazones' 'plasmazones-git' 'plasmazones-bin')
-          source=("\$pkgname::git+\$url.git#branch=${BRANCH}")
-          sha256sums=('SKIP')
+          source=("\$pkgname::git+\$url.git#branch=${BRANCH}"
+                  "kbuildsycoca.hook"
+                  "plasmazones-refresh-sycoca")
+          sha256sums=('SKIP' '${HOOK_SUM}' '${SCRIPT_SUM}')
           install=plasmazones.install
 
           pkgver() {
@@ -628,15 +688,17 @@ jobs:
 
           package() {
               DESTDIR="\$pkgdir" cmake --install build
-              install -Dm644 "\$pkgname/packaging/arch/kbuildsycoca.hook" \\
+              install -Dm644 "\$srcdir/kbuildsycoca.hook" \\
                   "\$pkgdir/usr/share/libalpm/hooks/plasmazones-kbuildsycoca.hook"
-              install -Dm755 "\$pkgname/packaging/arch/plasmazones-refresh-sycoca" \\
+              install -Dm755 "\$srcdir/plasmazones-refresh-sycoca" \\
                   "\$pkgdir/usr/share/libalpm/scripts/plasmazones-refresh-sycoca"
               install -Dm644 "\$pkgname/LICENSE"        "\$pkgdir/usr/share/licenses/\$pkgname/LICENSE"
               install -Dm644 "\$pkgname/COPYING.LESSER" "\$pkgdir/usr/share/licenses/\$pkgname/COPYING.LESSER"
           }
           PKGBUILD_EOF
-          cp packaging/arch/plasmazones.install draft-pkgbuild/
+          cp .packaging/plasmazones/arch/plasmazones.install \
+             .packaging/plasmazones/arch/kbuildsycoca.hook \
+             .packaging/plasmazones/arch/plasmazones-refresh-sycoca draft-pkgbuild/
 
       - name: Upload .pkg.tar.zst
         uses: actions/upload-artifact@v7

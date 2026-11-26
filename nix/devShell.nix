@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# packaging/nix/devShell.nix — the `nix develop` environment. It is
+# nix/devShell.nix — the `nix develop` environment. It is
 # callPackage'd from a pkgs set that already has the PlasmaZones overlay
 # applied, so `plasmazones` resolves to the real package and the shell inherits
 # its complete build environment via `inputsFrom`.
