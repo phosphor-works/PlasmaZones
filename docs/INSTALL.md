@@ -123,3 +123,5 @@ release, and where Qt is the same version or newer. Thus the tarball is not a me
 
 - [Use](USAGE.md)
 - [Troubleshooting](TROUBLESHOOTING.md)
+- [phosphor-works/packaging](https://github.com/phosphor-works/packaging): the recipes and the release workflow that
+  build these packages

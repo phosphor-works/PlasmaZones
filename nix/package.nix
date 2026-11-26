@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# packaging/nix/package.nix — PlasmaZones build recipe for Nix/nixpkgs
+# nix/package.nix — PlasmaZones build recipe for Nix/nixpkgs
 #
 # This file is the *single source of truth* for how to build PlasmaZones
 # under Nix. It is consumed by two callers:
@@ -18,10 +18,10 @@
 # against the wrong pkgs produces a plugin that silently fails to load.
 #
 #   # Correct (host pkgs — matches the running KWin):
-#   pkgs.callPackage ./packaging/nix/package.nix { src = plasmazones-src; }
+#   pkgs.callPackage ./nix/package.nix { src = plasmazones-src; }
 #
 #   # Wrong (pinned pkgs — may not match the running KWin):
-#   pinnedPkgs.callPackage ./packaging/nix/package.nix { ... }
+#   pinnedPkgs.callPackage ./nix/package.nix { ... }
 #
 # BUILD FLAGS
 # ───────────

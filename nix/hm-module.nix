@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# packaging/nix/hm-module.nix — Home Manager module (programs.plasmazones).
+# nix/hm-module.nix — Home Manager module (programs.plasmazones).
 #
 # For per-user installs without NixOS (the Nix package manager on another
 # distro, or dotfiles managed by Home Manager). The package default builds
 # against the host's pkgs so the KWin effect plugin's IID matches the running
-# KWin (see packaging/nix/overlays.nix).
+# KWin (see nix/overlays.nix).
 #
 # Usage:
 #   inputs.plasmazones.url = "github:phosphor-works/PlasmaZones";

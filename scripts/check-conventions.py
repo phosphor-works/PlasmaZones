@@ -80,6 +80,12 @@ CODE_SUFFIXES = (CPP_SUFFIXES | QML_SUFFIXES | SHADER_SUFFIXES
 # defers a missing header to the spdx rule when that rule will actually run.
 _SELECTED_RULES: set[str] = set()
 
+# Whether this invocation is the pre-commit form (--staged), and whether it checks
+# the whole tree (no FILES). The rules that read the recipes of the packaging
+# repository consult them: see _recipes_root().
+_STAGED = False
+_WHOLE_TREE = False
+
 # Generated trees that are not ours to police. Nothing vendored is committed:
 # phosphor-libs and the third-party sources are pinned archives
 # (cmake/PlasmaZonesDependencies.cmake) fetched into .cache/, which git ignores.
@@ -251,12 +257,11 @@ SPDX_EXEMPT = re.compile(r"(^|/)data/.*\.json$|(^|/)metadata\.json$")
 
 # How far in a header may sit. Named because TWO rules read it and because the message
 # quotes the number: widening it silently turns "in the first 6 lines" into a lie. FIVE is
-# what the deepest header in the tree needs (packaging/arch/update-aur.sh: a shebang, two
-# comment lines, then the two tags on 4 and 5), so six gives one line of slack. The band is
-# closed INSIDE the selftest from both sides: the deep_ok probe puts its tags on 5 and 6 and
-# must not be reported, which fails at 4 or 5, and the toodeep probe puts its tags past the
-# window and must be reported, which fails at 7 or more. A whole-tree run independently
-# rejects 4 and below (update-aur.sh). Only 6 survives all three.
+# what the deepest header needed (update-aur.sh, now in the packaging repository: a shebang,
+# two comment lines, then the two tags on 4 and 5), so six gives one line of slack. The band
+# is closed INSIDE the selftest from both sides: the deep_ok probe puts its tags on 5 and 6
+# and must not be reported, which fails at 4 or 5, and the toodeep probe puts its tags past
+# the window and must be reported, which fails at 7 or more. Only 6 survives both.
 SPDX_HEAD_LINES = 6
 
 
@@ -565,6 +570,54 @@ DEB_DESC = re.compile(r"^Description:[^\n]*\n((?:[ \t]+[^\n]*\n)+)", re.M)
 DEB_DESC_BULLET = re.compile(r"^[ \t]*[-*]\s+", re.M)
 
 
+def recipe_prose(f: str, body: str) -> list[Violation]:
+    """The package descriptions of one recipe or workflow file F, whose text is BODY.
+
+    rule_prose calls it for the Nix recipe and the workflows of this tree, and
+    rule_recipe_prose for the recipes of the packaging repository, which are not files
+    of this tree and so cannot go through read()."""
+    out = []
+    suffix = Path(f).suffix
+    stripped = strip_hash_comments(body)
+    for m in PKG_DESC.finditer(stripped):
+        for p in prose_problems(m.group(1)):
+            out.append(Violation("prose", f, 0, f"{p} -> {m.group(1)[:80]!r}"))
+    # Nix and RPM bodies the line-oriented pattern above cannot reach.
+    # Read from the raw text, not the hash-stripped copy: `#` is not a
+    # comment inside a Nix string or an RPM %description.
+    if suffix == ".nix":
+        for m in NIX_LONG_DESC_ESCAPE.finditer(body):
+            out.append(Violation("prose", f, line_of(body, m.start()),
+                                 "longDescription contains a Nix '' escape; this rule cannot "
+                                 "read past it, so the rest of the body is unchecked"))
+        for pat in (NIX_DESC, NIX_LONG_DESC):
+            for m in pat.finditer(body):
+                for p in prose_problems(m.group(1)):
+                    out.append(Violation("prose", f, line_of(body, m.start()),
+                                         f"{p} -> {m.group(1).strip()[:80]!r}"))
+    if suffix == ".spec":
+        for m in RPM_DESC.finditer(body):
+            # Same bullet strip as the deb822 body below. An RPM %description is
+            # free-form, so its feature list is indistinguishable from prose to
+            # this rule: the live one passes only because its `-` markers sit at
+            # column 0, and an ordinary reflow that indented them turned every
+            # bullet into "spaced hyphen used as a dash" and blocked the commit,
+            # while the identical indented list in debian/control reported nothing.
+            para = DEB_DESC_BULLET.sub("", m.group(1))
+            for p in prose_problems(para):
+                out.append(Violation("prose", f, line_of(body, m.start()),
+                                     f"{p} -> {para.strip()[:80]!r}"))
+    # debian/control has no suffix, so it is matched by NAME. CLAUDE.md lists the
+    # "Debian Description" among the surfaces these rules govern.
+    if Path(f).name == "control":
+        for m in DEB_DESC.finditer(body):
+            para = DEB_DESC_BULLET.sub("", m.group(1))
+            for p in prose_problems(para):
+                out.append(Violation("prose", f, line_of(body, m.start()),
+                                     f"{p} -> {para.strip()[:80]!r}"))
+    return out
+
+
 def rule_prose(files: list[str]) -> list[Violation]:
     out = []
     for f in files:
@@ -642,48 +695,13 @@ def rule_prose(files: list[str]) -> list[Violation]:
                     out.append(Violation("prose", f, n, f"{pr} -> {body.strip()[:80]!r}"))
             continue
 
-        # .github/workflows too: the draft PKGBUILD pkgdesc is generated in
-        # ci.yml and release.yml, pacman prints it, and this arm used to stop
-        # at the packaging/ prefix so those strings were invisible.
-        if f.startswith("packaging/") or (f.startswith(".github/workflows/") and suffix in (".yml", ".yaml")):
-            body = read(f)
-            stripped = strip_hash_comments(body)
-            for m in PKG_DESC.finditer(stripped):
-                for p in prose_problems(m.group(1)):
-                    out.append(Violation("prose", f, 0, f"{p} -> {m.group(1)[:80]!r}"))
-            # Nix and RPM bodies the line-oriented pattern above cannot reach.
-            # Read from the raw text, not the hash-stripped copy: `#` is not a
-            # comment inside a Nix string or an RPM %description.
-            if suffix == ".nix":
-                for m in NIX_LONG_DESC_ESCAPE.finditer(body):
-                    out.append(Violation("prose", f, line_of(body, m.start()),
-                                         "longDescription contains a Nix '' escape; this rule cannot "
-                                         "read past it, so the rest of the body is unchecked"))
-                for pat in (NIX_DESC, NIX_LONG_DESC):
-                    for m in pat.finditer(body):
-                        for p in prose_problems(m.group(1)):
-                            out.append(Violation("prose", f, line_of(body, m.start()),
-                                                 f"{p} -> {m.group(1).strip()[:80]!r}"))
-            if suffix == ".spec":
-                for m in RPM_DESC.finditer(body):
-                    # Same bullet strip as the deb822 body below. An RPM %description is
-                    # free-form, so its feature list is indistinguishable from prose to
-                    # this rule: the live one passes only because its `-` markers sit at
-                    # column 0, and an ordinary reflow that indented them turned every
-                    # bullet into "spaced hyphen used as a dash" and blocked the commit,
-                    # while the identical indented list in debian/control reported nothing.
-                    para = DEB_DESC_BULLET.sub("", m.group(1))
-                    for p in prose_problems(para):
-                        out.append(Violation("prose", f, line_of(body, m.start()),
-                                             f"{p} -> {para.strip()[:80]!r}"))
-            # debian/control has no suffix, so it is matched by NAME. CLAUDE.md lists the
-            # "Debian Description" among the surfaces these rules govern.
-            if Path(f).name == "control":
-                for m in DEB_DESC.finditer(body):
-                    para = DEB_DESC_BULLET.sub("", m.group(1))
-                    for p in prose_problems(para):
-                        out.append(Violation("prose", f, line_of(body, m.start()),
-                                             f"{p} -> {para.strip()[:80]!r}"))
+        # The Nix recipe, beside its flake, and .github/workflows too: the draft
+        # PKGBUILD pkgdesc is generated in ci.yml, pacman prints it, and this arm used
+        # to stop at the recipe prefix so those strings were invisible. The other
+        # recipes are in the packaging repository, and the recipe-prose rule reads them
+        # through the same recipe_prose().
+        if f.startswith("nix/") or (f.startswith(".github/workflows/") and suffix in (".yml", ".yaml")):
+            out.extend(recipe_prose(f, read(f)))
             continue
 
         if re.search(r"(^|/)data/algorithms/", f) and suffix == ".luau":
@@ -707,11 +725,76 @@ def rule_prose(files: list[str]) -> list[Violation]:
 # symlinks, so it does not take read().
 def rule_dep5(files: list[str]) -> list[Violation]:
     _add_script_dir_to_path()
-    from conventions_dep5 import dep5_problems
+    from conventions_dep5 import dep5_name, dep5_problems
 
+    root, missing = _recipes_root("dep5")
+    if root is None:
+        return missing
+    dep5 = root / "debian" / "copyright"
+    if not dep5.is_file():
+        return [Violation("dep5", dep5_name(dep5, REPO), 0,
+                          "the DEP-5 file is missing, so no license or holder was checked")]
     return [Violation("dep5", p, ln, m) for p, ln, m in
-            dep5_problems(files, repo=REPO, line_of=line_of,
-                          tracked_files=tracked_files)]
+            dep5_problems(files, repo=REPO, dep5=dep5, line_of=line_of,
+                          tracked_files=tracked_files, whole_tree=_WHOLE_TREE)]
+
+
+# --------------------------------------------------------------------------
+# The recipes of the packaging repository
+# --------------------------------------------------------------------------
+#
+# dep5, dep-pins and recipe-prose read plasmazones/ of the packaging checkout, which
+# conventions_packaging.py finds. A run that cannot find it reports that as a finding,
+# so the rules never pass without reading the recipes. The pre-commit form is the
+# exception: a commit here does not change the recipes, so it prints one note and
+# skips them, and CI's whole-tree run is the backstop.
+_RECIPES_NOTE_PRINTED = False
+
+
+def _recipes_root(rule: str) -> tuple[Path | None, list[Violation]]:
+    """plasmazones/ of the packaging checkout, or None and what to report instead."""
+    global _RECIPES_NOTE_PRINTED
+    _add_script_dir_to_path()
+    from conventions_packaging import LABEL, missing_message, recipes_dir
+
+    root = recipes_dir(REPO)
+    if root is not None:
+        return root, []
+    if _STAGED:
+        if not _RECIPES_NOTE_PRINTED:
+            print(f"check-conventions: {missing_message(REPO)}. CI checks them.", file=sys.stderr)
+            _RECIPES_NOTE_PRINTED = True
+        return None, []
+    return None, [Violation(rule, LABEL, 0, missing_message(REPO))]
+
+
+# Rule: recipe-prose — the prose rule over the package descriptions of the recipes in
+# the packaging repository, which are not files of this tree.
+def rule_recipe_prose(files: list[str]) -> list[Violation]:
+    # Whole-set, like dep-pins: a recipe that changes is never a staged file here.
+    del files
+    _add_script_dir_to_path()
+    from conventions_packaging import LABEL, tracked_recipes
+
+    root, missing = _recipes_root("recipe-prose")
+    if root is None:
+        return missing
+    try:
+        recipes = tracked_recipes(root)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return [Violation("recipe-prose", LABEL, 0, f"cannot list the recipes ({exc}), so none was checked")]
+    if not recipes:
+        return [Violation("recipe-prose", LABEL, 0, "git lists no recipe there, so none was checked")]
+    out = []
+    for rel in recipes:
+        try:
+            body = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            out.append(Violation("recipe-prose", f"{LABEL}/{rel}", 0, f"cannot read it ({exc.strerror})"))
+            continue
+        for v in recipe_prose(f"{LABEL}/{rel}", body):
+            out.append(Violation("recipe-prose", v.path, v.line, v.message))
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -861,8 +944,9 @@ def rule_engine_data_prose(files: list[str]) -> list[Violation]:
 
 # Rule: dep-pins — every packaging recipe that fetches the third-party archives
 # itself carries each pin from cmake/PlasmaZonesDependencies.cmake, and from the pinned
-# phosphor-libs tree's cmake/PhosphorDependencies.cmake, exactly. The data and
-# the check live in conventions_dep_pins.py.
+# phosphor-libs tree's cmake/PhosphorDependencies.cmake, exactly: nix/package.nix here,
+# and the PKGBUILDs and the spec in the packaging repository. The data and the check
+# live in conventions_dep_pins.py.
 def rule_dep_pins(files: list[str]) -> list[Violation]:
     # `files` is unused for the reason rule_shared_param_text gives: the drift to catch
     # is a commit that bumps the pin file and leaves a recipe, whose file is then the
@@ -871,7 +955,10 @@ def rule_dep_pins(files: list[str]) -> list[Violation]:
     _add_script_dir_to_path()
     from conventions_dep_pins import dep_pin_problems
 
-    return [Violation("dep-pins", p, 0, m) for p, m in dep_pin_problems(REPO)]
+    # Without the packaging checkout the Nix recipe of this tree is still checked,
+    # and the missing checkout is reported beside it.
+    root, missing = _recipes_root("dep-pins")
+    return missing + [Violation("dep-pins", p, 0, m) for p, m in dep_pin_problems(REPO, packaging=root)]
 
 
 # --------------------------------------------------------------------------
@@ -886,10 +973,11 @@ RULES = {
     "prose": (rule_prose, "user-facing strings carry no em-dash splice, clause semicolon or spaced hyphen"),
     "engine-data-prose": (rule_engine_data_prose,
                           "the same prose rule over the layouts, templates and algorithms of the pinned engine tree"),
-    "dep5": (rule_dep5, "packaging/debian/copyright declares each file's real license and holders"),
+    "dep5": (rule_dep5, "packaging/plasmazones/debian/copyright declares each file's real license and holders"),
     "js-pragma": (rule_js_pragma, f"QML .js libraries declare '.pragma library' in Qt's first {JS_PRAGMA_WINDOW} bytes"),
     "shared-param-text": (rule_shared_param_text, "a chain-resolved param's description matches on every pack"),
     "dep-pins": (rule_dep_pins, "packaging recipes carry the archive pins from cmake/PlasmaZonesDependencies.cmake and the pinned phosphor-libs tree"),
+    "recipe-prose": (rule_recipe_prose, "the prose rule over the package descriptions of packaging/plasmazones/"),
 }
 
 
@@ -953,8 +1041,10 @@ def main() -> int:
             print(f"unknown rule(s): {', '.join(unknown)}", file=sys.stderr)
             return 2
 
-    global _SELECTED_RULES
+    global _SELECTED_RULES, _STAGED, _WHOLE_TREE
     _SELECTED_RULES = set(selected)
+    _STAGED = args.staged
+    _WHOLE_TREE = not args.files and not args.staged
 
     if args.staged and not args.files:
         # Nothing staged matched the hook's globs. Not an error, and not a

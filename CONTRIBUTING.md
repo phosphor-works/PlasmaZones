@@ -48,6 +48,12 @@ Every source file starts with an SPDX header in this format:
 Phosphor Works Team is the only copyright holder of the project's own work. Do not add your name to the copyright
 line. A file that you port from another project also keeps the copyright line of that project.
 
+The Debian copyright file of the packages declares the license and the holders of each file. It is
+`plasmazones/debian/copyright` in [phosphor-works/packaging](https://github.com/phosphor-works/packaging), with the
+other release recipes. If you add a file with another license or another holder, change that file in a pull request
+to the packaging repository. Give its branch the same name as your PlasmaZones branch. The CI of each repository
+then checks your branch against the other one.
+
 ## Send a change
 
 1. Fork the repository.
