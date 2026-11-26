@@ -36,11 +36,11 @@
 //
 // The 6.7 half is deleted once every channel the release pipeline builds for
 // (Debian unstable, Fedora, openSUSE Tumbleweed) and nixpkgs carries KWin 6.8.
-// .github/workflows/kwin-rebuild-watch.yml logs each release channel's current
-// KWin on every run. It does not probe nixpkgs: the `nix` jobs' configure step
-// prints the paint API it selected, and that reads "bool" once the locked
-// nixpkgs has moved to 6.8. See kwin-effect/CMakeLists.txt for the rest of the
-// cleanup.
+// plasmazones-rebuild-watch.yml of the packaging repository logs each release
+// channel's current KWin on every run. It does not probe nixpkgs: the `nix`
+// jobs' configure step prints the paint API it selected, and that reads "bool"
+// once the locked nixpkgs has moved to 6.8. See kwin-effect/CMakeLists.txt
+// for the rest of the cleanup.
 
 #include <effect/effecthandler.h>
 #include <effect/offscreeneffect.h>

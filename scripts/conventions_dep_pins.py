@@ -10,9 +10,10 @@ sources (Luau, jsoncons), and this rule reads it from the pinned tree itself
 (scripts/pinned_phosphor_libs.py), so a phosphor-libs bump that moves one of those
 pins is checked too. With PHOSPHOR_LIBS_DIR set, that tree is the checkout it names
 instead, and the messages say so rather than naming the pinned commit. An offline
-packaging build cannot download, so each recipe in PIN_RECIPES lists every one of
-these archives as an extra source of its own, and in doing so repeats the URL and the
-hash. Nothing else ties those copies to the pins, so a bump that missed one recipe
+packaging build cannot download, so each recipe in PIN_RECIPES (in this repository)
+and PACKAGING_PIN_RECIPES (in plasmazones/ of the packaging repository, see
+conventions_packaging.py) lists every one of these archives as an extra source of its
+own, and in doing so repeats the URL and the hash. Nothing else ties those copies to the pins, so a bump that missed one recipe
 would only surface when that distro's build failed its hash check, or worse, built
 from whatever the recipe still named. This rule fails the gate instead, naming the
 recipe and the dependency. It also fails a recipe that still fetches an archive no
@@ -22,7 +23,8 @@ URL. The recipes' own release tarball is spelled through a variable (`$url`,
 `%{url}`, fetchFromGitHub), so it is not such a literal.
 
 The jobs that stage the archives with the fetch script (the Debian and OBS paths in
-release.yml) read the pin files themselves and carry no copy, so they are not listed.
+plasmazones-release.yml of the packaging repository) read the pin files themselves and
+carry no copy, so they are not listed.
 
 Stdlib only, and it returns plain tuples rather than the gate's Violation so the two
 files cannot form a cycle, the same shape as conventions_shared_text.py.
@@ -35,6 +37,8 @@ import re
 from pathlib import Path
 from typing import Callable
 
+from conventions_packaging import LABEL as PACKAGING_LABEL
+
 PIN_FILE = "cmake/PlasmaZonesDependencies.cmake"
 # The library tree's own pin file, relative to that tree.
 LIBS_PIN_FILE = "cmake/PhosphorDependencies.cmake"
@@ -43,12 +47,16 @@ LIBS_DEP = "phosphor-libs"
 # The environment variable scripts/pinned_phosphor_libs.py takes a local tree from.
 LIBS_OVERRIDE_ENV = "PHOSPHOR_LIBS_DIR"
 
-# Every recipe that fetches the archives itself and so must repeat each pin.
+# Every recipe that fetches the archives itself and so must repeat each pin: the Nix
+# recipe in this repository, beside its flake, and the others in plasmazones/ of the
+# packaging repository.
 PIN_RECIPES = (
-    "packaging/arch/PKGBUILD",
-    "packaging/arch/PKGBUILD.git",
-    "packaging/rpm/plasmazones.spec",
-    "packaging/nix/package.nix",
+    "nix/package.nix",
+)
+PACKAGING_PIN_RECIPES = (
+    "arch/PKGBUILD",
+    "arch/PKGBUILD.git",
+    "rpm/plasmazones.spec",
 )
 
 # The variable prefix each pin file uses: `set(<PREFIX>S a b)` lists the pins and
@@ -110,13 +118,15 @@ def _libs_label(root: Path, pinned_version: str) -> str:
 
 
 def dep_pin_problems(repo: Path,
-                     libs_tree: Callable[[Path], Path] = _pinned_tree) -> list[tuple[str, str]]:
+                     libs_tree: Callable[[Path], Path] = _pinned_tree,
+                     packaging: Path | None = None) -> list[tuple[str, str]]:
     """Return (path, message) for each recipe that drifted from a pin.
 
     `repo` is passed in and every path is anchored on it, never on the process CWD,
     so the rule cannot pass in silence when run from another directory. `libs_tree`
     finds the pinned phosphor-libs tree, and is only called when the pin file pins
-    one.
+    one. `packaging` is plasmazones/ of the packaging checkout. Without it only the
+    recipes of this repository are checked, and the caller reports why.
     """
     out: list[tuple[str, str]] = []
     pin_path = repo / PIN_FILE
@@ -155,15 +165,18 @@ def dep_pin_problems(repo: Path,
                     continue
                 pins[dep] = got
                 source[dep] = label
+    recipes = [(r, repo / r) for r in PIN_RECIPES]
+    if packaging is not None:
+        recipes += [(f"{PACKAGING_LABEL}/{r}", packaging / r) for r in PACKAGING_PIN_RECIPES]
     # An empty recipe list is the quiet way to switch the rule off while it stays in
     # --list-rules, so it has to announce itself.
-    if not PIN_RECIPES:
+    if not recipes:
         out.append(("scripts/conventions_dep_pins.py",
                     "PIN_RECIPES is empty, so this rule checks nothing; delete the rule outright "
                     "rather than emptying its list"))
-    for recipe in PIN_RECIPES:
+    for recipe, path in recipes:
         try:
-            body = (repo / recipe).read_text(encoding="utf-8")
+            body = path.read_text(encoding="utf-8")
         except OSError as e:
             out.append((recipe, f"listed in PIN_RECIPES but cannot be read ({e.strerror})"))
             continue

@@ -17,6 +17,8 @@ import fnmatch
 import re
 import subprocess
 
+from conventions_packaging import LABEL as PACKAGING_LABEL
+
 
 # The Debian DEP-5 file tells every downstream redistributor what each shipped
 # file's license is. Nothing kept it honest, so it drifted: it declared 165
@@ -105,16 +107,35 @@ def dep5_stanza_for(rel: str, stanzas: list[dict]) -> tuple[dict, str] | tuple[N
     return hit
 
 
-def dep5_problems(files, *, repo, line_of, tracked_files):
-    dep5 = repo / "packaging" / "debian" / "copyright"
+def dep5_name(dep5, repo) -> str:
+    """How the messages name the DEP-5 file: its path in this tree when it is in it,
+    which only the self-test's temp trees do, and else its path in the packaging
+    repository, where the real one lives."""
+    try:
+        return str(dep5.relative_to(repo))
+    except ValueError:
+        return f"{PACKAGING_LABEL}/debian/copyright"
+
+
+def dep5_problems(files, *, repo, dep5, line_of, tracked_files, whole_tree=False):
+    """Check FILES against the DEP-5 file DEP5.
+
+    The rule hands in the packaging checkout's plasmazones/debian/copyright, and reports a
+    missing one itself, so an absent file here means the check cannot run rather than
+    that everything failed. WHOLE_TREE is a run over every tracked file, which also checks
+    for dead stanzas."""
     if not dep5.exists():
         return []
+    label = dep5_name(dep5, repo)
     stanzas = parse_dep5(dep5)
     if not stanzas:
-        return [(str(dep5.relative_to(repo)), 0, "no Files stanza parsed")]
+        return [(label, 0, "no Files stanza parsed")]
 
     # Editing the DEP-5 file can break any file in the tree, not only the ones
-    # staged beside it, so that edit widens the check to everything.
+    # staged beside it, so that edit widens the check to everything. That arm only
+    # applies to a DEP-5 file inside the tree, which the self-test's are: the real one
+    # is in the packaging repository, whose own CI runs this rule over the whole tree
+    # when it changes.
     #
     # The widened list deliberately BYPASSES the gate's readability precondition, which
     # filtered `files` before this rule was called. That is safe here and nowhere else:
@@ -122,7 +143,8 @@ def dep5_problems(files, *, repo, line_of, tracked_files):
     # rather than handed to the rest of this function as an empty string. What the bypass
     # costs is the `[unreadable]` finding for a file the caller never named, which on a
     # pre-commit run touching only the DEP-5 file would be noise rather than news.
-    targets = tracked_files() if str(dep5.relative_to(repo)) in files else files
+    widened = whole_tree or label in files
+    targets = tracked_files() if widened else files
 
     out = []
     for f in targets:
@@ -135,13 +157,13 @@ def dep5_problems(files, *, repo, line_of, tracked_files):
         got = m.group(1)
         s, pat = dep5_stanza_for(f, stanzas)
         if s is None:
-            out.append((f, 0, "no Files stanza in packaging/debian/copyright matches this path"))
+            out.append((f, 0, f"no Files stanza in {label} matches this path"))
             continue
         if s["license"] != got:
             out.append(
                 (f,
                     line_of(head, m.start()),
-                    f"header says {got}, but packaging/debian/copyright declares {s['license']} "
+                    f"header says {got}, but {label} declares {s['license']} "
                     f"for it (matched by 'Files: {pat}')",
                 )
             )
@@ -252,7 +274,7 @@ def dep5_problems(files, *, repo, line_of, tracked_files):
                     (f,
                         0,
                         f"copyright holder {shown} is not named in the matching "
-                        f"packaging/debian/copyright stanza ('Files: {pat}')",
+                        f"{label} stanza ('Files: {pat}')",
                     )
                 )
 
@@ -266,7 +288,7 @@ def dep5_problems(files, *, repo, line_of, tracked_files):
     #
     # Only on a run that already widened to the whole tree: on a staged subset
     # `targets` is not the tracked list and every pattern would look dead.
-    if targets is not files:
+    if widened:
         out += _dead_stanza_problems(stanzas, dep5, repo)
     return out
 
@@ -281,8 +303,8 @@ def _git_ls_files(repo) -> list[str]:
 
 
 # `debian/` is the assembled source package's own layout, not this repo's: dpkg reads
-# debian/copyright from the unpacked tree, where packaging/debian/ has been moved to
-# debian/. A stanza naming it is correct and permanently unmatched here.
+# debian/copyright from the unpacked tree, where the recipe's debian/ directory has been
+# moved to debian/. A stanza naming it is correct and permanently unmatched here.
 # `packaging/deps/` is the same kind of path: the pinned third-party archives
 # (cmake/PlasmaZonesDependencies.cmake) sit there only in the Debian source package
 # and in a build-deb checkout that fetched them. git ignores the directory.
@@ -308,7 +330,7 @@ def _dead_stanza_problems(stanzas: list[dict], dep5, repo, *,
         known = list_paths(repo)
     except (OSError, subprocess.CalledProcessError) as exc:
         # Not a licensing finding, and not silent either: the check simply cannot run.
-        return [(str(dep5.relative_to(repo)), 0, f"cannot list tracked paths to check for dead "
+        return [(dep5_name(dep5, repo), 0, f"cannot list tracked paths to check for dead "
                                                  f"Files stanzas ({exc})")]
     out = []
     for s in stanzas:
@@ -317,7 +339,7 @@ def _dead_stanza_problems(stanzas: list[dict], dep5, repo, *,
                 continue
             if not any(fnmatch.fnmatchcase(p, pat) for p in known):
                 out.append(
-                    (str(dep5.relative_to(repo)),
+                    (dep5_name(dep5, repo),
                         0,
                         f"'Files: {pat}' matches no tracked path, so the stanza is dead and "
                         f"anything it was meant to cover falls back to an earlier stanza",

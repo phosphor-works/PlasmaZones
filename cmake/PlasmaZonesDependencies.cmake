@@ -7,9 +7,10 @@
 # phosphor-components commit whose QML components it draws with,
 # the suite's branding release and the surface decoration packs commit. This file is the only place these pins live. The phosphor-libs tree pins its own third-party sources (Luau,
 # jsoncons) in its cmake/PhosphorDependencies.cmake, at the commit pinned here.
-# The packaging recipes repeat the URL and hash of every archive they fetch,
-# both these and the library tree's, and scripts/check-conventions.py (the
-# dep-pins rule) fails when one of them no longer matches its pin.
+# The packaging recipes (nix/package.nix here, and plasmazones/ of the
+# phosphor-works/packaging repository) repeat the URL and hash of every archive
+# they fetch, both these and the library tree's, and scripts/check-conventions.py
+# (the dep-pins rule) fails when one of them no longer matches its pin.
 #
 # How phosphor-libs is obtained, in order:
 #

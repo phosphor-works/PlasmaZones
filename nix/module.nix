@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# packaging/nix/module.nix — NixOS module (programs.plasmazones).
+# nix/module.nix — NixOS module (programs.plasmazones).
 #
 # This is the recommended install path on NixOS: the package default builds
 # against the host's pkgs, so the KWin effect plugin's IID matches the running
-# KWin (see packaging/nix/overlays.nix for the full rationale).
+# KWin (see nix/overlays.nix for the full rationale).
 #
 # Usage:
 #   inputs.plasmazones.url = "github:phosphor-works/PlasmaZones";

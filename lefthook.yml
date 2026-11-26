@@ -61,10 +61,12 @@ pre-commit:
       # the third-party pins each packaging recipe repeats from
       # cmake/PlasmaZonesDependencies.cmake. Only the staged files are checked so
       # the hook stays instant, except where a rule cannot answer from a staged
-      # subset. shared-param-text and dep-pins are whole-set rules: each reads
-      # every file it governs whenever this hook runs at all, so it can name a
-      # file this commit did not stage. dep5 widens to the whole tree when
-      # packaging/debian/copyright is itself staged. A commit that stages
+      # subset. shared-param-text, dep-pins and recipe-prose are whole-set
+      # rules: each reads every file it governs whenever this hook runs at all,
+      # so it can name a file this commit did not stage. dep5, dep-pins and
+      # recipe-prose read the recipes from the packaging checkout beside this
+      # one (scripts/conventions_packaging.py). Without one, this hook prints a
+      # note and skips them, and CI checks them. A commit that stages
       # nothing matching the globs below runs none of them, because lefthook
       # skips a command whose glob filters every staged path away; the gate's
       # own empty-staged-list early return is the backstop for a hand-run or
@@ -79,12 +81,12 @@ pre-commit:
         # CI, which is the wall-of-warnings-from-files-nobody-edited case it
         # was written to prevent.
         # `sh` and `cmake` for the same reason: three rules read those suffixes, and
-        # without an entry the tracked ones outside packaging/ (cmake/, the
-        # nested-session helpers, plasmazones-report.sh, docs/media/videos/convert.sh)
-        # matched no glob at all, so editing one ran no pre-commit check. `c` covers the
-        # two QPA protocol stubs.
-        # `spec` is in CODE_SUFFIXES too. Today the only tracked one lives under
-        # packaging/, which the entry below already covers, so this closes the shape
+        # without an entry the tracked ones (cmake/, the nested-session helpers,
+        # plasmazones-report.sh, docs/media/videos/convert.sh) matched no glob at
+        # all, so editing one ran no pre-commit check. `c` covers the two QPA
+        # protocol stubs.
+        # `spec` is in CODE_SUFFIXES too. No tracked one is in this tree now (the
+        # RPM spec is in the packaging repository), so this closes the shape
         # rather than a live gap.
         - "*.{c,cpp,cc,cxx,h,hpp,qml,luau,py,frag,vert,glsl,js,sh,cmake,spec}"
         - "plasmazones/data/**/*.json"
@@ -94,7 +96,6 @@ pre-commit:
         - "plasmazones/data/*.json"
         - "*.desktop*"
         - "*.metainfo.xml*"
-        - "packaging/**"
         # Markdown at any depth, for two rules. The prose rule reads
         # CHANGELOG.md, and dep5 reads every staged path that carries an SPDX
         # header, which the docs, the skills and the agent definitions do.
@@ -110,10 +111,10 @@ pre-commit:
         - "*.yaml"
         # Everything else that carries an SPDX header, for dep5 alone: a
         # licence changed in any of these is checked against
-        # packaging/debian/copyright like a source file's. In order, the
+        # debian/copyright of the recipes like a source file's. In order, the
         # CMakeLists.txt files and other .txt, the .in templates, D-Bus and
         # protocol XML, Qt resource lists, SVG, the session-bus config, the Nix
-        # flake, the extensionless forwarding headers under a library's
+        # flake and recipe, the extensionless forwarding headers under a library's
         # include/ directory, the JSON test fixtures that keep their header in
         # a `_comment` key, the Makefiles and Dockerfiles, and the repo-level
         # dotfiles. `*` crosses directory separators in lefthook's matcher and

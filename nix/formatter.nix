@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# packaging/nix/formatter.nix — `nix fmt`. Formats Nix, C++, and QML in-tree,
+# nix/formatter.nix — `nix fmt`. Formats Nix, C++, and QML in-tree,
 # reusing the repo's own .clang-format config so there is no second source of
 # truth for C++ style. Wired to flake `formatter.<system>`.
 {

@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # PlasmaZones build container — allows building and testing on macOS via Docker.
-# Build deps copied from packaging/rpm/plasmazones.spec (Fedora path).
+# Build deps copied from plasmazones/rpm/plasmazones.spec of the packaging
+# repository (Fedora path).
 #
 # Usage:
 #   docker build -t plasmazones-build .

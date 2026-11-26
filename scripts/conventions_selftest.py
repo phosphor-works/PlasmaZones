@@ -313,8 +313,10 @@ def _dep_pins_failures() -> list[str]:
     # `override` is what PHOSPHOR_LIBS_DIR holds during the call: None unsets it, so
     # a value in the caller's environment cannot reach the other cases, "tree" names
     # the tree the rule reads, and "elsewhere" a directory it does not read.
+    # `in_packaging` lists the recipe as one of the packaging repository's instead of one
+    # of this tree's, the way the PKGBUILDs and the spec are.
     def run(pin_text, recipe_text, recipes=("recipe",), name="recipe", libs_text=None,
-            override=None) -> list[str]:
+            override=None, in_packaging=False) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
             (d / "cmake").mkdir()
@@ -326,15 +328,19 @@ def _dep_pins_failures() -> list[str]:
             (libs_root / "cmake").mkdir(parents=True)
             if libs_text is not None:
                 (libs_root / mod.LIBS_PIN_FILE).write_text(libs_text, encoding="utf-8")
-            saved = mod.PIN_RECIPES
+            saved = mod.PIN_RECIPES, mod.PACKAGING_PIN_RECIPES
             saved_env = os.environ.pop(mod.LIBS_OVERRIDE_ENV, None)
             if override is not None:
                 os.environ[mod.LIBS_OVERRIDE_ENV] = str(libs_root if override == "tree" else d / "elsewhere")
-            mod.PIN_RECIPES = recipes
+            if in_packaging:
+                mod.PIN_RECIPES, mod.PACKAGING_PIN_RECIPES = (), recipes
+            else:
+                mod.PIN_RECIPES, mod.PACKAGING_PIN_RECIPES = recipes, ()
             try:
-                return [m for _, m in mod.dep_pin_problems(d, libs_tree=lambda _repo: libs_root)]
+                return [f"{p}: {m}" if in_packaging else m for p, m in mod.dep_pin_problems(
+                    d, libs_tree=lambda _repo: libs_root, packaging=d if in_packaging else None)]
             finally:
-                mod.PIN_RECIPES = saved
+                mod.PIN_RECIPES, mod.PACKAGING_PIN_RECIPES = saved
                 os.environ.pop(mod.LIBS_OVERRIDE_ENV, None)
                 if saved_env is not None:
                     os.environ[mod.LIBS_OVERRIDE_ENV] = saved_env
@@ -392,6 +398,11 @@ def _dep_pins_failures() -> list[str]:
            run(pin.replace(f'set({mod.APP_PREFIX}_demo_SHA256 "', f'set({mod.APP_PREFIX}_demo_SHA256\n    "'), good),
            "no SHA256")
     expect("an empty recipe list", run(pin, good, recipes=()), "checks nothing")
+    # A recipe of the packaging repository is read from the checkout it is handed, and
+    # named by its path there.
+    expect("a packaging recipe matching the pin", run(pin, good, in_packaging=True), None)
+    expect("a packaging recipe with a stale hash",
+           run(pin, good.replace(sha, "b" * 64), in_packaging=True), "packaging/plasmazones/recipe: ")
     sri = "sha256-" + base64.b64encode(bytes.fromhex(sha)).decode()
     expect("a .nix recipe carrying the hex and the matching SRI hash",
            run(pin, good + sri + "\n", recipes=("p.nix",), name="p.nix"), None)
@@ -670,7 +681,7 @@ def _dep5_failures() -> list[str]:
         bad.append(f"DEP5_HEAD_LINES is {mod.DEP5_HEAD_LINES}, not 8; changing it silently moves what the rule "
                    f"reads — narrowing hides any header whose tags sit past the new bound, and widening pulls "
                    f"unrelated lines into the header")
-    # Deliberately shaped like the real packaging/debian/copyright rather than flat: a
+    # Deliberately shaped like the real debian/copyright of the recipes rather than flat: a
     # leading COMMENT, a multi-line Files list, and a CONTINUATION line on Copyright. The
     # flat version left the continuation arm, the comment skip, the final-stanza flush and
     # the trailer strip unreachable, and in the real file one holder of mesh_sim.h is
@@ -703,7 +714,7 @@ def _dep5_failures() -> list[str]:
                     p.write_text(body, encoding="utf-8")
             targets = list(check) if check is not None else list(files)
             return [m for _, _, m in mod.dep5_problems(
-                targets, repo=d, line_of=line_of,
+                targets, repo=d, dep5=d / "packaging" / "debian" / "copyright", line_of=line_of,
                 tracked_files=lambda: list(files) + ["packaging/debian/copyright"])]
 
     def hdr(year="2026", who="Phosphor Works Team", lic="GPL-3.0-or-later"):
@@ -916,7 +927,7 @@ def _dep5_failures() -> list[str]:
     if run({"src/plain.cpp": "int main() { return 0; }\n"}):
         bad.append("dep5_problems reported a file carrying no SPDX header")
     if run({"src/a.cpp": hdr(lic="MIT")}, dep5=None):
-        bad.append("dep5_problems reported findings with no packaging/debian/copyright present")
+        bad.append("dep5_problems reported findings with no DEP-5 file present")
 
     # Editing the DEP-5 file itself widens the check to the whole tree, because that one
     # edit can break any file in it. Passing ONLY the copyright path must still reach a

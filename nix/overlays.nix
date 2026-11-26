@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# packaging/nix/overlays.nix — the SINGLE source of truth for the PlasmaZones
+# nix/overlays.nix — the SINGLE source of truth for the PlasmaZones
 # package. Every other flake output (packages, devShells, checks, formatter)
 # and every consumer (NixOS module, Home Manager module, third-party
 # `nixpkgs.overlays` users) resolves the package through THIS overlay, so the

@@ -5,10 +5,11 @@
 
 The repository's caches share 10 GB, and past that GitHub evicts the least
 recently used, which can be the very entry the next run on main restores. CI
-saves a new compiler cache on every run (.github/workflows/ci.yml), and so does
-every package build of a release branch run (.github/workflows/release.yml,
-ccache-release-<flavour>-<run>-<attempt>), so without this the store fills with
-entries nothing reads:
+saves a new compiler cache on every run (.github/workflows/ci.yml), and the
+packaging repository's release workflow saves one for every package build
+(ccache-plasmazones-release-<flavour>-<run>-<attempt>, in that repository's own
+store, which its cache-cleanup.yml trims with this script), so without this the
+store fills with entries nothing reads:
 
   * a closed pull request's caches, which only that pull request restores;
   * a deleted branch's, and a tag's, which no later run restores;
@@ -22,8 +23,8 @@ entries nothing reads:
     on a ref, so the older ones are dead: an entry from an older image or an
     older base is one no restore key of a later run matches.
 
-Run by .github/workflows/cache-cleanup.yml. Needs gh with GH_REPO set and a
-token allowed actions: write. --dry-run lists what would go and deletes nothing.
+Run by .github/workflows/cache-cleanup.yml here and in phosphor-works/packaging.
+Needs gh with GH_REPO set and a token allowed actions: write. --dry-run lists what would go and deletes nothing.
 """
 
 import argparse
