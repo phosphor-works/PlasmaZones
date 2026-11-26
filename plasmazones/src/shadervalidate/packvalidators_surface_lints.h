@@ -14,7 +14,7 @@ class QJsonObject;
 class QString;
 
 namespace PhosphorSurfaceShaders {
-class SurfaceShaderEffect;
+struct SurfaceShaderEffect;
 }
 
 namespace PlasmaZones::ShaderValidate {

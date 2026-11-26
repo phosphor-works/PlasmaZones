@@ -72,7 +72,9 @@ jobs:
       variant-configure-args: -DUSE_KDE_FRAMEWORKS=OFF
       variant-name: KDE Frameworks off
       test-display: true
-      build-timeout: 90
+      # The Clang job builds without unity, and a run with a cold compiler
+      # cache takes longer than 90 minutes.
+      build-timeout: 150
       nix-timeout: 60
       nix-verify: |
         got="$(./result/bin/plasmazonesd --version)"

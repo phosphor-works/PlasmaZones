@@ -55,7 +55,7 @@ void Daemon::queryPlasmaWorkspaceState()
         QStringLiteral("org.freedesktop.systemd1"), QStringLiteral("/org/freedesktop/systemd1"),
         QStringLiteral("org.freedesktop.systemd1.Manager"), QStringLiteral("Subscribe"));
     auto* subscribeWatcher = new QDBusPendingCallWatcher(sessionBus.asyncCall(subscribeMsg), this);
-    connect(subscribeWatcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher* w) {
+    connect(subscribeWatcher, &QDBusPendingCallWatcher::finished, this, [](QDBusPendingCallWatcher* w) {
         w->deleteLater();
         QDBusPendingReply<> reply = *w;
         if (reply.isError()) {

@@ -164,8 +164,11 @@ void drawSceneCursor(const KWin::RenderTarget& renderTarget, const KWin::RenderV
         return;
     }
     const ShaderInternal::ScopedGlState glStateGuard;
-    renderer->renderItem(renderTarget, viewport, scene->cursorItem(), KWin::Effect::PAINT_SCREEN_TRANSFORMED,
-                         KWin::Region::infinite(), KWin::WindowPaintData{}, {}, {});
+    // This runs once a frame, so a failed draw is a debug line, not a warning.
+    if (!renderer->renderItem(renderTarget, viewport, scene->cursorItem(), KWin::Effect::PAINT_SCREEN_TRANSFORMED,
+                              KWin::Region::infinite(), KWin::WindowPaintData{}, {}, {})) {
+        qCDebug(lcEffect) << "the scene cursor did not draw on this pass";
+    }
 }
 
 void translatePackParams(
