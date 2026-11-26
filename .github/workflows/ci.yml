@@ -1,9 +1,11 @@
-# PlasmaZones CI Pipeline
-# Builds on Arch + a stable distro across both USE_KDE_FRAMEWORKS modes,
-# with BUILD_TOOLS=ON to exercise the shader-render tool. Tests run under
-# QT_QPA_PLATFORM=offscreen so QML-touching tests don't need a display.
 # SPDX-FileCopyrightText: 2026 Phosphor Works Team
 # SPDX-License-Identifier: GPL-3.0-or-later
+#
+# PlasmaZones' CI. The build, test, lint and Nix jobs are the shared C++ CI of
+# the workspace repository (cpp-ci.yml), called from the `ci` job with what
+# differs here. The other jobs are PlasmaZones' own checks: the JSON schemas,
+# the conventions, the Luau analysis of the pinned algorithms, and the draft
+# Arch package.
 
 name: CI
 
@@ -25,29 +27,14 @@ on:
     tags: ["v*"]
   pull_request:
     branches: [main, v3, v3.1, v3.2, v3.3, v3.4]
-    # `labeled` is opt-in for the draft-PKGBUILD job below — it gates
-    # on `github.event.label.name == 'build-draft'`. The other jobs
-    # (build / lint / nix) skip the `labeled` action subtype via their
-    # own `if:` filter so adding or removing a label doesn't trigger
-    # a redundant build/lint/nix matrix run. Only the four canonical
-    # PR subtypes are subscribed; `unlabeled` would just cancel a
-    # build the maintainer already wanted, so we don't subscribe.
+    # `labeled` is for the draft-PKGBUILD job below, which runs on the
+    # `build-draft` label. The other jobs skip a labeled event in their `if:`,
+    # so a label starts no second build. `unlabeled` is not subscribed: it
+    # would only cancel a build that is wanted.
     types: [opened, synchronize, reopened, labeled]
-  # `workflow_dispatch` so we can hand-fire the draft-arch packaging
-  # job against an arbitrary ref (e.g. a back-ported hot-fix branch
-  # that isn't yet in a PR). The build / lint / nix jobs explicitly
-  # skip this trigger via their `if:` filter so a manual dispatch of
-  # the packaging job doesn't double-build the matrix.
-  #
-  # The one exception is warm_cache, which ci-image.yml sets after it pushes
-  # a new CI image: then ONLY the two Arch builds run, to save main's compiler
-  # cache for the new image before a pull request needs it.
+  # `workflow_dispatch` starts the draft Arch package job on any ref, for
+  # example a hot-fix branch that has no pull request yet.
   workflow_dispatch:
-    inputs:
-      warm_cache:
-        description: Build both Arch flavours to warm the compiler cache, and nothing else
-        type: boolean
-        default: false
 
 # Default workflow token is read-only; jobs that need writes opt in.
 permissions:
@@ -68,505 +55,27 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'labeled' && format('-label-{0}', github.event.label.name) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+
 jobs:
-  # ─── What a pull request touches, so the jobs that compile the tree can be
-  # skipped when it touches nothing they build. The light checks (lint, JSON
-  # schema, conventions) do not wait on this and run on every event: the
-  # conventions rules read Markdown, .claude/ skills and the CHANGELOG, which
-  # is exactly what a docs-only change edits.
-  #
-  # Pushes always build, so main, the release branches and tags keep a full
-  # result and a fresh compiler cache. No status check is required on main
-  # (there is no branch protection), so a skipped job holds nothing up.
-  #
-  # It also picks the container the Arch jobs run in and names their compiler
-  # caches; see "Pick the CI image" and "Name the compiler cache".
-  changes:
-    name: Detect changes
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled') || (github.event_name == 'workflow_dispatch' && inputs.warm_cache)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      code: ${{ steps.diff.outputs.code }}
-      nix: ${{ steps.diff.outputs.nix }}
-      image: ${{ steps.image.outputs.image }}
-      ccache-key: ${{ steps.ccache.outputs.key }}
-      ccache-restore-own: ${{ steps.ccache.outputs.restore-own }}
-      ccache-restore-base: ${{ steps.ccache.outputs.restore-base }}
-      ccache-save: ${{ steps.ccache.outputs.save }}
-    steps:
-      # ghcr.io/<owner>/plasmazones-ci, built by ci-image.yml, with every
-      # package .github/ci/arch-packages.txt lists. Pinned by digest, so a new
-      # image pushed mid-run does not put the run's jobs on two toolchains.
-      #
-      # Looked up anonymously, the way a fork's pull request would have to pull
-      # it. When that fails (the package is private, or ci-image.yml has never
-      # run) the jobs fall back to archlinux:latest and install the list
-      # themselves: slower, and the compiler cache goes cold on every Arch
-      # update, but correct.
-      - name: Pick the CI image
-        id: image
-        run: |
-          # +e explicitly: Actions runs this as `bash -e`, and a failed lookup
-          # (403 for a package that is private or does not exist yet) must fall
-          # through to the fallback below, not fail the job.
-          set +e -uo pipefail
-          repo="${GITHUB_REPOSITORY_OWNER,,}/plasmazones-ci"
-          token=$(curl -fsSL "https://ghcr.io/token?scope=repository:${repo}:pull" | jq -r .token)
-          digest=$(curl -fsSI \
-            -H "Authorization: Bearer $token" \
-            -H "Accept: application/vnd.oci.image.index.v1+json" \
-            -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-            -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
-            -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
-            "https://ghcr.io/v2/${repo}/manifests/latest" \
-            | tr -d '\r' | sed -n 's/^docker-content-digest: *//Ip')
-          if [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "image=ghcr.io/${repo}@${digest}" >> "$GITHUB_OUTPUT"
-            # The cache key part: which toolchain the cache was built with.
-            echo "toolchain=i${digest:7:12}" >> "$GITHUB_OUTPUT"
-            echo "Using ghcr.io/${repo}@${digest}"
-          else
-            echo "::warning::ghcr.io/${repo}:latest is not publicly pullable; falling back to archlinux:latest with a full package install. Run ci-image.yml and make the package public."
-            echo "image=archlinux:latest" >> "$GITHUB_OUTPUT"
-            echo "toolchain=rolling" >> "$GITHUB_OUTPUT"
-          fi
-
-
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          # A pull request's checkout is its merge commit; its first parent is
-          # the base it is diffed against below.
-          fetch-depth: 2
-
-      - name: Classify the changed files
-        id: diff
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
-            # warm_cache: the Arch builds only. Nix builds in its sandbox,
-            # where no compiler cache reaches, so it has nothing to warm.
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "nix=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "${{ github.event_name }}" != pull_request ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "nix=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          changed=$(git diff --name-only HEAD^1 HEAD)
-          printf '%s\n' "$changed"
-          # Anything but documentation, agent instructions and licence texts
-          # is something the build or its tests read.
-          if grep -qvE '\.md$|^docs/|^\.claude/|^LICENSE$|^COPYING' <<<"$changed"; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "code=false" >> "$GITHUB_OUTPUT"
-          fi
-          # The Nix jobs are the only ones that compile the KWin 6.7 half of
-          # kwin-effect/kwincompat.h, and the only ones that build the package
-          # recipe. A pull request needs them when it touches either: the
-          # effect, the Nix packaging, the flake, or the build system that
-          # decides what the recipe compiles and links. Every push runs them.
-          if grep -qE '^plasmazones/kwin-effect/|^packaging/nix/|^flake\.(nix|lock)$|(^|/)CMakeLists\.txt$|\.cmake$|^CMakePresets\.json$|^\.github/workflows/ci\.yml$' <<<"$changed"; then
-            echo "nix=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "nix=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # The compiler cache's key, as a prefix the build jobs append their
-      # flavour to. Two rules decide what a run restores:
-      #
-      #   * The toolchain is in the key. A cache built in another image would
-      #     miss on every file, so a run never restores one; it takes main's
-      #     cache for its own image, which ci-image.yml warms on every push.
-      #
-      #   * A pull request's own cache carries the base commit it was built on.
-      #     GitHub's restore looks in the pull request's scope BEFORE the base
-      #     branch's, so with a plain prefix a pull request restored its own
-      #     newest entry however far main had moved since: one built against a
-      #     week-old base hit 58% where main's would have hit 95%, and the build
-      #     took 28 minutes instead of 4. With the base in the key, its own
-      #     cache only matches while the base is unchanged, and otherwise the
-      #     restore falls through to the base branch's newest.
-      #
-      # Branch pushes and pull requests save; tags do not, since nothing
-      # restores from a tag's scope (scripts/trim-actions-caches.py deletes
-      # those). A tag still restores main's cache. The run id and attempt end
-      # every key so no two runs write the same one.
-      - name: Name the compiler cache
-        id: ccache
-        env:
-          TOOLCHAIN: ${{ steps.image.outputs.toolchain }}
-        run: |
-          set -euo pipefail
-          stem="${TOOLCHAIN}"
-          if [ "${{ github.event_name }}" = pull_request ]; then
-            base=$(git rev-parse --short=12 HEAD^1)
-            echo "key=${stem}-pr-${base}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
-            echo "restore-own=${stem}-pr-${base}-" >> "$GITHUB_OUTPUT"
-            echo "restore-base=${stem}-branch-" >> "$GITHUB_OUTPUT"
-          else
-            echo "key=${stem}-branch-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
-            # Both restore keys the same: an empty one would leave the bare
-            # flavour prefix, which matches a cache from any toolchain.
-            echo "restore-own=${stem}-branch-" >> "$GITHUB_OUTPUT"
-            echo "restore-base=${stem}-branch-" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "save=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "save=true" >> "$GITHUB_OUTPUT"
-          fi
-
-  # ─── The Arch builds, one per USE_KDE_FRAMEWORKS mode.
-  #
-  # Every Arch job runs in the CI image `changes` picked, so it installs
-  # nothing: .github/ci/arch-packages.txt is the one package list, and
-  # .github/ci/sync-packages.sh only touches pacman when a checkout's list
-  # differs from the one the image was built from.
-  build:
-    name: Build (arch, KDE_FRAMEWORKS=${{ matrix.kde }})
-    # Gated on `changes`, which itself skips `labeled` / `unlabeled` PR events
-    # (reserved for the draft-PKGBUILD job below) and a plain
-    # `workflow_dispatch` (which also only targets that job), so this job
-    # inherits both skips.
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    container:
-      image: ${{ needs.changes.outputs.image }}
-    strategy:
-      fail-fast: false
-      matrix:
-        kde: [ON, OFF]
-
-    steps:
-      # The image has git. The archlinux:latest fallback does not, and
-      # without it actions/checkout downloads a tarball with no history.
-      - name: Bootstrap git
-        run: command -v git >/dev/null || pacman -Syu --noconfirm --needed git
-
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Sync packages
-        run: bash .github/ci/sync-packages.sh
-
-      # The compiler cache. Configured through the environment rather than an
-      # action so the key and the trimming below are ours:
-      #   * CCACHE_BASEDIR and CCACHE_NOHASHDIR keep the checkout path and the
-      #     build folder out of the hash, so an entry one run made is a hit in
-      #     the next whatever the runner named its workspace.
-      #   * CCACHE_COMPILERCHECK=content: the image's gcc has a fresh mtime in
-      #     every container, so the mtime says nothing about which compiler it
-      #     is; its contents do.
-      #   * CCACHE_SLOPPINESS lets ccache cache compiles that use a precompiled
-      #     header, which it otherwise runs uncached. pch_defines and
-      #     time_macros are what its manual requires for GCC PCH. The two
-      #     include_file_* entries are needed because the build writes each
-      #     .gch moments before the compiles that read it, and ccache refuses
-      #     to cache a compile that read a file newer than the compile itself.
-      #     CMake passes the PCH with -include and an absolute path, the form
-      #     ccache can follow without -fpch-preprocess.
-      # The cache's size is not capped here. It is trimmed to what this run
-      # used before it is saved (see "Trim the compiler cache"), so it never
-      # carries more than one build of this flavour.
-      - name: Set up the compiler cache
-        run: |
-          {
-            echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache"
-            echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE"
-            echo "CCACHE_NOHASHDIR=true"
-            echo "CCACHE_COMPILERCHECK=content"
-            echo "CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime"
-            echo "CCACHE_START=$(date +%s)"
-          } >> "$GITHUB_ENV"
-
-      # `changes` names the keys; see "Name the compiler cache" there for why
-      # a pull request has two to try.
-      - name: Restore the compiler cache
-        id: ccache-restore
-        uses: actions/cache/restore@v5
-        with:
-          path: .ccache
-          key: ccache-arch-${{ matrix.kde }}-${{ needs.changes.outputs.ccache-key }}
-          restore-keys: |
-            ccache-arch-${{ matrix.kde }}-${{ needs.changes.outputs.ccache-restore-own }}
-            ccache-arch-${{ matrix.kde }}-${{ needs.changes.outputs.ccache-restore-base }}
-
-      # The pinned archives (cmake/PlasmaZonesDependencies.cmake, and the
-      # third-party ones the pinned phosphor-libs tree pins), which CPM
-      # downloads into .cache/cpm at configure time. Cached on the app's pin
-      # file, which moves whenever either set does, so a run downloads only
-      # after a pin changes and a GitHub
-      # hiccup on the archive URLs cannot fail an unrelated build.
-      - name: Restore the dependency archives
-        uses: actions/cache@v5
-        with:
-          path: .cache/cpm
-          key: cpm-${{ hashFiles('cmake/PlasmaZonesDependencies.cmake') }}
-
-      # What CI builds differs from CMake's Release in three ways, each for
-      # time, none of them changing what the tests exercise:
-      #   * ENABLE_LTO=OFF. LTO is on for Release, and it made every one of
-      #     the ~600 test executables a whole-program link that ccache cannot
-      #     cache. Release packaging (release.yml) keeps it.
-      #   * -O0 instead of CMake's -O3. This job checks that the tree compiles
-      #     and the tests pass, and the tests do not need optimised code, while
-      #     -O2's heaviest unity blobs took 70 to 100 seconds each and set the
-      #     floor on a cold build. The optimised build is release.yml's and the
-      #     Nix jobs'. NDEBUG stays, as in Release, so asserts behave as in the
-      #     shipped package.
-      #   * mold as the linker, for the same ~600 links.
-      # Precompiled headers stay on: every test reuses the one shared PCH
-      # (cmake/PhosphorTestPch.cmake), and CCACHE_SLOPPINESS above lets ccache
-      # cache the compiles that read it.
-      # The launcher goes on the cmake line, not CC/CXX: from the environment,
-      # CMake would also run its one-off configure checks through ccache, which
-      # only ever miss.
-      - name: Configure
-        run: |
-          cmake -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr \
-            -DUSE_KDE_FRAMEWORKS=${{ matrix.kde }} \
-            -DBUILD_TESTING=ON \
-            -DBUILD_TOOLS=ON \
-            -DENABLE_LTO=OFF \
-            "-DCMAKE_C_FLAGS_RELEASE=-O0 -DNDEBUG" \
-            "-DCMAKE_CXX_FLAGS_RELEASE=-O0 -DNDEBUG" \
-            -DCMAKE_LINKER_TYPE=MOLD \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-      - name: Build
-        id: build
-        run: cmake --build build --parallel $(nproc)
-
-      # Before the tests, so a test failure still leaves the next run a warm
-      # cache, and after a failed build too, since what compiled is still good.
-      # Evicting everything this run did not touch keeps the saved cache to one
-      # build's worth; --zero-stats makes the next run's statistics its own.
-      - name: Trim the compiler cache
-        if: ${{ !cancelled() && steps.ccache-restore.outcome == 'success' }}
-        run: |
-          ccache --show-stats --verbose
-          ccache --evict-older-than "$(( $(date +%s) - CCACHE_START + 60 ))s"
-          ccache --zero-stats
-          du -sh "$CCACHE_DIR"
-
-      - name: Save the compiler cache
-        if: ${{ !cancelled() && steps.ccache-restore.outcome == 'success' && needs.changes.outputs.ccache-save == 'true' }}
-        uses: actions/cache/save@v5
-        with:
-          path: .ccache
-          key: ccache-arch-${{ matrix.kde }}-${{ needs.changes.outputs.ccache-key }}
-
-      # A warm_cache dispatch exists to save the cache above; the tests and the
-      # install check add nothing to it.
-      - name: Test
-        if: github.event_name != 'workflow_dispatch'
-        env:
-          # QML tests instantiate QQuickWindow; offscreen QPA keeps them
-          # headless without xvfb. Tests that need an RHI surface (e.g.
-          # shader-render tool tests) launch xvfb-run themselves.
-          QT_QPA_PLATFORM: offscreen
-          # Force Mesa's software rasteriser (llvmpipe) so the GL-dependent
-          # shader-bake test (test_animation_shader_kwin_bake) gets a real
-          # GL >= 4.5 context on this headless runner and actually compiles the
-          # KWin-branch shaders instead of QSKIP-ing. mesa is in the image.
-          LIBGL_ALWAYS_SOFTWARE: "1"
-        run: |
-          # The container has no session, so XDG_RUNTIME_DIR is unset and Qt
-          # emits a "QStandardPaths: XDG_RUNTIME_DIR not set" warning the first
-          # time QStandardPaths is queried. Tests that capture warnings and
-          # assert none were emitted (e.g. the plugin-loader rejection cases)
-          # would otherwise pick that stray warning up and fail. Give it a
-          # private 0700 dir, as a real session would.
-          export XDG_RUNTIME_DIR="$(mktemp -d)"
-          # Parallel ctest with $(nproc), under xvfb-run so the tests that
-          # need a surface (offscreen QPA can't host RHI textures) have a
-          # display.
-          # --no-tests=error on every ctest in this file: a build dir
-          # configured without BUILD_TESTING produces no tests, and bare ctest
-          # reports "No tests were found" and exits 0, so the gate would pass
-          # having run nothing.
-          xvfb-run -a ctest --test-dir build --output-on-failure --no-tests=error -j "$(nproc)"
-
-      - name: Install (DESTDIR)
-        if: github.event_name != 'workflow_dispatch'
-        run: DESTDIR="${PWD}/install" cmake --install build
-
-      - name: Verify installed files
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          echo "=== Installed files ==="
-          find install -type f | sort
-
-  # ─── Presets. Nothing else in CI touches CMakePresets.json: the build jobs
-  # hand-write their `cmake -B build -G Ninja -D...` line. So the presets could
-  # break without turning CI red, while CLAUDE.md documents `cmake --preset` as
-  # the way to build. Configure only, no build: the `build` job above already
-  # compiles the tree.
-  presets:
-    name: Presets
-    needs: changes
-    if: needs.changes.outputs.code == 'true' && github.event_name != 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    container:
-      image: ${{ needs.changes.outputs.image }}
-    steps:
-      - name: Bootstrap git
-        run: command -v git >/dev/null || pacman -Syu --noconfirm --needed git
-
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Sync packages
-        run: bash .github/ci/sync-packages.sh
-
-      - name: Configure from the dev preset
-        run: cmake --preset dev
-
-  # ─── Lint: clang-format + qmlformat mirror the lefthook hooks so a
-  # contributor who skipped them can't merge unformatted code. Only
-  # lints files changed in the PR (or HEAD~1..HEAD for direct pushes)
-  # so the historical tree's pre-existing formatting drift doesn't
-  # block unrelated PRs.
-  #
-  # Runs in the Arch CI image so clang-format ships from the same
-  # `clang` package that contributors use locally (KDE/Plasma devs are
-  # overwhelmingly on Arch / rolling distros). clang-format's
-  # SpaceInEmptyBlock-style behaviour diverges between major versions
-  # (notably 18 vs 22 for empty lambda bodies and 22 vs 19/20 for
-  # initializer-list packing), so pinning CI to whatever Ubuntu ships
-  # would force every contributor to also keep an older clang-format
-  # on PATH for the pre-commit hook to agree with CI.
-  lint:
-    name: Lint
-    # Same event gate as `changes` (skip label-change events and a plain
-    # workflow_dispatch, both reserved for the draft-PKGBUILD job), but not
-    # gated on what changed: it is cheap, and it reads only changed files.
-    # It needs `changes` only for the image.
-    needs: changes
+  # The shared C++ CI of the workspace: Arch with GCC, Arch with Clang, Fedora,
+  # an Arch build with KDE Frameworks off, the lint and Nix, each with the
+  # dev preset, and the tests under Xvfb for the ones that need a surface.
+  # The labeled events are for the draft PKGBUILD job only.
+  ci:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled')
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.changes.outputs.image }}
-    steps:
-      - name: Bootstrap git
-        run: command -v git >/dev/null || pacman -Syu --noconfirm --needed git
-
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          # Need the base commit to diff against. Shallow clone doesn't
-          # have it; fetch the full history for the lint diff.
-          fetch-depth: 0
-
-      # `clang` ships clang-format (Arch has no separate package) and
-      # qt6-declarative ships qmlformat; both are in the package list.
-      - name: Sync packages
-        run: |
-          bash .github/ci/sync-packages.sh
-          clang-format --version
-
-      - name: Resolve changed files
-        id: changed
-        run: |
-          set -euo pipefail
-          # Container runs as root but the checkout files are owned by a
-          # different UID — git refuses operations on "dubiously owned"
-          # repos. Whitelist the workspace so the diff/fetch below run.
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          # Pick the right diff range for the trigger.
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              # The base commit the event's merge ref was built on, not the
-              # base branch's current tip. The tip moves when anything lands
-              # on the base branch between the event and this job (merging
-              # the PR itself does it), and the old `fetch --depth=1` of that
-              # tip made the full clone shallow there, cutting off its
-              # parents, so "BASE...HEAD" had no merge base and git exited
-              # 128. fetch-depth: 0 above already holds this commit; the
-              # fetch only covers a checkout that somehow lacks it.
-              BASE="${{ github.event.pull_request.base.sha }}"
-              git cat-file -e "$BASE^{commit}" 2>/dev/null || git fetch origin "$BASE"
-              RANGE="$BASE...HEAD"
-          else
-              # Direct push — diff against the previous commit on this ref.
-              RANGE="HEAD~1...HEAD"
-          fi
-          echo "Diff range: $RANGE"
-          # Filter to source files we actually format, exclude
-          # generator-output headers (they get regenerated, no point
-          # round-tripping clang-format against them).
-          #
-          # The extension list mirrors lefthook's clang-format hook, which
-          # globs *.{cpp,h,hpp,cc,cxx}. Without the last three, a .hpp pushed
-          # with --no-verify was not checked here either, though the comment
-          # above claims this job mirrors the hooks.
-          #
-          # The _export.h filter is a tripwire rather than a live filter:
-          # every *_export.h is generate_export_header() output and none is
-          # tracked, so it matches nothing today. It costs one grep and would
-          # catch one committed by hand.
-          #
-          # Split so a failing diff is fatal. The `|| true` exists for
-          # grep's exit 1 on no matches, and it used to cover the diff as
-          # well, which would leave changed.txt empty and both lint steps
-          # reporting "nothing changed" on what reads as a green run.
-          git diff --name-only --diff-filter=ACMR "$RANGE" -- \
-              '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx' '*.qml' > all-changed.txt
-          grep -v '^[a-z-]*/libs/.*/include/.*_export\.h$' \
-              all-changed.txt > changed.txt || true
-          echo "Changed files:"
-          cat changed.txt
-          # Emit the file list for the downstream steps.
-          echo "list=changed.txt" >> "$GITHUB_OUTPUT"
-
-      - name: clang-format
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(grep -E '\.(cpp|h|hpp|cc|cxx)$' changed.txt || true)
-          if [ "${#files[@]}" -gt 0 ]; then
-            clang-format --dry-run -Werror "${files[@]}"
-          else
-            echo "No C++ files changed — skipping clang-format"
-          fi
-
-      - name: qmlformat
-        run: |
-          set -euo pipefail
-          # Arch's qt6-declarative installs qmlformat under
-          # /usr/lib/qt6/bin (not /usr/bin), so PATH doesn't pick it
-          # up by default. Prepend the qt6 bin dir for this step.
-          export PATH="/usr/lib/qt6/bin:$PATH"
-          mapfile -t files < <(grep -E '\.qml$' changed.txt || true)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No QML files changed — skipping qmlformat"
-            exit 0
-          fi
-          # qmlformat has no check mode: --dry-run only prints the settings
-          # file it would use, and -n (normalize) reorders and prints, exiting
-          # 0 on misformatted QML. So format each file to stdout, with the
-          # same options the lefthook hook's `qmlformat -i` uses, and diff it
-          # against the file. A difference fails the step and prints the
-          # change; a parse error fails it through pipefail.
-          unformatted=0
-          for f in "${files[@]}"; do
-            if ! qmlformat "$f" | diff -u --label "$f" --label "$f (qmlformat -i)" "$f" -; then
-              unformatted=1
-            fi
-          done
-          if [ "$unformatted" -ne 0 ]; then
-            echo "::error::The QML files above are not formatted as qmlformat -i would leave them. Run qmlformat -i on them."
-            exit 1
-          fi
+    uses: phosphor-works/workspace/.github/workflows/cpp-ci.yml@ci/variants
+    with:
+      pin-file: cmake/PlasmaZonesDependencies.cmake
+      fedora: true
+      variant-configure-args: -DUSE_KDE_FRAMEWORKS=OFF
+      variant-name: KDE Frameworks off
+      test-display: true
+      build-timeout: 90
+      nix-timeout: 60
+      nix-verify: |
+        got="$(./result/bin/plasmazonesd --version)"
+        echo "Built: $got"
+        test -n "$got" || { echo "::error::plasmazonesd --version printed nothing"; exit 1; }
 
   # ─── JSON Schema: validate every bundled data file, and the surface packs
   # of the pinned phosphor-surface-packs commit, against the committed
@@ -651,13 +160,10 @@ jobs:
   # picks per-file from the nearest .luaurc).
   luau-analyze:
     name: Luau analyze
-    # Same event gate as lint, and like lint it needs `changes` only for the
-    # image.
-    needs: changes
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled')
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.changes.outputs.image }}
+      image: archlinux:latest
     steps:
       - name: Bootstrap git
         run: command -v git >/dev/null || pacman -Syu --noconfirm --needed git
@@ -797,68 +303,6 @@ jobs:
           ./luau-cli/luau-analyze "$stub_copy"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Nix Flake CI (x86_64 + aarch64)
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Also the only jobs that compile the 6.7 half of
-  # plasmazones/kwin-effect/kwincompat.h, for as long as the locked nixpkgs
-  # carries KWin 6.7. The Arch jobs compile the 6.8 half. Once
-  # flake.lock moves to a nixpkgs with KWin 6.8, nothing in CI builds the 6.7
-  # half any more.
-  nix:
-    name: Nix (${{ matrix.system }})
-    # Every push, and a pull request that touches what only these jobs check
-    # (see the `nix` output of `changes`). They build the package in Nix's
-    # sandbox, where no compiler cache reaches, so they are the slowest jobs
-    # once the Arch builds are warm.
-    needs: changes
-    if: needs.changes.outputs.nix == 'true'
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - system: x86_64-linux
-            runner: ubuntu-latest
-          - system: aarch64-linux
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31.11.1
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show flake outputs
-        run: nix flake show
-
-      # --fallback: build from source if a binary substitute fails. Guards
-      # against transient cache.nixos.org corruption (e.g. a hash mismatch on a
-      # transitive dep's NAR) turning an otherwise-fine build red.
-      - name: Flake check
-        run: nix flake check -L --fallback
-
-      - name: Build default package
-        run: nix build -L --fallback .#default
-
-      - name: Verify binary
-        # `--version || true` passed whatever the binary printed, including
-        # nothing, so this step could not fail. Require some output.
-        shell: bash
-        run: |
-          echo "=== Package contents ==="
-          ls -la result/bin/
-          got="$(./result/bin/plasmazonesd --version)"
-          echo "Built: $got"
-          test -n "$got" || { echo "::error::plasmazonesd --version printed nothing"; exit 1; }
-
-      - name: Verify devShell
-        run: nix develop --fallback -c echo "devShell OK"
-
-  # ═══════════════════════════════════════════════════════════════════════════
   # Draft Arch Package (opt-in PR builds)
   # ─────────────────────────────────────────────────────────────────────────
   # Manual-only. Two ways to fire:
@@ -900,7 +344,7 @@ jobs:
     # build, which both wastes runner minutes and could surprise PR
     # authors who didn't ask for one.
     if: |
-      (github.event_name == 'workflow_dispatch' && !inputs.warm_cache)
+      github.event_name == 'workflow_dispatch'
       || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'build-draft')
     runs-on: ubuntu-latest
     container:
@@ -1269,4 +713,3 @@ jobs:
             ---
 
             <sub>Posted by `.github/workflows/ci.yml` → `build-arch-draft`, fired by the `build-draft` label on this PR. Push events on the PR do **not** auto-rebuild — to refresh the artifacts against new commits, remove and re-add the `build-draft` label. nightly.link is a public third-party proxy; it has no special access — it reads the same artifact GitHub serves and exposes it without auth.</sub>
-
