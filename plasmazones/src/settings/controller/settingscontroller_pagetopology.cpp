@@ -733,10 +733,9 @@ const Settings::ConfigKeyList& SettingsController::resetExemptConsentKeys()
     // clear it: that restores every setting, recorded consent included. It
     // never reverts KWin's own flag, so a machine already in per-output mode
     // keeps the feature running (workspacesActive reads that flag too).
-    using CD = ConfigDefaults;
     static const Settings::ConfigKeyList keys = {
 #ifdef USE_KDE_FRAMEWORKS
-        {CD::workspacesBehaviorGroup(), HostSettings::manageKWinPerOutputKey()},
+        {ConfigDefaults::workspacesBehaviorGroup(), HostSettings::manageKWinPerOutputKey()},
 #endif
     };
     return keys;

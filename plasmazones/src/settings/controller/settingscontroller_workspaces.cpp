@@ -43,12 +43,15 @@ static_assert(PhosphorRules::MaxWorkspaceIdLength >= 38,
 
 namespace {
 
+#ifdef USE_KDE_FRAMEWORKS
 /// The kwinrc this session's user edits. KWin's per-output toggle in System
-/// Settings writes here, which is what the watcher below follows.
+/// Settings writes here, which is what the watcher below follows. Only the
+/// KDE Frameworks build has dynamic workspaces, so only it reads kwinrc.
 QString userKWinConfigPath()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/kwinrc");
 }
+#endif
 
 /// The Settings Q_PROPERTYs that hold a chord the daemon grabs globally: every
 /// QString property whose name ends in "Shortcut". The editor's own shortcuts
