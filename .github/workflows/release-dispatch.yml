@@ -13,9 +13,9 @@
 # of plasmazones-release.yml makes the run that this dispatch starts a no-op.
 #
 # The Actions token of this repository cannot dispatch to another repository,
-# so this uses PACKAGING_DISPATCH_TOKEN: a fine-grained token with Contents
-# write on phosphor-works/packaging, which is what the dispatches endpoint
-# needs.
+# so this uses RELEASE_TAG_TOKEN, the organization secret that the release
+# uses too. Its token has Contents write on phosphor-works/packaging, which is
+# what the dispatches endpoint needs.
 
 name: Release dispatch
 
@@ -36,12 +36,12 @@ jobs:
     steps:
       - name: Send repository_dispatch
         env:
-          GH_TOKEN: ${{ secrets.PACKAGING_DISPATCH_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TAG_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           if [[ -z "${GH_TOKEN:-}" ]]; then
-              echo "::error::The PACKAGING_DISPATCH_TOKEN secret is not set, so $TAG was not sent to phosphor-works/packaging. Set it, then run plasmazones-release.yml there with tag=$TAG."
+              echo "::error::The RELEASE_TAG_TOKEN secret is not set, so $TAG was not sent to phosphor-works/packaging. Set it, then run plasmazones-release.yml there with tag=$TAG."
               exit 1
           fi
           # The tag goes in as a JSON string through jq, never through the
