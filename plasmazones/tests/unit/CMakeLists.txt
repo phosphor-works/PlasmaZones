@@ -1991,7 +1991,11 @@ add_test(NAME test_adaptor_bus_context COMMAND test_adaptor_bus_context)
 # PhosphorProtocol arrives through it.
 add_executable(test_compositor_only_gate dbus/test_compositor_only_gate.cpp helpers/BusPeer.h)
 target_link_libraries(test_compositor_only_gate PRIVATE Qt6::Test Qt6::Core Qt6::DBus plasmazones_core plasmazones_dbus)
+# PLASMAZONES_APP_SOURCE_DIR, not a path from __FILE__: without a unity build
+# __FILE__ is relative to the build directory, so it names nothing from the
+# test's working directory.
 target_compile_definitions(test_compositor_only_gate PRIVATE
+    "PLASMAZONES_APP_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../..\""
     "PHOSPHOR_SCREENS_SOURCE_DIR=\"${phosphor-libs_SOURCE_DIR}/libs/phosphor-screens\"")
 add_test(NAME test_compositor_only_gate COMMAND test_compositor_only_gate)
 
