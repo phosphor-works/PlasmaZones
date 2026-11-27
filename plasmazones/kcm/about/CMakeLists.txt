@@ -17,6 +17,11 @@ set(kcm_about_SRCS
 kcmutils_add_qml_kcm(kcm_plasmazones_about
     SOURCES ${kcm_about_SRCS}
 )
+# System Settings loads the KCM from its plugin directory; PhosphorPaths is
+# PlasmaZones' embedded copy, in the private directory.
+plasmazones_private_rpath(_plasmazones_kcm_rpath "${KDE_INSTALL_PLUGINDIR}/plasma/kcms/systemsettings")
+set_target_properties(kcm_plasmazones_about PROPERTIES INSTALL_RPATH "${_plasmazones_kcm_rpath}")
+phosphor_install_embedded(FOR kcm_plasmazones_about)
 
 target_compile_definitions(kcm_plasmazones_about PRIVATE
     PLASMAZONES_VERSION="${PROJECT_VERSION}"

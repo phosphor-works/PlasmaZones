@@ -240,12 +240,6 @@ endif()
 # private modules, QT_NO_CAST_FROM_ASCII) is in force when it is added, so it is
 # added here, before anything reads its targets. The translation module below
 # reads its phosphor-control sources, so this also stays above that include.
-#
-# Its library tests that check a library constant against the packs PlasmaZones
-# ships read them from here. FORCE, so the tree's own empty default, which it
-# declares as a cache entry, never wins.
-set(PHOSPHOR_LIBS_BUNDLED_PACKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plasmazones/data" CACHE PATH
-    "Directory holding bundled animations/ and pointer/ packs, for the phosphor-libs tests that check them" FORCE)
 # The surface decoration packs, from their own repository at the commit
 # cmake/PlasmaZonesDependencies.cmake pins. Fetched BEFORE the libraries:
 # phosphor-libs fetches its own pinned copy for its tests unless an app has
@@ -254,6 +248,12 @@ set(PHOSPHOR_LIBS_BUNDLED_PACKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plasmazones/dat
 # the packs this build compiled, validated and installed (#1282).
 plasmazones_fetch_dependency(phosphor-surface-packs)
 include(${phosphor-surface-packs_SOURCE_DIR}/cmake/PhosphorSurfacePacks.cmake)
+# PlasmaZones ships its own copy of the Phosphor libraries: with its name set,
+# the library trees install only their shared libraries, the layer-shell plugin
+# and the notices of the code they compile in, in PlasmaZones' own directories
+# (phosphor-libs README, "Use from an app"). No other package's files are
+# touched, and the daemon runs the commits pinned here.
+set(PHOSPHOR_EMBED_APP "plasmazones")
 plasmazones_add_phosphor_libs()
 # The placement engines, their models and the engine runtime, on the phosphor-libs
 # tree just added (cmake/PlasmaZonesDependencies.cmake pins the commit).
@@ -266,6 +266,29 @@ include("${PHOSPHOR_LIBS_CMAKE_DIR}/PhosphorSuite.cmake")
 set(PLASMAZONES_APP_DIRECTORY_NAME "plasmazones")
 # Phosphor.Components, on the phosphor-libs tree just added.
 plasmazones_add_phosphor_components()
+
+# The private directory of the embedded libraries, where PlasmaZones' own
+# libraries go too, and the directory of their licence notices.
+phosphor_embedded_dirs(LIBDIR PLASMAZONES_PRIVATE_LIBDIR LICENSEDIR PLASMAZONES_LICENSEDIR)
+# plasmazones_private_rpath(<variable> <install directory>)
+#
+# The run path, relative to <install directory>, that reaches the private
+# library directory: for an executable in the bindir, and for the KWin effect
+# and the KCM, which KWin and System Settings load from their plugin
+# directories.
+function(plasmazones_private_rpath variable directory)
+    foreach(dir_var directory PLASMAZONES_PRIVATE_LIBDIR)
+        if(IS_ABSOLUTE "${${dir_var}}")
+            set(_${dir_var}_full "${${dir_var}}")
+        else()
+            set(_${dir_var}_full "${CMAKE_INSTALL_PREFIX}/${${dir_var}}")
+        endif()
+    endforeach()
+    file(RELATIVE_PATH _rel "${_directory_full}" "${_PLASMAZONES_PRIVATE_LIBDIR_full}")
+    set(${variable} "$ORIGIN/${_rel}" PARENT_SCOPE)
+endfunction()
+# Every executable from here on: the private directory and no other run path.
+plasmazones_private_rpath(CMAKE_INSTALL_RPATH "${KDE_INSTALL_BINDIR}")
 
 # ---------------------------------------------------------------------------
 # Code formatting (clang-format for C++, qmlformat for QML)
@@ -367,24 +390,15 @@ endif()
 # Custom uninstall target that cleans up directories properly. Top level only,
 # like the other repository tooling above: it reads this build's install manifest.
 if(PROJECT_IS_TOP_LEVEL)
-    # QT6_INSTALL_PLUGINS repeats phosphor-wayland's QPA install-path derivation
-    # (a subdirectory-scope variable there, so re-derived here for the configure
-    # below). The fallback there spells the libdir relative and here absolute,
-    # which resolves to the same place: install() roots a relative DESTINATION at
-    # the prefix, and the absolute branch below prepends the prefix itself.
-    if(NOT DEFINED QT6_INSTALL_PLUGINS)
-        get_target_property(QT6_INSTALL_PLUGINS Qt6::Core QT_INSTALL_PLUGINS)
-        if(NOT QT6_INSTALL_PLUGINS)
-            set(QT6_INSTALL_PLUGINS "${KDE_INSTALL_FULL_LIBDIR}/qt6/plugins")
+    # The uninstall script needs absolute paths, as install() resolves relative
+    # DESTINATIONs against the prefix.
+    foreach(_pz_dir PRIVATE_LIBDIR LICENSEDIR)
+        if(IS_ABSOLUTE "${PLASMAZONES_${_pz_dir}}")
+            set(PZ_UNINSTALL_${_pz_dir} "${PLASMAZONES_${_pz_dir}}")
+        else()
+            set(PZ_UNINSTALL_${_pz_dir} "${CMAKE_INSTALL_PREFIX}/${PLASMAZONES_${_pz_dir}}")
         endif()
-    endif()
-    # The Qt property can be prefix-relative; the uninstall script needs an
-    # absolute path (matching how install() resolves relative DESTINATIONs).
-    if(IS_ABSOLUTE "${QT6_INSTALL_PLUGINS}")
-        set(PZ_UNINSTALL_QT_PLUGINS "${QT6_INSTALL_PLUGINS}")
-    else()
-        set(PZ_UNINSTALL_QT_PLUGINS "${CMAKE_INSTALL_PREFIX}/${QT6_INSTALL_PLUGINS}")
-    endif()
+    endforeach()
     configure_file(
         "${PROJECT_SOURCE_DIR}/cmake/uninstall.cmake.in"
         "${PROJECT_BINARY_DIR}/cmake_uninstall.cmake"

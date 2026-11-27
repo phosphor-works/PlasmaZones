@@ -102,11 +102,11 @@ let
   # pin. Bump both forms together.
   depsArchives = linkFarm "plasmazones-deps-archives" [
     {
-      name = "phosphor-libs-bf8bf88bb24e29475b1b7adf0abefd7c7fbd05dd.tar.gz";
+      name = "phosphor-libs-8373b436c6454b4d73e28c63bffcd0f87f059c2b.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-libs/archive/bf8bf88bb24e29475b1b7adf0abefd7c7fbd05dd.tar.gz";
-        # sha256 195cf9dc8d49b7d425ad6e6ca6e8b09af21310940ff0d9aa442c145e735da7ca
-        hash = "sha256-GVz53I1Jt9QlrW5spuiwmvITEJQP8NmqRCwUXnNdp8o=";
+        url = "https://github.com/phosphor-works/phosphor-libs/archive/8373b436c6454b4d73e28c63bffcd0f87f059c2b.tar.gz";
+        # sha256 986fde5e4895ff596e2e850a4f9113e8418bc97020b20222805b1ccda6706c47
+        hash = "sha256-mG/eXkiV/1luLoUKT5ET6EGLyXAgsgIigFsczaZwbEc=";
       };
     }
     {
@@ -142,19 +142,19 @@ let
       };
     }
     {
-      name = "phosphor-components-0054f742fb5527475a51cc2f196e14dfd77d677d.tar.gz";
+      name = "phosphor-components-d8c56b9842721747047cf0e5251c773677506e1a.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-components/archive/0054f742fb5527475a51cc2f196e14dfd77d677d.tar.gz";
-        # sha256 68a3f9e6e997dfce51d03544e310a5efad45fcfa40fbc73fa70f48cce44b8285
-        hash = "sha256-aKP55umX385R0DVE4xCl761F/PpA+8c/pw9IzORLgoU=";
+        url = "https://github.com/phosphor-works/phosphor-components/archive/d8c56b9842721747047cf0e5251c773677506e1a.tar.gz";
+        # sha256 abab3716a68672eafa34c54d92701d6d3ad7b2a33f0ecc22304a8f26d6330571
+        hash = "sha256-q6s3FqaGcur6NMVNknAdbTrXsqM/DswiMEqPJtYzBXE=";
       };
     }
     {
-      name = "phosphor-engine-libs-ab293743d925847d4e29573228a6b9a862c886fd.tar.gz";
+      name = "phosphor-engine-libs-d20641bf6670da977eea9db47a103e70932d8b21.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-engine-libs/archive/ab293743d925847d4e29573228a6b9a862c886fd.tar.gz";
-        # sha256 83d31714fd68de70c8dcabbf3db4559547b76d636748951322f87fd248e75a97
-        hash = "sha256-g9MXFP1o3nDI3Ku/PbRVlUe3bWNnSJUTIvh/0kjnWpc=";
+        url = "https://github.com/phosphor-works/phosphor-engine-libs/archive/d20641bf6670da977eea9db47a103e70932d8b21.tar.gz";
+        # sha256 5d348a5f7fb65387b1266c0ea9af32a8e4471defd78e70ad41065b5b2ab35333
+        hash = "sha256-XTSKX3+2U4exJmwOqa8yqORHHe/XjnCtQQZbWyqzUzM=";
       };
     }
   ];

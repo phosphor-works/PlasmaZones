@@ -624,12 +624,11 @@ unset QT_WAYLAND_RECONNECT
 # from the build tree. Keep the host PATH after it for non-PlasmaZones
 # helpers.
 export PATH="$REPO/$BUILD/bin:${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
-# build/bin carries the KWin effect (kwin/effects/plugins/...);
-# build/plugins carries the layer-shell QPA integration
-# (wayland-shell-integration/phosphorwayland-qpa.so). Without the second
-# entry the nested daemon silently loads the INSTALLED layer-shell plugin,
-# so layer-shell changes would not actually be under test.
-export QT_PLUGIN_PATH="$REPO/$BUILD/bin:$REPO/$BUILD/plugins:${QT_PLUGIN_PATH:-}"
+# build/bin carries the KWin effect (kwin/effects/plugins/...). The daemon finds
+# the layer-shell QPA integration of the build tree by itself: it sits beside
+# libPhosphorWayland, and PhosphorWayland::registerLayerShellPlugin() prepends
+# that directory to Qt's library paths, ahead of any installed copy.
+export QT_PLUGIN_PATH="$REPO/$BUILD/bin:${QT_PLUGIN_PATH:-}"
 export KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1
 # The same categories the daemon's own --debug switches on: plasmazones.* for
 # the daemon and effect, kwin.effect.plasmazones.* for the effect's

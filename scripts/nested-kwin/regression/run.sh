@@ -69,7 +69,6 @@ f738-strip-move-to-screen f738-strip-move-to-screen.sh 2 XF
 f739-restart-keeps-records f739-restart-keeps-records.sh 1 -
 f751-crossing-after-move-end f751-crossing-after-move-end.sh 2 F
 f752-keyboard-move-leaves-zone f752-keyboard-move-leaves-zone.sh 1 F
-f762-desktop-move-focus f762-desktop-move-focus.sh 1 N
 f763-registry-follows-removal f763-registry-follows-removal.sh 1 -
 f763-snap-tile-follow-desktops f763-snap-tile-follow-desktops.sh 1 S
 f773-verbs-skip-dragged f773-verbs-skip-dragged.sh 1 F

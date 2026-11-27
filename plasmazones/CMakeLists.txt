@@ -132,13 +132,19 @@ install(DIRECTORY data/animations/
     PATTERN "p_generated.glsl" EXCLUDE
 )
 
-# Install the surface decoration packs (window and shell surface decoration;
-# the third shader-pack category alongside shaders + animations) from the
-# pinned phosphor-surface-packs tree, to
-# ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}. Every process
-# that draws them discovers that subdir under ${XDG_DATA_DIRS}; user packs in
-# ~/.local/share/${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR} win.
-phosphor_install_surface_packs()
+# The surface decoration packs (window and shell surface decoration, the third
+# shader-pack category beside shaders and animations), from the pinned
+# phosphor-surface-packs tree, in
+# ${KDE_INSTALL_DATADIR}/${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR}. Every app of the
+# suite looks for them there under ${XDG_DATA_DIRS}, and user packs in
+# ~/.local/share/${PHOSPHOR_SURFACE_PACKS_DATA_SUBDIR} win. A distribution
+# packages phosphor-surface-packs once for every app and turns the install off
+# here, so that two app packages never hold the same files.
+option(PLASMAZONES_INSTALL_SURFACE_PACKS
+       "Install the surface decoration packs (off when the distribution packages phosphor-surface-packs on its own)" ON)
+if(PLASMAZONES_INSTALL_SURFACE_PACKS)
+    phosphor_install_surface_packs()
+endif()
 
 # Install bundled pointer shader packs (pointer trails, halos, click ripples;
 # the fourth shader-pack family). The kwin-effect and the settings preview

@@ -202,17 +202,10 @@ if(ENABLE_PCH)
     )
 endif()
 
-install(TARGETS plasmazones_core
-    # NOTE: PlasmaZonesTargets is assigned here but never installed -- there
-    # is no install(EXPORT PlasmaZonesTargets) and no PlasmaZonesConfig.cmake
-    # anywhere in the tree, so find_package(PlasmaZones) cannot work and the
-    # INSTALL_INTERFACE include dirs above are inert. Kept because dropping
-    # the keyword changes install() semantics; wire up the config-file pair
-    # if the app tier is ever meant to be consumable.
-    EXPORT PlasmaZonesTargets
-    LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${KDE_INSTALL_LIBDIR}
-)
+# Beside the embedded Phosphor libraries it links, which it finds in its own
+# directory.
+set_target_properties(plasmazones_core PROPERTIES INSTALL_RPATH "$ORIGIN")
+install(TARGETS plasmazones_core LIBRARY DESTINATION ${PLASMAZONES_PRIVATE_LIBDIR} NAMELINK_SKIP)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # D-Bus adaptors (plasmazonesd's bus surface over the runtime's services)
@@ -287,12 +280,10 @@ set_target_properties(plasmazones_dbus PROPERTIES
     SOVERSION 1
 )
 
-install(TARGETS plasmazones_dbus
-    # EXPORT PlasmaZonesTargets is inert, as on plasmazones_core above.
-    EXPORT PlasmaZonesTargets
-    LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${KDE_INSTALL_LIBDIR}
-)
+# Beside the embedded Phosphor libraries it links, which it finds in its own
+# directory.
+set_target_properties(plasmazones_dbus PROPERTIES INSTALL_RPATH "$ORIGIN")
+install(TARGETS plasmazones_dbus LIBRARY DESTINATION ${PLASMAZONES_PRIVATE_LIBDIR} NAMELINK_SKIP)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Layer Shell Qt Plugin - now provided by PhosphorWayland library
@@ -343,17 +334,10 @@ set_target_properties(plasmazones_shaderpreview PROPERTIES
     SOVERSION 1
 )
 
-install(TARGETS plasmazones_shaderpreview
-    # NOTE: PlasmaZonesTargets is assigned here but never installed -- there
-    # is no install(EXPORT PlasmaZonesTargets) and no PlasmaZonesConfig.cmake
-    # anywhere in the tree, so find_package(PlasmaZones) cannot work and the
-    # INSTALL_INTERFACE include dirs above are inert. Kept because dropping
-    # the keyword changes install() semantics; wire up the config-file pair
-    # if the app tier is ever meant to be consumable.
-    EXPORT PlasmaZonesTargets
-    LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${KDE_INSTALL_LIBDIR}
-)
+# Beside the embedded Phosphor libraries it links, which it finds in its own
+# directory.
+set_target_properties(plasmazones_shaderpreview PROPERTIES INSTALL_RPATH "$ORIGIN")
+install(TARGETS plasmazones_shaderpreview LIBRARY DESTINATION ${PLASMAZONES_PRIVATE_LIBDIR} NAMELINK_SKIP)
 
 # Daemon executable
 set(plasmazones_daemon_SRCS
@@ -478,6 +462,8 @@ target_link_libraries(plasmazonesd PRIVATE PkgConfig::Epoxy)
 set_source_files_properties(daemon/rendering/dmabufglimport.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 
 install(TARGETS plasmazonesd DESTINATION ${KDE_INSTALL_BINDIR})
+# The embedded Phosphor libraries that it links are installed with it.
+phosphor_install_embedded(FOR plasmazonesd)
 
 # Separate precompiled headers for executables (different PIC/PIE settings than shared lib)
 if(ENABLE_PCH)
@@ -729,6 +715,7 @@ target_link_libraries(plasmazones-editor
 )
 
 install(TARGETS plasmazones-editor DESTINATION ${KDE_INSTALL_BINDIR})
+phosphor_install_embedded(FOR plasmazones-editor)
 
 # T1.2 — offline shader-pack validator. Parses metadata.json with the daemon's
 # parser, reproduces the runtime GLSL assembly (entry scaffold + p_<id> preamble
@@ -764,6 +751,7 @@ target_link_libraries(plasmazones-shader-validate
         Qt6::ShaderToolsPrivate
 )
 install(TARGETS plasmazones-shader-validate DESTINATION ${KDE_INSTALL_BINDIR})
+phosphor_install_embedded(FOR plasmazones-shader-validate)
 
 # CI gate: every bundled pack must parse + bake clean. Headless glslang, so this
 # runs in CI with no GPU/Wayland — exactly like luau-analyze for algorithms. Zone

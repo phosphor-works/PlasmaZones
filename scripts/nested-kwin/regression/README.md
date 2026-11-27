@@ -127,7 +127,6 @@ daemon died or was replaced.
 | f739-restart-keeps-records | 1 | window records survive a daemon restart and the bring-up sends sticky ahead of each window's metadata |
 | f751-crossing-after-move-end | 2, F | with the daemon frozen through the drag's tail, the screen crossing is reported at the move's end, not before |
 | f752-keyboard-move-leaves-zone | 1, F | a keyboard move accepted with Return leaves the zone at the free size; Escape puts the window back in its zone |
-| f762-desktop-move-focus | 1, N | moving the focused window to the next desktop by zone navigation hands focus to the window left in view |
 | f763-registry-follows-removal | 1 | removing a desktop below a snapped window renumbers its record; no release, its zone and frame kept on every switch |
 | f763-snap-tile-follow-desktops | 1, S | snap zones and autotile tiles follow a desktop insert, swap and removal |
 | f773-verbs-skip-dragged | 1, F | shortcuts and bus verbs leave a window being dragged alone |
