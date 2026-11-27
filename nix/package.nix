@@ -102,11 +102,11 @@ let
   # pin. Bump both forms together.
   depsArchives = linkFarm "plasmazones-deps-archives" [
     {
-      name = "phosphor-libs-5f7ce79f4a1282d50f8936caa72dd7332545137c.tar.gz";
+      name = "phosphor-libs-bf8bf88bb24e29475b1b7adf0abefd7c7fbd05dd.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-libs/archive/5f7ce79f4a1282d50f8936caa72dd7332545137c.tar.gz";
-        # sha256 b44963ce30abfe91ff022d2d94f71bd9cc3c454c43660b94d4a75de72d933e0a
-        hash = "sha256-tEljzjCr/pH/Ai0tlPcb2cw8RUxDZguU1Kdd5y2TPgo=";
+        url = "https://github.com/phosphor-works/phosphor-libs/archive/bf8bf88bb24e29475b1b7adf0abefd7c7fbd05dd.tar.gz";
+        # sha256 195cf9dc8d49b7d425ad6e6ca6e8b09af21310940ff0d9aa442c145e735da7ca
+        hash = "sha256-GVz53I1Jt9QlrW5spuiwmvITEJQP8NmqRCwUXnNdp8o=";
       };
     }
     {
@@ -142,19 +142,19 @@ let
       };
     }
     {
-      name = "phosphor-components-0f3e72911dd9254b2301936f1e4620b60e935f39.tar.gz";
+      name = "phosphor-components-0054f742fb5527475a51cc2f196e14dfd77d677d.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-components/archive/0f3e72911dd9254b2301936f1e4620b60e935f39.tar.gz";
-        # sha256 fdd5dd891dc6436fd3c54e656dd362680a1c5abf565e18f1f01c387542ecad68
-        hash = "sha256-/dXdiR3GQ2/TxU5lbdNiaAocWr9WXhjx8Bw4dULsrWg=";
+        url = "https://github.com/phosphor-works/phosphor-components/archive/0054f742fb5527475a51cc2f196e14dfd77d677d.tar.gz";
+        # sha256 68a3f9e6e997dfce51d03544e310a5efad45fcfa40fbc73fa70f48cce44b8285
+        hash = "sha256-aKP55umX385R0DVE4xCl761F/PpA+8c/pw9IzORLgoU=";
       };
     }
     {
-      name = "phosphor-engine-libs-fd065ea88f34874cf00e5b812e91628bc2a6bc03.tar.gz";
+      name = "phosphor-engine-libs-ab293743d925847d4e29573228a6b9a862c886fd.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-engine-libs/archive/fd065ea88f34874cf00e5b812e91628bc2a6bc03.tar.gz";
-        # sha256 c6e859d0fd4ed326a50cf03393a216edc201eebf5c41c547f19f09ff07a09e82
-        hash = "sha256-xuhZ0P1O0yalDPAzk6IW7cIB7r9cQcVH8Z8J/wegnoI=";
+        url = "https://github.com/phosphor-works/phosphor-engine-libs/archive/ab293743d925847d4e29573228a6b9a862c886fd.tar.gz";
+        # sha256 83d31714fd68de70c8dcabbf3db4559547b76d636748951322f87fd248e75a97
+        hash = "sha256-g9MXFP1o3nDI3Ku/PbRVlUe3bWNnSJUTIvh/0kjnWpc=";
       };
     }
   ];
@@ -346,7 +346,7 @@ stdenv.mkDerivation (finalAttrs: {
     # the installed surface packs' shared/surface_color.glsl, and CC0-1.0 for the
     # two AppStream metainfo files the package installs. Same set the RPM spec's
     # License tag names, and for the same reason it records there.
-    license = with licenses; [ gpl3Plus lgpl21Plus mit boost bsd3 cc0 ];
+    license = with licenses; [ gpl3Plus lgpl21Plus mit boost bsd3 cc0 hpndSellVariant ];
     maintainers = [ ];   # Add your nixpkgs handle here when submitting upstream
     platforms = [ "x86_64-linux" "aarch64-linux" ];
 
