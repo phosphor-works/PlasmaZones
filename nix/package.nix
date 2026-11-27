@@ -346,7 +346,7 @@ stdenv.mkDerivation (finalAttrs: {
     # the installed surface packs' shared/surface_color.glsl, and CC0-1.0 for the
     # two AppStream metainfo files the package installs. Same set the RPM spec's
     # License tag names, and for the same reason it records there.
-    license = with licenses; [ gpl3Plus lgpl21Plus mit boost bsd3 cc0 ];
+    license = with licenses; [ gpl3Plus lgpl21Plus mit boost bsd3 cc0 hpndSellVariant ];
     maintainers = [ ];   # Add your nixpkgs handle here when submitting upstream
     platforms = [ "x86_64-linux" "aarch64-linux" ];
 
