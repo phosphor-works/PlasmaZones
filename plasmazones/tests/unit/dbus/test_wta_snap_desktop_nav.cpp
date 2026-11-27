@@ -174,7 +174,21 @@ private Q_SLOTS:
                          [&](const QString&, const PhosphorProtocol::WindowStateEntry& entry) {
                              snapped.append(entry.changeType + QLatin1Char(':') + entry.zoneId);
                          });
+        // The view goes with the window: the move is followed by the window's
+        // activation, which switches KWin to its new desktop (#1313). The
+        // order matters, because an activation sent before the move would
+        // focus the window on the desktop it is leaving.
+        QStringList order;
+        QObject::connect(f.snap.get(), &PhosphorEngine::PlacementEngineBase::windowDesktopMoveRequested, f.snap.get(),
+                         [&](const QString& id, int desktop) {
+                             order.append(QStringLiteral("move:%1:%2").arg(id).arg(desktop));
+                         });
+        QObject::connect(f.snap.get(), &PhosphorEngine::PlacementEngineBase::activateWindowRequested, f.snap.get(),
+                         [&](const QString& id) {
+                             order.append(QStringLiteral("activate:") + id);
+                         });
         f.snap->moveFocusedInDirection(QStringLiteral("right"), NavigationContext{w, kLeft});
+        QCOMPARE(order, (QStringList{QStringLiteral("move:%1:2").arg(w), QStringLiteral("activate:") + w}));
         QCOMPARE(snapped, (QStringList{QStringLiteral("snapped:") + mapped}));
         QCOMPARE(f.snap->stateForWindowOnScreen(w, kLeft, 2)->zonesForWindow(w), (QStringList{mapped}));
         QVERIFY(!f.snap->heldKeyForWindow(w) || f.snap->heldKeyForWindow(w)->desktop == 2);
@@ -266,9 +280,11 @@ private Q_SLOTS:
         f.setFrame(w, QRect(1300, 100, 400, 300));
         f.snapOn(w, {f.zone(2)}, kLeft, 1);
         QSignalSpy moved(f.snap.get(), &PhosphorEngine::PlacementEngineBase::windowDesktopMoveRequested);
+        QSignalSpy activated(f.snap.get(), &PhosphorEngine::PlacementEngineBase::activateWindowRequested);
         QSignalSpy feedback(f.snap.get(), &PhosphorEngine::PlacementEngineBase::navigationFeedback);
         f.snap->moveFocusedInDirection(QStringLiteral("right"), NavigationContext{w, kLeft});
         QCOMPARE(moved.count(), 0);
+        QCOMPARE(activated.count(), 0);
         QCOMPARE(feedback.last().at(2).toString(), QStringLiteral("no_adjacent_zone"));
         QCOMPARE(f.snap->stateForWindowOnScreen(w, kLeft, 1)->zonesForWindow(w), (QStringList{f.zone(2)}));
     }
@@ -286,9 +302,12 @@ private Q_SLOTS:
         const QString w = f.live(QStringLiteral("slot-1"), QRect(1300, 100, 400, 300));
         f.snapOn(w, {f.zone(2)}, kLeft, 1);
         QSignalSpy moved(f.snap.get(), &PhosphorEngine::PlacementEngineBase::windowDesktopMoveRequested);
+        QSignalSpy activated(f.snap.get(), &PhosphorEngine::PlacementEngineBase::activateWindowRequested);
         QSignalSpy feedback(f.snap.get(), &PhosphorEngine::PlacementEngineBase::navigationFeedback);
         f.snap->moveFocusedInDirection(QStringLiteral("right"), NavigationContext{w, kLeft});
         QCOMPARE(moved.count(), 1);
+        QCOMPARE(activated.count(), 1);
+        QCOMPARE(activated.at(0).at(0).toString(), w);
         QCOMPARE(feedback.last().at(0).toBool(), true);
         const SnapState* source = f.snap->stateForWindowOnScreen(w, kLeft, 1);
         QCOMPARE(source->desktopForWindow(w), 1);
