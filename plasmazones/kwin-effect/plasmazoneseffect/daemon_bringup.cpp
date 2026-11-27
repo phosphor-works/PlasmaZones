@@ -693,6 +693,9 @@ void PlasmaZonesEffect::processDaemonReadyWindowState()
                     // pending-restores sweep. It restores zone geometry, and
                     // a window that left its recorded screen
                     // while the daemon was down stays where the user put it.
+                    // A window that no engine ever placed (one that opened
+                    // before the daemon was ready, such as an autostart app
+                    // at login) gets its open routing rules here (#1315).
                     PhosphorEngine::RestoreReason::DaemonRestartSweep);
             }
         });
