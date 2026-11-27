@@ -64,7 +64,6 @@ namespace {
 constexpr int kFloatsPerVec4 = 4;
 constexpr int kBytesPerVec4 = kFloatsPerVec4 * sizeof(float);
 constexpr int kArraysPerZone = 4; // rect, fillColor, borderColor, params
-constexpr int kBytesPerZone = kArraysPerZone * kBytesPerVec4;
 
 /// Read a vec4 from a byte buffer at zone-array offset (rectIndex / fillIndex /
 /// borderIndex / paramsIndex are 0..3 selecting which array, zoneIdx is 0..MaxZones-1).

@@ -151,7 +151,7 @@ ctest --test-dir build --output-on-failure
 ```
 
 ### Presets
-Configurations come from `CMakePresets.json`: `dev` (Debug) configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/` and `asan` (ASan and UBSan at `-O1`) into `build-asan/`. Every preset turns the tests and the tools on, and each has a workflow preset: `cmake --workflow --preset dev` configures, builds and tests. CI configures from the `dev` preset in its Presets job, so a broken preset turns CI red. The `Makefile` keeps only what the presets do not cover: install, post-install, uninstall, run-editor, run-daemon and format.
+Configurations come from `CMakePresets.json`: `dev` (Debug) configures into `build/`, `release` into `build-release/`, `relwithdebinfo` into `build-relwithdebinfo/` and `asan` (ASan and UBSan at `-O1`) into `build-asan/`. Every preset turns the tests and the tools on, and each has a workflow preset: `cmake --workflow --preset dev` configures, builds and tests. CI builds and tests with the `dev` preset (the shared C++ CI of the workspace repository), so a broken preset turns CI red. The `Makefile` keeps only what the presets do not cover: install, post-install, uninstall, run-editor, run-daemon and format.
 
 Install is whole-tree: none of the install rules declares a `COMPONENT`. `DESTDIR=/tmp/stage cmake --install build` stages it without root. After a real install (the user runs it), `make post-install` refreshes the KDE service cache.
 

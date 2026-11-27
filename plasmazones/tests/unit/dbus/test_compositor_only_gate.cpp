@@ -387,8 +387,7 @@ private Q_SLOTS:
     // sources: no daemon fixture constructs every adaptor.
     void documentedCompositorOnlyMethodsAreGated()
     {
-        const QDir testDirectory = QFileInfo(QStringLiteral(__FILE__)).absoluteDir();
-        const QString appRoot = QDir::cleanPath(testDirectory.filePath(QStringLiteral("../../..")));
+        const QString appRoot = QDir::cleanPath(QStringLiteral(PLASMAZONES_APP_SOURCE_DIR));
         const QString xmlDirectory = appRoot + QStringLiteral("/dbus");
         const QString adaptorSources = appRoot + QStringLiteral("/src/dbus");
         // phosphor-screens is in the phosphor-libs tree this build adds, which

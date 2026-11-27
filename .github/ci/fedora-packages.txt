@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Phosphor Works Team
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The Fedora packages CI installs to configure, build and test PlasmaZones
+# against Fedora's Qt, KDE Frameworks and KWin. One package per line. A comment
+# after `#` is ignored. The build dependencies are the ones of
+# packaging/rpm/plasmazones.spec.
+gcc-c++
+git
+ccache
+cmake
+ninja-build
+extra-cmake-modules
+qt6-qtbase-devel
+qt6-qtbase-private-devel
+qt6-qtdeclarative-devel
+qt6-qtshadertools-devel
+qt6-qtsvg-devel
+qt6-qttools-devel
+qt6-qtwayland-devel
+wayland-devel
+wayland-protocols-devel
+plasma-wayland-protocols-devel
+vulkan-headers
+vulkan-loader-devel
+libepoxy-devel
+libdrm-devel
+libxkbcommon-devel
+kf6-kcmutils-devel
+kf6-kconfig-devel
+kf6-kcolorscheme-devel
+kf6-kcoreaddons-devel
+kf6-kglobalaccel-devel
+kf6-kirigami-devel
+kf6-kwindowsystem-devel
+kwin-devel
+plasma-activities-devel
+systemd-devel
+systemd-rpm-macros
+# dbus-run-session, which PhosphorTestIsolation runs each test under.
+dbus-daemon
+# Test-time tools: xvfb and Mesa (llvmpipe) for the tests that need a display
+# or a real GL context, cava and ffmpeg for phosphor-audio.
+xorg-x11-server-Xvfb
+mesa-dri-drivers
+mesa-libEGL
+cava
+ffmpeg-free

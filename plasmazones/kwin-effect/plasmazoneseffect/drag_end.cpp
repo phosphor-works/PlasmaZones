@@ -283,7 +283,7 @@ void PlasmaZonesEffect::callEndDrag(KWin::EffectWindow* window, const QString& w
     // QPointer: the `handled` handshake already prevents a double-delete, but
     // a raw watcher capture would still dangle if that invariant ever slips.
     connect(timeoutTimer, &QTimer::timeout, this,
-            [this, windowId, handled, watcherGuard = QPointer<QDBusPendingCallWatcher>(watcher), timeoutTimer,
+            [windowId, handled, watcherGuard = QPointer<QDBusPendingCallWatcher>(watcher), timeoutTimer,
              revertOptimisticDragFloat, finishDragExit]() {
                 if (*handled) {
                     return;
