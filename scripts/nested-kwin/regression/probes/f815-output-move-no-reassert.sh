@@ -10,7 +10,8 @@
 #   change of the four with a millisecond stamp; then kscreen-doctor swaps the outputs' positions
 #   (Virtual-0 moves right).
 # Asserts: no "Countering external move of scroll-managed window" after the swap, and no frame in
-#   any window's trail lands left of Virtual-0's new origin (each goes old to new, never back).
+#   any window's trail lands back left of Virtual-0's new origin once it was at or right of it
+#   (each goes old to new, never back).
 # A FAIL means: the strip countered KWin's translate for x1 and re-asserted the old coordinates
 #   before the daemon's geometry pass moved the windows again.
 set -u
@@ -65,7 +66,10 @@ check "counter lines since the swap" "$(elog "Countering external move of scroll
 for c in s1 s2 s3 x1; do
     trail=$(elog "js: T15B [0-9]* $c .*" | awk -v kt="$KT" '{ printf "%+d:%s ", $3 - kt, $5 }')
     echo "  $c trail (ms since kscreen-doctor returned): ${trail:-no change}"
-    check "$c trail frames left of Virtual-0's new origin x=$NX" \
-        "$(elog "js: T15B [0-9]* $c .*" | awk -v nx="$NX" '{ split($5, p, ","); if (p[1] + 0 < nx + 0) n++ } END { print n + 0 }')" -eq 0
+    # Only a frame back left of the new origin after one at or right of it counts: a parked
+    # window (off every output) is not translated by KWin, so it keeps the old x until the
+    # daemon's pass moves it, and a frame event in between reports that unchanged old frame.
+    check "$c trail frames back left of Virtual-0's new origin x=$NX" \
+        "$(elog "js: T15B [0-9]* $c .*" | awk -v nx="$NX" '{ split($5, p, ","); if (p[1] + 0 >= nx + 0) moved = 1; else if (moved) n++ } END { print n + 0 }')" -eq 0
 done
 finish
