@@ -65,7 +65,7 @@ jobs:
   # The labeled events are for the draft PKGBUILD job only.
   ci:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled')
-    uses: phosphor-works/workspace/.github/workflows/cpp-ci.yml@v3
+    uses: phosphor-works/workspace/.github/workflows/cpp-ci.yml@v4
     with:
       pin-file: cmake/PlasmaZonesDependencies.cmake
       # Run in the suite CI images of the packaging repository.
