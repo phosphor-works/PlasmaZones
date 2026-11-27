@@ -100,6 +100,7 @@ option(INSTALL_SHADER_RENDER_TOOL
 if(INSTALL_SHADER_RENDER_TOOL)
     install(TARGETS plasmazones-shader-render
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    phosphor_install_embedded(FOR plasmazones-shader-render)
 endif()
 
 # ─────────────────────────────────────────────────────────────────

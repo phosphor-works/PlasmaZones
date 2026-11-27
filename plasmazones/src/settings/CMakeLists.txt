@@ -676,4 +676,6 @@ target_link_libraries(plasmazones-settings
 )
 
 install(TARGETS plasmazones-settings DESTINATION ${KDE_INSTALL_BINDIR})
+# The embedded Phosphor libraries that it links are installed with it.
+phosphor_install_embedded(FOR plasmazones-settings)
 install(FILES org.phosphor_works.Facet.desktop DESTINATION ${KDE_INSTALL_APPDIR})

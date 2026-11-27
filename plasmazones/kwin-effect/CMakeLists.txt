@@ -231,6 +231,11 @@ kcoreaddons_add_plugin(kwin_effect_plasmazones
     SOURCES ${plasmazones_effect_SRCS}
     INSTALL_NAMESPACE "kwin/effects/plugins"
 )
+# KWin loads the effect from its plugin directory; the Phosphor libraries it
+# links are PlasmaZones' embedded copies, in the private directory.
+plasmazones_private_rpath(_plasmazones_effect_rpath "${KDE_INSTALL_PLUGINDIR}/kwin/effects/plugins")
+set_target_properties(kwin_effect_plasmazones PROPERTIES INSTALL_RPATH "${_plasmazones_effect_rpath}")
+phosphor_install_embedded(FOR kwin_effect_plasmazones)
 
 # Read only by kwincompat.h, which is where every 6.7-vs-6.8 API difference in
 # this tree lives. PRIVATE: nothing outside the plugin includes that header.

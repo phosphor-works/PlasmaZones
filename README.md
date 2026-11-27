@@ -121,6 +121,11 @@ The first configure downloads the pinned phosphor-libs and phosphor-engine-libs 
 other build options, see [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Install page](https://phosphor-works.org/plasmazones/#install).
 
+The install includes the surface decoration packs of
+[phosphor-surface-packs](https://github.com/phosphor-works/phosphor-surface-packs), in
+`share/phosphor-works/shaders/surface`, where each app of the suite finds them. A distribution that packages them one
+time for all apps configures with `-DPLASMAZONES_INSTALL_SURFACE_PACKS=OFF`.
+
 ## Documentation
 
 - [phosphor-works.org/plasmazones](https://phosphor-works.org/plasmazones/) has the user documentation and screenshots.
