@@ -199,8 +199,12 @@ geo() {
     js "const w = workspace.windowList(); for (var i = 0; i < w.length; i++) { if (w[i].caption === \"$1\") { print(\"GEO $nonce \" + w[i].frameGeometry.x + \" \" + w[i].frameGeometry.y + \" \" + w[i].frameGeometry.width + \" \" + w[i].frameGeometry.height + \" max=\" + w[i].maximizeMode + \" nb=\" + w[i].noBorder + \" min=\" + w[i].minimized + \" d=[\" + w[i].desktops.map(function (d) { return d.x11DesktopNumber; }) + \"] @\" + w[i].output.name); } }"
     grep "js: GEO $nonce " "$LOG" | tail -1 | sed "s/.*js: GEO $nonce //"
 }
-rect() { echo "$1" | awk '{ print $1, $2, $3, $4 }'; }
-size() { echo "$1" | awk '{ print $3 "x" $4 }'; }
+# rect GEO and size GEO round to whole pixels. KWin derives a frame from the client size and the
+# decoration margins in floating point, so one frame reads 243.99999999999994 wide after a
+# configure and 244 after KWin recomputes it on a show, with no command in between. Compared as
+# text, that read as a move.
+rect() { echo "$1" | awk '{ printf "%.0f %.0f %.0f %.0f\n", $1, $2, $3, $4 }'; }
+size() { echo "$1" | awk '{ printf "%.0fx%.0f\n", $3, $4 }'; }
 maxof() { echo "$1" | grep -o "max=[0-9]*" | cut -d= -f2; }
 nbof() { echo "$1" | grep -o "nb=[a-z]*" | cut -d= -f2; }
 outof() { echo "$1" | grep -o "@[^ ]*$" | cut -c2-; }
