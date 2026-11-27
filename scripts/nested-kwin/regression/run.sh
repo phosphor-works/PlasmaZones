@@ -167,6 +167,7 @@ f1170-shell-unmaps-after-drag f1170-shell-unmaps-after-drag.sh 1 F
 f1170-cheatsheet-focus-fsp f1170-cheatsheet-focus-fsp.sh 1 -
 f1182-user-maximize-borderless f1182-user-maximize-borderless.sh 1 -
 f1266-strip-fullscreen-keeps-column f1266-strip-fullscreen-keeps-column.sh 1 -
+f1301-resume-strip-returns f1301-resume-strip-returns.sh 2 -
 f1313-desktop-move-follows f1313-desktop-move-follows.sh 1 -
 fdrag-float-keeps-size fdrag-float-keeps-size.sh 1 FS
 fsplash-sibling-size-scroll fsplash-sibling-size.sh 1 S PZ_FSPLASH_MODE=scroll
