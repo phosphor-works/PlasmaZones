@@ -240,12 +240,6 @@ endif()
 # private modules, QT_NO_CAST_FROM_ASCII) is in force when it is added, so it is
 # added here, before anything reads its targets. The translation module below
 # reads its phosphor-control sources, so this also stays above that include.
-#
-# Its library tests that check a library constant against the packs PlasmaZones
-# ships read them from here. FORCE, so the tree's own empty default, which it
-# declares as a cache entry, never wins.
-set(PHOSPHOR_LIBS_BUNDLED_PACKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plasmazones/data" CACHE PATH
-    "Directory holding bundled animations/ and pointer/ packs, for the phosphor-libs tests that check them" FORCE)
 # The surface decoration packs, from their own repository at the commit
 # cmake/PlasmaZonesDependencies.cmake pins. Fetched BEFORE the libraries:
 # phosphor-libs fetches its own pinned copy for its tests unless an app has

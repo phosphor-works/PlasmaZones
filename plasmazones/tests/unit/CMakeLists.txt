@@ -1093,6 +1093,26 @@ target_link_libraries(test_shader_schema_bounds PRIVATE PhosphorPointer::Phospho
 target_compile_definitions(test_shader_schema_bounds PRIVATE
     "P_SHADER_SCHEMA_DIR=\"${phosphor-libs_SOURCE_DIR}/data/schemas\"")
 
+# The animation and pointer packs that PlasmaZones ships, checked against the
+# phosphor-animation and phosphor-pointer constants that depend on them. The
+# packs are this tree's data, so these checks are here and not in the library
+# tests. Both read the packs from the source tree through P_DATA_DIR, and a
+# missing directory fails the test.
+#   test_builtin_animation_effects: each animation pack resolves by id, has
+#                                   complete metadata and declares its class
+#   test_pointer_shared_helper:     the entry prologue and the curve constants
+#                                   agree with data/pointer/shared
+add_executable(test_builtin_animation_effects data/test_builtin_animation_effects.cpp)
+target_link_libraries(test_builtin_animation_effects PRIVATE Qt6::Test Qt6::Core PhosphorAnimation::PhosphorAnimation
+                                                             PhosphorFsLoader::PhosphorFsLoader)
+target_compile_definitions(test_builtin_animation_effects PRIVATE "P_DATA_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones/data\"")
+add_test(NAME test_builtin_animation_effects COMMAND test_builtin_animation_effects)
+
+add_executable(test_pointer_shared_helper data/test_pointer_shared_helper.cpp)
+target_link_libraries(test_pointer_shared_helper PRIVATE Qt6::Test Qt6::Core Qt6::Gui PhosphorPointer::PhosphorPointer)
+target_compile_definitions(test_pointer_shared_helper PRIVATE "P_DATA_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones/data\"")
+add_test(NAME test_pointer_shared_helper COMMAND test_pointer_shared_helper)
+
 p_add_test(test_layoutmanager_assignment core/layout/test_layoutmanager_assignment.cpp)
 # The AssignmentEntry-shape half of the suite above, split off at its P6 banner
 # when the single file passed the 1150-line ceiling. Shares the same fixture.
