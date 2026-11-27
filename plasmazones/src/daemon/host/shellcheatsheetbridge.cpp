@@ -88,7 +88,7 @@ void ShellCheatsheetBridge::startNext()
         if (m_socket != socket)
             return;
         // Phosphor IPC v1 NDJSON call, the same target registry used by
-        // phosphorctl. Its CLI client is synchronous and cannot run here.
+        // lambentctl. Its CLI client is synchronous and cannot run here.
         const QJsonObject request{{QStringLiteral("type"), QStringLiteral("call")},
                                   {QStringLiteral("id"), m_requestId},
                                   {QStringLiteral("target"), QStringLiteral("cheatsheet")},
