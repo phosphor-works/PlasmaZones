@@ -857,6 +857,7 @@ void TestNavigationCrossSurface::crossDesktop_moveRight_relocatesToNextDesktopAn
     const QString rightmost = wins.at(1);
 
     QSignalSpy moveSpy(engine.get(), &AutotileEngine::windowDesktopMoveRequested);
+    QSignalSpy activateSpy(engine.get(), &AutotileEngine::activateWindowRequested);
     // Move right off the edge of desktop 1 → ask the compositor to relocate the
     // real window to desktop 2. The engine does NOT mutate tiling state here: a
     // desktop move is owned by the compositor, exactly like a native KWin
@@ -875,6 +876,10 @@ void TestNavigationCrossSurface::crossDesktop_moveRight_relocatesToNextDesktopAn
     const QList<QVariant> args = moveSpy.takeFirst();
     QCOMPARE(args.at(0).toString(), rightmost);
     QCOMPARE(args.at(1).toInt(), 2);
+    // The view goes with the window (#1313): activating it on its new desktop
+    // switches KWin there.
+    QCOMPARE(activateSpy.count(), 1);
+    QCOMPARE(activateSpy.at(0).at(0).toString(), rightmost);
 
     // And the source state is untouched — the half the comment above is about.
     // Without these the test passes just as well against an engine that went

@@ -436,7 +436,10 @@ private Q_SLOTS:
         QCOMPARE(drive(RestoreReason::Open, QStringLiteral("open")), 1);
         QCOMPARE(drive(RestoreReason::PendingSweep, QStringLiteral("sweep")), 1);
         QCOMPARE(drive(RestoreReason::Unminimize, QStringLiteral("unminimize")), 0);
-        QCOMPARE(drive(RestoreReason::DaemonRestartSweep, QStringLiteral("restart")), 0);
+        // A daemon-ready sweep of a window that no engine placed is that
+        // window's first placement: it opened before the daemon was ready
+        // (#1315).
+        QCOMPARE(drive(RestoreReason::DaemonRestartSweep, QStringLiteral("restart")), 1);
         QCOMPARE(drive(RestoreReason::DesktopArrival, QStringLiteral("arrival")), 0);
         QCOMPARE(drive(RestoreReason::DesktopReapply, QStringLiteral("reapply")), 0);
 
@@ -446,6 +449,28 @@ private Q_SLOTS:
         QCOMPARE(drive(RestoreReason::PendingSweep, QStringLiteral("open")), 0);
         m_wta->windowClosed(QStringLiteral("deskapp|open"), QStringLiteral("DP-1"));
         QCOMPARE(drive(RestoreReason::Open, QStringLiteral("open")), 1);
+
+        // A real daemon restart: the window was placed before, so its record
+        // carries an engine slot, and the sweep does not route it again.
+        PhosphorEngine::WindowPlacement placed;
+        placed.windowId = QStringLiteral("deskapp|placed");
+        placed.appId = QStringLiteral("deskapp");
+        placed.screenId = QStringLiteral("DP-1");
+        PhosphorEngine::EngineSlot floatingSlot;
+        floatingSlot.state = QString(PhosphorEngine::WindowPlacement::stateFloating());
+        placed.engines.insert(QString(PhosphorEngine::WindowPlacement::snapEngineId()), floatingSlot);
+        QVERIFY(m_wta->service()->placementStore().record(placed));
+        QCOMPARE(drive(RestoreReason::DaemonRestartSweep, QStringLiteral("placed")), 0);
+
+        // The geometry-only record that every open writes carries no engine
+        // slot, and does not count as a placement.
+        PhosphorEngine::WindowPlacement stub;
+        stub.windowId = QStringLiteral("deskapp|stub");
+        stub.appId = QStringLiteral("deskapp");
+        stub.screenId = QStringLiteral("DP-1");
+        stub.freeGeometryByScreen.insert(QStringLiteral("DP-1"), QRect(100, 100, 800, 600));
+        QVERIFY(m_wta->service()->placementStore().record(stub));
+        QCOMPARE(drive(RestoreReason::DaemonRestartSweep, QStringLiteral("stub")), 1);
     }
 
     // The reopen contract on the snap channel: a record that tiles the app on
@@ -1358,8 +1383,8 @@ private Q_SLOTS:
     }
 
     // The tiling channel routes on a first placement only: a genuine open
-    // always, a re-announce only for a window the placement store has no
-    // record of.
+    // always, a re-announce only for a window that no engine placed (its
+    // record, if any, carries no engine slot).
     void testIsFirstTilingPlacement_openOrUnrecordedOnly()
     {
         PhosphorProtocol::WindowOpenedEntry opened;
@@ -1376,6 +1401,17 @@ private Q_SLOTS:
         record.windowId = QStringLiteral("tileapp|placed");
         record.appId = QStringLiteral("tileapp");
         record.screenId = m_screenId;
+        record.freeGeometryByScreen.insert(m_screenId, QRect(100, 100, 800, 600));
+        QVERIFY(m_wta->service()->placementStore().record(record));
+        PhosphorProtocol::WindowOpenedEntry stubbed;
+        stubbed.windowId = record.windowId;
+        stubbed.focusEligible = false;
+        QVERIFY2(m_wta->isFirstTilingPlacement(stubbed),
+                 "a geometry-only record, with no engine slot, is not a placement");
+
+        PhosphorEngine::EngineSlot tiledSlot;
+        tiledSlot.state = QString(PhosphorEngine::WindowPlacement::stateTiled());
+        record.engines.insert(QString(PhosphorEngine::WindowPlacement::autotileEngineId()), tiledSlot);
         QVERIFY(m_wta->service()->placementStore().record(record));
         PhosphorProtocol::WindowOpenedEntry reannounced;
         reannounced.windowId = record.windowId;

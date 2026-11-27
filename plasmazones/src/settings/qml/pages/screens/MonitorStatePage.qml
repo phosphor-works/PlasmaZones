@@ -99,7 +99,7 @@ SettingsFlickable {
 
     // Re-read the per-screen states. BLOCKING D-Bus, so it is gated on
     // visibility: the page host keeps visited pages alive and merely hides
-    // them, and the five Connections handlers below fire for events that
+    // them, and the Connections handlers below fire for events that
     // change nothing a hidden page is showing. onVisibleChanged is the
     // catch-up, so a page coming back is never stale.
     function _refresh() {
@@ -357,6 +357,22 @@ SettingsFlickable {
 
         function onScreenLayoutChanged() {
             root._refresh();
+        }
+
+        // Each screen's current desktop and activity come from the screen
+        // states, and a desktop or activity switch changes nothing else this
+        // page listens to. The mode picker always edits the context that the
+        // last read names, so without this re-read a pick made after a switch
+        // went to the desktop the page had read before and replaced that
+        // desktop's mode (#1265). The controller's cache already holds the
+        // new answer, so this takes it from there rather than asking the
+        // daemon again with a blocking call.
+        function onScreenStatesChanged() {
+            if (!root.visible)
+                return;
+
+            root._screenStates = settingsController.screenStates;
+            root._revision++;
         }
 
         // A global Discard or a factory reset drops the staged entries without

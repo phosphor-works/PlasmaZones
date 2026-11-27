@@ -51,8 +51,8 @@
 # than build/ (a path relative to the repository; daemon.sh honours the same
 # variable via env.sh).
 #
-# The session serves the repository's bundled data (layouts, algorithms,
-# templates and the shader packs) from $NEST/repo-data, a SYSTEM-tier data dir
+# The session serves the bundled data (layouts, algorithms, templates and the
+# shader packs) from $NEST/repo-data, a SYSTEM-tier data dir
 # ahead of the installed one on XDG_DATA_DIRS, so a pack added on the branch
 # is present and an edit to one is live at the next rescan. It overrides an
 # installed asset of the same id but cannot hide an installed one the branch
@@ -527,6 +527,24 @@ for log in daemon.log compositor.log; do
 done
 mkdir -p "$HOME_N/config" "$HOME_N/data" "$HOME_N/cache" "$HOME_N/state"
 
+# The layouts, scrolling templates and tiling algorithms are phosphor-engine-libs'
+# data, not this checkout's: they come from the pinned phosphor-engine-libs tree,
+# or from the checkout PHOSPHOR_ENGINE_LIBS_DIR names, which is the tree to use
+# for a build against a local checkout (-DCPM_phosphor-engine-libs_SOURCE). The
+# curves and the shader packs are this checkout's own.
+if ! ENGINE_LIBS="$(python3 "$REPO/scripts/pinned_phosphor_libs.py" --engine)"; then
+    echo "refusing: cannot find the phosphor-engine-libs tree (see the error above)" >&2
+    exit 1
+fi
+# bundled_dir SUB: the directory that serves phosphor-works/SUB
+bundled_dir() {
+    case "$1" in
+    layouts | scrolling-templates | algorithms) echo "$ENGINE_LIBS/data/$1" ;;
+    shaders/*) echo "$REPO/plasmazones/data/${1#shaders/}" ;;
+    *) echo "$REPO/plasmazones/data/$1" ;;
+    esac
+}
+
 # A home kept from a harness that still COPIED the bundled data into the user
 # data home carries those copies, and a user-dir file wins over the repo-data
 # system dir below: the session would run the stale copies as user files.
@@ -537,7 +555,7 @@ if [ "$KEEP_STATE" = "1" ] && [ -d "$HOME_N/data/phosphor-works" ]; then
     for sub in layouts scrolling-templates curves algorithms shaders/overlays shaders/animations shaders/pointer; do
         [ -d "$HOME_N/data/phosphor-works/$sub" ] || continue
         for entry in "$HOME_N/data/phosphor-works/$sub"/*; do
-            if [ -e "$entry" ] && [ -e "$REPO/plasmazones/data/${sub#shaders/}/${entry##*/}" ]; then
+            if [ -e "$entry" ] && [ -e "$(bundled_dir "$sub")/${entry##*/}" ]; then
                 shadowing=$((shadowing + 1))
             fi
         done
@@ -561,11 +579,8 @@ REPO_DATA="$NEST/repo-data"
 rm -rf "$REPO_DATA"
 mkdir -p "$REPO_DATA/phosphor-works/shaders"
 # The trees every Phosphor app shares, and the shader families under shaders/.
-for sub in layouts scrolling-templates curves algorithms; do
-    ln -s "$REPO/plasmazones/data/$sub" "$REPO_DATA/phosphor-works/$sub"
-done
-for sub in overlays animations pointer; do
-    ln -s "$REPO/plasmazones/data/$sub" "$REPO_DATA/phosphor-works/shaders/$sub"
+for sub in layouts scrolling-templates curves algorithms shaders/overlays shaders/animations shaders/pointer; do
+    ln -s "$(bundled_dir "$sub")" "$REPO_DATA/phosphor-works/$sub"
 done
 ln -s "$REPO/plasmazones/data/placement-hosts" "$REPO_DATA/phosphor-works/placement-hosts"
 # The surface packs are not in this checkout: they come from the pinned

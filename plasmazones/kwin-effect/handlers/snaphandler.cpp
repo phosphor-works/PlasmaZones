@@ -269,8 +269,13 @@ void SnapHandler::callResolveWindowRestore(KWin::EffectWindow* window, std::func
     // tryAsyncSnapCall, and every branch calls onComplete afterwards, so the flag is always settled when it runs.
     // The completion is ALWAYS constructed, caller callback or not: it is also what retires the in-flight mark
     // below, and every reply arm (applied, miss, error, window died) calls it.
+    // The daemon-ready sweep counts as well: for a window that opened before the daemon was ready, it is the
+    // window's first placement, and the daemon routes it (#1315). Only the daemon knows whether a swept window was
+    // placed before, so a sweep is marked here either way. For a window that was placed, the daemon routes
+    // nothing, and the mark only lasts while the call is out.
     const bool firstPlacement = isOpenPath || reason == PhosphorEngine::RestoreReason::PendingSweep
-        || reason == PhosphorEngine::RestoreReason::DesktopArrival;
+        || reason == PhosphorEngine::RestoreReason::DesktopArrival
+        || reason == PhosphorEngine::RestoreReason::DaemonRestartSweep;
     const quint64 epoch = m_openResolveEpoch;
     if (firstPlacement) {
         ++m_openResolveInFlight[windowId];

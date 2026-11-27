@@ -906,7 +906,7 @@ private Q_SLOTS:
         wta->service()->recordFreeGeometry(b, screenId, realFreeBack, true);
 
         QVERIFY(scroll->setWindowFullscreenFloat(b, true, screenId));
-        QVERIFY(scroll->isFullscreenFloated(b));
+        QVERIFY(scroll->isFullscreenHeld(b));
         // KWin's fullscreen frame.
         wta->setFrameGeometry(b, output.x(), output.y(), output.width(), output.height());
 
@@ -922,7 +922,7 @@ private Q_SLOTS:
                  "a close during the hold must not record the output rect as the float-back");
         QCOMPARE(rec->freeGeometryFor(screenId), realFreeBack);
         // The memory is consumed by the capture, not left behind for good.
-        QVERIFY2(!scroll->isFullscreenFloated(b), "WindowTracking.windowClosed must consume the closed-hold memory");
+        QVERIFY2(!scroll->isFullscreenHeld(b), "WindowTracking.windowClosed must consume the closed-hold memory");
 
         wta->setEngines(snap.get(), nullptr, nullptr);
         wta->service()->setSnapState(nullptr);

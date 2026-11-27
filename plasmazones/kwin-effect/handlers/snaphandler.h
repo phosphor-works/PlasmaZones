@@ -263,8 +263,8 @@ public:
     {
         return m_unfloatInFlight.contains(windowId);
     }
-    /// A first-placement resolve (open, pending sweep or desktop arrival) is
-    /// in flight for the window. The size-only apply reads this to tell the
+    /// A first-placement resolve (open, pending sweep, daemon-ready sweep or
+    /// desktop arrival) is in flight for the window. The size-only apply reads this to tell the
     /// open-path free-size restore, which recentres, from the drag-out
     /// unsnap, which keeps the top-left; the two ride one signal.
     bool hasOpenResolveInFlight(const QString& windowId) const
@@ -341,8 +341,8 @@ public:
         return !m_desktopArrivalParks.isEmpty();
     }
 
-    /// Whether a first-placement resolve (an open, a pending sweep, a desktop
-    /// arrival) is out for @p windowId: a desktop move asked for inside it is
+    /// Whether a first-placement resolve (an open, a pending sweep, a
+    /// daemon-ready sweep, a desktop arrival) is out for @p windowId: a desktop move asked for inside it is
     /// the open's own continuation.
     bool openResolveInFlight(const QString& windowId) const
     {
