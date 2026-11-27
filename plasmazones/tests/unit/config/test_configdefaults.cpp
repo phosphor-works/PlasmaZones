@@ -290,8 +290,11 @@ private Q_SLOTS:
             ConfigDefaults::rulesFilePath(),          ConfigDefaults::quickLayoutsFilePath(),
             ConfigDefaults::layoutSettingsFilePath(), ConfigDefaults::profilesDir() + QLatin1Char('/')};
         for (const QString& path : configPaths) {
-            QVERIFY2(path.contains(appFolder), qPrintable(path));
-            QVERIFY2(!path.contains(QStringLiteral("plasmazones")), qPrintable(path));
+            const qsizetype inSuite = path.indexOf(appFolder);
+            QVERIFY2(inSuite >= 0, qPrintable(path));
+            // Only the part from the suite folder on: the XDG root above it is
+            // the test's, and can sit in a build directory with any name.
+            QVERIFY2(!path.mid(inSuite).contains(QStringLiteral("plasmazones")), qPrintable(path));
         }
         QVERIFY2(ConfigDefaults::layoutsDirPath().endsWith(QStringLiteral("/phosphor-works/layouts")),
                  qPrintable(ConfigDefaults::layoutsDirPath()));
