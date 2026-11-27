@@ -9,7 +9,7 @@
 #include "EditorController.h"
 #include <PhosphorEngineRuntime/Logging.h>
 
-#include <PhosphorProtocol/ServiceConstants.h>
+#include "common/appidentity.h"
 
 namespace PlasmaZones {
 
@@ -17,9 +17,8 @@ EditorLaunchController::EditorLaunchController(EditorController* controller, QOb
     : QObject(parent)
     , m_controller(controller)
     , m_singleInstance(std::make_unique<SingleInstanceService>(
-          SingleInstanceIds{PhosphorProtocol::Service::Apps::Editor::ServiceName,
-                            PhosphorProtocol::Service::Apps::Editor::ObjectPath,
-                            PhosphorProtocol::Service::Apps::Editor::Interface},
+          SingleInstanceIds{PlasmaZones::AppIdentity::Editor::ServiceName, PlasmaZones::AppIdentity::Editor::ObjectPath,
+                            PlasmaZones::AppIdentity::Editor::Interface},
           this))
 {
     Q_ASSERT(m_controller);

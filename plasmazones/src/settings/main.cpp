@@ -25,7 +25,7 @@
 
 #include "common/hostsettings.h"
 #include <PhosphorEngineRuntime/Constants.h>
-#include <PhosphorProtocol/ServiceConstants.h>
+#include "common/appidentity.h"
 
 #include <PhosphorAnimation/CurveLoader.h>
 #include <PhosphorAnimation/PhosphorCurve.h>
@@ -57,9 +57,9 @@ Q_IMPORT_QML_PLUGIN(Phosphor_ComponentsPlugin)
 
 namespace {
 
-constexpr PlasmaZones::SingleInstanceIds kSettingsIds{PhosphorProtocol::Service::Apps::Settings::ServiceName,
-                                                      PhosphorProtocol::Service::Apps::Settings::ObjectPath,
-                                                      PhosphorProtocol::Service::Apps::Settings::Interface};
+constexpr PlasmaZones::SingleInstanceIds kSettingsIds{PlasmaZones::AppIdentity::Settings::ServiceName,
+                                                      PlasmaZones::AppIdentity::Settings::ObjectPath,
+                                                      PlasmaZones::AppIdentity::Settings::Interface};
 
 /// Try to forward a --page request to an already-running instance.
 /// Returns true if a running instance exists (caller should exit).

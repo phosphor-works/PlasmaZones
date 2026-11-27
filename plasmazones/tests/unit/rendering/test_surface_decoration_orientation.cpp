@@ -68,6 +68,7 @@
 #include <utility>
 
 #include <PhosphorProtocol/ServiceConstants.h>
+#include "common/appidentity.h"
 #include <PhosphorSurface/SurfaceShaderRegistry.h>
 
 using PhosphorSurfaceShaders::SurfaceShaderRegistry;
@@ -125,9 +126,8 @@ public:
 private:
     static QStringList watchedNames()
     {
-        return {QString(PhosphorProtocol::Service::Name),
-                QString(PhosphorProtocol::Service::Apps::Settings::ServiceName),
-                QString(PhosphorProtocol::Service::Apps::Editor::ServiceName)};
+        return {QString(PhosphorProtocol::Service::Name), QString(PlasmaZones::AppIdentity::Settings::ServiceName),
+                QString(PlasmaZones::AppIdentity::Editor::ServiceName)};
     }
 
     QSet<QString> m_preexisting;
