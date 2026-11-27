@@ -507,8 +507,8 @@ void TilingHandler::slotWindowFullScreenChanged(KWin::EffectWindow* w)
         // m_notifiedWindows the whole time) returns to its tiled rect, so
         // re-establish the decoration claim and border tracking the enter-path
         // released. On an autotile screen the daemon kept it tiled throughout;
-        // on a scrolling screen the enter branch floated it out of the strip
-        // and the owned-float arm below unfloats it back.
+        // on a scrolling screen the enter branch held it in its column and the
+        // owned-hold arm below ends the hold.
         // EVERY exit path below must re-drive decorations, not just the
         // tracked-retile one: the ENTER branch unconditionally removed this
         // window's decoration, and shouldDecorateWindow's fullscreen reject
@@ -772,15 +772,13 @@ void TilingHandler::slotWindowFullScreenChanged(KWin::EffectWindow* w)
             }
         }
     }
-    // A scrolling strip tile entering its OWN fullscreen LEAVES the strip for
-    // the hold. Left seated, the daemon kept a column reserved behind the
-    // fullscreen surface: the neighbours did not close up, focus verbs could
-    // land on it, and a game that shares its launcher's class sat there as a
-    // TAB in the launcher's column. Scrolling.setWindowFullscreenFloat floats
-    // it with the slot memory a user float keeps, so the exit branch's return
-    // restores column and width where a release would re-insert it as a fresh
-    // open, but it announces on the engine's PASSIVE channel: no float OSD and
-    // no free-geometry restore, which the user-float route raised on every F11.
+    // A scrolling strip tile entering its OWN fullscreen is HELD in its column
+    // for the hold (Scrolling.setWindowFullscreenFloat). The column keeps its
+    // place, so the other columns do not move while the window covers its
+    // output (#1266). The engine goes on laying the column out, and
+    // applyWindowGeometry's fullscreen bail keeps those rects off the window.
+    // A window that opens during the hold does not join the held column. The
+    // hold is not a float: no float OSD and no free-geometry restore.
     //
     // Windowed-fullscreen members never reach here (they returned above). An
     // already-floating window is skipped so its float keeps its owner, exactly
@@ -817,7 +815,7 @@ void TilingHandler::slotWindowFullScreenChanged(KWin::EffectWindow* w)
         m_fullscreenUnfloatInFlight.remove(windowId);
         const quint64 generation = ++m_fullscreenHoldRequestGeneration;
         m_fullscreenHoldGeneration[windowId] = generation;
-        qCInfo(lcEffect) << "Strip tile entered its own fullscreen, holding it out of the strip:" << windowId << "on"
+        qCInfo(lcEffect) << "Strip tile entered its own fullscreen, holding it in its column:" << windowId << "on"
                          << notifiedScreen;
         auto* watcher = new QDBusPendingCallWatcher(
             PhosphorProtocol::ClientHelpers::asyncCall(PhosphorProtocol::Service::Interface::Scrolling,
