@@ -12,7 +12,7 @@
 #include <PhosphorEngineRuntime/ConfigMigration.h>
 #include <PhosphorEngineRuntime/Settings.h>
 #include <PhosphorEngineRuntime/Logging.h>
-#include <PhosphorProtocol/ServiceConstants.h>
+#include "common/appidentity.h"
 #include <PhosphorAnimation/PhosphorCurve.h>
 #include <PhosphorAnimation/QtQuickClockManager.h>
 #include <PhosphorScreens/Resolver.h>
@@ -36,9 +36,9 @@ using namespace PlasmaZones;
 
 namespace {
 
-constexpr PlasmaZones::SingleInstanceIds kEditorIds{PhosphorProtocol::Service::Apps::Editor::ServiceName,
-                                                    PhosphorProtocol::Service::Apps::Editor::ObjectPath,
-                                                    PhosphorProtocol::Service::Apps::Editor::Interface};
+constexpr PlasmaZones::SingleInstanceIds kEditorIds{PlasmaZones::AppIdentity::Editor::ServiceName,
+                                                    PlasmaZones::AppIdentity::Editor::ObjectPath,
+                                                    PlasmaZones::AppIdentity::Editor::Interface};
 
 /// Try to forward a launch request to an already-running editor instance.
 /// Returns true if the running instance accepted the request (caller should exit).
@@ -256,7 +256,7 @@ int main(int argc, char* argv[])
                                     newTemplateArg)) {
             return 0;
         }
-        qCCritical(lcEditor) << "Editor D-Bus name" << PhosphorProtocol::Service::Apps::Editor::ServiceName
+        qCCritical(lcEditor) << "Editor D-Bus name" << PlasmaZones::AppIdentity::Editor::ServiceName
                              << "is held by an unreachable instance. The existing editor may be hung, or it"
                              << "may be an older build whose launch-request signature no longer matches"
                              << "(in-place upgrade) — kill the stale plasmazones-editor process and try again.";

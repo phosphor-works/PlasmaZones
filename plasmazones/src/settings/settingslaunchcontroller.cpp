@@ -5,18 +5,18 @@
 #include "settingsappadaptor.h"
 #include "settings/controller/settingscontroller.h"
 
-#include <PhosphorProtocol/ServiceConstants.h>
+#include "common/appidentity.h"
 
 namespace PlasmaZones {
 
 SettingsLaunchController::SettingsLaunchController(SettingsController* controller, QObject* parent)
     : QObject(parent)
     , m_controller(controller)
-    , m_singleInstance(std::make_unique<SingleInstanceService>(
-          SingleInstanceIds{PhosphorProtocol::Service::Apps::Settings::ServiceName,
-                            PhosphorProtocol::Service::Apps::Settings::ObjectPath,
-                            PhosphorProtocol::Service::Apps::Settings::Interface},
-          this))
+    , m_singleInstance(
+          std::make_unique<SingleInstanceService>(SingleInstanceIds{PlasmaZones::AppIdentity::Settings::ServiceName,
+                                                                    PlasmaZones::AppIdentity::Settings::ObjectPath,
+                                                                    PlasmaZones::AppIdentity::Settings::Interface},
+                                                  this))
 {
     Q_ASSERT(m_controller);
     // Parent the adaptor to `this`. SingleInstanceService stored `this` as its
