@@ -813,6 +813,13 @@ void ScreenChangeHandler::finishScreenChange()
     // (C86). The drain re-judges every park on the output each window now
     // sits on and spends only the ones in view.
     m_effect->snapHandler()->slotDesktopChangedRestoreArrivals();
+    // A strip window's answer to its column is not read while the change runs
+    // (frameReadsAsColumnAnswer: the coordinates may not hold), and the client
+    // need commit nothing more once it has answered: a column the batch for
+    // the new work area offered, taken during the change, would stay unread,
+    // and a park answered then would keep the engine's peek memory standing
+    // (#1154 at a scale change). The catch-up walk reads the owed answers now.
+    m_effect->scheduleColumnAnswerCatchUp();
 }
 
 void ScreenChangeHandler::replayCrossing(KWin::EffectWindow* w, const QString& oldScreenId)
