@@ -12,11 +12,10 @@
 #   a, b and c on desktop D0, b in the middle of the order, so a return to the end would show. Staging gate: both are on D0, Virtual-0 shows D0, and the daemon runs
 #   dynamic workspaces.
 # Asserts: after b's maximize opens its own workspace, a daemon restart restores the record from the
-#   state file, and b is maximized on its own workspace with Virtual-0 showing it. (While the daemon
-#   is down the effect gives back an engine's maximize, ClaimScope::Teardown, so KWin can report a
-#   restore and a maximize again on tiling and scrolling.) The restore after the restart moves b back
-#   to its place on D0 (frames, or the column order on scrolling), shows D0, and the emptied desktop
-#   goes.
+#   state file, b stays maximized on its own workspace with Virtual-0 showing it, and KWin reports no
+#   un-maximize of b while the daemon is down or after it returns. The restore after the restart
+#   moves b back to its place on D0 (frames, or the column order on scrolling), shows D0, and the
+#   emptied desktop goes.
 # A FAIL means: the restart lost the record, the hold or the tile's maximize.
 set -u
 NEST="$1"
@@ -104,6 +103,7 @@ check "b still on its own workspace" "$(deskof "$S")" != "$D0"
 check "Virtual-0 still shows it" "$(cur)" = "$(deskof "$S")"
 check "b still maximized" "$(maxof "$S")" = 3
 echo "  maximize changes of b: $(elog 'FOWNMAX [0-9]+' | tr '\n' ' ')"
+check "b never unmaximized through the restart" "$(elog 'FOWNMAX 0' | wc -l)" -eq 0
 
 echo "== user restore of b"
 dmark

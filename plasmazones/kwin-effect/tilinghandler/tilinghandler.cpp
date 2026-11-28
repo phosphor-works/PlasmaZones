@@ -1019,18 +1019,14 @@ void TilingHandler::drainDeadSessionState()
     // effect's flags are stale; the adopt-on-batch arm re-establishes them
     // from the new daemon's truth. Idempotent after the teardown's release.
     restoreAllWindowedFullscreen();
-    // Monocle belongs to the dead session on the same terms, and this was the
-    // one bulk-restore caller that omitted it — the teardown sites all call
-    // the three together. Its own re-establishment is weaker than the column
-    // mirror's, which is why leaving it is worse here than there: the sole
-    // insert site is gated on the window NOT already being maximized, so a
-    // surviving entry is never refreshed and never re-derived from the new
-    // daemon's truth. It runs after the fullscreen release, per the claim
-    // order, and before the column mirror.
-    restoreAllMonocleMaximized();
-    // The column-maximize mirror belongs to the dead session too, and the
-    // batch Apply arm re-establishes it from the new daemon's truth.
-    restoreAllMaximizedToEdges();
+    // The maximize claims are KEPT across the restart, with the window still
+    // maximized (the daemon-loss site keeps them for the same reason): the new
+    // daemon's first batch decides. A monocle entry the batch still flags is
+    // already a member at MaximizeFull, so the monocle arm needs no insert,
+    // and one it no longer flags is released by the arm's else branch. A
+    // maximize to edges is held by the batch arm (flag, membership and the
+    // bit agree) or released by it (no flag). Restoring both here made every
+    // maximized window restore and maximize again across a daemon restart.
     setScrollingScreens({}, /*announceFlipped=*/false);
     // The resolved per-screen scroll behaviour belongs to the dead session
     // too, and bring-up clears it rather than trusting the teardown to have:

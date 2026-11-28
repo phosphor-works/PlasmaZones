@@ -843,8 +843,10 @@ enum class ClaimScope {
     /// hold. The repair for a maximize claim retained through the hold, whose
     /// release skipped while the window was fullscreen.
     FullscreenExit,
-    /// Engine disable, daemon loss, daemon bring-up, effect unload. Every
-    /// claim answers, and the ORDER matters (see claimReleaseOrder).
+    /// Engine disable and effect unload. Every claim answers, and the ORDER
+    /// matters (see claimReleaseOrder). A daemon loss and a daemon bring-up
+    /// release only the windowed-fullscreen claim: both maximize claims stay,
+    /// with the window maximized, for the new daemon's first batch to decide.
     Teardown,
     /// KWin moved the window off an output that disconnected. Its claims are
     /// scrubbed from the ledgers without touching KWin's state: a maximized or

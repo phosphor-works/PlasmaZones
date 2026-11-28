@@ -385,12 +385,15 @@ void PlasmaZonesEffect::connectDaemonSubscriptions()
         // adopt-on-batch arm, so releasing here is safe AND mandatory — a
         // crashed daemon must not strand clients fullscreen at column rects.
         m_tilingHandler->restoreAllWindowedFullscreen();
-        m_tilingHandler->restoreAllMonocleMaximized();
-        // Same for the column-maximize mirror, and AFTER the fullscreen
-        // release for the ordering reason the unload path documents: on X11
-        // the flip above has already landed, so a window holding both states
-        // gets a real restore rather than the fullscreen skip.
-        m_tilingHandler->restoreAllMaximizedToEdges();
+        // The maximize claims (a monocle stack's, a column's or a tile's
+        // maximize to edges) are KEPT: the window stays maximized while the
+        // daemon is down, and the ledgers keep it, so the restarted daemon's
+        // first batch decides. Its flag keeps the window maximized (both
+        // engines save the maximize), and its absence releases it through the
+        // batch arms. Releasing here made every maximized tile restore for the
+        // daemon-down interval and maximize again on its return. The effect
+        // unload and an engine disable still restore, since no later batch
+        // comes for them.
         clearAllDecorations();
         // Deliberately do NOT clear `m_snappingExclusionRuleSet`,
         // `m_decorationExclusionRuleSet`, `m_animationExclusionRuleSet`, the
