@@ -1502,6 +1502,16 @@ add_test(NAME test_pointer_shader_kwin_bake COMMAND test_pointer_shader_kwin_bak
 # PkgConfig::TestEpoxy target this links; a `::` target name resolves at
 # generate time, so the later creation is fine).
 if(USE_KDE_FRAMEWORKS AND BUILD_KWIN_EFFECT)
+    # The effect's compositor-free code, linked from its static library with a
+    # fake compositor (phosphor-works/workspace#26): the claim ledger's
+    # releases, and the strip retire's selection.
+    add_executable(test_claim_ledger ui/effect/test_claim_ledger.cpp)
+    target_link_libraries(test_claim_ledger PRIVATE Qt6::Test Qt6::Core plasmazones_effect_claims)
+    add_test(NAME test_claim_ledger COMMAND test_claim_ledger)
+    add_executable(test_strip_retire ui/effect/test_strip_retire.cpp)
+    target_link_libraries(test_strip_retire PRIVATE Qt6::Test Qt6::Core plasmazones_effect_claims)
+    add_test(NAME test_strip_retire COMMAND test_strip_retire)
+
     add_executable(test_strip_pack_contract ui/shaders/test_strip_pack_contract.cpp)
     target_include_directories(test_strip_pack_contract PRIVATE ${PROJECT_SOURCE_DIR}/plasmazones/kwin-effect)
     target_link_libraries(test_strip_pack_contract PRIVATE Qt6::Test Qt6::Core Qt6::Gui PhosphorAnimation::PhosphorAnimation PhosphorShaders::PhosphorShaders PkgConfig::TestEpoxy)

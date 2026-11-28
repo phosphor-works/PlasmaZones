@@ -758,22 +758,14 @@ void TilingHandler::cleanupAutotileTracking(const QString& windowId, ScrollDecis
     // reads (UntrackFunnel, LiveDeparture, F675). A release that has to wait (fullscreen, a gesture) keeps its
     // membership and owed restore past the scrub, for the fullscreen exit or the gesture end to pay (F1078). The
     // monocle gesture hold goes with the tracking (F775).
-    bool monocleRetained = false;
-    if (ScrollDecisions::claimReleasesOn(ScrollDecisions::Claim::MonocleMaximize, scope)) {
-        unmaximizeMonocleWindow(windowId);
-        monocleRetained = m_monocleMaximizedWindows.contains(windowId);
-    }
+    const bool monocleRetained = claims().releaseMonocleBeforeScrub(windowId, scope);
     m_monocleUnmaximizedInGesture.remove(windowId);
     // Compositor-agnostic state cleanup (shared helper).
     TilingStateHelpers::TilingWindowState windowState{
         m_notifiedWindows,      m_notifiedWindowScreens,   m_minimizeFloatedWindows, m_tileTargetZones,
         m_centeredWaylandZones, m_monocleMaximizedWindows, m_preTileGeometries};
     TilingStateHelpers::cleanupClosedWindowState(windowId, m_border, windowState);
-    if (monocleRetained) {
-        m_monocleMaximizedWindows.insert(windowId);
-    } else {
-        m_monocleRestoreOwed.remove(windowId);
-    }
+    claims().settleMonocleAfterScrub(windowId, monocleRetained);
     m_minimizeFloatMarks.remove(windowId);
     m_centeredWaylandFrames.remove(windowId); // its stamp went in the helper
     m_unfloatInFlight.remove(windowId);

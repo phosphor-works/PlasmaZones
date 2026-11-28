@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "claimhost_kwin.h"
 #include "compositor/deferredwindowcommits.h"
 #include "compositor/scrolltabindicatorpainter.h"
 #include "desktopmovestash.h"
@@ -67,6 +68,7 @@ class PlasmaZonesEffect;
 class TilingHandler : public QObject
 {
     Q_OBJECT
+    friend class KWinClaimHost;
 
 public:
     explicit TilingHandler(PlasmaZonesEffect* effect, QObject* parent = nullptr);
@@ -492,16 +494,8 @@ public:
     /// A cancelled drag revoked the drag-start float: the Monocle restore it owed goes too (F1014).
     void revokeDragStartMonocleRestore(KWin::EffectWindow* w);
 
-    /// What a releaseAllClaims call actually handed back. Callers gate
-    /// follow-up work on it — the passive float shed re-resolves decorations
-    /// only when the windowed-fullscreen claim released, because that is the
-    /// one whose exit changes shouldDecorateWindow's answer.
-    struct ClaimReleaseResult
-    {
-        bool windowedFullscreen = false;
-        bool monocle = false;
-        bool maximizedToEdges = false;
-    };
+    /// What a releaseAllClaims call actually handed back (claimledger.h).
+    using ClaimReleaseResult = PlasmaZones::ClaimReleaseResult;
 
     /// Release EVERY compositor-state claim this handler holds on @p windowId
     /// that answers to @p scope, in ScrollDecisions::claimReleaseOrder.
@@ -1214,9 +1208,10 @@ private:
     /// the rect goes: it lives in the value precisely so that no remover can
     /// drop the rect and leave a stale answer, or its commit watch, behind.
     ///
-    /// retireStripScopedState has no unit test because it mutates effect maps,
-    /// so the rule is written here rather than left to the maps the loop
-    /// happens to skip.
+    /// The selection of the relocations to retire is StripRetire's
+    /// (stripretire.h) and has unit tests (test_strip_retire). Which MAPS this
+    /// function retires is the rule above, so it is written here rather than
+    /// left to the maps the loop happens to skip.
     void retireStripScopedState(const QString& screenId);
 
     /// Bracketed maximize-mode write, the maximize twin of
@@ -1297,6 +1292,30 @@ private:
     /// The tile batch anchors the placement leg's origin on it; most callers
     /// discard it (no [[nodiscard]]). Mirrors releaseMaximizedToEdges.
     bool unmaximizeMonocleWindow(const QString& windowId);
+
+    /// The claim ledgers and their release algorithms (claimledger.h), as a
+    /// view over this handler's and the effect's containers. Built per call:
+    /// cheap, and a re-entrant release reaches the very same containers.
+    ClaimLedger claims();
+    /// KWinClaimHost's reach into the effect, which only this handler has.
+    KWin::EffectWindow* claimFindExact(const QString& windowId) const;
+    /// MaximizeRestore under the geometry-apply gate and the suppression
+    /// counter, then the tracked-screen re-seed. maximize() emits
+    /// windowFrameGeometryChanged SYNCHRONOUSLY and the restore rect can sit
+    /// in another virtual-screen region, so without the gate that edge takes
+    /// the VS-crossing path and tears down whatever transition the caller is
+    /// in; the gate also suppresses those detectors' own
+    /// m_trackedScreenPerWindow write, and this move is not transient, so the
+    /// tracker is re-seeded here (the pairing daemon_apply.cpp documents).
+    void claimWriteMaximizeRestore(KWin::EffectWindow* w);
+    /// setFullScreen(false) inside its own geometry-apply bracket and the RAII
+    /// suppression helper: on X11 it synchronously emits
+    /// windowFrameGeometryChanged, and none of the release call sites holds
+    /// the guard. An early return between a hand-rolled ++/-- would leave
+    /// isSuppressingFullScreenChanged() answering true for the session.
+    void claimWriteFullScreenOff(KWin::EffectWindow* w);
+    /// The compositor half of the claim ledger (claimhost_kwin.h).
+    KWinClaimHost m_claimHost{this};
 
     /**
      * @brief Shared float-state cleanup for a window being floated

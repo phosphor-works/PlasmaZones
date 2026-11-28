@@ -35,6 +35,7 @@
 // state; only the chord that reads them moved.
 
 #include "tilinghandler.h"
+#include "stripretire.h"
 #include "scrolldecisions.h"
 #include "stripkeys.h"
 #include "compositor/scrollbehaviourparse.h"
@@ -475,62 +476,16 @@ void TilingHandler::retireStripScopedState(const QString& screenId)
     // THE RETIRE-SET RULE IS ON THIS FUNCTION'S DECLARATION. Read it before
     // adding or removing anything here. The short form: retire an entry when
     // what invalidates it is the STRIP changing; keep it when what invalidates
-    // it is the CLIENT responding or the window dying.
-    bool droppedAny = false;
-    for (auto wit = m_effect->m_scrollVisualDelta.begin(); wit != m_effect->m_scrollVisualDelta.end();) {
-        // The recorded screen answers first, and tiled membership answers ONLY
-        // for a window it has nothing to say about. m_notifiedWindowScreens is
-        // written under a narrower condition than the relocation itself: the
-        // apply loop inserts a visual delta for any entry carrying a visual
-        // position, but records the window's screen only when the window is in
-        // m_notifiedWindows, so a window demoted or rolled back between the two
-        // ends up holding a relocation with no recorded screen at all. That
-        // window is the whole reason for the second term, and selecting on the
-        // recorded map alone left it wearing the OUTGOING strip's position for
-        // good.
-        //
-        // The fallback is deliberately NOT ORed in for windows that DO have a
-        // recorded screen, which is the tempting spelling and is wrong in a way
-        // that does not heal. screenForTiledWindow returns the first matching
-        // bucket in hash order, and those buckets go stale — outputchange.cpp
-        // says so at its own recorded-screen fallback, which exists for exactly
-        // that case. A window that has moved to another screen but still sits
-        // in this one's bucket would lose its relocation here, and nothing
-        // would put it back: the only writer of that map is the tile-batch
-        // apply, the other screen's strip did not change so no batch is coming,
-        // and the damage this function issues is scoped to THIS output, so the
-        // window would not even be repainted where it actually is.
-        //
-        // Also not scrollTrackedScreenFor, which looks like the right helper
-        // and is not: it is impure (it reports clip loss as a side effect) and
-        // both of its answer arms are gated on the screen being in
-        // m_scrollingScreens, so for a screen that has already left the
-        // scrolling set it answers empty for every window and this loop would
-        // drop nothing at all.
-        const QString& windowId = wit.key();
-        const auto recordedIt = m_notifiedWindowScreens.constFind(windowId);
-        const bool onThisScreen = recordedIt != m_notifiedWindowScreens.constEnd()
-            ? *recordedIt == screenId
-            : TilingStateHelpers::screenForTiledWindow(m_border, windowId) == screenId;
-        if (onThisScreen) {
-            wit = m_effect->m_scrollVisualDelta.erase(wit);
-            droppedAny = true;
-        } else {
-            ++wit;
-        }
-    }
+    // it is the CLIENT responding or the window dying. Which relocations go is
+    // StripRetire::retireRelocations (stripretire.h, unit-tested).
+    const bool droppedAny =
+        StripRetire::retireRelocations(m_effect->m_scrollVisualDelta, m_notifiedWindowScreens, m_border, screenId);
     // The strip's view spring is strip-scoped for the same reason and is the
     // other half of a parked column's drawn position: its offset accumulated
     // from the OUTGOING strip's travel, and a parked column on the incoming one
     // would be painted at its own strip position plus a stranger's offset.
-    if (!dropStripMotion(screenId) && droppedAny && KWin::effects) {
-        // No output resolves for this id: an id that never named a connected
-        // output, a drifted spelling of one, or a just-removed output's id if
-        // the daemon announces a new epoch for it before its own prune (the
-        // effect's screenRemoved handler has already dropped that output's
-        // transition and spring by then). The relocations just dropped were
-        // paint inputs, so something has to repaint, and full is the honest
-        // fallback rather than skipping it.
+    const bool stripMotionDropped = dropStripMotion(screenId);
+    if (StripRetire::needsFullRepaint(stripMotionDropped, droppedAny) && KWin::effects) {
         KWin::effects->addRepaintFull();
     }
 }
