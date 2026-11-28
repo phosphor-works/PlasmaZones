@@ -103,6 +103,11 @@ void AutotileAdaptor::promoteToMaster(const QString& windowId)
     }
 }
 
+bool AutotileAdaptor::toggleMaximizeToEdges(const QString& screenId, const QString& windowId)
+{
+    return m_service ? m_service->toggleMaximizeToEdges(screenId, windowId) : false;
+}
+
 void AutotileAdaptor::demoteFromMaster(const QString& windowId)
 {
     if (m_service) {

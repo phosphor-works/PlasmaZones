@@ -179,6 +179,51 @@ inline MaximizeAction resolveMaximizeToEdgesAction(bool flagOnWire, bool inSet, 
     return (!inSet || !kwinMaximized) ? MaximizeAction::Apply : MaximizeAction::None;
 }
 
+/// Which engine a user's maximize request on a tiled window goes to
+/// (phosphor-works/workspace#28). Each placement mode has its own answer, and
+/// one mode's answer never gates another:
+///
+/// | Screen    | Answer                                                       |
+/// | --------- | ------------------------------------------------------------ |
+/// | Scrolling | Scrolling.toggleMaximizeToEdges: the column fills the area    |
+/// | Tiling    | Autotile.toggleMaximizeToEdges: the tile fills the area       |
+/// | Snapping  | Decline: KWin maximizes, and the snap engine keeps the zone   |
+///
+/// A tiling window in a monocle stack is declined too. The stack's monocle
+/// flag owns that window's maximize bit, and the user's unmaximize of it is
+/// the monocle ledger's to handle. The tile engine refuses the toggle for such
+/// a window, so a claim would only be undone by the reply.
+enum class MaximizeArm {
+    Decline,
+    Scrolling,
+    Tiling,
+};
+
+/// @p engineScreen    the screen is engine-managed (scrolling or tiling)
+/// @p scrollingScreen the screen runs the scrolling engine
+/// @p monocleMember   the window holds a monocle claim (m_monocleMaximizedWindows)
+inline constexpr MaximizeArm maximizeArmFor(bool engineScreen, bool scrollingScreen, bool monocleMember)
+{
+    if (!engineScreen) {
+        return MaximizeArm::Decline;
+    }
+    if (scrollingScreen) {
+        return MaximizeArm::Scrolling;
+    }
+    return monocleMember ? MaximizeArm::Decline : MaximizeArm::Tiling;
+}
+
+/// Whether the batch's maximize-to-edges arm runs for an entry. It runs on
+/// every engine-managed screen, because both engines can send the flag, and
+/// never for a monocle entry. The monocle arm takes a member's claim over into
+/// its own ledger with KWin's bit left set (F745), and a Release here first
+/// would drop the bit and let the monocle arm raise it again. The tile engine
+/// never sends both flags, so a monocle entry is never this arm's Apply.
+inline constexpr bool runsMaximizeToEdgesArm(bool engineScreen, bool monocleEntry)
+{
+    return engineScreen && !monocleEntry;
+}
+
 /// Whether a maximize Apply arm that is about to call maximize() takes the
 /// claim (F680). Only for a window KWin will maximize, or one already at
 /// MaximizeFull (the adopt case): KWin refuses a window that cannot be

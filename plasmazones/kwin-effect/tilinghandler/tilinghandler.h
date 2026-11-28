@@ -1235,6 +1235,23 @@ private:
     /// @p w may be null, in which case only the notified record can answer.
     bool isScrollTiledWindow(const QString& windowId, KWin::EffectWindow* w) const;
 
+    /// Whether @p windowId is still a live tile on a screen whose engine has a maximize-to-edges arm: a scrolling
+    /// screen (Scrolling.toggleMaximizeToEdges) or a tiling one (Autotile.toggleMaximizeToEdges). The gate
+    /// reconcileMaximizeAfterGesture and the toggle reply's refusal write-back use, so a claim on either mode is
+    /// paid and repaired the same way. Screen resolution as for isScrollTiledWindow.
+    bool isMaximizeArmWindow(const QString& windowId, KWin::EffectWindow* w) const;
+
+    /// The screen whose engine placed tiled @p windowId (its notified screen, else its current output), or empty
+    /// for a window that is not tiled. Shared by isScrollTiledWindow and isMaximizeArmWindow.
+    QString tiledWindowEngineScreen(const QString& windowId, KWin::EffectWindow* w) const;
+
+    /// Whether @p screenId runs an engine with a maximize-to-edges arm. Every engine-managed screen does: the
+    /// scrolling strip and the tiling engine. A snapping screen keeps KWin's own maximize.
+    bool isMaximizeArmScreen(const QString& screenId) const
+    {
+        return m_managedScreens.contains(screenId);
+    }
+
     /// Scrolling.toggleMaximizeToEdges for @p windowId's column on @p screenId.
     /// The window is named rather than left implicit because the request can
     /// arrive for a window that is not the strip's active one (a client's own

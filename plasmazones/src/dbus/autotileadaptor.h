@@ -66,6 +66,7 @@ public Q_SLOTS:
     void swapWindows(const QString& windowId1, const QString& windowId2);
     void promoteToMaster(const QString& windowId);
     void demoteFromMaster(const QString& windowId);
+    bool toggleMaximizeToEdges(const QString& screenId, const QString& windowId);
     void focusMaster();
     void focusNext();
     void focusPrevious();

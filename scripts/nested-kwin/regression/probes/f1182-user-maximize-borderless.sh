@@ -9,11 +9,12 @@
 #   minimum. Staging gate: KWin reads the option back, both are tiled, b has a title bar.
 #   Then a user setMaximize(true, true) on b, a user restore, and Virtual-0 switched to
 #   autotile:monocle as the control.
-# Asserts: b stays maximized and borderless and the effect reports no minimum for it; the restore
-#   puts it back at its tile with its title bar; under monocle b is maximized by the tiling and its
-#   minimum without the title bar is reported.
-# A FAIL means: the decoration KWin took off for the user's maximize was reported as b's minimum,
-#   the daemon re-tiled on it, and that batch cleared the maximize.
+# Asserts: b stays maximized and borderless at the maximize area after the re-tile that follows its
+#   decoration change. The user maximize is the tile engine's maximize to edges (workspace#28), so
+#   the minimum without the title bar is reported, as under monocle. The restore puts b back at its
+#   tile with its title bar; under monocle b is maximized by the tiling and its minimum without the
+#   title bar is reported.
+# A FAIL means: the re-tile after the decoration change cleared the maximize the user had just made.
 set -u
 NEST="$1"
 LOG="$2"
@@ -48,7 +49,7 @@ echo "  b $M"
 dlog "windowMinSizeUpdated: [^ ]*$B.*|recalculateLayout: .*" | sed 's/^/    /'
 check "b's maximize mode after the user maximize" "$(maxof "$M")" = 3
 check "b borderless while maximized" "$(nbof "$M")" = true
-check "minimum reports for b after the user maximize" "$(dlog "windowMinSizeUpdated: [^ ]*$B" | wc -l)" -eq 0
+check "b at the maximize area after the re-tile" "$(rect "$M")" = "$(rect "$(wprop b '(function () { var a = workspace.clientArea(KWin.MaximizeArea, w); return a.x + " " + a.y + " " + a.width + " " + a.height; })()')")"
 
 echo "== user restore of b"
 dmark

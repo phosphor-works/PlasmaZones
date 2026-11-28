@@ -139,19 +139,31 @@ bool TilingHandler::unmaximizeMonocleWindow(const QString& windowId)
 // Column maximize (scrolling)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-bool TilingHandler::isScrollTiledWindow(const QString& windowId, KWin::EffectWindow* w) const
+QString TilingHandler::tiledWindowEngineScreen(const QString& windowId, KWin::EffectWindow* w) const
 {
     if (windowId.isEmpty() || !isTiledWindow(windowId)) {
-        return false;
+        return QString();
     }
-    // The screen the strip placed it on, not wherever it sits this instant: a
+    // The screen the engine placed it on, not wherever it sits this instant: a
     // window mid-way through a cross-screen move has already been notified for
-    // its destination, and that is the strip that owns its column.
+    // its destination, and that is the engine state that owns its tile.
     QString screenId = m_notifiedWindowScreens.value(windowId);
     if (screenId.isEmpty() && w) {
         screenId = m_effect->getWindowScreenId(w);
     }
-    return isScrollingScreen(screenId);
+    return screenId;
+}
+
+bool TilingHandler::isScrollTiledWindow(const QString& windowId, KWin::EffectWindow* w) const
+{
+    const QString screenId = tiledWindowEngineScreen(windowId, w);
+    return !screenId.isEmpty() && isScrollingScreen(screenId);
+}
+
+bool TilingHandler::isMaximizeArmWindow(const QString& windowId, KWin::EffectWindow* w) const
+{
+    const QString screenId = tiledWindowEngineScreen(windowId, w);
+    return !screenId.isEmpty() && isMaximizeArmScreen(screenId);
 }
 
 void TilingHandler::applyMaximizeSuppressed(KWin::Window* kw, KWin::MaximizeMode mode)
@@ -259,7 +271,7 @@ void TilingHandler::reconcileMaximizeAfterGesture(KWin::EffectWindow* w)
     // demoting or the drag just floated. The release goes through
     // unmaximizeMonocleWindow for its fullscreen guard and departure
     // bookkeeping; the gesture flags are clear, so it restores and sheds.
-    if (owesMaximizedToEdges && !isScrollTiledWindow(windowId, w)) {
+    if (owesMaximizedToEdges && !isMaximizeArmWindow(windowId, w)) {
         releaseMaximizedToEdges(windowId, w);
         if (!owesMonocle) {
             return;
@@ -406,9 +418,16 @@ bool TilingHandler::interceptMaximizeRequest(KWin::EffectWindow* w)
     if (screenId.isEmpty()) {
         screenId = m_effect->getWindowScreenId(w);
     }
-    if (!isScrollingScreen(screenId)) {
-        qCInfo(lcEffect) << "Maximize interception: declining" << windowId << "— screen" << screenId
-                         << "is not in scrolling mode, KWin keeps the request";
+    // Scrolling and tiling screens each have an arm (the strip's column, the
+    // tile engine's per-window override). A snapping screen keeps KWin's own
+    // maximize, and the snap engine keeps the window's zone under it. A
+    // monocle member is declined, so the press is not claimed and the monocle
+    // path sees it as it did before the tiling arm existed (maximizeArmFor).
+    if (ScrollDecisions::maximizeArmFor(isMaximizeArmScreen(screenId), isScrollingScreen(screenId),
+                                        m_monocleMaximizedWindows.contains(windowId))
+        == ScrollDecisions::MaximizeArm::Decline) {
+        qCInfo(lcEffect) << "Maximize interception: declining" << windowId << "on" << screenId
+                         << "— no maximize arm for this screen or window, KWin keeps the request";
         return false;
     }
     KWin::Window* kw = w->window();
@@ -626,10 +645,15 @@ void TilingHandler::dispatchMaximizeToEdgesToggle(const QString& screenId, const
     // after a refusal starts with exactly the echoes that are actually in flight. A fresh user press passes the default
     // of none.
     flightEntry.writeBackEchoesPending = writeBackEchoesPending;
-    auto* watcher = new QDBusPendingCallWatcher(
-        PhosphorProtocol::ClientHelpers::asyncCall(PhosphorProtocol::Service::Interface::Scrolling,
-                                                   QStringLiteral("toggleMaximizeToEdges"), {screenId, windowId}),
-        this);
+    // One verb shape on two interfaces: the scrolling strip's and the tile
+    // engine's. The screen's mode picks the engine, and the reply below reads
+    // the same answer from either.
+    const QLatin1String verbInterface = isScrollingScreen(screenId) ? PhosphorProtocol::Service::Interface::Scrolling
+                                                                    : PhosphorProtocol::Service::Interface::Autotile;
+    auto* watcher =
+        new QDBusPendingCallWatcher(PhosphorProtocol::ClientHelpers::asyncCall(
+                                        verbInterface, QStringLiteral("toggleMaximizeToEdges"), {screenId, windowId}),
+                                    this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, windowId](QDBusPendingCallWatcher* pw) {
         pw->deleteLater();
         const QDBusPendingReply<bool> reply = *pw;
@@ -678,9 +702,9 @@ void TilingHandler::dispatchMaximizeToEdgesToggle(const QString& screenId, const
             if (pendingScreenId.isEmpty()) {
                 pendingScreenId = m_effect->getWindowScreenId(pw2);
             }
-            if (!isScrollingScreen(pendingScreenId)) {
+            if (!isMaximizeArmScreen(pendingScreenId)) {
                 qCDebug(lcEffect) << "Maximize toggle: dropping coalesced press for" << windowId << "— screen"
-                                  << pendingScreenId << "is no longer scrolling";
+                                  << pendingScreenId << "no longer runs an engine with a maximize arm";
                 return;
             }
             dispatchMaximizeToEdgesToggle(pendingScreenId, windowId, writeBackEchoesPending);
@@ -721,11 +745,11 @@ void TilingHandler::dispatchMaximizeToEdgesToggle(const QString& screenId, const
         }
         // RE-RUN the interception's gate before writing. A full round trip
         // separates them, and the window can have floated out of the strip,
-        // been untracked, or moved to a non-scrolling screen in between.
+        // been untracked, or moved to a screen with no maximize arm in between.
         // Without it the bit gets written from column membership for a window
         // that is no longer a column member, so a user who floats a window and
         // maximizes it mid-flight has it silently un-maximized.
-        if (!isScrollTiledWindow(windowId, w)) {
+        if (!isMaximizeArmWindow(windowId, w)) {
             return;
         }
         const KWin::MaximizeMode engineState =
