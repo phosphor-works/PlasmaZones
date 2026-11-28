@@ -12,6 +12,7 @@
 #include "plasmazoneseffect/plasmazoneseffect.h"
 #include "handlers/navigationhandler.h"
 #include "compositor/effectlogging.h"
+#include "handlers/screenchangehandler.h" // heldDragStartScreen
 #include "handlers/snaphandler.h" // retry-budget hand-off on disable
 #include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorProtocol/ServiceConstants.h>
