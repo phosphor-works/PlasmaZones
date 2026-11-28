@@ -167,7 +167,9 @@ f1170-cheatsheet-focus-fsp f1170-cheatsheet-focus-fsp.sh 1 -
 f1182-user-maximize-borderless f1182-user-maximize-borderless.sh 1 -
 fmaximize-tile fmaximize-tile.sh 1 -
 fmaximize-snap fmaximize-snap.sh 1 -
-fown-fullscreen fown-fullscreen.sh 1 -
+fown-fullscreen-snap fown-fullscreen.sh 1 - PZ_FOWN_MODE=snap
+fown-fullscreen-tile fown-fullscreen.sh 1 - PZ_FOWN_MODE=tile
+fown-fullscreen-scroll fown-fullscreen.sh 1 - PZ_FOWN_MODE=scroll
 fown-maximize-snap fown-maximize.sh 1 - PZ_FOWN_MODE=snap
 fown-maximize-tile fown-maximize.sh 1 - PZ_FOWN_MODE=tile
 fown-maximize-scroll fown-maximize.sh 1 - PZ_FOWN_MODE=scroll

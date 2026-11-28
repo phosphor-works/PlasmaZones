@@ -219,6 +219,8 @@ daemon died or was replaced.
 | fresize-then-width-verbs | 1, FS | after a Meta+right drag widens one of two columns and pushes the other part way past the edge, equalize puts the widened one back at the even split and brings the other back inside the output; the scrolling reset doing the same is the control |
 | fmaximize-tile | 1 | a user maximize of a tile on a tiling screen is the tile engine's maximize to edges: the tile fills the maximize area, the other tiles stay, the maximize survives a retile, and the restore puts it back at a tile (workspace#28) |
 | fmaximize-snap | 1 | regression row: a user maximize of a snapped window is KWin's maximize, the window keeps its zone while maximized, and the restore puts it back at the zone rect (workspace#28) |
+| fown-fullscreen-snap / -tile / -scroll | 1 | with the FullscreenOwnWorkspace option on, a window that goes fullscreen moves to a new workspace that the monitor then shows, comes back to its frame when it leaves fullscreen while the emptied workspace goes, and a close there shows the origin with the window last active there focused (#1201) |
+| fown-maximize-snap / -tile / -scroll | 1 | with the MaximizedOwnWorkspace option on, a window the user maximizes moves to a new workspace and stays maximized there with no un-maximize on the way, and its restore brings it back to its frame between the windows it was between (#1201) |
 | fscale-fixed-device-pixels | 1, S | at scale 1.25, a layout whose fixed zones count device pixels snaps a window to the zone divided by the scale; the same zones counted in logical pixels are the control |
 
 ## Follow-up probes

@@ -7,12 +7,13 @@
 # Runner: 1 output, no flags. PZ_FOWN_MODE picks the placement mode of Virtual-0: snap (COLS3, the
 #   default), tile (autotile:master-stack) or scroll (scrolling).
 # Staging: KWin's per-output virtual desktops on, dynamic workspaces and the
-#   Workspaces.Behavior MaximizedOwnWorkspace option on (config file and reloadSettings), two windows
-#   a and b on desktop D0. Staging gate: both are on D0, Virtual-0 shows D0, and the daemon runs
+#   Workspaces.Behavior MaximizedOwnWorkspace option on (config file and reloadSettings), three windows
+#   a, b and c on desktop D0, b in the middle of the order, so a return to the end would show. Staging gate: both are on D0, Virtual-0 shows D0, and the daemon runs
 #   dynamic workspaces.
 # Asserts: b's maximize moves b to a new desktop that Virtual-0 then shows, b stays maximized there,
-#   and a stays on D0. The restore moves b back to D0 at the frame it had before, shows D0, and the
+#   and a and c stay on D0. The restore moves b back to D0 at the frame it had before, shows D0, and the
 #   emptied desktop goes.
+#   KWin reports no un-maximize of b between its maximize and its restore.
 # A FAIL means: the maximize edge did not open an own workspace, the move dropped the maximize, or
 #   the restore did not bring b back to its place.
 set -u
@@ -50,15 +51,26 @@ assign Virtual-0 "$LAYOUT"
 sleep 1.5
 open a
 open b
+open c
 sleep 2
 D0=$(deskof "$(geo b)")
 B0=$(geo b)
+C0=$(geo c)
 echo "mode $MODE | a $(geo a) | b $B0 | Virtual-0 shows $(cur) | desktops $(count)"
-[ "$(deskof "$(geo a)")" = "$D0" ] || stage_fail "a and b are not on one desktop"
+[ "$(deskof "$(geo a)")" = "$D0" ] && [ "$(deskof "$(geo c)")" = "$D0" ] || stage_fail "a, b and c are not on one desktop"
 [ "$(cur)" = "$D0" ] || stage_fail "Virtual-0 does not show the desktop of a and b"
 N0=$(count)
 
+# Every maximize change of b, so a drop during the move shows even when the end state is right.
+HOOK="$NEST/fown-hook.js"
+on_exit 'qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript "$HOOK" >/dev/null 2>&1; rm -f "$HOOK"'
+printf '%s\n' 'const ws = workspace.windowList(); for (var i = 0; i < ws.length; i++) { if (ws[i].caption === "b") { const w = ws[i]; w.maximizedChanged.connect(function () { print("FOWNMAX " + w.maximizeMode); }); } }' > "$HOOK"
+qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript "$HOOK" >/dev/null
+qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.start >/dev/null 2>&1
+sleep 0.7
+
 echo "== user maximize of b"
+emark
 dmark
 on b 'w[i].setMaximize(true, true);'
 sleep 4
@@ -70,6 +82,10 @@ check "b on another desktop" "$(deskof "$M")" != "$D0"
 check "Virtual-0 shows b's desktop" "$(cur)" = "$(deskof "$M")"
 check "b still maximized there" "$(maxof "$M")" = 3
 check "a stays on D0" "$(deskof "$(geo a)")" = "$D0"
+check "c stays on D0" "$(deskof "$(geo c)")" = "$D0"
+
+echo "  maximize changes of b: $(elog 'FOWNMAX [0-9]+' | tr '\n' ' ')"
+check "b never unmaximized during the move" "$(elog 'FOWNMAX 0' | wc -l)" -eq 0
 
 echo "== user restore of b"
 dmark
@@ -82,5 +98,6 @@ check "own workspace closed" "$(dlog 'closing own workspace' | wc -l)" -ge 1
 check "b back on D0" "$(deskof "$R")" = "$D0"
 check "Virtual-0 shows D0 again" "$(cur)" = "$D0"
 check "b back at its place" "$(rect "$R")" = "$(rect "$B0")"
+check "c back at its place" "$(rect "$(geo c)")" = "$(rect "$C0")"
 check "the emptied desktop is gone" "$(count)" -eq "$N0"
 finish

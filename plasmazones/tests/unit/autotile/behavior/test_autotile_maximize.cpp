@@ -206,6 +206,42 @@ private Q_SLOTS:
         QVERIFY(!maximizedFlag(lastBatch(tiledSpy).value(QStringLiteral("a"))));
     }
 
+    // An own-workspace trip (PlasmaZones#1201): with a hold, the handoff on
+    // the way out keeps the maximize, and the return to the origin puts the
+    // window back between the windows it was between.
+    void ownWorkspaceHold_keepsMaximizeAndPlace()
+    {
+        auto world =
+            makeWorld(QStringLiteral("columns"), {QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")});
+        AutotileEngine& engine = *world->engine;
+        PhosphorTiles::TilingState* state = engine.tilingStateForScreen(Screen);
+        QTRY_COMPARE(state->calculatedZones().size(), 3);
+        QCOMPARE(state->tiledWindows(), QStringList({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")}));
+
+        QVERIFY(engine.toggleMaximizeToEdges(Screen, QStringLiteral("b")));
+        engine.holdForOwnWorkspace(QStringLiteral("b"));
+        engine.handoffRelease(QStringLiteral("b"));
+        QVERIFY(engine.isMaximizedToEdges(QStringLiteral("b")));
+        QCOMPARE(state->tiledWindows(), QStringList({QStringLiteral("a"), QStringLiteral("c")}));
+
+        engine.windowOpened(QStringLiteral("b"), Screen);
+        QTRY_COMPARE(state->tiledWindows(),
+                     QStringList({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")}));
+    }
+
+    // Without a hold the handoff ends the maximize, as every per-mode state
+    // ends when the window leaves the engine.
+    void handoffWithoutHold_endsTheMaximize()
+    {
+        auto world = makeWorld(QStringLiteral("columns"), {QStringLiteral("a"), QStringLiteral("b")});
+        AutotileEngine& engine = *world->engine;
+        QTRY_COMPARE(engine.tilingStateForScreen(Screen)->calculatedZones().size(), 2);
+
+        QVERIFY(engine.toggleMaximizeToEdges(Screen, QStringLiteral("b")));
+        engine.handoffRelease(QStringLiteral("b"));
+        QVERIFY(!engine.isMaximizedToEdges(QStringLiteral("b")));
+    }
+
     // Closing a maximized window ends its maximize, so a window that later
     // reuses the id is not maximized.
     void close_endsTheMaximize()
