@@ -152,6 +152,13 @@ public:
     /// crossed and came back crossed nothing. Inert for a window with nothing
     /// held.
     void settleDragCrossing(KWin::EffectWindow* w, GestureEndDecisions::DropAnswer answer);
+    /// The screen a drag that holds a crossing for @p w started on, or empty
+    /// when it holds none. Read by the gesture-end settles that run before
+    /// settleDragCrossing stamps the landing screen.
+    QString heldDragStartScreen(KWin::EffectWindow* w) const
+    {
+        return m_heldDragCrossings.value(w);
+    }
 
 public Q_SLOTS:
     void slotScreenGeometryChanged();

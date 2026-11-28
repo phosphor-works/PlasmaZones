@@ -12,7 +12,9 @@
 #include "plasmazoneseffect/plasmazoneseffect.h"
 #include "handlers/navigationhandler.h"
 #include "compositor/effectlogging.h"
+#include "handlers/screenchangehandler.h" // heldDragStartScreen
 #include "handlers/snaphandler.h" // retry-budget hand-off on disable
+#include <PhosphorIdentity/VirtualScreenId.h>
 #include <PhosphorProtocol/ServiceConstants.h>
 #include <PhosphorProtocol/ClientHelpers.h>
 
@@ -324,10 +326,31 @@ void TilingHandler::settleMonocleUnmaximizeAfterGesture(KWin::EffectWindow* w, b
     if (!m_monocleUnmaximizedInGesture.remove(windowId)) {
         return;
     }
-    // A cancelled move gets its maximize back from KWin (the cancel re-applies
-    // the mode the move started with), and the claim stands.
     const KWin::Window* const kw = w->window();
-    if (!kw || kw->requestedMaximizeMode() == KWin::MaximizeFull || !m_monocleMaximizedWindows.contains(windowId)) {
+    if (!kw || !m_monocleMaximizedWindows.contains(windowId)) {
+        return;
+    }
+    if (kw->requestedMaximizeMode() == KWin::MaximizeFull) {
+        // A cancelled move gets its maximize back from KWin (the cancel
+        // re-applies the mode the move started with, on the output it started
+        // on), and the claim stands. A maximize on ANOTHER output is the
+        // user's: an electric-edge maximize at the drop. The claim goes bare
+        // there, with no write, or the cross-output release that follows
+        // would restore the window over the user's maximize (F1072). The
+        // start is the screen a held drag crossing began on (the tracked
+        // screen can already name the landing one here), else the tracked
+        // screen; the end is the output KWin has the move on.
+        const QString heldStart = m_effect->m_screenChangeHandler->heldDragStartScreen(w);
+        const QString startScreen = heldStart.isEmpty() ? m_effect->m_trackedScreenPerWindow.value(w) : heldStart;
+        const QString endScreen = kw->moveResizeOutput() ? m_effect->outputScreenId(kw->moveResizeOutput()) : QString();
+        if (startScreen.isEmpty() || endScreen.isEmpty()
+            || PhosphorIdentity::VirtualScreenId::samePhysical(startScreen, endScreen)) {
+            return;
+        }
+        m_monocleMaximizedWindows.remove(windowId);
+        m_monocleRestoreOwed.remove(windowId);
+        qCInfo(lcEffect) << "Monocle window maximized by the user on another output:" << windowId
+                         << "- the claim passes to KWin";
         return;
     }
     // A drop that placed the window (a float, a re-insert, a snap) has told
