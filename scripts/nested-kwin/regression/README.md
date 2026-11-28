@@ -224,6 +224,7 @@ daemon died or was replaced.
 | fown-restart-snap / -tile / -scroll | 1 | an own workspace survives a daemon restart: the maximized window stays on it, maximized, and its restore after the restart brings it back to its place (#1201) |
 | fown-borderless | 1 | with the BorderlessOwnWorkspace option on, a window with no title bar that covers the output moves to a new workspace, and comes back when it gets its title bar and frame back (#1201) |
 | fown-visitor | 1 | a window that opens while the monitor shows an own workspace goes to the workspace the owner came from, and its close brings the monitor back to the owner (#1201, kde-fullscreen-spaces#3) |
+| fclaim-release-PATH-MODE | 1 (2 for output) | each release path of the maximize-to-edges claim (PATH float, snap, flip, desktop, fullscreen, output; MODE tile or scroll) leaves KWin's maximize bit where the engine has the window, and the next maximize and restore move both together (workspace#28) |
 | fscale-fixed-device-pixels | 1, S | at scale 1.25, a layout whose fixed zones count device pixels snaps a window to the zone divided by the scale; the same zones counted in logical pixels are the control |
 
 ## Follow-up probes

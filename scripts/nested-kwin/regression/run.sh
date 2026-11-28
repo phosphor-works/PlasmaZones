@@ -175,6 +175,18 @@ fown-maximize-tile fown-maximize.sh 1 - PZ_FOWN_MODE=tile
 fown-maximize-scroll fown-maximize.sh 1 - PZ_FOWN_MODE=scroll
 fown-restart-snap fown-restart.sh 1 - PZ_FOWN_MODE=snap
 fown-borderless fown-borderless.sh 1 -
+fclaim-release-float-tile fclaim-release.sh 1 - PZ_CLAIM_PATH=float PZ_FOWN_MODE=tile
+fclaim-release-float-scroll fclaim-release.sh 1 - PZ_CLAIM_PATH=float PZ_FOWN_MODE=scroll
+fclaim-release-snap-tile fclaim-release.sh 1 - PZ_CLAIM_PATH=snap PZ_FOWN_MODE=tile
+fclaim-release-snap-scroll fclaim-release.sh 1 - PZ_CLAIM_PATH=snap PZ_FOWN_MODE=scroll
+fclaim-release-flip-tile fclaim-release.sh 1 - PZ_CLAIM_PATH=flip PZ_FOWN_MODE=tile
+fclaim-release-flip-scroll fclaim-release.sh 1 - PZ_CLAIM_PATH=flip PZ_FOWN_MODE=scroll
+fclaim-release-desktop-tile fclaim-release.sh 1 - PZ_CLAIM_PATH=desktop PZ_FOWN_MODE=tile
+fclaim-release-desktop-scroll fclaim-release.sh 1 - PZ_CLAIM_PATH=desktop PZ_FOWN_MODE=scroll
+fclaim-release-fullscreen-tile fclaim-release.sh 1 - PZ_CLAIM_PATH=fullscreen PZ_FOWN_MODE=tile
+fclaim-release-fullscreen-scroll fclaim-release.sh 1 - PZ_CLAIM_PATH=fullscreen PZ_FOWN_MODE=scroll
+fclaim-release-output-tile fclaim-release.sh 2 - PZ_CLAIM_PATH=output PZ_FOWN_MODE=tile
+fclaim-release-output-scroll fclaim-release.sh 2 - PZ_CLAIM_PATH=output PZ_FOWN_MODE=scroll
 fown-visitor fown-visitor.sh 1 -
 fown-restart-tile fown-restart.sh 1 - PZ_FOWN_MODE=tile
 fown-restart-scroll fown-restart.sh 1 - PZ_FOWN_MODE=scroll

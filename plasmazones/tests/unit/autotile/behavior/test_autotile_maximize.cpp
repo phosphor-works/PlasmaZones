@@ -188,9 +188,9 @@ private Q_SLOTS:
         QVERIFY(!mono->engine->isMaximizedToEdges(QStringLiteral("m1")));
     }
 
-    // Floating a maximized window ends its maximize, so an unfloat brings it
-    // back as a plain tile.
-    void float_endsTheMaximize()
+    // Floating a maximized window sets its maximize aside, and the unfloat
+    // brings it back maximized, as a scrolling column's float record does.
+    void float_setsTheMaximizeAside()
     {
         auto world = makeWorld(QStringLiteral("columns"), {QStringLiteral("a"), QStringLiteral("b")});
         AutotileEngine& engine = *world->engine;
@@ -203,7 +203,8 @@ private Q_SLOTS:
         QSignalSpy tiledSpy(&engine, &AutotileEngine::windowsTiled);
         engine.setWindowFloat(QStringLiteral("a"), false, Screen);
         QTRY_VERIFY(lastBatch(tiledSpy).contains(QStringLiteral("a")));
-        QVERIFY(!maximizedFlag(lastBatch(tiledSpy).value(QStringLiteral("a"))));
+        QVERIFY(maximizedFlag(lastBatch(tiledSpy).value(QStringLiteral("a"))));
+        QVERIFY(engine.isMaximizedToEdges(QStringLiteral("a")));
     }
 
     // An own-workspace trip (PlasmaZones#1201): with a hold, the handoff on
