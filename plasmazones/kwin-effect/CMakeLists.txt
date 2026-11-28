@@ -180,6 +180,8 @@ set(plasmazones_effect_SRCS
     tilinghandler/screenschanged.cpp
     tilinghandler/state.cpp
     tilinghandler/windowedfullscreen.cpp
+    tilinghandler/claimhost_kwin.cpp
+    tilinghandler/claimhost_kwin.h
     tilinghandler/placementhandback.cpp
     tilinghandler/untilediff.cpp
     tilinghandler/pretilegeometry.cpp
@@ -224,6 +226,25 @@ set(plasmazones_effect_SRCS
     compositor/effectlogging.h
     kwincompat.h
 )
+
+# The effect code that needs no running compositor, in a static library the
+# unit tests link (phosphor-works/workspace#26): the claim ledgers' release
+# algorithms over a ClaimHost seam. It must not link KWin::kwin, so a KWin
+# include in it fails to compile here before it can reach a test. PIC because
+# it goes into the plugin, a shared module.
+add_library(plasmazones_effect_claims STATIC
+    tilinghandler/claimledger.cpp
+    tilinghandler/claimledger.h
+    tilinghandler/stripretire.h
+    plasmazoneseffect/windowlayersnapshot.h
+)
+set_target_properties(plasmazones_effect_claims PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(plasmazones_effect_claims PUBLIC
+    Qt6::Core
+    PhosphorCompositor::PhosphorCompositor
+    PhosphorProtocol::PhosphorProtocol
+)
+target_include_directories(plasmazones_effect_claims PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Create the KWin effect plugin using KDE's plugin macro
 # This installs to ${KDE_INSTALL_PLUGINDIR}/kwin/effects/plugins/
@@ -293,6 +314,7 @@ set_source_files_properties(pointer/pointerdecorationpaint.cpp PROPERTIES SKIP_U
 
 # Link required libraries
 target_link_libraries(kwin_effect_plasmazones PRIVATE
+    plasmazones_effect_claims
     KWin::kwin
     # The suite's shared shader trees and PlasmaZones' catalog, composed from
     # the suite folder's name: the effect runs in KWin and names no folder.

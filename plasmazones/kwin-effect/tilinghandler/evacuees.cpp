@@ -40,19 +40,7 @@ bool TilingHandler::trackWithoutAnnounce(KWin::EffectWindow* w, const QString& s
 
 void TilingHandler::scrubClaimsForEvacuation(const QString& windowId, KWin::EffectWindow* w)
 {
-    // Windowed fullscreen: the membership goes, and with it PlasmaZones'
-    // keep-below demotion. KWin re-fullscreens an evacuee on the output it
-    // lands on, and a keep-below fullscreen window would sit under every
-    // window there. The layer flags are not part of the state KWin compares
-    // when it returns a window, so restoring them does not count as a touch
-    // (F710).
-    m_windowedFsClearInFlight.remove(windowId);
-    forgetWindowedFullscreen(windowId);
-    restoreWindowedFullscreenLayerDemotion(windowId, (w && !w->isDeleted()) ? w->window() : nullptr);
-    // Maximize-to-edges: the entry goes and the maximize stays. Monocle needs
-    // nothing here: cleanupClosedWindowState in the funnel already scrubbed it
-    // bare.
-    m_maximizedToEdgesWindows.remove(windowId);
+    claims().scrubForEvacuation(windowId, KWinClaimHost::toClaim(w));
 }
 
 void TilingHandler::adoptEvacuee(KWin::EffectWindow* w, const QString& screenId, const QString& departedScreenId,

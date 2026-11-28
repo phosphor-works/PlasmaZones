@@ -12,6 +12,7 @@
 /// resolves here via ordinary namespace lookup. Included by plasmazoneseffect.h.
 
 #include "tilinghandler/scrolldecisions.h" // ScrollOfferedColumn's answer state
+#include "windowlayersnapshot.h"
 
 #include <PhosphorCompositor/DecorationDefaults.h> // WindowAppearanceScope
 
@@ -131,15 +132,6 @@ public:
 private:
     void* m_ctx;
     CompiledSurfacePack* (*m_invoke)(void*, const QString&);
-};
-
-/// Pre-write keepAbove/keepBelow pair captured the first time a SetWindowLayer
-/// rule or the keep-floating-above default is applied to a window. See
-/// PlasmaZonesEffect::m_ruleWindowLayerSnapshots.
-struct WindowLayerSnapshot
-{
-    bool keepAbove = false;
-    bool keepBelow = false;
 };
 
 /// The rect a scrolling batch last commanded for a window the counter-assert
