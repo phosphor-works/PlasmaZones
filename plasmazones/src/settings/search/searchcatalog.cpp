@@ -112,6 +112,18 @@ void seedSearchCatalog(PhosphorControl::SearchController* search)
                PhosphorI18n::tr("Workspace hint"),
                {PhosphorI18n::tr("osd"), PhosphorI18n::tr("hint"), PhosphorI18n::tr("snap back"),
                 PhosphorI18n::tr("another monitor")});
+    addSetting(search, QStringLiteral("workspaces-behavior"), QStringLiteral("workspacesFullscreenOwnWorkspace"),
+               PhosphorI18n::tr("Fullscreen windows get their own workspace"),
+               {PhosphorI18n::tr("fullscreen"), PhosphorI18n::tr("game"), PhosphorI18n::tr("own workspace"),
+                PhosphorI18n::tr("temporary workspace")});
+    addSetting(search, QStringLiteral("workspaces-behavior"), QStringLiteral("workspacesBorderlessOwnWorkspace"),
+               PhosphorI18n::tr("Borderless windows get their own workspace"),
+               {PhosphorI18n::tr("borderless"), PhosphorI18n::tr("game"), PhosphorI18n::tr("own workspace"),
+                PhosphorI18n::tr("covers the screen")});
+    addSetting(
+        search, QStringLiteral("workspaces-behavior"), QStringLiteral("workspacesMaximizedOwnWorkspace"),
+        PhosphorI18n::tr("Maximized windows get their own workspace"),
+        {PhosphorI18n::tr("maximize"), PhosphorI18n::tr("own workspace"), PhosphorI18n::tr("temporary workspace")});
     addSetting(search, QStringLiteral("workspaces-behavior"), QStringLiteral("workspacesRebindKWinShortcuts"),
                PhosphorI18n::tr("Replace KWin desktop shortcuts"),
                {PhosphorI18n::tr("shortcut"), PhosphorI18n::tr("kwin"), PhosphorI18n::tr("switch desktop"),
