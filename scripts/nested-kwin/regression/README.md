@@ -221,6 +221,9 @@ daemon died or was replaced.
 | fmaximize-snap | 1 | regression row: a user maximize of a snapped window is KWin's maximize, the window keeps its zone while maximized, and the restore puts it back at the zone rect (workspace#28) |
 | fown-fullscreen-snap / -tile / -scroll | 1 | with the FullscreenOwnWorkspace option on, a window that goes fullscreen moves to a new workspace that the monitor then shows, comes back to its frame when it leaves fullscreen while the emptied workspace goes, and a close there shows the origin with the window last active there focused (#1201) |
 | fown-maximize-snap / -tile / -scroll | 1 | with the MaximizedOwnWorkspace option on, a window the user maximizes moves to a new workspace and stays maximized there with no un-maximize on the way, and its restore brings it back to its frame between the windows it was between (#1201) |
+| fown-restart-snap / -tile / -scroll | 1 | an own workspace survives a daemon restart: the maximized window stays on it, maximized, and its restore after the restart brings it back to its place (#1201) |
+| fown-borderless | 1 | with the BorderlessOwnWorkspace option on, a window with no title bar that covers the output moves to a new workspace, and comes back when it gets its title bar and frame back (#1201) |
+| fown-visitor | 1 | a window that opens while the monitor shows an own workspace goes to the workspace the owner came from, and its close brings the monitor back to the owner (#1201, kde-fullscreen-spaces#3) |
 | fscale-fixed-device-pixels | 1, S | at scale 1.25, a layout whose fixed zones count device pixels snaps a window to the zone divided by the scale; the same zones counted in logical pixels are the control |
 
 ## Follow-up probes

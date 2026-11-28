@@ -141,6 +141,30 @@ void PlasmaZonesEffect::wireOutputChangeHandlers(KWin::EffectWindow* w)
         connect(kw, &KWin::Window::decorationChanged, this, [flagEdge]() {
             flagEdge(Flag::Decoration);
         });
+        // A borderless window covering its whole output (a borderless game) is
+        // a state the daemon's own-workspace option reads from the metadata's
+        // decoration and frame (PlasmaZones#1201). The decoration edge pushes
+        // the metadata above, but with the frame of that moment, and a frame
+        // change pushes nothing, so the push comes again when the frame starts
+        // or stops covering the output while the window has no decoration.
+        // Only on that flip: a drag moves the frame on every tick. The last
+        // answer lives on the window object, so it goes with the window.
+        const auto coversOutput = [](KWin::EffectWindow* window) {
+            const KWin::Window* const k = window->window();
+            const KWin::LogicalOutput* const output = window->screen();
+            return k && output && k->noBorder() && !k->isFullScreen()
+                && window->frameGeometry().toRect() == output->geometry();
+        };
+        connect(w, &KWin::EffectWindow::windowFrameGeometryChanged, this, [this, safeW, coversOutput]() {
+            if (!safeW || safeW->isDeleted()) {
+                return;
+            }
+            const bool covers = coversOutput(safeW.data());
+            if (safeW->property("pzCoversOutput").toBool() != covers) {
+                safeW->setProperty("pzCoversOutput", covers);
+                pushWindowMetadata(safeW.data());
+            }
+        });
         // The declared minimum reaches the engine as a FRAME size, the client's
         // minimum with the decoration around it, so a decoration change moves
         // it, and the effect flips decorations itself (the title-bar rules).

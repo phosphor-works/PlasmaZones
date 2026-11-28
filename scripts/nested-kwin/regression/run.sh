@@ -173,6 +173,11 @@ fown-fullscreen-scroll fown-fullscreen.sh 1 - PZ_FOWN_MODE=scroll
 fown-maximize-snap fown-maximize.sh 1 - PZ_FOWN_MODE=snap
 fown-maximize-tile fown-maximize.sh 1 - PZ_FOWN_MODE=tile
 fown-maximize-scroll fown-maximize.sh 1 - PZ_FOWN_MODE=scroll
+fown-restart-snap fown-restart.sh 1 - PZ_FOWN_MODE=snap
+fown-borderless fown-borderless.sh 1 -
+fown-visitor fown-visitor.sh 1 -
+fown-restart-tile fown-restart.sh 1 - PZ_FOWN_MODE=tile
+fown-restart-scroll fown-restart.sh 1 - PZ_FOWN_MODE=scroll
 f1266-strip-fullscreen-keeps-column f1266-strip-fullscreen-keeps-column.sh 1 -
 f1301-resume-strip-returns f1301-resume-strip-returns.sh 2 -
 f1313-desktop-move-follows f1313-desktop-move-follows.sh 1 -

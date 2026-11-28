@@ -56,6 +56,12 @@ sleep 2
 D0=$(deskof "$(geo b)")
 B0=$(geo b)
 C0=$(geo c)
+# A strip's frames move with its view, so on scrolling the place is the column order.
+place0() { if [ "$MODE" = scroll ]; then striporder Virtual-0; else echo "$(rect "$B0") | $(rect "$C0")"; fi; }
+placenow() { if [ "$MODE" = scroll ]; then striporder Virtual-0; else echo "$(rect "$(geo b)") | $(rect "$(geo c)")"; fi; }
+ids
+P0=$(place0)
+echo "places before: $P0"
 echo "mode $MODE | a $(geo a) | b $B0 | Virtual-0 shows $(cur) | desktops $(count)"
 [ "$(deskof "$(geo a)")" = "$D0" ] && [ "$(deskof "$(geo c)")" = "$D0" ] || stage_fail "a, b and c are not on one desktop"
 [ "$(cur)" = "$D0" ] || stage_fail "Virtual-0 does not show the desktop of a and b"
@@ -97,7 +103,6 @@ echo "  b $R | Virtual-0 shows $(cur) | desktops $(count)"
 check "own workspace closed" "$(dlog 'closing own workspace' | wc -l)" -ge 1
 check "b back on D0" "$(deskof "$R")" = "$D0"
 check "Virtual-0 shows D0 again" "$(cur)" = "$D0"
-check "b back at its place" "$(rect "$R")" = "$(rect "$B0")"
-check "c back at its place" "$(rect "$(geo c)")" = "$(rect "$C0")"
+check "b and c back at their places" "$(placenow)" = "$P0"
 check "the emptied desktop is gone" "$(count)" -eq "$N0"
 finish

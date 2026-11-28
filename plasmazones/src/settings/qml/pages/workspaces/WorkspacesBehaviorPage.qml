@@ -111,6 +111,22 @@ SettingsFlickable {
                 SettingsSeparator {}
 
                 SettingsRow {
+                    title: i18n("Borderless windows get their own workspace")
+                    searchAnchor: "workspacesBorderlessOwnWorkspace"
+                    description: i18n("Treat a window with no title bar that covers its whole screen, such as a borderless game, like a fullscreen window: it moves to a new workspace directly after the one it was on, and goes back when it stops covering the screen.")
+
+                    SettingsSwitch {
+                        accessibleName: i18n("Borderless windows get their own workspace")
+                        checked: appSettings.workspacesBorderlessOwnWorkspace
+                        onToggled: function (newValue) {
+                            appSettings.workspacesBorderlessOwnWorkspace = newValue;
+                        }
+                    }
+                }
+
+                SettingsSeparator {}
+
+                SettingsRow {
                     title: i18n("Maximized windows get their own workspace")
                     searchAnchor: "workspacesMaximizedOwnWorkspace"
                     description: i18n("Move a window that you maximize to a new workspace directly after the one it was on. It stays maximized there. When you restore it, it goes back to its place and the monitor shows that workspace again. When it closes, the monitor shows that workspace again and the window you last used there gets the focus.")

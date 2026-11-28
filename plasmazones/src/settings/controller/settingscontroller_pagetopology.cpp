@@ -273,6 +273,7 @@ const QHash<QString, Settings::ConfigKeyList>& SettingsController::pageOwnedConf
              {CD::workspacesBehaviorGroup(), CD::snapBackOsdHintKey()},
              {CD::workspacesBehaviorGroup(), CD::fullscreenOwnWorkspaceKey()},
              {CD::workspacesBehaviorGroup(), CD::maximizedOwnWorkspaceKey()},
+             {CD::workspacesBehaviorGroup(), CD::borderlessOwnWorkspaceKey()},
              {CD::workspacesBehaviorGroup(), HostSettings::rebindKWinDesktopShortcutsKey()},
          }},
         {QStringLiteral("workspaces-named"),
