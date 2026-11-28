@@ -111,6 +111,35 @@ Two more stock paths go through the global pool, and PlasmaZones does not take t
 | "Switch to Desktop N" of KWin (`Meta+F1` to `Meta+F4` and `Ctrl+F1` to `Ctrl+F4` by default) | It switches the active monitor to global desktop N. That desktop usually belongs to another monitor, so a snap-back occurs. | The focus slots on Settings → Workspaces → Quick Shortcuts. Slot N focuses the Nth workspace in the list of the active monitor. The slots have no binding by default. |
 | Touchpad and touchscreen desktop-switch gestures | They step through the global grid of KWin. They are gestures, not global shortcuts, so the takeover cannot change them. A step onto a workspace of another monitor snaps back. | None |
 
+## Own workspaces
+
+A window can get a workspace of its own while it is fullscreen, maximized or borderless. This is useful for games
+and full-screen programs. Three switches on Settings → Workspaces → Behavior control this. All three are off by default.
+
+| Switch | The window that gets its own workspace |
+| --- | --- |
+| Fullscreen windows get their own workspace | A window that goes fullscreen. A windowed fullscreen that the scrolling strip shows in its column does not count. |
+| Maximized windows get their own workspace | A window that you maximize. A window in a monocle stack, which the tiling layout maximizes, does not count. |
+| Borderless windows get their own workspace | A window with no title bar whose frame covers its whole screen, such as a borderless game. |
+
+When a window enters one of these states:
+
+1. PlasmaZones moves the window to a new workspace directly after the workspace that it was on.
+2. The monitor shows the new workspace. There is no switch animation and no OSD.
+3. The window keeps its state there. A maximized window stays maximized.
+
+When the window leaves the state, it goes back to its place on the workspace that it came from. In snapping it goes
+back to its zone, in tiling to its position in the layout, and in scrolling to its column. The monitor then shows that
+workspace again, and the empty workspace is removed. When the window closes on its own workspace, the monitor shows
+the workspace that it came from, and the window that you used last there gets the focus.
+
+A new window that opens while the monitor shows an own workspace opens on the workspace that the owner came from. The
+monitor follows it. When that window closes, the monitor goes back to the own workspace, and its window gets the focus.
+Dialogs, notifications and windows that do not show in the task bar stay where they open.
+
+PlasmaZones keeps the own workspaces when its service restarts. A window that leaves its state after a restart still
+goes back to its place.
+
 ## Limits
 
 KWin has a maximum number of virtual desktops (25 in KWin 6.8). The maximum applies to the lists of all monitors
@@ -120,6 +149,8 @@ together. At the maximum:
 - An OSD shows "Workspace limit reached" one time for each occurrence.
 - Settings → Workspaces → Behavior shows a warning while the limit applies.
 - A named workspace that cannot be created waits until there is space.
+
+- A window that goes fullscreen, or that you maximize, stays on its workspace. It does not get one of its own.
 
 When any workspace becomes empty, there is space again. If KWin refuses to create a desktop below 25, PlasmaZones
 learns the lower limit at runtime. It forgets that limit after a create succeeds.
