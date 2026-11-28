@@ -150,11 +150,11 @@ let
       };
     }
     {
-      name = "phosphor-engine-libs-d20641bf6670da977eea9db47a103e70932d8b21.tar.gz";
+      name = "phosphor-engine-libs-5b03c3349066968bab9c0777c2ff7f13c64e3b51.tar.gz";
       path = fetchurl {
-        url = "https://github.com/phosphor-works/phosphor-engine-libs/archive/d20641bf6670da977eea9db47a103e70932d8b21.tar.gz";
-        # sha256 5d348a5f7fb65387b1266c0ea9af32a8e4471defd78e70ad41065b5b2ab35333
-        hash = "sha256-XTSKX3+2U4exJmwOqa8yqORHHe/XjnCtQQZbWyqzUzM=";
+        url = "https://github.com/phosphor-works/phosphor-engine-libs/archive/5b03c3349066968bab9c0777c2ff7f13c64e3b51.tar.gz";
+        # sha256 65b0f45a5e0138aaea9f2a829a0c10009dbff25d47960657e1cc782ed7707bb3
+        hash = "sha256-ZbD0Wl4BOKrqnyqCmgwQAJ2/8l1HlgZX4cx4Ltdwe7M=";
       };
     }
   ];

@@ -185,7 +185,8 @@ void TilingHandler::slotWindowsTileRequested(const PhosphorProtocol::TileRequest
         bool isMonocle = false;
         bool isWindowedFullscreen =
             false; ///< scrolling windowed fullscreen: hold KWin fullscreen state at the column rect
-        bool isMaximizedToEdges = false; ///< scrolling: this window's column is maximized (mirror KWin's maximize bit)
+        bool isMaximizedToEdges =
+            false; ///< scrolling or tiling: the engine maximized this window to the edges (mirror KWin's maximize bit)
         QString screenId; ///< daemon's TARGET screen for this window (req.screenId)
         QString stacking; ///< overlap z-order policy ("firstOnTop"/"lastOnTop"), empty for non-overlap layouts
         /// scrolling strip: screen edge to animate from. Four-valued since
@@ -1597,10 +1598,13 @@ void TilingHandler::slotWindowsTileRequested(const PhosphorProtocol::TileRequest
                 }
             }
 
-            // Column maximize: mirror the engine's state onto KWin's maximize
-            // bit, so the titlebar button agrees with the strip whether the
-            // maximize came through the interception or the Meta+Alt+M
-            // shortcut. A width verb (Meta+Alt+F) never sets the wire flag.
+            // Maximize to edges: mirror the engine's state onto KWin's maximize
+            // bit, so the titlebar button agrees with the engine. On a
+            // scrolling screen the state is the column's, reached through the
+            // interception or the Meta+Alt+M shortcut, and a width verb
+            // (Meta+Alt+F) never sets the wire flag. On a tiling screen it is
+            // the tile engine's per-window override, reached through the
+            // interception.
             //
             // Runs BEFORE the geometry apply below for the monocle arm's
             // reason: the bit has to be set first so the column rect is what
@@ -1610,15 +1614,17 @@ void TilingHandler::slotWindowsTileRequested(const PhosphorProtocol::TileRequest
             //
             // The 3-way decision is pure and unit-tested (scrolldecisions.h);
             // this block only performs the chosen arm's side effects.
-            // Screen-gated like every sibling arm in this lambda (the
-            // size-continuity block, the commanded-rect writes, the centring
-            // shed). The wire flag can only be true for a scroll entry today,
-            // so this is defensive rather than a live gap — but the per-window
-            // applies are STAGGERED and outlive this function, and
-            // setScrollingScreens voids pending applies (a per-screen stagger
-            // bump) only for the screens its re-announce flips, so an apply from
-            // a batch built while the screen was scrolling can still land after a
-            // flip that voided nothing here, taking membership back with nothing to hand it to.
+            // Gated on a screen whose engine has a maximize arm (scrolling or
+            // tiling). The per-window applies are STAGGERED and outlive this
+            // function, so an apply from a batch built while the screen was
+            // engine-managed can land after the screen left the union. Taking
+            // membership there would leave a claim with nothing to hand it to.
+            //
+            // Not on a monocle entry. The monocle arm below takes a member's
+            // claim over into its own ledger with KWin's bit left set (F745),
+            // and a Release here first would drop the bit and let the monocle
+            // arm raise it again. The tile engine never sends the two flags
+            // together, so a monocle entry is never this arm's Apply.
             // Set ONLY where this iteration actually wrote KWin's maximize
             // bit, because the geometry apply further down needs to know
             // whether THIS batch is the one that changed the maximize state.
@@ -1639,7 +1645,10 @@ void TilingHandler::slotWindowsTileRequested(const PhosphorProtocol::TileRequest
             // maximize bit at all.
             bool maximizeBitReleasedThisBatch = false;
             QRectF claimedDeparture; // takeClaimedPress
-            if (KWin::Window* kwMax = isScrollingScreen(snap.screenId) ? snap.window->window() : nullptr) {
+            if (KWin::Window* kwMax =
+                    ScrollDecisions::runsMaximizeToEdgesArm(isMaximizeArmScreen(snap.screenId), snap.isMonocle)
+                    ? snap.window->window()
+                    : nullptr) {
                 // requestedMaximizeMode, not the committed maximizeMode: the
                 // committed bit trails a client round-trip on Wayland, the
                 // same lag the windowed-fullscreen arm above reads
@@ -1920,8 +1929,11 @@ void TilingHandler::slotWindowsTileRequested(const PhosphorProtocol::TileRequest
                 // gesture retains included), not by the bare clear below, which would leave membership over a bit the
                 // window no longer holds that no later autotile batch can release (F745). Its commanded rect is dead
                 // state off a strip and goes too. After the release a member is at Restore: the bare clear is inert.
+                // An entry that carries the flag is the tile engine's own maximize, which the arm above has just
+                // applied, so it keeps its claim.
                 bool columnClaimReleased = false;
-                if (!isScrollingScreen(snap.screenId) && m_maximizedToEdgesWindows.contains(snap.windowId)) {
+                if (!isScrollingScreen(snap.screenId) && !snap.isMaximizedToEdges
+                    && m_maximizedToEdgesWindows.contains(snap.windowId)) {
                     columnClaimReleased = releaseMaximizedToEdges(snap.windowId, snap.window);
                     m_effect->m_scrollCommandedRects.remove(snap.windowId);
                 }

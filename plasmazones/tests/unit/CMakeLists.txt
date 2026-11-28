@@ -1301,6 +1301,14 @@ target_link_libraries(test_autotile_focus_retile PRIVATE Qt6::Test Qt6::Core pla
                                                          PhosphorTileEngine::PhosphorTileEngine)
 add_test(NAME test_autotile_focus_retile COMMAND test_autotile_focus_retile)
 
+add_executable(test_autotile_maximize
+               autotile/behavior/test_autotile_maximize.cpp)
+target_link_libraries(test_autotile_maximize PRIVATE pz_test_fake_screens)
+target_compile_definitions(test_autotile_maximize PRIVATE "P_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}/plasmazones\"")
+target_link_libraries(test_autotile_maximize PRIVATE Qt6::Test Qt6::Core plasmazones_core
+                                                     PhosphorTileEngine::PhosphorTileEngine)
+add_test(NAME test_autotile_maximize COMMAND test_autotile_maximize)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # autotile/ - Engine Settings Tests (replaces deleted test_settings_bridge)
 # ═══════════════════════════════════════════════════════════════════════════════

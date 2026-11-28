@@ -209,7 +209,7 @@ daemon died or was replaced.
 | f1157-x11-column-answer / -scaled | 1, XS | an X11 window that keeps resizing itself wider than its column is put back once, then learned, and its column widens to it; the -scaled row runs at output scale 1.25 and fails, saying so, when the frame never reads settled through rounding alone (F337) |
 | f1170-shell-unmaps-after-drag | 1, F | the daemon's overlay shell, mapped while a snapping drag holds the trigger, is unmapped again 3 s after the drop |
 | f1170-cheatsheet-focus-fsp | 1 | with focus-stealing prevention at Extreme, the cheatsheet's shell becomes the active window when its show maps the shell, and nothing stays mapped after it closes |
-| f1182-user-maximize-borderless | 1 | with KWin's borderless maximized windows on, a tile the user maximizes stays maximized and reports no minimum, its restore lands back at the tile, and a monocle maximize still reports the minimum without the title bar |
+| f1182-user-maximize-borderless | 1 | with KWin's borderless maximized windows on, a tile the user maximizes stays maximized at the maximize area through the re-tile its decoration change causes, its restore lands back at the tile, and a monocle maximize still reports the minimum without the title bar |
 | f1266-strip-fullscreen-keeps-column | 1 | a strip tile that goes fullscreen keeps its column, so the other columns keep their frames while it covers the output and after it leaves fullscreen (#1266) |
 | f1301-resume-strip-returns | 2 | a scrolling strip whose monitor is dropped and returns, the shape of a sleep that drops the connection, comes back whole: no window floats, the order holds, and each window is back at its frame, the focused one in view (#1301) |
 | f1313-desktop-move-follows | 1 | a move shortcut that takes a snapped window past the last zone to the next desktop also takes the view there, and the window keeps the focus (#1313) |
@@ -217,6 +217,8 @@ daemon died or was replaced.
 | fsplash-sibling-size-scroll / -tile / -snap | 1, S | a splash under the minimum window size that closes before its app's main window opens does not hand the main window its frame: on scrolling and tiling it is a column or a tile, on snapping it opens at its own size |
 | fresize-centred-edge | 1, FS | under Center focused column Always, two Meta+right drags of a lone column's left edge each land that edge at the release and grow the column by twice the drag; with Center short columns on, a drag of its bottom edge up and one of its top edge down each land that edge at the release and shrink the column by twice the drag |
 | fresize-then-width-verbs | 1, FS | after a Meta+right drag widens one of two columns and pushes the other part way past the edge, equalize puts the widened one back at the even split and brings the other back inside the output; the scrolling reset doing the same is the control |
+| fmaximize-tile | 1 | a user maximize of a tile on a tiling screen is the tile engine's maximize to edges: the tile fills the maximize area, the other tiles stay, the maximize survives a retile, and the restore puts it back at a tile (workspace#28) |
+| fmaximize-snap | 1 | regression row: a user maximize of a snapped window is KWin's maximize, the window keeps its zone while maximized, and the restore puts it back at the zone rect (workspace#28) |
 | fscale-fixed-device-pixels | 1, S | at scale 1.25, a layout whose fixed zones count device pixels snaps a window to the zone divided by the scale; the same zones counted in logical pixels are the control |
 
 ## Follow-up probes

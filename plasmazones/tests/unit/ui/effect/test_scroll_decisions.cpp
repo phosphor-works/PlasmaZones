@@ -891,6 +891,49 @@ private Q_SLOTS:
         QVERIFY(nonEmptyIdSet(QStringList{QString()}).isEmpty());
     }
 
+    // Each mode answers a maximize request on its own (workspace#28). Every
+    // combination of the three inputs, so a change to one arm cannot pass
+    // unseen through another.
+    void maximizeArmFor_table_data()
+    {
+        QTest::addColumn<bool>("engineScreen");
+        QTest::addColumn<bool>("scrollingScreen");
+        QTest::addColumn<bool>("monocleMember");
+        QTest::addColumn<int>("expected");
+        const int decline = static_cast<int>(MaximizeArm::Decline);
+        const int scrolling = static_cast<int>(MaximizeArm::Scrolling);
+        const int tiling = static_cast<int>(MaximizeArm::Tiling);
+        // A snapping screen keeps KWin's maximize, whatever the other inputs say.
+        QTest::newRow("snapping") << false << false << false << decline;
+        QTest::newRow("snapping, stale scrolling mark") << false << true << false << decline;
+        QTest::newRow("snapping, stale monocle claim") << false << false << true << decline;
+        QTest::newRow("snapping, both stale") << false << true << true << decline;
+        QTest::newRow("scrolling") << true << true << false << scrolling;
+        // No monocle on a strip, so a stale claim does not move the request.
+        QTest::newRow("scrolling, stale monocle claim") << true << true << true << scrolling;
+        QTest::newRow("tiling") << true << false << false << tiling;
+        // The monocle stack owns the bit, and its own ledger handles the press.
+        QTest::newRow("tiling, monocle member") << true << false << true << decline;
+    }
+    void maximizeArmFor_table()
+    {
+        QFETCH(bool, engineScreen);
+        QFETCH(bool, scrollingScreen);
+        QFETCH(bool, monocleMember);
+        QFETCH(int, expected);
+        QCOMPARE(static_cast<int>(maximizeArmFor(engineScreen, scrollingScreen, monocleMember)), expected);
+    }
+
+    // The batch's maximize arm runs on both engine-managed modes, and never
+    // for a monocle entry, whose claim the monocle arm takes over (F745).
+    void runsMaximizeToEdgesArm_table()
+    {
+        QVERIFY(runsMaximizeToEdgesArm(/*engineScreen=*/true, /*monocleEntry=*/false));
+        QVERIFY(!runsMaximizeToEdgesArm(/*engineScreen=*/true, /*monocleEntry=*/true));
+        QVERIFY(!runsMaximizeToEdgesArm(/*engineScreen=*/false, /*monocleEntry=*/false));
+        QVERIFY(!runsMaximizeToEdgesArm(/*engineScreen=*/false, /*monocleEntry=*/true));
+    }
+
     // A maximize Apply arm takes the claim only for a window KWin will
     // maximize, or one already held at MaximizeFull (F680). The arms used to
     // take it unconditionally.
