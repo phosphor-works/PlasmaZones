@@ -3,7 +3,7 @@
 #
 # plasmazones-settings-schema-dump — offline JSON dump of the settings
 # schema.  Consumed by the documentation site to generate its settings
-# reference; see main.cpp for why this exists alongside `phosphorctl schema`.
+# reference; see main.cpp for why it works offline.
 
 find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Core)
 

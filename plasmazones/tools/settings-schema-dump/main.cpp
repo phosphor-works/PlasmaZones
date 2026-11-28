@@ -9,9 +9,8 @@
 // generates the shader gallery from plasmazones-shader-render.  Both exist
 // so the site tracks the app instead of drifting from it.
 //
-// Offline is the point.  `phosphorctl schema <target>` answers the same
-// question but needs a running daemon on a live socket, which a docs build
-// has no way to provide.  buildSettingsSchema() is pure — it reads no
+// Offline is the point.  A schema query over a live IPC socket needs a
+// running process, which a docs build has no way to provide.  buildSettingsSchema() is pure — it reads no
 // config file, opens no D-Bus connection, and touches no display — so this
 // links plasmazones_core, calls it, and walks the result.
 //
